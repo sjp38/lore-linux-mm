@@ -1,95 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EB266B0033
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 08:48:03 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id v9so3269654oif.15
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 05:48:03 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h15si1632828otd.302.2017.10.26.05.48.00
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 03A446B0253
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 08:55:18 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id b79so2357714pfk.9
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 05:55:17 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k87si3641425pfj.56.2017.10.26.05.55.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Oct 2017 05:48:01 -0700 (PDT)
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-References: <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
- <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org>
- <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
- <20171025164402.GA11582@cmpxchg.org>
- <20171025172924.i7du5wnkeihx2fgl@dhcp22.suse.cz>
- <20171025181106.GA14967@cmpxchg.org>
- <20171025190057.mqmnprhce7kvsfz7@dhcp22.suse.cz>
- <20171025211359.GA17899@cmpxchg.org>
- <xr931slqdery.fsf@gthelen.svl.corp.google.com>
- <20171026074958.tmtxkyymmsqtgr7w@dhcp22.suse.cz>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <37dfc087-200f-cc8c-b317-bd9c228636d5@I-love.SAKURA.ne.jp>
-Date: Thu, 26 Oct 2017 21:45:56 +0900
+        Thu, 26 Oct 2017 05:55:17 -0700 (PDT)
+Date: Thu, 26 Oct 2017 14:55:13 +0200
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCH v9 02/29] x86/boot: Relocate definition of the initial
+ state of CR0
+Message-ID: <20171026125513.GB12068@nazgul.tnic>
+References: <1507089272-32733-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
+ <1507089272-32733-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
+ <CALCETrUced9TVsMQ=cjFfDuDfLQsZWu0GOoRCmHn4PsSwrfOdw@mail.gmail.com>
+ <20171026090045.GA6438@nazgul.tnic>
+ <CALCETrXw2r-HD+9SwT0ndRVX2YR-_g6BKEfDd6i0ci5q_Z4S4Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171026074958.tmtxkyymmsqtgr7w@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CALCETrXw2r-HD+9SwT0ndRVX2YR-_g6BKEfDd6i0ci5q_Z4S4Q@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, "Neri, Ricardo" <ricardo.neri@intel.com>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch <linux-arch@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On 2017/10/26 16:49, Michal Hocko wrote:
-> On Wed 25-10-17 15:49:21, Greg Thelen wrote:
->> Johannes Weiner <hannes@cmpxchg.org> wrote:
->>
->>> On Wed, Oct 25, 2017 at 09:00:57PM +0200, Michal Hocko wrote:
-> [...]
->>>> So just to make it clear you would be OK with the retry on successful
->>>> OOM killer invocation and force charge on oom failure, right?
->>>
->>> Yeah, that sounds reasonable to me.
->>
->> Assuming we're talking about retrying within try_charge(), then there's
->> a detail to iron out...
->>
->> If there is a pending oom victim blocked on a lock held by try_charge() caller
->> (the "#2 Locks" case), then I think repeated calls to out_of_memory() will
->> return true until the victim either gets MMF_OOM_SKIP or disappears.
-> 
-> true. And oom_reaper guarantees that MMF_OOM_SKIP gets set in the finit
-> amount of time.
+On Thu, Oct 26, 2017 at 02:02:02AM -0700, Andy Lutomirski wrote:
+> I'm assuming that UMIP_REPORTED_CR0 will never change.  If CR0 gets a
+> new field that we set some day, then I assume that CR0_STATE would add
+> that bit but UMIP_REPORTED_CR0 would not.
 
-Just a confirmation. You are talking about kmemcg, aren't you? And kmemcg
-depends on CONFIG_MMU=y, doesn't it? If no, there is no such guarantee.
+Yeah, let's do that when it is actually needed.
 
-> 
->> So a force
->> charge fallback might be a needed even with oom killer successful invocations.
->> Or we'll need to teach out_of_memory() to return three values (e.g. NO_VICTIM,
->> NEW_VICTIM, PENDING_VICTIM) and try_charge() can loop on NEW_VICTIM.
-> 
-> No we, really want to wait for the oom victim to do its job. The only
-> thing we should be worried about is when out_of_memory doesn't invoke
-> the reaper. There is only one case like that AFAIK - GFP_NOFS request. I
-> have to think about this case some more. We currently fail in that case
-> the request.
-> 
+Thx.
 
-Do we really need to apply
+-- 
+Regards/Gruss,
+    Boris.
 
-	/*
-	 * The OOM killer does not compensate for IO-less reclaim.
-	 * pagefault_out_of_memory lost its gfp context so we have to
-	 * make sure exclude 0 mask - all other users should have at least
-	 * ___GFP_DIRECT_RECLAIM to get here.
-	 */
-	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
-		return true;
-
-unconditionally?
-
-We can encourage !__GFP_FS allocations to use __GFP_NORETRY or
-__GFP_RETRY_MAYFAIL if their allocations are not important.
-Then, only important !__GFP_FS allocations will be checked here.
-I think that we can allow such important allocations to invoke the OOM
-killer (i.e. remove this check) because situation is already hopeless
-if important !__GFP_FS allocations cannot make progress.
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
