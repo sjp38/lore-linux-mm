@@ -1,207 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C7816B0260
-	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:05:00 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id n8so1837344wmg.4
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 06:05:00 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b13si2483281edk.214.2017.10.26.06.04.58
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BD026B025F
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:35 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id l85so2372294qkh.19
+        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 06:10:35 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id z8si4437847qkz.250.2017.10.26.06.10.34
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 26 Oct 2017 06:04:58 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
-References: <20171013115835.zaehapuucuzl2vlv@dhcp22.suse.cz>
- <20171013120013.698-1-mhocko@kernel.org>
- <20171019025111.GA3852@js1304-P5Q-DELUXE>
- <20171019071503.e7w5fo35lsq6ca54@dhcp22.suse.cz>
- <20171019073355.GA4486@js1304-P5Q-DELUXE>
- <20171019082041.5zudpqacaxjhe4gw@dhcp22.suse.cz>
- <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <76e4290b-47b9-6c6f-bce6-befc30713083@suse.cz>
-Date: Thu, 26 Oct 2017 15:04:55 +0200
-MIME-Version: 1.0
-In-Reply-To: <20171019122118.y6cndierwl2vnguj@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 26 Oct 2017 06:10:34 -0700 (PDT)
+Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9QD9tY5078251
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:33 -0400
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dudc69rs2-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 26 Oct 2017 09:10:31 -0400
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 26 Oct 2017 14:08:15 +0100
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH] pids: introduce find_get_task_by_vpid helper
+Date: Thu, 26 Oct 2017 16:07:58 +0300
+Message-Id: <1509023278-20604-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, Oleg Nesterov <oleg@redhat.com>, Balbir Singh <bsingharora@gmail.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 10/19/2017 02:21 PM, Michal Hocko wrote:
-> On Thu 19-10-17 10:20:41, Michal Hocko wrote:
->> On Thu 19-10-17 16:33:56, Joonsoo Kim wrote:
->>> On Thu, Oct 19, 2017 at 09:15:03AM +0200, Michal Hocko wrote:
->>>> On Thu 19-10-17 11:51:11, Joonsoo Kim wrote:
->> [...]
->>>>> Hello,
->>>>>
->>>>> This patch will break the CMA user. As you mentioned, CMA allocation
->>>>> itself isn't migrateable. So, after a single page is allocated through
->>>>> CMA allocation, has_unmovable_pages() will return true for this
->>>>> pageblock. Then, futher CMA allocation request to this pageblock will
->>>>> fail because it requires isolating the pageblock.
->>>>
->>>> Hmm, does this mean that the CMA allocation path depends on
->>>> has_unmovable_pages to return false here even though the memory is not
->>>> movable? This sounds really strange to me and kind of abuse of this
->>>
->>> Your understanding is correct. Perhaps, abuse or wrong function name.
->>>
->>>> function. Which path is that? Can we do the migrate type test theres?
->>>
->>> alloc_contig_range() -> start_isolate_page_range() ->
->>> set_migratetype_isolate() -> has_unmovable_pages()
->>
->> I see. It seems that the CMA and memory hotplug have a very different
->> view on what should happen during isolation.
->>  
->>> We can add one argument, 'XXX' to set_migratetype_isolate() and change
->>> it to check migrate type rather than has_unmovable_pages() if 'XXX' is
->>> specified.
->>
->> Can we use the migratetype argument and do the special thing for
->> MIGRATE_CMA? Like the following diff?
-> 
-> And with the full changelog.
-> ---
-> From 8cbd811d741f5dd93d1b21bb3ef94482a4d0bd32 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Thu, 19 Oct 2017 14:14:02 +0200
-> Subject: [PATCH] mm: distinguish CMA and MOVABLE isolation in
->  has_unmovable_pages
-> 
-> Joonsoo has noticed that "mm: drop migrate type checks from
-> has_unmovable_pages" would break CMA allocator because it relies on
-> has_unmovable_pages returning false even for CMA pageblocks which in
-> fact don't have to be movable:
-> alloc_contig_range
->   start_isolate_page_range
->     set_migratetype_isolate
->       has_unmovable_pages
-> 
-> This is a result of the code sharing between CMA and memory hotplug
-> while each one has a different idea of what has_unmovable_pages should
-> return. This is unfortunate but fixing it properly would require a lot
-> of code duplication.
-> 
-> Fix the issue by introducing the requested migrate type argument
-> and special case MIGRATE_CMA case where CMA page blocks are handled
-> properly. This will work for memory hotplug because it requires
-> MIGRATE_MOVABLE.
-> 
-> Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+There are several functions that do find_task_by_vpid() followed by
+get_task_struct(). We can use a helper function instead.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+---
+ include/linux/sched.h  |  5 +++++
+ kernel/futex.c         |  7 +------
+ kernel/pid.c           | 13 +++++++++++++
+ kernel/ptrace.c        |  6 +-----
+ kernel/taskstats.c     |  6 +-----
+ mm/process_vm_access.c |  6 +-----
+ 6 files changed, 22 insertions(+), 21 deletions(-)
 
-> ---
->  include/linux/page-isolation.h |  2 +-
->  mm/page_alloc.c                | 12 +++++++++++-
->  mm/page_isolation.c            | 10 +++++-----
->  3 files changed, 17 insertions(+), 7 deletions(-)
-> 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index d4cd2014fa6f..fa9db0c7b54e 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -30,7 +30,7 @@ static inline bool is_migrate_isolate(int migratetype)
->  #endif
->  
->  bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-> -			 bool skip_hwpoisoned_pages);
-> +			 int migratetype, bool skip_hwpoisoned_pages);
->  void set_pageblock_migratetype(struct page *page, int migratetype);
->  int move_freepages_block(struct zone *zone, struct page *page,
->  				int migratetype, int *num_movable);
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 5b4d85ae445c..259aeb22462f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7344,6 +7344,7 @@ void *__init alloc_large_system_hash(const char *tablename,
->   * race condition. So you can't expect this function should be exact.
->   */
->  bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
-> +			 int migratetype,
->  			 bool skip_hwpoisoned_pages)
->  {
->  	unsigned long pfn, iter, found;
-> @@ -7356,6 +7357,15 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
->  	if (zone_idx(zone) == ZONE_MOVABLE)
->  		return false;
->  
-> +	/*
-> +	 * CMA allocations (alloc_contig_range) really need to mark isolate
-> +	 * CMA pageblocks even when they are not movable in fact so consider
-> +	 * them movable here.
-> +	 */
-> +	if (is_migrate_cma(migratetype) &&
-> +			is_migrate_cma(get_pageblock_migratetype(page)))
-> +		return false;
-> +
->  	pfn = page_to_pfn(page);
->  	for (found = 0, iter = 0; iter < pageblock_nr_pages; iter++) {
->  		unsigned long check = pfn + iter;
-> @@ -7441,7 +7451,7 @@ bool is_pageblock_removable_nolock(struct page *page)
->  	if (!zone_spans_pfn(zone, pfn))
->  		return false;
->  
-> -	return !has_unmovable_pages(zone, page, 0, true);
-> +	return !has_unmovable_pages(zone, page, 0, MIGRATE_MOVABLE, true);
->  }
->  
->  #if (defined(CONFIG_MEMORY_ISOLATION) && defined(CONFIG_COMPACTION)) || defined(CONFIG_CMA)
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 757410d9f758..8616f5332c77 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -14,7 +14,7 @@
->  #define CREATE_TRACE_POINTS
->  #include <trace/events/page_isolation.h>
->  
-> -static int set_migratetype_isolate(struct page *page,
-> +static int set_migratetype_isolate(struct page *page, int migratetype,
->  				bool skip_hwpoisoned_pages)
->  {
->  	struct zone *zone;
-> @@ -51,7 +51,7 @@ static int set_migratetype_isolate(struct page *page,
->  	 * FIXME: Now, memory hotplug doesn't call shrink_slab() by itself.
->  	 * We just check MOVABLE pages.
->  	 */
-> -	if (!has_unmovable_pages(zone, page, arg.pages_found,
-> +	if (!has_unmovable_pages(zone, page, arg.pages_found, migratetype,
->  				 skip_hwpoisoned_pages))
->  		ret = 0;
->  
-> @@ -63,14 +63,14 @@ static int set_migratetype_isolate(struct page *page,
->  out:
->  	if (!ret) {
->  		unsigned long nr_pages;
-> -		int migratetype = get_pageblock_migratetype(page);
-> +		int mt = get_pageblock_migratetype(page);
->  
->  		set_pageblock_migratetype(page, MIGRATE_ISOLATE);
->  		zone->nr_isolate_pageblock++;
->  		nr_pages = move_freepages_block(zone, page, MIGRATE_ISOLATE,
->  									NULL);
->  
-> -		__mod_zone_freepage_state(zone, -nr_pages, migratetype);
-> +		__mod_zone_freepage_state(zone, -nr_pages, mt);
->  	}
->  
->  	spin_unlock_irqrestore(&zone->lock, flags);
-> @@ -182,7 +182,7 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->  	     pfn += pageblock_nr_pages) {
->  		page = __first_valid_page(pfn, pageblock_nr_pages);
->  		if (page &&
-> -		    set_migratetype_isolate(page, skip_hwpoisoned_pages)) {
-> +		    set_migratetype_isolate(page, migratetype, skip_hwpoisoned_pages)) {
->  			undo_pfn = pfn;
->  			goto undo;
->  		}
-> 
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index 26a7df4e558c..4c3af5255fcf 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1484,6 +1484,11 @@ static inline struct thread_info *task_thread_info(struct task_struct *task)
+ extern struct task_struct *find_task_by_vpid(pid_t nr);
+ extern struct task_struct *find_task_by_pid_ns(pid_t nr, struct pid_namespace *ns);
+ 
++/*
++ * find a task by its virtual pid and get the task struct
++ */
++extern struct task_struct *find_get_task_by_vpid(pid_t nr);
++
+ extern int wake_up_state(struct task_struct *tsk, unsigned int state);
+ extern int wake_up_process(struct task_struct *tsk);
+ extern void wake_up_new_task(struct task_struct *tsk);
+diff --git a/kernel/futex.c b/kernel/futex.c
+index 0518a0bfc746..6446aa9f2288 100644
+--- a/kernel/futex.c
++++ b/kernel/futex.c
+@@ -870,12 +870,7 @@ static struct task_struct *futex_find_get_task(pid_t pid)
+ {
+ 	struct task_struct *p;
+ 
+-	rcu_read_lock();
+-	p = find_task_by_vpid(pid);
+-	if (p)
+-		get_task_struct(p);
+-
+-	rcu_read_unlock();
++	p = find_get_task_by_vpid(pid);
+ 
+ 	return p;
+ }
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 020dedbdf066..ead086b0ef8e 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -462,6 +462,19 @@ struct task_struct *find_task_by_vpid(pid_t vnr)
+ 	return find_task_by_pid_ns(vnr, task_active_pid_ns(current));
+ }
+ 
++struct task_struct *find_get_task_by_vpid(pid_t nr)
++{
++	struct task_struct *task;
++
++	rcu_read_lock();
++	task = find_task_by_vpid(nr);
++	if (task)
++		get_task_struct(task);
++	rcu_read_unlock();
++
++	return task;
++}
++
+ struct pid *get_task_pid(struct task_struct *task, enum pid_type type)
+ {
+ 	struct pid *pid;
+diff --git a/kernel/ptrace.c b/kernel/ptrace.c
+index 84b1367935e4..91efc97674ce 100644
+--- a/kernel/ptrace.c
++++ b/kernel/ptrace.c
+@@ -1103,11 +1103,7 @@ static struct task_struct *ptrace_get_task_struct(pid_t pid)
+ {
+ 	struct task_struct *child;
+ 
+-	rcu_read_lock();
+-	child = find_task_by_vpid(pid);
+-	if (child)
+-		get_task_struct(child);
+-	rcu_read_unlock();
++	child = find_get_task_by_vpid(pid);
+ 
+ 	if (!child)
+ 		return ERR_PTR(-ESRCH);
+diff --git a/kernel/taskstats.c b/kernel/taskstats.c
+index 4559e914452b..4e62a4a8fa91 100644
+--- a/kernel/taskstats.c
++++ b/kernel/taskstats.c
+@@ -194,11 +194,7 @@ static int fill_stats_for_pid(pid_t pid, struct taskstats *stats)
+ {
+ 	struct task_struct *tsk;
+ 
+-	rcu_read_lock();
+-	tsk = find_task_by_vpid(pid);
+-	if (tsk)
+-		get_task_struct(tsk);
+-	rcu_read_unlock();
++	tsk = find_get_task_by_vpid(pid);
+ 	if (!tsk)
+ 		return -ESRCH;
+ 	fill_stats(current_user_ns(), task_active_pid_ns(current), tsk, stats);
+diff --git a/mm/process_vm_access.c b/mm/process_vm_access.c
+index 8973cd231ece..16424b9ae424 100644
+--- a/mm/process_vm_access.c
++++ b/mm/process_vm_access.c
+@@ -197,11 +197,7 @@ static ssize_t process_vm_rw_core(pid_t pid, struct iov_iter *iter,
+ 	}
+ 
+ 	/* Get process information */
+-	rcu_read_lock();
+-	task = find_task_by_vpid(pid);
+-	if (task)
+-		get_task_struct(task);
+-	rcu_read_unlock();
++	task = find_get_task_by_vpid(pid);
+ 	if (!task) {
+ 		rc = -ESRCH;
+ 		goto free_proc_pages;
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
