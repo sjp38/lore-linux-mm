@@ -1,120 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E888E6B0033
-	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 02:48:59 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id v2so4204063pfa.10
-        for <linux-mm@kvack.org>; Thu, 26 Oct 2017 23:48:59 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 136si4462931pgf.563.2017.10.26.23.48.57
-        for <linux-mm@kvack.org>;
-        Thu, 26 Oct 2017 23:48:58 -0700 (PDT)
-Date: Fri, 27 Oct 2017 17:48:54 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less'
- support
-Message-ID: <20171027064854.GE3666@dastard>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171020074750.GA13568@lst.de>
- <20171020093148.GA20304@lst.de>
- <20171026105850.GA31161@quack2.suse.cz>
- <1509061831.25213.2.camel@intel.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EC2B56B0033
+	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 03:57:36 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id b192so5071444pga.14
+        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 00:57:36 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e1si4091101pln.331.2017.10.27.00.57.30
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 27 Oct 2017 00:57:31 -0700 (PDT)
+Date: Fri, 27 Oct 2017 09:57:27 +0200
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/swap: Use page flags to determine LRU list in
+ __activate_page()
+Message-ID: <20171027075727.pc7mj4giv3anewbi@dhcp22.suse.cz>
+References: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
+ <20171019153322.c4uqalws7l7fdzcx@dhcp22.suse.cz>
+ <d01827c0-8858-5688-dc16-1e2f597ec55c@linux.vnet.ibm.com>
+ <2fc28494-d0d2-9b65-aeb7-1ccabf210917@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1509061831.25213.2.camel@intel.com>
+In-Reply-To: <2fc28494-d0d2-9b65-aeb7-1ccabf210917@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Williams, Dan J" <dan.j.williams@intel.com>
-Cc: "hch@lst.de" <hch@lst.de>, "jack@suse.cz" <jack@suse.cz>, "schwidefsky@de.ibm.com" <schwidefsky@de.ibm.com>, "darrick.wong@oracle.com" <darrick.wong@oracle.com>, "dledford@redhat.com" <dledford@redhat.com>, "linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "bfields@fieldses.org" <bfields@fieldses.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "heiko.carstens@de.ibm.com" <heiko.carstens@de.ibm.com>, "dave.hansen@linux.intel.com" <dave.hansen@linux.intel.com>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jmoyer@redhat.com" <jmoyer@redhat.com>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "Hefty, Sean" <sean.hefty@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "jlayton@poochiereds.net" <jlayton@poochiereds.net>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "mhocko@suse.com" <mhocko@suse.com>, "ross.zwisler@linux.intel.com" <ross.zwisler@linux.intel.com>, "gerald.schaefer@de.ibm.com" <gerald.schaefer@de.ibm.com>, "jgunthorpe@obsidianresearch.com" <jgunthorpe@obsidianresearch.com>, "hal.rosenstock@gmail.com" <hal.rosenstock@gmail.com>, "benh@kernel.crashing.org" <benh@kernel.crashing.org>, "mpe@ellerman.id.au" <mpe@ellerman.id.au>, "paulus@samba.org" <paulus@samba.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, shli@kernel.org
 
-On Thu, Oct 26, 2017 at 11:51:04PM +0000, Williams, Dan J wrote:
-> On Thu, 2017-10-26 at 12:58 +0200, Jan Kara wrote:
-> > On Fri 20-10-17 11:31:48, Christoph Hellwig wrote:
-> > > On Fri, Oct 20, 2017 at 09:47:50AM +0200, Christoph Hellwig wrote:
-> > > > I'd like to brainstorm how we can do something better.
-> > > > 
-> > > > How about:
-> > > > 
-> > > > If we hit a page with an elevated refcount in truncate / hole puch
-> > > > etc for a DAX file system we do not free the blocks in the file system,
-> > > > but add it to the extent busy list.  We mark the page as delayed
-> > > > free (e.g. page flag?) so that when it finally hits refcount zero we
-> > > > call back into the file system to remove it from the busy list.
-> > > 
-> > > Brainstorming some more:
-> > > 
-> > > Given that on a DAX file there shouldn't be any long-term page
-> > > references after we unmap it from the page table and don't allow
-> > > get_user_pages calls why not wait for the references for all
-> > > DAX pages to go away first?  E.g. if we find a DAX page in
-> > > truncate_inode_pages_range that has an elevated refcount we set
-> > > a new flag to prevent new references from showing up, and then
-> > > simply wait for it to go away.  Instead of a busy way we can
-> > > do this through a few hashed waitqueued in dev_pagemap.  And in
-> > > fact put_zone_device_page already gets called when putting the
-> > > last page so we can handle the wakeup from there.
-> > > 
-> > > In fact if we can't find a page flag for the stop new callers
-> > > things we could probably come up with a way to do that through
-> > > dev_pagemap somehow, but I'm not sure how efficient that would
-> > > be.
+On Fri 27-10-17 09:36:37, Anshuman Khandual wrote:
+> On 10/23/2017 08:52 AM, Anshuman Khandual wrote:
+> > On 10/19/2017 09:03 PM, Michal Hocko wrote:
+> >> On Thu 19-10-17 20:26:57, Anshuman Khandual wrote:
+> >>> Its already assumed that the PageActive flag is clear on the input
+> >>> page, hence page_lru(page) will pick the base LRU for the page. In
+> >>> the same way page_lru(page) will pick active base LRU, once the
+> >>> flag PageActive is set on the page. This change of LRU list should
+> >>> happen implicitly through the page flags instead of being hard
+> >>> coded.
+> >>
+> >> The patch description tells what but it doesn't explain _why_? Does the
+> >> resulting code is better, more optimized or is this a pure readability
+> >> thing?
 > > 
-> > We were talking about this yesterday with Dan so some more brainstorming
-> > from us. We can implement the solution with extent busy list in ext4
-> > relatively easily - we already have such list currently similarly to XFS.
-> > There would be some modifications needed but nothing too complex. The
-> > biggest downside of this solution I see is that it requires per-filesystem
-> > solution for busy extents - ext4 and XFS are reasonably fine, however btrfs
-> > may have problems and ext2 definitely will need some modifications.
-> > Invisible used blocks may be surprising to users at times although given
-> > page refs should be relatively short term, that should not be a big issue.
-> > But are we guaranteed page refs are short term? E.g. if someone creates
-> > v4l2 videobuf in MAP_SHARED mapping of a file on DAX filesystem, page refs
-> > can be rather long-term similarly as in RDMA case. Also freeing of blocks
-> > on page reference drop is another async entry point into the filesystem
-> > which could unpleasantly surprise us but I guess workqueues would solve
-> > that reasonably fine.
+> > Not really. Not only it removes couple of lines of code but it also
+> > makes it look more logical from function flow point of view as well.
 > > 
-> > WRT waiting for page refs to be dropped before proceeding with truncate (or
-> > punch hole for that matter - that case is even nastier since we don't have
-> > i_size to guard us). What I like about this solution is that it is very
-> > visible there's something unusual going on with the file being truncated /
-> > punched and so problems are easier to diagnose / fix from the admin side.
-> > So far we have guarded hole punching from concurrent faults (and
-> > get_user_pages() does fault once you do unmap_mapping_range()) with
-> > I_MMAP_LOCK (or its equivalent in ext4). We cannot easily wait for page
-> > refs to be dropped under I_MMAP_LOCK as that could deadlock - the most
-> > obvious case Dan came up with is when GUP obtains ref to page A, then hole
-> > punch comes grabbing I_MMAP_LOCK and waiting for page ref on A to be
-> > dropped, and then GUP blocks on trying to fault in another page.
+> >>
+> >> All I can see is that page_lru is more complex and a large part of it
+> >> can be optimized away which has been done manually here. I suspect the
+> >> compiler can deduce the same thing.
 > > 
-> > I think we cannot easily prevent new page references to be grabbed as you
-> > write above since nobody expects stuff like get_page() to fail. But I 
-> > think that unmapping relevant pages and then preventing them to be faulted
-> > in again is workable and stops GUP as well. The problem with that is though
-> > what to do with page faults to such pages - you cannot just fail them for
-> > hole punch, and you cannot easily allocate new blocks either. So we are
-> > back at a situation where we need to detach blocks from the inode and then
-> > wait for page refs to be dropped - so some form of busy extents. Am I
-> > missing something?
-> > 
+> > Why not ? I mean, that is the essence of the function page_lru() which
+> > should get us the exact LRU list the page should be on and hence we
+> > should not hand craft these manually.
 > 
-> No, that's a good summary of what we talked about. However, I did go
-> back and give the new lock approach a try and was able to get my test
-> to pass. The new locking is not pretty especially since you need to
-> drop and reacquire the lock so that get_user_pages() can finish
-> grabbing all the pages it needs. Here are the two primary patches in
-> the series, do you think the extent-busy approach would be cleaner?
+> Hi Michal,
+> 
+> Did not hear from you on this. So wondering what is the verdict
+> about this patch ?
 
-The XFS_DAXDMA.... 
-
-$DEITY that patch is so ugly I can't even bring myself to type it.
-
--Dave.
+IMHO, there is no reason to change the code as it doesn't solve any real
+problem or it doesn't make the code more effective AFAICS.
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
