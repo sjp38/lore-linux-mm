@@ -1,107 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A3FF6B0253
-	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 16:19:32 -0400 (EDT)
-Received: by mail-qk0-f197.google.com with SMTP id l194so5720233qke.22
-        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 13:19:32 -0700 (PDT)
-Received: from rcdn-iport-6.cisco.com (rcdn-iport-6.cisco.com. [173.37.86.77])
-        by mx.google.com with ESMTPS id x40si7354826qtj.258.2017.10.27.13.19.31
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CF34B6B0253
+	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 16:27:30 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id e64so5641599pfk.0
+        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 13:27:30 -0700 (PDT)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id f79si5904189pfh.296.2017.10.27.13.27.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Oct 2017 13:19:31 -0700 (PDT)
-Subject: Re: Detecting page cache trashing state
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
- <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
- <150549651001.4512.15084374619358055097@takondra-t460s>
- <20170918163434.GA11236@cmpxchg.org>
- <acbf4417-4ded-fa03-7b8d-34dc0803027c@cisco.com>
- <20171025175424.GA14039@cmpxchg.org>
-From: "Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco)"
- <rruslich@cisco.com>
-Message-ID: <d7bc14d7-5ae4-f16d-da38-2bc36d9deae8@cisco.com>
-Date: Fri, 27 Oct 2017 23:19:02 +0300
-MIME-Version: 1.0
-In-Reply-To: <20171025175424.GA14039@cmpxchg.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+        Fri, 27 Oct 2017 13:27:29 -0700 (PDT)
+From: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+Subject: [PATCH v10 02/18] x86/boot: Relocate definition of the initial state of CR0
+Date: Fri, 27 Oct 2017 13:25:29 -0700
+Message-Id: <1509135945-13762-3-git-send-email-ricardo.neri-calderon@linux.intel.com>
+In-Reply-To: <1509135945-13762-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
+References: <1509135945-13762-1-git-send-email-ricardo.neri-calderon@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Taras Kondratiuk <takondra@cisco.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, xe-linux-external@cisco.com, linux-kernel@vger.kernel.org
+To: Ingo Molnar <mingo@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@suse.de>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Brian Gerst <brgerst@gmail.com>, Chris Metcalf <cmetcalf@mellanox.com>, Dave Hansen <dave.hansen@linux.intel.com>, Paolo Bonzini <pbonzini@redhat.com>, Masami Hiramatsu <mhiramat@kernel.org>, Huang Rui <ray.huang@amd.com>, Jiri Slaby <jslaby@suse.cz>, Jonathan Corbet <corbet@lwn.net>, "Michael S. Tsirkin" <mst@redhat.com>, Paul Gortmaker <paul.gortmaker@windriver.com>, Vlastimil Babka <vbabka@suse.cz>, Chen Yucong <slaoub@gmail.com>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Shuah Khan <shuah@kernel.org>, linux-kernel@vger.kernel.org, x86@kernel.org, ricardo.neri@intel.com, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org
 
-Hi Johannes,
+Both head_32.S and head_64.S utilize the same value to initialize the
+control register CR0. Also, other parts of the kernel might want to access
+this initial definition (e.g., emulation code for User-Mode Instruction
+Prevention uses this state to provide a sane dummy value for CR0 when
+emulating the smsw instruction). Thus, relocate this definition to a
+header file from which it can be conveniently accessed.
 
-On 10/25/2017 08:54 PM, Johannes Weiner wrote:
-> Hi Ruslan,
->
-> sorry about the delayed response, I missed the new activity in this
-> older thread.
->
-> On Thu, Sep 28, 2017 at 06:49:07PM +0300, Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco) wrote:
->> Hi Johannes,
->>
->> Hopefully I was able to rebase the patch on top v4.9.26 (latest supported
->> version by us right now)
->> and test a bit.
->> The overall idea definitely looks promising, although I have one question on
->> usage.
->> Will it be able to account the time which processes spend on handling major
->> page faults
->> (including fs and iowait time) of refaulting page?
-> That's the main thing it should measure! :)
->
-> The lock_page() and wait_on_page_locked() calls are where iowaits
-> happen on a cache miss. If those are refaults, they'll be counted.
->
->> As we have one big application which code space occupies big amount of place
->> in page cache,
->> when the system under heavy memory usage will reclaim some of it, the
->> application will
->> start constantly thrashing. Since it code is placed on squashfs it spends
->> whole CPU time
->> decompressing the pages and seem memdelay counters are not detecting this
->> situation.
->> Here are some counters to indicate this:
->>
->> 19:02:44        CPU     %user     %nice   %system   %iowait %steal     %idle
->> 19:02:45        all      0.00      0.00    100.00      0.00 0.00      0.00
->>
->> 19:02:44     pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s
->> pgscand/s pgsteal/s    %vmeff
->> 19:02:45     15284.00      0.00    428.00    352.00  19990.00 0.00      0.00
->> 15802.00      0.00
->>
->> And as nobody actively allocating memory anymore looks like memdelay
->> counters are not
->> actively incremented:
->>
->> [:~]$ cat /proc/memdelay
->> 268035776
->> 6.13 5.43 3.58
->> 1.90 1.89 1.26
-> How does it correlate with /proc/vmstat::workingset_activate during
-> that time? It only counts thrashing time of refaults it can actively
-> detect.
-The workingset counters are growing quite actively too. Here are
-some numbers per second:
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-arch@vger.kernel.org
+Cc: linux-mm@kvack.org
+Suggested-by: Borislav Petkov <bp@alien8.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+---
+ arch/x86/include/uapi/asm/processor-flags.h | 3 +++
+ arch/x86/kernel/head_32.S                   | 3 ---
+ arch/x86/kernel/head_64.S                   | 3 ---
+ 3 files changed, 3 insertions(+), 6 deletions(-)
 
-workingset_refault   8201
-workingset_activate   389
-workingset_restore   187
-workingset_nodereclaim   313
-
-> Btw, how many CPUs does this system have? There is a bug in this
-> version on how idle time is aggregated across multiple CPUs. The error
-> compounds with the number of CPUs in the system.
-The system has 2 CPU cores.
-> I'm attaching 3 bugfixes that go on top of what you have. There might
-> be some conflicts, but they should be minor variable naming issues.
->
-I will test with your patches and get back to you.
-
-Thanks,
-Ruslan
+diff --git a/arch/x86/include/uapi/asm/processor-flags.h b/arch/x86/include/uapi/asm/processor-flags.h
+index 185f3d1..39946d0 100644
+--- a/arch/x86/include/uapi/asm/processor-flags.h
++++ b/arch/x86/include/uapi/asm/processor-flags.h
+@@ -151,5 +151,8 @@
+ #define CX86_ARR_BASE	0xc4
+ #define CX86_RCR_BASE	0xdc
+ 
++#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
++			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
++			 X86_CR0_PG)
+ 
+ #endif /* _UAPI_ASM_X86_PROCESSOR_FLAGS_H */
+diff --git a/arch/x86/kernel/head_32.S b/arch/x86/kernel/head_32.S
+index 9ed3074..c3cfc65 100644
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -211,9 +211,6 @@ ENTRY(startup_32_smp)
+ #endif
+ 
+ .Ldefault_entry:
+-#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+-			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+-			 X86_CR0_PG)
+ 	movl $(CR0_STATE & ~X86_CR0_PG),%eax
+ 	movl %eax,%cr0
+ 
+diff --git a/arch/x86/kernel/head_64.S b/arch/x86/kernel/head_64.S
+index 99b1262..701f3d9 100644
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -153,9 +153,6 @@ ENTRY(secondary_startup_64)
+ 1:	wrmsr				/* Make changes effective */
+ 
+ 	/* Setup cr0 */
+-#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+-			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+-			 X86_CR0_PG)
+ 	movl	$CR0_STATE, %eax
+ 	/* Make changes effective */
+ 	movq	%rax, %cr0
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
