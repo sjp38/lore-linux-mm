@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 861026B0253
-	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 12:51:41 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id s75so6127236pgs.12
-        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 09:51:41 -0700 (PDT)
-Received: from out0-194.mail.aliyun.com (out0-194.mail.aliyun.com. [140.205.0.194])
-        by mx.google.com with ESMTPS id y1si5175960pgc.766.2017.10.27.09.51.38
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB936B025F
+	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 13:02:06 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id m82so2419272wmd.19
+        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 10:02:06 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id q6si2143040edk.452.2017.10.27.10.02.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 27 Oct 2017 09:51:39 -0700 (PDT)
-Subject: Re: [PATCH 1/2] mm: extract common code for calculating total memory
- size
-References: <1508971740-118317-1-git-send-email-yang.s@alibaba-inc.com>
- <1508971740-118317-2-git-send-email-yang.s@alibaba-inc.com>
- <alpine.DEB.2.20.1710270459580.8922@nuc-kabylake>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <180e8cff-b0e9-bed7-2283-3a96d97fdf62@alibaba-inc.com>
-Date: Sat, 28 Oct 2017 00:51:26 +0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 27 Oct 2017 10:02:05 -0700 (PDT)
+Date: Fri, 27 Oct 2017 13:01:56 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm: Simplify and batch working set shadow pages LRU
+ isolation locking
+Message-ID: <20171027170156.GA1743@cmpxchg.org>
+References: <20171026234854.25764-1-andi@firstfloor.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1710270459580.8922@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171026234854.25764-1-andi@firstfloor.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, akpm@linux-foundation.org, mhocko@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andi Kleen <andi@firstfloor.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andi Kleen <ak@linux.intel.com>
 
+On Thu, Oct 26, 2017 at 04:48:54PM -0700, Andi Kleen wrote:
+>  static unsigned long scan_shadow_nodes(struct shrinker *shrinker,
+>  				       struct shrink_control *sc)
+>  {
+> +	struct list_head *tmp, *pos;
+>  	unsigned long ret;
+> +	LIST_HEAD(nodes);
+> +	spinlock_t *lock = NULL;
+>  
+> -	/* list_lru lock nests inside IRQ-safe mapping->tree_lock */
+> +	ret = list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, &nodes);
+>  	local_irq_disable();
+> -	ret = list_lru_shrink_walk(&shadow_nodes, sc, shadow_lru_isolate, NULL);
+> +	list_for_each_safe (pos, tmp, &nodes)
+> +		free_shadow_node(pos, &lock);
 
+The nlru->lock in list_lru_shrink_walk() is the only thing that keeps
+truncation blocked on workingset_update_node() -> list_lru_del() and
+so ultimately keeping it from freeing the radix tree node.
 
-On 10/27/17 3:00 AM, Christopher Lameter wrote:
-> On Thu, 26 Oct 2017, Yang Shi wrote:
-> 
->> diff --git a/include/linux/mm.h b/include/linux/mm.h
->> index 935c4d4..e21b81e 100644
->> --- a/include/linux/mm.h
->> +++ b/include/linux/mm.h
->> @@ -2050,6 +2050,31 @@ extern int __meminit __early_pfn_to_nid(unsigned long pfn,
->>   static inline void zero_resv_unavail(void) {}
->>   #endif
->>
->> +static inline void calc_mem_size(unsigned long *total, unsigned long *reserved,
->> +				 unsigned long *highmem)
->> +{
-> 
-> Huge incline function. This needs to go into mm/page_alloc.c or
-> mm/slab_common.c
+It's not safe to access the nodes on the private list after that.
 
-It is used by lib/show_mem.c too. But since it is definitely on a hot 
-patch, I think I can change it to non inline.
-
-Thanks,
-Yang
-
-> 
+Batching mapping->tree_lock is possible, but you have to keep the
+lock-handoff scheme. Pass a &mapping to list_lru_shrink_walk() and
+only unlock and spin_trylock(&mapping->tree_lock) if it changes?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
