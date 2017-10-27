@@ -1,87 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A856B0033
-	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 16:05:51 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id 131so1303838wms.23
-        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 13:05:51 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id q17si5583969edg.417.2017.10.27.13.05.49
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A3FF6B0253
+	for <linux-mm@kvack.org>; Fri, 27 Oct 2017 16:19:32 -0400 (EDT)
+Received: by mail-qk0-f197.google.com with SMTP id l194so5720233qke.22
+        for <linux-mm@kvack.org>; Fri, 27 Oct 2017 13:19:32 -0700 (PDT)
+Received: from rcdn-iport-6.cisco.com (rcdn-iport-6.cisco.com. [173.37.86.77])
+        by mx.google.com with ESMTPS id x40si7354826qtj.258.2017.10.27.13.19.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 27 Oct 2017 13:05:49 -0700 (PDT)
-Date: Fri, 27 Oct 2017 16:05:40 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-Message-ID: <20171027200540.GA25191@cmpxchg.org>
-References: <20171019185218.12663-1-guro@fb.com>
- <20171019194534.GA5502@cmpxchg.org>
- <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com>
- <20171026142445.GA21147@cmpxchg.org>
- <alpine.DEB.2.10.1710261359550.75887@chino.kir.corp.google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 27 Oct 2017 13:19:31 -0700 (PDT)
+Subject: Re: Detecting page cache trashing state
+References: <150543458765.3781.10192373650821598320@takondra-t460s>
+ <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
+ <150549651001.4512.15084374619358055097@takondra-t460s>
+ <20170918163434.GA11236@cmpxchg.org>
+ <acbf4417-4ded-fa03-7b8d-34dc0803027c@cisco.com>
+ <20171025175424.GA14039@cmpxchg.org>
+From: "Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco)"
+ <rruslich@cisco.com>
+Message-ID: <d7bc14d7-5ae4-f16d-da38-2bc36d9deae8@cisco.com>
+Date: Fri, 27 Oct 2017 23:19:02 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1710261359550.75887@chino.kir.corp.google.com>
+In-Reply-To: <20171025175424.GA14039@cmpxchg.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, Roman Gushchin <guro@fb.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Taras Kondratiuk <takondra@cisco.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, xe-linux-external@cisco.com, linux-kernel@vger.kernel.org
 
-On Thu, Oct 26, 2017 at 02:03:41PM -0700, David Rientjes wrote:
-> On Thu, 26 Oct 2017, Johannes Weiner wrote:
-> 
-> > > The nack is for three reasons:
-> > > 
-> > >  (1) unfair comparison of root mem cgroup usage to bias against that mem 
-> > >      cgroup from oom kill in system oom conditions,
-> > > 
-> > >  (2) the ability of users to completely evade the oom killer by attaching
-> > >      all processes to child cgroups either purposefully or unpurposefully,
-> > >      and
-> > > 
-> > >  (3) the inability of userspace to effectively control oom victim  
-> > >      selection.
-> > 
-> > My apologies if my summary was too reductionist.
-> > 
-> > That being said, the arguments you repeat here have come up in
-> > previous threads and been responded to. This doesn't change my
-> > conclusion that your NAK is bogus.
-> 
-> They actually haven't been responded to, Roman was working through v11 and 
-> made a change on how the root mem cgroup usage was calculated that was 
-> better than previous iterations but still not an apples to apples 
-> comparison with other cgroups.  The problem is that it the calculation for 
-> leaf cgroups includes additional memory classes, so it biases against 
-> processes that are moved to non-root mem cgroups.  Simply creating mem 
-> cgroups and attaching processes should not independently cause them to 
-> become more preferred: it should be a fair comparison between the root mem 
-> cgroup and the set of leaf mem cgroups as implemented.  That is very 
-> trivial to do with hierarchical oom cgroup scoring.
+Hi Johannes,
 
-There is absolutely no value in your repeating the same stuff over and
-over again without considering what other people are telling you.
+On 10/25/2017 08:54 PM, Johannes Weiner wrote:
+> Hi Ruslan,
+>
+> sorry about the delayed response, I missed the new activity in this
+> older thread.
+>
+> On Thu, Sep 28, 2017 at 06:49:07PM +0300, Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco) wrote:
+>> Hi Johannes,
+>>
+>> Hopefully I was able to rebase the patch on top v4.9.26 (latest supported
+>> version by us right now)
+>> and test a bit.
+>> The overall idea definitely looks promising, although I have one question on
+>> usage.
+>> Will it be able to account the time which processes spend on handling major
+>> page faults
+>> (including fs and iowait time) of refaulting page?
+> That's the main thing it should measure! :)
+>
+> The lock_page() and wait_on_page_locked() calls are where iowaits
+> happen on a cache miss. If those are refaults, they'll be counted.
+>
+>> As we have one big application which code space occupies big amount of place
+>> in page cache,
+>> when the system under heavy memory usage will reclaim some of it, the
+>> application will
+>> start constantly thrashing. Since it code is placed on squashfs it spends
+>> whole CPU time
+>> decompressing the pages and seem memdelay counters are not detecting this
+>> situation.
+>> Here are some counters to indicate this:
+>>
+>> 19:02:44        CPU     %user     %nice   %system   %iowait %steal     %idle
+>> 19:02:45        all      0.00      0.00    100.00      0.00 0.00      0.00
+>>
+>> 19:02:44     pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s
+>> pgscand/s pgsteal/s    %vmeff
+>> 19:02:45     15284.00      0.00    428.00    352.00  19990.00 0.00      0.00
+>> 15802.00      0.00
+>>
+>> And as nobody actively allocating memory anymore looks like memdelay
+>> counters are not
+>> actively incremented:
+>>
+>> [:~]$ cat /proc/memdelay
+>> 268035776
+>> 6.13 5.43 3.58
+>> 1.90 1.89 1.26
+> How does it correlate with /proc/vmstat::workingset_activate during
+> that time? It only counts thrashing time of refaults it can actively
+> detect.
+The workingset counters are growing quite actively too. Here are
+some numbers per second:
 
-Hierarchical oom scoring has other downsides, and most of us agree
-that they aren't preferable over the differences in scoring the root
-vs scoring other cgroups - in particular because the root cannot be
-controlled, doesn't even have local statistics, and so is unlikely to
-contain important work on a containerized system. Getting the ballpark
-right for the vast majority of usecases is more than good enough here.
+workingset_refault   8201
+workingset_activate   389
+workingset_restore   187
+workingset_nodereclaim   313
 
-> Since the ability of userspace to control oom victim selection is not 
-> addressed whatsoever by this patchset, and the suggested method cannot be 
-> implemented on top of this patchset as you have argued because it requires 
-> a change to the heuristic itself, the patchset needs to become complete 
-> before being mergeable.
+> Btw, how many CPUs does this system have? There is a bug in this
+> version on how idle time is aggregated across multiple CPUs. The error
+> compounds with the number of CPUs in the system.
+The system has 2 CPU cores.
+> I'm attaching 3 bugfixes that go on top of what you have. There might
+> be some conflicts, but they should be minor variable naming issues.
+>
+I will test with your patches and get back to you.
 
-It is complete. It just isn't a drop-in replacement for what you've
-been doing out-of-tree for years. Stop making your problem everybody
-else's problem.
-
-You can change the the heuristics later, as you have done before. Or
-you can add another configuration flag and we can phase out the old
-mode, like we do all the time.
+Thanks,
+Ruslan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
