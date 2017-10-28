@@ -1,233 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B2EF36B0038
-	for <linux-mm@kvack.org>; Sat, 28 Oct 2017 04:07:50 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id n137so18726311iod.20
-        for <linux-mm@kvack.org>; Sat, 28 Oct 2017 01:07:50 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b11si6652490ioj.72.2017.10.28.01.07.48
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2176B0033
+	for <linux-mm@kvack.org>; Sat, 28 Oct 2017 10:19:39 -0400 (EDT)
+Received: by mail-yw0-f197.google.com with SMTP id y127so16206970ywf.13
+        for <linux-mm@kvack.org>; Sat, 28 Oct 2017 07:19:39 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k19sor3748698ywe.475.2017.10.28.07.19.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 28 Oct 2017 01:07:49 -0700 (PDT)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm,oom: Try last second allocation before and after selecting an OOM victim.
-Date: Sat, 28 Oct 2017 17:07:09 +0900
-Message-Id: <1509178029-10156-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Sat, 28 Oct 2017 07:19:37 -0700 (PDT)
+MIME-Version: 1.0
+In-Reply-To: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
+References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Sat, 28 Oct 2017 17:19:36 +0300
+Message-ID: <CAOQ4uxiFA8FDoFU8cNGYoJeiuTFOE9-fgsG4xtnM=9zfAJ+k2g@mail.gmail.com>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Manish Jaggi <mjaggi@caviumnetworks.com>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: Jan Kara <jack@suse.cz>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-This patch splits last second allocation attempt into two locations, once
-before selecting an OOM victim and again after selecting an OOM victim,
-and uses normal watermark for last second allocation attempts.
+On Fri, Oct 27, 2017 at 9:22 PM, Yang Shi <yang.s@alibaba-inc.com> wrote:
+> If some process generates events into a huge or unlimit event queue, but no
+> listener read them, they may consume significant amount of memory silently
+> until oom happens or some memory pressure issue is raised.
+> It'd better to account those slab caches in memcg so that we can get heads
+> up before the problematic process consume too much memory silently.
+>
+> But, the accounting might be heuristic if the producer is in the different
+> memcg from listener if the listener doesn't read the events. Due to the
+> current design of kmemcg, who does the allocation, who gets the accounting.
 
-As of linux-2.6.11, nothing prevented from concurrently calling
-out_of_memory(). TIF_MEMDIE test in select_bad_process() tried to avoid
-needless OOM killing. Thus, it was safe to do __GFP_DIRECT_RECLAIM
-allocation (apart from which watermark should be used) just before
-calling out_of_memory().
+<suggest rephrase>
+Due to the current design of kmemcg, the memcg of the process who does the
+allocation gets the accounting, so event allocations get accounted for
+the memcg of
+the event producer process, even though the misbehaving process is the listener.
+The event allocations won't be freed if the producer exits, only if
+the listener exists.
+Nevertheless, it is still better to account event allocations to memcg
+of producer
+process and not to root memcg, because heuristically producer is many
+time in the
+same memcg as the listener. For example, this is the case with listeners inside
+containers that listen on events for files or mounts that are private
+to the container.
+<\suggest rephrase>
 
-As of linux-2.6.24, try_set_zone_oom() was added to
-__alloc_pages_may_oom() by commit ff0ceb9deb6eb017 ("oom: serialize out
-of memory calls") which effectively started acting as a kind of today's
-mutex_trylock(&oom_lock).
+And the same comment should be above creation of event kmem caches,
+so we know this is the lesser evil and not the perfect solution.
 
-As of linux-4.2, try_set_zone_oom() was replaced with oom_lock by
-commit dc56401fc9f25e8f ("mm: oom_kill: simplify OOM killer locking").
-At least by this time, it became no longer safe to do
-__GFP_DIRECT_RECLAIM allocation with oom_lock held.
-
-And as of linux-4.13, last second allocation attempt stopped using
-__GFP_DIRECT_RECLAIM by commit e746bf730a76fe53 ("mm,page_alloc: don't
-call __node_reclaim() with oom_lock held.").
-
-Therefore, there is no longer valid reason to use ALLOC_WMARK_HIGH for
-last second allocation attempt [1]. And this patch changes to do normal
-allocation attempt, with handling of ALLOC_OOM added in order to mitigate
-extra OOM victim selection problem reported by Manish Jaggi [2].
-
-Doing really last second allocation attempt after selecting an OOM victim
-will also help the OOM reaper to start reclaiming memory without waiting
-for oom_lock to be released.
-
-[1] http://lkml.kernel.org/r/20160128163802.GA15953@dhcp22.suse.cz
-[2] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@suse.de>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Manish Jaggi <mjaggi@caviumnetworks.com>
----
- include/linux/oom.h | 13 +++++++++++++
- mm/oom_kill.c       | 13 +++++++++++++
- mm/page_alloc.c     | 47 ++++++++++++++++++++++++++++++++++-------------
- 3 files changed, 60 insertions(+), 13 deletions(-)
-
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 76aac4c..eb92aa8 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -13,6 +13,8 @@
- struct notifier_block;
- struct mem_cgroup;
- struct task_struct;
-+struct alloc_context;
-+struct page;
- 
- /*
-  * Details of the page allocation that triggered the oom killer that are used to
-@@ -37,6 +39,15 @@ struct oom_control {
- 	 */
- 	const int order;
- 
-+	/* Context for really last second allocation attempt. */
-+	struct alloc_context *ac;
-+	/*
-+	 * Set by the OOM killer if ac != NULL and last second allocation
-+	 * attempt succeeded. If ac != NULL, the caller must check for
-+	 * page != NULL.
-+	 */
-+	struct page *page;
-+
- 	/* Used by oom implementation, do not set */
- 	unsigned long totalpages;
- 	struct task_struct *chosen;
-@@ -101,6 +112,8 @@ extern unsigned long oom_badness(struct task_struct *p,
- 
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
-+extern struct page *alloc_pages_before_oomkill(struct oom_control *oc);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 26add8a..dcde1d5 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -870,6 +870,19 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	}
- 	task_unlock(p);
- 
-+	/*
-+	 * Try really last second allocation attempt after we selected an OOM
-+	 * victim, for somebody might have managed to free memory while we were
-+	 * selecting an OOM victim which can take quite some time.
-+	 */
-+	if (oc->ac) {
-+		oc->page = alloc_pages_before_oomkill(oc);
-+		if (oc->page) {
-+			put_task_struct(p);
-+			return;
-+		}
-+	}
-+
- 	if (__ratelimit(&oom_rs))
- 		dump_header(oc, p);
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 97687b3..ba0ef7b 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3265,7 +3265,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 
- static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
--	const struct alloc_context *ac, unsigned long *did_some_progress)
-+	struct alloc_context *ac, unsigned long *did_some_progress)
- {
- 	struct oom_control oc = {
- 		.zonelist = ac->zonelist,
-@@ -3273,6 +3273,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		.memcg = NULL,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
-+		.ac = ac,
- 	};
- 	struct page *page;
- 
-@@ -3289,15 +3290,11 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	}
- 
- 	/*
--	 * Go through the zonelist yet one more time, keep very high watermark
--	 * here, this is only to catch a parallel oom killing, we must fail if
--	 * we're still under heavy pressure. But make sure that this reclaim
--	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
--	 * allocation which will never fail due to oom_lock already held.
-+	 * Try almost last second allocation attempt before we select an OOM
-+	 * victim, for somebody might have managed to free memory or the OOM
-+	 * killer might have called mark_oom_victim(current).
- 	 */
--	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
--				      ~__GFP_DIRECT_RECLAIM, order,
--				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
-+	page = alloc_pages_before_oomkill(&oc);
- 	if (page)
- 		goto out;
- 
-@@ -3335,16 +3332,18 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		goto out;
- 
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if (out_of_memory(&oc)) {
-+		*did_some_progress = 1;
-+		page = oc.page;
-+	} else if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
- 
- 		/*
- 		 * Help non-failing allocations by giving them access to memory
- 		 * reserves
- 		 */
--		if (gfp_mask & __GFP_NOFAIL)
--			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
--					ALLOC_NO_WATERMARKS, ac);
-+		page = __alloc_pages_cpuset_fallback(gfp_mask, order,
-+						     ALLOC_NO_WATERMARKS, ac);
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -4114,6 +4113,28 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return page;
- }
- 
-+struct page *alloc_pages_before_oomkill(struct oom_control *oc)
-+{
-+	/*
-+	 * Make sure that this allocation attempt shall not depend on
-+	 * __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation, for the caller is
-+	 * already holding oom_lock.
-+	 */
-+	const gfp_t gfp_mask = oc->gfp_mask & ~__GFP_DIRECT_RECLAIM;
-+	struct alloc_context *ac = oc->ac;
-+	unsigned int alloc_flags = gfp_to_alloc_flags(gfp_mask);
-+	const int reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
-+
-+	/* Need to update zonelist if selected as OOM victim. */
-+	if (reserve_flags) {
-+		alloc_flags = reserve_flags;
-+		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-+		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
-+					ac->high_zoneidx, ac->nodemask);
-+	}
-+	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, ac);
-+}
-+
- static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
--- 
-1.8.3.1
+>
+> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+> ---
+> v1 --> v2:
+> * Updated commit log per Amir's suggestion
+>
+>  fs/notify/dnotify/dnotify.c        | 4 ++--
+>  fs/notify/fanotify/fanotify_user.c | 6 +++---
+>  fs/notify/fsnotify.c               | 2 +-
+>  fs/notify/inotify/inotify_user.c   | 2 +-
+>  4 files changed, 7 insertions(+), 7 deletions(-)
+>
+> diff --git a/fs/notify/dnotify/dnotify.c b/fs/notify/dnotify/dnotify.c
+> index cba3283..3ec6233 100644
+> --- a/fs/notify/dnotify/dnotify.c
+> +++ b/fs/notify/dnotify/dnotify.c
+> @@ -379,8 +379,8 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
+>
+>  static int __init dnotify_init(void)
+>  {
+> -       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC);
+> -       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC);
+> +       dnotify_struct_cache = KMEM_CACHE(dnotify_struct, SLAB_PANIC|SLAB_ACCOUNT);
+> +       dnotify_mark_cache = KMEM_CACHE(dnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+>
+>         dnotify_group = fsnotify_alloc_group(&dnotify_fsnotify_ops);
+>         if (IS_ERR(dnotify_group))
+> diff --git a/fs/notify/fanotify/fanotify_user.c b/fs/notify/fanotify/fanotify_user.c
+> index 907a481..7d62dee 100644
+> --- a/fs/notify/fanotify/fanotify_user.c
+> +++ b/fs/notify/fanotify/fanotify_user.c
+> @@ -947,11 +947,11 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
+>   */
+>  static int __init fanotify_user_setup(void)
+>  {
+> -       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC);
+> -       fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC);
+> +       fanotify_mark_cache = KMEM_CACHE(fsnotify_mark, SLAB_PANIC|SLAB_ACCOUNT);
+> +       fanotify_event_cachep = KMEM_CACHE(fanotify_event_info, SLAB_PANIC|SLAB_ACCOUNT);
+>  #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+>         fanotify_perm_event_cachep = KMEM_CACHE(fanotify_perm_event_info,
+> -                                               SLAB_PANIC);
+> +                                               SLAB_PANIC|SLAB_ACCOUNT);
+>  #endif
+>
+>         return 0;
+> diff --git a/fs/notify/fsnotify.c b/fs/notify/fsnotify.c
+> index 0c4583b..82620ac 100644
+> --- a/fs/notify/fsnotify.c
+> +++ b/fs/notify/fsnotify.c
+> @@ -386,7 +386,7 @@ static __init int fsnotify_init(void)
+>                 panic("initializing fsnotify_mark_srcu");
+>
+>         fsnotify_mark_connector_cachep = KMEM_CACHE(fsnotify_mark_connector,
+> -                                                   SLAB_PANIC);
+> +                                                   SLAB_PANIC|SLAB_ACCOUNT);
+>
+>         return 0;
+>  }
+> diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
+> index 7cc7d3f..57b32ff 100644
+> --- a/fs/notify/inotify/inotify_user.c
+> +++ b/fs/notify/inotify/inotify_user.c
+> @@ -785,7 +785,7 @@ static int __init inotify_user_setup(void)
+>
+>         BUG_ON(hweight32(ALL_INOTIFY_BITS) != 21);
+>
+> -       inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
+> +       inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC|SLAB_ACCOUNT);
+>
+>         inotify_max_queued_events = 16384;
+>         init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
+> --
+> 1.8.3.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
