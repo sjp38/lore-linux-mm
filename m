@@ -1,168 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B44916B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 09:24:32 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id u97so8108392wrc.3
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 06:24:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t10sor6794392edb.8.2017.10.30.06.24.31
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5CF4F6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 10:18:26 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id y7so6038154wmd.18
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 07:18:26 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i15si10021900wre.438.2017.10.30.07.18.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 30 Oct 2017 06:24:31 -0700 (PDT)
-Date: Mon, 30 Oct 2017 16:24:29 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [pgtable_trans_huge_withdraw] BUG: unable to handle kernel NULL
- pointer dereference at 0000000000000020
-Message-ID: <20171030132429.ctve2f2zcofclydo@node.shutemov.name>
-References: <CA+55aFxSJGeN=2X-uX-on1Uq2Nb8+v1aiMDz5H1+tKW_N5Q+6g@mail.gmail.com>
- <20171029225155.qcum5i75awrt5tzm@wfg-t540p.sh.intel.com>
- <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
- <20171030115819.33y7g47qnzrsmwwb@node.shutemov.name>
- <3121F405-9F96-41B0-BD28-73BD8EA85B07@cs.rutgers.edu>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 30 Oct 2017 07:18:19 -0700 (PDT)
+Date: Mon, 30 Oct 2017 15:18:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Try last second allocation before and after
+ selecting an OOM victim.
+Message-ID: <20171030141815.lk76bfetmspf7f4x@dhcp22.suse.cz>
+References: <1509178029-10156-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <3121F405-9F96-41B0-BD28-73BD8EA85B07@cs.rutgers.edu>
+In-Reply-To: <1509178029-10156-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Geliang Tang <geliangtang@163.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Manish Jaggi <mjaggi@caviumnetworks.com>, Mel Gorman <mgorman@suse.de>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>
 
-On Mon, Oct 30, 2017 at 08:40:01AM -0400, Zi Yan wrote:
-> On 30 Oct 2017, at 7:58, Kirill A. Shutemov wrote:
-> 
-> > On Mon, Oct 30, 2017 at 12:37:01AM +0100, Fengguang Wu wrote:
-> >> CC MM people.
-> >>
-> >> On Sun, Oct 29, 2017 at 11:51:55PM +0100, Fengguang Wu wrote:
-> >>> Hi Linus,
-> >>>
-> >>> Up to now we see the below boot error/warnings when testing v4.14-rc6.
-> >>>
-> >>> They hit the RC release mainly due to various imperfections in 0day's
-> >>> auto bisection. So I manually list them here and CC the likely easy to
-> >>> debug ones to the corresponding maintainers in the followup emails.
-> >>>
-> >>> boot_successes: 4700
-> >>> boot_failures: 247
-> >>>
-> >>> BUG:kernel_hang_in_test_stage: 152
-> >>> BUG:kernel_reboot-without-warning_in_test_stage: 10
-> >>> BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mutex.c: 1
-> >>> BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rwsem.c: 3
-> >>> BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c: 21
-> >>> BUG:soft_lockup-CPU##stuck_for#s: 1
-> >>> BUG:unable_to_handle_kernel: 13
-> >>
-> >> Here is the call trace:
-> >>
-> >> [  956.669197] [  956.670421] stress-ng: fail:  [27945] stress-ng-numa:
-> >> get_mempolicy: errno=22 (Invalid argument)
-> >> [  956.670422] [  956.671375] stress-ng: info:  [27945] 5 failures reached,
-> >> aborting stress process
-> >> [  956.671376] [  956.671551] BUG: unable to handle kernel NULL pointer
-> >> dereference at 0000000000000020
-> >> [  956.671557] IP: pgtable_trans_huge_withdraw+0x4c/0xc0
-> >> [  956.671558] PGD 0 P4D 0 [  956.671560] Oops: 0000 [#1] SMP
-> >> [  956.671562] Modules linked in: salsa20_generic salsa20_x86_64 camellia_generic camellia_aesni_avx2 camellia_aesni_avx_x86_64 camellia_x86_64 cast6_avx_x86_64 cast6_generic cast_common serpent_avx2 serpent_avx_x86_64 serpent_sse2_x86_64 serpent_generic twofish_generic twofish_avx_x86_64 ablk_helper twofish_x86_64_3way twofish_x86_64 twofish_common lrw tgr192 wp512 rmd320 rmd256 rmd160 rmd128 md4 sha512_ssse3 sha512_generic rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver intel_rapl sb_edac x86_pkg_temp_thermal intel_powerclamp sd_mod sg coretemp kvm_intel kvm mgag200 irqbypass ttm crct10dif_pclmul crc32_pclmul drm_kms_helper crc32c_intel syscopyarea ghash_clmulni_intel snd_pcm sysfillrect snd_timer pcbc sysimgblt fb_sys_fops ahci snd aesni_intel crypto_simd mxm_wmi glue_helper libahci soundcore cryptd
-> >> [  956.671592]  drm ipmi_si pcspkr libata shpchp ipmi_devintf ipmi_msghandler acpi_pad acpi_power_meter wmi ip_tables
-> >> [  956.671600] CPU: 78 PID: 28007 Comm: stress-ng-numa Not tainted 4.14.0-rc6 #1
-> >> [  956.671600] Hardware name: Intel Corporation S2600WT2R/S2600WT2R, BIOS SE5C610.86B.01.01.0020.122820161512 12/28/2016
-> >> [  956.671601] task: ffff88101c97cd00 task.stack: ffffc90026b04000
-> >> [  956.671603] RIP: 0010:pgtable_trans_huge_withdraw+0x4c/0xc0
-> >> [  956.671604] RSP: 0018:ffffc90026b07c20 EFLAGS: 00010202
-> >> [  956.671604] RAX: ffffea00404c7b80 RBX: 0000000000000000 RCX: 0000000000000001
-> >> [  956.671605] RDX: 0000000000000001 RSI: ffff8810931ee000 RDI: ffff881020f11000
-> >> [  956.671605] RBP: ffffc90026b07c28 R08: ffff88101a96a190 R09: 000055c2d5137000
-> >> [  956.671606] R10: 0000000000000000 R11: 0000000000000000 R12: ffff881020f11000
-> >> [  956.671606] R13: ffffc90026b07dd8 R14: ffff8810131ee538 R15: ffffea00404c7bb0
-> >> [  956.671607] FS:  0000000000000000(0000) GS:ffff882023080000(0000) knlGS:0000000000000000
-> >> [  956.671608] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> >> [  956.671609] CR2: 0000000000000020 CR3: 000000207ee09001 CR4: 00000000003606e0
-> >> [  956.671609] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> >> [  956.671610] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> >> [  956.671610] Call Trace:
-> >> [  956.671614]  zap_huge_pmd+0x28a/0x3a0
-> >> [  956.671617]  unmap_page_range+0x918/0x9c0
-> >> [  956.671619]  unmap_single_vma+0x7d/0xe0
-> >> [  956.671621]  unmap_vmas+0x51/0xa0
-> >> [  956.671622]  exit_mmap+0x96/0x190
-> >> [  956.671625]  mmput+0x6e/0x160
-> >> [  956.671626]  do_exit+0x2b3/0xb90
-> >> [  956.671627]  do_group_exit+0x43/0xb0
-> >> [  956.671628]  SyS_exit_group+0x14/0x20
-> >> [  956.671630]  entry_SYSCALL_64_fastpath+0x1a/0xa5
-> >> [  956.671631] RIP: 0033:0x7f92a15e11c8
-> >> [  956.671631] RSP: 002b:00007fff12384aa8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-> >> [  956.671632] RAX: ffffffffffffffda RBX: 00007f92a1dea000 RCX: 00007f92a15e11c8
-> >> [  956.671633] RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
-> >> [  956.671633] RBP: 00007fff12384aa0 R08: 00000000000000e7 R09: ffffffffffffff90
-> >> [  956.671634] R10: 00007f92a088b070 R11: 0000000000000246 R12: 00007f92a088add8
-> >> [  956.671634] R13: 00007fff12384a18 R14: 00007f92a1df4048 R15: 0000000000000000
-> >> [  956.671635] Code: 77 00 00 48 01 f0 48 ba 00 00 00 00 00 ea ff ff 48 c1
-> >> e8 0c 48 c1 e0 06 48 01 d0 8b 50 30 85 d2 74 6d 55 48 89 e5 53 48 8b 58 28
-> >> <48> 8b 53 20 48 8d 7b 20 48 39 d7 74 49 48 83 ea 20 48 85 d2 48 [
-> >> 956.671650] RIP: pgtable_trans_huge_withdraw+0x4c/0xc0 RSP: ffffc90026b07c20
-> >> [  956.671651] CR2: 0000000000000020
-> >> [  956.671695] ---[ end trace 9ac71716a2cdb192 ]---
-> >> [  956.672896] stress-ng: fail:  [27986] stress-ng-numa: get_mempolicy: errno=22 (Invalid argument)
-> >
-> > +Zi Yan.
-> >
-> > Could you check if the patch below helps?
-> >
-> > It seems we forgot to deposit page table on copying pmd migration entry.
-> > Current code just leaks newly allocated page table.
-> >
-> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> > index 269b5df58543..84beba5dedda 100644
-> > --- a/mm/huge_memory.c
-> > +++ b/mm/huge_memory.c
-> > @@ -941,6 +941,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
-> >  				pmd = pmd_swp_mksoft_dirty(pmd);
-> >  			set_pmd_at(src_mm, addr, src_pmd, pmd);
-> >  		}
-> > +		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
-> >  		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
-> >  		ret = 0;
-> >  		goto out_unlock;
-> > -- 
-> >  Kirill A. Shutemov
-> 
-> Thanks for fixing it.
-> 
-> It seems I also forgot to increase the corresponding counters. Does the patch below look good to you?
+On Sat 28-10-17 17:07:09, Tetsuo Handa wrote:
+> This patch splits last second allocation attempt into two locations, once
+> before selecting an OOM victim and again after selecting an OOM victim,
+> and uses normal watermark for last second allocation attempts.
 
-Yeah, my bad.
+Why do we need both?
 
-Could you post proper patch to Andrew?
-
-> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-> index 269b5df58543..1981ed697dab 100644
-> --- a/mm/huge_memory.c
-> +++ b/mm/huge_memory.c
-> @@ -941,6 +941,9 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
->                                 pmd = pmd_swp_mksoft_dirty(pmd);
->                         set_pmd_at(src_mm, addr, src_pmd, pmd);
->                 }
-> +               add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
-> +               atomic_long_inc(&dst_mm->nr_ptes);
-> +               pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
->                 set_pmd_at(dst_mm, addr, dst_pmd, pmd);
->                 ret = 0;
->                 goto out_unlock;
+> As of linux-2.6.11, nothing prevented from concurrently calling
+> out_of_memory(). TIF_MEMDIE test in select_bad_process() tried to avoid
+> needless OOM killing. Thus, it was safe to do __GFP_DIRECT_RECLAIM
+> allocation (apart from which watermark should be used) just before
+> calling out_of_memory().
 > 
+> As of linux-2.6.24, try_set_zone_oom() was added to
+> __alloc_pages_may_oom() by commit ff0ceb9deb6eb017 ("oom: serialize out
+> of memory calls") which effectively started acting as a kind of today's
+> mutex_trylock(&oom_lock).
 > 
+> As of linux-4.2, try_set_zone_oom() was replaced with oom_lock by
+> commit dc56401fc9f25e8f ("mm: oom_kill: simplify OOM killer locking").
+> At least by this time, it became no longer safe to do
+> __GFP_DIRECT_RECLAIM allocation with oom_lock held.
 > 
-> a??
-> Best Regards,
-> Yan Zi
+> And as of linux-4.13, last second allocation attempt stopped using
+> __GFP_DIRECT_RECLAIM by commit e746bf730a76fe53 ("mm,page_alloc: don't
+> call __node_reclaim() with oom_lock held.").
+> 
+> Therefore, there is no longer valid reason to use ALLOC_WMARK_HIGH for
+> last second allocation attempt [1].
 
+Another reason to use the high watermark as explained by Andrea was
+"
+: Elaborating the comment: the reason for the high wmark is to reduce
+: the likelihood of livelocks and be sure to invoke the OOM killer, if
+: we're still under pressure and reclaim just failed. The high wmark is
+: used to be sure the failure of reclaim isn't going to be ignored. If
+: using the min wmark like you propose there's risk of livelock or
+: anyway of delayed OOM killer invocation.
+"
 
+How is that affected by changes in locking you discribe above?
+
+> And this patch changes to do normal
+> allocation attempt, with handling of ALLOC_OOM added in order to mitigate
+> extra OOM victim selection problem reported by Manish Jaggi [2].
+> 
+> Doing really last second allocation attempt after selecting an OOM victim
+> will also help the OOM reaper to start reclaiming memory without waiting
+> for oom_lock to be released.
+
+The changelog is much more obscure than it really needs to be. You fail
+to explain _why_ we need this and and _what_ the actual problem is. You
+are simply drowning in details here (btw. this is not the first time
+your changelog has this issues). Try to focus on _what_ is the problem
+_why_ do we care and _how_ are you addressing it.
+ 
+[...]
+
+> +struct page *alloc_pages_before_oomkill(struct oom_control *oc)
+> +{
+> +	/*
+> +	 * Make sure that this allocation attempt shall not depend on
+> +	 * __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocation, for the caller is
+> +	 * already holding oom_lock.
+> +	 */
+> +	const gfp_t gfp_mask = oc->gfp_mask & ~__GFP_DIRECT_RECLAIM;
+> +	struct alloc_context *ac = oc->ac;
+> +	unsigned int alloc_flags = gfp_to_alloc_flags(gfp_mask);
+> +	const int reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
+> +
+> +	/* Need to update zonelist if selected as OOM victim. */
+> +	if (reserve_flags) {
+> +		alloc_flags = reserve_flags;
+> +		ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+> +		ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+> +					ac->high_zoneidx, ac->nodemask);
+> +	}
+
+Why do we need this zone list rebuilding?
+
+> +	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, ac);
+> +}
+> +
+>  static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+>  		int preferred_nid, nodemask_t *nodemask,
+>  		struct alloc_context *ac, gfp_t *alloc_mask,
+> -- 
+> 1.8.3.1
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
