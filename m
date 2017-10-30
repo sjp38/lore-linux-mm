@@ -1,82 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A4076B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:12:51 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id y5so12991881pgq.15
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:12:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a10si9702796pgf.48.2017.10.30.02.12.49
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EDE2D6B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:19:43 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id c42so7757722wrc.13
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:19:43 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q39sor7117893edd.39.2017.10.30.02.19.42
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 30 Oct 2017 02:12:50 -0700 (PDT)
-Subject: Re: [PATCH v2] mm: mlock: remove lru_add_drain_all()
-References: <20171019222507.2894-1-shakeelb@google.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <fce63066-1c01-26fd-e767-d72c6f8fb2bb@suse.cz>
-Date: Mon, 30 Oct 2017 10:12:46 +0100
+        (Google Transport Security);
+        Mon, 30 Oct 2017 02:19:42 -0700 (PDT)
+Date: Mon, 30 Oct 2017 12:19:40 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [pgtable_trans_huge_withdraw] BUG: unable to handle kernel NULL
+ pointer dereference at 0000000000000020
+Message-ID: <20171030091940.mcljomnaqvrhvwjx@node.shutemov.name>
+References: <CA+55aFxSJGeN=2X-uX-on1Uq2Nb8+v1aiMDz5H1+tKW_N5Q+6g@mail.gmail.com>
+ <20171029225155.qcum5i75awrt5tzm@wfg-t540p.sh.intel.com>
+ <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171019222507.2894-1-shakeelb@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Minchan Kim <minchan@kernel.org>, Yisheng Xie <xieyisheng1@huawei.com>, Ingo Molnar <mingo@kernel.org>, Greg Thelen <gthelen@google.com>, Hugh Dickins <hughd@google.com>
-Cc: Balbir Singh <bsingharora@gmail.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Geliang Tang <geliangtang@163.com>
 
-On 10/20/2017 12:25 AM, Shakeel Butt wrote:
-> lru_add_drain_all() is not required by mlock() and it will drain
-> everything that has been cached at the time mlock is called. And
-> that is not really related to the memory which will be faulted in
-> (and cached) and mlocked by the syscall itself.
+On Mon, Oct 30, 2017 at 12:37:01AM +0100, Fengguang Wu wrote:
+> CC MM people.
 > 
-> Without lru_add_drain_all() the mlocked pages can remain on pagevecs
-> and be moved to evictable LRUs. However they will eventually be moved
-> back to unevictable LRU by reclaim. So, we can safely remove
-> lru_add_drain_all() from mlock syscall. Also there is no need for
-> local lru_add_drain() as it will be called deep inside __mm_populate()
-> (in follow_page_pte()).
+> On Sun, Oct 29, 2017 at 11:51:55PM +0100, Fengguang Wu wrote:
+> > Hi Linus,
+> > 
+> > Up to now we see the below boot error/warnings when testing v4.14-rc6.
+> > 
+> > They hit the RC release mainly due to various imperfections in 0day's
+> > auto bisection. So I manually list them here and CC the likely easy to
+> > debug ones to the corresponding maintainers in the followup emails.
+> > 
+> > boot_successes: 4700
+> > boot_failures: 247
+> > 
+> > BUG:kernel_hang_in_test_stage: 152
+> > BUG:kernel_reboot-without-warning_in_test_stage: 10
+> > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mutex.c: 1
+> > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rwsem.c: 3
+> > BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c: 21
+> > BUG:soft_lockup-CPU##stuck_for#s: 1
+> > BUG:unable_to_handle_kernel: 13
 > 
-> On larger machines the overhead of lru_add_drain_all() in mlock() can
-> be significant when mlocking data already in memory. We have observed
-> high latency in mlock() due to lru_add_drain_all() when the users
-> were mlocking in memory tmpfs files.
+> Here is the call trace:
 > 
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> [  956.669197] [  956.670421] stress-ng: fail:  [27945] stress-ng-numa:
+> get_mempolicy: errno=22 (Invalid argument)
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Can you also share how you run stress-ng? Is it reproducible?
 
-> ---
-> Changelog since v1:
-> - updated commit message
-> 
->  mm/mlock.c | 5 -----
->  1 file changed, 5 deletions(-)
-> 
-> diff --git a/mm/mlock.c b/mm/mlock.c
-> index dfc6f1912176..3ceb2935d1e0 100644
-> --- a/mm/mlock.c
-> +++ b/mm/mlock.c
-> @@ -669,8 +669,6 @@ static __must_check int do_mlock(unsigned long start, size_t len, vm_flags_t fla
->  	if (!can_do_mlock())
->  		return -EPERM;
->  
-> -	lru_add_drain_all();	/* flush pagevec */
-> -
->  	len = PAGE_ALIGN(len + (offset_in_page(start)));
->  	start &= PAGE_MASK;
->  
-> @@ -797,9 +795,6 @@ SYSCALL_DEFINE1(mlockall, int, flags)
->  	if (!can_do_mlock())
->  		return -EPERM;
->  
-> -	if (flags & MCL_CURRENT)
-> -		lru_add_drain_all();	/* flush pagevec */
-> -
->  	lock_limit = rlimit(RLIMIT_MEMLOCK);
->  	lock_limit >>= PAGE_SHIFT;
->  
-> 
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
