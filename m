@@ -1,98 +1,143 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FB656B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 12:40:25 -0400 (EDT)
-Received: by mail-pf0-f197.google.com with SMTP id r6so12190561pfj.14
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 09:40:25 -0700 (PDT)
-Received: from out4434.biz.mail.alibaba.com (out4434.biz.mail.alibaba.com. [47.88.44.34])
-        by mx.google.com with ESMTPS id n3si9783716pld.602.2017.10.30.09.40.22
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 02C2A6B0038
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 13:51:33 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id w197so16237762oif.23
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 10:51:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id w203sor5269122oib.322.2017.10.30.10.51.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Oct 2017 09:40:23 -0700 (PDT)
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
- <20171030124358.GF23278@quack2.suse.cz>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
-Date: Tue, 31 Oct 2017 00:39:58 +0800
+        (Google Transport Security);
+        Mon, 30 Oct 2017 10:51:31 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171030124358.GF23278@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171030112048.GA4133@dastard>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171020074750.GA13568@lst.de> <20171020093148.GA20304@lst.de>
+ <20171026105850.GA31161@quack2.suse.cz> <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
+ <20171030020023.GG3666@dastard> <20171030083807.GA23278@quack2.suse.cz> <20171030112048.GA4133@dastard>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 30 Oct 2017 10:51:30 -0700
+Message-ID: <CAPcyv4jhrPz5Rcx=oLi7EVsR2_wVcKLo1Ekouj369HXu_Nf_nw@mail.gmail.com>
+Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less' support
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Jeff Layton <jlayton@poochiereds.net>, Sean Hefty <sean.hefty@intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma <linux-rdma@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-
-
-On 10/30/17 5:43 AM, Jan Kara wrote:
-> On Sat 28-10-17 02:22:18, Yang Shi wrote:
->> If some process generates events into a huge or unlimit event queue, but no
->> listener read them, they may consume significant amount of memory silently
->> until oom happens or some memory pressure issue is raised.
->> It'd better to account those slab caches in memcg so that we can get heads
->> up before the problematic process consume too much memory silently.
+On Mon, Oct 30, 2017 at 4:20 AM, Dave Chinner <david@fromorbit.com> wrote:
+> On Mon, Oct 30, 2017 at 09:38:07AM +0100, Jan Kara wrote:
+>> Hi,
 >>
->> But, the accounting might be heuristic if the producer is in the different
->> memcg from listener if the listener doesn't read the events. Due to the
->> current design of kmemcg, who does the allocation, who gets the accounting.
+>> On Mon 30-10-17 13:00:23, Dave Chinner wrote:
+>> > On Sun, Oct 29, 2017 at 04:46:44PM -0700, Dan Williams wrote:
+>> > > Coming back to this since Dave has made clear that new locking to
+>> > > coordinate get_user_pages() is a no-go.
+>> > >
+>> > > We can unmap to force new get_user_pages() attempts to block on the
+>> > > per-fs mmap lock, but if punch-hole finds any elevated pages it needs
+>> > > to drop the mmap lock and wait. We need this lock dropped to get
+>> > > around the problem that the driver will not start to drop page
+>> > > references until it has elevated the page references on all the pages
+>> > > in the I/O. If we need to drop the mmap lock that makes it impossible
+>> > > to coordinate this unlock/retry loop within truncate_inode_pages_range
+>> > > which would otherwise be the natural place to land this code.
+>> > >
+>> > > Would it be palatable to unmap and drain dma in any path that needs to
+>> > > detach blocks from an inode? Something like the following that builds
+>> > > on dax_wait_dma() tried to achieve, but does not introduce a new lock
+>> > > for the fs to manage:
+>> > >
+>> > > retry:
+>> > >     per_fs_mmap_lock(inode);
+>> > >     unmap_mapping_range(mapping, start, end); /* new page references
+>> > > cannot be established */
+>> > >     if ((dax_page = dax_dma_busy_page(mapping, start, end)) != NULL) {
+>> > >         per_fs_mmap_unlock(inode); /* new page references can happen,
+>> > > so we need to start over */
+>> > >         wait_for_page_idle(dax_page);
+>> > >         goto retry;
+>> > >     }
+>> > >     truncate_inode_pages_range(mapping, start, end);
+>> > >     per_fs_mmap_unlock(inode);
+>> >
+>> > These retry loops you keep proposing are just bloody horrible.  They
+>> > are basically just a method for blocking an operation until whatever
+>> > condition is preventing the invalidation goes away. IMO, that's an
+>> > ugly solution no matter how much lipstick you dress it up with.
+>> >
+>> > i.e. the blocking loops mean the user process is going to be blocked
+>> > for arbitrary lengths of time. That's not a solution, it's just
+>> > passing the buck - now the userspace developers need to work around
+>> > truncate/hole punch being randomly blocked for arbitrary lengths of
+>> > time.
 >>
->> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
->> ---
->> v1 --> v2:
->> * Updated commit log per Amir's suggestion
-> 
-> I'm sorry but I don't think this solution is acceptable. I understand that
-> in some cases (and you likely run one of these) the result may *happen* to
-> be the desired one but in other cases, you might be charging wrong memcg
-> and so misbehaving process in memcg A can effectively cause a DoS attack on
-> a process in memcg B.
+>> So I see substantial difference between how you and Christoph think this
+>> should be handled. Christoph writes in [1]:
+>>
+>> The point is that we need to prohibit long term elevated page counts
+>> with DAX anyway - we can't just let people grab allocated blocks forever
+>> while ignoring file system operations.  For stage 1 we'll just need to
+>> fail those, and in the long run they will have to use a mechanism
+>> similar to FL_LAYOUT locks to deal with file system allocation changes.
+>>
+>> So Christoph wants to block truncate until references are released, forbid
+>> long term references until userspace acquiring them supports some kind of
+>> lease-breaking. OTOH you suggest truncate should just proceed leaving
+>> blocks allocated until references are released.
+>
+> I don't see what I'm suggesting is a solution to long term elevated
+> page counts. Just something that can park extents until layout
+> leases are broken and references released. That's a few tens of
+> seconds at most.
+>
+>> We cannot have both... I'm leaning more towards the approach
+>> Christoph suggests as it puts the burned to the place which is
+>> causing it - the application having long term references - and
+>> applications needing this should be sufficiently rare that we
+>> don't have to devise a general mechanism in the kernel for this.
+>
+> I have no problems with blocking truncate forever if that's the
+> desired solution for an elevated page count due to a DMA reference
+> to a page. But that has absolutely nothing to do with the filesystem
+> though - it's a page reference vs mapping invalidation problem, not
+> a filesystem/inode problem.
+>
+> Perhaps pages with active DAX DMA mapping references need a page
+> flag to indicate that invalidation must block on the page similar to
+> the writeback flag...
 
-Yes, as what I discussed with Amir in earlier review, current memcg 
-design just accounts memory to the allocation process, but has no idea 
-who is consumer process.
+We effectively already have this flag since pages where
+is_zone_device_page() == true can only have their reference count
+elevated by get_user_pages().
 
-Although it is not desirable to DoS a memcg, it still sounds better than 
-DoS the whole machine due to potential oom. This patch is aimed to avoid 
-such case.
+More importantly we can not block invalidation on an elevated page
+count because that page count may never drop until all references have
+been acquired. I.e. iov_iter_get_pages() grabs a range of pages
+potentially across multiple vmas and does not drop any references in
+the range until all pages have had their count elevated.
 
-> 
-> If you have a setup in which notification events can consume considerable
-> amount of resources, you are doing something wrong I think. Standard event
-> queue length is limited, overall events are bounded to consume less than 1
-> MB. If you have unbounded queue, the process has to be CAP_SYS_ADMIN and
-> presumably it has good reasons for requesting unbounded queue and it should
-> know what it is doing.
+>> If the solution Christoph suggests is acceptable to you, I think
+>> we should first write a patch to forbid acquiring long term
+>> references to DAX blocks.  On top of that we can implement
+>> mechanism to block truncate while there are short term references
+>> pending (and for that retry loops would be IMHO acceptable).
+>
+> The problem with retry loops is that they are making a mess of an
+> already complex set of locking contraints on the indoe IO path. It's
+> rapidly descending into an unmaintainable mess - falling off the
+> locking cliff only make sthe code harder to maintain - please look
+> for solutions that don't require new locks or lock retry loops.
 
-Yes, I agree it does mean something is going wrong. So, it'd better to 
-be accounted in order to get some heads up early before something is 
-going really bad. The limit will not be set too high since fsnotify 
-metadata will not consume too much memory in *normal* case.
+I was hoping to make the retry loop no worse than the one we already
+perform for xfs_break_layouts(), and then the approach can be easily
+shared between ext4 and xfs.
 
-I agree we should trust admin user, but kernel should be responsible for 
-the last defense when something is really going wrong. And, we can't 
-guarantee admin process will not do something wrong, the code might be 
-not reviewed thoroughly, the test might not cover some extreme cases.
-
-> 
-> So maybe we could come up with some better way to control amount of
-> resources consumed by notification events but for that we lack more
-> information about your use case. And I maintain that the solution should
-> account events to the consumer, not the producer...
-
-I do agree it is not fair and not neat to account to producer rather 
-than misbehaving consumer, but current memcg design looks not support 
-such use case. And, the other question is do we know who is the listener 
-if it doesn't read the events?
-
-Thanks,
-Yang
-
-> 
-> 								Honza
-> 
+However before we get there, we need quite a bit of reworks (require
+struct page for dax, use pfns in the dax radix, disable long held page
+reference counts for DAX i.e. RDMA / V4L2...). I'll submit those
+preparation steps first and then we can circle back to the "how to
+wait for DAX-DMA to end" problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
