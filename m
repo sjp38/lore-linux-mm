@@ -1,95 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D02E66B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:47 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id m72so5846685wmc.0
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:44:47 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id p3si4400536edi.413.2017.10.30.02.44.46
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E1696B0253
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:46:50 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id z80so11359151pff.11
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:46:50 -0700 (PDT)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f17si9657755pgn.596.2017.10.30.02.46.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Oct 2017 02:44:46 -0700 (PDT)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9U9hvJs066948
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:45 -0400
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2dwxcuhnsu-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:45 -0400
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 30 Oct 2017 09:44:43 -0000
-Date: Mon, 30 Oct 2017 11:44:37 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2] pids: introduce find_get_task_by_vpid helper
-References: <1509126753-3297-1-git-send-email-rppt@linux.vnet.ibm.com>
- <CAKTCnzn1-MMK+o-u2F3gcvCaq7Upk-5M2qOS9XaGV6-gcJRqBw@mail.gmail.com>
+        Mon, 30 Oct 2017 02:46:49 -0700 (PDT)
+Message-ID: <59F6F58A.2030000@intel.com>
+Date: Mon, 30 Oct 2017 17:48:58 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAKTCnzn1-MMK+o-u2F3gcvCaq7Upk-5M2qOS9XaGV6-gcJRqBw@mail.gmail.com>
-Message-Id: <20171030094436.GA3141@rapoport-lnx>
+Subject: Re: [PATCH] virtio_balloon: fix deadlock on OOM
+References: <1507900754-32239-1-git-send-email-mst@redhat.com>
+In-Reply-To: <1507900754-32239-1-git-send-email-mst@redhat.com>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Balbir Singh <bsingharora@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>, linux-kernel@vger.kernel.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-On Mon, Oct 30, 2017 at 07:51:42PM +1100, Balbir Singh wrote:
-> On Sat, Oct 28, 2017 at 4:52 AM, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> > There are several functions that do find_task_by_vpid() followed by
-> > get_task_struct(). We can use a helper function instead.
-> >
-> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> > ---
-> 
-> I did a quick grep and found other similar patterns in
+On 10/13/2017 09:21 PM, Michael S. Tsirkin wrote:
+> fill_balloon doing memory allocations under balloon_lock
+> can cause a deadlock when leak_balloon is called from
+> virtballoon_oom_notify and tries to take same lock.
+>
+> To fix, split page allocation and enqueue and do allocations outside the lock.
+>
+> Here's a detailed analysis of the deadlock by Tetsuo Handa:
+>
+> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+> serialize against fill_balloon(). But in fill_balloon(),
+> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+> is specified, this allocation attempt might indirectly depend on somebody
+> else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
+> __GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
+> virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
+> out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
+> mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
+> will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
+> leak_balloon() is called from out_of_memory().
+>
+>    Thread1                                       Thread2
+>      fill_balloon()
+>        takes a balloon_lock
+>        balloon_page_enqueue()
+>          alloc_page(GFP_HIGHUSER_MOVABLE)
+>            direct reclaim (__GFP_FS context)       takes a fs lock
+>              waits for that fs lock                  alloc_page(GFP_NOFS)
+>                                                        __alloc_pages_may_oom()
+>                                                          takes the oom_lock
+>                                                          out_of_memory()
+>                                                            blocking_notifier_call_chain()
+>                                                              leak_balloon()
+>                                                                tries to take that balloon_lock and deadlocks
+>
+> Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Wei Wang <wei.w.wang@intel.com>
+> ---
 
-(reordered the file list a bit)
+The "virtio-balloon enhancement" series has a dependency on this patch.
+Could you send out a new version soon? Or I can include it in the series 
+if you want.
 
-> kernel/events/core.c,
-> arch/x86/kernel/cpu/intel_rdt_rdtgroup.c,
-> mm/mempolicy.c,
 
-Those and mm/migrate.c indeed have a similar pattern, but they all do
-
-	task = pid ? find_task_by_vpid(pid) : current;
-
-And I don't see an elegant way to use find_get_task_by_vpid() in this case.
-
-> kernel/kcmp.c,
-
-kcmp gets both tasks between rcu_read_lock/unlock and I think it's better
-to keep it this way.
-
-> kernel/sys.c,
-
-There is no get_task_struct() after find_task_by_vpid(), unless I've missed
-something
-
-> kernel/time/posix-cpu-timers.c,
-
-Here the task is selected with more complex logic than just
-find_task_by_vpid() 
-
-> mm/process_vm_access.c,
-
-Converted in the patch
-
-> security/yama/yama_lsm.c,
-> arch/ia64/kernel/perfmon.c
-
-I've missed these two, indeed.
-
-The arch/ia64/kernel/perfmon.c even still uses read_lock(&tasklist) rather
-than rcu_read_lock()...
- 
-> Balbir Singh.
-> 
-
--- 
-Sincerely yours,
-Mike.
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
