@@ -1,83 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DA6286B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 06:26:26 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r6so11472041pfj.14
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 03:26:26 -0700 (PDT)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id g69si9674382pgc.716.2017.10.30.03.26.25
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 86A3D6B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 07:20:54 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h28so11564106pfh.16
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 04:20:54 -0700 (PDT)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id 143si9805566pge.666.2017.10.30.04.20.51
         for <linux-mm@kvack.org>;
-        Mon, 30 Oct 2017 03:26:25 -0700 (PDT)
-Date: Mon, 30 Oct 2017 19:26:19 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171030102619.GB18085@X58A-UD3R>
-References: <089e0825eec8955c1f055c83d476@google.com>
- <20171027093418.om5e566srz2ztsrk@dhcp22.suse.cz>
- <CACT4Y+Y=NCy20_k4YcrCF2Q0f16UPDZBVAF=RkkZ0uSxZq5XaA@mail.gmail.com>
- <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
- <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
+        Mon, 30 Oct 2017 04:20:52 -0700 (PDT)
+Date: Mon, 30 Oct 2017 22:20:48 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less'
+ support
+Message-ID: <20171030112048.GA4133@dastard>
+References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171020074750.GA13568@lst.de>
+ <20171020093148.GA20304@lst.de>
+ <20171026105850.GA31161@quack2.suse.cz>
+ <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
+ <20171030020023.GG3666@dastard>
+ <20171030083807.GA23278@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
+In-Reply-To: <20171030083807.GA23278@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@gmail.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Sean Hefty <sean.hefty@intel.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon, Oct 30, 2017 at 09:22:03AM +0100, Michal Hocko wrote:
-> [Cc Byungchul. The original full report is
-> http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com]
+On Mon, Oct 30, 2017 at 09:38:07AM +0100, Jan Kara wrote:
+> Hi,
 > 
-> Could you have a look please? This smells like a false positive to me.
-> 
-> On Fri 27-10-17 15:42:34, Michal Hocko wrote:
-> > On Fri 27-10-17 11:44:58, Dmitry Vyukov wrote:
-> > > On Fri, Oct 27, 2017 at 11:34 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > > On Fri 27-10-17 02:22:40, syzbot wrote:
-> > > >> Hello,
-> > > >>
-> > > >> syzkaller hit the following crash on
-> > > >> a31cc455c512f3f1dd5f79cac8e29a7c8a617af8
-> > > >> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
-> > > >> compiler: gcc (GCC) 7.1.1 20170620
-> > > >> .config is attached
-> > > >> Raw console output is attached.
-> > > >
-> > > > I do not see such a commit. My linux-next top is next-20171018
-> > > >
-> > > > [...]
-> > > >> Chain exists of:
-> > > >>   cpu_hotplug_lock.rw_sem --> &pipe->mutex/1 --> &sb->s_type->i_mutex_key#9
-> > > >>
-> > > >>  Possible unsafe locking scenario:
-> > > >>
-> > > >>        CPU0                    CPU1
-> > > >>        ----                    ----
-> > > >>   lock(&sb->s_type->i_mutex_key#9);
-> > > >>                                lock(&pipe->mutex/1);
-> > > >>                                lock(&sb->s_type->i_mutex_key#9);
-> > > >>   lock(cpu_hotplug_lock.rw_sem);
-> > > >
-> > > > I am quite confused about this report. Where exactly is the deadlock?
-> > > > I do not see where we would get pipe mutex from inside of the hotplug
-> > > > lock. Is it possible this is just a false possitive due to cross release
-> > > > feature?
+> On Mon 30-10-17 13:00:23, Dave Chinner wrote:
+> > On Sun, Oct 29, 2017 at 04:46:44PM -0700, Dan Williams wrote:
+> > > Coming back to this since Dave has made clear that new locking to
+> > > coordinate get_user_pages() is a no-go.
 > > > 
+> > > We can unmap to force new get_user_pages() attempts to block on the
+> > > per-fs mmap lock, but if punch-hole finds any elevated pages it needs
+> > > to drop the mmap lock and wait. We need this lock dropped to get
+> > > around the problem that the driver will not start to drop page
+> > > references until it has elevated the page references on all the pages
+> > > in the I/O. If we need to drop the mmap lock that makes it impossible
+> > > to coordinate this unlock/retry loop within truncate_inode_pages_range
+> > > which would otherwise be the natural place to land this code.
 > > > 
-> > > As far as I understand this CPU0/CPU1 scheme works only for simple
-> > > cases with 2 mutexes. This seem to have larger cycle as denoted by
-> > > "the existing dependency chain (in reverse order) is:" section.
+> > > Would it be palatable to unmap and drain dma in any path that needs to
+> > > detach blocks from an inode? Something like the following that builds
+> > > on dax_wait_dma() tried to achieve, but does not introduce a new lock
+> > > for the fs to manage:
+> > > 
+> > > retry:
+> > >     per_fs_mmap_lock(inode);
+> > >     unmap_mapping_range(mapping, start, end); /* new page references
+> > > cannot be established */
+> > >     if ((dax_page = dax_dma_busy_page(mapping, start, end)) != NULL) {
+> > >         per_fs_mmap_unlock(inode); /* new page references can happen,
+> > > so we need to start over */
+> > >         wait_for_page_idle(dax_page);
+> > >         goto retry;
+> > >     }
+> > >     truncate_inode_pages_range(mapping, start, end);
+> > >     per_fs_mmap_unlock(inode);
 > > 
-> > My point was that lru_add_drain_all doesn't take any external locks
-> > other than lru_lock and that one is not anywhere in the chain AFAICS.
+> > These retry loops you keep proposing are just bloody horrible.  They
+> > are basically just a method for blocking an operation until whatever
+> > condition is preventing the invalidation goes away. IMO, that's an
+> > ugly solution no matter how much lipstick you dress it up with.
+> > 
+> > i.e. the blocking loops mean the user process is going to be blocked
+> > for arbitrary lengths of time. That's not a solution, it's just
+> > passing the buck - now the userspace developers need to work around
+> > truncate/hole punch being randomly blocked for arbitrary lengths of
+> > time.
+> 
+> So I see substantial difference between how you and Christoph think this
+> should be handled. Christoph writes in [1]:
+> 
+> The point is that we need to prohibit long term elevated page counts
+> with DAX anyway - we can't just let people grab allocated blocks forever
+> while ignoring file system operations.  For stage 1 we'll just need to
+> fail those, and in the long run they will have to use a mechanism
+> similar to FL_LAYOUT locks to deal with file system allocation changes.
+> 
+> So Christoph wants to block truncate until references are released, forbid
+> long term references until userspace acquiring them supports some kind of
+> lease-breaking. OTOH you suggest truncate should just proceed leaving
+> blocks allocated until references are released.
 
-I think lru_add_drain_all() takes cpu_hotplug_lock.rw_sem implicitly in
-get_online_cpus(), which appears in the chain.
+I don't see what I'm suggesting is a solution to long term elevated
+page counts. Just something that can park extents until layout
+leases are broken and references released. That's a few tens of
+seconds at most.
 
-Thanks,
-Byungchul
+> We cannot have both... I'm leaning more towards the approach
+> Christoph suggests as it puts the burned to the place which is
+> causing it - the application having long term references - and
+> applications needing this should be sufficiently rare that we
+> don't have to devise a general mechanism in the kernel for this.
+
+I have no problems with blocking truncate forever if that's the
+desired solution for an elevated page count due to a DMA reference
+to a page. But that has absolutely nothing to do with the filesystem
+though - it's a page reference vs mapping invalidation problem, not
+a filesystem/inode problem.
+
+Perhaps pages with active DAX DMA mapping references need a page
+flag to indicate that invalidation must block on the page similar to
+the writeback flag...
+
+> If the solution Christoph suggests is acceptable to you, I think
+> we should first write a patch to forbid acquiring long term
+> references to DAX blocks.  On top of that we can implement
+> mechanism to block truncate while there are short term references
+> pending (and for that retry loops would be IMHO acceptable).
+
+The problem with retry loops is that they are making a mess of an
+already complex set of locking contraints on the indoe IO path. It's
+rapidly descending into an unmaintainable mess - falling off the
+locking cliff only make sthe code harder to maintain - please look
+for solutions that don't require new locks or lock retry loops.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
