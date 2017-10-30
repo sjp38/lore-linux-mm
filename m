@@ -1,133 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A3D6B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 07:20:54 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id h28so11564106pfh.16
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 04:20:54 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 143si9805566pge.666.2017.10.30.04.20.51
-        for <linux-mm@kvack.org>;
-        Mon, 30 Oct 2017 04:20:52 -0700 (PDT)
-Date: Mon, 30 Oct 2017 22:20:48 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less'
- support
-Message-ID: <20171030112048.GA4133@dastard>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171020074750.GA13568@lst.de>
- <20171020093148.GA20304@lst.de>
- <20171026105850.GA31161@quack2.suse.cz>
- <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
- <20171030020023.GG3666@dastard>
- <20171030083807.GA23278@quack2.suse.cz>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EDFD86B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 07:27:55 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id 11so7871375wrb.10
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 04:27:55 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h4sor6743812edb.7.2017.10.30.04.27.54
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 30 Oct 2017 04:27:54 -0700 (PDT)
+Date: Mon, 30 Oct 2017 14:27:52 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [pgtable_trans_huge_withdraw] BUG: unable to handle kernel NULL
+ pointer dereference at 0000000000000020
+Message-ID: <20171030112752.c4n4m4vhh2barjew@node.shutemov.name>
+References: <CA+55aFxSJGeN=2X-uX-on1Uq2Nb8+v1aiMDz5H1+tKW_N5Q+6g@mail.gmail.com>
+ <20171029225155.qcum5i75awrt5tzm@wfg-t540p.sh.intel.com>
+ <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
+ <20171030091940.mcljomnaqvrhvwjx@node.shutemov.name>
+ <20171030092842.a2zq5gza4tufyku2@wfg-t540p.sh.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171030083807.GA23278@quack2.suse.cz>
+In-Reply-To: <20171030092842.a2zq5gza4tufyku2@wfg-t540p.sh.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dan Williams <dan.j.williams@gmail.com>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Sean Hefty <sean.hefty@intel.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Geliang Tang <geliangtang@163.com>
 
-On Mon, Oct 30, 2017 at 09:38:07AM +0100, Jan Kara wrote:
-> Hi,
+On Mon, Oct 30, 2017 at 10:28:42AM +0100, Fengguang Wu wrote:
+> Hi Kirill,
 > 
-> On Mon 30-10-17 13:00:23, Dave Chinner wrote:
-> > On Sun, Oct 29, 2017 at 04:46:44PM -0700, Dan Williams wrote:
-> > > Coming back to this since Dave has made clear that new locking to
-> > > coordinate get_user_pages() is a no-go.
+> On Mon, Oct 30, 2017 at 12:19:40PM +0300, Kirill A. Shutemov wrote:
+> > On Mon, Oct 30, 2017 at 12:37:01AM +0100, Fengguang Wu wrote:
+> > > CC MM people.
 > > > 
-> > > We can unmap to force new get_user_pages() attempts to block on the
-> > > per-fs mmap lock, but if punch-hole finds any elevated pages it needs
-> > > to drop the mmap lock and wait. We need this lock dropped to get
-> > > around the problem that the driver will not start to drop page
-> > > references until it has elevated the page references on all the pages
-> > > in the I/O. If we need to drop the mmap lock that makes it impossible
-> > > to coordinate this unlock/retry loop within truncate_inode_pages_range
-> > > which would otherwise be the natural place to land this code.
+> > > On Sun, Oct 29, 2017 at 11:51:55PM +0100, Fengguang Wu wrote:
+> > > > Hi Linus,
+> > > >
+> > > > Up to now we see the below boot error/warnings when testing v4.14-rc6.
+> > > >
+> > > > They hit the RC release mainly due to various imperfections in 0day's
+> > > > auto bisection. So I manually list them here and CC the likely easy to
+> > > > debug ones to the corresponding maintainers in the followup emails.
+> > > >
+> > > > boot_successes: 4700
+> > > > boot_failures: 247
+> > > >
+> > > > BUG:kernel_hang_in_test_stage: 152
+> > > > BUG:kernel_reboot-without-warning_in_test_stage: 10
+> > > > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mutex.c: 1
+> > > > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rwsem.c: 3
+> > > > BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c: 21
+> > > > BUG:soft_lockup-CPU##stuck_for#s: 1
+> > > > BUG:unable_to_handle_kernel: 13
 > > > 
-> > > Would it be palatable to unmap and drain dma in any path that needs to
-> > > detach blocks from an inode? Something like the following that builds
-> > > on dax_wait_dma() tried to achieve, but does not introduce a new lock
-> > > for the fs to manage:
+> > > Here is the call trace:
 > > > 
-> > > retry:
-> > >     per_fs_mmap_lock(inode);
-> > >     unmap_mapping_range(mapping, start, end); /* new page references
-> > > cannot be established */
-> > >     if ((dax_page = dax_dma_busy_page(mapping, start, end)) != NULL) {
-> > >         per_fs_mmap_unlock(inode); /* new page references can happen,
-> > > so we need to start over */
-> > >         wait_for_page_idle(dax_page);
-> > >         goto retry;
-> > >     }
-> > >     truncate_inode_pages_range(mapping, start, end);
-> > >     per_fs_mmap_unlock(inode);
+> > > [  956.669197] [  956.670421] stress-ng: fail:  [27945] stress-ng-numa:
+> > > get_mempolicy: errno=22 (Invalid argument)
 > > 
-> > These retry loops you keep proposing are just bloody horrible.  They
-> > are basically just a method for blocking an operation until whatever
-> > condition is preventing the invalidation goes away. IMO, that's an
-> > ugly solution no matter how much lipstick you dress it up with.
-> > 
-> > i.e. the blocking loops mean the user process is going to be blocked
-> > for arbitrary lengths of time. That's not a solution, it's just
-> > passing the buck - now the userspace developers need to work around
-> > truncate/hole punch being randomly blocked for arbitrary lengths of
-> > time.
+> > Can you also share how you run stress-ng? Is it reproducible?
 > 
-> So I see substantial difference between how you and Christoph think this
-> should be handled. Christoph writes in [1]:
+> The command line is
 > 
-> The point is that we need to prohibit long term elevated page counts
-> with DAX anyway - we can't just let people grab allocated blocks forever
-> while ignoring file system operations.  For stage 1 we'll just need to
-> fail those, and in the long run they will have to use a mechanism
-> similar to FL_LAYOUT locks to deal with file system allocation changes.
+>        stress-ng --class cpu --sequential $(nproc) --timeout 1 --times --verify --metrics-brief
 > 
-> So Christoph wants to block truncate until references are released, forbid
-> long term references until userspace acquiring them supports some kind of
-> lease-breaking. OTOH you suggest truncate should just proceed leaving
-> blocks allocated until references are released.
+> The test box is
+> 
+>        model: Broadwell-EP
+>        nr_cpu: 88
+>        memory: 128G
 
-I don't see what I'm suggesting is a solution to long term elevated
-page counts. Just something that can park extents until layout
-leases are broken and references released. That's a few tens of
-seconds at most.
+By chance, do you emulated nvdimm there? I suspect DAX stuff.
+Do you have full dmesg around?
 
-> We cannot have both... I'm leaning more towards the approach
-> Christoph suggests as it puts the burned to the place which is
-> causing it - the application having long term references - and
-> applications needing this should be sufficiently rare that we
-> don't have to devise a general mechanism in the kernel for this.
-
-I have no problems with blocking truncate forever if that's the
-desired solution for an elevated page count due to a DMA reference
-to a page. But that has absolutely nothing to do with the filesystem
-though - it's a page reference vs mapping invalidation problem, not
-a filesystem/inode problem.
-
-Perhaps pages with active DAX DMA mapping references need a page
-flag to indicate that invalidation must block on the page similar to
-the writeback flag...
-
-> If the solution Christoph suggests is acceptable to you, I think
-> we should first write a patch to forbid acquiring long term
-> references to DAX blocks.  On top of that we can implement
-> mechanism to block truncate while there are short term references
-> pending (and for that retry loops would be IMHO acceptable).
-
-The problem with retry loops is that they are making a mess of an
-already complex set of locking contraints on the indoe IO path. It's
-rapidly descending into an unmaintainable mess - falling off the
-locking cliff only make sthe code harder to maintain - please look
-for solutions that don't require new locks or lock retry loops.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
