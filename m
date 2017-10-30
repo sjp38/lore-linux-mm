@@ -1,51 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D5166B0038
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 15:28:17 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b9so6624561wmh.5
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 12:28:17 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s5sor6467436wra.28.2017.10.30.12.28.15
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A57666B0038
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 17:36:42 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id n79so37411385ion.17
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 14:36:42 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b140sor7715703iob.273.2017.10.30.14.36.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Oct 2017 12:28:15 -0700 (PDT)
+        Mon, 30 Oct 2017 14:36:41 -0700 (PDT)
+Date: Mon, 30 Oct 2017 14:36:39 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
+In-Reply-To: <20171027093107.GA29492@castle.dhcp.TheFacebook.com>
+Message-ID: <alpine.DEB.2.10.1710301430170.105449@chino.kir.corp.google.com>
+References: <20171019185218.12663-1-guro@fb.com> <20171019194534.GA5502@cmpxchg.org> <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com> <20171026142445.GA21147@cmpxchg.org> <alpine.DEB.2.10.1710261359550.75887@chino.kir.corp.google.com>
+ <20171027093107.GA29492@castle.dhcp.TheFacebook.com>
 MIME-Version: 1.0
-In-Reply-To: <20171030082916.x6xaqd4pgs2moy4y@dhcp22.suse.cz>
-References: <20171024172330.GA3973@cmpxchg.org> <20171024175558.uxqtxwhjgu6ceadk@dhcp22.suse.cz>
- <20171024185854.GA6154@cmpxchg.org> <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
- <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com> <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org> <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
- <20171025164402.GA11582@cmpxchg.org> <CALvZod5wiJvZw0yCS+KuDDYawUDAL=h0UBFXhY44FN84BsXrtA@mail.gmail.com>
- <20171030082916.x6xaqd4pgs2moy4y@dhcp22.suse.cz>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Mon, 30 Oct 2017 12:28:13 -0700
-Message-ID: <CALvZod65sU+wujxAR9AqTdbMHkHsMsOyfNXYf1t=w1BEpx5LHw@mail.gmail.com>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Greg Thelen <gthelen@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Mon, Oct 30, 2017 at 1:29 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Fri 27-10-17 13:50:47, Shakeel Butt wrote:
->> > Why is OOM-disabling a thing? Why isn't this simply a "kill everything
->> > else before you kill me"? It's crashing the kernel in trying to
->> > protect a userspace application. How is that not insane?
->>
->> In parallel to other discussion, I think we should definitely move
->> from "completely oom-disabled" semantics to something similar to "kill
->> me last" semantics. Is there any objection to this idea?
->
-> Could you be more specific what you mean?
->
+On Fri, 27 Oct 2017, Roman Gushchin wrote:
 
-I get the impression that the main reason behind the complexity of
-oom-killer is allowing processes to be protected from the oom-killer
-i.e. disabling oom-killing a process by setting
-/proc/[pid]/oom_score_adj to -1000. So, instead of oom-disabling, add
-an interface which will let users/admins to set a process to be
-oom-killed as a last resort.
+> The thing is that the hierarchical approach (as in v8), which are you pushing,
+> has it's own limitations, which we've discussed in details earlier. There are
+> reasons why v12 is different, and we can't really simple go back. I mean if
+> there are better ideas how to resolve concerns raised in discussions around v8,
+> let me know, but ignoring them is not an option.
+> 
+
+I'm not ignoring them, I have stated that we need the ability to protect 
+important cgroups on the system without oom disabling all attached 
+processes.  If that is implemented as a memory.oom_score_adj with the same 
+semantics as /proc/pid/oom_score_adj, i.e. a proportion of available 
+memory (the limit), it can also address the issues pointed out with the 
+hierarchical approach in v8.  If this is not the case, could you elaborate 
+on what your exact concern is and why we do not care that users can 
+completely circumvent victim selection by creating child cgroups for other 
+controllers?
+
+Since the ability to protect important cgroups on the system may require a 
+heuristic change, I think it should be solved now rather than constantly 
+insisting that we can make this patchset complete later and in the 
+meantime force the user to set all attached processes to be oom disabled.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
