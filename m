@@ -1,90 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 688A66B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:28:51 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j3so13043279pga.5
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:28:51 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id m12si9626625pgr.313.2017.10.30.02.28.49
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D02E66B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:47 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id m72so5846685wmc.0
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:44:47 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p3si4400536edi.413.2017.10.30.02.44.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Oct 2017 02:28:50 -0700 (PDT)
-Date: Mon, 30 Oct 2017 10:28:42 +0100
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [pgtable_trans_huge_withdraw] BUG: unable to handle kernel NULL
- pointer dereference at 0000000000000020
-Message-ID: <20171030092842.a2zq5gza4tufyku2@wfg-t540p.sh.intel.com>
-References: <CA+55aFxSJGeN=2X-uX-on1Uq2Nb8+v1aiMDz5H1+tKW_N5Q+6g@mail.gmail.com>
- <20171029225155.qcum5i75awrt5tzm@wfg-t540p.sh.intel.com>
- <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
- <20171030091940.mcljomnaqvrhvwjx@node.shutemov.name>
+        Mon, 30 Oct 2017 02:44:46 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9U9hvJs066948
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:45 -0400
+Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2dwxcuhnsu-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 05:44:45 -0400
+Received: from localhost
+	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Mon, 30 Oct 2017 09:44:43 -0000
+Date: Mon, 30 Oct 2017 11:44:37 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2] pids: introduce find_get_task_by_vpid helper
+References: <1509126753-3297-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAKTCnzn1-MMK+o-u2F3gcvCaq7Upk-5M2qOS9XaGV6-gcJRqBw@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171030091940.mcljomnaqvrhvwjx@node.shutemov.name>
+In-Reply-To: <CAKTCnzn1-MMK+o-u2F3gcvCaq7Upk-5M2qOS9XaGV6-gcJRqBw@mail.gmail.com>
+Message-Id: <20171030094436.GA3141@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Geliang Tang <geliangtang@163.com>
+To: Balbir Singh <bsingharora@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm <linux-mm@kvack.org>, lkml <linux-kernel@vger.kernel.org>
 
-Hi Kirill,
+On Mon, Oct 30, 2017 at 07:51:42PM +1100, Balbir Singh wrote:
+> On Sat, Oct 28, 2017 at 4:52 AM, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> > There are several functions that do find_task_by_vpid() followed by
+> > get_task_struct(). We can use a helper function instead.
+> >
+> > Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+> > ---
+> 
+> I did a quick grep and found other similar patterns in
 
-On Mon, Oct 30, 2017 at 12:19:40PM +0300, Kirill A. Shutemov wrote:
->On Mon, Oct 30, 2017 at 12:37:01AM +0100, Fengguang Wu wrote:
->> CC MM people.
->>
->> On Sun, Oct 29, 2017 at 11:51:55PM +0100, Fengguang Wu wrote:
->> > Hi Linus,
->> >
->> > Up to now we see the below boot error/warnings when testing v4.14-rc6.
->> >
->> > They hit the RC release mainly due to various imperfections in 0day's
->> > auto bisection. So I manually list them here and CC the likely easy to
->> > debug ones to the corresponding maintainers in the followup emails.
->> >
->> > boot_successes: 4700
->> > boot_failures: 247
->> >
->> > BUG:kernel_hang_in_test_stage: 152
->> > BUG:kernel_reboot-without-warning_in_test_stage: 10
->> > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mutex.c: 1
->> > BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rwsem.c: 3
->> > BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c: 21
->> > BUG:soft_lockup-CPU##stuck_for#s: 1
->> > BUG:unable_to_handle_kernel: 13
->>
->> Here is the call trace:
->>
->> [  956.669197] [  956.670421] stress-ng: fail:  [27945] stress-ng-numa:
->> get_mempolicy: errno=22 (Invalid argument)
->
->Can you also share how you run stress-ng? Is it reproducible?
+(reordered the file list a bit)
 
-The command line is
+> kernel/events/core.c,
+> arch/x86/kernel/cpu/intel_rdt_rdtgroup.c,
+> mm/mempolicy.c,
 
-        stress-ng --class cpu --sequential $(nproc) --timeout 1 --times --verify --metrics-brief
+Those and mm/migrate.c indeed have a similar pattern, but they all do
 
-The test box is
+	task = pid ? find_task_by_vpid(pid) : current;
 
-        model: Broadwell-EP
-        nr_cpu: 88
-        memory: 128G
+And I don't see an elegant way to use find_get_task_by_vpid() in this case.
 
-It shows up 4 times in 6 test runs:
+> kernel/kcmp.c,
 
-/result/stress-ng/60s-cpu-performance/lkp-bdw-ep6/debian-x86_64-2016-08-31.cgz/x86_64-rhel-7.2/gcc-6/bb176f67090ca54869fc1262c913aa69d2ede070/matrix.json
+kcmp gets both tasks between rcu_read_lock/unlock and I think it's better
+to keep it this way.
 
-  "dmesg.BUG:unable_to_handle_kernel": [
-    0,
-    1,
-    1,
-    1,
-    0,
-    1
-  ],
+> kernel/sys.c,
+
+There is no get_task_struct() after find_task_by_vpid(), unless I've missed
+something
+
+> kernel/time/posix-cpu-timers.c,
+
+Here the task is selected with more complex logic than just
+find_task_by_vpid() 
+
+> mm/process_vm_access.c,
+
+Converted in the patch
+
+> security/yama/yama_lsm.c,
+> arch/ia64/kernel/perfmon.c
+
+I've missed these two, indeed.
+
+The arch/ia64/kernel/perfmon.c even still uses read_lock(&tasklist) rather
+than rcu_read_lock()...
  
-Thanks,
-Fengguang
+> Balbir Singh.
+> 
+
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
