@@ -1,232 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 210CA6B0033
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 09:22:50 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id o74so34707825iod.15
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 06:22:50 -0700 (PDT)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B44916B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 09:24:32 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id u97so8108392wrc.3
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 06:24:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g201sor2152327ita.122.2017.10.30.06.22.44
+        by mx.google.com with SMTPS id t10sor6794392edb.8.2017.10.30.06.24.31
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Oct 2017 06:22:44 -0700 (PDT)
+        Mon, 30 Oct 2017 06:24:31 -0700 (PDT)
+Date: Mon, 30 Oct 2017 16:24:29 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [pgtable_trans_huge_withdraw] BUG: unable to handle kernel NULL
+ pointer dereference at 0000000000000020
+Message-ID: <20171030132429.ctve2f2zcofclydo@node.shutemov.name>
+References: <CA+55aFxSJGeN=2X-uX-on1Uq2Nb8+v1aiMDz5H1+tKW_N5Q+6g@mail.gmail.com>
+ <20171029225155.qcum5i75awrt5tzm@wfg-t540p.sh.intel.com>
+ <20171029233701.4pjqaesnrjqshmzn@wfg-t540p.sh.intel.com>
+ <20171030115819.33y7g47qnzrsmwwb@node.shutemov.name>
+ <3121F405-9F96-41B0-BD28-73BD8EA85B07@cs.rutgers.edu>
 MIME-Version: 1.0
-In-Reply-To: <1509364987-29608-1-git-send-email-kyeongdon.kim@lge.com>
-References: <1509364987-29608-1-git-send-email-kyeongdon.kim@lge.com>
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Date: Mon, 30 Oct 2017 16:22:04 +0300
-Message-ID: <CAGqmi75C7DWczUw47+gtO8NkwtHVsBNha5zhzbnFLh=DoN08xQ@mail.gmail.com>
-Subject: Re: [PATCH] ksm : use checksum and memcmp for rb_tree
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <3121F405-9F96-41B0-BD28-73BD8EA85B07@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kyeongdon Kim <kyeongdon.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, broonie@kernel.org, mhocko@suse.com, mingo@kernel.org, jglisse@redhat.com, Arvind Yadav <arvind.yadav.cs@gmail.com>, imbrenda@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, bongkyu.kim@lge.com, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Fengguang Wu <fengguang.wu@intel.com>, Linux Memory Management List <linux-mm@kvack.org>, Linus Torvalds <torvalds@linux-foundation.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vineet Gupta <Vineet.Gupta1@synopsys.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Dan Williams <dan.j.williams@intel.com>, Geliang Tang <geliangtang@163.com>
 
-2017-10-30 15:03 GMT+03:00 Kyeongdon Kim <kyeongdon.kim@lge.com>:
-> The current ksm is using memcmp to insert and search 'rb_tree'.
-> It does cause very expensive computation cost.
-> In order to reduce the time of this operation,
-> we have added a checksum to traverse before memcmp operation.
->
-> Nearly all 'rb_node' in stable_tree_insert() function
-> can be inserted as a checksum, most of it is possible
-> in unstable_tree_search_insert() function.
-> In stable_tree_search() function, the checksum may be an additional.
-> But, checksum check duration is extremely small.
-> Considering the time of the whole cmp_and_merge_page() function,
-> it requires very little cost on average.
->
-> Using this patch, we compared the time of ksm_do_scan() function
-> by adding kernel trace at the start-end position of operation.
-> (ARM 32bit target android device,
-> over 1000 sample time gap stamps average)
->
-> On original KSM scan avg duration = 0.0166893 sec
-> 24991.975619 : ksm_do_scan_start: START: ksm_do_scan
-> 24991.990975 : ksm_do_scan_end: END: ksm_do_scan
-> 24992.008989 : ksm_do_scan_start: START: ksm_do_scan
-> 24992.016839 : ksm_do_scan_end: END: ksm_do_scan
-> ...
->
-> On patch KSM scan avg duration = 0.0041157 sec
-> 41081.461312 : ksm_do_scan_start: START: ksm_do_scan
-> 41081.466364 : ksm_do_scan_end: END: ksm_do_scan
-> 41081.484767 : ksm_do_scan_start: START: ksm_do_scan
-> 41081.487951 : ksm_do_scan_end: END: ksm_do_scan
-> ...
->
-> We have tested randomly so many times for the stability
-> and couldn't see any abnormal issue until now.
-> Also, we found out this patch can make some good advantage
-> for the power consumption than KSM default enable.
->
-> Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
-> ---
->  mm/ksm.c | 49 +++++++++++++++++++++++++++++++++++++++++++++----
->  1 file changed, 45 insertions(+), 4 deletions(-)
->
-> diff --git a/mm/ksm.c b/mm/ksm.c
-> index be8f457..66ab4f4 100644
-> --- a/mm/ksm.c
-> +++ b/mm/ksm.c
-> @@ -150,6 +150,7 @@ struct stable_node {
->         struct hlist_head hlist;
->         union {
->                 unsigned long kpfn;
-> +               u32 oldchecksum;
->                 unsigned long chain_prune_time;
->         };
->         /*
+On Mon, Oct 30, 2017 at 08:40:01AM -0400, Zi Yan wrote:
+> On 30 Oct 2017, at 7:58, Kirill A. Shutemov wrote:
+> 
+> > On Mon, Oct 30, 2017 at 12:37:01AM +0100, Fengguang Wu wrote:
+> >> CC MM people.
+> >>
+> >> On Sun, Oct 29, 2017 at 11:51:55PM +0100, Fengguang Wu wrote:
+> >>> Hi Linus,
+> >>>
+> >>> Up to now we see the below boot error/warnings when testing v4.14-rc6.
+> >>>
+> >>> They hit the RC release mainly due to various imperfections in 0day's
+> >>> auto bisection. So I manually list them here and CC the likely easy to
+> >>> debug ones to the corresponding maintainers in the followup emails.
+> >>>
+> >>> boot_successes: 4700
+> >>> boot_failures: 247
+> >>>
+> >>> BUG:kernel_hang_in_test_stage: 152
+> >>> BUG:kernel_reboot-without-warning_in_test_stage: 10
+> >>> BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/mutex.c: 1
+> >>> BUG:sleeping_function_called_from_invalid_context_at_kernel/locking/rwsem.c: 3
+> >>> BUG:sleeping_function_called_from_invalid_context_at_mm/page_alloc.c: 21
+> >>> BUG:soft_lockup-CPU##stuck_for#s: 1
+> >>> BUG:unable_to_handle_kernel: 13
+> >>
+> >> Here is the call trace:
+> >>
+> >> [  956.669197] [  956.670421] stress-ng: fail:  [27945] stress-ng-numa:
+> >> get_mempolicy: errno=22 (Invalid argument)
+> >> [  956.670422] [  956.671375] stress-ng: info:  [27945] 5 failures reached,
+> >> aborting stress process
+> >> [  956.671376] [  956.671551] BUG: unable to handle kernel NULL pointer
+> >> dereference at 0000000000000020
+> >> [  956.671557] IP: pgtable_trans_huge_withdraw+0x4c/0xc0
+> >> [  956.671558] PGD 0 P4D 0 [  956.671560] Oops: 0000 [#1] SMP
+> >> [  956.671562] Modules linked in: salsa20_generic salsa20_x86_64 camellia_generic camellia_aesni_avx2 camellia_aesni_avx_x86_64 camellia_x86_64 cast6_avx_x86_64 cast6_generic cast_common serpent_avx2 serpent_avx_x86_64 serpent_sse2_x86_64 serpent_generic twofish_generic twofish_avx_x86_64 ablk_helper twofish_x86_64_3way twofish_x86_64 twofish_common lrw tgr192 wp512 rmd320 rmd256 rmd160 rmd128 md4 sha512_ssse3 sha512_generic rpcsec_gss_krb5 auth_rpcgss nfsv4 dns_resolver intel_rapl sb_edac x86_pkg_temp_thermal intel_powerclamp sd_mod sg coretemp kvm_intel kvm mgag200 irqbypass ttm crct10dif_pclmul crc32_pclmul drm_kms_helper crc32c_intel syscopyarea ghash_clmulni_intel snd_pcm sysfillrect snd_timer pcbc sysimgblt fb_sys_fops ahci snd aesni_intel crypto_simd mxm_wmi glue_helper libahci soundcore cryptd
+> >> [  956.671592]  drm ipmi_si pcspkr libata shpchp ipmi_devintf ipmi_msghandler acpi_pad acpi_power_meter wmi ip_tables
+> >> [  956.671600] CPU: 78 PID: 28007 Comm: stress-ng-numa Not tainted 4.14.0-rc6 #1
+> >> [  956.671600] Hardware name: Intel Corporation S2600WT2R/S2600WT2R, BIOS SE5C610.86B.01.01.0020.122820161512 12/28/2016
+> >> [  956.671601] task: ffff88101c97cd00 task.stack: ffffc90026b04000
+> >> [  956.671603] RIP: 0010:pgtable_trans_huge_withdraw+0x4c/0xc0
+> >> [  956.671604] RSP: 0018:ffffc90026b07c20 EFLAGS: 00010202
+> >> [  956.671604] RAX: ffffea00404c7b80 RBX: 0000000000000000 RCX: 0000000000000001
+> >> [  956.671605] RDX: 0000000000000001 RSI: ffff8810931ee000 RDI: ffff881020f11000
+> >> [  956.671605] RBP: ffffc90026b07c28 R08: ffff88101a96a190 R09: 000055c2d5137000
+> >> [  956.671606] R10: 0000000000000000 R11: 0000000000000000 R12: ffff881020f11000
+> >> [  956.671606] R13: ffffc90026b07dd8 R14: ffff8810131ee538 R15: ffffea00404c7bb0
+> >> [  956.671607] FS:  0000000000000000(0000) GS:ffff882023080000(0000) knlGS:0000000000000000
+> >> [  956.671608] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> >> [  956.671609] CR2: 0000000000000020 CR3: 000000207ee09001 CR4: 00000000003606e0
+> >> [  956.671609] DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> >> [  956.671610] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> >> [  956.671610] Call Trace:
+> >> [  956.671614]  zap_huge_pmd+0x28a/0x3a0
+> >> [  956.671617]  unmap_page_range+0x918/0x9c0
+> >> [  956.671619]  unmap_single_vma+0x7d/0xe0
+> >> [  956.671621]  unmap_vmas+0x51/0xa0
+> >> [  956.671622]  exit_mmap+0x96/0x190
+> >> [  956.671625]  mmput+0x6e/0x160
+> >> [  956.671626]  do_exit+0x2b3/0xb90
+> >> [  956.671627]  do_group_exit+0x43/0xb0
+> >> [  956.671628]  SyS_exit_group+0x14/0x20
+> >> [  956.671630]  entry_SYSCALL_64_fastpath+0x1a/0xa5
+> >> [  956.671631] RIP: 0033:0x7f92a15e11c8
+> >> [  956.671631] RSP: 002b:00007fff12384aa8 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+> >> [  956.671632] RAX: ffffffffffffffda RBX: 00007f92a1dea000 RCX: 00007f92a15e11c8
+> >> [  956.671633] RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
+> >> [  956.671633] RBP: 00007fff12384aa0 R08: 00000000000000e7 R09: ffffffffffffff90
+> >> [  956.671634] R10: 00007f92a088b070 R11: 0000000000000246 R12: 00007f92a088add8
+> >> [  956.671634] R13: 00007fff12384a18 R14: 00007f92a1df4048 R15: 0000000000000000
+> >> [  956.671635] Code: 77 00 00 48 01 f0 48 ba 00 00 00 00 00 ea ff ff 48 c1
+> >> e8 0c 48 c1 e0 06 48 01 d0 8b 50 30 85 d2 74 6d 55 48 89 e5 53 48 8b 58 28
+> >> <48> 8b 53 20 48 8d 7b 20 48 39 d7 74 49 48 83 ea 20 48 85 d2 48 [
+> >> 956.671650] RIP: pgtable_trans_huge_withdraw+0x4c/0xc0 RSP: ffffc90026b07c20
+> >> [  956.671651] CR2: 0000000000000020
+> >> [  956.671695] ---[ end trace 9ac71716a2cdb192 ]---
+> >> [  956.672896] stress-ng: fail:  [27986] stress-ng-numa: get_mempolicy: errno=22 (Invalid argument)
+> >
+> > +Zi Yan.
+> >
+> > Could you check if the patch below helps?
+> >
+> > It seems we forgot to deposit page table on copying pmd migration entry.
+> > Current code just leaks newly allocated page table.
+> >
+> > diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> > index 269b5df58543..84beba5dedda 100644
+> > --- a/mm/huge_memory.c
+> > +++ b/mm/huge_memory.c
+> > @@ -941,6 +941,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+> >  				pmd = pmd_swp_mksoft_dirty(pmd);
+> >  			set_pmd_at(src_mm, addr, src_pmd, pmd);
+> >  		}
+> > +		pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+> >  		set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+> >  		ret = 0;
+> >  		goto out_unlock;
+> > -- 
+> >  Kirill A. Shutemov
+> 
+> Thanks for fixing it.
+> 
+> It seems I also forgot to increase the corresponding counters. Does the patch below look good to you?
 
-May be just checksum? i.e. that's can be "old", where checksum can change,
-in stable tree, checksum also stable.
+Yeah, my bad.
 
-Also, as checksum are stable, may be that make a sense to move it out
-of union? (I'm afraid of clashes)
+Could you post proper patch to Andrew?
 
-Also, you miss update comment above struct stable_node, about checksum var.
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index 269b5df58543..1981ed697dab 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -941,6 +941,9 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
+>                                 pmd = pmd_swp_mksoft_dirty(pmd);
+>                         set_pmd_at(src_mm, addr, src_pmd, pmd);
+>                 }
+> +               add_mm_counter(dst_mm, MM_ANONPAGES, HPAGE_PMD_NR);
+> +               atomic_long_inc(&dst_mm->nr_ptes);
+> +               pgtable_trans_huge_deposit(dst_mm, dst_pmd, pgtable);
+>                 set_pmd_at(dst_mm, addr, dst_pmd, pmd);
+>                 ret = 0;
+>                 goto out_unlock;
+> 
+> 
+> 
+> a??
+> Best Regards,
+> Yan Zi
 
-> @@ -1522,7 +1523,7 @@ static __always_inline struct page *chain(struct stable_node **s_n_d,
->   * This function returns the stable tree node of identical content if found,
->   * NULL otherwise.
->   */
-> -static struct page *stable_tree_search(struct page *page)
-> +static struct page *stable_tree_search(struct page *page, u32 checksum)
->  {
->         int nid;
->         struct rb_root *root;
-> @@ -1540,6 +1541,8 @@ static struct page *stable_tree_search(struct page *page)
->
->         nid = get_kpfn_nid(page_to_pfn(page));
->         root = root_stable_tree + nid;
-> +       if (!checksum)
-> +               return NULL;
 
-That's not a pointer, and 0x0 - is a valid checksum.
-Also, jhash2 not so collision free, i.e.:
-jhash2((uint32_t *) &num, 2, 17);
-
-Example of collisions, where hash = 0x0:
-hash: 0x0 - num:        610041898
-hash: 0x0 - num:        4893164379
-hash: 0x0 - num:        16423540221
-hash: 0x0 - num:        29036382188
-
-You also compare values, so hash = 0, is a acceptable checksum.
-
->  again:
->         new = &root->rb_node;
->         parent = NULL;
-> @@ -1550,6 +1553,18 @@ static struct page *stable_tree_search(struct page *page)
->
->                 cond_resched();
->                 stable_node = rb_entry(*new, struct stable_node, node);
-> +
-> +               /* first make rb_tree by checksum */
-> +               if (checksum < stable_node->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_left;
-> +                       continue;
-> +               } else if (checksum > stable_node->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_right;
-> +                       continue;
-> +               }
-> +
->                 stable_node_any = NULL;
->                 tree_page = chain_prune(&stable_node_dup, &stable_node, root);
->                 /*
-> @@ -1768,7 +1783,7 @@ static struct page *stable_tree_search(struct page *page)
->   * This function returns the stable tree node just allocated on success,
->   * NULL otherwise.
->   */
-> -static struct stable_node *stable_tree_insert(struct page *kpage)
-> +static struct stable_node *stable_tree_insert(struct page *kpage, u32 checksum)
->  {
->         int nid;
->         unsigned long kpfn;
-> @@ -1792,6 +1807,18 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
->                 cond_resched();
->                 stable_node = rb_entry(*new, struct stable_node, node);
->                 stable_node_any = NULL;
-> +
-> +               /* first make rb_tree by checksum */
-> +               if (checksum < stable_node->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_left;
-> +                       continue;
-> +               } else if (checksum > stable_node->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_right;
-> +                       continue;
-> +               }
-> +
->                 tree_page = chain(&stable_node_dup, stable_node, root);
->                 if (!stable_node_dup) {
->                         /*
-> @@ -1850,6 +1877,7 @@ static struct stable_node *stable_tree_insert(struct page *kpage)
->
->         INIT_HLIST_HEAD(&stable_node_dup->hlist);
->         stable_node_dup->kpfn = kpfn;
-> +       stable_node_dup->oldchecksum = checksum;
->         set_page_stable_node(kpage, stable_node_dup);
->         stable_node_dup->rmap_hlist_len = 0;
->         DO_NUMA(stable_node_dup->nid = nid);
-> @@ -1907,6 +1935,19 @@ struct rmap_item *unstable_tree_search_insert(struct rmap_item *rmap_item,
->
->                 cond_resched();
->                 tree_rmap_item = rb_entry(*new, struct rmap_item, node);
-> +
-> +               /* first make rb_tree by checksum */
-> +               if (rmap_item->oldchecksum < tree_rmap_item->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_left;
-> +                       continue;
-> +               } else if (rmap_item->oldchecksum
-> +                                       > tree_rmap_item->oldchecksum) {
-> +                       parent = *new;
-> +                       new = &parent->rb_right;
-> +                       continue;
-> +               }
-> +
->                 tree_page = get_mergeable_page(tree_rmap_item);
->                 if (!tree_page)
->                         return NULL;
-> @@ -2031,7 +2072,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
->         }
->
->         /* We first start with searching the page inside the stable tree */
-> -       kpage = stable_tree_search(page);
-> +       kpage = stable_tree_search(page, rmap_item->oldchecksum);
->         if (kpage == page && rmap_item->head == stable_node) {
->                 put_page(kpage);
->                 return;
-> @@ -2098,7 +2139,7 @@ static void cmp_and_merge_page(struct page *page, struct rmap_item *rmap_item)
->                          * node in the stable tree and add both rmap_items.
->                          */
->                         lock_page(kpage);
-> -                       stable_node = stable_tree_insert(kpage);
-> +                       stable_node = stable_tree_insert(kpage, checksum);
->                         if (stable_node) {
->                                 stable_tree_append(tree_rmap_item, stable_node,
->                                                    false);
-> --
-> 2.6.2
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
-Thanks,
-anyway in general idea looks good.
-
-Reviewed-by: Timofey Titovets <nefelim4ag@gmail.com>
 
 -- 
-Have a nice day,
-Timofey.
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
