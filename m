@@ -1,197 +1,203 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCA706B0033
-	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 22:00:30 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 15so11817807pgc.16
-        for <linux-mm@kvack.org>; Sun, 29 Oct 2017 19:00:30 -0700 (PDT)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id 34si7989631pln.732.2017.10.29.19.00.27
-        for <linux-mm@kvack.org>;
-        Sun, 29 Oct 2017 19:00:28 -0700 (PDT)
-Date: Mon, 30 Oct 2017 13:00:23 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less'
- support
-Message-ID: <20171030020023.GG3666@dastard>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171020074750.GA13568@lst.de>
- <20171020093148.GA20304@lst.de>
- <20171026105850.GA31161@quack2.suse.cz>
- <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E50F26B0033
+	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:18 -0400 (EDT)
+Received: by mail-qt0-f198.google.com with SMTP id y45so8966597qty.17
+        for <linux-mm@kvack.org>; Sun, 29 Oct 2017 20:18:18 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s17si6233888qtb.137.2017.10.29.20.18.17
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 29 Oct 2017 20:18:17 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9U3Dewr014484
+	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:16 -0400
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dwj6q474s-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:16 -0400
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Mon, 30 Oct 2017 03:18:14 -0000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] selftests/vm: Add tests validating mremap mirror functionality
+Date: Mon, 30 Oct 2017 08:48:08 +0530
+Message-Id: <20171030031808.24934-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@gmail.com>
-Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Sean Hefty <sean.hefty@intel.com>, Jeff Layton <jlayton@poochiereds.net>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, Martin Schwidefsky <schwidefsky@de.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mike.kravetz@oracle.com, mhocko@kernel.org, shuahkh@osg.samsung.com
 
-On Sun, Oct 29, 2017 at 04:46:44PM -0700, Dan Williams wrote:
-> On Thu, Oct 26, 2017 at 3:58 AM, Jan Kara <jack@suse.cz> wrote:
-> > On Fri 20-10-17 11:31:48, Christoph Hellwig wrote:
-> >> On Fri, Oct 20, 2017 at 09:47:50AM +0200, Christoph Hellwig wrote:
-> >> > I'd like to brainstorm how we can do something better.
-> >> >
-> >> > How about:
-> >> >
-> >> > If we hit a page with an elevated refcount in truncate / hole puch
-> >> > etc for a DAX file system we do not free the blocks in the file system,
-> >> > but add it to the extent busy list.  We mark the page as delayed
-> >> > free (e.g. page flag?) so that when it finally hits refcount zero we
-> >> > call back into the file system to remove it from the busy list.
-> >>
-> >> Brainstorming some more:
-> >>
-> >> Given that on a DAX file there shouldn't be any long-term page
-> >> references after we unmap it from the page table and don't allow
-> >> get_user_pages calls why not wait for the references for all
-> >> DAX pages to go away first?  E.g. if we find a DAX page in
-> >> truncate_inode_pages_range that has an elevated refcount we set
-> >> a new flag to prevent new references from showing up, and then
-> >> simply wait for it to go away.  Instead of a busy way we can
-> >> do this through a few hashed waitqueued in dev_pagemap.  And in
-> >> fact put_zone_device_page already gets called when putting the
-> >> last page so we can handle the wakeup from there.
-> >>
-> >> In fact if we can't find a page flag for the stop new callers
-> >> things we could probably come up with a way to do that through
-> >> dev_pagemap somehow, but I'm not sure how efficient that would
-> >> be.
-> >
-> > We were talking about this yesterday with Dan so some more brainstorming
-> > from us. We can implement the solution with extent busy list in ext4
-> > relatively easily - we already have such list currently similarly to XFS.
-> > There would be some modifications needed but nothing too complex. The
-> > biggest downside of this solution I see is that it requires per-filesystem
-> > solution for busy extents - ext4 and XFS are reasonably fine, however btrfs
-> > may have problems and ext2 definitely will need some modifications.
-> > Invisible used blocks may be surprising to users at times although given
-> > page refs should be relatively short term, that should not be a big issue.
-> > But are we guaranteed page refs are short term? E.g. if someone creates
-> > v4l2 videobuf in MAP_SHARED mapping of a file on DAX filesystem, page refs
-> > can be rather long-term similarly as in RDMA case. Also freeing of blocks
-> > on page reference drop is another async entry point into the filesystem
-> > which could unpleasantly surprise us but I guess workqueues would solve
-> > that reasonably fine.
-> >
-> > WRT waiting for page refs to be dropped before proceeding with truncate (or
-> > punch hole for that matter - that case is even nastier since we don't have
-> > i_size to guard us). What I like about this solution is that it is very
-> > visible there's something unusual going on with the file being truncated /
-> > punched and so problems are easier to diagnose / fix from the admin side.
-> > So far we have guarded hole punching from concurrent faults (and
-> > get_user_pages() does fault once you do unmap_mapping_range()) with
-> > I_MMAP_LOCK (or its equivalent in ext4). We cannot easily wait for page
-> > refs to be dropped under I_MMAP_LOCK as that could deadlock - the most
-> > obvious case Dan came up with is when GUP obtains ref to page A, then hole
-> > punch comes grabbing I_MMAP_LOCK and waiting for page ref on A to be
-> > dropped, and then GUP blocks on trying to fault in another page.
-> >
-> > I think we cannot easily prevent new page references to be grabbed as you
-> > write above since nobody expects stuff like get_page() to fail. But I
-> > think that unmapping relevant pages and then preventing them to be faulted
-> > in again is workable and stops GUP as well. The problem with that is though
-> > what to do with page faults to such pages - you cannot just fail them for
-> > hole punch, and you cannot easily allocate new blocks either. So we are
-> > back at a situation where we need to detach blocks from the inode and then
-> > wait for page refs to be dropped - so some form of busy extents. Am I
-> > missing something?
-> 
-> Coming back to this since Dave has made clear that new locking to
-> coordinate get_user_pages() is a no-go.
-> 
-> We can unmap to force new get_user_pages() attempts to block on the
-> per-fs mmap lock, but if punch-hole finds any elevated pages it needs
-> to drop the mmap lock and wait. We need this lock dropped to get
-> around the problem that the driver will not start to drop page
-> references until it has elevated the page references on all the pages
-> in the I/O. If we need to drop the mmap lock that makes it impossible
-> to coordinate this unlock/retry loop within truncate_inode_pages_range
-> which would otherwise be the natural place to land this code.
-> 
-> Would it be palatable to unmap and drain dma in any path that needs to
-> detach blocks from an inode? Something like the following that builds
-> on dax_wait_dma() tried to achieve, but does not introduce a new lock
-> for the fs to manage:
-> 
-> retry:
->     per_fs_mmap_lock(inode);
->     unmap_mapping_range(mapping, start, end); /* new page references
-> cannot be established */
->     if ((dax_page = dax_dma_busy_page(mapping, start, end)) != NULL) {
->         per_fs_mmap_unlock(inode); /* new page references can happen,
-> so we need to start over */
->         wait_for_page_idle(dax_page);
->         goto retry;
->     }
->     truncate_inode_pages_range(mapping, start, end);
->     per_fs_mmap_unlock(inode);
+This adds two tests to validate mirror functionality with mremap()
+system call on shared and private anon mappings. After the commit
+dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
+mappings"), any attempt to mirror private anon mapping will fail.
 
-These retry loops you keep proposing are just bloody horrible.  They
-are basically just a method for blocking an operation until whatever
-condition is preventing the invalidation goes away. IMO, that's an
-ugly solution no matter how much lipstick you dress it up with.
+Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+Changes in V4:
 
-i.e. the blocking loops mean the user process is going to be blocked
-for arbitrary lengths of time. That's not a solution, it's just
-passing the buck - now the userspace developers need to work around
-truncate/hole punch being randomly blocked for arbitrary lengths of
-time.
+- Folded these two test files into just one as per Mike
+- Did some renaming of functions, cleans ups etc
 
-The whole point of pushing this into the busy extent list is that it
-doesn't require blocking operations. i.e the re-use of the underlying
-storage is simply delayed until notification that it is safe to
-re-use comes along, but the extent removal operation doesn't get
-blocked.
+Changes in V3: (https://patchwork.kernel.org/patch/10013469/)
 
-That's how we treat extents that require discard operations after
-they have been freed - they remain in the busy list until the
-discard IO completion signals "all done" and clears the busy extent.
-Here we need to hold off clearing the extent until we get the "all
-done" from the dax code.
+- Fail any attempts to mirror an existing anon private mapping
+- Updated run_vmtests to include these new mremap tests
+- Updated the commit message
 
-e.g. what needs to happen when trying to do the invalidation is
-something like this (assuming invalidate_inode_pages2_range() will
-actually fail on pages under DMA):
+Changes in V2: (https://patchwork.kernel.org/patch/9861259/)
 
-	flags = 0;
-	if (IS_DAX()) {
-		error = invalidate_inode_pages2_range()
-		if (error == -EBUSY && dax_dma_busy_page())
-			flags = EXTENT_BUSY_DAX;
-		else
-			truncate_pagecache(); /* blocking */
-	} else {
-		truncate_pagecache();
-	}
+- Added a test for private anon mappings
+- Used sysconf(_SC_PAGESIZE) instead of hard coding page size
+- Used MREMAP_MAYMOVE instead of hard coding the flag value 1
 
-that EXTENT_BUSY_DAX flag needs to be carried all the way through to
-the xfs_free_extent -> xfs_extent_busy_insert(). That's probably the
-most complex part of the patch.
+Original V1: (https://patchwork.kernel.org/patch/9854415/)
 
-This flag then prevents xfs_extent_busy_reuse() from allowing reuse
-of the extent.
+ tools/testing/selftests/vm/Makefile        |  1 +
+ tools/testing/selftests/vm/mremap_mirror.c | 96 ++++++++++++++++++++++++++++++
+ tools/testing/selftests/vm/run_vmtests     | 10 ++++
+ 3 files changed, 107 insertions(+)
+ create mode 100644 tools/testing/selftests/vm/mremap_mirror.c
 
-And in xfs_extent_busy_clear(), they need to be treated sort of like
-discarded extents. On transaction commit callback, we need to check
-if there are still busy daxdma pages over the extent range, and if
-there are we leave it in the busy list, otherwise it can be cleared.
-For everything that is left in the busy list, the dax dma code will
-need to call back into the filesystem when that page is released and
-when the extent no long has any dax dma busy pages left over it it
-can be cleared from the list.
-
-Once we have the dax code to call back into the filesystem when the
-problematic daxdma pages are released, and everything else should be
-relatively straight forward...
-
-Cheers,
-
-Dave.
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index cbb29e4..27f1967 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -17,6 +17,7 @@ TEST_GEN_FILES += transhuge-stress
+ TEST_GEN_FILES += userfaultfd
+ TEST_GEN_FILES += mlock-random-test
+ TEST_GEN_FILES += virtual_address_range
++TEST_GEN_FILES += mremap_mirror
+ 
+ TEST_PROGS := run_vmtests
+ 
+diff --git a/tools/testing/selftests/vm/mremap_mirror.c b/tools/testing/selftests/vm/mremap_mirror.c
+new file mode 100644
+index 0000000..41cdba5
+--- /dev/null
++++ b/tools/testing/selftests/vm/mremap_mirror.c
+@@ -0,0 +1,96 @@
++/*
++ * Test to verify mirror functionality with mremap() system
++ * call for shared and private anon mappings. In shared anon
++ * mapping case, the 'mirrored' buffer will match element to
++ * element with that of the original one. But any attempts
++ * to create a mirror buffer for an anon private one should
++ * just fail.
++ *
++ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
++ *
++ * Licensed under GPL V2
++ */
++#define _GNU_SOURCE
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++#include <errno.h>
++#include <sys/mman.h>
++#include <sys/time.h>
++
++#define PATTERN		0xbe
++#define NR_PAGES	10
++
++int test_mirror_shared(char *old, char *new, unsigned long size)
++{
++	unsigned long i;
++
++	for (i = 0; i < size; i++) {
++		if (new[i] != old[i]) {
++			printf("Mismatch at new[%lu] expected \
++				%d received %d\n", i, old[i], new[i]);
++			return 1;
++		}
++	}
++	return 0;
++}
++
++int mirror_anon_shared(unsigned long alloc_size)
++{
++	char *ptr, *mirror_ptr;
++
++	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
++			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
++	if (ptr == MAP_FAILED) {
++		perror("map() failed");
++		return -1;
++	}
++	memset(ptr, PATTERN, alloc_size);
++
++	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
++	if (mirror_ptr == MAP_FAILED) {
++		perror("mremap() failed");
++		return -1;
++	}
++
++	if (test_mirror_shared(ptr, mirror_ptr, alloc_size))
++		return 1;
++
++	return 0;
++}
++
++int  mirror_anon_private(unsigned long alloc_size)
++{
++	char *ptr, *mirror_ptr;
++
++	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	if (ptr == MAP_FAILED) {
++		perror("map() failed");
++		return -1;
++	}
++	memset(ptr, PATTERN, alloc_size);
++
++	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
++	if (mirror_ptr == MAP_FAILED)
++		return 0;
++
++	printf("Mirror attempt on private anon mapping should have failed\n");
++	return 1;
++}
++
++int main(int argc, char *argv[])
++{
++	unsigned long alloc_size;
++	int ret;
++
++	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
++	ret = mirror_anon_private(alloc_size);
++	if (ret)
++		return ret;
++
++	ret = mirror_anon_shared(alloc_size);
++	if (ret)
++		return ret;
++	return 0;
++}
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index 07548a1..7214aa2 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -176,4 +176,14 @@ else
+ 	echo "[PASS]"
+ fi
+ 
++echo "-----------------------------"
++echo "mremap_mirror"
++echo "-----------------------------"
++./mremap_mirror
++if [ $? -ne 0 ]; then
++	echo "[FAIL]"
++	exitcode=1
++else
++	echo "[PASS]"
++fi
+ exit $exitcode
 -- 
-Dave Chinner
-david@fromorbit.com
+1.8.5.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
