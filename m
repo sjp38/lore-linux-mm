@@ -1,143 +1,160 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 02C2A6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 13:51:33 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id w197so16237762oif.23
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 10:51:32 -0700 (PDT)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DEB16B0038
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 15:15:32 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f16so37032587ioe.1
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 12:15:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w203sor5269122oib.322.2017.10.30.10.51.31
+        by mx.google.com with SMTPS id y94sor7678252ioi.247.2017.10.30.12.15.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 30 Oct 2017 10:51:31 -0700 (PDT)
+        Mon, 30 Oct 2017 12:15:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171030112048.GA4133@dastard>
-References: <150846713528.24336.4459262264611579791.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171020074750.GA13568@lst.de> <20171020093148.GA20304@lst.de>
- <20171026105850.GA31161@quack2.suse.cz> <CAA9_cmeiT2CU8Nue-HMCv+AyuDmSzXoCVxD1bebt2+cBDRTWog@mail.gmail.com>
- <20171030020023.GG3666@dastard> <20171030083807.GA23278@quack2.suse.cz> <20171030112048.GA4133@dastard>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 30 Oct 2017 10:51:30 -0700
-Message-ID: <CAPcyv4jhrPz5Rcx=oLi7EVsR2_wVcKLo1Ekouj369HXu_Nf_nw@mail.gmail.com>
-Subject: Re: [PATCH v3 00/13] dax: fix dma vs truncate and remove 'page-less' support
+In-Reply-To: <94eb2c0433c8f42cac055cc86991@google.com>
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Mon, 30 Oct 2017 22:15:09 +0300
+Message-ID: <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jan Kara <jack@suse.cz>, Michal Hocko <mhocko@suse.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Dave Hansen <dave.hansen@linux.intel.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, "J. Bruce Fields" <bfields@fieldses.org>, linux-mm <linux-mm@kvack.org>, Paul Mackerras <paulus@samba.org>, Jeff Layton <jlayton@poochiereds.net>, Sean Hefty <sean.hefty@intel.com>, Matthew Wilcox <mawilcox@microsoft.com>, linux-rdma <linux-rdma@vger.kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, Doug Ledford <dledford@redhat.com>, Hal Rosenstock <hal.rosenstock@gmail.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>, "Darrick J. Wong" <darrick.wong@oracle.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
+Cc: JBeulich@suse.com, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Mon, Oct 30, 2017 at 4:20 AM, Dave Chinner <david@fromorbit.com> wrote:
-> On Mon, Oct 30, 2017 at 09:38:07AM +0100, Jan Kara wrote:
->> Hi,
+On Mon, Oct 30, 2017 at 10:12 PM, syzbot
+<bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
+wrote:
+> Hello,
+>
+> syzkaller hit the following crash on
+> 887c8ba753fbe809ba93fa3cfd0cc46db18d37d4
+> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
+> compiler: gcc (GCC) 7.1.1 20170620
+> .config is attached
+> Raw console output is attached.
+>
+> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> for information about syzkaller reproducers
+>
+>
+> BUG: KASAN: use-after-free in arch_local_irq_enable
+> arch/x86/include/asm/paravirt.h:787 [inline]
+> BUG: KASAN: use-after-free in __do_page_fault+0xc03/0xd60
+> arch/x86/mm/fault.c:1357
+> Read of size 8 at addr ffff8801cbfd3090 by task syz-executor7/3660
+>
+> CPU: 1 PID: 3660 Comm: syz-executor7 Not tainted 4.14.0-rc3+ #23
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> Call Trace:
+>  __dump_stack lib/dump_stack.c:16 [inline]
+>  dump_stack+0x194/0x257 lib/dump_stack.c:52
+>  print_address_description+0x73/0x250 mm/kasan/report.c:252
+>  kasan_report_error mm/kasan/report.c:351 [inline]
+>  kasan_report+0x25b/0x340 mm/kasan/report.c:409
+>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
+>  arch_local_irq_enable arch/x86/include/asm/paravirt.h:787 [inline]
+>  __do_page_fault+0xc03/0xd60 arch/x86/mm/fault.c:1357
+>  do_page_fault+0xee/0x720 arch/x86/mm/fault.c:1520
+>  page_fault+0x22/0x30 arch/x86/entry/entry_64.S:1066
+> RIP: 0023:0x8073f4f
+> RSP: 002b:00000000f7f89bd0 EFLAGS: 00010202
+> RAX: 00000000f7f89c8c RBX: 0000000000000400 RCX: 000000000000000e
+> RDX: 00000000f7f8aa88 RSI: 0000000020012fe0 RDI: 00000000f7f89c8c
+> RBP: 0000000008128000 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000292 R12: 0000000000000000
+> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+>
+> Allocated by task 3660:
+>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>  set_track mm/kasan/kasan.c:459 [inline]
+>  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
+>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:489
+>  kmem_cache_alloc+0x12e/0x760 mm/slab.c:3561
+>  kmem_cache_zalloc include/linux/slab.h:656 [inline]
+>  mmap_region+0x7ee/0x15a0 mm/mmap.c:1658
+>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
+>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
+>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
+>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
+>
+> Freed by task 3667:
+>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>  set_track mm/kasan/kasan.c:459 [inline]
+>  kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
+>  __cache_free mm/slab.c:3503 [inline]
+>  kmem_cache_free+0x77/0x280 mm/slab.c:3763
+>  remove_vma+0x162/0x1b0 mm/mmap.c:176
+>  remove_vma_list mm/mmap.c:2475 [inline]
+>  do_munmap+0x82a/0xdf0 mm/mmap.c:2714
+>  mmap_region+0x59e/0x15a0 mm/mmap.c:1631
+>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
+>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
+>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
+>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
+>
+> The buggy address belongs to the object at ffff8801cbfd3040
+>  which belongs to the cache vm_area_struct of size 200
+> The buggy address is located 80 bytes inside of
+>  200-byte region [ffff8801cbfd3040, ffff8801cbfd3108)
+> The buggy address belongs to the page:
+> page:ffffea00072ff4c0 count:1 mapcount:0 mapping:ffff8801cbfd3040 index:0x0
+> flags: 0x200000000000100(slab)
+> raw: 0200000000000100 ffff8801cbfd3040 0000000000000000 000000010000000f
+> raw: ffffea000730c7a0 ffffea00072ff7a0 ffff8801dae069c0 0000000000000000
+> page dumped because: kasan: bad access detected
+>
+> Memory state around the buggy address:
+>  ffff8801cbfd2f80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+>  ffff8801cbfd3000: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
 >>
->> On Mon 30-10-17 13:00:23, Dave Chinner wrote:
->> > On Sun, Oct 29, 2017 at 04:46:44PM -0700, Dan Williams wrote:
->> > > Coming back to this since Dave has made clear that new locking to
->> > > coordinate get_user_pages() is a no-go.
->> > >
->> > > We can unmap to force new get_user_pages() attempts to block on the
->> > > per-fs mmap lock, but if punch-hole finds any elevated pages it needs
->> > > to drop the mmap lock and wait. We need this lock dropped to get
->> > > around the problem that the driver will not start to drop page
->> > > references until it has elevated the page references on all the pages
->> > > in the I/O. If we need to drop the mmap lock that makes it impossible
->> > > to coordinate this unlock/retry loop within truncate_inode_pages_range
->> > > which would otherwise be the natural place to land this code.
->> > >
->> > > Would it be palatable to unmap and drain dma in any path that needs to
->> > > detach blocks from an inode? Something like the following that builds
->> > > on dax_wait_dma() tried to achieve, but does not introduce a new lock
->> > > for the fs to manage:
->> > >
->> > > retry:
->> > >     per_fs_mmap_lock(inode);
->> > >     unmap_mapping_range(mapping, start, end); /* new page references
->> > > cannot be established */
->> > >     if ((dax_page = dax_dma_busy_page(mapping, start, end)) != NULL) {
->> > >         per_fs_mmap_unlock(inode); /* new page references can happen,
->> > > so we need to start over */
->> > >         wait_for_page_idle(dax_page);
->> > >         goto retry;
->> > >     }
->> > >     truncate_inode_pages_range(mapping, start, end);
->> > >     per_fs_mmap_unlock(inode);
->> >
->> > These retry loops you keep proposing are just bloody horrible.  They
->> > are basically just a method for blocking an operation until whatever
->> > condition is preventing the invalidation goes away. IMO, that's an
->> > ugly solution no matter how much lipstick you dress it up with.
->> >
->> > i.e. the blocking loops mean the user process is going to be blocked
->> > for arbitrary lengths of time. That's not a solution, it's just
->> > passing the buck - now the userspace developers need to work around
->> > truncate/hole punch being randomly blocked for arbitrary lengths of
->> > time.
->>
->> So I see substantial difference between how you and Christoph think this
->> should be handled. Christoph writes in [1]:
->>
->> The point is that we need to prohibit long term elevated page counts
->> with DAX anyway - we can't just let people grab allocated blocks forever
->> while ignoring file system operations.  For stage 1 we'll just need to
->> fail those, and in the long run they will have to use a mechanism
->> similar to FL_LAYOUT locks to deal with file system allocation changes.
->>
->> So Christoph wants to block truncate until references are released, forbid
->> long term references until userspace acquiring them supports some kind of
->> lease-breaking. OTOH you suggest truncate should just proceed leaving
->> blocks allocated until references are released.
+>> ffff8801cbfd3080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
 >
-> I don't see what I'm suggesting is a solution to long term elevated
-> page counts. Just something that can park extents until layout
-> leases are broken and references released. That's a few tens of
-> seconds at most.
+>                          ^
+>  ffff8801cbfd3100: fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb
+>  ffff8801cbfd3180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> ==================================================================
+
+
+I guess this is more related to mm rather than x86, so +mm maintainers.
+This continues to happen, in particular on upstream
+781402340475144bb360e32bb7437fa4b84cadc3 (Oct 28).
+
+
+> ---
+> This bug is generated by a dumb bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for details.
+> Direct all questions to syzkaller@googlegroups.com.
 >
->> We cannot have both... I'm leaning more towards the approach
->> Christoph suggests as it puts the burned to the place which is
->> causing it - the application having long term references - and
->> applications needing this should be sufficiently rare that we
->> don't have to devise a general mechanism in the kernel for this.
+> syzbot will keep track of this bug report.
+> Once a fix for this bug is committed, please reply to this email with:
+> #syz fix: exact-commit-title
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> If it's a one-off invalid bug report, please reply with:
+> #syz invalid
+> Note: if the crash happens again, it will cause creation of a new bug
+> report.
 >
-> I have no problems with blocking truncate forever if that's the
-> desired solution for an elevated page count due to a DMA reference
-> to a page. But that has absolutely nothing to do with the filesystem
-> though - it's a page reference vs mapping invalidation problem, not
-> a filesystem/inode problem.
->
-> Perhaps pages with active DAX DMA mapping references need a page
-> flag to indicate that invalidation must block on the page similar to
-> the writeback flag...
-
-We effectively already have this flag since pages where
-is_zone_device_page() == true can only have their reference count
-elevated by get_user_pages().
-
-More importantly we can not block invalidation on an elevated page
-count because that page count may never drop until all references have
-been acquired. I.e. iov_iter_get_pages() grabs a range of pages
-potentially across multiple vmas and does not drop any references in
-the range until all pages have had their count elevated.
-
->> If the solution Christoph suggests is acceptable to you, I think
->> we should first write a patch to forbid acquiring long term
->> references to DAX blocks.  On top of that we can implement
->> mechanism to block truncate while there are short term references
->> pending (and for that retry loops would be IMHO acceptable).
->
-> The problem with retry loops is that they are making a mess of an
-> already complex set of locking contraints on the indoe IO path. It's
-> rapidly descending into an unmaintainable mess - falling off the
-> locking cliff only make sthe code harder to maintain - please look
-> for solutions that don't require new locks or lock retry loops.
-
-I was hoping to make the retry loop no worse than the one we already
-perform for xfs_break_layouts(), and then the approach can be easily
-shared between ext4 and xfs.
-
-However before we get there, we need quite a bit of reworks (require
-struct page for dax, use pfns in the dax radix, disable long held page
-reference counts for DAX i.e. RDMA / V4L2...). I'll submit those
-preparation steps first and then we can circle back to the "how to
-wait for DAX-DMA to end" problem.
+> --
+> You received this message because you are subscribed to the Google Groups
+> "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an
+> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit
+> https://groups.google.com/d/msgid/syzkaller-bugs/94eb2c0433c8f42cac055cc86991%40google.com.
+> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
