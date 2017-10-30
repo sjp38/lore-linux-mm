@@ -1,206 +1,30 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E50F26B0033
-	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:18 -0400 (EDT)
-Received: by mail-qt0-f198.google.com with SMTP id y45so8966597qty.17
-        for <linux-mm@kvack.org>; Sun, 29 Oct 2017 20:18:18 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s17si6233888qtb.137.2017.10.29.20.18.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 29 Oct 2017 20:18:17 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id v9U3Dewr014484
-	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:16 -0400
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2dwj6q474s-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:16 -0400
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 30 Oct 2017 03:18:14 -0000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] selftests/vm: Add tests validating mremap mirror functionality
-Date: Mon, 30 Oct 2017 08:48:08 +0530
-Message-Id: <20171030031808.24934-1-khandual@linux.vnet.ibm.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 313FF6B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 02:18:54 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id r18so12570646pgu.9
+        for <linux-mm@kvack.org>; Sun, 29 Oct 2017 23:18:54 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id m3si8884578plt.232.2017.10.29.23.18.51
+        for <linux-mm@kvack.org>;
+        Sun, 29 Oct 2017 23:18:52 -0700 (PDT)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH] locking/lockdep: Revise Documentation/locking/crossrelease.txt
+Date: Mon, 30 Oct 2017 15:18:44 +0900
+Message-Id: <1509344324-22399-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: mike.kravetz@oracle.com, mhocko@kernel.org, shuahkh@osg.samsung.com
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com
 
-This adds two tests to validate mirror functionality with mremap()
-system call on shared and private anon mappings. After the commit
-dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
-mappings"), any attempt to mirror private anon mapping will fail.
+I'm afraid the revision is not perfect yet. Of course, the document can
+have got much better english by others than me.
 
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
----
-Changes in V4:
+But,
 
-- Folded these two test files into just one as per Mike
-- Did some renaming of functions, cleans ups etc
+I think I should enhance it as much as I can, before they can help it
+starting with a better one.
 
-Changes in V3: (https://patchwork.kernel.org/patch/10013469/)
+In addition, I removed verboseness as much as possible.
 
-- Fail any attempts to mirror an existing anon private mapping
-- Updated run_vmtests to include these new mremap tests
-- Updated the commit message
-
-Changes in V2: (https://patchwork.kernel.org/patch/9861259/)
-
-- Added a test for private anon mappings
-- Used sysconf(_SC_PAGESIZE) instead of hard coding page size
-- Used MREMAP_MAYMOVE instead of hard coding the flag value 1
-
-Original V1: (https://patchwork.kernel.org/patch/9854415/)
-
- tools/testing/selftests/vm/Makefile        |  1 +
- tools/testing/selftests/vm/mremap_mirror.c | 96 ++++++++++++++++++++++++++++++
- tools/testing/selftests/vm/run_vmtests     | 10 ++++
- 3 files changed, 107 insertions(+)
- create mode 100644 tools/testing/selftests/vm/mremap_mirror.c
-
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index cbb29e4..27f1967 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -17,6 +17,7 @@ TEST_GEN_FILES += transhuge-stress
- TEST_GEN_FILES += userfaultfd
- TEST_GEN_FILES += mlock-random-test
- TEST_GEN_FILES += virtual_address_range
-+TEST_GEN_FILES += mremap_mirror
- 
- TEST_PROGS := run_vmtests
- 
-diff --git a/tools/testing/selftests/vm/mremap_mirror.c b/tools/testing/selftests/vm/mremap_mirror.c
-new file mode 100644
-index 0000000..41cdba5
---- /dev/null
-+++ b/tools/testing/selftests/vm/mremap_mirror.c
-@@ -0,0 +1,96 @@
-+/*
-+ * Test to verify mirror functionality with mremap() system
-+ * call for shared and private anon mappings. In shared anon
-+ * mapping case, the 'mirrored' buffer will match element to
-+ * element with that of the original one. But any attempts
-+ * to create a mirror buffer for an anon private one should
-+ * just fail.
-+ *
-+ * Copyright (C) 2017 Anshuman Khandual, IBM Corporation
-+ *
-+ * Licensed under GPL V2
-+ */
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <errno.h>
-+#include <sys/mman.h>
-+#include <sys/time.h>
-+
-+#define PATTERN		0xbe
-+#define NR_PAGES	10
-+
-+int test_mirror_shared(char *old, char *new, unsigned long size)
-+{
-+	unsigned long i;
-+
-+	for (i = 0; i < size; i++) {
-+		if (new[i] != old[i]) {
-+			printf("Mismatch at new[%lu] expected \
-+				%d received %d\n", i, old[i], new[i]);
-+			return 1;
-+		}
-+	}
-+	return 0;
-+}
-+
-+int mirror_anon_shared(unsigned long alloc_size)
-+{
-+	char *ptr, *mirror_ptr;
-+
-+	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
-+			MAP_SHARED | MAP_ANONYMOUS, -1, 0);
-+	if (ptr == MAP_FAILED) {
-+		perror("map() failed");
-+		return -1;
-+	}
-+	memset(ptr, PATTERN, alloc_size);
-+
-+	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
-+	if (mirror_ptr == MAP_FAILED) {
-+		perror("mremap() failed");
-+		return -1;
-+	}
-+
-+	if (test_mirror_shared(ptr, mirror_ptr, alloc_size))
-+		return 1;
-+
-+	return 0;
-+}
-+
-+int  mirror_anon_private(unsigned long alloc_size)
-+{
-+	char *ptr, *mirror_ptr;
-+
-+	ptr = mmap(NULL, alloc_size, PROT_READ | PROT_WRITE,
-+			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-+	if (ptr == MAP_FAILED) {
-+		perror("map() failed");
-+		return -1;
-+	}
-+	memset(ptr, PATTERN, alloc_size);
-+
-+	mirror_ptr =  (char *) mremap(ptr, 0, alloc_size, MREMAP_MAYMOVE);
-+	if (mirror_ptr == MAP_FAILED)
-+		return 0;
-+
-+	printf("Mirror attempt on private anon mapping should have failed\n");
-+	return 1;
-+}
-+
-+int main(int argc, char *argv[])
-+{
-+	unsigned long alloc_size;
-+	int ret;
-+
-+	alloc_size = sysconf(_SC_PAGESIZE) * NR_PAGES;
-+	ret = mirror_anon_private(alloc_size);
-+	if (ret)
-+		return ret;
-+
-+	ret = mirror_anon_shared(alloc_size);
-+	if (ret)
-+		return ret;
-+	return 0;
-+}
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index 07548a1..7214aa2 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -176,4 +176,14 @@ else
- 	echo "[PASS]"
- fi
- 
-+echo "-----------------------------"
-+echo "mremap_mirror"
-+echo "-----------------------------"
-+./mremap_mirror
-+if [ $? -ne 0 ]; then
-+	echo "[FAIL]"
-+	exitcode=1
-+else
-+	echo "[PASS]"
-+fi
- exit $exitcode
--- 
-1.8.5.2
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+----->8-----
