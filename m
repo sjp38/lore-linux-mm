@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FE566B0261
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:41:06 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id l5so20004454oib.0
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:41:06 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id DCC7F6B0268
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:41:08 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id h6so19773245oia.17
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:41:08 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 9si1323264otj.343.2017.10.31.11.41.05
+        by mx.google.com with ESMTPS id l82si1282586oib.365.2017.10.31.11.41.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 11:41:05 -0700 (PDT)
+        Tue, 31 Oct 2017 11:41:08 -0700 (PDT)
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH 2/6] shmem: rename functions that are memfd-related
-Date: Tue, 31 Oct 2017 19:40:48 +0100
-Message-Id: <20171031184052.25253-3-marcandre.lureau@redhat.com>
+Subject: [PATCH 3/6] hugetlb: expose hugetlbfs_inode_info in header
+Date: Tue, 31 Oct 2017 19:40:49 +0100
+Message-Id: <20171031184052.25253-4-marcandre.lureau@redhat.com>
 In-Reply-To: <20171031184052.25253-1-marcandre.lureau@redhat.com>
 References: <20171031184052.25253-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
@@ -23,91 +23,57 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-Those functions are called for memfd files, backed by shmem or
-hugetlb (the next patches will handle hugetlb).
+The following patch is going to access hugetlbfs_inode_info field from
+mm/shmem.c.
 
 Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
 ---
- fs/fcntl.c               |  2 +-
- include/linux/shmem_fs.h |  4 ++--
- mm/shmem.c               | 10 +++++-----
- 3 files changed, 8 insertions(+), 8 deletions(-)
+ fs/hugetlbfs/inode.c    | 10 ----------
+ include/linux/hugetlb.h | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 10 deletions(-)
 
-diff --git a/fs/fcntl.c b/fs/fcntl.c
-index 448a1119f0be..752c23743616 100644
---- a/fs/fcntl.c
-+++ b/fs/fcntl.c
-@@ -417,7 +417,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
- 		break;
- 	case F_ADD_SEALS:
- 	case F_GET_SEALS:
--		err = shmem_fcntl(filp, cmd, arg);
-+		err = memfd_fcntl(filp, cmd, arg);
- 		break;
- 	case F_GET_RW_HINT:
- 	case F_SET_RW_HINT:
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 557d0c3b6eca..0dac8c0f4aa4 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -109,11 +109,11 @@ extern void shmem_uncharge(struct inode *inode, long pages);
+diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
+index 59073e9f01a4..ea7b10357ac4 100644
+--- a/fs/hugetlbfs/inode.c
++++ b/fs/hugetlbfs/inode.c
+@@ -55,16 +55,6 @@ struct hugetlbfs_config {
+ 	umode_t			mode;
+ };
  
- #ifdef CONFIG_TMPFS
+-struct hugetlbfs_inode_info {
+-	struct shared_policy policy;
+-	struct inode vfs_inode;
+-};
+-
+-static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+-{
+-	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
+-}
+-
+ int sysctl_hugetlb_shm_group;
  
--extern long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
-+extern long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
- 
- #else
- 
--static inline long shmem_fcntl(struct file *f, unsigned int c, unsigned long a)
-+static inline long memfd_fcntl(struct file *f, unsigned int c, unsigned long a)
- {
- 	return -EINVAL;
- }
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 37260c5e12fa..b7811979611f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2722,7 +2722,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 		     F_SEAL_GROW | \
- 		     F_SEAL_WRITE)
- 
--static int shmem_add_seals(struct file *file, unsigned int seals)
-+static int memfd_add_seals(struct file *file, unsigned int seals)
- {
- 	struct inode *inode = file_inode(file);
- 	struct shmem_inode_info *info = SHMEM_I(inode);
-@@ -2792,7 +2792,7 @@ static int shmem_add_seals(struct file *file, unsigned int seals)
- 	return error;
+ enum {
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 8bbbd37ab105..f78daf54897d 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -278,6 +278,16 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
+ 	return sb->s_fs_info;
  }
  
--static int shmem_get_seals(struct file *file)
-+static int memfd_get_seals(struct file *file)
- {
- 	if (file->f_op != &shmem_file_operations)
- 		return -EINVAL;
-@@ -2800,7 +2800,7 @@ static int shmem_get_seals(struct file *file)
- 	return SHMEM_I(file_inode(file))->seals;
- }
- 
--long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
-+long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
- {
- 	long error;
- 
-@@ -2810,10 +2810,10 @@ long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
- 		if (arg > UINT_MAX)
- 			return -EINVAL;
- 
--		error = shmem_add_seals(file, arg);
-+		error = memfd_add_seals(file, arg);
- 		break;
- 	case F_GET_SEALS:
--		error = shmem_get_seals(file);
-+		error = memfd_get_seals(file);
- 		break;
- 	default:
- 		error = -EINVAL;
++struct hugetlbfs_inode_info {
++	struct shared_policy policy;
++	struct inode vfs_inode;
++};
++
++static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
++{
++	return container_of(inode, struct hugetlbfs_inode_info, vfs_inode);
++}
++
+ extern const struct file_operations hugetlbfs_file_operations;
+ extern const struct vm_operations_struct hugetlb_vm_ops;
+ struct file *hugetlb_file_setup(const char *name, size_t size, vm_flags_t acct,
 -- 
 2.15.0.rc0.40.gaefcc5f6f
 
