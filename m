@@ -1,18 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 19B5F6B0271
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:28:45 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l24so541396pgu.17
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:28:45 -0700 (PDT)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id t4si2699085pgf.33.2017.10.31.16.28.43
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F9D280244
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:28:48 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id 191so579153pgd.0
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:28:48 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id p18si2721970pge.204.2017.10.31.16.28.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 16:28:43 -0700 (PDT)
-Subject: [PATCH 08/15] dax: store pfns in the radix
+        Tue, 31 Oct 2017 16:28:47 -0700 (PDT)
+Subject: [PATCH 03/15] dax: require 'struct page' by default for filesystem
+ dax
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 31 Oct 2017 16:22:18 -0700
-Message-ID: <150949213845.24061.11573796709602711023.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 31 Oct 2017 16:21:50 -0700
+Message-ID: <150949211070.24061.16943730658658180030.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -21,253 +22,149 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
+Cc: Jan Kara <jack@suse.cz>, akpm@linux-foundation.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, hch@lst.de, Gerald Schaefer <gerald.schaefer@de.ibm.com>
 
-In preparation for examining the busy state of dax pages in the truncate
-path, switch from sectors to pfns in the radix.
+If a dax buffer from a device that does not map pages is passed to
+read(2) or write(2) as a target for direct-I/O it triggers SIGBUS. If
+gdb attempts to examine the contents of a dax buffer from a device that
+does not map pages it triggers SIGBUS. If fork(2) is called on a process
+with a dax mapping from a device that does not map pages it triggers
+SIGBUS. 'struct page' is required otherwise several kernel code paths
+break in surprising ways. Disable filesystem-dax on devices that do not
+map pages.
+
+In addition to needing pfn_to_page() to be valid we also require devmap
+pages.  We need this to detect dax pages in the get_user_pages_fast()
+path and so that we can stop managing the VM_MIXEDMAP flag. For DAX
+drivers that have not supported get_user_pages() to date we allow them
+to opt-in to supporting DAX with the CONFIG_FS_DAX_LIMITED configuration
+option which requires ->direct_access() to return pfn_t_special() pfns.
+This leaves DAX support in brd disabled and scheduled for removal.
+
+Note that when the initial dax support was being merged a few years back
+there was concern that struct page was unsuitable for use with next
+generation persistent memory devices. The theoretical concern was that
+struct page access, being such a hotly used data structure in the
+kernel, would lead to media wear out. While that was a reasonable
+conservative starting position it has not held true in practice. We have
+long since committed to using devm_memremap_pages() to support higher
+order kernel functionality that needs get_user_pages() and
+pfn_to_page().
 
 Cc: Jan Kara <jack@suse.cz>
 Cc: Jeff Moyer <jmoyer@redhat.com>
 Cc: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Paul Mackerras <paulus@samba.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/super.c |   15 ++++++++--
- fs/dax.c            |   75 +++++++++++++++++++--------------------------------
- 2 files changed, 40 insertions(+), 50 deletions(-)
+ arch/powerpc/platforms/Kconfig |    1 +
+ arch/powerpc/sysdev/axonram.c  |    1 +
+ drivers/dax/super.c            |   10 ++++++++++
+ drivers/s390/block/Kconfig     |    1 +
+ drivers/s390/block/dcssblk.c   |    1 +
+ fs/Kconfig                     |    7 +++++++
+ 6 files changed, 21 insertions(+)
 
+diff --git a/arch/powerpc/platforms/Kconfig b/arch/powerpc/platforms/Kconfig
+index 4fd64d3f5c44..031313968f9a 100644
+--- a/arch/powerpc/platforms/Kconfig
++++ b/arch/powerpc/platforms/Kconfig
+@@ -296,6 +296,7 @@ config AXON_RAM
+ 	tristate "Axon DDR2 memory device driver"
+ 	depends on PPC_IBM_CELL_BLADE && BLOCK
+ 	select DAX
++	select FS_DAX_LIMITED
+ 	default m
+ 	help
+ 	  It registers one block device per Axon's DDR2 memory bank found
+diff --git a/arch/powerpc/sysdev/axonram.c b/arch/powerpc/sysdev/axonram.c
+index aaf540efb92c..c1abd443836f 100644
+--- a/arch/powerpc/sysdev/axonram.c
++++ b/arch/powerpc/sysdev/axonram.c
+@@ -172,6 +172,7 @@ static size_t axon_ram_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+ 
+ static const struct dax_operations axon_ram_dax_ops = {
+ 	.direct_access = axon_ram_dax_direct_access,
++
+ 	.copy_from_iter = axon_ram_copy_from_iter,
+ };
+ 
 diff --git a/drivers/dax/super.c b/drivers/dax/super.c
-index abfd4e92d669..3ccb064d200d 100644
+index b0cc8117eebe..66bcdf42c413 100644
 --- a/drivers/dax/super.c
 +++ b/drivers/dax/super.c
-@@ -124,10 +124,19 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
+@@ -15,6 +15,7 @@
+ #include <linux/mount.h>
+ #include <linux/magic.h>
+ #include <linux/genhd.h>
++#include <linux/pfn_t.h>
+ #include <linux/cdev.h>
+ #include <linux/hash.h>
+ #include <linux/slab.h>
+@@ -123,6 +124,15 @@ int __bdev_dax_supported(struct super_block *sb, int blocksize)
  		return len < 0 ? len : -EIO;
  	}
  
--	if ((IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(pfn))
--			|| pfn_t_devmap(pfn))
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(pfn)) {
-+		/*
-+		 * An arch that has enabled the pmem api should also
-+		 * have its drivers support pfn_t_devmap()
-+		 *
-+		 * This is a developer warning and should not trigger in
-+		 * production. dax_flush() will crash since it depends
-+		 * on being able to do (page_address(pfn_to_page())).
-+		 */
-+		WARN_ON(IS_ENABLED(CONFIG_ARCH_HAS_PMEM_API));
-+	} else if (pfn_t_devmap(pfn)) {
- 		/* pass */;
--	else {
-+	} else {
- 		pr_debug("VFS (%s): error: dax support not enabled\n",
- 				sb->s_id);
- 		return -EOPNOTSUPP;
-diff --git a/fs/dax.c b/fs/dax.c
-index f001d8c72a06..ac6497dcfebd 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -72,16 +72,15 @@ fs_initcall(init_dax_wait_table);
- #define RADIX_DAX_ZERO_PAGE	(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 2))
- #define RADIX_DAX_EMPTY		(1 << (RADIX_TREE_EXCEPTIONAL_SHIFT + 3))
- 
--static unsigned long dax_radix_sector(void *entry)
-+static unsigned long dax_radix_pfn(void *entry)
- {
- 	return (unsigned long)entry >> RADIX_DAX_SHIFT;
++	if ((IS_ENABLED(CONFIG_FS_DAX_LIMITED) && pfn_t_special(pfn))
++			|| pfn_t_devmap(pfn))
++		/* pass */;
++	else {
++		pr_debug("VFS (%s): error: dax support not enabled\n",
++				sb->s_id);
++		return -EOPNOTSUPP;
++	}
++
+ 	return 0;
  }
+ EXPORT_SYMBOL_GPL(__bdev_dax_supported);
+diff --git a/drivers/s390/block/Kconfig b/drivers/s390/block/Kconfig
+index 31f014b57bfc..594ae5fc8e9d 100644
+--- a/drivers/s390/block/Kconfig
++++ b/drivers/s390/block/Kconfig
+@@ -15,6 +15,7 @@ config BLK_DEV_XPRAM
+ config DCSSBLK
+ 	def_tristate m
+ 	select DAX
++	select FS_DAX_LIMITED
+ 	prompt "DCSSBLK support"
+ 	depends on S390 && BLOCK
+ 	help
+diff --git a/drivers/s390/block/dcssblk.c b/drivers/s390/block/dcssblk.c
+index 87756e28c29b..dbe07ab71e32 100644
+--- a/drivers/s390/block/dcssblk.c
++++ b/drivers/s390/block/dcssblk.c
+@@ -52,6 +52,7 @@ static size_t dcssblk_dax_copy_from_iter(struct dax_device *dax_dev,
  
--static void *dax_radix_locked_entry(sector_t sector, unsigned long flags)
-+static void *dax_radix_locked_entry(unsigned long pfn, unsigned long flags)
- {
- 	return (void *)(RADIX_TREE_EXCEPTIONAL_ENTRY | flags |
--			((unsigned long)sector << RADIX_DAX_SHIFT) |
--			RADIX_DAX_ENTRY_LOCK);
-+			(pfn << RADIX_DAX_SHIFT) | RADIX_DAX_ENTRY_LOCK);
- }
+ static const struct dax_operations dcssblk_dax_ops = {
+ 	.direct_access = dcssblk_dax_direct_access,
++
+ 	.copy_from_iter = dcssblk_dax_copy_from_iter,
+ };
  
- static unsigned int dax_radix_order(void *entry)
-@@ -525,12 +524,13 @@ static int copy_user_dax(struct block_device *bdev, struct dax_device *dax_dev,
-  */
- static void *dax_insert_mapping_entry(struct address_space *mapping,
- 				      struct vm_fault *vmf,
--				      void *entry, sector_t sector,
-+				      void *entry, pfn_t pfn_t,
- 				      unsigned long flags)
- {
- 	struct radix_tree_root *page_tree = &mapping->page_tree;
--	void *new_entry;
-+	unsigned long pfn = pfn_t_to_pfn(pfn_t);
- 	pgoff_t index = vmf->pgoff;
-+	void *new_entry;
+diff --git a/fs/Kconfig b/fs/Kconfig
+index 7aee6d699fd6..b40128bf6d1a 100644
+--- a/fs/Kconfig
++++ b/fs/Kconfig
+@@ -58,6 +58,13 @@ config FS_DAX_PMD
+ 	depends on ZONE_DEVICE
+ 	depends on TRANSPARENT_HUGEPAGE
  
- 	if (vmf->flags & FAULT_FLAG_WRITE)
- 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-@@ -547,7 +547,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 	}
++# Selected by DAX drivers that do not expect filesystem DAX to support
++# get_user_pages() of DAX mappings. I.e. "limited" indicates no support
++# for fork() of processes with MAP_SHARED mappings or support for
++# direct-I/O to a DAX mapping.
++config FS_DAX_LIMITED
++	bool
++
+ endif # BLOCK
  
- 	spin_lock_irq(&mapping->tree_lock);
--	new_entry = dax_radix_locked_entry(sector, flags);
-+	new_entry = dax_radix_locked_entry(pfn, flags);
- 
- 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
- 		/*
-@@ -653,17 +653,14 @@ static void dax_mapping_entry_mkclean(struct address_space *mapping,
- 	i_mmap_unlock_read(mapping);
- }
- 
--static int dax_writeback_one(struct block_device *bdev,
--		struct dax_device *dax_dev, struct address_space *mapping,
--		pgoff_t index, void *entry)
-+static int dax_writeback_one(struct dax_device *dax_dev,
-+		struct address_space *mapping, pgoff_t index, void *entry)
- {
- 	struct radix_tree_root *page_tree = &mapping->page_tree;
--	void *entry2, **slot, *kaddr;
--	long ret = 0, id;
--	sector_t sector;
--	pgoff_t pgoff;
-+	void *entry2, **slot;
-+	unsigned long pfn;
-+	long ret = 0;
- 	size_t size;
--	pfn_t pfn;
- 
- 	/*
- 	 * A page got tagged dirty in DAX mapping? Something is seriously
-@@ -682,7 +679,7 @@ static int dax_writeback_one(struct block_device *bdev,
- 	 * compare sectors as we must not bail out due to difference in lockbit
- 	 * or entry type.
- 	 */
--	if (dax_radix_sector(entry2) != dax_radix_sector(entry))
-+	if (dax_radix_pfn(entry2) != dax_radix_pfn(entry))
- 		goto put_unlocked;
- 	if (WARN_ON_ONCE(dax_is_empty_entry(entry) ||
- 				dax_is_zero_entry(entry))) {
-@@ -712,29 +709,11 @@ static int dax_writeback_one(struct block_device *bdev,
- 	 * 'entry'.  This allows us to flush for PMD_SIZE and not have to
- 	 * worry about partial PMD writebacks.
- 	 */
--	sector = dax_radix_sector(entry);
-+	pfn = dax_radix_pfn(entry);
- 	size = PAGE_SIZE << dax_radix_order(entry);
- 
--	id = dax_read_lock();
--	ret = bdev_dax_pgoff(bdev, sector, size, &pgoff);
--	if (ret)
--		goto dax_unlock;
--
--	/*
--	 * dax_direct_access() may sleep, so cannot hold tree_lock over
--	 * its invocation.
--	 */
--	ret = dax_direct_access(dax_dev, pgoff, size / PAGE_SIZE, &kaddr, &pfn);
--	if (ret < 0)
--		goto dax_unlock;
--
--	if (WARN_ON_ONCE(ret < size / PAGE_SIZE)) {
--		ret = -EIO;
--		goto dax_unlock;
--	}
--
--	dax_mapping_entry_mkclean(mapping, index, pfn_t_to_pfn(pfn));
--	dax_flush(dax_dev, kaddr, size);
-+	dax_mapping_entry_mkclean(mapping, index, pfn);
-+	dax_flush(dax_dev, page_address(pfn_to_page(pfn)), size);
- 	/*
- 	 * After we have flushed the cache, we can clear the dirty tag. There
- 	 * cannot be new dirty data in the pfn after the flush has completed as
-@@ -745,8 +724,6 @@ static int dax_writeback_one(struct block_device *bdev,
- 	radix_tree_tag_clear(page_tree, index, PAGECACHE_TAG_DIRTY);
- 	spin_unlock_irq(&mapping->tree_lock);
- 	trace_dax_writeback_one(mapping->host, index, size >> PAGE_SHIFT);
-- dax_unlock:
--	dax_read_unlock(id);
- 	put_locked_mapping_entry(mapping, index);
- 	return ret;
- 
-@@ -804,8 +781,8 @@ int dax_writeback_mapping_range(struct address_space *mapping,
- 				break;
- 			}
- 
--			ret = dax_writeback_one(bdev, dax_dev, mapping,
--					indices[i], pvec.pages[i]);
-+			ret = dax_writeback_one(dax_dev, mapping, indices[i],
-+					pvec.pages[i]);
- 			if (ret < 0) {
- 				mapping_set_error(mapping, ret);
- 				goto out;
-@@ -843,7 +820,7 @@ static int dax_insert_mapping(struct address_space *mapping,
- 	}
- 	dax_read_unlock(id);
- 
--	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector, 0);
-+	ret = dax_insert_mapping_entry(mapping, vmf, entry, pfn, 0);
- 	if (IS_ERR(ret))
- 		return PTR_ERR(ret);
- 
-@@ -852,6 +829,7 @@ static int dax_insert_mapping(struct address_space *mapping,
- 		return vm_insert_mixed_mkwrite(vma, vaddr, pfn);
- 	else
- 		return vm_insert_mixed(vma, vaddr, pfn);
-+	return rc;
- }
- 
- /*
-@@ -869,6 +847,7 @@ static int dax_load_hole(struct address_space *mapping, void *entry,
- 	int ret = VM_FAULT_NOPAGE;
- 	struct page *zero_page;
- 	void *entry2;
-+	pfn_t pfn;
- 
- 	zero_page = ZERO_PAGE(0);
- 	if (unlikely(!zero_page)) {
-@@ -876,14 +855,15 @@ static int dax_load_hole(struct address_space *mapping, void *entry,
- 		goto out;
- 	}
- 
--	entry2 = dax_insert_mapping_entry(mapping, vmf, entry, 0,
-+	pfn = page_to_pfn_t(zero_page);
-+	entry2 = dax_insert_mapping_entry(mapping, vmf, entry, pfn,
- 			RADIX_DAX_ZERO_PAGE);
- 	if (IS_ERR(entry2)) {
- 		ret = VM_FAULT_SIGBUS;
- 		goto out;
- 	}
- 
--	vm_insert_mixed(vmf->vma, vaddr, page_to_pfn_t(zero_page));
-+	vm_insert_mixed(vmf->vma, vaddr, pfn);
- out:
- 	trace_dax_load_hole(inode, vmf, ret);
- 	return ret;
-@@ -1250,8 +1230,7 @@ static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
- 		goto unlock_fallback;
- 	dax_read_unlock(id);
- 
--	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector,
--			RADIX_DAX_PMD);
-+	ret = dax_insert_mapping_entry(mapping, vmf, entry, pfn, RADIX_DAX_PMD);
- 	if (IS_ERR(ret))
- 		goto fallback;
- 
-@@ -1276,13 +1255,15 @@ static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
- 	void *ret = NULL;
- 	spinlock_t *ptl;
- 	pmd_t pmd_entry;
-+	pfn_t pfn;
- 
- 	zero_page = mm_get_huge_zero_page(vmf->vma->vm_mm);
- 
- 	if (unlikely(!zero_page))
- 		goto fallback;
- 
--	ret = dax_insert_mapping_entry(mapping, vmf, entry, 0,
-+	pfn = page_to_pfn_t(zero_page);
-+	ret = dax_insert_mapping_entry(mapping, vmf, entry, pfn,
- 			RADIX_DAX_PMD | RADIX_DAX_ZERO_PAGE);
- 	if (IS_ERR(ret))
- 		goto fallback;
+ # Posix ACL utility routines
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
