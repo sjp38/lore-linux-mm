@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A93C6B026C
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:38:01 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 15so16505451pgc.21
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:38:01 -0700 (PDT)
-Received: from BJEXCAS006.didichuxing.com ([36.110.17.22])
-        by mx.google.com with ESMTPS id a8si1224943pgu.368.2017.10.31.03.37.59
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CDD56B026D
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:38:32 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id a192so16543734pge.1
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:38:32 -0700 (PDT)
+Received: from BJEXMBX012.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
+        by mx.google.com with ESMTPS id 204si1302891pga.183.2017.10.31.03.38.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 03:37:59 -0700 (PDT)
-Date: Tue, 31 Oct 2017 18:37:54 +0800
+        Tue, 31 Oct 2017 03:38:30 -0700 (PDT)
+Date: Tue, 31 Oct 2017 18:38:24 +0800
 From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: [PATCH v2 1/3] bdi: convert bdi_debug_register to int
-Message-ID: <8f8d9678f5843f7fd01588d2cc4f4dc3f21dd50b.1509415695.git.zhangweiping@didichuxing.com>
+Subject: [PATCH v2 2/3] bdi: add error handle for bdi_debug_register
+Message-ID: <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
 References: <cover.1509415695.git.zhangweiping@didichuxing.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -23,55 +23,34 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, jack@suse.cz
 Cc: linux-block@vger.kernel.org, linux-mm@kvack.org
 
-Convert bdi_debug_register to int and then do error handle for it.
+In order to make error handle more cleaner we call bdi_debug_register
+before set state to WB_registered, that we can avoid call bdi_unregister
+in release_bdi().
 
-Reviewed-by: Jan Kara <jack@suse.cz>
 Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 ---
- mm/backing-dev.c | 17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ mm/backing-dev.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index 74b52dfd5852..b5f940ce0143 100644
+index b5f940ce0143..84b2dc76f140 100644
 --- a/mm/backing-dev.c
 +++ b/mm/backing-dev.c
-@@ -113,11 +113,23 @@ static const struct file_operations bdi_debug_stats_fops = {
- 	.release	= single_release,
- };
+@@ -882,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
+ 	if (IS_ERR(dev))
+ 		return PTR_ERR(dev);
  
--static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
-+static int bdi_debug_register(struct backing_dev_info *bdi, const char *name)
- {
-+	if (!bdi_debug_root)
-+		return -ENOMEM;
-+
- 	bdi->debug_dir = debugfs_create_dir(name, bdi_debug_root);
-+	if (!bdi->debug_dir)
-+		return -ENOMEM;
-+
- 	bdi->debug_stats = debugfs_create_file("stats", 0444, bdi->debug_dir,
- 					       bdi, &bdi_debug_stats_fops);
-+	if (!bdi->debug_stats) {
-+		debugfs_remove(bdi->debug_dir);
++	if (bdi_debug_register(bdi, dev_name(dev))) {
++		device_destroy(bdi_class, dev->devt);
 +		return -ENOMEM;
 +	}
-+
-+	return 0;
- }
+ 	cgwb_bdi_register(bdi);
+ 	bdi->dev = dev;
  
- static void bdi_debug_unregister(struct backing_dev_info *bdi)
-@@ -129,9 +141,10 @@ static void bdi_debug_unregister(struct backing_dev_info *bdi)
- static inline void bdi_debug_init(void)
- {
- }
--static inline void bdi_debug_register(struct backing_dev_info *bdi,
-+static inline int bdi_debug_register(struct backing_dev_info *bdi,
- 				      const char *name)
- {
-+	return 0;
- }
- static inline void bdi_debug_unregister(struct backing_dev_info *bdi)
- {
+-	bdi_debug_register(bdi, dev_name(dev));
+ 	set_bit(WB_registered, &bdi->wb.state);
+ 
+ 	spin_lock_bh(&bdi_lock);
 -- 
 2.14.2
 
