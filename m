@@ -1,113 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B78A6B0033
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 17:50:04 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f66so525258oib.1
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:50:04 -0700 (PDT)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E34D26B0253
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:21:26 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id n137so2191847iod.20
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:21:26 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v2sor887800otf.316.2017.10.31.14.50.02
+        by mx.google.com with SMTPS id j91sor194576iod.276.2017.10.31.15.21.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 31 Oct 2017 14:50:02 -0700 (PDT)
+        Tue, 31 Oct 2017 15:21:25 -0700 (PDT)
+Date: Tue, 31 Oct 2017 15:21:23 -0700 (PDT)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
+In-Reply-To: <20171031075408.67au22uk6dkpu7vv@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.10.1710311513590.123444@chino.kir.corp.google.com>
+References: <20171019185218.12663-1-guro@fb.com> <20171019194534.GA5502@cmpxchg.org> <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com> <20171026142445.GA21147@cmpxchg.org> <alpine.DEB.2.10.1710261359550.75887@chino.kir.corp.google.com>
+ <20171027093107.GA29492@castle.dhcp.TheFacebook.com> <alpine.DEB.2.10.1710301430170.105449@chino.kir.corp.google.com> <20171031075408.67au22uk6dkpu7vv@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171031151907.GB26128@quack2.suse.cz>
-References: <20171024152415.22864-1-jack@suse.cz> <20171024152415.22864-18-jack@suse.cz>
- <20171024222322.GX3666@dastard> <20171026154804.GF31161@quack2.suse.cz>
- <20171026211611.GC3666@dastard> <20171027100834.GH31161@quack2.suse.cz> <20171031151907.GB26128@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 31 Oct 2017 14:50:01 -0700
-Message-ID: <CAPcyv4gBVyZ8KhB2s1M0BdhC1=HAean6Mb6oV7zsJBx0-t3bhw@mail.gmail.com>
-Subject: Re: [PATCH 17/17] xfs: support for synchronous DAX faults
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Dave Chinner <david@fromorbit.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-ext4 <linux-ext4@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-xfs@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Christoph Hellwig <hch@lst.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, Oct 31, 2017 at 8:19 AM, Jan Kara <jack@suse.cz> wrote:
-> On Fri 27-10-17 12:08:34, Jan Kara wrote:
->> On Fri 27-10-17 08:16:11, Dave Chinner wrote:
->> > On Thu, Oct 26, 2017 at 05:48:04PM +0200, Jan Kara wrote:
->> > > > > diff --git a/fs/xfs/xfs_iomap.c b/fs/xfs/xfs_iomap.c
->> > > > > index f179bdf1644d..b43be199fbdf 100644
->> > > > > --- a/fs/xfs/xfs_iomap.c
->> > > > > +++ b/fs/xfs/xfs_iomap.c
->> > > > > @@ -33,6 +33,7 @@
->> > > > >  #include "xfs_error.h"
->> > > > >  #include "xfs_trans.h"
->> > > > >  #include "xfs_trans_space.h"
->> > > > > +#include "xfs_inode_item.h"
->> > > > >  #include "xfs_iomap.h"
->> > > > >  #include "xfs_trace.h"
->> > > > >  #include "xfs_icache.h"
->> > > > > @@ -1086,6 +1087,10 @@ xfs_file_iomap_begin(
->> > > > >               trace_xfs_iomap_found(ip, offset, length, 0, &imap);
->> > > > >       }
->> > > > >
->> > > > > +     if ((flags & IOMAP_WRITE) && xfs_ipincount(ip) &&
->> > > > > +         (ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
->> > > > > +             iomap->flags |= IOMAP_F_DIRTY;
->> > > >
->> > > > This is the very definition of an inode that is "fdatasync dirty".
->> > > >
->> > > > Hmmmm, shouldn't this also be set for read faults, too?
->> > >
->> > > No, read faults don't need to set IOMAP_F_DIRTY since user cannot write any
->> > > data to the page which he'd then like to be persistent. The only reason why
->> > > I thought it could be useful for a while was that it would be nice to make
->> > > MAP_SYNC mapping provide the guarantee that data you see now is the data
->> > > you'll see after a crash
->> >
->> > Isn't that the entire point of MAP_SYNC? i.e. That when we return
->> > from a page fault, the app knows that the data and it's underlying
->> > extent is on persistent storage?
->> >
->> > > but we cannot provide that guarantee for RO
->> > > mapping anyway if someone else has the page mapped as well. So I just
->> > > decided not to return IOMAP_F_DIRTY for read faults.
->> >
->> > If there are multiple MAP_SYNC mappings to the inode, I would have
->> > expected that they all sync all of the data/metadata on every page
->> > fault, regardless of who dirtied the inode. An RO mapping doesn't
->>
->> Well, they all do sync regardless of who dirtied the inode on every *write*
->> fault.
->>
->> > mean the data/metadata on the inode can't change, it just means it
->> > can't change through that mapping.  Running fsync() to guarantee the
->> > persistence of that data/metadata doesn't actually changing any
->> > data....
->> >
->> > IOWs, if read faults don't guarantee the mapped range has stable
->> > extents on a MAP_SYNC mapping, then I think MAP_SYNC is broken
->> > because it's not giving consistent guarantees to userspace. Yes, it
->> > works fine when only one MAP_SYNC mapping is modifying the inode,
->> > but the moment we have concurrent operations on the inode that
->> > aren't MAP_SYNC or O_SYNC this goes out the window....
->>
->> MAP_SYNC as I've implemented it provides guarantees only for data the
->> process has actually written. I agree with that and it was a conscious
->> decision. In my opinion that covers most usecases, provides reasonably
->> simple semantics (i.e., if you write data through MAP_SYNC mapping, you can
->> persist it just using CPU instructions), and reasonable performance.
->>
->> Now you seem to suggest the semantics should be: "Data you have read from or
->> written to a MAP_SYNC mapping can be persisted using CPU instructions." And
->> from implementation POV we can do that rather easily (just rip out the
->> IOMAP_WRITE checks). But I'm unsure whether this additional guarantee would
->> be useful enough to justify the slowdown of read faults? I was not able to
->> come up with a good usecase and so I've decided for current semantics. What
->> do other people think?
->
-> Nobody commented on this for couple of days so how do we proceed? I would
-> prefer to go just with a guarantee for data written and we can always make
-> the guarantee stronger (i.e. apply it also for read data) when some user
-> comes with a good usecase?
+On Tue, 31 Oct 2017, Michal Hocko wrote:
 
-I think it is easier to strengthen the guarantee than loosen it later
-especially since it is not yet clear that we have a use case for the
-stronger semantic. At least the initial motivation for MAP_SYNC was
-for writers.
+> > I'm not ignoring them, I have stated that we need the ability to protect 
+> > important cgroups on the system without oom disabling all attached 
+> > processes.  If that is implemented as a memory.oom_score_adj with the same 
+> > semantics as /proc/pid/oom_score_adj, i.e. a proportion of available 
+> > memory (the limit), it can also address the issues pointed out with the 
+> > hierarchical approach in v8.
+> 
+> No it cannot and it would be a terrible interface to have as well. You
+> do not want to permanently tune oom_score_adj to compensate for
+> structural restrictions on the hierarchy.
+> 
+
+memory.oom_score_adj would never need to be permanently tuned, just as 
+/proc/pid/oom_score_adj need never be permanently tuned.  My response was 
+an answer to Roman's concern that "v8 has it's own limitations," but I 
+haven't seen a concrete example where the oom killer is forced to kill 
+from the non-preferred cgroup while the user has power of biasing against 
+certain cgroups with memory.oom_score_adj.  Do you have such a concrete 
+example that we can work with?
+
+> I believe, and Roman has pointed that out as well already, that further
+> improvements can be implemented without changing user visible behavior
+> as and add-on. If you disagree then you better come with a solid proof
+> that all of us wrong and reasonable semantic cannot be achieved that
+> way.
+
+We simply cannot determine if improvements can be implemented in the 
+future without user-visible changes if those improvements are unknown or 
+undecided at this time.  It may require hierarchical accounting when 
+making a choice between siblings, as suggested with oom_score_adj.  The 
+only thing that we need to agree on is that userspace needs to have some 
+kind of influence over victim selection: the oom killer killing an 
+important user process is an extremely sensitive thing.  If the patchset 
+lacks the ability to have that influence, and such an ability would impact 
+the heuristic overall, it's better to introduce that together as a 
+complete patchset rather than merging an incomplete feature when it's 
+known the user needs some control, asking the user to workaround it by 
+setting all processes to oom disabled in a preferred mem cgroup, and then 
+changing the heuristic again.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
