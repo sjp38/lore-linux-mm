@@ -1,121 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B3006B0069
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:50:11 -0400 (EDT)
-Received: by mail-yw0-f200.google.com with SMTP id z195so33393053ywz.14
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:50:11 -0700 (PDT)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id 200si447010ywy.508.2017.10.31.08.50.10
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C0DA6B0038
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 12:16:03 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id m198so19532256oig.20
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:16:03 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r8si1128704oif.405.2017.10.31.09.15.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 08:50:10 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v1 1/1] mm: buddy page accessed before initialized
-Date: Tue, 31 Oct 2017 11:50:02 -0400
-Message-Id: <20171031155002.21691-2-pasha.tatashin@oracle.com>
-In-Reply-To: <20171031155002.21691-1-pasha.tatashin@oracle.com>
-References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
+        Tue, 31 Oct 2017 09:15:57 -0700 (PDT)
+Date: Tue, 31 Oct 2017 18:15:48 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [PATCH v2 1/1] virtio_balloon: include buffers and cached memory
+ statistics
+Message-ID: <20171031180315-mutt-send-email-mst@kernel.org>
+References: <cover.1505998455.git.tgolembi@redhat.com>
+ <b13f11c03ed394bd8ad367dc90996ed134ea98da.1505998455.git.tgolembi@redhat.com>
+ <20171019160405-mutt-send-email-mst@kernel.org>
+ <20171022200557.02558e37@fiorina>
+ <20171031132019.76197945@fiorina>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171031132019.76197945@fiorina>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?utf-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, Jason Wang <jasowang@redhat.com>, Gal Hammer <ghammer@redhat.com>, Amnon Ilan <ailan@redhat.com>, riel@redhat.com
 
-This problem is seen when machine is rebooted after kexec:
-A message like this is printed:
-==========================================================================
-WARNING: CPU: 21 PID: 249 at linux/lib/list_debug.c:53__listd+0x83/0xa0
-Modules linked in:
-CPU: 21 PID: 249 Comm: pgdatinit0 Not tainted 4.14.0-rc6_pt_deferred #90
-Hardware name: Oracle Corporation ORACLE SERVER X6-2/ASM,MOTHERBOARD,1U,
-BIOS 3016
-node 1 initialised, 32444607 pages in 1679ms
-task: ffff880180e75a00 task.stack: ffffc9000cdb0000
-RIP: 0010:__list_del_entry_valid+0x83/0xa0
-RSP: 0000:ffffc9000cdb3d18 EFLAGS: 00010046
-RAX: 0000000000000054 RBX: 0000000000000009 RCX: ffffffff81c5f3e8
-RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
-RBP: ffffc9000cdb3d18 R08: 00000000fffffffe R09: 0000000000000154
-R10: 0000000000000005 R11: 0000000000000153 R12: 0000000001fcdc00
-R13: 0000000001fcde00 R14: ffff88207ffded00 R15: ffffea007f370000
-FS:  0000000000000000(0000) GS:ffff881fffac0000(0000) knlGS:0
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000000000 CR3: 000000407ec09001 CR4: 00000000003606e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
- free_one_page+0x103/0x390
- __free_pages_ok+0x1cf/0x2d0
- __free_pages+0x19/0x30
- __free_pages_boot_core+0xae/0xba
- deferred_free_range+0x60/0x94
- deferred_init_memmap+0x324/0x372
- kthread+0x109/0x140
- ? __free_pages_bootmem+0x2e/0x2e
- ? kthread_park+0x60/0x60
- ret_from_fork+0x25/0x30
+On Tue, Oct 31, 2017 at 01:20:19PM +0100, TomA!A! GolembiovskA 1/2  wrote:
+> ping
+> 
+> +Gil, +Amnon... could you maybe aid in reviewing the patch, please?
+> 
+> 
+>     Tomas
+> 
+> On Sun, 22 Oct 2017 20:05:57 +0200
+> TomA!A! GolembiovskA 1/2  <tgolembi@redhat.com> wrote:
+> 
+> > On Thu, 19 Oct 2017 16:12:20 +0300
+> > "Michael S. Tsirkin" <mst@redhat.com> wrote:
+> > 
+> > > On Thu, Sep 21, 2017 at 02:55:41PM +0200, TomA!A! GolembiovskA 1/2  wrote:  
+> > > > Add a new fields, VIRTIO_BALLOON_S_BUFFERS and VIRTIO_BALLOON_S_CACHED,
+> > > > to virtio_balloon memory statistics protocol. The values correspond to
+> > > > 'Buffers' and 'Cached' in /proc/meminfo.
+> > > > 
+> > > > To be able to compute the value of 'Cached' memory it is necessary to
+> > > > export total_swapcache_pages() to modules.
+> > > > 
+> > > > Signed-off-by: TomA!A! GolembiovskA 1/2  <tgolembi@redhat.com>  
+> > > 
+> > > Does 'Buffers' actually make sense? It's a temporary storage -
+> > > wouldn't it be significantly out of date by the time
+> > > host receives it?  
+> > 
+> > That would be best answered by somebody from kernel. But my personal
+> > opinion is that it would not be out of date. The amount of memory
+> > dedicated to Buffers does not seem to fluctuate too much.
+> > 
+> >     Tomas
+> > 
 
-list_del corruption. next->prev should be ffffea007f428020, but was
-ffffea007f1d8020
-==========================================================================
+I would be inclined to say, just report
+global_node_page_state(NR_FILE_PAGES).
+Maybe subtract buffer ram.
 
-The problem happens in this path:
+It's not clear host cares about the distinction,
+it's all memory that can shrink in response to
+memory pressure such as inflating the balloon.
 
-page_alloc_init_late
-  deferred_init_memmap
-    deferred_init_range
-      __def_free
-        deferred_free_range
-          __free_pages_boot_core(page, order)
-            __free_pages()
-              __free_pages_ok()
-                free_one_page()
-                  __free_one_page(page, pfn, zone, order, migratetype);
+This statistic is portable as well I think, most guests have
+storage cache.
 
-deferred_init_range() initializes one page at a time by calling
-__init_single_page(), once it initializes pageblock_nr_pages pages, it
-calls deferred_free_range() to free the initialized pages to the buddy
-allocator. Eventually, we reach __free_one_page(), where we compute buddy
-page:
-	buddy_pfn = __find_buddy_pfn(pfn, order);
-	buddy = page + (buddy_pfn - pfn);
 
-buddy_pfn is computed as pfn ^ (1 << order), or pfn + pageblock_nr_pages.
-Thefore, buddy page becomes a page one after the range that currently was
-initialized, and we access this page in this function. Also, later when we
-return back to deferred_init_range(), the buddy page is initialized again.
-
-So, in order to avoid this issue, we must initialize the buddy page prior
-to calling deferred_free_range().
-
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
----
- mm/page_alloc.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 97687b38da05..f3ea06db3eed 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1500,9 +1500,17 @@ static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
- 			__init_single_page(page, pfn, zid, nid);
- 			nr_free++;
- 		} else {
--			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
- 			page = pfn_to_page(pfn);
- 			__init_single_page(page, pfn, zid, nid);
-+			/*
-+			 * We must free previous range after initializing the
-+			 * first page of the next range. This is because first
-+			 * page may be accessed in __free_one_page(), when buddy
-+			 * page is computed:
-+			 *   buddy_pfn = pfn + pageblock_nr_pages
-+			 */
-+			deferred_free_range(free_base_pfn, nr_free);
-+			nr_pages += nr_free;
- 			free_base_pfn = pfn;
- 			nr_free = 1;
- 			cond_resched();
--- 
-2.14.3
+> > > > ---
+> > > >  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
+> > > >  include/uapi/linux/virtio_balloon.h |  4 +++-
+> > > >  mm/swap_state.c                     |  1 +
+> > > >  3 files changed, 15 insertions(+), 1 deletion(-)
+> > > > 
+> > > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > > > index f0b3a0b9d42f..c2558ec47a62 100644
+> > > > --- a/drivers/virtio/virtio_balloon.c
+> > > > +++ b/drivers/virtio/virtio_balloon.c
+> > > > @@ -244,12 +244,19 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
+> > > >  	struct sysinfo i;
+> > > >  	unsigned int idx = 0;
+> > > >  	long available;
+> > > > +	long cached;
+> > > >  
+> > > >  	all_vm_events(events);
+> > > >  	si_meminfo(&i);
+> > > >  
+> > > >  	available = si_mem_available();
+> > > >  
+> > > > +	cached = global_node_page_state(NR_FILE_PAGES) -
+> > > > +			total_swapcache_pages() - i.bufferram;
+> > > > +	if (cached < 0)
+> > > > +		cached = 0;
+> > > > +
+> > > > +
+> > > >  #ifdef CONFIG_VM_EVENT_COUNTERS
+> > > >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
+> > > >  				pages_to_bytes(events[PSWPIN]));
+> > > > @@ -264,6 +271,10 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
+> > > >  				pages_to_bytes(i.totalram));
+> > > >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
+> > > >  				pages_to_bytes(available));
+> > > > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_BUFFERS,
+> > > > +				pages_to_bytes(i.bufferram));
+> > > > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHED,
+> > > > +				pages_to_bytes(cached));
+> > > >  
+> > > >  	return idx;
+> > > >  }
+> > > > diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> > > > index 343d7ddefe04..d5dc8a56a497 100644
+> > > > --- a/include/uapi/linux/virtio_balloon.h
+> > > > +++ b/include/uapi/linux/virtio_balloon.h
+> > > > @@ -52,7 +52,9 @@ struct virtio_balloon_config {
+> > > >  #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
+> > > >  #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
+> > > >  #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
+> > > > -#define VIRTIO_BALLOON_S_NR       7
+> > > > +#define VIRTIO_BALLOON_S_BUFFERS  7   /* Buffers memory as in /proc */
+> > > > +#define VIRTIO_BALLOON_S_CACHED   8   /* Cached memory as in /proc */
+> > > > +#define VIRTIO_BALLOON_S_NR       9
+> > > >  
+> > > >  /*
+> > > >   * Memory statistics structure.
+> > > > diff --git a/mm/swap_state.c b/mm/swap_state.c
+> > > > index 71ce2d1ccbf7..f3a4ff7d6c52 100644
+> > > > --- a/mm/swap_state.c
+> > > > +++ b/mm/swap_state.c
+> > > > @@ -95,6 +95,7 @@ unsigned long total_swapcache_pages(void)
+> > > >  	rcu_read_unlock();
+> > > >  	return ret;
+> > > >  }
+> > > > +EXPORT_SYMBOL_GPL(total_swapcache_pages);
+> > > >  
+> > > >  static atomic_t swapin_readahead_hits = ATOMIC_INIT(4);  
+> > > 
+> > > Need an ack from MM crowd on that.
+> > >   
+> > > > -- 
+> > > > 2.14.1  
+> > 
+> > 
+> > -- 
+> > TomA!A! GolembiovskA 1/2  <tgolembi@redhat.com>
+> 
+> 
+> -- 
+> TomA!A! GolembiovskA 1/2  <tgolembi@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
