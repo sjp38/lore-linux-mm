@@ -1,151 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DF3FD6B0038
-	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 20:45:08 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id p9so15061030pgc.6
-        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 17:45:08 -0700 (PDT)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id f81si191757pfj.30.2017.10.30.17.45.06
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 30 Oct 2017 17:45:07 -0700 (PDT)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: consult a question about action_result() in memory_failure()
-Date: Tue, 31 Oct 2017 00:44:26 +0000
-Message-ID: <20171031004423.GA18629@hori1.linux.bs1.fc.nec.co.jp>
-References: <566fb926-6aba-844e-c777-8c81b4670e7b@huawei.com>
-In-Reply-To: <566fb926-6aba-844e-c777-8c81b4670e7b@huawei.com>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <240CED5B007CDC4EB772BF6BE9C24408@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACDF46B0033
+	for <linux-mm@kvack.org>; Mon, 30 Oct 2017 22:17:05 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z11so13285815pfk.23
+        for <linux-mm@kvack.org>; Mon, 30 Oct 2017 19:17:05 -0700 (PDT)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f30si330770plf.32.2017.10.30.19.17.04
+        for <linux-mm@kvack.org>;
+        Mon, 30 Oct 2017 19:17:04 -0700 (PDT)
+Date: Tue, 31 Oct 2017 11:17:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -mm -V2] mm, swap: Fix false error message in
+ __swp_swapcount()
+Message-ID: <20171031021702.GA942@bbox>
+References: <20171027055327.5428-1-ying.huang@intel.com>
+ <20171029235713.GA4332@bbox>
+ <20171030080230.apijacsx7fd3qeox@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171030080230.apijacsx7fd3qeox@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gengdongjiu <gengdongjiu@huawei.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, stable@vger.kernel.org, Christian Kujau <lists@nerdbynature.de>
 
-Hi gengdongjiu,
+On Mon, Oct 30, 2017 at 09:02:30AM +0100, Michal Hocko wrote:
+> On Mon 30-10-17 08:57:13, Minchan Kim wrote:
+> [...]
+> > Although it's better than old, we can make it simple, still.
+> > 
+> > diff --git a/include/linux/swapops.h b/include/linux/swapops.h
+> > index 291c4b534658..f50d5a48f03a 100644
+> > --- a/include/linux/swapops.h
+> > +++ b/include/linux/swapops.h
+> > @@ -41,6 +41,13 @@ static inline unsigned swp_type(swp_entry_t entry)
+> >  	return (entry.val >> SWP_TYPE_SHIFT(entry));
+> >  }
+> >  
+> > +extern struct swap_info_struct *swap_info[];
+> > +
+> > +static inline struct swap_info_struct *swp_si(swp_entry_t entry)
+> > +{
+> > +	return swap_info[swp_type(entry)];
+> > +}
+> > +
+> >  /*
+> >   * Extract the `offset' field from a swp_entry_t.  The swp_entry_t is in
+> >   * arch-independent format
+> > diff --git a/mm/swap_state.c b/mm/swap_state.c
+> > index 378262d3a197..a0fe2d54ad09 100644
+> > --- a/mm/swap_state.c
+> > +++ b/mm/swap_state.c
+> > @@ -554,6 +554,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+> >  			struct vm_area_struct *vma, unsigned long addr)
+> >  {
+> >  	struct page *page;
+> > +	struct swap_info_struct *si = swp_si(entry);
+> 
+> Aren't you accessing beyond the array here?
 
-On Tue, Oct 24, 2017 at 08:47:41PM +0800, gengdongjiu wrote:
-> Hi Naoya,
->    very sorry to disturb you, I want to consult you about the handing to =
-error page type in memory_failure().
-> If the error page is the current task's page table, will the memory_failu=
-re not handling that?
-> From my test, I found the memory_failure() consider the error page table =
-physical address as unknown page.
-> why it does not handling the page table page error? Thanks a lot.
+I couldn't understand what you intend. Could you explain what case does it accesses
+beyond the arrary?
 
-I think that that's because it's handled not in the context of
-memory error handling, but in MCE's context.
+Thanks.
 
-When your hardware detects a memory error on a page table page
-(f.e. memory scrubbing running in background), MCE SRAO is sent to
-the kernel, and the kernel kicks memory error handler.
-But memory error handler does nothing because there's currently
-no way to isolate the page table page. I think that a main problem
-is that no one easily knows "which processes owned the page table page."
-So the error page is still open for access, then later some CPU
-try to access the page table page, which triggers severer MCE SRAR.
-Then in this time, MCE handler tries to kill the process of current
-context (hoping that it's the right process to be killed.)
-# For errors on "kernel" page table pages, there's no choice other
-# than panic...
-
-So the current situation not the worst, but still open for improvement.
-Any suggestion to handle it in memory error handling would be wonderful.
-
-Thanks,
-Naoya Horiguchi
-
-
->=20
-> commit 64d37a2baf5e5c0f1009c0ef290a9027de721d66
-> Author: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Date:   Wed Apr 15 16:13:05 2015 -0700
->=20
->     mm/memory-failure.c: define page types for action_result() in one pla=
-ce
->=20
->     This cleanup patch moves all strings passed to action_result() into a
->     singl=3D e array action_page_type so that a reader can easily find wh=
-ich
->     kind of actio=3D n results are possible.  And this patch also fixes t=
-he
->     odd lines to be printed out, like "unknown page state page" or "free
->     buddy, 2nd try page".
->=20
->     [akpm@linux-foundation.org: rename messages, per David]
->     [akpm@linux-foundation.org: s/DIRTY_UNEVICTABLE_LRU/CLEAN_UNEVICTABLE=
-_LRU', per Andi]
->     Signed-off-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
->     Reviewed-by: Andi Kleen <ak@linux.intel.com>
->     Cc: Tony Luck <tony.luck@intel.com>
->     Cc: "Xie XiuQi" <xiexiuqi@huawei.com>
->     Cc: Steven Rostedt <rostedt@goodmis.org>
->     Cc: Chen Gong <gong.chen@linux.intel.com>
->     Cc: David Rientjes <rientjes@google.com>
->     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
->     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
->=20
-> diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-> index d487f8d..5fd8931 100644
-> --- a/mm/memory-failure.c
-> +++ b/mm/memory-failure.c
-> @@ -521,6 +521,52 @@ static const char *action_name[] =3D {
->         [RECOVERED] =3D "Recovered",
->  };
->=20
-> +enum action_page_type {
-> +       MSG_KERNEL,
-> +       MSG_KERNEL_HIGH_ORDER,
-> +       MSG_SLAB,
-> +       MSG_DIFFERENT_COMPOUND,
-> +       MSG_POISONED_HUGE,
-> +       MSG_HUGE,
-> +       MSG_FREE_HUGE,
-> +       MSG_UNMAP_FAILED,
-> +       MSG_DIRTY_SWAPCACHE,
-> +       MSG_CLEAN_SWAPCACHE,
-> +       MSG_DIRTY_MLOCKED_LRU,
-> +       MSG_CLEAN_MLOCKED_LRU,
-> +       MSG_DIRTY_UNEVICTABLE_LRU,
-> +       MSG_CLEAN_UNEVICTABLE_LRU,
-> +       MSG_DIRTY_LRU,
-> +       MSG_CLEAN_LRU,
-> +       MSG_TRUNCATED_LRU,
-> +       MSG_BUDDY,
-> +       MSG_BUDDY_2ND,
-> +       MSG_UNKNOWN,
-> +};
-> +
-> +static const char * const action_page_types[] =3D {
-> +       [MSG_KERNEL]                    =3D "reserved kernel page",
-> +       [MSG_KERNEL_HIGH_ORDER]         =3D "high-order kernel page",
-> +       [MSG_SLAB]                      =3D "kernel slab page",
-> +       [MSG_DIFFERENT_COMPOUND]        =3D "different compound page afte=
-r locking",
-> +       [MSG_POISONED_HUGE]             =3D "huge page already hardware p=
-oisoned",
-> +       [MSG_HUGE]                      =3D "huge page",
-> +       [MSG_FREE_HUGE]                 =3D "free huge page",
-> +       [MSG_UNMAP_FAILED]              =3D "unmapping failed page",
-> +       [MSG_DIRTY_SWAPCACHE]           =3D "dirty swapcache page",
-> +       [MSG_CLEAN_SWAPCACHE]           =3D "clean swapcache page",
-> +       [MSG_DIRTY_MLOCKED_LRU]         =3D "dirty mlocked LRU page",
-> +       [MSG_CLEAN_MLOCKED_LRU]         =3D "clean mlocked LRU page",
-> +       [MSG_DIRTY_UNEVICTABLE_LRU]     =3D "dirty unevictable LRU page",
-> +       [MSG_CLEAN_UNEVICTABLE_LRU]     =3D "clean unevictable LRU page",
-> +       [MSG_DIRTY_LRU]                 =3D "dirty LRU page",
-> +       [MSG_CLEAN_LRU]                 =3D "clean LRU page",
-> +       [MSG_TRUNCATED_LRU]             =3D "already truncated LRU page",
-> +       [MSG_BUDDY]                     =3D "free buddy page",
-> +       [MSG_BUDDY_2ND]                 =3D "free buddy page (2nd try)",
-> +       [MSG_UNKNOWN]                   =3D "unknown page",
-> +};
->=20
-> =
+> 
+> >  	unsigned long entry_offset = swp_offset(entry);
+> >  	unsigned long offset = entry_offset;
+> >  	unsigned long start_offset, end_offset;
+> > @@ -572,6 +573,9 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+> >  	if (!start_offset)	/* First page is swap header. */
+> >  		start_offset++;
+> >  
+> > +	if (end_offset >= si->max)
+> > +		end_offset = si->max - 1;
+> > +
+> >  	blk_start_plug(&plug);
+> >  	for (offset = start_offset; offset <= end_offset ; offset++) {
+> >  		/* Ok, do the async read-ahead now */
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
