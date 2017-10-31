@@ -1,98 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CBA436B0033
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:51:18 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id u70so14823716pfa.2
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:51:18 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id k76si1622725pgc.537.2017.10.31.06.51.17
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C26566B0253
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:52:13 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id 134so43127553ioo.22
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:52:13 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 198si1482679iou.189.2017.10.31.06.52.12
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 06:51:17 -0700 (PDT)
-Date: Tue, 31 Oct 2017 14:51:05 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
-References: <089e0825eec8955c1f055c83d476@google.com>
- <20171027093418.om5e566srz2ztsrk@dhcp22.suse.cz>
- <CACT4Y+Y=NCy20_k4YcrCF2Q0f16UPDZBVAF=RkkZ0uSxZq5XaA@mail.gmail.com>
- <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
- <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
- <20171030100921.GA18085@X58A-UD3R>
- <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Oct 2017 06:52:12 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Try last second allocation before and after selecting an OOM victim.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171031121032.lm3wxx3l5tkpo2ni@dhcp22.suse.cz>
+	<201710312142.DBB81723.FOOFJMQLStFVOH@I-love.SAKURA.ne.jp>
+	<20171031124855.rszis5gefbxwriiz@dhcp22.suse.cz>
+	<201710312213.BDB35457.MtFJOQVLOFSOHF@I-love.SAKURA.ne.jp>
+	<20171031132259.irkladqbucz2qa3g@dhcp22.suse.cz>
+In-Reply-To: <20171031132259.irkladqbucz2qa3g@dhcp22.suse.cz>
+Message-Id: <201710312251.HBH43789.QVOFOtLFFSOHJM@I-love.SAKURA.ne.jp>
+Date: Tue, 31 Oct 2017 22:51:49 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Byungchul Park <byungchul.park@lge.com>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: mhocko@kernel.org
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-On Tue, Oct 31, 2017 at 02:13:33PM +0100, Michal Hocko wrote:
-> On Mon 30-10-17 16:10:09, Peter Zijlstra wrote:
-
-> > However, that splat translates like:
+Michal Hocko wrote:
+> On Tue 31-10-17 22:13:05, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > On Tue 31-10-17 21:42:23, Tetsuo Handa wrote:
+> > > > > While both have some merit, the first reason is mostly historical
+> > > > > because we have the explicit locking now and it is really unlikely that
+> > > > > the memory would be available right after we have given up trying.
+> > > > > Last attempt allocation makes some sense of course but considering that
+> > > > > the oom victim selection is quite an expensive operation which can take
+> > > > > a considerable amount of time it makes much more sense to retry the
+> > > > > allocation after the most expensive part rather than before. Therefore
+> > > > > move the last attempt right before we are trying to kill an oom victim
+> > > > > to rule potential races when somebody could have freed a lot of memory
+> > > > > in the meantime. This will reduce the time window for potentially
+> > > > > pre-mature OOM killing considerably.
+> > > > 
+> > > > But this is about "doing last second allocation attempt after selecting
+> > > > an OOM victim". This is not about "allowing OOM victims to try ALLOC_OOM
+> > > > before selecting next OOM victim" which is the actual problem I'm trying
+> > > > to deal with.
+> > > 
+> > > then split it into two. First make the general case and then add a more
+> > > sophisticated on top. Dealing with multiple issues at once is what makes
+> > > all those brain cells suffer.
 > > 
-> > 	__cpuhp_setup_state()
-> > #0	  cpus_read_lock()
-> > 	  __cpuhp_setup_state_cpuslocked()
-> > #1	    mutex_lock(&cpuhp_state_mutex)
-> > 
-> > 
-> > 
-> > 	__cpuhp_state_add_instance()
-> > #2	  mutex_lock(&cpuhp_state_mutex)
+> > I'm failing to understand. I was dealing with single issue at once.
+> > The single issue is "MMF_OOM_SKIP prematurely prevents OOM victims from trying
+> > ALLOC_OOM before selecting next OOM victims". Then, what are the general case and
+> > a more sophisticated? I wonder what other than "MMF_OOM_SKIP should allow OOM
+> > victims to try ALLOC_OOM for once before selecting next OOM victims" can exist...
 > 
-> this should be #1 right?
+> Try to think little bit out of your very specific and borderline usecase
+> and it will become obvious. ALLOC_OOM is a trivial update on top of
+> moving get_page_from_freelist to oom_kill_process which is a more
+> generic race window reducer.
 
-Yes
+So, you meant "doing last second allocation attempt after selecting an OOM victim"
+as the general case and "using ALLOC_OOM at last second allocation attempt" as a
+more sophisticated. Then, you won't object conditionally switching ALLOC_WMARK_HIGH
+and ALLOC_OOM for last second allocation attempt, will you?
 
-> > 	  cpuhp_issue_call()
-> > 	    cpuhp_invoke_ap_callback()
-> > #3	      wait_for_completion()
-> > 
-> > 						msr_device_create()
-> > 						  ...
-> > #4						    filename_create()
-> > #3						complete()
-> > 
-> > 
-> > 
-> > 	do_splice()
-> > #4	  file_start_write()
-> > 	  do_splice_from()
-> > 	    iter_file_splice_write()
-> > #5	      pipe_lock()
-> > 	      vfs_iter_write()
-> > 	        ...
-> > #6		  inode_lock()
-> > 
-> > 
-> > 
-> > 	sys_fcntl()
-> > 	  do_fcntl()
-> > 	    shmem_fcntl()
-> > #5	      inode_lock()
-
-And that #6
-
-> > 	      shmem_wait_for_pins()
-> > 	        if (!scan)
-> > 		  lru_add_drain_all()
-> > #0		    cpus_read_lock()
-> > 
-> > 
-> > 
-> > Which is an actual real deadlock, there is no mixing of up and down.
-> 
-> thanks a lot, this made it more clear to me. It took a while to
-> actually see 0 -> 1 -> 3 -> 4 -> 5 -> 0 cycle. I have only focused
-> on lru_add_drain_all while it was holding the cpus lock.
-
-Yeah, these things are a pain to read, which is why I always construct
-something like the above first.
+But doing ALLOC_OOM for last second allocation attempt from out_of_memory() involve
+duplicating code (e.g. rebuilding zone list). What is your preferred approach?
+Duplicate relevant code? Use get_page_from_freelist() without rebuilding the zone list?
+Use __alloc_pages_nodemask() ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
