@@ -1,42 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 430276B0260
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:31:54 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p9so455641pgc.6
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:31:54 -0700 (PDT)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 67si2587700pgg.733.2017.10.31.15.31.53
+	by kanga.kvack.org (Postfix) with ESMTP id 77BB86B0261
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:31:56 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id v78so422615pgb.18
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:31:56 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id o11si2599032pgd.473.2017.10.31.15.31.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 15:31:53 -0700 (PDT)
-Subject: [PATCH 03/23] x86, kaiser: disable global pages
+        Tue, 31 Oct 2017 15:31:55 -0700 (PDT)
+Subject: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 31 Oct 2017 15:31:52 -0700
+Date: Tue, 31 Oct 2017 15:31:54 -0700
 References: <20171031223146.6B47C861@viggo.jf.intel.com>
 In-Reply-To: <20171031223146.6B47C861@viggo.jf.intel.com>
-Message-Id: <20171031223152.B5D241B2@viggo.jf.intel.com>
+Message-Id: <20171031223154.67F15B2A@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 
-Global pages stay in the TLB across context switches.  Since all
-contexts share the same kernel mapping, we use global pages to
-allow kernel entries in the TLB to survive when we context
-switch.
+Our CR4-based TLB flush currently requries global pages to be
+supported *and* enabled.  But, we really only need for them to be
+supported.  Make the code more robust by alllowing X86_CR4_PGE to
+clear as well as set.
 
-But, even having these entries in the TLB opens up something that
-an attacker can use [1].
-
-Disable global pages so that kernel TLB entries are flushed when
-we run userspace.  This way, all accesses to kernel memory result
-in a TLB miss whether there is good data there or not.  Without
-this, even when KAISER switches pages tables, the kernel entries
-might remain in the TLB.
-
-1. The double-page-fault attack:
-   http://www.ieee-security.org/TC/SP2013/papers/4977a191.pdf
+This change was suggested by Kirill Shutemov.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -49,40 +39,36 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/Kconfig                     |    4 ++++
- b/arch/x86/include/asm/pgtable_types.h |    5 +++++
- 2 files changed, 9 insertions(+)
+ b/arch/x86/include/asm/tlbflush.h |   17 ++++++++++++++---
+ 1 file changed, 14 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages	2017-10-31 15:03:49.314064402 -0700
-+++ b/arch/x86/include/asm/pgtable_types.h	2017-10-31 15:03:49.323064827 -0700
-@@ -47,7 +47,12 @@
- #define _PAGE_ACCESSED	(_AT(pteval_t, 1) << _PAGE_BIT_ACCESSED)
- #define _PAGE_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_DIRTY)
- #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
-+#ifdef CONFIG_X86_GLOBAL_PAGES
- #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
-+#else
-+/* We must ensure that kernel TLBs are unusable while in userspace */
-+#define _PAGE_GLOBAL	(_AT(pteval_t, 0))
-+#endif
- #define _PAGE_SOFTW1	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW1)
- #define _PAGE_SOFTW2	(_AT(pteval_t, 1) << _PAGE_BIT_SOFTW2)
- #define _PAGE_PAT	(_AT(pteval_t, 1) << _PAGE_BIT_PAT)
-diff -puN arch/x86/Kconfig~kaiser-prep-disable-global-pages arch/x86/Kconfig
---- a/arch/x86/Kconfig~kaiser-prep-disable-global-pages	2017-10-31 15:03:49.318064591 -0700
-+++ b/arch/x86/Kconfig	2017-10-31 15:03:49.325064922 -0700
-@@ -327,6 +327,10 @@ config ARCH_SUPPORTS_UPROBES
- config FIX_EARLYCON_MEM
- 	def_bool y
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge	2017-10-31 15:03:49.913092716 -0700
++++ b/arch/x86/include/asm/tlbflush.h	2017-10-31 15:03:49.917092905 -0700
+@@ -250,9 +250,20 @@ static inline void __native_flush_tlb_gl
+ 	unsigned long cr4;
  
-+config X86_GLOBAL_PAGES
-+	def_bool y
-+	depends on ! KAISER
-+
- config PGTABLE_LEVELS
- 	int
- 	default 5 if X86_5LEVEL
+ 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+-	/* clear PGE */
+-	native_write_cr4(cr4 & ~X86_CR4_PGE);
+-	/* write old PGE again and flush TLBs */
++	/*
++	 * This function is only called on systems that support X86_CR4_PGE
++	 * and where always set X86_CR4_PGE.  Warn if we are called without
++	 * PGE set.
++	 */
++	WARN_ON_ONCE(!(cr4 & X86_CR4_PGE));
++	/*
++	 * Architecturally, any _change_ to X86_CR4_PGE will fully flush the
++	 * TLB of all entries including all entries in all PCIDs and all
++	 * global pages.  Make sure that we _change_ the bit, regardless of
++	 * whether we had X86_CR4_PGE set in the first place.
++	 */
++	native_write_cr4(cr4 ^ X86_CR4_PGE);
++	/* Put original CR3 value back: */
+ 	native_write_cr4(cr4);
+ }
+ 
 _
 
 --
