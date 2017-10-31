@@ -1,74 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C38A66B0253
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 12:50:07 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g90so10243317wrd.14
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:50:07 -0700 (PDT)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id n26si1823898edn.393.2017.10.31.09.50.06
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 199096B025F
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 12:52:55 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id b85so15155598pfj.22
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:52:55 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i69si2032917pfk.620.2017.10.31.09.52.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 31 Oct 2017 09:50:06 -0700 (PDT)
-Date: Tue, 31 Oct 2017 12:49:59 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] fs, mm: account filp and names caches to kmemcg
-Message-ID: <20171031164959.GB32246@cmpxchg.org>
-References: <20171024201522.3z2fjnfywgx2egqx@dhcp22.suse.cz>
- <xr93r2tr67pp.fsf@gthelen.svl.corp.google.com>
- <20171025071522.xyw4lsvdv4xsbhbo@dhcp22.suse.cz>
- <20171025131151.GA8210@cmpxchg.org>
- <20171025141221.xm4cqp2z6nunr6vy@dhcp22.suse.cz>
- <20171025164402.GA11582@cmpxchg.org>
- <CALvZod5wiJvZw0yCS+KuDDYawUDAL=h0UBFXhY44FN84BsXrtA@mail.gmail.com>
- <20171030082916.x6xaqd4pgs2moy4y@dhcp22.suse.cz>
- <CALvZod65sU+wujxAR9AqTdbMHkHsMsOyfNXYf1t=w1BEpx5LHw@mail.gmail.com>
- <20171031080048.m4ajkq4g4uz4jwsh@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Oct 2017 09:52:54 -0700 (PDT)
+Date: Tue, 31 Oct 2017 17:52:50 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20171031165250.GG26128@quack2.suse.cz>
+References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
+ <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
+ <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com>
+ <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
+ <20171031105030.GE8989@quack2.suse.cz>
+ <CAOQ4uxgqR1GvuTiMreDQrx2m=V4pzcn3o2T7_YQAj46AZ7fHQQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171031080048.m4ajkq4g4uz4jwsh@dhcp22.suse.cz>
+In-Reply-To: <CAOQ4uxgqR1GvuTiMreDQrx2m=V4pzcn3o2T7_YQAj46AZ7fHQQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Amir Goldstein <amir73il@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Yang Shi <yang.s@alibaba-inc.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
 
-On Tue, Oct 31, 2017 at 09:00:48AM +0100, Michal Hocko wrote:
-> On Mon 30-10-17 12:28:13, Shakeel Butt wrote:
-> > On Mon, Oct 30, 2017 at 1:29 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Fri 27-10-17 13:50:47, Shakeel Butt wrote:
-> > >> > Why is OOM-disabling a thing? Why isn't this simply a "kill everything
-> > >> > else before you kill me"? It's crashing the kernel in trying to
-> > >> > protect a userspace application. How is that not insane?
-> > >>
-> > >> In parallel to other discussion, I think we should definitely move
-> > >> from "completely oom-disabled" semantics to something similar to "kill
-> > >> me last" semantics. Is there any objection to this idea?
-> > >
-> > > Could you be more specific what you mean?
-> > 
-> > I get the impression that the main reason behind the complexity of
-> > oom-killer is allowing processes to be protected from the oom-killer
-> > i.e. disabling oom-killing a process by setting
-> > /proc/[pid]/oom_score_adj to -1000. So, instead of oom-disabling, add
-> > an interface which will let users/admins to set a process to be
-> > oom-killed as a last resort.
+On Tue 31-10-17 13:51:40, Amir Goldstein wrote:
+> On Tue, Oct 31, 2017 at 12:50 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Sun 22-10-17 11:24:17, Amir Goldstein wrote:
+> >> But I think there is another problem, not introduced by your change, but could
+> >> be amplified because of it - when a non-permission event allocation fails, the
+> >> event is silently dropped, AFAICT, with no indication to listener.
+> >> That seems like a bug to me, because there is a perfectly safe way to deal with
+> >> event allocation failure - queue the overflow event.
+> >>
+> >> I am not going to be the one to determine if fixing this alleged bug is a
+> >> prerequisite for merging your patch, but I think enforcing memory limits on
+> >> event allocation could amplify that bug, so it should be fixed.
+> >>
+> >> The upside is that with both your accounting fix and ENOMEM = overlflow
+> >> fix, it going to be easy to write a test that verifies both of them:
+> >> - Run a listener in memcg with limited kmem and unlimited (or very
+> >> large) event queue
+> >> - Produce events inside memcg without listener reading them
+> >> - Read event and expect an OVERFLOW event
+> >>
+> >> This is a simple variant of LTP tests inotify05 and fanotify05.
+> >>
+> >> I realize that is user application behavior change and that documentation
+> >> implies that an OVERFLOW event is not expected when using
+> >> FAN_UNLIMITED_QUEUE, but IMO no one will come shouting
+> >> if we stop silently dropping events, so it is better to fix this and update
+> >> documentation.
+> >>
+> >> Attached a compile-tested patch to implement overflow on ENOMEM
+> >> Hope this helps to test your patch and then we can merge both, accompanied
+> >> with LTP tests for inotify and fanotify.
+> >>
+> >> Amir.
+> >
+> >> From 112ecd54045f14aff2c42622fabb4ffab9f0d8ff Mon Sep 17 00:00:00 2001
+> >> From: Amir Goldstein <amir73il@gmail.com>
+> >> Date: Sun, 22 Oct 2017 11:13:10 +0300
+> >> Subject: [PATCH] fsnotify: queue an overflow event on failure to allocate
+> >>  event
+> >>
+> >> In low memory situations, non permissions events are silently dropped.
+> >> It is better to queue an OVERFLOW event in that case to let the listener
+> >> know about the lost event.
+> >>
+> >> With this change, an application can now get an FAN_Q_OVERFLOW event,
+> >> even if it used flag FAN_UNLIMITED_QUEUE on fanotify_init().
+> >>
+> >> Signed-off-by: Amir Goldstein <amir73il@gmail.com>
+> >
+> > So I agree something like this is desirable but I'm uneasy about using
+> > {IN|FAN}_Q_OVERFLOW for this. Firstly, it is userspace visible change for
+> > FAN_UNLIMITED_QUEUE queues which could confuse applications as you properly
+> > note. Secondly, the event is similar to queue overflow but not quite the
+> > same (it is not that the application would be too slow in processing
+> > events, it is just that the system is in a problematic state overall). What
+> > are your thoughts on adding a new event flags like FAN_Q_LOSTEVENT or
+> > something like that? Probably the biggest downside there I see is that apps
+> > would have to learn to use it...
+> >
 > 
-> If a process opts in to be oom disabled it needs CAP_SYS_RESOURCE and it
-> probably has a strong reason to do that. E.g. no unexpected SIGKILL
-> which could leave inconsistent data behind. We cannot simply break that
-> contract. Yes, it is a PITA configuration to support but it has its
-> reasons to exit.
+> Well, I can't say I like FAN_Q_LOSTEVENT, but I can't really think of
+> a better option. I guess apps that would want to provide better protection
+> against loosing event will have to opt-in with a new fanotify_init() flag.
+> OTOH, if apps opts-in for this feature, we can also report Q_OVERFLOW
+> and document that it *is* expected in OOM situation.
+> 
+> If we have FAN_Q_LOSTEVENT, we can use it to handle both the case of
+> error to queue event (-ENOMEM) and the case of error on copy event to user
+> (e.g. -ENODEV), which is another case where we silently drop events
+> (in case buffer already contains good events).
+> In latter case, the error would be reported to user on event->fd.
+> In the former case, event->fd will also hold the error, as long as we can only
+> report -ENOMEM from this sort of error, because like overflow event, there
+> should probably be only one event of that sort in the queue.
+> 
+> Another option for API name is {IN|FAN}_Q_ERR, which implies that event->fd
+> carries the error. And of course user can get an event with mask
+> FAN_Q_OVERFLOW|FAN_Q_ERR, where event->fd is -ENOMEM or
+> -EOVERFLOW and then there is no ambiguity between different kind of
+> queue overflows.
 
-I don't think that's true. The most prominent users are things like X
-and sshd, and all they wanted to say was "kill me last."
+I like this last option. I.e., userspace can opt in to get more detailed
+error notification. In that case we can report error (I think we can just
+reuse {IN|FAN}_Q_OVERFLOW for that) and store more detailed error
+description in wd/fd. Will you have time to implement something like that
+or should I put it to my todo list?
 
-If sshd were to have a bug and swell up, currently the system would
-kill everything and then panic. It'd be much better to kill sshd at
-the end and let the init system restart it.
-
-Can you describe a scenario in which the NEVERKILL semantics actually
-make sense? You're still OOM-killing the task anyway, it's not like it
-can run without the kernel. So why kill the kernel?
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
