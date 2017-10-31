@@ -1,89 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A1026B0038
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 13:50:47 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id 4so10066679wrt.8
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 10:50:47 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 19sor930340wrz.54.2017.10.31.10.50.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01D3D6B0038
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:07:59 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id j3so17574622pga.5
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:07:58 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id x66si2178554pfa.407.2017.10.31.11.07.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Oct 2017 10:50:45 -0700 (PDT)
-MIME-Version: 1.0
-In-Reply-To: <20171031164008.GA32246@cmpxchg.org>
-References: <20171019185218.12663-1-guro@fb.com> <20171019185218.12663-4-guro@fb.com>
- <CALvZod7V1iNACeDJuuSDrMMGMo7YX+gZ87gq=S4rP=Eh9Wh5kQ@mail.gmail.com> <20171031164008.GA32246@cmpxchg.org>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Tue, 31 Oct 2017 10:50:43 -0700
-Message-ID: <CALvZod5tVoX20Lir=4jnWMXzsEGhh1qCbi73j5vs_n6ViR80yw@mail.gmail.com>
-Subject: Re: [RESEND v12 3/6] mm, oom: cgroup-aware OOM killer
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Oct 2017 11:07:57 -0700 (PDT)
+Subject: [PATCH] x86, mm: make alternatives code do stronger TLB flush
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Tue, 31 Oct 2017 11:07:57 -0700
+Message-Id: <20171031180757.8B5DA496@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, x86@kernel.org, luto@kernel.org
 
-On Tue, Oct 31, 2017 at 9:40 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> On Tue, Oct 31, 2017 at 08:04:19AM -0700, Shakeel Butt wrote:
->> > +
->> > +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
->> > +{
->> > +       struct mem_cgroup *iter;
->> > +
->> > +       oc->chosen_memcg = NULL;
->> > +       oc->chosen_points = 0;
->> > +
->> > +       /*
->> > +        * The oom_score is calculated for leaf memory cgroups (including
->> > +        * the root memcg).
->> > +        */
->> > +       rcu_read_lock();
->> > +       for_each_mem_cgroup_tree(iter, root) {
->> > +               long score;
->> > +
->> > +               if (memcg_has_children(iter) && iter != root_mem_cgroup)
->> > +                       continue;
->> > +
->>
->> Cgroup v2 does not support charge migration between memcgs. So, there
->> can be intermediate nodes which may contain the major charge of the
->> processes in their leave descendents. Skipping such intermediate nodes
->> will kind of protect such processes from oom-killer (lower on the list
->> to be killed). Is it ok to not handle such scenario? If yes, shouldn't
->> we document it?
->
-> Tasks cannot be in intermediate nodes, so the only way you can end up
-> in a situation like this is to start tasks fully, let them fault in
-> their full workingset, then create child groups and move them there.
->
-> That has attribution problems much wider than the OOM killer: any
-> local limits you would set on a leaf cgroup like this ALSO won't
-> control the memory of its tasks - as it's all sitting in the parent.
->
-> We created the "no internal competition" rule exactly to prevent this
-> situation.
 
-Rather than the "no internal competition" restriction I think "charge
-migration" would have resolved that situation? Also "no internal
-competition" restriction (I am assuming 'no internal competition' is
-no tasks in internal nodes, please correct me if I am wrong) has made
-"charge migration" hard to implement and thus not added in cgroup v2.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-I know this is parallel discussion and excuse my ignorance, what are
-other reasons behind "no internal competition" specifically for memory
-controller?
+local_flush_tlb() does a CR3 write.  But, that kind of TLB flush is
+not guaranteed to invalidate global pages.  The entire kernel is
+mapped with global pages.
 
-> To be consistent with that rule, we might want to disallow
-> the creation of child groups once a cgroup has local memory charges.
->
-> It's trivial to change the setup sequence to create the leaf cgroup
-> first, then launch the workload from within.
->
+Also, now that we have PCIDs, local_flush_tlb() will only flush the
+*current* PCID.  It would not flush the entries for all PCIDs.
+At the moment, this is a moot point because all kernel pages are
+_PAGE_GLOBAL which do not really *have* a particular PCID.
 
-Only if cgroup hierarchy is centrally controller and each task's whole
-hierarchy is known in advance.
+Use the stronger __flush_tlb_all() which does flush global pages.
 
-> Either way, this is nothing specific about the OOM killer.
+This was found because of a warning I added to __native_flush_tlb()
+to look for calls to it when PCIDs are enabled.  This patch does
+not fix any bug known to be hit in practice.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: x86@kernel.org
+Cc: Andy Lutomirski <luto@kernel.org>
+---
+
+ b/arch/x86/kernel/alternative.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff -puN arch/x86/kernel/alternative.c~x86-mm-text-poke-misses-global-pages arch/x86/kernel/alternative.c
+--- a/arch/x86/kernel/alternative.c~x86-mm-text-poke-misses-global-pages	2017-10-31 10:28:44.306557256 -0700
++++ b/arch/x86/kernel/alternative.c	2017-10-31 10:28:44.309557393 -0700
+@@ -722,7 +722,8 @@ void *text_poke(void *addr, const void *
+ 	clear_fixmap(FIX_TEXT_POKE0);
+ 	if (pages[1])
+ 		clear_fixmap(FIX_TEXT_POKE1);
+-	local_flush_tlb();
++	/* Make sure to flush Global pages: */
++	__flush_tlb_all();
+ 	sync_core();
+ 	/* Could also do a CLFLUSH here to speed up CPU recovery; but
+ 	   that causes hangs on some VIA CPUs. */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
