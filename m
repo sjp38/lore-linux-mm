@@ -1,187 +1,138 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 208586B0033
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:00:29 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id l18so9521756wrc.23
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:00:29 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l88si1371208wmi.272.2017.10.31.05.00.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A0426B0069
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:04:35 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id n8so7654773wmg.4
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:04:35 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a79sor440539wma.11.2017.10.31.05.04.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 05:00:27 -0700 (PDT)
-Subject: Re: KASAN: use-after-free Read in __do_page_fault
-References: <94eb2c0433c8f42cac055cc86991@google.com>
- <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
-Date: Tue, 31 Oct 2017 13:00:25 +0100
+        (Google Transport Security);
+        Tue, 31 Oct 2017 05:04:33 -0700 (PDT)
+Date: Tue, 31 Oct 2017 15:04:29 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171031120429.ehaqy2iciewcij35@node.shutemov.name>
+References: <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
+ <20171023124014.mtklgmydspnvfcvg@gmail.com>
+ <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+ <20171024094039.4lonzocjt5kras7m@gmail.com>
+ <20171024113819.pli7ifesp2u2rexi@node.shutemov.name>
+ <20171024124741.ux74rtbu2vqaf6zt@gmail.com>
+ <20171024131227.nchrzazuk4c6r75i@node.shutemov.name>
+ <20171026073752.fl4eicn4x7wudpop@gmail.com>
+ <20171026144040.hjm45civpm74gafx@node.shutemov.name>
+ <20171031094727.cvipkxzo2zhrxst3@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171031094727.cvipkxzo2zhrxst3@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
-Cc: JBeulich@suse.com, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
+To: Ingo Molnar <mingo@kernel.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/30/2017 08:15 PM, Dmitry Vyukov wrote:
-> On Mon, Oct 30, 2017 at 10:12 PM, syzbot
-> <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
-> wrote:
->> Hello,
->>
->> syzkaller hit the following crash on
->> 887c8ba753fbe809ba93fa3cfd0cc46db18d37d4
->> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
->> compiler: gcc (GCC) 7.1.1 20170620
->> .config is attached
->> Raw console output is attached.
->>
->> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
->> for information about syzkaller reproducers
->>
->>
->> BUG: KASAN: use-after-free in arch_local_irq_enable
->> arch/x86/include/asm/paravirt.h:787 [inline]
->> BUG: KASAN: use-after-free in __do_page_fault+0xc03/0xd60
->> arch/x86/mm/fault.c:1357
->> Read of size 8 at addr ffff8801cbfd3090 by task syz-executor7/3660
-
-Why would local_irq_enable() touch a vma object? Is the stack unwinder
-confused or what?
-arch/x86/mm/fault.c:1357 means the "else" path of if (user_mode(regs)),
-but the page fault's RIP is userspace? Strange.
-
->> CPU: 1 PID: 3660 Comm: syz-executor7 Not tainted 4.14.0-rc3+ #23
->> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
->> Google 01/01/2011
->> Call Trace:
->>  __dump_stack lib/dump_stack.c:16 [inline]
->>  dump_stack+0x194/0x257 lib/dump_stack.c:52
->>  print_address_description+0x73/0x250 mm/kasan/report.c:252
->>  kasan_report_error mm/kasan/report.c:351 [inline]
->>  kasan_report+0x25b/0x340 mm/kasan/report.c:409
->>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
->>  arch_local_irq_enable arch/x86/include/asm/paravirt.h:787 [inline]
->>  __do_page_fault+0xc03/0xd60 arch/x86/mm/fault.c:1357
->>  do_page_fault+0xee/0x720 arch/x86/mm/fault.c:1520
->>  page_fault+0x22/0x30 arch/x86/entry/entry_64.S:1066
->> RIP: 0023:0x8073f4f
->> RSP: 002b:00000000f7f89bd0 EFLAGS: 00010202
->> RAX: 00000000f7f89c8c RBX: 0000000000000400 RCX: 000000000000000e
->> RDX: 00000000f7f8aa88 RSI: 0000000020012fe0 RDI: 00000000f7f89c8c
->> RBP: 0000000008128000 R08: 0000000000000000 R09: 0000000000000000
->> R10: 0000000000000000 R11: 0000000000000292 R12: 0000000000000000
->> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
->>
->> Allocated by task 3660:
->>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
->>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
->>  set_track mm/kasan/kasan.c:459 [inline]
->>  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
->>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:489
->>  kmem_cache_alloc+0x12e/0x760 mm/slab.c:3561
->>  kmem_cache_zalloc include/linux/slab.h:656 [inline]
->>  mmap_region+0x7ee/0x15a0 mm/mmap.c:1658
->>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
->>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
->>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
->>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
->>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
->>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
->>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
->>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
->>
->> Freed by task 3667:
->>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
->>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
->>  set_track mm/kasan/kasan.c:459 [inline]
->>  kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
->>  __cache_free mm/slab.c:3503 [inline]
->>  kmem_cache_free+0x77/0x280 mm/slab.c:3763
->>  remove_vma+0x162/0x1b0 mm/mmap.c:176
->>  remove_vma_list mm/mmap.c:2475 [inline]
->>  do_munmap+0x82a/0xdf0 mm/mmap.c:2714
->>  mmap_region+0x59e/0x15a0 mm/mmap.c:1631
->>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
->>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
->>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
->>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
->>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
->>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
->>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
->>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
-
-This would mean that mmap_sem is not doing its job and we raced with a
-vma removal. Or the rbtree is broken and contains a vma that has been
-freed. Hmm, or the vmacache is broken? You could try removing the 3
-lines starting with vmacache_find() in find_vma().
-
->> The buggy address belongs to the object at ffff8801cbfd3040
->>  which belongs to the cache vm_area_struct of size 200
->> The buggy address is located 80 bytes inside of
->>  200-byte region [ffff8801cbfd3040, ffff8801cbfd3108)
-
-My vm_area_struct is 192 bytes, could be your layout is different due to
-.config. At offset 80 I have vma->vm_flags. That is checked by
-__do_page_fault(), but only after vma->vm_start (offset 0). Of course,
-reordering is possible.
-
->> The buggy address belongs to the page:
->> page:ffffea00072ff4c0 count:1 mapcount:0 mapping:ffff8801cbfd3040 index:0x0
->> flags: 0x200000000000100(slab)
->> raw: 0200000000000100 ffff8801cbfd3040 0000000000000000 000000010000000f
->> raw: ffffea000730c7a0 ffffea00072ff7a0 ffff8801dae069c0 0000000000000000
->> page dumped because: kasan: bad access detected
->>
->> Memory state around the buggy address:
->>  ffff8801cbfd2f80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
->>  ffff8801cbfd3000: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
->>>
->>> ffff8801cbfd3080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->>
->>                          ^
->>  ffff8801cbfd3100: fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb
->>  ffff8801cbfd3180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
->> ==================================================================
+On Tue, Oct 31, 2017 at 10:47:27AM +0100, Ingo Molnar wrote:
 > 
+> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > I don't think this design is reasonable.
+> > 
+> >   - It introduces memory references where we haven't had them before.
+> > 
+> >     At this point all variable would fit a cache line, which is not that
+> >     bad. But I don't see what would stop the list from growing in the
+> >     future.
 > 
-> I guess this is more related to mm rather than x86, so +mm maintainers.
-> This continues to happen, in particular on upstream
-> 781402340475144bb360e32bb7437fa4b84cadc3 (Oct 28).
+> Is any of these actually in a hotpath?
+
+Probably, no. Closest to hotpath I see so far is page_zone_id() in page
+allocator.
+
+> Also, note the context: your changes turn some of these into variables. Yes, I 
+> suggest structuring them all and turning them all into variables, exactly because 
+> the majority are now dynamic, yet their _naming_ suggests that they are constants.
+
+Another way to put it would be that you suggest significant rework of kernel
+machinery based on cosmetic nitpick. :)
+
+> >   - We loose ability to optimize out change with static branches
+> >     (cpu_feature_enabled() instead of pgtable_l5_enabled variable).
+> > 
+> >     It's probably, not that big of an issue here, but if we are going to
+> >     use the same approach for other dynamic macros in the patchset, it
+> >     might be.
 > 
+> Here too I think the (vast) majority of the uses here are for bootup/setup/init 
+> purposes, where clarity and maintainability of code matters a lot.
+
+I would argue that it makes maintainability worse.
+
+It makes dependencies between values less obvious. For instance, checking
+MAXMEM definition on x86-64 makes it obvious that it depends directly
+on MAX_PHYSMEM_BITS.
+
+If we would convert MAXMEM to variable, we would need to check where the
+variable is initialized and make sure that nobody changes it afterwards.
+
+Does it sound like a win for maintainability?
+
+> >   - AFAICS, it requires changes to all architectures to provide such
+> >     structures as we now partly in generic code.
+> > 
+> >     Or to introduce some kind of compatibility layer, but it would make
+> >     the kernel as a whole uglier than cleaner. Especially, given that
+> >     nobody beyond x86 need this.
 > 
->> ---
->> This bug is generated by a dumb bot. It may contain errors.
->> See https://goo.gl/tpsmEJ for details.
->> Direct all questions to syzkaller@googlegroups.com.
->>
->> syzbot will keep track of this bug report.
->> Once a fix for this bug is committed, please reply to this email with:
->> #syz fix: exact-commit-title
->> To mark this as a duplicate of another syzbot report, please reply with:
->> #syz dup: exact-subject-of-another-report
->> If it's a one-off invalid bug report, please reply with:
->> #syz invalid
->> Note: if the crash happens again, it will cause creation of a new bug
->> report.
->>
->> --
->> You received this message because you are subscribed to the Google Groups
->> "syzkaller-bugs" group.
->> To unsubscribe from this group and stop receiving emails from it, send an
->> email to syzkaller-bugs+unsubscribe@googlegroups.com.
->> To view this discussion on the web visit
->> https://groups.google.com/d/msgid/syzkaller-bugs/94eb2c0433c8f42cac055cc86991%40google.com.
->> For more options, visit https://groups.google.com/d/optout.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> Yes, all the uses should be harmonized (no compatibility layer) - but as you can 
+> see it from the histogram I generated it's a few dozen uses, i.e. not too bad.
+
+Without a compatibility layer, I would need to change every architecture.
+It's few dozen patches easily. Not fun.
+
+---------------------------------8<------------------------------------
+
+Putting, my disagreement with the design aside, I try to prototype it.
+And stumble an issue that I don't see how to solve.
+
+If we are going to convert macros to variable whether they need to be
+variable in the configuration we quickly put ourself into corner:
+
+ - SECTIONS_SHIFT is dependent on MAX_PHYSMEM_BITS.
+
+ - SECTIONS_SHIFT is used to define SECTIONS_WIDTH, but only if
+   CONFIG_SPARSEMEM_VMEMMAP is not enabled. SECTIONS_WIDTH is zero
+   otherwise.
+
+At this point we can convert both SECTIONS_SHIFT and SECTIONS_WIDTH to
+variables.
+
+But SECTIONS_WIDTH used on preprocessor level to determinate NODES_WIDTH,
+which used to determinate if we going to define NODE_NOT_IN_PAGE_FLAGS and
+the value of LAST_CPUPID_WIDTH.
+
+Making SECTIONS_WIDTH variable breaks the preprocessor logic. But problems
+don't stop there:
+
+  - LAST_CPUPID_WIDTH determinate if LAST_CPUPID_NOT_IN_PAGE_FLAGS is defined.
+
+  - LAST_CPUPID_NOT_IN_PAGE_FLAGS is used define struct page and therefore
+    cannot be dynamic (read variable).
+
+
+In my patchset I made X86_5LEVEL select SPARSEMEM_VMEMMAP. It breaks the
+chain and SECTIONS_WIDTH is never dynamic.
+
+But how get it work with the design?
+
+I can only think of hack like making machine.physmem.sections.shift a
+constant macro if we don't want it dynamic for the configuration and leave
+SECTHION_WITH as a constant in generic code.
+
+To me it's ugly as hell.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
