@@ -1,74 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 013F06B0268
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:33:37 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id m18so16540557pgd.13
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:33:36 -0700 (PDT)
-Received: from BJEXCAS008.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
-        by mx.google.com with ESMTPS id t18si1349724plo.255.2017.10.31.03.33.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1005C6B026B
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:34:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id d28so14458616pfe.1
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:34:57 -0700 (PDT)
+Received: from BJEXCAS004.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
+        by mx.google.com with ESMTPS id j21si1268657pgn.484.2017.10.31.03.34.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 03:33:35 -0700 (PDT)
-Date: Tue, 31 Oct 2017 18:33:33 +0800
+        Tue, 31 Oct 2017 03:34:56 -0700 (PDT)
+Date: Tue, 31 Oct 2017 18:34:53 +0800
 From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: Re: [PATCH 3/4] bdi: add error handle for bdi_debug_register
-Message-ID: <20171031103332.GB1616@source.didichuxing.com>
+Subject: Re: [PATCH 4/4] block: add WARN_ON if bdi register fail
+Message-ID: <20171031103453.GC1616@source.didichuxing.com>
 References: <cover.1509038624.git.zhangweiping@didichuxing.com>
- <b28a35a3af256e2c64b905728b0e9df307e12b0b.1509038624.git.zhangweiping@didichuxing.com>
- <20171030131016.GI23278@quack2.suse.cz>
+ <413b04ba6a2a0b03b0cb3c578865d71b2ef97921.1509038624.git.zhangweiping@didichuxing.com>
+ <20171030131430.GJ23278@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20171030131016.GI23278@quack2.suse.cz>
+In-Reply-To: <20171030131430.GJ23278@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
 Cc: axboe@kernel.dk, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Oct 30, 2017 at 02:10:16PM +0100, Jan Kara wrote:
-> On Fri 27-10-17 01:36:14, weiping zhang wrote:
-> > In order to make error handle more cleaner we call bdi_debug_register
-> > before set state to WB_registered, that we can avoid call bdi_unregister
-> > in release_bdi().
+On Mon, Oct 30, 2017 at 02:14:30PM +0100, Jan Kara wrote:
+> On Fri 27-10-17 01:36:42, weiping zhang wrote:
+> > device_add_disk need do more safety error handle, so this patch just
+> > add WARN_ON.
 > > 
 > > Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 > > ---
-> >  mm/backing-dev.c | 7 ++++++-
-> >  1 file changed, 6 insertions(+), 1 deletion(-)
+> >  block/genhd.c | 4 +++-
+> >  1 file changed, 3 insertions(+), 1 deletion(-)
 > > 
-> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > index e9d6a1ede12b..54396d53f471 100644
-> > --- a/mm/backing-dev.c
-> > +++ b/mm/backing-dev.c
-> > @@ -893,10 +893,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
-> >  	if (IS_ERR(dev))
-> >  		return PTR_ERR(dev);
+> > diff --git a/block/genhd.c b/block/genhd.c
+> > index dd305c65ffb0..cb55eea821eb 100644
+> > --- a/block/genhd.c
+> > +++ b/block/genhd.c
+> > @@ -660,7 +660,9 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
 > >  
-> > +	if (bdi_debug_register(bdi, dev_name(dev))) {
-> > +		device_destroy(bdi_class, dev->devt);
-> > +		return -ENOMEM;
-> > +	}
-> >  	cgwb_bdi_register(bdi);
-> >  	bdi->dev = dev;
-> >  
-> > -	bdi_debug_register(bdi, dev_name(dev));
-> >  	set_bit(WB_registered, &bdi->wb.state);
-> >  
-> >  	spin_lock_bh(&bdi_lock);
-> > @@ -916,6 +919,8 @@ int bdi_register(struct backing_dev_info *bdi, const char *fmt, ...)
-> >  	va_start(args, fmt);
-> >  	ret = bdi_register_va(bdi, fmt, args);
-> >  	va_end(args);
-> > +	if (ret)
-> > +		bdi_put(bdi);
+> >  	/* Register BDI before referencing it from bdev */
+> >  	bdi = disk->queue->backing_dev_info;
+> > -	bdi_register_owner(bdi, disk_to_dev(disk));
+> > +	retval = bdi_register_owner(bdi, disk_to_dev(disk));
+> > +	if (retval)
+> > +		WARN_ON(1);
 > 
-> Why do you drop bdi reference here in case of error? We didn't do it
-> previously if bdi_register_va() failed for other reasons...
+> Just a nit: You can do
 > 
-At first I want add cleanup, because
-device_add_disk->bdi_register_owner->bdi_register doen't do clanup. But
-I notice that mtd_bdi_init also call bdi_register and do cleanup, so
-this bdi_put() is wrong. I'll remove it at V2. Thanks a lot.
+> 	WARN_ON(retval);
+> 
+> Otherwise you can add:
+> 
+> Reviewed-by: Jan Kara <jack@suse.cz>
+> 
+more claner, I'll apply at V2, Thanks
 
 --
 weiping
