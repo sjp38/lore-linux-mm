@@ -1,60 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4767B6B026A
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:45:43 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id j15so9842775wre.15
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:45:43 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 56E1D6B026F
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:48:58 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id q127so7702478wmd.1
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:48:58 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e24si1603706wra.456.2017.10.31.05.45.41
+        by mx.google.com with ESMTPS id f19si1206409wre.420.2017.10.31.05.48.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 05:45:42 -0700 (PDT)
-Subject: Re: [PATCH] mm/swap: Use page flags to determine LRU list in
- __activate_page()
-References: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
- <20171019153322.c4uqalws7l7fdzcx@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <23110557-b2db-9f4a-d072-ad58fd0c1931@suse.cz>
-Date: Tue, 31 Oct 2017 13:45:39 +0100
+        Tue, 31 Oct 2017 05:48:57 -0700 (PDT)
+Date: Tue, 31 Oct 2017 13:48:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm,oom: Try last second allocation before and after
+ selecting an OOM victim.
+Message-ID: <20171031124855.rszis5gefbxwriiz@dhcp22.suse.cz>
+References: <1509178029-10156-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171030141815.lk76bfetmspf7f4x@dhcp22.suse.cz>
+ <201710311940.FDJ52199.OHMtSFVFOJLOQF@I-love.SAKURA.ne.jp>
+ <20171031121032.lm3wxx3l5tkpo2ni@dhcp22.suse.cz>
+ <201710312142.DBB81723.FOOFJMQLStFVOH@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20171019153322.c4uqalws7l7fdzcx@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201710312142.DBB81723.FOOFJMQLStFVOH@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, shli@kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-On 10/19/2017 05:33 PM, Michal Hocko wrote:
-> On Thu 19-10-17 20:26:57, Anshuman Khandual wrote:
->> Its already assumed that the PageActive flag is clear on the input
->> page, hence page_lru(page) will pick the base LRU for the page. In
->> the same way page_lru(page) will pick active base LRU, once the
->> flag PageActive is set on the page. This change of LRU list should
->> happen implicitly through the page flags instead of being hard
->> coded.
+On Tue 31-10-17 21:42:23, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 31-10-17 19:40:09, Tetsuo Handa wrote:
+> > > The reason I used __alloc_pages_slowpath() in alloc_pages_before_oomkill() is
+> > > to avoid duplicating code (such as checking for ALLOC_OOM and rebuilding zone
+> > > list) which needs to be maintained in sync with __alloc_pages_slowpath().
+> > >
+> > > If you don't like calling __alloc_pages_slowpath() from
+> > > alloc_pages_before_oomkill(), I'm OK with calling __alloc_pages_nodemask()
+> > > (with __GFP_DIRECT_RECLAIM/__GFP_NOFAIL cleared and __GFP_NOWARN set), for
+> > > direct reclaim functions can call __alloc_pages_nodemask() (with PF_MEMALLOC
+> > > set in order to avoid recursion of direct reclaim).
+> > > 
+> > > We are rebuilding zone list if selected as an OOM victim, for
+> > > __gfp_pfmemalloc_flags() returns ALLOC_OOM if oom_reserves_allowed(current)
+> > > is true.
+> > 
+> > So your answer is copy&paste without a deeper understanding, righ?
 > 
-> The patch description tells what but it doesn't explain _why_? Does the
-> resulting code is better, more optimized or is this a pure readability
-> thing?
+> Right. I wanted to avoid duplicating code.
+> But I had to duplicate in order to allow OOM victims to try ALLOC_OOM.
+
+I absolutely hate this cargo cult programming!
+
+[...]
+
+> > While both have some merit, the first reason is mostly historical
+> > because we have the explicit locking now and it is really unlikely that
+> > the memory would be available right after we have given up trying.
+> > Last attempt allocation makes some sense of course but considering that
+> > the oom victim selection is quite an expensive operation which can take
+> > a considerable amount of time it makes much more sense to retry the
+> > allocation after the most expensive part rather than before. Therefore
+> > move the last attempt right before we are trying to kill an oom victim
+> > to rule potential races when somebody could have freed a lot of memory
+> > in the meantime. This will reduce the time window for potentially
+> > pre-mature OOM killing considerably.
 > 
-> All I can see is that page_lru is more complex and a large part of it
-> can be optimized away which has been done manually here. I suspect the
-> compiler can deduce the same thing.
+> But this is about "doing last second allocation attempt after selecting
+> an OOM victim". This is not about "allowing OOM victims to try ALLOC_OOM
+> before selecting next OOM victim" which is the actual problem I'm trying
+> to deal with.
 
-We shouldn't overestimate the compiler (or the objective conditions it
-has) for optimizing stuff away:
-
-After applying the patch:
-
-./scripts/bloat-o-meter swap_before.o mm/swap.o
-add/remove: 0/0 grow/shrink: 1/0 up/down: 160/0 (160)
-function                                     old     new   delta
-__activate_page                              708     868    +160
-Total: Before=13538, After=13698, chg +1.18%
-
-I don't think we want that, it's not exactly a cold code...
+then split it into two. First make the general case and then add a more
+sophisticated on top. Dealing with multiple issues at once is what makes
+all those brain cells suffer.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
