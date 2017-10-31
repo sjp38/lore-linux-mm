@@ -1,19 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 54DC06B0278
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:29:17 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id e64so506036pfk.0
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:29:17 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A60294403DA
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:29:23 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id m18so555043pgd.13
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:29:23 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y73si2853232pfj.569.2017.10.31.16.29.16
+        by mx.google.com with ESMTPS id p1si2681136pgr.812.2017.10.31.16.29.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 16:29:16 -0700 (PDT)
-Subject: [PATCH 14/15] dax: associate mappings with inodes,
- and warn if dma collides with truncate
+        Tue, 31 Oct 2017 16:29:22 -0700 (PDT)
+Subject: [PATCH 15/15] wait_bit: introduce {wait_on,wake_up}_devmap_idle
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 31 Oct 2017 16:22:51 -0700
-Message-ID: <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 31 Oct 2017 16:22:56 -0700
+Message-ID: <150949217671.24061.13258957060358089669.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,174 +21,189 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
+Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@redhat.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
 
-Catch cases where truncate encounters pages that are still under active
-dma. This warning is a canary for potential data corruption as truncated
-blocks could be allocated to a new file while the device is still
-perform i/o.
+Add hashed waitqueue infrastructure to wait for ZONE_DEVICE pages to
+drop their reference counts and be considered idle for DMA. This
+facility will be used for filesystem callbacks / wakeups when DMA to a
+DAX mapped range of a file ends.
 
-Cc: Jan Kara <jack@suse.cz>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
+For now, this implementation does not have functional behavior change
+outside of waking waitqueues that do not have any waiters present.
+
+Cc: Ingo Molnar <mingo@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- fs/dax.c                 |   56 ++++++++++++++++++++++++++++++++++++++++++++++
- include/linux/mm_types.h |   20 ++++++++++++----
- kernel/memremap.c        |   10 ++++----
- 3 files changed, 76 insertions(+), 10 deletions(-)
+ drivers/dax/super.c      |    1 +
+ include/linux/wait_bit.h |   10 +++++++
+ kernel/sched/wait_bit.c  |   64 ++++++++++++++++++++++++++++++++++++++++------
+ 3 files changed, 67 insertions(+), 8 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index ac6497dcfebd..fd5d385988d1 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -297,6 +297,55 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
- 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
+diff --git a/drivers/dax/super.c b/drivers/dax/super.c
+index 4ac359e14777..a5a4b95ffdaf 100644
+--- a/drivers/dax/super.c
++++ b/drivers/dax/super.c
+@@ -167,6 +167,7 @@ struct dax_device {
+ #if IS_ENABLED(CONFIG_FS_DAX)
+ static void generic_dax_pagefree(struct page *page, void *data)
+ {
++	wake_up_devmap_idle(&page->_refcount);
  }
  
-+static unsigned long dax_entry_size(void *entry)
+ struct dax_device *fs_dax_claim_bdev(struct block_device *bdev, void *owner)
+diff --git a/include/linux/wait_bit.h b/include/linux/wait_bit.h
+index 12b26660d7e9..6186ecdb9df7 100644
+--- a/include/linux/wait_bit.h
++++ b/include/linux/wait_bit.h
+@@ -30,10 +30,12 @@ int __wait_on_bit(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *
+ int __wait_on_bit_lock(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry, wait_bit_action_f *action, unsigned int mode);
+ void wake_up_bit(void *word, int bit);
+ void wake_up_atomic_t(atomic_t *p);
++void wake_up_devmap_idle(atomic_t *p);
+ int out_of_line_wait_on_bit(void *word, int, wait_bit_action_f *action, unsigned int mode);
+ int out_of_line_wait_on_bit_timeout(void *word, int, wait_bit_action_f *action, unsigned int mode, unsigned long timeout);
+ int out_of_line_wait_on_bit_lock(void *word, int, wait_bit_action_f *action, unsigned int mode);
+ int out_of_line_wait_on_atomic_t(atomic_t *p, int (*)(atomic_t *), unsigned int mode);
++int out_of_line_wait_on_devmap_idle(atomic_t *p, int (*)(atomic_t *), unsigned int mode);
+ struct wait_queue_head *bit_waitqueue(void *word, int bit);
+ extern void __init wait_bit_init(void);
+ 
+@@ -258,4 +260,12 @@ int wait_on_atomic_t(atomic_t *val, int (*action)(atomic_t *), unsigned mode)
+ 	return out_of_line_wait_on_atomic_t(val, action, mode);
+ }
+ 
++static inline
++int wait_on_devmap_idle(atomic_t *val, int (*action)(atomic_t *), unsigned mode)
 +{
-+	if (dax_is_zero_entry(entry))
++	might_sleep();
++	if (atomic_read(val) == 1)
 +		return 0;
-+	else if (dax_is_empty_entry(entry))
-+		return 0;
-+	else if (dax_is_pmd_entry(entry))
-+		return HPAGE_SIZE;
-+	else
-+		return PAGE_SIZE;
++	return out_of_line_wait_on_devmap_idle(val, action, mode);
++}
+ #endif /* _LINUX_WAIT_BIT_H */
+diff --git a/kernel/sched/wait_bit.c b/kernel/sched/wait_bit.c
+index f8159698aa4d..6ea93149614a 100644
+--- a/kernel/sched/wait_bit.c
++++ b/kernel/sched/wait_bit.c
+@@ -162,11 +162,17 @@ static inline wait_queue_head_t *atomic_t_waitqueue(atomic_t *p)
+ 	return bit_waitqueue(p, 0);
+ }
+ 
+-static int wake_atomic_t_function(struct wait_queue_entry *wq_entry, unsigned mode, int sync,
+-				  void *arg)
++static inline struct wait_bit_queue_entry *to_wait_bit_q(
++		struct wait_queue_entry *wq_entry)
++{
++	return container_of(wq_entry, struct wait_bit_queue_entry, wq_entry);
 +}
 +
-+#define for_each_entry_pfn(entry, pfn, end_pfn) \
-+	for (pfn = dax_radix_pfn(entry), \
-+			end_pfn = pfn + dax_entry_size(entry) / PAGE_SIZE; \
-+			pfn < end_pfn; \
-+			pfn++)
-+
-+static void dax_associate_entry(void *entry, struct inode *inode)
++static int wake_atomic_t_function(struct wait_queue_entry *wq_entry,
++		unsigned mode, int sync, void *arg)
+ {
+ 	struct wait_bit_key *key = arg;
+-	struct wait_bit_queue_entry *wait_bit = container_of(wq_entry, struct wait_bit_queue_entry, wq_entry);
++	struct wait_bit_queue_entry *wait_bit = to_wait_bit_q(wq_entry);
+ 	atomic_t *val = key->flags;
+ 
+ 	if (wait_bit->key.flags != key->flags ||
+@@ -176,14 +182,29 @@ static int wake_atomic_t_function(struct wait_queue_entry *wq_entry, unsigned mo
+ 	return autoremove_wake_function(wq_entry, mode, sync, key);
+ }
+ 
++static int wake_devmap_idle_function(struct wait_queue_entry *wq_entry,
++		unsigned mode, int sync, void *arg)
 +{
-+	unsigned long pfn, end_pfn;
++	struct wait_bit_key *key = arg;
++	struct wait_bit_queue_entry *wait_bit = to_wait_bit_q(wq_entry);
++	atomic_t *val = key->flags;
 +
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-+		return;
-+
-+	for_each_entry_pfn(entry, pfn, end_pfn) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		WARN_ON_ONCE(page->inode);
-+		page->inode = inode;
-+	}
-+}
-+
-+static void dax_disassociate_entry(void *entry, struct inode *inode, bool trunc)
-+{
-+	unsigned long pfn, end_pfn;
-+
-+	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
-+		return;
-+
-+	for_each_entry_pfn(entry, pfn, end_pfn) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
-+		WARN_ON_ONCE(page->inode && page->inode != inode);
-+		page->inode = NULL;
-+	}
++	if (wait_bit->key.flags != key->flags ||
++	    wait_bit->key.bit_nr != key->bit_nr ||
++	    atomic_read(val) != 1)
++		return 0;
++	return autoremove_wake_function(wq_entry, mode, sync, key);
 +}
 +
  /*
-  * Find radix tree entry at given index. If it points to an exceptional entry,
-  * return it with the radix tree entry locked. If the radix tree doesn't
-@@ -403,6 +452,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
- 		}
- 
- 		if (pmd_downgrade) {
-+			dax_disassociate_entry(entry, mapping->host, false);
- 			radix_tree_delete(&mapping->page_tree, index);
- 			mapping->nrexceptional--;
- 			dax_wake_mapping_entry_waiter(mapping, index, entry,
-@@ -452,6 +502,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
- 	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
- 	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
- 		goto out;
-+	dax_disassociate_entry(entry, mapping->host, trunc);
- 	radix_tree_delete(page_tree, index);
- 	mapping->nrexceptional--;
- 	ret = 1;
-@@ -529,6 +580,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+  * To allow interruptible waiting and asynchronous (i.e. nonblocking) waiting,
+  * the actions of __wait_on_atomic_t() are permitted return codes.  Nonzero
+  * return codes halt waiting and return.
+  */
+ static __sched
+-int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_entry *wbq_entry,
+-		       int (*action)(atomic_t *), unsigned mode)
++int __wait_on_atomic_t(struct wait_queue_head *wq_head,
++		struct wait_bit_queue_entry *wbq_entry,
++		int (*action)(atomic_t *), unsigned mode, int target)
  {
- 	struct radix_tree_root *page_tree = &mapping->page_tree;
- 	unsigned long pfn = pfn_t_to_pfn(pfn_t);
-+	struct inode *inode = mapping->host;
- 	pgoff_t index = vmf->pgoff;
- 	void *new_entry;
+ 	atomic_t *val;
+ 	int ret = 0;
+@@ -191,10 +212,10 @@ int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_en
+ 	do {
+ 		prepare_to_wait(wq_head, &wbq_entry->wq_entry, mode);
+ 		val = wbq_entry->key.flags;
+-		if (atomic_read(val) == 0)
++		if (atomic_read(val) == target)
+ 			break;
+ 		ret = (*action)(val);
+-	} while (!ret && atomic_read(val) != 0);
++	} while (!ret && atomic_read(val) != target);
+ 	finish_wait(wq_head, &wbq_entry->wq_entry);
+ 	return ret;
+ }
+@@ -210,16 +231,37 @@ int __wait_on_atomic_t(struct wait_queue_head *wq_head, struct wait_bit_queue_en
+ 		},							\
+ 	}
  
-@@ -548,6 +600,10 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 
- 	spin_lock_irq(&mapping->tree_lock);
- 	new_entry = dax_radix_locked_entry(pfn, flags);
-+	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
-+		dax_disassociate_entry(entry, inode, false);
-+		dax_associate_entry(new_entry, inode);
++#define DEFINE_WAIT_DEVMAP_IDLE(name, p)					\
++	struct wait_bit_queue_entry name = {				\
++		.key = __WAIT_ATOMIC_T_KEY_INITIALIZER(p),		\
++		.wq_entry = {						\
++			.private	= current,			\
++			.func		= wake_devmap_idle_function,	\
++			.entry		=				\
++				LIST_HEAD_INIT((name).wq_entry.entry),	\
++		},							\
 +	}
++
+ __sched int out_of_line_wait_on_atomic_t(atomic_t *p, int (*action)(atomic_t *),
+ 					 unsigned mode)
+ {
+ 	struct wait_queue_head *wq_head = atomic_t_waitqueue(p);
+ 	DEFINE_WAIT_ATOMIC_T(wq_entry, p);
  
- 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
- 		/*
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 46f4ecf5479a..dd976851e8d8 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -118,11 +118,21 @@ struct page {
- 					 * Can be used as a generic list
- 					 * by the page owner.
- 					 */
--		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
--					    * lru or handled by a slab
--					    * allocator, this points to the
--					    * hosting device page map.
--					    */
-+		struct {
-+			/*
-+			 * ZONE_DEVICE pages are never on an lru or handled by
-+			 * a slab allocator, this points to the hosting device
-+			 * page map.
-+			 */
-+			struct dev_pagemap *pgmap;
-+			/*
-+			 * inode association for MEMORY_DEVICE_FS_DAX page-idle
-+			 * callbacks. Note that we don't use ->mapping since
-+			 * that has hard coded page-cache assumptions in
-+			 * several paths.
-+			 */
-+			struct inode *inode;
-+		};
- 		struct {		/* slub per cpu partial pages */
- 			struct page *next;	/* Next partial slab */
- #ifdef CONFIG_64BIT
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 8a4ebfe9db4e..f9a2929fc310 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -441,13 +441,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct page *page = pfn_to_page(pfn);
+-	return __wait_on_atomic_t(wq_head, &wq_entry, action, mode);
++	return __wait_on_atomic_t(wq_head, &wq_entry, action, mode, 0);
+ }
+ EXPORT_SYMBOL(out_of_line_wait_on_atomic_t);
  
- 		/*
--		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
--		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
--		 * freed or placed on a driver-private list.  Seed the
--		 * storage with LIST_POISON* values.
-+		 * ZONE_DEVICE pages union ->lru with a ->pgmap back pointer
-+		 * and ->inode (for the MEMORY_DEVICE_FS_DAX case) association.
-+		 * It is a bug if a ZONE_DEVICE page is ever freed or placed on
-+		 * a driver-private list.
- 		 */
--		list_del(&page->lru);
- 		page->pgmap = pgmap;
-+		page->inode = NULL;
- 		percpu_ref_get(ref);
- 		if (!(++i % 1024))
- 			cond_resched();
++__sched int out_of_line_wait_on_devmap_idle(atomic_t *p, int (*action)(atomic_t *),
++					 unsigned mode)
++{
++	struct wait_queue_head *wq_head = atomic_t_waitqueue(p);
++	DEFINE_WAIT_DEVMAP_IDLE(wq_entry, p);
++
++	return __wait_on_atomic_t(wq_head, &wq_entry, action, mode, 1);
++}
++EXPORT_SYMBOL(out_of_line_wait_on_devmap_idle);
++
+ /**
+  * wake_up_atomic_t - Wake up a waiter on a atomic_t
+  * @p: The atomic_t being waited on, a kernel virtual address
+@@ -235,6 +277,12 @@ void wake_up_atomic_t(atomic_t *p)
+ }
+ EXPORT_SYMBOL(wake_up_atomic_t);
+ 
++void wake_up_devmap_idle(atomic_t *p)
++{
++	__wake_up_bit(atomic_t_waitqueue(p), p, WAIT_ATOMIC_T_BIT_NR);
++}
++EXPORT_SYMBOL(wake_up_devmap_idle);
++
+ __sched int bit_wait(struct wait_bit_key *word, int mode)
+ {
+ 	schedule();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
