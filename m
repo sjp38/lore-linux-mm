@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C5F96B026B
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:41:13 -0400 (EDT)
-Received: by mail-oi0-f71.google.com with SMTP id 14so20025209oii.2
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:41:13 -0700 (PDT)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D90BD6B026D
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:41:18 -0400 (EDT)
+Received: by mail-oi0-f72.google.com with SMTP id q4so19772461oic.12
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:41:18 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id r6si1201575oti.327.2017.10.31.11.41.12
+        by mx.google.com with ESMTPS id 32si1301809otg.512.2017.10.31.11.41.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 11:41:12 -0700 (PDT)
+        Tue, 31 Oct 2017 11:41:17 -0700 (PDT)
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH 4/6] hugetlbfs: implement memfd sealing
-Date: Tue, 31 Oct 2017 19:40:50 +0100
-Message-Id: <20171031184052.25253-5-marcandre.lureau@redhat.com>
+Subject: [PATCH 5/6] shmem: add sealing support to hugetlb-backed memfd
+Date: Tue, 31 Oct 2017 19:40:51 +0100
+Message-Id: <20171031184052.25253-6-marcandre.lureau@redhat.com>
 In-Reply-To: <20171031184052.25253-1-marcandre.lureau@redhat.com>
 References: <20171031184052.25253-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
@@ -23,119 +23,146 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-Implements memfd sealing, similar to shmem:
-- WRITE: deny fallocate(PUNCH_HOLE). mmap() write is denied in
-  memfd_add_seals(). write() doesn't exist for hugetlbfs.
-- SHRINK: added similar check as shmem_setattr()
-- GROW: added similar check as shmem_setattr() & shmem_fallocate()
+Adapt add_seals()/get_seals() to work with hugetbfs-backed memory.
 
-Except write() operation that doesn't exist with hugetlbfs, that
-should make sealing as close as it can be to shmem support.
+Teach memfd_create() to allow sealing operations on MFD_HUGETLB.
 
 Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
 ---
- fs/hugetlbfs/inode.c    | 29 +++++++++++++++++++++++++++--
- include/linux/hugetlb.h |  1 +
- 2 files changed, 28 insertions(+), 2 deletions(-)
+ mm/shmem.c | 51 ++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 21 deletions(-)
 
-diff --git a/fs/hugetlbfs/inode.c b/fs/hugetlbfs/inode.c
-index ea7b10357ac4..62d70b1b1ab9 100644
---- a/fs/hugetlbfs/inode.c
-+++ b/fs/hugetlbfs/inode.c
-@@ -510,8 +510,16 @@ static long hugetlbfs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index b7811979611f..b7c59d993c19 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2717,6 +2717,19 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+ 	return error;
+ }
  
- 	if (hole_end > hole_start) {
- 		struct address_space *mapping = inode->i_mapping;
-+		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
- 
- 		inode_lock(inode);
++static unsigned int *memfd_get_seals(struct file *file)
++{
++	if (file->f_op == &shmem_file_operations)
++		return &SHMEM_I(file_inode(file))->seals;
 +
-+		/* protected by i_mutex */
-+		if (info->seals & F_SEAL_WRITE) {
-+			inode_unlock(inode);
-+			return -EPERM;
-+		}
++#ifdef CONFIG_HUGETLBFS
++	if (file->f_op == &hugetlbfs_file_operations)
++		return &HUGETLBFS_I(file_inode(file))->seals;
++#endif
 +
- 		i_mmap_lock_write(mapping);
- 		if (!RB_EMPTY_ROOT(&mapping->i_mmap.rb_root))
- 			hugetlb_vmdelete_list(&mapping->i_mmap,
-@@ -529,6 +537,7 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 				loff_t len)
++	return NULL;
++}
++
+ #define F_ALL_SEALS (F_SEAL_SEAL | \
+ 		     F_SEAL_SHRINK | \
+ 		     F_SEAL_GROW | \
+@@ -2725,7 +2738,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+ static int memfd_add_seals(struct file *file, unsigned int seals)
  {
  	struct inode *inode = file_inode(file);
-+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
- 	struct address_space *mapping = inode->i_mapping;
- 	struct hstate *h = hstate_inode(inode);
- 	struct vm_area_struct pseudo_vma;
-@@ -560,6 +569,11 @@ static long hugetlbfs_fallocate(struct file *file, int mode, loff_t offset,
- 	if (error)
- 		goto out;
+-	struct shmem_inode_info *info = SHMEM_I(inode);
++	unsigned int *file_seals;
+ 	int error;
  
-+	if ((info->seals & F_SEAL_GROW) && offset + len > inode->i_size) {
-+		error = -EPERM;
-+		goto out;
+ 	/*
+@@ -2758,8 +2771,6 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+ 	 * other file types.
+ 	 */
+ 
+-	if (file->f_op != &shmem_file_operations)
+-		return -EINVAL;
+ 	if (!(file->f_mode & FMODE_WRITE))
+ 		return -EPERM;
+ 	if (seals & ~(unsigned int)F_ALL_SEALS)
+@@ -2767,12 +2778,18 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+ 
+ 	inode_lock(inode);
+ 
+-	if (info->seals & F_SEAL_SEAL) {
++	file_seals = memfd_get_seals(file);
++	if (!file_seals) {
++		error = -EINVAL;
++		goto unlock;
 +	}
 +
- 	/*
- 	 * Initialize a pseudo vma as this is required by the huge page
- 	 * allocation routines.  If NUMA is configured, use page index
-@@ -650,6 +664,7 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
- 	struct hstate *h = hstate_inode(inode);
- 	int error;
- 	unsigned int ia_valid = attr->ia_valid;
-+	struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
- 
- 	BUG_ON(!inode);
- 
-@@ -658,10 +673,17 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
- 		return error;
- 
- 	if (ia_valid & ATTR_SIZE) {
-+		loff_t oldsize = inode->i_size;
-+		loff_t newsize = attr->ia_size;
-+
- 		error = -EINVAL;
--		if (attr->ia_size & ~huge_page_mask(h))
-+		if (newsize & ~huge_page_mask(h))
- 			return -EINVAL;
--		error = hugetlb_vmtruncate(inode, attr->ia_size);
-+		/* protected by i_mutex */
-+		if ((newsize < oldsize && (info->seals & F_SEAL_SHRINK)) ||
-+		    (newsize > oldsize && (info->seals & F_SEAL_GROW)))
-+			return -EPERM;
-+		error = hugetlb_vmtruncate(inode, newsize);
- 		if (error)
- 			return error;
++	if (*file_seals & F_SEAL_SEAL) {
+ 		error = -EPERM;
+ 		goto unlock;
  	}
-@@ -713,6 +735,8 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
  
- 	inode = new_inode(sb);
- 	if (inode) {
-+		struct hugetlbfs_inode_info *info = HUGETLBFS_I(inode);
-+
- 		inode->i_ino = get_next_ino();
- 		inode_init_owner(inode, dir, mode);
- 		lockdep_set_class(&inode->i_mapping->i_mmap_rwsem,
-@@ -720,6 +744,7 @@ static struct inode *hugetlbfs_get_inode(struct super_block *sb,
- 		inode->i_mapping->a_ops = &hugetlbfs_aops;
- 		inode->i_atime = inode->i_mtime = inode->i_ctime = current_time(inode);
- 		inode->i_mapping->private_data = resv_map;
-+		info->seals = F_SEAL_SEAL;
- 		switch (mode & S_IFMT) {
- 		default:
- 			init_special_inode(inode, mode, dev);
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index f78daf54897d..128ef10902f3 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -281,6 +281,7 @@ static inline struct hugetlbfs_sb_info *HUGETLBFS_SB(struct super_block *sb)
- struct hugetlbfs_inode_info {
- 	struct shared_policy policy;
- 	struct inode vfs_inode;
-+	unsigned int seals;
- };
+-	if ((seals & F_SEAL_WRITE) && !(info->seals & F_SEAL_WRITE)) {
++	if ((seals & F_SEAL_WRITE) && !(*file_seals & F_SEAL_WRITE)) {
+ 		error = mapping_deny_writable(file->f_mapping);
+ 		if (error)
+ 			goto unlock;
+@@ -2784,7 +2801,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+ 		}
+ 	}
  
- static inline struct hugetlbfs_inode_info *HUGETLBFS_I(struct inode *inode)
+-	info->seals |= seals;
++	*file_seals |= seals;
+ 	error = 0;
+ 
+ unlock:
+@@ -2792,12 +2809,11 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+ 	return error;
+ }
+ 
+-static int memfd_get_seals(struct file *file)
++static int memfd_fcntl_get_seals(struct file *file)
+ {
+-	if (file->f_op != &shmem_file_operations)
+-		return -EINVAL;
++	unsigned int *seals = memfd_get_seals(file);
+ 
+-	return SHMEM_I(file_inode(file))->seals;
++	return seals ? *seals : -EINVAL;
+ }
+ 
+ long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+@@ -2813,7 +2829,7 @@ long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+ 		error = memfd_add_seals(file, arg);
+ 		break;
+ 	case F_GET_SEALS:
+-		error = memfd_get_seals(file);
++		error = memfd_fcntl_get_seals(file);
+ 		break;
+ 	default:
+ 		error = -EINVAL;
+@@ -3657,7 +3673,7 @@ SYSCALL_DEFINE2(memfd_create,
+ 		const char __user *, uname,
+ 		unsigned int, flags)
+ {
+-	struct shmem_inode_info *info;
++	unsigned int *file_seals;
+ 	struct file *file;
+ 	int fd, error;
+ 	char *name;
+@@ -3667,9 +3683,6 @@ SYSCALL_DEFINE2(memfd_create,
+ 		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
+ 			return -EINVAL;
+ 	} else {
+-		/* Sealing not supported in hugetlbfs (MFD_HUGETLB) */
+-		if (flags & MFD_ALLOW_SEALING)
+-			return -EINVAL;
+ 		/* Allow huge page size encoding in flags. */
+ 		if (flags & ~(unsigned int)(MFD_ALL_FLAGS |
+ 				(MFD_HUGE_MASK << MFD_HUGE_SHIFT)))
+@@ -3722,12 +3735,8 @@ SYSCALL_DEFINE2(memfd_create,
+ 	file->f_flags |= O_RDWR | O_LARGEFILE;
+ 
+ 	if (flags & MFD_ALLOW_SEALING) {
+-		/*
+-		 * flags check at beginning of function ensures
+-		 * this is not a hugetlbfs (MFD_HUGETLB) file.
+-		 */
+-		info = SHMEM_I(file_inode(file));
+-		info->seals &= ~F_SEAL_SEAL;
++		file_seals = memfd_get_seals(file);
++		*file_seals &= ~F_SEAL_SEAL;
+ 	}
+ 
+ 	fd_install(fd, file);
 -- 
 2.15.0.rc0.40.gaefcc5f6f
 
