@@ -1,124 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BE676B025F
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 13:01:52 -0400 (EDT)
-Received: by mail-yw0-f198.google.com with SMTP id a187so18579872ywe.18
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 10:01:52 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e80sor709100ywa.541.2017.10.31.10.01.51
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A1026B0038
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 13:50:47 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id 4so10066679wrt.8
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 10:50:47 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 19sor930340wrz.54.2017.10.31.10.50.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 31 Oct 2017 10:01:51 -0700 (PDT)
+        Tue, 31 Oct 2017 10:50:45 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20171031165250.GG26128@quack2.suse.cz>
-References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
- <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
- <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com> <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
- <20171031105030.GE8989@quack2.suse.cz> <CAOQ4uxgqR1GvuTiMreDQrx2m=V4pzcn3o2T7_YQAj46AZ7fHQQ@mail.gmail.com>
- <20171031165250.GG26128@quack2.suse.cz>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Tue, 31 Oct 2017 19:01:50 +0200
-Message-ID: <CAOQ4uxgZ-stGSGg6=SnvM4ztZpGwoYq1GVPWA8V_zOcAg0by0g@mail.gmail.com>
-Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
+In-Reply-To: <20171031164008.GA32246@cmpxchg.org>
+References: <20171019185218.12663-1-guro@fb.com> <20171019185218.12663-4-guro@fb.com>
+ <CALvZod7V1iNACeDJuuSDrMMGMo7YX+gZ87gq=S4rP=Eh9Wh5kQ@mail.gmail.com> <20171031164008.GA32246@cmpxchg.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 31 Oct 2017 10:50:43 -0700
+Message-ID: <CALvZod5tVoX20Lir=4jnWMXzsEGhh1qCbi73j5vs_n6ViR80yw@mail.gmail.com>
+Subject: Re: [RESEND v12 3/6] mm, oom: cgroup-aware OOM killer
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Oct 31, 2017 at 6:52 PM, Jan Kara <jack@suse.cz> wrote:
-> On Tue 31-10-17 13:51:40, Amir Goldstein wrote:
->> On Tue, Oct 31, 2017 at 12:50 PM, Jan Kara <jack@suse.cz> wrote:
->> > On Sun 22-10-17 11:24:17, Amir Goldstein wrote:
->> >> But I think there is another problem, not introduced by your change, but could
->> >> be amplified because of it - when a non-permission event allocation fails, the
->> >> event is silently dropped, AFAICT, with no indication to listener.
->> >> That seems like a bug to me, because there is a perfectly safe way to deal with
->> >> event allocation failure - queue the overflow event.
->> >>
->> >> I am not going to be the one to determine if fixing this alleged bug is a
->> >> prerequisite for merging your patch, but I think enforcing memory limits on
->> >> event allocation could amplify that bug, so it should be fixed.
->> >>
->> >> The upside is that with both your accounting fix and ENOMEM = overlflow
->> >> fix, it going to be easy to write a test that verifies both of them:
->> >> - Run a listener in memcg with limited kmem and unlimited (or very
->> >> large) event queue
->> >> - Produce events inside memcg without listener reading them
->> >> - Read event and expect an OVERFLOW event
->> >>
->> >> This is a simple variant of LTP tests inotify05 and fanotify05.
->> >>
->> >> I realize that is user application behavior change and that documentation
->> >> implies that an OVERFLOW event is not expected when using
->> >> FAN_UNLIMITED_QUEUE, but IMO no one will come shouting
->> >> if we stop silently dropping events, so it is better to fix this and update
->> >> documentation.
->> >>
->> >> Attached a compile-tested patch to implement overflow on ENOMEM
->> >> Hope this helps to test your patch and then we can merge both, accompanied
->> >> with LTP tests for inotify and fanotify.
->> >>
->> >> Amir.
->> >
->> >> From 112ecd54045f14aff2c42622fabb4ffab9f0d8ff Mon Sep 17 00:00:00 2001
->> >> From: Amir Goldstein <amir73il@gmail.com>
->> >> Date: Sun, 22 Oct 2017 11:13:10 +0300
->> >> Subject: [PATCH] fsnotify: queue an overflow event on failure to allocate
->> >>  event
->> >>
->> >> In low memory situations, non permissions events are silently dropped.
->> >> It is better to queue an OVERFLOW event in that case to let the listener
->> >> know about the lost event.
->> >>
->> >> With this change, an application can now get an FAN_Q_OVERFLOW event,
->> >> even if it used flag FAN_UNLIMITED_QUEUE on fanotify_init().
->> >>
->> >> Signed-off-by: Amir Goldstein <amir73il@gmail.com>
->> >
->> > So I agree something like this is desirable but I'm uneasy about using
->> > {IN|FAN}_Q_OVERFLOW for this. Firstly, it is userspace visible change for
->> > FAN_UNLIMITED_QUEUE queues which could confuse applications as you properly
->> > note. Secondly, the event is similar to queue overflow but not quite the
->> > same (it is not that the application would be too slow in processing
->> > events, it is just that the system is in a problematic state overall). What
->> > are your thoughts on adding a new event flags like FAN_Q_LOSTEVENT or
->> > something like that? Probably the biggest downside there I see is that apps
->> > would have to learn to use it...
->> >
+On Tue, Oct 31, 2017 at 9:40 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Oct 31, 2017 at 08:04:19AM -0700, Shakeel Butt wrote:
+>> > +
+>> > +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
+>> > +{
+>> > +       struct mem_cgroup *iter;
+>> > +
+>> > +       oc->chosen_memcg = NULL;
+>> > +       oc->chosen_points = 0;
+>> > +
+>> > +       /*
+>> > +        * The oom_score is calculated for leaf memory cgroups (including
+>> > +        * the root memcg).
+>> > +        */
+>> > +       rcu_read_lock();
+>> > +       for_each_mem_cgroup_tree(iter, root) {
+>> > +               long score;
+>> > +
+>> > +               if (memcg_has_children(iter) && iter != root_mem_cgroup)
+>> > +                       continue;
+>> > +
 >>
->> Well, I can't say I like FAN_Q_LOSTEVENT, but I can't really think of
->> a better option. I guess apps that would want to provide better protection
->> against loosing event will have to opt-in with a new fanotify_init() flag.
->> OTOH, if apps opts-in for this feature, we can also report Q_OVERFLOW
->> and document that it *is* expected in OOM situation.
->>
->> If we have FAN_Q_LOSTEVENT, we can use it to handle both the case of
->> error to queue event (-ENOMEM) and the case of error on copy event to user
->> (e.g. -ENODEV), which is another case where we silently drop events
->> (in case buffer already contains good events).
->> In latter case, the error would be reported to user on event->fd.
->> In the former case, event->fd will also hold the error, as long as we can only
->> report -ENOMEM from this sort of error, because like overflow event, there
->> should probably be only one event of that sort in the queue.
->>
->> Another option for API name is {IN|FAN}_Q_ERR, which implies that event->fd
->> carries the error. And of course user can get an event with mask
->> FAN_Q_OVERFLOW|FAN_Q_ERR, where event->fd is -ENOMEM or
->> -EOVERFLOW and then there is no ambiguity between different kind of
->> queue overflows.
+>> Cgroup v2 does not support charge migration between memcgs. So, there
+>> can be intermediate nodes which may contain the major charge of the
+>> processes in their leave descendents. Skipping such intermediate nodes
+>> will kind of protect such processes from oom-killer (lower on the list
+>> to be killed). Is it ok to not handle such scenario? If yes, shouldn't
+>> we document it?
 >
-> I like this last option. I.e., userspace can opt in to get more detailed
-> error notification. In that case we can report error (I think we can just
-> reuse {IN|FAN}_Q_OVERFLOW for that) and store more detailed error
-> description in wd/fd. Will you have time to implement something like that
-> or should I put it to my todo list?
+> Tasks cannot be in intermediate nodes, so the only way you can end up
+> in a situation like this is to start tasks fully, let them fault in
+> their full workingset, then create child groups and move them there.
+>
+> That has attribution problems much wider than the OOM killer: any
+> local limits you would set on a leaf cgroup like this ALSO won't
+> control the memory of its tasks - as it's all sitting in the parent.
+>
+> We created the "no internal competition" rule exactly to prevent this
+> situation.
+
+Rather than the "no internal competition" restriction I think "charge
+migration" would have resolved that situation? Also "no internal
+competition" restriction (I am assuming 'no internal competition' is
+no tasks in internal nodes, please correct me if I am wrong) has made
+"charge migration" hard to implement and thus not added in cgroup v2.
+
+I know this is parallel discussion and excuse my ignorance, what are
+other reasons behind "no internal competition" specifically for memory
+controller?
+
+> To be consistent with that rule, we might want to disallow
+> the creation of child groups once a cgroup has local memory charges.
+>
+> It's trivial to change the setup sequence to create the leaf cgroup
+> first, then launch the workload from within.
 >
 
-Won't be able to get to that for a while, so better add to todo list.
+Only if cgroup hierarchy is centrally controller and each task's whole
+hierarchy is known in advance.
 
-Thanks,
-Amir.
+> Either way, this is nothing specific about the OOM killer.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
