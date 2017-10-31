@@ -1,69 +1,161 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E34D26B0253
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:21:26 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id n137so2191847iod.20
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:21:26 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j91sor194576iod.276.2017.10.31.15.21.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BB16B0033
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:31:49 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id l23so446718pgc.10
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:31:49 -0700 (PDT)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id f126si2860108pfg.410.2017.10.31.15.31.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Oct 2017 15:21:25 -0700 (PDT)
-Date: Tue, 31 Oct 2017 15:21:23 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [RESEND v12 0/6] cgroup-aware OOM killer
-In-Reply-To: <20171031075408.67au22uk6dkpu7vv@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1710311513590.123444@chino.kir.corp.google.com>
-References: <20171019185218.12663-1-guro@fb.com> <20171019194534.GA5502@cmpxchg.org> <alpine.DEB.2.10.1710221715010.70210@chino.kir.corp.google.com> <20171026142445.GA21147@cmpxchg.org> <alpine.DEB.2.10.1710261359550.75887@chino.kir.corp.google.com>
- <20171027093107.GA29492@castle.dhcp.TheFacebook.com> <alpine.DEB.2.10.1710301430170.105449@chino.kir.corp.google.com> <20171031075408.67au22uk6dkpu7vv@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Oct 2017 15:31:48 -0700 (PDT)
+Subject: [PATCH 00/23] KAISER: unmap most of the kernel from userspace page tables
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Tue, 31 Oct 2017 15:31:46 -0700
+Message-Id: <20171031223146.6B47C861@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com
 
-On Tue, 31 Oct 2017, Michal Hocko wrote:
+tl;dr:
 
-> > I'm not ignoring them, I have stated that we need the ability to protect 
-> > important cgroups on the system without oom disabling all attached 
-> > processes.  If that is implemented as a memory.oom_score_adj with the same 
-> > semantics as /proc/pid/oom_score_adj, i.e. a proportion of available 
-> > memory (the limit), it can also address the issues pointed out with the 
-> > hierarchical approach in v8.
-> 
-> No it cannot and it would be a terrible interface to have as well. You
-> do not want to permanently tune oom_score_adj to compensate for
-> structural restrictions on the hierarchy.
-> 
+KAISER makes it harder to defeat KASLR, but makes syscalls and
+interrupts slower.  These patches are based on work from a team at
+Graz University of Technology posted here[1].  The major addition is
+support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
+work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
+for a wide variety of use cases.
 
-memory.oom_score_adj would never need to be permanently tuned, just as 
-/proc/pid/oom_score_adj need never be permanently tuned.  My response was 
-an answer to Roman's concern that "v8 has it's own limitations," but I 
-haven't seen a concrete example where the oom killer is forced to kill 
-from the non-preferred cgroup while the user has power of biasing against 
-certain cgroups with memory.oom_score_adj.  Do you have such a concrete 
-example that we can work with?
+Full Description:
 
-> I believe, and Roman has pointed that out as well already, that further
-> improvements can be implemented without changing user visible behavior
-> as and add-on. If you disagree then you better come with a solid proof
-> that all of us wrong and reasonable semantic cannot be achieved that
-> way.
+KAISER is a countermeasure against attacks on kernel address
+information.  There are at least three existing, published,
+approaches using the shared user/kernel mapping and hardware features
+to defeat KASLR.  One approach referenced in the paper locates the
+kernel by observing differences in page fault timing between
+present-but-inaccessable kernel pages and non-present pages.
 
-We simply cannot determine if improvements can be implemented in the 
-future without user-visible changes if those improvements are unknown or 
-undecided at this time.  It may require hierarchical accounting when 
-making a choice between siblings, as suggested with oom_score_adj.  The 
-only thing that we need to agree on is that userspace needs to have some 
-kind of influence over victim selection: the oom killer killing an 
-important user process is an extremely sensitive thing.  If the patchset 
-lacks the ability to have that influence, and such an ability would impact 
-the heuristic overall, it's better to introduce that together as a 
-complete patchset rather than merging an incomplete feature when it's 
-known the user needs some control, asking the user to workaround it by 
-setting all processes to oom disabled in a preferred mem cgroup, and then 
-changing the heuristic again.
+KAISER addresses this by unmapping (most of) the kernel when
+userspace runs.  It leaves the existing page tables largely alone and
+refers to them as "kernel page tables".  For running userspace, a new
+"shadow" copy of the page tables is allocated for each process.  The
+shadow page tables map all the same user memory as the "kernel" copy,
+but only maps a minimal set of kernel memory.
+
+When we enter the kernel via syscalls, interrupts or exceptions,
+page tables are switched to the full "kernel" copy.  When the system
+switches back to user mode, the "shadow" copy is used.  Process
+Context IDentifiers (PCIDs) are used to to ensure that the TLB is not
+flushed when switching between page tables, which makes syscalls
+roughly 2x faster than without it.  PCIDs are usable on Haswell and
+newer CPUs (the ones with "v4", or called fourth-generation Core).
+
+The minimal kernel page tables try to map only what is needed to
+enter/exit the kernel such as the entry/exit functions, interrupt
+descriptors (IDT) and the kernel stacks.  This minimal set of data
+can still reveal the kernel's ASLR base address.  But, this minimal
+kernel data is all trusted, which makes it harder to exploit than
+data in the kernel direct map which contains loads of user-controlled
+data.
+
+KAISER will affect performance for anything that does system calls or
+interrupts: everything.  Just the new instructions (CR3 manipulation)
+add a few hundred cycles to a syscall or interrupt.  Most workloads
+that we have run show single-digit regressions.  5% is a good round
+number for what is typical.  The worst we have seen is a roughly 30%
+regression on a loopback networking test that did a ton of syscalls
+and context switches.  More details about possible performance
+impacts are in the new Documentation/ file.
+
+This code is based on a version I downloaded from
+(https://github.com/IAIK/KAISER).  It has been heavily modified.
+
+The approach is described in detail in a paper[2].  However, there is
+some incorrect and information in the paper, both on how Linux and
+the hardware works.  For instance, I do not share the opinion that
+KAISER has "runtime overhead of only 0.28%".  Please rely on this
+patch series as the canonical source of information about this
+submission.
+
+Here is one example of how the kernel image grow with CONFIG_KAISER
+on and off.  Most of the size increase is presumably from additional
+alignment requirements for mapping entry/exit code and structures.
+
+    text    data     bss      dec filename
+11786064 7356724 2928640 22071428 vmlinux-nokaiser
+11798203 7371704 2928640 22098547 vmlinux-kaiser
+  +12139  +14980       0   +27119
+
+To give folks an idea what the performance impact is like, I took
+the following test and ran it single-threaded:
+
+	https://github.com/antonblanchard/will-it-scale/blob/master/tests/lseek1.c
+
+It's a pretty quick syscall so this shows how much KAISER slows
+down syscalls (and how much PCIDs help).  The units here are
+lseeks/second:
+
+        no kaiser: 5.2M
+    kaiser+  pcid: 3.0M
+    kaiser+nopcid: 2.2M
+
+"nopcid" is literally with the "nopcid" command-line option which
+turns PCIDs off entirely.
+
+Thanks to:
+The original KAISER team at Graz University of Technology.
+Andy Lutomirski for all the help with the entry code.
+Kirill Shutemov for a helpful review of the code.
+
+1. https://github.com/IAIK/KAISER
+2. https://gruss.cc/files/kaiser.pdf
+
+--
+
+The code is available here:
+
+	https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/
+
+ Documentation/x86/kaiser.txt                | 128 ++++++
+ arch/x86/Kconfig                            |   4 +
+ arch/x86/entry/calling.h                    |  77 ++++
+ arch/x86/entry/entry_64.S                   |  34 +-
+ arch/x86/entry/entry_64_compat.S            |  13 +
+ arch/x86/events/intel/ds.c                  |  57 ++-
+ arch/x86/include/asm/cpufeatures.h          |   1 +
+ arch/x86/include/asm/desc.h                 |   2 +-
+ arch/x86/include/asm/hw_irq.h               |   2 +-
+ arch/x86/include/asm/kaiser.h               |  59 +++
+ arch/x86/include/asm/mmu_context.h          |  29 +-
+ arch/x86/include/asm/pgalloc.h              |  32 +-
+ arch/x86/include/asm/pgtable.h              |  20 +-
+ arch/x86/include/asm/pgtable_64.h           | 121 ++++++
+ arch/x86/include/asm/pgtable_types.h        |  16 +
+ arch/x86/include/asm/processor.h            |   2 +-
+ arch/x86/include/asm/tlbflush.h             | 230 +++++++++--
+ arch/x86/include/uapi/asm/processor-flags.h |   3 +-
+ arch/x86/kernel/cpu/common.c                |  21 +-
+ arch/x86/kernel/espfix_64.c                 |  22 +-
+ arch/x86/kernel/head_64.S                   |  30 +-
+ arch/x86/kernel/irqinit.c                   |   2 +-
+ arch/x86/kernel/ldt.c                       |  25 +-
+ arch/x86/kernel/process.c                   |   2 +-
+ arch/x86/kernel/process_64.c                |   2 +-
+ arch/x86/kvm/x86.c                          |   3 +-
+ arch/x86/mm/Makefile                        |   1 +
+ arch/x86/mm/init.c                          |  75 ++--
+ arch/x86/mm/kaiser.c                        | 416 ++++++++++++++++++++
+ arch/x86/mm/pageattr.c                      |  63 ++-
+ arch/x86/mm/pgtable.c                       |  16 +-
+ arch/x86/mm/tlb.c                           | 105 ++++-
+ include/asm-generic/vmlinux.lds.h           |  17 +
+ include/linux/kaiser.h                      |  34 ++
+ include/linux/percpu-defs.h                 |  32 +-
+ init/main.c                                 |   2 +
+ kernel/fork.c                               |   6 +
+ security/Kconfig                            |  10 +
+ 38 files changed, 1565 insertions(+), 149 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
