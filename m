@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0CDD56B026D
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:38:32 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a192so16543734pge.1
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:38:32 -0700 (PDT)
-Received: from BJEXMBX012.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
-        by mx.google.com with ESMTPS id 204si1302891pga.183.2017.10.31.03.38.30
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id ED87D6B026B
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:39:33 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id s144so18656637oih.5
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 03:39:33 -0700 (PDT)
+Received: from BJEXCAS003.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
+        by mx.google.com with ESMTPS id p67si743678oih.296.2017.10.31.03.39.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 03:38:30 -0700 (PDT)
-Date: Tue, 31 Oct 2017 18:38:24 +0800
+        Tue, 31 Oct 2017 03:39:33 -0700 (PDT)
+Date: Tue, 31 Oct 2017 18:38:59 +0800
 From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: [PATCH v2 2/3] bdi: add error handle for bdi_debug_register
-Message-ID: <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
+Subject: [PATCH v2 3/3] block: add WARN_ON if bdi register fail
+Message-ID: <389034ebd68d3c1f3e49fac68b783195c287ce56.1509415695.git.zhangweiping@didichuxing.com>
 References: <cover.1509415695.git.zhangweiping@didichuxing.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
@@ -23,34 +23,28 @@ List-ID: <linux-mm.kvack.org>
 To: axboe@kernel.dk, jack@suse.cz
 Cc: linux-block@vger.kernel.org, linux-mm@kvack.org
 
-In order to make error handle more cleaner we call bdi_debug_register
-before set state to WB_registered, that we can avoid call bdi_unregister
-in release_bdi().
+device_add_disk need do more safety error handle, so this patch just
+add WARN_ON.
 
+Reviewed-by: Jan Kara <jack@suse.cz>
 Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 ---
- mm/backing-dev.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
+ block/genhd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index b5f940ce0143..84b2dc76f140 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -882,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
- 	if (IS_ERR(dev))
- 		return PTR_ERR(dev);
+diff --git a/block/genhd.c b/block/genhd.c
+index dd305c65ffb0..52834433878c 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -660,7 +660,7 @@ void device_add_disk(struct device *parent, struct gendisk *disk)
  
-+	if (bdi_debug_register(bdi, dev_name(dev))) {
-+		device_destroy(bdi_class, dev->devt);
-+		return -ENOMEM;
-+	}
- 	cgwb_bdi_register(bdi);
- 	bdi->dev = dev;
+ 	/* Register BDI before referencing it from bdev */
+ 	bdi = disk->queue->backing_dev_info;
+-	bdi_register_owner(bdi, disk_to_dev(disk));
++	WARN_ON(bdi_register_owner(bdi, disk_to_dev(disk)));
  
--	bdi_debug_register(bdi, dev_name(dev));
- 	set_bit(WB_registered, &bdi->wb.state);
- 
- 	spin_lock_bh(&bdi_lock);
+ 	blk_register_region(disk_devt(disk), disk->minors, NULL,
+ 			    exact_match, exact_lock, disk);
 -- 
 2.14.2
 
