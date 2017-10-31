@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E1A266B0033
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:30:54 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id w197so19731698oif.23
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:30:54 -0700 (PDT)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EBC0A6B0253
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 14:40:58 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id c77so20009051oig.4
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 11:40:58 -0700 (PDT)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q5si1152072oth.113.2017.10.31.11.30.53
+        by mx.google.com with ESMTPS id 6si1232504oic.146.2017.10.31.11.40.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 11:30:54 -0700 (PDT)
+        Tue, 31 Oct 2017 11:40:58 -0700 (PDT)
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 Subject: [PATCH 0/6] memfd: add sealing to hugetlb-backed memory
-Date: Tue, 31 Oct 2017 19:30:42 +0100
-Message-Id: <20171031183048.1563-1-marcandre.lureau@redhat.com>
+Date: Tue, 31 Oct 2017 19:40:46 +0100
+Message-Id: <20171031184052.25253-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
