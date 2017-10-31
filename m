@@ -1,329 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F3AC86B0274
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:29:12 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id m18so554660pgd.13
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:29:12 -0700 (PDT)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 54DC06B0278
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 19:29:17 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id e64so506036pfk.0
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 16:29:17 -0700 (PDT)
 Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y73si2853232pfj.569.2017.10.31.16.29.11
+        by mx.google.com with ESMTPS id y73si2853232pfj.569.2017.10.31.16.29.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 16:29:11 -0700 (PDT)
-Subject: [PATCH 13/15] mm, devmap: introduce CONFIG_DEVMAP_MANAGED_PAGES
+        Tue, 31 Oct 2017 16:29:16 -0700 (PDT)
+Subject: [PATCH 14/15] dax: associate mappings with inodes,
+ and warn if dma collides with truncate
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 31 Oct 2017 16:22:46 -0700
-Message-ID: <150949216597.24061.3943310722702629588.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 31 Oct 2017 16:22:51 -0700
+Message-ID: <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-nvdimm@lists.01.org
-Cc: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
+Cc: Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
 
-Combine the now three use cases of page-idle callbacks for ZONE_DEVICE
-memory into a common selectable symbol.
+Catch cases where truncate encounters pages that are still under active
+dma. This warning is a canary for potential data corruption as truncated
+blocks could be allocated to a new file while the device is still
+perform i/o.
 
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Jeff Moyer <jmoyer@redhat.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- drivers/dax/super.c      |    2 ++
- fs/Kconfig               |    1 +
- include/linux/memremap.h |   18 +++++++++++++++---
- include/linux/mm.h       |   46 ++++++++++++++++++++++++----------------------
- kernel/memremap.c        |   25 +++++++++++++++++++++----
- mm/Kconfig               |    5 +++++
- mm/hmm.c                 |   13 ++-----------
- mm/swap.c                |    3 ++-
- 8 files changed, 72 insertions(+), 41 deletions(-)
+ fs/dax.c                 |   56 ++++++++++++++++++++++++++++++++++++++++++++++
+ include/linux/mm_types.h |   20 ++++++++++++----
+ kernel/memremap.c        |   10 ++++----
+ 3 files changed, 76 insertions(+), 10 deletions(-)
 
-diff --git a/drivers/dax/super.c b/drivers/dax/super.c
-index 193e0cd8d90c..4ac359e14777 100644
---- a/drivers/dax/super.c
-+++ b/drivers/dax/super.c
-@@ -190,6 +190,7 @@ struct dax_device *fs_dax_claim_bdev(struct block_device *bdev, void *owner)
- 		return NULL;
- 	}
- 
-+	devmap_managed_pages_enable();
- 	pgmap->type = MEMORY_DEVICE_FS_DAX;
- 	pgmap->page_free = generic_dax_pagefree;
- 	pgmap->data = owner;
-@@ -214,6 +215,7 @@ void fs_dax_release(struct dax_device *dax_dev, void *owner)
- 	pgmap->type = MEMORY_DEVICE_HOST;
- 	pgmap->page_free = NULL;
- 	pgmap->data = NULL;
-+	devmap_managed_pages_disable();
- 	mutex_unlock(&devmap_lock);
+diff --git a/fs/dax.c b/fs/dax.c
+index ac6497dcfebd..fd5d385988d1 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -297,6 +297,55 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
+ 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
  }
- EXPORT_SYMBOL_GPL(fs_dax_release);
-diff --git a/fs/Kconfig b/fs/Kconfig
-index b40128bf6d1a..cd4ee17ecdd8 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -38,6 +38,7 @@ config FS_DAX
- 	bool "Direct Access (DAX) support"
- 	depends on MMU
- 	depends on !(ARM || MIPS || SPARC)
-+	select DEVMAP_MANAGED_PAGES
- 	select FS_IOMAP
- 	select DAX
- 	help
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 39d2de3f744b..a6716f5335e7 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -1,6 +1,5 @@
- #ifndef _LINUX_MEMREMAP_H_
- #define _LINUX_MEMREMAP_H_
--#include <linux/mm.h>
- #include <linux/ioport.h>
- #include <linux/percpu-refcount.h>
  
-@@ -138,6 +137,9 @@ struct dev_pagemap {
- 	enum memory_type type;
- };
- 
-+void devmap_managed_pages_enable(void);
-+void devmap_managed_pages_disable(void);
-+
- #ifdef CONFIG_ZONE_DEVICE
- void *devm_memremap_pages(struct device *dev, struct resource *res,
- 		struct percpu_ref *ref, struct vmem_altmap *altmap);
-@@ -164,7 +166,7 @@ static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
- }
- #endif
- 
--#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
-+#ifdef CONFIG_DEVMAP_MANAGED_PAGES
- static inline bool is_device_private_page(const struct page *page)
- {
- 	return is_zone_device_page(page) &&
-@@ -176,7 +178,17 @@ static inline bool is_device_public_page(const struct page *page)
- 	return is_zone_device_page(page) &&
- 		page->pgmap->type == MEMORY_DEVICE_PUBLIC;
- }
--#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-+#else /* CONFIG_DEVMAP_MANAGED_PAGES */
-+static inline bool is_device_private_page(const struct page *page)
++static unsigned long dax_entry_size(void *entry)
 +{
-+	return false;
++	if (dax_is_zero_entry(entry))
++		return 0;
++	else if (dax_is_empty_entry(entry))
++		return 0;
++	else if (dax_is_pmd_entry(entry))
++		return HPAGE_SIZE;
++	else
++		return PAGE_SIZE;
 +}
 +
-+static inline bool is_device_public_page(const struct page *page)
++#define for_each_entry_pfn(entry, pfn, end_pfn) \
++	for (pfn = dax_radix_pfn(entry), \
++			end_pfn = pfn + dax_entry_size(entry) / PAGE_SIZE; \
++			pfn < end_pfn; \
++			pfn++)
++
++static void dax_associate_entry(void *entry, struct inode *inode)
 +{
-+	return false;
-+}
-+#endif /* CONFIG_DEVMAP_MANAGED_PAGES */
- 
- /**
-  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 8c1e3ac77285..2d6cf2583e10 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -800,27 +800,32 @@ static inline bool is_zone_device_page(const struct page *page)
- }
- #endif
- 
--#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
--void put_zone_device_private_or_public_page(struct page *page);
--DECLARE_STATIC_KEY_FALSE(device_private_key);
--#define IS_HMM_ENABLED static_branch_unlikely(&device_private_key)
--static inline bool is_device_private_page(const struct page *page);
--static inline bool is_device_public_page(const struct page *page);
--#else /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
--static inline void put_zone_device_private_or_public_page(struct page *page)
--{
--}
--#define IS_HMM_ENABLED 0
--static inline bool is_device_private_page(const struct page *page)
-+#ifdef CONFIG_DEVMAP_MANAGED_PAGES
-+void __put_devmap_managed_page(struct page *page);
-+DECLARE_STATIC_KEY_FALSE(devmap_managed_key);
-+static inline bool put_devmap_managed_page(struct page *page)
- {
-+	if (!static_branch_unlikely(&devmap_managed_key))
-+		return false;
-+	if (!is_zone_device_page(page))
-+		return false;
-+	switch (page->pgmap->type) {
-+	case MEMORY_DEVICE_PRIVATE:
-+	case MEMORY_DEVICE_PUBLIC:
-+	case MEMORY_DEVICE_FS_DAX:
-+		__put_devmap_managed_page(page);
-+		return true;
-+	default:
-+		break;
++	unsigned long pfn, end_pfn;
++
++	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
++		return;
++
++	for_each_entry_pfn(entry, pfn, end_pfn) {
++		struct page *page = pfn_to_page(pfn);
++
++		WARN_ON_ONCE(page->inode);
++		page->inode = inode;
 +	}
- 	return false;
- }
--static inline bool is_device_public_page(const struct page *page)
-+#else /* CONFIG_DEVMAP_MANAGED_PAGES */
-+static inline bool put_devmap_managed_page(struct page *page)
- {
- 	return false;
- }
--#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
--
-+#endif /* CONFIG_DEVMAP_MANAGED_PAGES */
- 
- static inline void get_page(struct page *page)
- {
-@@ -838,16 +843,13 @@ static inline void put_page(struct page *page)
- 	page = compound_head(page);
- 
- 	/*
--	 * For private device pages we need to catch refcount transition from
--	 * 2 to 1, when refcount reach one it means the private device page is
--	 * free and we need to inform the device driver through callback. See
-+	 * For devmap managed pages we need to catch refcount transition from
-+	 * 2 to 1, when refcount reach one it means the page is free and we
-+	 * need to inform the device driver through callback. See
- 	 * include/linux/memremap.h and HMM for details.
- 	 */
--	if (IS_HMM_ENABLED && unlikely(is_device_private_page(page) ||
--	    unlikely(is_device_public_page(page)))) {
--		put_zone_device_private_or_public_page(page);
-+	if (put_devmap_managed_page(page))
- 		return;
--	}
- 
- 	if (put_page_testzero(page))
- 		__put_page(page);
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index bf61cfa89c7d..8a4ebfe9db4e 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -503,9 +503,26 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
- }
- #endif /* CONFIG_ZONE_DEVICE */
- 
-+#ifdef CONFIG_DEVMAP_MANAGED_PAGES
-+DEFINE_STATIC_KEY_FALSE(devmap_managed_key);
-+EXPORT_SYMBOL(devmap_managed_key);
-+static atomic_t devmap_enable;
- 
--#if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
--void put_zone_device_private_or_public_page(struct page *page)
-+void devmap_managed_pages_enable(void)
-+{
-+	if (atomic_inc_return(&devmap_enable) == 1)
-+		static_branch_enable(&devmap_managed_key);
 +}
-+EXPORT_SYMBOL(devmap_managed_pages_enable);
 +
-+void devmap_managed_pages_disable(void)
++static void dax_disassociate_entry(void *entry, struct inode *inode, bool trunc)
 +{
-+	if (atomic_dec_and_test(&devmap_enable))
-+		static_branch_disable(&devmap_managed_key);
++	unsigned long pfn, end_pfn;
++
++	if (IS_ENABLED(CONFIG_FS_DAX_LIMITED))
++		return;
++
++	for_each_entry_pfn(entry, pfn, end_pfn) {
++		struct page *page = pfn_to_page(pfn);
++
++		WARN_ON_ONCE(trunc && page_ref_count(page) > 1);
++		WARN_ON_ONCE(page->inode && page->inode != inode);
++		page->inode = NULL;
++	}
 +}
-+EXPORT_SYMBOL(devmap_managed_pages_disable);
 +
-+void __put_devmap_managed_page(struct page *page)
- {
- 	int count = page_ref_dec_return(page);
- 
-@@ -525,5 +542,5 @@ void put_zone_device_private_or_public_page(struct page *page)
- 	} else if (!count)
- 		__put_page(page);
- }
--EXPORT_SYMBOL(put_zone_device_private_or_public_page);
--#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
-+EXPORT_SYMBOL(__put_devmap_managed_page);
-+#endif /* CONFIG_DEVMAP_MANAGED_PAGES */
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..8ee95197dc9f 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -705,6 +705,9 @@ config ARCH_HAS_HMM
- config MIGRATE_VMA_HELPER
- 	bool
- 
-+config DEVMAP_MANAGED_PAGES
-+	bool
-+
- config HMM
- 	bool
- 	select MIGRATE_VMA_HELPER
-@@ -725,6 +728,7 @@ config DEVICE_PRIVATE
- 	bool "Unaddressable device memory (GPU memory, ...)"
- 	depends on ARCH_HAS_HMM
- 	select HMM
-+	select DEVMAP_MANAGED_PAGES
- 
- 	help
- 	  Allows creation of struct pages to represent unaddressable device
-@@ -735,6 +739,7 @@ config DEVICE_PUBLIC
- 	bool "Addressable device memory (like GPU memory)"
- 	depends on ARCH_HAS_HMM
- 	select HMM
-+	select DEVMAP_MANAGED_PAGES
- 
- 	help
- 	  Allows creation of struct pages to represent addressable device
-diff --git a/mm/hmm.c b/mm/hmm.c
-index a88a847bccba..53c8f1dd821d 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -35,15 +35,6 @@
- 
- #define PA_SECTION_SIZE (1UL << PA_SECTION_SHIFT)
- 
--#if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
--/*
-- * Device private memory see HMM (Documentation/vm/hmm.txt) or hmm.h
-- */
--DEFINE_STATIC_KEY_FALSE(device_private_key);
--EXPORT_SYMBOL(device_private_key);
--#endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
--
--
- #if IS_ENABLED(CONFIG_HMM_MIRROR)
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
- 
-@@ -998,7 +989,7 @@ struct hmm_devmem *hmm_devmem_add(const struct hmm_devmem_ops *ops,
- 	resource_size_t addr;
- 	int ret;
- 
--	static_branch_enable(&device_private_key);
-+	devmap_managed_pages_enable();
- 
- 	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
- 				   GFP_KERNEL, dev_to_node(device));
-@@ -1092,7 +1083,7 @@ struct hmm_devmem *hmm_devmem_add_resource(const struct hmm_devmem_ops *ops,
- 	if (res->desc != IORES_DESC_DEVICE_PUBLIC_MEMORY)
- 		return ERR_PTR(-EINVAL);
- 
--	static_branch_enable(&device_private_key);
-+	devmap_managed_pages_enable();
- 
- 	devmem = devres_alloc_node(&hmm_devmem_release, sizeof(*devmem),
- 				   GFP_KERNEL, dev_to_node(device));
-diff --git a/mm/swap.c b/mm/swap.c
-index a77d68f2c1b6..09c71044b565 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -29,6 +29,7 @@
- #include <linux/cpu.h>
- #include <linux/notifier.h>
- #include <linux/backing-dev.h>
-+#include <linux/memremap.h>
- #include <linux/memcontrol.h>
- #include <linux/gfp.h>
- #include <linux/uio.h>
-@@ -772,7 +773,7 @@ void release_pages(struct page **pages, int nr, bool cold)
- 						       flags);
- 				locked_pgdat = NULL;
- 			}
--			put_zone_device_private_or_public_page(page);
-+			put_devmap_managed_page(page);
- 			continue;
+ /*
+  * Find radix tree entry at given index. If it points to an exceptional entry,
+  * return it with the radix tree entry locked. If the radix tree doesn't
+@@ -403,6 +452,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
  		}
  
+ 		if (pmd_downgrade) {
++			dax_disassociate_entry(entry, mapping->host, false);
+ 			radix_tree_delete(&mapping->page_tree, index);
+ 			mapping->nrexceptional--;
+ 			dax_wake_mapping_entry_waiter(mapping, index, entry,
+@@ -452,6 +502,7 @@ static int __dax_invalidate_mapping_entry(struct address_space *mapping,
+ 	    (radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_DIRTY) ||
+ 	     radix_tree_tag_get(page_tree, index, PAGECACHE_TAG_TOWRITE)))
+ 		goto out;
++	dax_disassociate_entry(entry, mapping->host, trunc);
+ 	radix_tree_delete(page_tree, index);
+ 	mapping->nrexceptional--;
+ 	ret = 1;
+@@ -529,6 +580,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+ {
+ 	struct radix_tree_root *page_tree = &mapping->page_tree;
+ 	unsigned long pfn = pfn_t_to_pfn(pfn_t);
++	struct inode *inode = mapping->host;
+ 	pgoff_t index = vmf->pgoff;
+ 	void *new_entry;
+ 
+@@ -548,6 +600,10 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
+ 
+ 	spin_lock_irq(&mapping->tree_lock);
+ 	new_entry = dax_radix_locked_entry(pfn, flags);
++	if (dax_entry_size(entry) != dax_entry_size(new_entry)) {
++		dax_disassociate_entry(entry, inode, false);
++		dax_associate_entry(new_entry, inode);
++	}
+ 
+ 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
+ 		/*
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 46f4ecf5479a..dd976851e8d8 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -118,11 +118,21 @@ struct page {
+ 					 * Can be used as a generic list
+ 					 * by the page owner.
+ 					 */
+-		struct dev_pagemap *pgmap; /* ZONE_DEVICE pages are never on an
+-					    * lru or handled by a slab
+-					    * allocator, this points to the
+-					    * hosting device page map.
+-					    */
++		struct {
++			/*
++			 * ZONE_DEVICE pages are never on an lru or handled by
++			 * a slab allocator, this points to the hosting device
++			 * page map.
++			 */
++			struct dev_pagemap *pgmap;
++			/*
++			 * inode association for MEMORY_DEVICE_FS_DAX page-idle
++			 * callbacks. Note that we don't use ->mapping since
++			 * that has hard coded page-cache assumptions in
++			 * several paths.
++			 */
++			struct inode *inode;
++		};
+ 		struct {		/* slub per cpu partial pages */
+ 			struct page *next;	/* Next partial slab */
+ #ifdef CONFIG_64BIT
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 8a4ebfe9db4e..f9a2929fc310 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -441,13 +441,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct page *page = pfn_to_page(pfn);
+ 
+ 		/*
+-		 * ZONE_DEVICE pages union ->lru with a ->pgmap back
+-		 * pointer.  It is a bug if a ZONE_DEVICE page is ever
+-		 * freed or placed on a driver-private list.  Seed the
+-		 * storage with LIST_POISON* values.
++		 * ZONE_DEVICE pages union ->lru with a ->pgmap back pointer
++		 * and ->inode (for the MEMORY_DEVICE_FS_DAX case) association.
++		 * It is a bug if a ZONE_DEVICE page is ever freed or placed on
++		 * a driver-private list.
+ 		 */
+-		list_del(&page->lru);
+ 		page->pgmap = pgmap;
++		page->inode = NULL;
+ 		percpu_ref_get(ref);
+ 		if (!(++i % 1024))
+ 			cond_resched();
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
