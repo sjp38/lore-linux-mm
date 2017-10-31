@@ -1,111 +1,187 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0B8EB6B0038
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 07:51:46 -0400 (EDT)
-Received: by mail-yw0-f199.google.com with SMTP id g16so25210083ywb.9
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 04:51:46 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v207sor443410ywc.212.2017.10.31.04.51.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 208586B0033
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 08:00:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id l18so9521756wrc.23
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:00:29 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l88si1371208wmi.272.2017.10.31.05.00.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Oct 2017 04:51:41 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Oct 2017 05:00:27 -0700 (PDT)
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+Date: Tue, 31 Oct 2017 13:00:25 +0100
 MIME-Version: 1.0
-In-Reply-To: <20171031105030.GE8989@quack2.suse.cz>
-References: <1508448056-21779-1-git-send-email-yang.s@alibaba-inc.com>
- <CAOQ4uxhPhXrMLu18TGKDA=ezUVHara95qJQ+BTCio8BHm-u6NA@mail.gmail.com>
- <b530521e-5215-f735-444a-13f722d90e40@alibaba-inc.com> <CAOQ4uxhFOoSknnG-0Jyv+=iCDjVNnAg6SiO-msxw4tORkVKJGQ@mail.gmail.com>
- <20171031105030.GE8989@quack2.suse.cz>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Tue, 31 Oct 2017 13:51:40 +0200
-Message-ID: <CAOQ4uxgqR1GvuTiMreDQrx2m=V4pzcn3o2T7_YQAj46AZ7fHQQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] fs: fsnotify: account fsnotify metadata to kmemcg
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Yang Shi <yang.s@alibaba-inc.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>, linux-api@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
+Cc: JBeulich@suse.com, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org
 
-On Tue, Oct 31, 2017 at 12:50 PM, Jan Kara <jack@suse.cz> wrote:
-> On Sun 22-10-17 11:24:17, Amir Goldstein wrote:
->> But I think there is another problem, not introduced by your change, but could
->> be amplified because of it - when a non-permission event allocation fails, the
->> event is silently dropped, AFAICT, with no indication to listener.
->> That seems like a bug to me, because there is a perfectly safe way to deal with
->> event allocation failure - queue the overflow event.
+On 10/30/2017 08:15 PM, Dmitry Vyukov wrote:
+> On Mon, Oct 30, 2017 at 10:12 PM, syzbot
+> <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>
+> wrote:
+>> Hello,
 >>
->> I am not going to be the one to determine if fixing this alleged bug is a
->> prerequisite for merging your patch, but I think enforcing memory limits on
->> event allocation could amplify that bug, so it should be fixed.
+>> syzkaller hit the following crash on
+>> 887c8ba753fbe809ba93fa3cfd0cc46db18d37d4
+>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
+>> compiler: gcc (GCC) 7.1.1 20170620
+>> .config is attached
+>> Raw console output is attached.
 >>
->> The upside is that with both your accounting fix and ENOMEM = overlflow
->> fix, it going to be easy to write a test that verifies both of them:
->> - Run a listener in memcg with limited kmem and unlimited (or very
->> large) event queue
->> - Produce events inside memcg without listener reading them
->> - Read event and expect an OVERFLOW event
+>> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+>> for information about syzkaller reproducers
 >>
->> This is a simple variant of LTP tests inotify05 and fanotify05.
 >>
->> I realize that is user application behavior change and that documentation
->> implies that an OVERFLOW event is not expected when using
->> FAN_UNLIMITED_QUEUE, but IMO no one will come shouting
->> if we stop silently dropping events, so it is better to fix this and update
->> documentation.
->>
->> Attached a compile-tested patch to implement overflow on ENOMEM
->> Hope this helps to test your patch and then we can merge both, accompanied
->> with LTP tests for inotify and fanotify.
->>
->> Amir.
->
->> From 112ecd54045f14aff2c42622fabb4ffab9f0d8ff Mon Sep 17 00:00:00 2001
->> From: Amir Goldstein <amir73il@gmail.com>
->> Date: Sun, 22 Oct 2017 11:13:10 +0300
->> Subject: [PATCH] fsnotify: queue an overflow event on failure to allocate
->>  event
->>
->> In low memory situations, non permissions events are silently dropped.
->> It is better to queue an OVERFLOW event in that case to let the listener
->> know about the lost event.
->>
->> With this change, an application can now get an FAN_Q_OVERFLOW event,
->> even if it used flag FAN_UNLIMITED_QUEUE on fanotify_init().
->>
->> Signed-off-by: Amir Goldstein <amir73il@gmail.com>
->
-> So I agree something like this is desirable but I'm uneasy about using
-> {IN|FAN}_Q_OVERFLOW for this. Firstly, it is userspace visible change for
-> FAN_UNLIMITED_QUEUE queues which could confuse applications as you properly
-> note. Secondly, the event is similar to queue overflow but not quite the
-> same (it is not that the application would be too slow in processing
-> events, it is just that the system is in a problematic state overall). What
-> are your thoughts on adding a new event flags like FAN_Q_LOSTEVENT or
-> something like that? Probably the biggest downside there I see is that apps
-> would have to learn to use it...
->
+>> BUG: KASAN: use-after-free in arch_local_irq_enable
+>> arch/x86/include/asm/paravirt.h:787 [inline]
+>> BUG: KASAN: use-after-free in __do_page_fault+0xc03/0xd60
+>> arch/x86/mm/fault.c:1357
+>> Read of size 8 at addr ffff8801cbfd3090 by task syz-executor7/3660
 
-Well, I can't say I like FAN_Q_LOSTEVENT, but I can't really think of
-a better option. I guess apps that would want to provide better protection
-against loosing event will have to opt-in with a new fanotify_init() flag.
-OTOH, if apps opts-in for this feature, we can also report Q_OVERFLOW
-and document that it *is* expected in OOM situation.
+Why would local_irq_enable() touch a vma object? Is the stack unwinder
+confused or what?
+arch/x86/mm/fault.c:1357 means the "else" path of if (user_mode(regs)),
+but the page fault's RIP is userspace? Strange.
 
-If we have FAN_Q_LOSTEVENT, we can use it to handle both the case of
-error to queue event (-ENOMEM) and the case of error on copy event to user
-(e.g. -ENODEV), which is another case where we silently drop events
-(in case buffer already contains good events).
-In latter case, the error would be reported to user on event->fd.
-In the former case, event->fd will also hold the error, as long as we can only
-report -ENOMEM from this sort of error, because like overflow event, there
-should probably be only one event of that sort in the queue.
+>> CPU: 1 PID: 3660 Comm: syz-executor7 Not tainted 4.14.0-rc3+ #23
+>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+>> Google 01/01/2011
+>> Call Trace:
+>>  __dump_stack lib/dump_stack.c:16 [inline]
+>>  dump_stack+0x194/0x257 lib/dump_stack.c:52
+>>  print_address_description+0x73/0x250 mm/kasan/report.c:252
+>>  kasan_report_error mm/kasan/report.c:351 [inline]
+>>  kasan_report+0x25b/0x340 mm/kasan/report.c:409
+>>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
+>>  arch_local_irq_enable arch/x86/include/asm/paravirt.h:787 [inline]
+>>  __do_page_fault+0xc03/0xd60 arch/x86/mm/fault.c:1357
+>>  do_page_fault+0xee/0x720 arch/x86/mm/fault.c:1520
+>>  page_fault+0x22/0x30 arch/x86/entry/entry_64.S:1066
+>> RIP: 0023:0x8073f4f
+>> RSP: 002b:00000000f7f89bd0 EFLAGS: 00010202
+>> RAX: 00000000f7f89c8c RBX: 0000000000000400 RCX: 000000000000000e
+>> RDX: 00000000f7f8aa88 RSI: 0000000020012fe0 RDI: 00000000f7f89c8c
+>> RBP: 0000000008128000 R08: 0000000000000000 R09: 0000000000000000
+>> R10: 0000000000000000 R11: 0000000000000292 R12: 0000000000000000
+>> R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+>>
+>> Allocated by task 3660:
+>>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>>  set_track mm/kasan/kasan.c:459 [inline]
+>>  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
+>>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:489
+>>  kmem_cache_alloc+0x12e/0x760 mm/slab.c:3561
+>>  kmem_cache_zalloc include/linux/slab.h:656 [inline]
+>>  mmap_region+0x7ee/0x15a0 mm/mmap.c:1658
+>>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
+>>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
+>>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
+>>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
+>>
+>> Freed by task 3667:
+>>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>>  set_track mm/kasan/kasan.c:459 [inline]
+>>  kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
+>>  __cache_free mm/slab.c:3503 [inline]
+>>  kmem_cache_free+0x77/0x280 mm/slab.c:3763
+>>  remove_vma+0x162/0x1b0 mm/mmap.c:176
+>>  remove_vma_list mm/mmap.c:2475 [inline]
+>>  do_munmap+0x82a/0xdf0 mm/mmap.c:2714
+>>  mmap_region+0x59e/0x15a0 mm/mmap.c:1631
+>>  do_mmap+0x6a1/0xd50 mm/mmap.c:1468
+>>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>>  do_syscall_32_irqs_on arch/x86/entry/common.c:329 [inline]
+>>  do_fast_syscall_32+0x3f2/0xf05 arch/x86/entry/common.c:391
+>>  entry_SYSENTER_compat+0x51/0x60 arch/x86/entry/entry_64_compat.S:124
 
-Another option for API name is {IN|FAN}_Q_ERR, which implies that event->fd
-carries the error. And of course user can get an event with mask
-FAN_Q_OVERFLOW|FAN_Q_ERR, where event->fd is -ENOMEM or
--EOVERFLOW and then there is no ambiguity between different kind of
-queue overflows.
+This would mean that mmap_sem is not doing its job and we raced with a
+vma removal. Or the rbtree is broken and contains a vma that has been
+freed. Hmm, or the vmacache is broken? You could try removing the 3
+lines starting with vmacache_find() in find_vma().
 
-Amir.
+>> The buggy address belongs to the object at ffff8801cbfd3040
+>>  which belongs to the cache vm_area_struct of size 200
+>> The buggy address is located 80 bytes inside of
+>>  200-byte region [ffff8801cbfd3040, ffff8801cbfd3108)
+
+My vm_area_struct is 192 bytes, could be your layout is different due to
+.config. At offset 80 I have vma->vm_flags. That is checked by
+__do_page_fault(), but only after vma->vm_start (offset 0). Of course,
+reordering is possible.
+
+>> The buggy address belongs to the page:
+>> page:ffffea00072ff4c0 count:1 mapcount:0 mapping:ffff8801cbfd3040 index:0x0
+>> flags: 0x200000000000100(slab)
+>> raw: 0200000000000100 ffff8801cbfd3040 0000000000000000 000000010000000f
+>> raw: ffffea000730c7a0 ffffea00072ff7a0 ffff8801dae069c0 0000000000000000
+>> page dumped because: kasan: bad access detected
+>>
+>> Memory state around the buggy address:
+>>  ffff8801cbfd2f80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+>>  ffff8801cbfd3000: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+>>>
+>>> ffff8801cbfd3080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>
+>>                          ^
+>>  ffff8801cbfd3100: fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb
+>>  ffff8801cbfd3180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>> ==================================================================
+> 
+> 
+> I guess this is more related to mm rather than x86, so +mm maintainers.
+> This continues to happen, in particular on upstream
+> 781402340475144bb360e32bb7437fa4b84cadc3 (Oct 28).
+> 
+> 
+>> ---
+>> This bug is generated by a dumb bot. It may contain errors.
+>> See https://goo.gl/tpsmEJ for details.
+>> Direct all questions to syzkaller@googlegroups.com.
+>>
+>> syzbot will keep track of this bug report.
+>> Once a fix for this bug is committed, please reply to this email with:
+>> #syz fix: exact-commit-title
+>> To mark this as a duplicate of another syzbot report, please reply with:
+>> #syz dup: exact-subject-of-another-report
+>> If it's a one-off invalid bug report, please reply with:
+>> #syz invalid
+>> Note: if the crash happens again, it will cause creation of a new bug
+>> report.
+>>
+>> --
+>> You received this message because you are subscribed to the Google Groups
+>> "syzkaller-bugs" group.
+>> To unsubscribe from this group and stop receiving emails from it, send an
+>> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+>> To view this discussion on the web visit
+>> https://groups.google.com/d/msgid/syzkaller-bugs/94eb2c0433c8f42cac055cc86991%40google.com.
+>> For more options, visit https://groups.google.com/d/optout.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
