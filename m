@@ -1,95 +1,177 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C6E7C6B025F
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 10:10:41 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id h28so14859704pfh.16
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 07:10:41 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e89si1652872plb.196.2017.10.31.07.10.40
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 21A8B6B0260
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 10:11:56 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id w105so9967386wrc.20
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 07:11:56 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p79sor358995wmf.18.2017.10.31.07.11.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 07:10:40 -0700 (PDT)
-Date: Tue, 31 Oct 2017 15:10:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Try last second allocation before and after
- selecting an OOM victim.
-Message-ID: <20171031141034.bg25xbo5cyfafnyp@dhcp22.suse.cz>
-References: <20171031121032.lm3wxx3l5tkpo2ni@dhcp22.suse.cz>
- <201710312142.DBB81723.FOOFJMQLStFVOH@I-love.SAKURA.ne.jp>
- <20171031124855.rszis5gefbxwriiz@dhcp22.suse.cz>
- <201710312213.BDB35457.MtFJOQVLOFSOHF@I-love.SAKURA.ne.jp>
- <20171031132259.irkladqbucz2qa3g@dhcp22.suse.cz>
- <201710312251.HBH43789.QVOFOtLFFSOHJM@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Tue, 31 Oct 2017 07:11:54 -0700 (PDT)
+Date: Tue, 31 Oct 2017 17:11:52 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+Message-ID: <20171031141152.tzx47fy26pvx7xug@node.shutemov.name>
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+ <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+ <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201710312251.HBH43789.QVOFOtLFFSOHJM@I-love.SAKURA.ne.jp>
+In-Reply-To: <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Tue 31-10-17 22:51:49, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 31-10-17 22:13:05, Tetsuo Handa wrote:
-> > > Michal Hocko wrote:
-> > > > On Tue 31-10-17 21:42:23, Tetsuo Handa wrote:
-> > > > > > While both have some merit, the first reason is mostly historical
-> > > > > > because we have the explicit locking now and it is really unlikely that
-> > > > > > the memory would be available right after we have given up trying.
-> > > > > > Last attempt allocation makes some sense of course but considering that
-> > > > > > the oom victim selection is quite an expensive operation which can take
-> > > > > > a considerable amount of time it makes much more sense to retry the
-> > > > > > allocation after the most expensive part rather than before. Therefore
-> > > > > > move the last attempt right before we are trying to kill an oom victim
-> > > > > > to rule potential races when somebody could have freed a lot of memory
-> > > > > > in the meantime. This will reduce the time window for potentially
-> > > > > > pre-mature OOM killing considerably.
-> > > > > 
-> > > > > But this is about "doing last second allocation attempt after selecting
-> > > > > an OOM victim". This is not about "allowing OOM victims to try ALLOC_OOM
-> > > > > before selecting next OOM victim" which is the actual problem I'm trying
-> > > > > to deal with.
-> > > > 
-> > > > then split it into two. First make the general case and then add a more
-> > > > sophisticated on top. Dealing with multiple issues at once is what makes
-> > > > all those brain cells suffer.
-> > > 
-> > > I'm failing to understand. I was dealing with single issue at once.
-> > > The single issue is "MMF_OOM_SKIP prematurely prevents OOM victims from trying
-> > > ALLOC_OOM before selecting next OOM victims". Then, what are the general case and
-> > > a more sophisticated? I wonder what other than "MMF_OOM_SKIP should allow OOM
-> > > victims to try ALLOC_OOM for once before selecting next OOM victims" can exist...
-> > 
-> > Try to think little bit out of your very specific and borderline usecase
-> > and it will become obvious. ALLOC_OOM is a trivial update on top of
-> > moving get_page_from_freelist to oom_kill_process which is a more
-> > generic race window reducer.
+On Tue, Oct 31, 2017 at 02:57:58PM +0100, Vlastimil Babka wrote:
+> +CC Andrea, Thorsten, Linus
 > 
-> So, you meant "doing last second allocation attempt after selecting an OOM victim"
-> as the general case and "using ALLOC_OOM at last second allocation attempt" as a
-> more sophisticated. Then, you won't object conditionally switching ALLOC_WMARK_HIGH
-> and ALLOC_OOM for last second allocation attempt, will you?
+> On 10/31/2017 02:20 PM, Vlastimil Babka wrote:
+> > On 10/31/2017 01:42 PM, Dmitry Vyukov wrote:
+> >>> My vm_area_struct is 192 bytes, could be your layout is different due to
+> >>> .config. At offset 80 I have vma->vm_flags. That is checked by
+> >>> __do_page_fault(), but only after vma->vm_start (offset 0). Of course,
+> >>> reordering is possible.
+> >>
+> >>
+> >> It seems that compiler over-optimizes things and messes debug info.
+> >> I just re-reproduced this on upstream
+> >> 15f859ae5c43c7f0a064ed92d33f7a5bc5de6de0 and got the same report:
+> >>
+> >> ==================================================================
+> >> BUG: KASAN: use-after-free in arch_local_irq_enable
+> >> arch/x86/include/asm/paravirt.h:787 [inline]
+> >> BUG: KASAN: use-after-free in __do_page_fault+0xc03/0xd60
+> >> arch/x86/mm/fault.c:1357
+> >> Read of size 8 at addr ffff880064d19aa0 by task syz-executor/8001
+> >>
+> >> CPU: 0 PID: 8001 Comm: syz-executor Not tainted 4.14.0-rc6+ #12
+> >> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+> >> Call Trace:
+> >>  __dump_stack lib/dump_stack.c:16 [inline]
+> >>  dump_stack+0x194/0x257 lib/dump_stack.c:52
+> >>  print_address_description+0x73/0x250 mm/kasan/report.c:252
+> >>  kasan_report_error mm/kasan/report.c:351 [inline]
+> >>  kasan_report+0x25b/0x340 mm/kasan/report.c:409
+> >>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
+> >>  arch_local_irq_enable arch/x86/include/asm/paravirt.h:787 [inline]
+> >>  __do_page_fault+0xc03/0xd60 arch/x86/mm/fault.c:1357
+> >>  do_page_fault+0xee/0x720 arch/x86/mm/fault.c:1520
+> >>  do_async_page_fault+0x82/0x110 arch/x86/kernel/kvm.c:273
+> >>  async_page_fault+0x22/0x30 arch/x86/entry/entry_64.S:1069
+> >> RIP: 0033:0x441bd0
+> >> RSP: 002b:00007f2ed8229798 EFLAGS: 00010202
+> >> RAX: 00007f2ed82297c0 RBX: 0000000000000000 RCX: 000000000000000e
+> >> RDX: 0000000000000400 RSI: 0000000020012fe0 RDI: 00007f2ed82297c0
+> >> RBP: 0000000000748020 R08: 0000000000000400 R09: 0000000000000000
+> >> R10: 0000000020012fee R11: 0000000000000246 R12: 00000000ffffffff
+> >> R13: 0000000000008430 R14: 00000000006ec4d0 R15: 00007f2ed822a700
+> >>
+> >> Allocated by task 8001:
+> >>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+> >>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+> >>  set_track mm/kasan/kasan.c:459 [inline]
+> >>  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
+> >>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:489
+> >>  kmem_cache_alloc+0x12e/0x760 mm/slab.c:3561
+> >>  kmem_cache_zalloc include/linux/slab.h:656 [inline]
+> >>  mmap_region+0x7ee/0x15a0 mm/mmap.c:1658
+> >>  do_mmap+0x69b/0xd40 mm/mmap.c:1468
+> >>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+> >>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+> >>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+> >>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+> >>  SYSC_mmap arch/x86/kernel/sys_x86_64.c:99 [inline]
+> >>  SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:90
+> >>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+> >>
+> >> Freed by task 8007:
+> >>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+> >>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+> >>  set_track mm/kasan/kasan.c:459 [inline]
+> >>  kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
+> >>  __cache_free mm/slab.c:3503 [inline]
+> >>  kmem_cache_free+0x77/0x280 mm/slab.c:3763
+> >>  remove_vma+0x162/0x1b0 mm/mmap.c:176
+> >>  remove_vma_list mm/mmap.c:2475 [inline]
+> >>  do_munmap+0x82a/0xdf0 mm/mmap.c:2714
+> >>  mmap_region+0x59e/0x15a0 mm/mmap.c:1631
+> >>  do_mmap+0x69b/0xd40 mm/mmap.c:1468
+> >>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+> >>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+> >>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+> >>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+> >>  SYSC_mmap arch/x86/kernel/sys_x86_64.c:99 [inline]
+> >>  SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:90
+> >>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+> >>
+> >> The buggy address belongs to the object at ffff880064d19a50
+> >>  which belongs to the cache vm_area_struct of size 200
+> >> The buggy address is located 80 bytes inside of
+> >>  200-byte region [ffff880064d19a50, ffff880064d19b18)
+> >> The buggy address belongs to the page:
+> >> page:ffffea0001934640 count:1 mapcount:0 mapping:ffff880064d19000 index:0x0
+> >> flags: 0x100000000000100(slab)
+> >> raw: 0100000000000100 ffff880064d19000 0000000000000000 000000010000000f
+> >> raw: ffffea00018a3a60 ffffea0001940be0 ffff88006c5f79c0 0000000000000000
+> >> page dumped because: kasan: bad access detected
+> >>
+> >> Memory state around the buggy address:
+> >>  ffff880064d19980: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>  ffff880064d19a00: fb fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb
+> >>> ffff880064d19a80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >>                                ^
+> >>  ffff880064d19b00: fb fb fb fc fc fc fc fc fc fc fc fb fb fb fb fb
+> >>  ffff880064d19b80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+> >> ==================================================================
+> >>
+> >>
+> >> Here is disasm of the function:
+> >> https://gist.githubusercontent.com/dvyukov/5a56c66ce605168c951a321d94df6e3a/raw/538d4ce72ceb5631dfcc866ccde46c74543de1cf/gistfile1.txt
+> >>
+> >> Seems to be vma->vm_flags at offset 80.
+> > 
+> > You can see it from the disasm? I can't make much of it, unfortunately,
+> > the added kasan calls obscure it a lot for me. But I suspect it might be
+> > the vma_pkey() thing which reads from vma->vm_flags. What happens when
+> > CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS is disabled? (or is it already?)
+> 
+> OK, so I opened the google groups link in the report's signature and
+> looked at the attached config there, which says protkeys are enabled.
+> Also looked at the repro.txt attachment:
+> #{Threaded:true Collide:true Repeat:true Procs:8 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true UseTmpDir:true HandleSegv:true WaitRepeat:true Debug:false Repro:false}
+> mmap(&(0x7f0000000000/0xfff000)=nil, 0xfff000, 0x3, 0x32, 0xffffffffffffffff, 0x0)
+> mmap(&(0x7f0000011000/0x3000)=nil, 0x3000, 0x1, 0x32, 0xffffffffffffffff, 0x0)
+> r0 = userfaultfd(0x0)
+> ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000002000-0x18)={0xaa, 0x0, 0x0})
+> ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000019000)={{&(0x7f0000012000/0x2000)=nil, 0x2000}, 0x1, 0x0})
+> r1 = gettid()
+> syz_open_dev$evdev(&(0x7f0000013000-0x12)="2f6465762f696e7075742f6576656e742300", 0x0, 0x0)
+> tkill(r1, 0x7)
+> 
+> The userfaultfd() caught my attention so I checked handle_userfault()
+> which seems to do up_read(&mm->mmap_sem); and in some cases later
+> followed by down_read(&mm->mmap_sem); return VM_FAULT_NOPAGE.
+> However, __do_page_fault() only expects that mmap_sem to be released
+> when handle_mm_fault() returns with VM_FAULT_RETRY. It doesn't expect it
+> to be released and then acquired again, because then vma can be indeed
+> gone. It seems vma hasn't been touched after that point until the
+> vma_pkey() was added by commit a3c4fb7c9c2e ("x86/mm: Fix fault error
+> path using unsafe vma pointer") in rc3. Which tried to fix a similar
+> problem, but run into this corner case?
+> 
+> So I suspect a3c4fb7c9c2e is the culprit and thus a regression.
 
-yes for oom_victims
-
-> But doing ALLOC_OOM for last second allocation attempt from out_of_memory() involve
-> duplicating code (e.g. rebuilding zone list).
-
-Why would you do it? Do not blindly copy and paste code without
-a good reason. What kind of problem does this actually solve?
-
-> What is your preferred approach?
-> Duplicate relevant code? Use get_page_from_freelist() without rebuilding the zone list?
-> Use __alloc_pages_nodemask() ?
-
-Just do what we do now with ALLOC_WMARK_HIGH and in a separate patch use
-ALLOC_OOM for oom victims. There shouldn't be any reasons to play
-additional tricks here.
+I wounder if we can move "pkey = vma_pkey(vma);" before handle_mm_fault()?
+pkey can't change during page fault handing, can it?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
