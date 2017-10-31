@@ -1,106 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D7FB6B0069
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:46:41 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id w105so9592208wrc.20
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 02:46:40 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 193si1110356wmq.218.2017.10.31.02.46.39
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B3FF46B025F
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 05:47:32 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id s66so7468754wmf.14
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 02:47:32 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o42sor469078wrf.15.2017.10.31.02.47.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 02:46:39 -0700 (PDT)
-Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
- <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
-Date: Tue, 31 Oct 2017 10:46:37 +0100
+        (Google Transport Security);
+        Tue, 31 Oct 2017 02:47:30 -0700 (PDT)
+Date: Tue, 31 Oct 2017 10:47:27 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 0/6] Boot-time switching between 4- and 5-level paging
+ for 4.15, Part 1
+Message-ID: <20171031094727.cvipkxzo2zhrxst3@gmail.com>
+References: <20171023115658.geccs22o2t733np3@gmail.com>
+ <20171023122159.wyztmsbgt5k2d4tb@node.shutemov.name>
+ <20171023124014.mtklgmydspnvfcvg@gmail.com>
+ <20171023124811.4i73242s5dotnn5k@node.shutemov.name>
+ <20171024094039.4lonzocjt5kras7m@gmail.com>
+ <20171024113819.pli7ifesp2u2rexi@node.shutemov.name>
+ <20171024124741.ux74rtbu2vqaf6zt@gmail.com>
+ <20171024131227.nchrzazuk4c6r75i@node.shutemov.name>
+ <20171026073752.fl4eicn4x7wudpop@gmail.com>
+ <20171026144040.hjm45civpm74gafx@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171026144040.hjm45civpm74gafx@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Christoph Lameter <cl@linux.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-+CC Andi and Christoph
 
-On 10/27/2017 12:14 PM, Yisheng Xie wrote:
-> As manpage of migrate_pages, the errno should be set to EINVAL when none
-> of the specified nodes contain memory. However, when new_nodes is null,
-> i.e. the specified nodes also do not have memory, as the following case:
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> On Thu, Oct 26, 2017 at 09:37:52AM +0200, Ingo Molnar wrote:
+> > 
+> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> > > On Tue, Oct 24, 2017 at 02:47:41PM +0200, Ingo Molnar wrote:
+> > > > > > > > > > Making a variable that 'looks' like a constant macro dynamic in a rare Kconfig 
+> > > > > > > > > > scenario is asking for trouble.
+> > > > > > > > > 
+> > > > > > > > > We expect boot-time page mode switching to be enabled in kernel of next
+> > > > > > > > > generation enterprise distros. It shoudn't be that rare.
+> > > > > > > > 
+> > > > > > > > My point remains even with not-so-rare Kconfig dependency.
+> > > > > > > 
+> > > > > > > I don't follow how introducing new variable that depends on Kconfig option
+> > > > > > > would help with the situation.
+> > > > > > 
+> > > > > > A new, properly named variable or function (max_physmem_bits or 
+> > > > > > max_physmem_bits()) that is not all uppercase would make it abundantly clear that 
+> > > > > > it is not a constant but a runtime value.
+> > > > > 
+> > > > > Would we need to rename every uppercase macros that would depend on
+> > > > > max_physmem_bits()? Like MAXMEM.
+> > > > 
+> > > > MAXMEM isn't used in too many places either - what's the total impact of it?
+> > > 
+> > > The impact is not very small. The tree of macros dependent on
+> > > MAX_PHYSMEM_BITS:
+> > > 
+> > > MAX_PHYSMEM_BITS
+> > >   MAXMEM
+> > >     KEXEC_SOURCE_MEMORY_LIMIT
+> > >     KEXEC_DESTINATION_MEMORY_LIMIT
+> > >     KEXEC_CONTROL_MEMORY_LIMIT
+> > >   SECTIONS_SHIFT
+> > >     ZONEID_SHIFT
+> > >       ZONEID_PGSHIFT
+> > >       ZONEID_MASK
+> > > 
+> > > The total number of users of them is not large. It's doable. But I expect
+> > > it to be somewhat ugly, since we're partly in generic code and it would
+> > > require some kind of compatibility layer for other archtectures.
+> > > 
+> > > Do you want me to rename them all?
+> > 
+> > Yeah, I think these former constants should be organized better.
+> > 
+> > Here's their usage frequency:
+> > 
+> >  triton:~/tip> for N in MAX_PHYSMEM_BITS MAXMEM KEXEC_SOURCE_MEMORY_LIMIT \
+> >  KEXEC_DESTINATION_MEMORY_LIMIT KEXEC_CONTROL_MEMORY_LIMIT SECTIONS_SHIFT \
+> >  ZONEID_SHIFT ZONEID_PGSHIFT ZONEID_MASK; do printf "  %-40s: " $N; git grep -w $N  | grep -vE 'define| \* ' | wc -l; done
+> > 
+> >    MAX_PHYSMEM_BITS                        : 10
+> >    MAXMEM                                  : 5
+> >    KEXEC_SOURCE_MEMORY_LIMIT               : 2
+> >    KEXEC_DESTINATION_MEMORY_LIMIT          : 2
+> >    KEXEC_CONTROL_MEMORY_LIMIT              : 2
+> >    SECTIONS_SHIFT                          : 2
+> >    ZONEID_SHIFT                            : 1
+> >    ZONEID_PGSHIFT                          : 1
+> >    ZONEID_MASK                             : 1
+> > 
+> > So it's not too bad to clean up, I think.
+> > 
+> > How about something like this:
+> > 
+> > 	machine.physmem.max_bytes		/* ex MAXMEM */
+> > 	machine.physmem.max_bits		/* bit count of the highest in-use physical address */
+> > 	machine.physmem.zones.id_shift		/* ZONEID_SHIFT */
+> > 	machine.physmem.zones.pg_shift		/* ZONEID_PGSHIFT */
+> > 	machine.physmem.zones.id_mask		/* ZONEID_MASK */
+> > 
+> > 	machine.kexec.physmem_bytes_src		/* KEXEC_SOURCE_MEMORY_LIMIT */
+> > 	machine.kexec.physmem_bytes_dst		/* KEXEC_DESTINATION_MEMORY_LIMIT */
+> > 
+> > ( With perhaps 'physmem' being an alias to '&machine->physmem', so that 
+> >   physmem->max_bytes and physmem->max_bits would be a natural thing to write. )
+> > 
+> > I'd suggest doing this in a finegrained fashion, one step at a time, introducing 
+> > 'struct machine' and 'struct physmem' and extending it gradually with new fields.
 > 
-> 	new_nodes = 0;
-> 	old_nodes = 0xf;
-> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
+> I don't think this design is reasonable.
 > 
-> The ret will be 0 and no errno is set.
+>   - It introduces memory references where we haven't had them before.
 > 
-> This patch is to add nodes_empty check to fix above case.
+>     At this point all variable would fit a cache line, which is not that
+>     bad. But I don't see what would stop the list from growing in the
+>     future.
 
-Hmm, I think we have a bigger problem than "empty set is a subset of
-anything" here.
+Is any of these actually in a hotpath?
 
-The existing checks are:
+Also, note the context: your changes turn some of these into variables. Yes, I 
+suggest structuring them all and turning them all into variables, exactly because 
+the majority are now dynamic, yet their _naming_ suggests that they are constants.
 
-        task_nodes = cpuset_mems_allowed(task);
-        /* Is the user allowed to access the target nodes? */
-        if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
-                err = -EPERM;
-                goto out_put;
-        }
-
-        if (!nodes_subset(*new, node_states[N_MEMORY])) {
-                err = -EINVAL;
-                goto out_put;
-        }
-
-And manpage says:
-
-       EINVAL The value specified by maxnode exceeds a kernel-imposed
-limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
-are greater than the maximum supported node
-              ID.  *Or, none of the node IDs specified by new_nodes are
-on-line and allowed by the process's current cpuset context, or none of
-the specified nodes contain memory.*
-
-       EPERM  Insufficient privilege (CAP_SYS_NICE) to move pages of the
-process specified by pid, or insufficient privilege (CAP_SYS_NICE) to
-access the specified target nodes.
-
-- it says "none ... are allowed", but checking for subset means we check
-if "all ... are allowed". Shouldn't we be checking for a non-empty
-intersection?
-- there doesn't seem to be any EINVAL check for "process's current
-cpuset context", there's just an EPERM check for "target process's
-cpuset context".
-
+>   - We loose ability to optimize out change with static branches
+>     (cpu_feature_enabled() instead of pgtable_l5_enabled variable).
 > 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
->  mm/mempolicy.c | 5 +++++
->  1 file changed, 5 insertions(+)
+>     It's probably, not that big of an issue here, but if we are going to
+>     use the same approach for other dynamic macros in the patchset, it
+>     might be.
+
+Here too I think the (vast) majority of the uses here are for bootup/setup/init 
+purposes, where clarity and maintainability of code matters a lot.
+
+>   - AFAICS, it requires changes to all architectures to provide such
+>     structures as we now partly in generic code.
 > 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 8798ecb..58352cc 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1402,6 +1402,11 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
->  	if (err)
->  		goto out;
->  
-> +	if (nodes_empty(*new)) {
-> +		err = -EINVAL;
-> +		goto out;
-> +	}
-> +
->  	/* Find the mm_struct */
->  	rcu_read_lock();
->  	task = pid ? find_task_by_vpid(pid) : current;
-> 
+>     Or to introduce some kind of compatibility layer, but it would make
+>     the kernel as a whole uglier than cleaner. Especially, given that
+>     nobody beyond x86 need this.
+
+Yes, all the uses should be harmonized (no compatibility layer) - but as you can 
+see it from the histogram I generated it's a few dozen uses, i.e. not too bad.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
