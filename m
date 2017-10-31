@@ -1,75 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C4D166B0033
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:06:47 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id v127so210541wma.3
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 12:06:47 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a30si2499643ede.213.2017.10.31.12.06.46
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AB246B0069
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:13:42 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id 82so25542oid.11
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 12:13:42 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p18si1390307otp.471.2017.10.31.12.13.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 31 Oct 2017 12:06:46 -0700 (PDT)
-Date: Tue, 31 Oct 2017 20:06:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RESEND v12 3/6] mm, oom: cgroup-aware OOM killer
-Message-ID: <20171031190644.fgwpmvreseurxsgd@dhcp22.suse.cz>
-References: <20171019185218.12663-1-guro@fb.com>
- <20171019185218.12663-4-guro@fb.com>
- <CALvZod7V1iNACeDJuuSDrMMGMo7YX+gZ87gq=S4rP=Eh9Wh5kQ@mail.gmail.com>
- <20171031152923.ndyxpdmx3npyqoqf@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Oct 2017 12:13:41 -0700 (PDT)
+Date: Tue, 31 Oct 2017 20:13:36 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+Message-ID: <20171031191336.GA2799@redhat.com>
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+ <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+ <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
+ <CA+55aFwWJyArZMEuo1-4+VaiP95e__cRHkVvrfiQ+NUVJ15DNQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171031152923.ndyxpdmx3npyqoqf@dhcp22.suse.cz>
+In-Reply-To: <CA+55aFwWJyArZMEuo1-4+VaiP95e__cRHkVvrfiQ+NUVJ15DNQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Roman Gushchin <guro@fb.com>, Linux MM <linux-mm@kvack.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Tue 31-10-17 16:29:23, Michal Hocko wrote:
-> On Tue 31-10-17 08:04:19, Shakeel Butt wrote:
-> > > +
-> > > +static void select_victim_memcg(struct mem_cgroup *root, struct oom_control *oc)
-> > > +{
-> > > +       struct mem_cgroup *iter;
-> > > +
-> > > +       oc->chosen_memcg = NULL;
-> > > +       oc->chosen_points = 0;
-> > > +
-> > > +       /*
-> > > +        * The oom_score is calculated for leaf memory cgroups (including
-> > > +        * the root memcg).
-> > > +        */
-> > > +       rcu_read_lock();
-> > > +       for_each_mem_cgroup_tree(iter, root) {
-> > > +               long score;
-> > > +
-> > > +               if (memcg_has_children(iter) && iter != root_mem_cgroup)
-> > > +                       continue;
-> > > +
-> > 
-> > Cgroup v2 does not support charge migration between memcgs. So, there
-> > can be intermediate nodes which may contain the major charge of the
-> > processes in their leave descendents. Skipping such intermediate nodes
-> > will kind of protect such processes from oom-killer (lower on the list
-> > to be killed). Is it ok to not handle such scenario? If yes, shouldn't
-> > we document it?
+On Tue, Oct 31, 2017 at 08:37:47AM -0700, Linus Torvalds wrote:
+> Yes. Accessing "vma" after calling "handle_mm_fault()" is a bug. An
+> unfortunate issue with userfaultfd.
 > 
-> Yes, this is a real problem and the one which is not really solvable
-> without the charge migration. You simply have no clue _who_ owns the
-> memory so I assume that admins will need to setup the hierarchy which
-> allows subgroups to migrate tasks to be oom_group.
+> The suggested fix to simply look up pkey beforehand seems sane and simple.
 
-Hmm, scratch that. I have completely missed that the memory controller
-disables tasks migration completely in v2. I thought the standard
-restriction about the write access to the target cgroup and a common
-ancestor holds for all controllers but now I've noticed that we
-simply disallow the migration altogether. This wasn't the case before
-1f7dd3e5a6e4 ("cgroup: fix handling of multi-destination migration from
-subtree_control enabling") which I wasn't aware of.
--- 
-Michal Hocko
-SUSE Labs
+Agreed.
+
+> 
+> But sadly, from a quick check, it looks like arch/um/ has the same
+> bug, but even worse. It will do
+> 
+>  (a) handle_mm_fault() in a loop without re-calculating vma. Don't ask me why.
+> 
+>  (b) flush_tlb_page(vma, address); afterwards
+
+Yes, that flush_tlb_page is unsafe. Luckily it's only using it for
+vma->vm_mm so it doesn't sound major issue to fix it.
+
+> 
+> but much more importantly, I think __get_user_pages() is broken in two ways:
+> 
+>  - faultin_page() does:
+> 
+>         ret = handle_mm_fault(vma, address, fault_flags);
+>         ...
+>         if ((ret & VM_FAULT_WRITE) && !(vma->vm_flags & VM_WRITE))
+> 
+>    (easily fixed the same way)
+> 
+>  - more annoyingly and harder to fix: the retry case in
+> __get_user_pages(), and the VMA saving there.
+> 
+> Ho humm.
+> 
+> Andrea, looking at that get_user_pages() case, I really think it's
+> userfaultfd that is broken.
+> 
+> Could we perhaps limit userfaultfd to _only_ do the VM_FAULT_RETRY,
+> and simply fail for non-retry faults?
+
+In the get_user_pages case we already limit it to do only
+VM_FAULT_RETRY so no use after free should materialize whenever gup is
+involved.
+
+The problematic path for the return to userland (get_user_pages
+returns to kernel) is this one:
+
+	if (return_to_userland) {
+		if (signal_pending(current) &&
+		    !fatal_signal_pending(current)) {
+			/*
+			 * If we got a SIGSTOP or SIGCONT and this is
+			 * a normal userland page fault, just let
+			 * userland return so the signal will be
+			 * handled and gdb debugging works.  The page
+			 * fault code immediately after we return from
+			 * this function is going to release the
+			 * mmap_sem and it's not depending on it
+			 * (unlike gup would if we were not to return
+			 * VM_FAULT_RETRY).
+			 *
+			 * If a fatal signal is pending we still take
+			 * the streamlined VM_FAULT_RETRY failure path
+			 * and there's no need to retake the mmap_sem
+			 * in such case.
+			 */
+			down_read(&mm->mmap_sem);
+			ret = VM_FAULT_NOPAGE;
+		}
+	}
+
+We could remove the above branch all together and then
+handle_userfault() would always return VM_FAULT_RETRY whenever it
+decides to release the mmap_sem. The above makes debugging with gdb
+more user friendly and it potentially lowers the latency of signals as
+signals can unblock handle_userfault. The downside is that the return
+to userland cannot dereference the vma after calling handle_mm_fault.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
