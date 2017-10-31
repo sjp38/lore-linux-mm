@@ -1,32 +1,31 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 207216B026E
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:32:09 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id n89so374616pfk.17
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:32:09 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id u196si2656100pgc.16.2017.10.31.15.32.07
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A8E316B026F
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 18:32:10 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id s2so425074pge.19
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 15:32:10 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id y3si2609853pfl.499.2017.10.31.15.32.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 31 Oct 2017 15:32:07 -0700 (PDT)
-Subject: [PATCH 11/23] x86, kaiser: map GDT into user page tables
+        Tue, 31 Oct 2017 15:32:09 -0700 (PDT)
+Subject: [PATCH 12/23] x86, kaiser: map dynamically-allocated LDTs
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 31 Oct 2017 15:32:06 -0700
+Date: Tue, 31 Oct 2017 15:32:08 -0700
 References: <20171031223146.6B47C861@viggo.jf.intel.com>
 In-Reply-To: <20171031223146.6B47C861@viggo.jf.intel.com>
-Message-Id: <20171031223206.05E4E932@viggo.jf.intel.com>
+Message-Id: <20171031223208.F271E813@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 
-The GDT is used to control the x86 segmentation mechanism.  It
-must be virtually mapped when switching segments or at IRET
-time when switching between userspace and kernel.
+Normally, a process just has a NULL mm->context.ldt.  But, we
+have a syscall for a process to set a new one.  If a process does
+that, we need to map the new LDT.
 
-The original KAISER patch did not do this.  I have no ide how
-it ever worked.
+The original KAISER patch missed this case.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -39,62 +38,71 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/kernel/cpu/common.c |   15 +++++++++++++++
- b/arch/x86/mm/kaiser.c         |   10 ++++++++++
- 2 files changed, 25 insertions(+)
+ b/arch/x86/kernel/ldt.c |   25 ++++++++++++++++++++-----
+ 1 file changed, 20 insertions(+), 5 deletions(-)
 
-diff -puN arch/x86/kernel/cpu/common.c~kaiser-user-map-gdt-pages arch/x86/kernel/cpu/common.c
---- a/arch/x86/kernel/cpu/common.c~kaiser-user-map-gdt-pages	2017-10-31 15:03:54.432306321 -0700
-+++ b/arch/x86/kernel/cpu/common.c	2017-10-31 15:03:54.441306747 -0700
-@@ -5,6 +5,7 @@
- #include <linux/export.h>
- #include <linux/percpu.h>
+diff -puN arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts arch/x86/kernel/ldt.c
+--- a/arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts	2017-10-31 15:03:55.034334777 -0700
++++ b/arch/x86/kernel/ldt.c	2017-10-31 15:03:55.038334966 -0700
+@@ -10,6 +10,7 @@
+ #include <linux/gfp.h>
+ #include <linux/sched.h>
  #include <linux/string.h>
 +#include <linux/kaiser.h>
- #include <linux/ctype.h>
- #include <linux/delay.h>
- #include <linux/sched/mm.h>
-@@ -487,6 +488,20 @@ static inline void setup_fixmap_gdt(int
- #endif
+ #include <linux/mm.h>
+ #include <linux/smp.h>
+ #include <linux/slab.h>
+@@ -55,11 +56,21 @@ static void flush_ldt(void *__mm)
+ 	refresh_ldt_segments();
+ }
  
- 	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
++static void __free_ldt_struct(struct ldt_struct *ldt)
++{
++	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
++		vfree_atomic(ldt->entries);
++	else
++		free_page((unsigned long)ldt->entries);
++	kfree(ldt);
++}
 +
-+	/* CPU 0's mapping is done in kaiser_init() */
-+	if (cpu) {
-+		int ret;
-+
-+		ret = kaiser_add_mapping((unsigned long) get_cpu_gdt_ro(cpu),
-+					 PAGE_SIZE, __PAGE_KERNEL_RO);
-+		/*
-+		 * We do not have a good way to fail CPU bringup.
-+		 * Just WARN about it and hope we boot far enough
-+		 * to get a good log out.
-+		 */
-+		WARN_ON(ret);
+ /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
+ static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
+ {
+ 	struct ldt_struct *new_ldt;
+ 	unsigned int alloc_size;
++	int ret;
+ 
+ 	if (num_entries > LDT_ENTRIES)
+ 		return NULL;
+@@ -87,6 +98,12 @@ static struct ldt_struct *alloc_ldt_stru
+ 		return NULL;
+ 	}
+ 
++	ret = kaiser_add_mapping((unsigned long)new_ldt->entries, alloc_size,
++				 __PAGE_KERNEL);
++	if (ret) {
++		__free_ldt_struct(new_ldt);
++		return NULL;
 +	}
+ 	new_ldt->nr_entries = num_entries;
+ 	return new_ldt;
+ }
+@@ -113,12 +130,10 @@ static void free_ldt_struct(struct ldt_s
+ 	if (likely(!ldt))
+ 		return;
+ 
++	kaiser_remove_mapping((unsigned long)ldt->entries,
++			      ldt->nr_entries * LDT_ENTRY_SIZE);
+ 	paravirt_free_ldt(ldt->entries, ldt->nr_entries);
+-	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
+-		vfree_atomic(ldt->entries);
+-	else
+-		free_page((unsigned long)ldt->entries);
+-	kfree(ldt);
++	__free_ldt_struct(ldt);
  }
  
- /* Load the original GDT from the per-cpu structure */
-diff -puN arch/x86/mm/kaiser.c~kaiser-user-map-gdt-pages arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-user-map-gdt-pages	2017-10-31 15:03:54.436306511 -0700
-+++ b/arch/x86/mm/kaiser.c	2017-10-31 15:03:54.442306794 -0700
-@@ -329,6 +329,16 @@ void __init kaiser_init(void)
- 	kaiser_add_user_map_early((void *)idt_descr.address,
- 				  sizeof(gate_desc) * NR_VECTORS,
- 				  __PAGE_KERNEL_RO);
-+
-+	/*
-+	 * We could theoretically do this in setup_fixmap_gdt().
-+	 * But, we would need to rewrite the above page table
-+	 * allocation code to use the bootmem allocator.  The
-+	 * buddy allocator is not available at the time that we
-+	 * call setup_fixmap_gdt() for CPU 0.
-+	 */
-+	kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
-+				  __PAGE_KERNEL_RO);
- }
- 
- int kaiser_add_mapping(unsigned long addr, unsigned long size,
+ /*
 _
 
 --
