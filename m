@@ -1,103 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EDC26B025F
-	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:55:54 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id j17so43088554iod.18
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:55:54 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i86sor796498ioo.204.2017.10.31.06.55.53
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5A86B025F
+	for <linux-mm@kvack.org>; Tue, 31 Oct 2017 09:58:02 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id g75so14851696pfg.4
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 06:58:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l25si1743127pfe.112.2017.10.31.06.58.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Oct 2017 06:55:53 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 31 Oct 2017 06:58:00 -0700 (PDT)
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+From: Vlastimil Babka <vbabka@suse.cz>
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+ <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+Message-ID: <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
+Date: Tue, 31 Oct 2017 14:57:58 +0100
 MIME-Version: 1.0
-In-Reply-To: <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
-References: <089e0825eec8955c1f055c83d476@google.com> <20171027093418.om5e566srz2ztsrk@dhcp22.suse.cz>
- <CACT4Y+Y=NCy20_k4YcrCF2Q0f16UPDZBVAF=RkkZ0uSxZq5XaA@mail.gmail.com>
- <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz> <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
- <20171030100921.GA18085@X58A-UD3R> <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz> <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 31 Oct 2017 16:55:32 +0300
-Message-ID: <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Byungchul Park <byungchul.park@lge.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Tue, Oct 31, 2017 at 4:51 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Tue, Oct 31, 2017 at 02:13:33PM +0100, Michal Hocko wrote:
->> On Mon 30-10-17 16:10:09, Peter Zijlstra wrote:
->
->> > However, that splat translates like:
->> >
->> >     __cpuhp_setup_state()
->> > #0    cpus_read_lock()
->> >       __cpuhp_setup_state_cpuslocked()
->> > #1      mutex_lock(&cpuhp_state_mutex)
->> >
->> >
->> >
->> >     __cpuhp_state_add_instance()
->> > #2    mutex_lock(&cpuhp_state_mutex)
++CC Andrea, Thorsten, Linus
+
+On 10/31/2017 02:20 PM, Vlastimil Babka wrote:
+> On 10/31/2017 01:42 PM, Dmitry Vyukov wrote:
+>>> My vm_area_struct is 192 bytes, could be your layout is different due to
+>>> .config. At offset 80 I have vma->vm_flags. That is checked by
+>>> __do_page_fault(), but only after vma->vm_start (offset 0). Of course,
+>>> reordering is possible.
 >>
->> this should be #1 right?
->
-> Yes
->
->> >       cpuhp_issue_call()
->> >         cpuhp_invoke_ap_callback()
->> > #3        wait_for_completion()
->> >
->> >                                             msr_device_create()
->> >                                               ...
->> > #4                                              filename_create()
->> > #3                                          complete()
->> >
->> >
->> >
->> >     do_splice()
->> > #4    file_start_write()
->> >       do_splice_from()
->> >         iter_file_splice_write()
->> > #5        pipe_lock()
->> >           vfs_iter_write()
->> >             ...
->> > #6            inode_lock()
->> >
->> >
->> >
->> >     sys_fcntl()
->> >       do_fcntl()
->> >         shmem_fcntl()
->> > #5        inode_lock()
->
-> And that #6
->
->> >           shmem_wait_for_pins()
->> >             if (!scan)
->> >               lru_add_drain_all()
->> > #0              cpus_read_lock()
->> >
->> >
->> >
->> > Which is an actual real deadlock, there is no mixing of up and down.
 >>
->> thanks a lot, this made it more clear to me. It took a while to
->> actually see 0 -> 1 -> 3 -> 4 -> 5 -> 0 cycle. I have only focused
->> on lru_add_drain_all while it was holding the cpus lock.
->
-> Yeah, these things are a pain to read, which is why I always construct
-> something like the above first.
+>> It seems that compiler over-optimizes things and messes debug info.
+>> I just re-reproduced this on upstream
+>> 15f859ae5c43c7f0a064ed92d33f7a5bc5de6de0 and got the same report:
+>>
+>> ==================================================================
+>> BUG: KASAN: use-after-free in arch_local_irq_enable
+>> arch/x86/include/asm/paravirt.h:787 [inline]
+>> BUG: KASAN: use-after-free in __do_page_fault+0xc03/0xd60
+>> arch/x86/mm/fault.c:1357
+>> Read of size 8 at addr ffff880064d19aa0 by task syz-executor/8001
+>>
+>> CPU: 0 PID: 8001 Comm: syz-executor Not tainted 4.14.0-rc6+ #12
+>> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>> Call Trace:
+>>  __dump_stack lib/dump_stack.c:16 [inline]
+>>  dump_stack+0x194/0x257 lib/dump_stack.c:52
+>>  print_address_description+0x73/0x250 mm/kasan/report.c:252
+>>  kasan_report_error mm/kasan/report.c:351 [inline]
+>>  kasan_report+0x25b/0x340 mm/kasan/report.c:409
+>>  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
+>>  arch_local_irq_enable arch/x86/include/asm/paravirt.h:787 [inline]
+>>  __do_page_fault+0xc03/0xd60 arch/x86/mm/fault.c:1357
+>>  do_page_fault+0xee/0x720 arch/x86/mm/fault.c:1520
+>>  do_async_page_fault+0x82/0x110 arch/x86/kernel/kvm.c:273
+>>  async_page_fault+0x22/0x30 arch/x86/entry/entry_64.S:1069
+>> RIP: 0033:0x441bd0
+>> RSP: 002b:00007f2ed8229798 EFLAGS: 00010202
+>> RAX: 00007f2ed82297c0 RBX: 0000000000000000 RCX: 000000000000000e
+>> RDX: 0000000000000400 RSI: 0000000020012fe0 RDI: 00007f2ed82297c0
+>> RBP: 0000000000748020 R08: 0000000000000400 R09: 0000000000000000
+>> R10: 0000000020012fee R11: 0000000000000246 R12: 00000000ffffffff
+>> R13: 0000000000008430 R14: 00000000006ec4d0 R15: 00007f2ed822a700
+>>
+>> Allocated by task 8001:
+>>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>>  set_track mm/kasan/kasan.c:459 [inline]
+>>  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
+>>  kasan_slab_alloc+0x12/0x20 mm/kasan/kasan.c:489
+>>  kmem_cache_alloc+0x12e/0x760 mm/slab.c:3561
+>>  kmem_cache_zalloc include/linux/slab.h:656 [inline]
+>>  mmap_region+0x7ee/0x15a0 mm/mmap.c:1658
+>>  do_mmap+0x69b/0xd40 mm/mmap.c:1468
+>>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>>  SYSC_mmap arch/x86/kernel/sys_x86_64.c:99 [inline]
+>>  SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:90
+>>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+>>
+>> Freed by task 8007:
+>>  save_stack_trace+0x16/0x20 arch/x86/kernel/stacktrace.c:59
+>>  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
+>>  set_track mm/kasan/kasan.c:459 [inline]
+>>  kasan_slab_free+0x71/0xc0 mm/kasan/kasan.c:524
+>>  __cache_free mm/slab.c:3503 [inline]
+>>  kmem_cache_free+0x77/0x280 mm/slab.c:3763
+>>  remove_vma+0x162/0x1b0 mm/mmap.c:176
+>>  remove_vma_list mm/mmap.c:2475 [inline]
+>>  do_munmap+0x82a/0xdf0 mm/mmap.c:2714
+>>  mmap_region+0x59e/0x15a0 mm/mmap.c:1631
+>>  do_mmap+0x69b/0xd40 mm/mmap.c:1468
+>>  do_mmap_pgoff include/linux/mm.h:2150 [inline]
+>>  vm_mmap_pgoff+0x1de/0x280 mm/util.c:333
+>>  SYSC_mmap_pgoff mm/mmap.c:1518 [inline]
+>>  SyS_mmap_pgoff+0x23b/0x5f0 mm/mmap.c:1476
+>>  SYSC_mmap arch/x86/kernel/sys_x86_64.c:99 [inline]
+>>  SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:90
+>>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+>>
+>> The buggy address belongs to the object at ffff880064d19a50
+>>  which belongs to the cache vm_area_struct of size 200
+>> The buggy address is located 80 bytes inside of
+>>  200-byte region [ffff880064d19a50, ffff880064d19b18)
+>> The buggy address belongs to the page:
+>> page:ffffea0001934640 count:1 mapcount:0 mapping:ffff880064d19000 index:0x0
+>> flags: 0x100000000000100(slab)
+>> raw: 0100000000000100 ffff880064d19000 0000000000000000 000000010000000f
+>> raw: ffffea00018a3a60 ffffea0001940be0 ffff88006c5f79c0 0000000000000000
+>> page dumped because: kasan: bad access detected
+>>
+>> Memory state around the buggy address:
+>>  ffff880064d19980: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>  ffff880064d19a00: fb fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb
+>>> ffff880064d19a80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>                                ^
+>>  ffff880064d19b00: fb fb fb fc fc fc fc fc fc fc fc fb fb fb fb fb
+>>  ffff880064d19b80: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>> ==================================================================
+>>
+>>
+>> Here is disasm of the function:
+>> https://gist.githubusercontent.com/dvyukov/5a56c66ce605168c951a321d94df6e3a/raw/538d4ce72ceb5631dfcc866ccde46c74543de1cf/gistfile1.txt
+>>
+>> Seems to be vma->vm_flags at offset 80.
+> 
+> You can see it from the disasm? I can't make much of it, unfortunately,
+> the added kasan calls obscure it a lot for me. But I suspect it might be
+> the vma_pkey() thing which reads from vma->vm_flags. What happens when
+> CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS is disabled? (or is it already?)
 
+OK, so I opened the google groups link in the report's signature and
+looked at the attached config there, which says protkeys are enabled.
+Also looked at the repro.txt attachment:
+#{Threaded:true Collide:true Repeat:true Procs:8 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true UseTmpDir:true HandleSegv:true WaitRepeat:true Debug:false Repro:false}
+mmap(&(0x7f0000000000/0xfff000)=nil, 0xfff000, 0x3, 0x32, 0xffffffffffffffff, 0x0)
+mmap(&(0x7f0000011000/0x3000)=nil, 0x3000, 0x1, 0x32, 0xffffffffffffffff, 0x0)
+r0 = userfaultfd(0x0)
+ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000002000-0x18)={0xaa, 0x0, 0x0})
+ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000019000)={{&(0x7f0000012000/0x2000)=nil, 0x2000}, 0x1, 0x0})
+r1 = gettid()
+syz_open_dev$evdev(&(0x7f0000013000-0x12)="2f6465762f696e7075742f6576656e742300", 0x0, 0x0)
+tkill(r1, 0x7)
 
-I noticed that for a simple 2 lock deadlock lockdep prints only 2
-stacks. FWIW in user-space TSAN we print 4 stacks for such deadlocks,
-namely where A was locked, where B was locked under A, where B was
-locked, where A was locked under B. It makes it easier to figure out
-what happens. However, for this report it seems to be 8 stacks this
-way. So it's probably hard either way.
+The userfaultfd() caught my attention so I checked handle_userfault()
+which seems to do up_read(&mm->mmap_sem); and in some cases later
+followed by down_read(&mm->mmap_sem); return VM_FAULT_NOPAGE.
+However, __do_page_fault() only expects that mmap_sem to be released
+when handle_mm_fault() returns with VM_FAULT_RETRY. It doesn't expect it
+to be released and then acquired again, because then vma can be indeed
+gone. It seems vma hasn't been touched after that point until the
+vma_pkey() was added by commit a3c4fb7c9c2e ("x86/mm: Fix fault error
+path using unsafe vma pointer") in rc3. Which tried to fix a similar
+problem, but run into this corner case?
+
+So I suspect a3c4fb7c9c2e is the culprit and thus a regression.
+
+> Also did you try the vmacache shortcut test suggested in my previous mail?
+> 
+>> I think the size of 200 reported by slab is OK as it can do some rounding.
+>> Everything points to a vma object.
+>>
+>>
+>>>>> The buggy address belongs to the page:
+>>>>> page:ffffea00072ff4c0 count:1 mapcount:0 mapping:ffff8801cbfd3040 index:0x0
+>>>>> flags: 0x200000000000100(slab)
+>>>>> raw: 0200000000000100 ffff8801cbfd3040 0000000000000000 000000010000000f
+>>>>> raw: ffffea000730c7a0 ffffea00072ff7a0 ffff8801dae069c0 0000000000000000
+>>>>> page dumped because: kasan: bad access detected
+>>>>>
+>>>>> Memory state around the buggy address:
+>>>>>  ffff8801cbfd2f80: fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc fc
+>>>>>  ffff8801cbfd3000: fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb fb
+>>>>>>
+>>>>>> ffff8801cbfd3080: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>>>>
+>>>>>                          ^
+>>>>>  ffff8801cbfd3100: fb fc fc fc fc fc fc fc fc fb fb fb fb fb fb fb
+>>>>>  ffff8801cbfd3180: fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb fb
+>>>>> ==================================================================
+>>>>
+>>>>
+>>>> I guess this is more related to mm rather than x86, so +mm maintainers.
+>>>> This continues to happen, in particular on upstream
+>>>> 781402340475144bb360e32bb7437fa4b84cadc3 (Oct 28).
+>>>>
+>>>>
+>>>>> ---
+>>>>> This bug is generated by a dumb bot. It may contain errors.
+>>>>> See https://goo.gl/tpsmEJ for details.
+>>>>> Direct all questions to syzkaller@googlegroups.com.
+>>>>>
+>>>>> syzbot will keep track of this bug report.
+>>>>> Once a fix for this bug is committed, please reply to this email with:
+>>>>> #syz fix: exact-commit-title
+>>>>> To mark this as a duplicate of another syzbot report, please reply with:
+>>>>> #syz dup: exact-subject-of-another-report
+>>>>> If it's a one-off invalid bug report, please reply with:
+>>>>> #syz invalid
+>>>>> Note: if the crash happens again, it will cause creation of a new bug
+>>>>> report.
+>>>>>
+>>>>> --
+>>>>> You received this message because you are subscribed to the Google Groups
+>>>>> "syzkaller-bugs" group.
+>>>>> To unsubscribe from this group and stop receiving emails from it, send an
+>>>>> email to syzkaller-bugs+unsubscribe@googlegroups.com.
+>>>>> To view this discussion on the web visit
+>>>>> https://groups.google.com/d/msgid/syzkaller-bugs/94eb2c0433c8f42cac055cc86991%40google.com.
+>>>>> For more options, visit https://groups.google.com/d/optout.
+>>>>
+>>>> --
+>>>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>>>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>>>> see: http://www.linux-mm.org/ .
+>>>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+>>>>
+>>>
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
