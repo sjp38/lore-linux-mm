@@ -1,73 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C86066B026B
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:20:42 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id y7so1919415wmd.18
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:20:42 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id m23si1474452wrm.7.2017.11.01.15.20.41
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A5186B026D
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:21:23 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id l24so3726353pgu.17
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:21:23 -0700 (PDT)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id u2si655638plm.60.2017.11.01.15.21.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 15:20:41 -0700 (PDT)
-Date: Wed, 1 Nov 2017 23:20:37 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
- page tables
-In-Reply-To: <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1711012316130.1942@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com> <alpine.DEB.2.20.1711012225400.1942@nanos>
- <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com> <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 15:21:22 -0700 (PDT)
+Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171031223154.67F15B2A@viggo.jf.intel.com>
+ <CALCETrW06XjaWYD1O_HPXPDrHS96FZz9=OkPCQ3vsKrAxnr8+A@mail.gmail.com>
+ <20171101101147.x2gvag62zpzydgr3@node.shutemov.name>
+ <CALCETrVhKwGPN-=sL5SoSg1ussO+oCfzH1cJ+ZSWb69Y51XjXg@mail.gmail.com>
+ <20171101105629.xne4hbivhu6ex3bx@node.shutemov.name>
+ <CALCETrVX6-wk08StxPSafJH5q7awXXwbE9Pz_Axf+17cH7BOdA@mail.gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <e232dad3-9076-0d9e-103a-858b0b0300bf@linux.intel.com>
+Date: Wed, 1 Nov 2017 15:21:21 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <CALCETrVX6-wk08StxPSafJH5q7awXXwbE9Pz_Axf+17cH7BOdA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>, "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Wed, 1 Nov 2017, Linus Torvalds wrote:
-> On Wed, Nov 1, 2017 at 2:52 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
-> > On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
-> >> On Wed, 1 Nov 2017, Andy Lutomirski wrote:
-> >>> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
-> >>
-> >> Groan, forgot about that abomination, but still there is no point in having
-> >> it marked PAGE_USER in the init_mm at all, kaiser or not.
-> >
-> > So shouldn't this patch effectively make the vsyscall page unusable?
-> > Any idea why that didn't show up in any of the x86 selftests?
-> 
-> I actually think there may be two issues here:
-> 
->  - vsyscall isn't even used much - if any - any more
+On 11/01/2017 04:18 AM, Andy Lutomirski wrote:
+>>> How about just adding a VM_WARN_ON_ONCE, then?
+>> What's wrong with xor? The function will continue to work this way even if
+>> CR4.PGE is disabled.
+> That's true.  OTOH, since no one is actually proposing doing that,
+> there's an argument that people should get warned and therefore be
+> forced to think about it.
 
-Only legacy user space uses it.
+What this patch does in the end is make sure that
+__native_flush_tlb_global_irq_disabled() works, no matter the intiial
+state of CR4.PGE, *and* it makes it WARN if it gets called in an
+unexpected initial state (CR4.PGE).
 
->  - the vsyscall emulation works fine without _PAGE_USER, since the
-> whole point is that we take a fault on it and then emulate.
-> 
-> We do expose the vsyscall page read-only to user space in the
-> emulation case, but I'm not convinced that's even required.
-
-I don't see a reason why it needs to be mapped at all for emulation.
-
-> Nobody who configures KAISER enabled would possibly want to have the
-> actual native vsyscall page enabled. That would be an insane
-> combination.
-> 
-> So the only possibly difference would be a user mode program that
-> actually looks at the vsyscall page, which sounds unlikely to be an
-> issue.  It's legacy and not really used.
-
-Right, and we can either disable the NATIVE mode when KAISER is on or just
-rip the native mode out completely. Most distros have native mode disabled
-anyway, so you cannot even enable it on the kernel command line.
-
-I'm all for ripping it out or at least removing the config switch to enable
-native mode as a first step.
-
-Thanks,
-
-	tglx
+That's the best of both worlds IMNHO.  Makes people think, and does the
+right thing no matter what.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
