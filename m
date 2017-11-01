@@ -1,131 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DD8A96B0278
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 10:32:00 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id s2so2675787pge.19
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 07:32:00 -0700 (PDT)
-Received: from huawei.com ([45.249.212.255])
-        by mx.google.com with ESMTP id r17si1152662pgd.673.2017.11.01.07.31.59
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 07:31:59 -0700 (PDT)
-From: gengdongjiu <gengdongjiu@huawei.com>
-Subject: =?gb2312?B?tPC4tDogY29uc3VsdCBhIHF1ZXN0aW9uIGFib3V0IGFjdGlvbl9yZXN1bHQo?=
- =?gb2312?Q?)_in_memory=5Ffailure()?=
-Date: Wed, 1 Nov 2017 14:31:53 +0000
-Message-ID: <0184EA26B2509940AA629AE1405DD7F20193CED2@DGGEMA503-MBX.china.huawei.com>
-References: <566fb926-6aba-844e-c777-8c81b4670e7b@huawei.com>
- <20171031004423.GA18629@hori1.linux.bs1.fc.nec.co.jp>
-In-Reply-To: <20171031004423.GA18629@hori1.linux.bs1.fc.nec.co.jp>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="gb2312"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 791A96B027A
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 10:39:09 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id l5so2739385oib.0
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 07:39:09 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a52si514341ota.32.2017.11.01.07.39.07
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 07:39:08 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Try last second allocation before and after selecting an OOM victim.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171031132259.irkladqbucz2qa3g@dhcp22.suse.cz>
+	<201710312251.HBH43789.QVOFOtLFFSOHJM@I-love.SAKURA.ne.jp>
+	<20171031141034.bg25xbo5cyfafnyp@dhcp22.suse.cz>
+	<201711012058.CIF81791.OQOFHFLOFMSJtV@I-love.SAKURA.ne.jp>
+	<20171101124601.aqk3ayjp643ifdw3@dhcp22.suse.cz>
+In-Reply-To: <20171101124601.aqk3ayjp643ifdw3@dhcp22.suse.cz>
+Message-Id: <201711012338.AGB30781.JHOMFQFVSFtOLO@I-love.SAKURA.ne.jp>
+Date: Wed, 1 Nov 2017 23:38:49 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: mhocko@kernel.org
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-SGkgTmFveWEsDQoNCj4gSGkgZ2VuZ2RvbmdqaXUsDQo+IA0KPiBPbiBUdWUsIE9jdCAyNCwgMjAx
-NyBhdCAwODo0Nzo0MVBNICswODAwLCBnZW5nZG9uZ2ppdSB3cm90ZToNCj4gPiBIaSBOYW95YSwN
-Cj4gPiAgICB2ZXJ5IHNvcnJ5IHRvIGRpc3R1cmIgeW91LCBJIHdhbnQgdG8gY29uc3VsdCB5b3Ug
-YWJvdXQgdGhlIGhhbmRpbmcgdG8gZXJyb3IgcGFnZSB0eXBlIGluIG1lbW9yeV9mYWlsdXJlKCku
-DQo+ID4gSWYgdGhlIGVycm9yIHBhZ2UgaXMgdGhlIGN1cnJlbnQgdGFzaydzIHBhZ2UgdGFibGUs
-IHdpbGwgdGhlIG1lbW9yeV9mYWlsdXJlIG5vdCBoYW5kbGluZyB0aGF0Pw0KPiA+IEZyb20gbXkg
-dGVzdCwgSSBmb3VuZCB0aGUgbWVtb3J5X2ZhaWx1cmUoKSBjb25zaWRlciB0aGUgZXJyb3IgcGFn
-ZSB0YWJsZSBwaHlzaWNhbCBhZGRyZXNzIGFzIHVua25vd24gcGFnZS4NCj4gPiB3aHkgaXQgZG9l
-cyBub3QgaGFuZGxpbmcgdGhlIHBhZ2UgdGFibGUgcGFnZSBlcnJvcj8gVGhhbmtzIGEgbG90Lg0K
-PiANCj4gSSB0aGluayB0aGF0IHRoYXQncyBiZWNhdXNlIGl0J3MgaGFuZGxlZCBub3QgaW4gdGhl
-IGNvbnRleHQgb2YgbWVtb3J5IGVycm9yIGhhbmRsaW5nLCBidXQgaW4gTUNFJ3MgY29udGV4dC4N
-Cj4gDQo+IFdoZW4geW91ciBoYXJkd2FyZSBkZXRlY3RzIGEgbWVtb3J5IGVycm9yIG9uIGEgcGFn
-ZSB0YWJsZSBwYWdlIChmLmUuIG1lbW9yeSBzY3J1YmJpbmcgcnVubmluZyBpbiBiYWNrZ3JvdW5k
-KSwgTUNFIFNSQU8gaXMgc2VudCB0byB0aGUNCj4ga2VybmVsLCBhbmQgdGhlIGtlcm5lbCBraWNr
-cyBtZW1vcnkgZXJyb3IgaGFuZGxlci4NCj4gQnV0IG1lbW9yeSBlcnJvciBoYW5kbGVyIGRvZXMg
-bm90aGluZyBiZWNhdXNlIHRoZXJlJ3MgY3VycmVudGx5IG5vIHdheSB0byBpc29sYXRlIHRoZSBw
-YWdlIHRhYmxlIHBhZ2UuIEkgdGhpbmsgdGhhdCBhIG1haW4gcHJvYmxlbSBpcyB0aGF0DQo+IG5v
-IG9uZSBlYXNpbHkga25vd3MgIndoaWNoIHByb2Nlc3NlcyBvd25lZCB0aGUgcGFnZSB0YWJsZSBw
-YWdlLiINCj4gU28gdGhlIGVycm9yIHBhZ2UgaXMgc3RpbGwgb3BlbiBmb3IgYWNjZXNzLCB0aGVu
-IGxhdGVyIHNvbWUgQ1BVIHRyeSB0byBhY2Nlc3MgdGhlIHBhZ2UgdGFibGUgcGFnZSwgd2hpY2gg
-dHJpZ2dlcnMgc2V2ZXJlciBNQ0UgU1JBUi4NCj4gVGhlbiBpbiB0aGlzIHRpbWUsIE1DRSBoYW5k
-bGVyIHRyaWVzIHRvIGtpbGwgdGhlIHByb2Nlc3Mgb2YgY3VycmVudCBjb250ZXh0IChob3Bpbmcg
-dGhhdCBpdCdzIHRoZSByaWdodCBwcm9jZXNzIHRvIGJlIGtpbGxlZC4pICMgRm9yIGVycm9ycyBv
-bg0KPiAia2VybmVsIiBwYWdlIHRhYmxlIHBhZ2VzLCB0aGVyZSdzIG5vIGNob2ljZSBvdGhlciAj
-IHRoYW4gcGFuaWMuLi4NCg0KVGhhbmtzIHlvdSB2ZXJ5IG11Y2ggZm9yIHlvdXIgcmVwbHkuIEFu
-ZCBzb3JyeSBmb3IgbXkgbGF0ZSByZXNwb25zZS4NCkkgYmFzaWNhbGx5IHVuZGVyc3RhbmQgeW91
-ciBpZGVhLg0KSW4gdGhlIHg4NiBwbGF0Zm9ybSwgaWYgdGhlIHN0YWdlMiBwYWdlIHRhYmxlIGVy
-cm9yIGhhcHBlbmVkIGluIHRoZSBndWVzdCBPUyB1c2VyIHNwYWNlIHByb2Nlc3MuDQpIb3cgdG8g
-aGFuZGxlIGl0Pw0KRm9yIHRoaXMgY2FzZSwgaXQgbWF5IGJlIHRyYXBwZWQgb3V0IHRvIGhvc3Qs
-IGFzIHlvdSBkZXNjcmlwdGVkLCBob3N0IGNoZWNrIHRoZSBjdXJyZW50IHByb2Nlc3MgYW5kIA0K
-Zm91bmQgaXQgaXMgUWVtdS4gU28gaXMgaXQgd2lsbCBraWxsIFFlbXU/IEJ1dCBpbiBmYWN0LCBr
-aWxsaW5nIGd1ZXN0IHVzZXIgc3BhY2UgcHJvY2VzcyBjYW4gYmUgZW5vdWdoDQoNCj4gDQo+IFNv
-IHRoZSBjdXJyZW50IHNpdHVhdGlvbiBub3QgdGhlIHdvcnN0LCBidXQgc3RpbGwgb3BlbiBmb3Ig
-aW1wcm92ZW1lbnQuDQo+IEFueSBzdWdnZXN0aW9uIHRvIGhhbmRsZSBpdCBpbiBtZW1vcnkgZXJy
-b3IgaGFuZGxpbmcgd291bGQgYmUgd29uZGVyZnVsLg0KDQoNCj4gDQo+IFRoYW5rcywNCj4gTmFv
-eWEgSG9yaWd1Y2hpDQo+IA0KPiANCj4gPg0KPiA+IGNvbW1pdCA2NGQzN2EyYmFmNWU1YzBmMTAw
-OWMwZWYyOTBhOTAyN2RlNzIxZDY2DQo+ID4gQXV0aG9yOiBOYW95YSBIb3JpZ3VjaGkgPG4taG9y
-aWd1Y2hpQGFoLmpwLm5lYy5jb20+DQo+ID4gRGF0ZTogICBXZWQgQXByIDE1IDE2OjEzOjA1IDIw
-MTUgLTA3MDANCj4gPg0KPiA+ICAgICBtbS9tZW1vcnktZmFpbHVyZS5jOiBkZWZpbmUgcGFnZSB0
-eXBlcyBmb3IgYWN0aW9uX3Jlc3VsdCgpIGluIG9uZQ0KPiA+IHBsYWNlDQo+ID4NCj4gPiAgICAg
-VGhpcyBjbGVhbnVwIHBhdGNoIG1vdmVzIGFsbCBzdHJpbmdzIHBhc3NlZCB0byBhY3Rpb25fcmVz
-dWx0KCkgaW50byBhDQo+ID4gICAgIHNpbmdsPSBlIGFycmF5IGFjdGlvbl9wYWdlX3R5cGUgc28g
-dGhhdCBhIHJlYWRlciBjYW4gZWFzaWx5IGZpbmQgd2hpY2gNCj4gPiAgICAga2luZCBvZiBhY3Rp
-bz0gbiByZXN1bHRzIGFyZSBwb3NzaWJsZS4gIEFuZCB0aGlzIHBhdGNoIGFsc28gZml4ZXMgdGhl
-DQo+ID4gICAgIG9kZCBsaW5lcyB0byBiZSBwcmludGVkIG91dCwgbGlrZSAidW5rbm93biBwYWdl
-IHN0YXRlIHBhZ2UiIG9yICJmcmVlDQo+ID4gICAgIGJ1ZGR5LCAybmQgdHJ5IHBhZ2UiLg0KPiA+
-DQo+ID4gICAgIFtha3BtQGxpbnV4LWZvdW5kYXRpb24ub3JnOiByZW5hbWUgbWVzc2FnZXMsIHBl
-ciBEYXZpZF0NCj4gPiAgICAgW2FrcG1AbGludXgtZm91bmRhdGlvbi5vcmc6IHMvRElSVFlfVU5F
-VklDVEFCTEVfTFJVL0NMRUFOX1VORVZJQ1RBQkxFX0xSVScsIHBlciBBbmRpXQ0KPiA+ICAgICBT
-aWduZWQtb2ZmLWJ5OiBOYW95YSBIb3JpZ3VjaGkgPG4taG9yaWd1Y2hpQGFoLmpwLm5lYy5jb20+
-DQo+ID4gICAgIFJldmlld2VkLWJ5OiBBbmRpIEtsZWVuIDxha0BsaW51eC5pbnRlbC5jb20+DQo+
-ID4gICAgIENjOiBUb255IEx1Y2sgPHRvbnkubHVja0BpbnRlbC5jb20+DQo+ID4gICAgIENjOiAi
-WGllIFhpdVFpIiA8eGlleGl1cWlAaHVhd2VpLmNvbT4NCj4gPiAgICAgQ2M6IFN0ZXZlbiBSb3N0
-ZWR0IDxyb3N0ZWR0QGdvb2RtaXMub3JnPg0KPiA+ICAgICBDYzogQ2hlbiBHb25nIDxnb25nLmNo
-ZW5AbGludXguaW50ZWwuY29tPg0KPiA+ICAgICBDYzogRGF2aWQgUmllbnRqZXMgPHJpZW50amVz
-QGdvb2dsZS5jb20+DQo+ID4gICAgIFNpZ25lZC1vZmYtYnk6IEFuZHJldyBNb3J0b24gPGFrcG1A
-bGludXgtZm91bmRhdGlvbi5vcmc+DQo+ID4gICAgIFNpZ25lZC1vZmYtYnk6IExpbnVzIFRvcnZh
-bGRzIDx0b3J2YWxkc0BsaW51eC1mb3VuZGF0aW9uLm9yZz4NCj4gPg0KPiA+IGRpZmYgLS1naXQg
-YS9tbS9tZW1vcnktZmFpbHVyZS5jIGIvbW0vbWVtb3J5LWZhaWx1cmUuYyBpbmRleA0KPiA+IGQ0
-ODdmOGQuLjVmZDg5MzEgMTAwNjQ0DQo+ID4gLS0tIGEvbW0vbWVtb3J5LWZhaWx1cmUuYw0KPiA+
-ICsrKyBiL21tL21lbW9yeS1mYWlsdXJlLmMNCj4gPiBAQCAtNTIxLDYgKzUyMSw1MiBAQCBzdGF0
-aWMgY29uc3QgY2hhciAqYWN0aW9uX25hbWVbXSA9IHsNCj4gPiAgICAgICAgIFtSRUNPVkVSRURd
-ID0gIlJlY292ZXJlZCIsDQo+ID4gIH07DQo+ID4NCj4gPiArZW51bSBhY3Rpb25fcGFnZV90eXBl
-IHsNCj4gPiArICAgICAgIE1TR19LRVJORUwsDQo+ID4gKyAgICAgICBNU0dfS0VSTkVMX0hJR0hf
-T1JERVIsDQo+ID4gKyAgICAgICBNU0dfU0xBQiwNCj4gPiArICAgICAgIE1TR19ESUZGRVJFTlRf
-Q09NUE9VTkQsDQo+ID4gKyAgICAgICBNU0dfUE9JU09ORURfSFVHRSwNCj4gPiArICAgICAgIE1T
-R19IVUdFLA0KPiA+ICsgICAgICAgTVNHX0ZSRUVfSFVHRSwNCj4gPiArICAgICAgIE1TR19VTk1B
-UF9GQUlMRUQsDQo+ID4gKyAgICAgICBNU0dfRElSVFlfU1dBUENBQ0hFLA0KPiA+ICsgICAgICAg
-TVNHX0NMRUFOX1NXQVBDQUNIRSwNCj4gPiArICAgICAgIE1TR19ESVJUWV9NTE9DS0VEX0xSVSwN
-Cj4gPiArICAgICAgIE1TR19DTEVBTl9NTE9DS0VEX0xSVSwNCj4gPiArICAgICAgIE1TR19ESVJU
-WV9VTkVWSUNUQUJMRV9MUlUsDQo+ID4gKyAgICAgICBNU0dfQ0xFQU5fVU5FVklDVEFCTEVfTFJV
-LA0KPiA+ICsgICAgICAgTVNHX0RJUlRZX0xSVSwNCj4gPiArICAgICAgIE1TR19DTEVBTl9MUlUs
-DQo+ID4gKyAgICAgICBNU0dfVFJVTkNBVEVEX0xSVSwNCj4gPiArICAgICAgIE1TR19CVUREWSwN
-Cj4gPiArICAgICAgIE1TR19CVUREWV8yTkQsDQo+ID4gKyAgICAgICBNU0dfVU5LTk9XTiwNCj4g
-PiArfTsNCj4gPiArDQo+ID4gK3N0YXRpYyBjb25zdCBjaGFyICogY29uc3QgYWN0aW9uX3BhZ2Vf
-dHlwZXNbXSA9IHsNCj4gPiArICAgICAgIFtNU0dfS0VSTkVMXSAgICAgICAgICAgICAgICAgICAg
-PSAicmVzZXJ2ZWQga2VybmVsIHBhZ2UiLA0KPiA+ICsgICAgICAgW01TR19LRVJORUxfSElHSF9P
-UkRFUl0gICAgICAgICA9ICJoaWdoLW9yZGVyIGtlcm5lbCBwYWdlIiwNCj4gPiArICAgICAgIFtN
-U0dfU0xBQl0gICAgICAgICAgICAgICAgICAgICAgPSAia2VybmVsIHNsYWIgcGFnZSIsDQo+ID4g
-KyAgICAgICBbTVNHX0RJRkZFUkVOVF9DT01QT1VORF0gICAgICAgID0gImRpZmZlcmVudCBjb21w
-b3VuZCBwYWdlIGFmdGVyIGxvY2tpbmciLA0KPiA+ICsgICAgICAgW01TR19QT0lTT05FRF9IVUdF
-XSAgICAgICAgICAgICA9ICJodWdlIHBhZ2UgYWxyZWFkeSBoYXJkd2FyZSBwb2lzb25lZCIsDQo+
-ID4gKyAgICAgICBbTVNHX0hVR0VdICAgICAgICAgICAgICAgICAgICAgID0gImh1Z2UgcGFnZSIs
-DQo+ID4gKyAgICAgICBbTVNHX0ZSRUVfSFVHRV0gICAgICAgICAgICAgICAgID0gImZyZWUgaHVn
-ZSBwYWdlIiwNCj4gPiArICAgICAgIFtNU0dfVU5NQVBfRkFJTEVEXSAgICAgICAgICAgICAgPSAi
-dW5tYXBwaW5nIGZhaWxlZCBwYWdlIiwNCj4gPiArICAgICAgIFtNU0dfRElSVFlfU1dBUENBQ0hF
-XSAgICAgICAgICAgPSAiZGlydHkgc3dhcGNhY2hlIHBhZ2UiLA0KPiA+ICsgICAgICAgW01TR19D
-TEVBTl9TV0FQQ0FDSEVdICAgICAgICAgICA9ICJjbGVhbiBzd2FwY2FjaGUgcGFnZSIsDQo+ID4g
-KyAgICAgICBbTVNHX0RJUlRZX01MT0NLRURfTFJVXSAgICAgICAgID0gImRpcnR5IG1sb2NrZWQg
-TFJVIHBhZ2UiLA0KPiA+ICsgICAgICAgW01TR19DTEVBTl9NTE9DS0VEX0xSVV0gICAgICAgICA9
-ICJjbGVhbiBtbG9ja2VkIExSVSBwYWdlIiwNCj4gPiArICAgICAgIFtNU0dfRElSVFlfVU5FVklD
-VEFCTEVfTFJVXSAgICAgPSAiZGlydHkgdW5ldmljdGFibGUgTFJVIHBhZ2UiLA0KPiA+ICsgICAg
-ICAgW01TR19DTEVBTl9VTkVWSUNUQUJMRV9MUlVdICAgICA9ICJjbGVhbiB1bmV2aWN0YWJsZSBM
-UlUgcGFnZSIsDQo+ID4gKyAgICAgICBbTVNHX0RJUlRZX0xSVV0gICAgICAgICAgICAgICAgID0g
-ImRpcnR5IExSVSBwYWdlIiwNCj4gPiArICAgICAgIFtNU0dfQ0xFQU5fTFJVXSAgICAgICAgICAg
-ICAgICAgPSAiY2xlYW4gTFJVIHBhZ2UiLA0KPiA+ICsgICAgICAgW01TR19UUlVOQ0FURURfTFJV
-XSAgICAgICAgICAgICA9ICJhbHJlYWR5IHRydW5jYXRlZCBMUlUgcGFnZSIsDQo+ID4gKyAgICAg
-ICBbTVNHX0JVRERZXSAgICAgICAgICAgICAgICAgICAgID0gImZyZWUgYnVkZHkgcGFnZSIsDQo+
-ID4gKyAgICAgICBbTVNHX0JVRERZXzJORF0gICAgICAgICAgICAgICAgID0gImZyZWUgYnVkZHkg
-cGFnZSAoMm5kIHRyeSkiLA0KPiA+ICsgICAgICAgW01TR19VTktOT1dOXSAgICAgICAgICAgICAg
-ICAgICA9ICJ1bmtub3duIHBhZ2UiLA0KPiA+ICt9Ow0KPiA+DQo+ID4NCg==
+Michal Hocko wrote:
+> On Wed 01-11-17 20:58:50, Tetsuo Handa wrote:
+> > > > But doing ALLOC_OOM for last second allocation attempt from out_of_memory() involve
+> > > > duplicating code (e.g. rebuilding zone list).
+> > > 
+> > > Why would you do it? Do not blindly copy and paste code without
+> > > a good reason. What kind of problem does this actually solve?
+> > 
+> > prepare_alloc_pages()/finalise_ac() initializes as
+> > 
+> > 	ac->high_zoneidx = gfp_zone(gfp_mask);
+> > 	ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
+> > 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+> > 						     ac->high_zoneidx, ac->nodemask);
+> > 
+> > and selecting as an OOM victim reinitializes as
+> > 
+> > 	ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
+> > 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+> > 						     ac->high_zoneidx, ac->nodemask);
+> > 
+> > and I assume that this reinitialization might affect which memory reserve
+> > the OOM victim allocates from.
+> > 
+> > You mean such difference is too trivial to care about?
+> 
+> You keep repeating what the _current_ code does without explaining _why_
+> do we need the same thing in the oom path. Could you finaly answer my
+> question please?
+
+Because I consider that following what the current code does is reasonable
+unless there are explicit reasons not to follow.
+
+> 
+> > > > What is your preferred approach?
+> > > > Duplicate relevant code? Use get_page_from_freelist() without rebuilding the zone list?
+> > > > Use __alloc_pages_nodemask() ?
+> > > 
+> > > Just do what we do now with ALLOC_WMARK_HIGH and in a separate patch use
+> > > ALLOC_OOM for oom victims. There shouldn't be any reasons to play
+> > > additional tricks here.
+> > > 
+> > 
+> > Posted as http://lkml.kernel.org/r/1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+> > 
+> > But I'm still unable to understand why "moving get_page_from_freelist to
+> > oom_kill_process" is better than "copying get_page_from_freelist to
+> > oom_kill_process", for "moving" increases possibility of allocation failures
+> > when out_of_memory() is not called.
+> 
+> The changelog I have provided to you should answer that. It is highly
+> unlikely there high wmark would succeed _right_ after we have just given
+> up. If this assumption is not correct then we can _add_ such a call
+> based on a real data rather than add more bloat "just because we used to
+> do that". As I've said I completely hate the cargo cult programming. Do
+> not add more.
+
+I think that it is highly unlikely high wmark would succeed. But
+I don't think that it is highly unlikely normal wmark would succeed.
+
+> 
+> > Also, I'm still unable to understand why
+> > to use ALLOC_WMARK_HIGH. I think that using regular watermark for last second
+> > allocation attempt is better (as described below).
+> 
+> If you believe that a standard wmark is sufficient then make it a
+> separate patch with the full explanation why.
+> 
+> > __alloc_pages_may_oom() is doing last second allocation attempt using
+> > ALLOC_WMARK_HIGH before calling out_of_memory(). This has two motivations.
+> > The first one is explained by the comment that it aims to catch potential
+> > parallel OOM killing and the second one was explained by Andrea Arcangeli
+> > as follows:
+> > : Elaborating the comment: the reason for the high wmark is to reduce
+> > : the likelihood of livelocks and be sure to invoke the OOM killer, if
+> > : we're still under pressure and reclaim just failed. The high wmark is
+> > : used to be sure the failure of reclaim isn't going to be ignored. If
+> > : using the min wmark like you propose there's risk of livelock or
+> > : anyway of delayed OOM killer invocation.
+> > 
+> > But neither motivation applies to current code. Regarding the former,
+> > there is no parallel OOM killing (in the sense that out_of_memory() is
+> > called "concurrently") because we serialize out_of_memory() calls using
+> > oom_lock. Regarding the latter, there is no possibility of OOM livelocks
+> > nor possibility of failing to invoke the OOM killer because we mask
+> > __GFP_DIRECT_RECLAIM for last second allocation attempt because oom_lock
+> > prevents __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations which last
+> > second allocation attempt depends on from failing.
+> 
+> Read that comment again. I believe you have misunderstood it. It is not
+> about gfp flags at all. It is that we simply never invoke oom killer
+> just because of small allocation fluctuations.
+
+???
+
+Does "that comment" refer to
+
+  Go through the zonelist yet one more time, keep very high watermark
+  here, this is only to catch a parallel oom killing, we must fail if
+  we're still under heavy pressure.
+
+part? Then, I know it is not about gfp flags.
+
+Am I misunderstanding what "we must fail" means? My interpretation is
+that "we must call out_of_memory() if the system is under memory pressure
+that is enough to fail ALLOC_WMARK_HIGH". And I think that "enough to fail
+ALLOC_WMARK_MIN" is heavier pressure than "enough to fail ALLOC_WMARK_HIGH".
+
+Does "that comment" refer to
+
+  Elaborating the comment: the reason for the high wmark is to reduce
+  the likelihood of livelocks and be sure to invoke the OOM killer, if
+  we're still under pressure and reclaim just failed. The high wmark is
+  used to be sure the failure of reclaim isn't going to be ignored. If
+  using the min wmark like you propose there's risk of livelock or
+  anyway of delayed OOM killer invocation.
+
+part? Then, I know it is not about gfp flags.
+
+But how can OOM livelock happen when the last second allocation does not
+wait for memory reclaim (because __GFP_DIRECT_RECLAIM is masked) ?
+The last second allocation shall return immediately, and we will call
+out_of_memory() if the last second allocation failed.
+
+> 
+> [...]
+> >   Thread1           Thread2           Thread3
+> > 
+> >     Enters __alloc_pages_may_oom().
+> >                     Enters __alloc_pages_may_oom().
+> >                                       Enters __alloc_pages_may_oom().
+> >     Preempted by somebody else.
+> >                     Preempted by somebody else.
+> >                                       mutex_trylock(&oom_lock) succeeds.
+> >                                       get_page_from_freelist(ALLOC_WMARK_HIGH) fails. And get_page_from_freelist(ALLOC_WMARK_MIN) would have failed.
+> >                                       Calls out_of_memory() and kills a not-such-memhog victim.
+> >                                       Calls mutex_unlock(&oom_lock)
+> >                     Returns from preemption.
+> >                     mutex_trylock(&oom_lock) succeeds.
+> >                     get_page_from_freelist(ALLOC_WMARK_HIGH) fails. But get_page_from_freelist(ALLOC_WMARK_MIN) would have succeeded.
+> >                     Calls out_of_memory() and kills next not-such-memhog victim.
+> >                     Calls mutex_unlock(&oom_lock)
+> >     Returns from preemption.
+> >     mutex_trylock(&oom_lock) succeeds.
+> >     get_page_from_freelist(ALLOC_WMARK_HIGH) fails. But get_page_from_freelist(ALLOC_WMARK_MIN) would have succeeded.
+> >     Calls out_of_memory() and kills next not-such-memhog victim.
+> >     Calls mutex_unlock(&oom_lock)
+> > 
+> > and Thread1/Thread2 did not need to OOM-kill if ALLOC_WMARK_MIN were used.
+> > When we hit sequence like above, using ALLOC_WMARK_HIGH for last second allocation
+> > attempt unlikely helps avoiding potential parallel OOM killing. Rather, using
+> > ALLOC_WMARK_MIN likely helps avoiding potential parallel OOM killing.
+> 
+> I am not sure such a scenario matters all that much because it assumes
+> that the oom victim doesn't really free much memory [1] (basically less than
+> HIGH-MIN). Most OOM situation simply have a memory hog consuming
+> significant amount of memory.
+
+The OOM killer does not always kill a memory hog consuming significant amount
+of memory. The OOM killer kills a process with highest OOM score (and instead
+one of its children if any). I don't think that assuming an OOM victim will free
+memory enough to succeed ALLOC_WMARK_HIGH is appropriate.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
