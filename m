@@ -1,43 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E93DF6B0253
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 05:07:55 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id t139so996522wmt.7
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 02:07:55 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id m76si352859wmi.36.2017.11.01.02.07.54
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 258E16B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 05:39:23 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id y128so1831685pfg.5
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 02:39:23 -0700 (PDT)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTP id t191si309332pgc.187.2017.11.01.02.39.21
         for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 02:07:54 -0700 (PDT)
-Date: Wed, 1 Nov 2017 10:07:50 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 23/23] x86, kaiser: add Kconfig
-Message-ID: <20171101090750.fz3mgz5sefdkgwso@pd.tnic>
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
- <20171031223228.9F2B69B4@viggo.jf.intel.com>
- <CAGXu5jK3nwcO=520a0V22bs_-8wBYAO+E5aeX53PUfevA2KvVQ@mail.gmail.com>
+        Wed, 01 Nov 2017 02:39:21 -0700 (PDT)
+Subject: Re: [PATCH RFC v2 1/4] mm/mempolicy: Fix get_nodes() mask
+ miscalculation
+References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
+ <1509099265-30868-2-git-send-email-xieyisheng1@huawei.com>
+ <922a4767-9eed-40aa-c437-6f6fcdcab150@suse.cz>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <c9b57bde-7834-45c4-2c22-3220e3680c93@huawei.com>
+Date: Wed, 1 Nov 2017 17:37:36 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <CAGXu5jK3nwcO=520a0V22bs_-8wBYAO+E5aeX53PUfevA2KvVQ@mail.gmail.com>
+In-Reply-To: <922a4767-9eed-40aa-c437-6f6fcdcab150@suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@google.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, x86@kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-On Tue, Oct 31, 2017 at 04:59:37PM -0700, Kees Cook wrote:
-> A quick look through "#ifdef CONFIG_KAISER" looks like it might be
-> possible to make this a runtime setting at some point. When doing
-> KASLR, it was much more useful to make this runtime selectable so that
-> distro kernels could build the support in, but let users decide if
-> they wanted to enable it.
+Hi Vlastimil,
 
-Yes please.
+Thanks for comment!
+On 2017/10/31 16:34, Vlastimil Babka wrote:
+> On 10/27/2017 12:14 PM, Yisheng Xie wrote:
+>> It appears there is a nodemask miscalculation in the get_nodes()
+>> function in mm/mempolicy.c.  This bug has two effects:
+>>
+>> 1. It is impossible to specify a length 1 nodemask.
+>> 2. It is impossible to specify a nodemask containing the last node.
+> 
+> This should be more specific, which syscalls are you talking about?
+> I assume it's set_mempolicy() and mbind() and it's the same issue that
+> was discussed at https://marc.info/?l=linux-mm&m=150732591909576&w=2 ?
 
--- 
-Regards/Gruss,
-    Boris.
+I just missed this thread, sorry about that. Not only set_mempolicy() and
+mbind(), but migrate_pages() also suffers this problem. Maybe related
+manpage should documented this as your mentioned below.
 
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Thanks
+Yisheng Xie
+
+> 
+>> Brent have submmit a patch before v2.6.12, however, Andi revert his
+>> changed for ABI problem. I just resent this patch as RFC, for do not
+>> clear about what's the problem Andi have met.
+> 
+> You should have CC'd Andi. As was discussed in the other thread, this
+> would make existing programs potentially unsafe, so we can't change it.
+> Instead it should be documented.
+> 
+>> As manpage of set_mempolicy, If the value of maxnode is zero, the
+>> nodemask argument is ignored. but we should not ignore the nodemask
+>> when maxnode is 1.
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
