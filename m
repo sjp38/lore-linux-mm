@@ -1,302 +1,329 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 877CC6B0268
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 01:32:49 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id d28so1294191pfe.1
-        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 22:32:49 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e2sor855499pgn.126.2017.10.31.22.32.48
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E7086B0268
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 01:41:04 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id 15so1447678pgc.21
+        for <linux-mm@kvack.org>; Tue, 31 Oct 2017 22:41:04 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id s10si3635641pgf.263.2017.10.31.22.41.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 31 Oct 2017 22:32:48 -0700 (PDT)
-From: Shawn Landden <slandden@gmail.com>
-Subject: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes process to death row (new syscall)
-Date: Tue, 31 Oct 2017 22:32:44 -0700
-Message-Id: <20171101053244.5218-1-slandden@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 31 Oct 2017 22:41:03 -0700 (PDT)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH 1/2] mm:swap: clean up swap readahead
+References: <1509514103-17550-1-git-send-email-minchan@kernel.org>
+	<1509514103-17550-2-git-send-email-minchan@kernel.org>
+Date: Wed, 01 Nov 2017 13:41:00 +0800
+In-Reply-To: <1509514103-17550-2-git-send-email-minchan@kernel.org> (Minchan
+	Kim's message of "Wed, 1 Nov 2017 14:28:22 +0900")
+Message-ID: <87fu9y5zf7.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Shawn Landden <slandden@gmail.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Hugh Dickins <hughd@google.com>, Huang Ying <ying.huang@intel.com>, kernel-team <kernel-team@lge.com>
 
-It is common for services to be stateless around their main event loop.
-If a process passes the EPOLL_KILLME flag to epoll_wait5() then it
-signals to the kernel that epoll_wait5() may not complete, and the kernel
-may send SIGKILL if resources get tight.
+Hi, Minchan,
 
-See my systemd patch: https://github.com/shawnl/systemd/tree/killme
+Minchan Kim <minchan@kernel.org> writes:
 
-Android uses this memory model for all programs, and having it in the
-kernel will enable integration with the page cache (not in this
-series).
----
- arch/x86/entry/syscalls/syscall_32.tbl |  1 +
- arch/x86/entry/syscalls/syscall_64.tbl |  1 +
- fs/eventpoll.c                         | 74 +++++++++++++++++++++++++++++++++-
- include/linux/eventpoll.h              |  2 +
- include/linux/sched.h                  |  3 ++
- include/uapi/asm-generic/unistd.h      |  5 ++-
- include/uapi/linux/eventpoll.h         |  3 ++
- kernel/exit.c                          |  2 +
- mm/oom_kill.c                          | 17 ++++++++
- 9 files changed, 105 insertions(+), 3 deletions(-)
+> When I see recent change of swap readahead, I am very unhappy
+> about current code structure which diverges two swap readahead
+> algorithm in do_swap_page. This patch is to clean it up.
+>
+> Main motivation is that fault handler doesn't need to be aware of
+> readahead algorithms but just should call swapin_readahead.
+>
+> As first step, this patch cleans up a little bit but not perfect
+> (I just separate for review easier) so next patch will make the goal
+> complete.
+>
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  include/linux/swap.h | 17 ++--------
+>  mm/memory.c          | 17 +++-------
+>  mm/swap_state.c      | 89 ++++++++++++++++++++++++++++------------------------
+>  3 files changed, 55 insertions(+), 68 deletions(-)
+>
+> diff --git a/include/linux/swap.h b/include/linux/swap.h
+> index 84255b3da7c1..7c7c8b344bc9 100644
+> --- a/include/linux/swap.h
+> +++ b/include/linux/swap.h
+> @@ -427,12 +427,8 @@ extern struct page *__read_swap_cache_async(swp_entry_t, gfp_t,
+>  			bool *new_page_allocated);
+>  extern struct page *swapin_readahead(swp_entry_t, gfp_t,
+>  			struct vm_area_struct *vma, unsigned long addr);
+> -
+> -extern struct page *swap_readahead_detect(struct vm_fault *vmf,
+> -					  struct vma_swap_readahead *swap_ra);
+>  extern struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+> -					   struct vm_fault *vmf,
+> -					   struct vma_swap_readahead *swap_ra);
+> +					   struct vm_fault *vmf);
+>  
+>  /* linux/mm/swapfile.c */
+>  extern atomic_long_t nr_swap_pages;
+> @@ -551,15 +547,8 @@ static inline bool swap_use_vma_readahead(void)
+>  	return false;
+>  }
+>  
+> -static inline struct page *swap_readahead_detect(
+> -	struct vm_fault *vmf, struct vma_swap_readahead *swap_ra)
+> -{
+> -	return NULL;
+> -}
+> -
+> -static inline struct page *do_swap_page_readahead(
+> -	swp_entry_t fentry, gfp_t gfp_mask,
+> -	struct vm_fault *vmf, struct vma_swap_readahead *swap_ra)
+> +static inline struct page *do_swap_page_readahead(swp_entry_t fentry,
+> +				gfp_t gfp_mask, struct vm_fault *vmf)
+>  {
+>  	return NULL;
+>  }
+> diff --git a/mm/memory.c b/mm/memory.c
+> index 8a0c410037d2..e955298e4290 100644
+> --- a/mm/memory.c
+> +++ b/mm/memory.c
+> @@ -2849,21 +2849,14 @@ int do_swap_page(struct vm_fault *vmf)
+>  	struct vm_area_struct *vma = vmf->vma;
+>  	struct page *page = NULL, *swapcache = NULL;
+>  	struct mem_cgroup *memcg;
+> -	struct vma_swap_readahead swap_ra;
+>  	swp_entry_t entry;
+>  	pte_t pte;
+>  	int locked;
+>  	int exclusive = 0;
+>  	int ret = 0;
+> -	bool vma_readahead = swap_use_vma_readahead();
+>  
+> -	if (vma_readahead)
+> -		page = swap_readahead_detect(vmf, &swap_ra);
+> -	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte)) {
+> -		if (page)
+> -			put_page(page);
+> +	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf->orig_pte))
+>  		goto out;
+> -	}
 
-diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
-index 448ac2161112..040e5d02bdcc 100644
---- a/arch/x86/entry/syscalls/syscall_32.tbl
-+++ b/arch/x86/entry/syscalls/syscall_32.tbl
-@@ -391,3 +391,4 @@
- 382	i386	pkey_free		sys_pkey_free
- 383	i386	statx			sys_statx
- 384	i386	arch_prctl		sys_arch_prctl			compat_sys_arch_prctl
-+385	i386	epoll_wait5		sys_epoll_wait5
-diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
-index 5aef183e2f85..c72802e8cf65 100644
---- a/arch/x86/entry/syscalls/syscall_64.tbl
-+++ b/arch/x86/entry/syscalls/syscall_64.tbl
-@@ -339,6 +339,7 @@
- 330	common	pkey_alloc		sys_pkey_alloc
- 331	common	pkey_free		sys_pkey_free
- 332	common	statx			sys_statx
-+333	common	epoll_wait5		sys_epoll_wait5
- 
- #
- # x32-specific system call numbers start at 512 to avoid cache impact
-diff --git a/fs/eventpoll.c b/fs/eventpoll.c
-index 2fabd19cdeea..76d1c91d940b 100644
---- a/fs/eventpoll.c
-+++ b/fs/eventpoll.c
-@@ -297,6 +297,14 @@ static LIST_HEAD(visited_list);
-  */
- static LIST_HEAD(tfile_check_list);
- 
-+static LIST_HEAD(deathrow_q);
-+static long deathrow_len __read_mostly;
-+
-+/* TODO: Can this lock be removed by using atomic instructions to update
-+ * queue?
-+ */
-+static DEFINE_MUTEX(deathrow_mutex);
-+
- #ifdef CONFIG_SYSCTL
- 
- #include <linux/sysctl.h>
-@@ -314,6 +322,15 @@ struct ctl_table epoll_table[] = {
- 		.extra1		= &zero,
- 		.extra2		= &long_max,
- 	},
-+	{
-+		.procname	= "deathrow_size",
-+		.data		= &deathrow_len,
-+		.maxlen		= sizeof(deathrow_len),
-+		.mode		= 0444,
-+		.proc_handler	= proc_doulongvec_minmax,
-+		.extra1		= &zero,
-+		.extra2		= &long_max,
-+	},
- 	{ }
- };
- #endif /* CONFIG_SYSCTL */
-@@ -2164,9 +2181,12 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
- /*
-  * Implement the event wait interface for the eventpoll file. It is the kernel
-  * part of the user space epoll_wait(2).
-+ *
-+ * A flags argument cannot be added to epoll_pwait cause it already has
-+ * the maximum number of arguments (6). Can this be fixed?
-  */
--SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
--		int, maxevents, int, timeout)
-+SYSCALL_DEFINE5(epoll_wait5, int, epfd, struct epoll_event __user *, events,
-+		int, maxevents, int, timeout, int, flags)
- {
- 	int error;
- 	struct fd f;
-@@ -2199,14 +2219,44 @@ SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
- 	 */
- 	ep = f.file->private_data;
- 
-+	/* Check the EPOLL_* constants for conflicts.  */
-+	BUILD_BUG_ON(EPOLL_KILLME == EPOLL_CLOEXEC);
-+
-+	if (flags & ~EPOLL_KILLME)
-+		return -EINVAL;
-+
-+	if (flags & EPOLL_KILLME) {
-+		/* Put process on death row. */
-+		mutex_lock(&deathrow_mutex);
-+		deathrow_len++;
-+		list_add(&current->se.deathrow, &deathrow_q);
-+		current->se.on_deathrow = 1;
-+		mutex_unlock(&deathrow_mutex);
-+	}
-+
- 	/* Time to fish for events ... */
- 	error = ep_poll(ep, events, maxevents, timeout);
- 
-+	if (flags & EPOLL_KILLME) {
-+		/* Remove process from death row. */
-+		mutex_lock(&deathrow_mutex);
-+		current->se.on_deathrow = 0;
-+		list_del(&current->se.deathrow);
-+		deathrow_len--;
-+		mutex_unlock(&deathrow_mutex);
-+	}
-+
- error_fput:
- 	fdput(f);
- 	return error;
- }
- 
-+SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
-+		int, maxevents, int, timeout)
-+{
-+	return sys_epoll_wait5(epfd, events, maxevents, timeout, 0);
-+}
-+
- /*
-  * Implement the event wait interface for the eventpoll file. It is the kernel
-  * part of the user space epoll_pwait(2).
-@@ -2297,6 +2347,26 @@ COMPAT_SYSCALL_DEFINE6(epoll_pwait, int, epfd,
- }
- #endif
- 
-+/* Clean up after a EPOLL_KILLME process quits.
-+ * Called by kernel/exit.c.
-+ */
-+int exit_killme(void)
-+{
-+	if (current->se.on_deathrow) {
-+		mutex_lock(&deathrow_mutex);
-+		current->se.on_deathrow = 0;
-+		list_del(&current->se.deathrow);
-+		mutex_unlock(&deathrow_mutex);
-+	}
-+
-+	return 0;
-+}
-+
-+struct list_head *eventpoll_deathrow_list(void)
-+{
-+	return &deathrow_q;
-+}
-+
- static int __init eventpoll_init(void)
- {
- 	struct sysinfo si;
-diff --git a/include/linux/eventpoll.h b/include/linux/eventpoll.h
-index 2f14ac73d01d..f1e28d468de5 100644
---- a/include/linux/eventpoll.h
-+++ b/include/linux/eventpoll.h
-@@ -20,6 +20,8 @@
- /* Forward declarations to avoid compiler errors */
- struct file;
- 
-+int exit_killme(void);
-+struct list_head *eventpoll_deathrow_list(void);
- 
- #ifdef CONFIG_EPOLL
- 
-diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 26a7df4e558c..66462bf27a29 100644
---- a/include/linux/sched.h
-+++ b/include/linux/sched.h
-@@ -380,6 +380,9 @@ struct sched_entity {
- 	struct list_head		group_node;
- 	unsigned int			on_rq;
- 
-+	unsigned			on_deathrow:1;
-+	struct list_head		deathrow;
-+
- 	u64				exec_start;
- 	u64				sum_exec_runtime;
- 	u64				vruntime;
-diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
-index 061185a5eb51..843553a39388 100644
---- a/include/uapi/asm-generic/unistd.h
-+++ b/include/uapi/asm-generic/unistd.h
-@@ -893,8 +893,11 @@ __SYSCALL(__NR_fork, sys_fork)
- __SYSCALL(__NR_fork, sys_ni_syscall)
- #endif /* CONFIG_MMU */
- 
-+#define __NR_epoll_wait5 1080
-+__SYSCALL(__NR_epoll_wait5, sys_epoll_wait5)
-+
- #undef __NR_syscalls
--#define __NR_syscalls (__NR_fork+1)
-+#define __NR_syscalls (__NR_fork+2)
- 
- #endif /* __ARCH_WANT_SYSCALL_DEPRECATED */
- 
-diff --git a/include/uapi/linux/eventpoll.h b/include/uapi/linux/eventpoll.h
-index f4d5c998cc2b..ce150a3e7248 100644
---- a/include/uapi/linux/eventpoll.h
-+++ b/include/uapi/linux/eventpoll.h
-@@ -21,6 +21,9 @@
- /* Flags for epoll_create1.  */
- #define EPOLL_CLOEXEC O_CLOEXEC
- 
-+/* Flags for epoll_wait5.  */
-+#define EPOLL_KILLME 0x00000001
-+
- /* Valid opcodes to issue to sys_epoll_ctl() */
- #define EPOLL_CTL_ADD 1
- #define EPOLL_CTL_DEL 2
-diff --git a/kernel/exit.c b/kernel/exit.c
-index f6cad39f35df..cd089bdc5b17 100644
---- a/kernel/exit.c
-+++ b/kernel/exit.c
-@@ -62,6 +62,7 @@
- #include <linux/random.h>
- #include <linux/rcuwait.h>
- #include <linux/compat.h>
-+#include <linux/eventpoll.h>
- 
- #include <linux/uaccess.h>
- #include <asm/unistd.h>
-@@ -917,6 +918,7 @@ void __noreturn do_exit(long code)
- 		__this_cpu_add(dirty_throttle_leaks, tsk->nr_dirtied);
- 	exit_rcu();
- 	exit_tasks_rcu_finish();
-+	exit_killme();
- 
- 	lockdep_free_task(tsk);
- 	do_task_dead();
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index dee0f75c3013..d6252772d593 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -41,6 +41,7 @@
- #include <linux/kthread.h>
- #include <linux/init.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/eventpoll.h>
- 
- #include <asm/tlb.h>
- #include "internal.h"
-@@ -1029,6 +1030,22 @@ bool out_of_memory(struct oom_control *oc)
- 		return true;
- 	}
- 
-+	/*
-+	 * Check death row.
-+	 */
-+	if (!list_empty(eventpoll_deathrow_list())) {
-+		struct list_head *l = eventpoll_deathrow_list();
-+		struct task_struct *ts = list_first_entry(l,
-+					 struct task_struct, se.deathrow);
-+
-+		pr_debug("Killing pid %u from EPOLL_KILLME death row.",
-+			ts->pid);
-+
-+		/* We use SIGKILL so as to cleanly interrupt ep_poll() */
-+		kill_pid(task_pid(ts), SIGKILL, 1);
-+		return true;
-+	}
-+
- 	/*
- 	 * The OOM killer does not compensate for IO-less reclaim.
- 	 * pagefault_out_of_memory lost its gfp context so we have to
--- 
-2.15.0.rc2
+The page table holding PTE may be unmapped in pte_unmap_same(), so is it
+safe for us to access page table after this in do_swap_page_readahead()?
+
+Best Regards,
+Huang, Ying
+
+>  	entry = pte_to_swp_entry(vmf->orig_pte);
+>  	if (unlikely(non_swap_entry(entry))) {
+> @@ -2889,9 +2882,7 @@ int do_swap_page(struct vm_fault *vmf)
+>  
+>  
+>  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
+> -	if (!page)
+> -		page = lookup_swap_cache(entry, vma_readahead ? vma : NULL,
+> -					 vmf->address);
+> +	page = lookup_swap_cache(entry, vma, vmf->address);
+>  	if (!page) {
+>  		struct swap_info_struct *si = swp_swap_info(entry);
+>  
+> @@ -2907,9 +2898,9 @@ int do_swap_page(struct vm_fault *vmf)
+>  				swap_readpage(page, true);
+>  			}
+>  		} else {
+> -			if (vma_readahead)
+> +			if (swap_use_vma_readahead())
+>  				page = do_swap_page_readahead(entry,
+> -					GFP_HIGHUSER_MOVABLE, vmf, &swap_ra);
+> +					GFP_HIGHUSER_MOVABLE, vmf);
+>  			else
+>  				page = swapin_readahead(entry,
+>  				       GFP_HIGHUSER_MOVABLE, vma, vmf->address);
+> diff --git a/mm/swap_state.c b/mm/swap_state.c
+> index 6c017ced11e6..e3c535fcd2df 100644
+> --- a/mm/swap_state.c
+> +++ b/mm/swap_state.c
+> @@ -331,32 +331,38 @@ struct page *lookup_swap_cache(swp_entry_t entry, struct vm_area_struct *vma,
+>  			       unsigned long addr)
+>  {
+>  	struct page *page;
+> -	unsigned long ra_info;
+> -	int win, hits, readahead;
+>  
+>  	page = find_get_page(swap_address_space(entry), swp_offset(entry));
+>  
+>  	INC_CACHE_INFO(find_total);
+>  	if (page) {
+> +		bool vma_ra = swap_use_vma_readahead();
+> +		bool readahead = TestClearPageReadahead(page);
+> +
+>  		INC_CACHE_INFO(find_success);
+>  		if (unlikely(PageTransCompound(page)))
+>  			return page;
+> -		readahead = TestClearPageReadahead(page);
+> -		if (vma) {
+> -			ra_info = GET_SWAP_RA_VAL(vma);
+> -			win = SWAP_RA_WIN(ra_info);
+> -			hits = SWAP_RA_HITS(ra_info);
+> +
+> +		if (vma && vma_ra) {
+> +			unsigned long ra_val;
+> +			int win, hits;
+> +
+> +			ra_val = GET_SWAP_RA_VAL(vma);
+> +			win = SWAP_RA_WIN(ra_val);
+> +			hits = SWAP_RA_HITS(ra_val);
+>  			if (readahead)
+>  				hits = min_t(int, hits + 1, SWAP_RA_HITS_MAX);
+>  			atomic_long_set(&vma->swap_readahead_info,
+>  					SWAP_RA_VAL(addr, win, hits));
+>  		}
+> +
+>  		if (readahead) {
+>  			count_vm_event(SWAP_RA_HIT);
+> -			if (!vma)
+> +			if (!vma || !vma_ra)
+>  				atomic_inc(&swapin_readahead_hits);
+>  		}
+>  	}
+> +
+>  	return page;
+>  }
+>  
+> @@ -645,16 +651,15 @@ static inline void swap_ra_clamp_pfn(struct vm_area_struct *vma,
+>  		    PFN_DOWN((faddr & PMD_MASK) + PMD_SIZE));
+>  }
+>  
+> -struct page *swap_readahead_detect(struct vm_fault *vmf,
+> -				   struct vma_swap_readahead *swap_ra)
+> +static void swap_ra_info(struct vm_fault *vmf,
+> +			struct vma_swap_readahead *ra_info)
+>  {
+>  	struct vm_area_struct *vma = vmf->vma;
+> -	unsigned long swap_ra_info;
+> -	struct page *page;
+> +	unsigned long ra_val;
+>  	swp_entry_t entry;
+>  	unsigned long faddr, pfn, fpfn;
+>  	unsigned long start, end;
+> -	pte_t *pte;
+> +	pte_t *pte, *orig_pte;
+>  	unsigned int max_win, hits, prev_win, win, left;
+>  #ifndef CONFIG_64BIT
+>  	pte_t *tpte;
+> @@ -663,30 +668,32 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
+>  	max_win = 1 << min_t(unsigned int, READ_ONCE(page_cluster),
+>  			     SWAP_RA_ORDER_CEILING);
+>  	if (max_win == 1) {
+> -		swap_ra->win = 1;
+> -		return NULL;
+> +		ra_info->win = 1;
+> +		return;
+>  	}
+>  
+>  	faddr = vmf->address;
+> -	entry = pte_to_swp_entry(vmf->orig_pte);
+> -	if ((unlikely(non_swap_entry(entry))))
+> -		return NULL;
+> -	page = lookup_swap_cache(entry, vma, faddr);
+> -	if (page)
+> -		return page;
+> +	orig_pte = pte = pte_offset_map(vmf->pmd, faddr);
+> +	entry = pte_to_swp_entry(*pte);
+> +	if ((unlikely(non_swap_entry(entry)))) {
+> +		pte_unmap(orig_pte);
+> +		return;
+> +	}
+>  
+>  	fpfn = PFN_DOWN(faddr);
+> -	swap_ra_info = GET_SWAP_RA_VAL(vma);
+> -	pfn = PFN_DOWN(SWAP_RA_ADDR(swap_ra_info));
+> -	prev_win = SWAP_RA_WIN(swap_ra_info);
+> -	hits = SWAP_RA_HITS(swap_ra_info);
+> -	swap_ra->win = win = __swapin_nr_pages(pfn, fpfn, hits,
+> +	ra_val = GET_SWAP_RA_VAL(vma);
+> +	pfn = PFN_DOWN(SWAP_RA_ADDR(ra_val));
+> +	prev_win = SWAP_RA_WIN(ra_val);
+> +	hits = SWAP_RA_HITS(ra_val);
+> +	ra_info->win = win = __swapin_nr_pages(pfn, fpfn, hits,
+>  					       max_win, prev_win);
+>  	atomic_long_set(&vma->swap_readahead_info,
+>  			SWAP_RA_VAL(faddr, win, 0));
+>  
+> -	if (win == 1)
+> -		return NULL;
+> +	if (win == 1) {
+> +		pte_unmap(orig_pte);
+> +		return;
+> +	}
+>  
+>  	/* Copy the PTEs because the page table may be unmapped */
+>  	if (fpfn == pfn + 1)
+> @@ -699,23 +706,21 @@ struct page *swap_readahead_detect(struct vm_fault *vmf,
+>  		swap_ra_clamp_pfn(vma, faddr, fpfn - left, fpfn + win - left,
+>  				  &start, &end);
+>  	}
+> -	swap_ra->nr_pte = end - start;
+> -	swap_ra->offset = fpfn - start;
+> -	pte = vmf->pte - swap_ra->offset;
+> +	ra_info->nr_pte = end - start;
+> +	ra_info->offset = fpfn - start;
+> +	pte -= ra_info->offset;
+>  #ifdef CONFIG_64BIT
+> -	swap_ra->ptes = pte;
+> +	ra_info->ptes = pte;
+>  #else
+> -	tpte = swap_ra->ptes;
+> +	tpte = ra_info->ptes;
+>  	for (pfn = start; pfn != end; pfn++)
+>  		*tpte++ = *pte++;
+>  #endif
+> -
+> -	return NULL;
+> +	pte_unmap(orig_pte);
+>  }
+>  
+>  struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+> -				    struct vm_fault *vmf,
+> -				    struct vma_swap_readahead *swap_ra)
+> +				    struct vm_fault *vmf)
+>  {
+>  	struct blk_plug plug;
+>  	struct vm_area_struct *vma = vmf->vma;
+> @@ -724,12 +729,14 @@ struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+>  	swp_entry_t entry;
+>  	unsigned int i;
+>  	bool page_allocated;
+> +	struct vma_swap_readahead ra_info = {0,};
+>  
+> -	if (swap_ra->win == 1)
+> +	swap_ra_info(vmf, &ra_info);
+> +	if (ra_info.win == 1)
+>  		goto skip;
+>  
+>  	blk_start_plug(&plug);
+> -	for (i = 0, pte = swap_ra->ptes; i < swap_ra->nr_pte;
+> +	for (i = 0, pte = ra_info.ptes; i < ra_info.nr_pte;
+>  	     i++, pte++) {
+>  		pentry = *pte;
+>  		if (pte_none(pentry))
+> @@ -745,7 +752,7 @@ struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+>  			continue;
+>  		if (page_allocated) {
+>  			swap_readpage(page, false);
+> -			if (i != swap_ra->offset &&
+> +			if (i != ra_info.offset &&
+>  			    likely(!PageTransCompound(page))) {
+>  				SetPageReadahead(page);
+>  				count_vm_event(SWAP_RA);
+> @@ -757,7 +764,7 @@ struct page *do_swap_page_readahead(swp_entry_t fentry, gfp_t gfp_mask,
+>  	lru_add_drain();
+>  skip:
+>  	return read_swap_cache_async(fentry, gfp_mask, vma, vmf->address,
+> -				     swap_ra->win == 1);
+> +				     ra_info.win == 1);
+>  }
+>  
+>  #ifdef CONFIG_SYSFS
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
