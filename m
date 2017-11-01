@@ -1,114 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F15916B027C
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 10:48:47 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b14so1408078wme.17
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 07:48:47 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j88si841970edd.495.2017.11.01.07.48.46
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 698ED6B027F
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:09:13 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id d66so8303139ioe.23
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:09:13 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t69si792054ioe.112.2017.11.01.08.09.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 07:48:46 -0700 (PDT)
-Date: Wed, 1 Nov 2017 15:48:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm,oom: Try last second allocation before and after
- selecting an OOM victim.
-Message-ID: <20171101144845.tey4ozou44tfpp3g@dhcp22.suse.cz>
-References: <20171031132259.irkladqbucz2qa3g@dhcp22.suse.cz>
- <201710312251.HBH43789.QVOFOtLFFSOHJM@I-love.SAKURA.ne.jp>
- <20171031141034.bg25xbo5cyfafnyp@dhcp22.suse.cz>
- <201711012058.CIF81791.OQOFHFLOFMSJtV@I-love.SAKURA.ne.jp>
- <20171101124601.aqk3ayjp643ifdw3@dhcp22.suse.cz>
- <201711012338.AGB30781.JHOMFQFVSFtOLO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
+        Wed, 01 Nov 2017 08:09:12 -0700 (PDT)
+Subject: Re: [PATCH 2/2] mm,oom: Use ALLOC_OOM for OOM victim's last second allocation.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<1509537268-4726-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171101135855.bqg2kuj6ao2cicqi@dhcp22.suse.cz>
+In-Reply-To: <20171101135855.bqg2kuj6ao2cicqi@dhcp22.suse.cz>
+Message-Id: <201711020008.EHB87824.QFFOJMLOHVFSOt@I-love.SAKURA.ne.jp>
+Date: Thu, 2 Nov 2017 00:08:59 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201711012338.AGB30781.JHOMFQFVSFtOLO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov@virtuozzo.com
 
-On Wed 01-11-17 23:38:49, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Wed 01-11-17 20:58:50, Tetsuo Handa wrote:
-> > > > > But doing ALLOC_OOM for last second allocation attempt from out_of_memory() involve
-> > > > > duplicating code (e.g. rebuilding zone list).
-> > > > 
-> > > > Why would you do it? Do not blindly copy and paste code without
-> > > > a good reason. What kind of problem does this actually solve?
-> > > 
-> > > prepare_alloc_pages()/finalise_ac() initializes as
-> > > 
-> > > 	ac->high_zoneidx = gfp_zone(gfp_mask);
-> > > 	ac->zonelist = node_zonelist(preferred_nid, gfp_mask);
-> > > 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
-> > > 						     ac->high_zoneidx, ac->nodemask);
-> > > 
-> > > and selecting as an OOM victim reinitializes as
-> > > 
-> > > 	ac->zonelist = node_zonelist(numa_node_id(), gfp_mask);
-> > > 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
-> > > 						     ac->high_zoneidx, ac->nodemask);
-> > > 
-> > > and I assume that this reinitialization might affect which memory reserve
-> > > the OOM victim allocates from.
-> > > 
-> > > You mean such difference is too trivial to care about?
+Michal Hocko wrote:
+> On Wed 01-11-17 20:54:28, Tetsuo Handa wrote:
+> > Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+> > oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
+> > to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
+> > victim's mm were not able to try allocation from memory reserves after the
+> > OOM reaper gave up reclaiming memory.
 > > 
-> > You keep repeating what the _current_ code does without explaining _why_
-> > do we need the same thing in the oom path. Could you finaly answer my
-> > question please?
+> > Until Linux 4.7, we were using
+> > 
+> >   if (current->mm &&
+> >       (fatal_signal_pending(current) || task_will_free_mem(current)))
+> > 
+> > as a condition to try allocation from memory reserves with the risk of OOM
+> > lockup, but reports like [1] were impossible. Linux 4.8+ are regressed
+> > compared to Linux 4.7 due to the risk of needlessly selecting more OOM
+> > victims.
 > 
-> Because I consider that following what the current code does is reasonable
-> unless there are explicit reasons not to follow.
-
-Following this pattern makes a code mess over time because nobody
-remembers why something is done a specific way anymore. Everybody just
-keeps the ball rolling because he is afraid to change the code he
-doesn't understand. Don't do that!
-
-[...]
-> Does "that comment" refer to
+> So what you are essentially saying is that there is a race window
+> Proc1					Proc2				oom_reaper
+> __alloc_pages_slowpath			out_of_memory
+>   __gfp_pfmemalloc_flags		  select_bad_process # Proc1
+> [1]  oom_reserves_allowed # false	  oom_kill_process
+>     									  oom_reap_task
+>   __alloc_pages_may_oom							    __oom_reap_task_mm
+>   									      # doesn't unmap anything
+>       									    set_bit(MMF_OOM_SKIP)
+>     out_of_memory
+>       task_will_free_mem
+> [2]     MMF_OOM_SKIP check # true
+>       select_bad_process # Another victim
 > 
->   Elaborating the comment: the reason for the high wmark is to reduce
->   the likelihood of livelocks and be sure to invoke the OOM killer, if
->   we're still under pressure and reclaim just failed. The high wmark is
->   used to be sure the failure of reclaim isn't going to be ignored. If
->   using the min wmark like you propose there's risk of livelock or
->   anyway of delayed OOM killer invocation.
+> mostly because the above is an artificial workload which triggers the
+> pathological path where nothing is really unmapped due to mlocked
+> memory,
+
+Right.
+
+>         which makes the race window (1-2) smaller than it usually is.
+
+The race window (1-2) was larger than __oom_reap_task_mm() usually takes.
+
+>                                                                       So
+> this is pretty much a corner case which we want to address by making
+> mlocked pages really reapable. Trying to use memory reserves for the
+> oom victims reduces changes of the race.
+
+Right. We cannot prevent non OOM victims from calling oom_kill_process().
+But preventing existing OOM victims from calling oom_kill_process() (by
+allowing them to try ALLOC_OOM allocation) can reduce subsequent OOM victims.
+
 > 
-> part? Then, I know it is not about gfp flags.
+> This would be really useful to have in the changelog IMHO.
 > 
-> But how can OOM livelock happen when the last second allocation does not
-> wait for memory reclaim (because __GFP_DIRECT_RECLAIM is masked) ?
-> The last second allocation shall return immediately, and we will call
-> out_of_memory() if the last second allocation failed.
-
-I think Andrea just wanted to say that we do want to invoke OOM killer
-and resolve the memory pressure rather than keep looping in the
-reclaim/oom path just because there are few pages allocated and freed in
-the meantime.
-
-[...]
-> > I am not sure such a scenario matters all that much because it assumes
-> > that the oom victim doesn't really free much memory [1] (basically less than
-> > HIGH-MIN). Most OOM situation simply have a memory hog consuming
-> > significant amount of memory.
+> > There is no need that the OOM victim is such malicious that consumes all
+> > memory. It is possible that a multithreaded but non memory hog process is
+> > selected by the OOM killer, and the OOM reaper fails to reclaim memory due
+> > to e.g. khugepaged [2], and the process fails to try allocation from memory
+> > reserves.
 > 
-> The OOM killer does not always kill a memory hog consuming significant amount
-> of memory. The OOM killer kills a process with highest OOM score (and instead
-> one of its children if any). I don't think that assuming an OOM victim will free
-> memory enough to succeed ALLOC_WMARK_HIGH is appropriate.
+> I am not sure about this part though. If the oom_reaper cannot take the
+> mmap_sem then it retries for 1s. Have you ever seen the race to be that
+> large?
 
-OK, so let's agree to disagree. I claim that we shouldn't care all that
-much. If any of the current heuristics turns out to lead to killing too
-many tasks then we should simply remove it rather than keep bloating an
-already complex code with more and more kluges.
+Like shown in [2], khugepaged can prevent oom_reaper from taking the mmap_sem
+for 1 second. Also, it won't be impossible for OOM victims to spend 1 second
+between post __gfp_pfmemalloc_flags(gfp_mask) and pre mutex_trylock(&oom_lock)
+(in other words, the race window (1-2) above). Therefore, non artificial
+workloads could hit the same result.
 
--- 
-Michal Hocko
-SUSE Labs
+> 
+> > Therefore, this patch allows OOM victims to use ALLOC_OOM watermark
+> > for last second allocation attempt.
+> > 
+> > [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
+> > [2] http://lkml.kernel.org/r/201708090835.ICI69305.VFFOLMHOStJOQF@I-love.SAKURA.ne.jp
+> > 
+> > Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
+> > Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Oleg Nesterov <oleg@redhat.com>
+> > Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > ---
+> >  mm/page_alloc.c | 5 +++++
+> >  1 file changed, 5 insertions(+)
+> > 
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 6654f52..382ed57 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -4112,9 +4112,14 @@ struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
+> >  	 * we're still under heavy pressure. But make sure that this reclaim
+> >  	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> >  	 * allocation which will never fail due to oom_lock already held.
+> > +	 * Also, make sure that OOM victims can try ALLOC_OOM watermark in case
+> > +	 * they haven't tried ALLOC_OOM watermark.
+> >  	 */
+> >  	return get_page_from_freelist((oc->gfp_mask | __GFP_HARDWALL) &
+> >  				      ~__GFP_DIRECT_RECLAIM, oc->order,
+> > +				      oom_reserves_allowed(current) &&
+> > +				      !(oc->gfp_mask & __GFP_NOMEMALLOC) ?
+> > +				      ALLOC_OOM :
+> >  				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, oc->ac);
+> 
+> This just makes my eyes bleed. Really, why don't you simply make this
+> more readable.
+> 
+> 	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
+> 	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
+> 	int reserves
+> 
+> 	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
+> 	reserves = __gfp_pfmemalloc_flags(gfp_mask);
+> 	if (reserves)
+> 		alloc_flags = reserves;
+> 
+
+OK. I inlined __gfp_pfmemalloc_flags() because
+alloc_pages_before_oomkill() is known to be schedulable context.
+
+> >  }
+> >  
+> > -- 
+> > 1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
