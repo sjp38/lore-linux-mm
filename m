@@ -1,65 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 258E16B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 05:39:23 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id y128so1831685pfg.5
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 02:39:23 -0700 (PDT)
-Received: from huawei.com ([45.249.212.32])
-        by mx.google.com with ESMTP id t191si309332pgc.187.2017.11.01.02.39.21
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 02:39:21 -0700 (PDT)
-Subject: Re: [PATCH RFC v2 1/4] mm/mempolicy: Fix get_nodes() mask
- miscalculation
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
- <1509099265-30868-2-git-send-email-xieyisheng1@huawei.com>
- <922a4767-9eed-40aa-c437-6f6fcdcab150@suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <c9b57bde-7834-45c4-2c22-3220e3680c93@huawei.com>
-Date: Wed, 1 Nov 2017 17:37:36 +0800
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 79A2A6B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 06:11:50 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e8so1100372wmc.2
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 03:11:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r30sor366663edb.49.2017.11.01.03.11.49
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 01 Nov 2017 03:11:49 -0700 (PDT)
+Date: Wed, 1 Nov 2017 13:11:47 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
+Message-ID: <20171101101147.x2gvag62zpzydgr3@node.shutemov.name>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171031223154.67F15B2A@viggo.jf.intel.com>
+ <CALCETrW06XjaWYD1O_HPXPDrHS96FZz9=OkPCQ3vsKrAxnr8+A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <922a4767-9eed-40aa-c437-6f6fcdcab150@suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrW06XjaWYD1O_HPXPDrHS96FZz9=OkPCQ3vsKrAxnr8+A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-Hi Vlastimil,
-
-Thanks for comment!
-On 2017/10/31 16:34, Vlastimil Babka wrote:
-> On 10/27/2017 12:14 PM, Yisheng Xie wrote:
->> It appears there is a nodemask miscalculation in the get_nodes()
->> function in mm/mempolicy.c.  This bug has two effects:
->>
->> 1. It is impossible to specify a length 1 nodemask.
->> 2. It is impossible to specify a nodemask containing the last node.
+On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:
+> On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen
+> <dave.hansen@linux.intel.com> wrote:
+> >
+> > Our CR4-based TLB flush currently requries global pages to be
+> > supported *and* enabled.  But, we really only need for them to be
+> > supported.  Make the code more robust by alllowing X86_CR4_PGE to
+> > clear as well as set.
+> >
+> > This change was suggested by Kirill Shutemov.
 > 
-> This should be more specific, which syscalls are you talking about?
-> I assume it's set_mempolicy() and mbind() and it's the same issue that
-> was discussed at https://marc.info/?l=linux-mm&m=150732591909576&w=2 ?
+> I may have missed something, but why would be ever have CR4.PGE off?
 
-I just missed this thread, sorry about that. Not only set_mempolicy() and
-mbind(), but migrate_pages() also suffers this problem. Maybe related
-manpage should documented this as your mentioned below.
+This came out from me thinking on if we can disable global pages by not
+turning on CR4.PGE instead of making _PAGE_GLOBAL zero.
 
-Thanks
-Yisheng Xie
+Dave decided to not take this path, but this change would make
+__native_flush_tlb_global_irq_disabled() a bit less fragile in case
+if the situation would change in the future.
 
-> 
->> Brent have submmit a patch before v2.6.12, however, Andi revert his
->> changed for ABI problem. I just resent this patch as RFC, for do not
->> clear about what's the problem Andi have met.
-> 
-> You should have CC'd Andi. As was discussed in the other thread, this
-> would make existing programs potentially unsafe, so we can't change it.
-> Instead it should be documented.
-> 
->> As manpage of set_mempolicy, If the value of maxnode is zero, the
->> nodemask argument is ignored. but we should not ignore the nodemask
->> when maxnode is 1.
->>
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
