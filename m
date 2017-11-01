@@ -1,52 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 79A2A6B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 06:11:50 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e8so1100372wmc.2
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 03:11:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r30sor366663edb.49.2017.11.01.03.11.49
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF4F6B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 06:17:48 -0400 (EDT)
+Received: by mail-oi0-f69.google.com with SMTP id v9so2002865oif.15
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 03:17:48 -0700 (PDT)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v18si167823oif.108.2017.11.01.03.17.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Nov 2017 03:11:49 -0700 (PDT)
-Date: Wed, 1 Nov 2017 13:11:47 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
-Message-ID: <20171101101147.x2gvag62zpzydgr3@node.shutemov.name>
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
- <20171031223154.67F15B2A@viggo.jf.intel.com>
- <CALCETrW06XjaWYD1O_HPXPDrHS96FZz9=OkPCQ3vsKrAxnr8+A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 03:17:47 -0700 (PDT)
+Date: Wed, 1 Nov 2017 11:17:44 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+Message-ID: <20171101101744.GA1846@redhat.com>
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+ <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+ <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
+ <20171031141152.tzx47fy26pvx7xug@node.shutemov.name>
+ <fbf1e43d-1f73-09c1-1837-3600bcedd5d2@suse.cz>
+ <20171031191506.GB2799@redhat.com>
+ <94aa563c-14da-7892-51a0-e1799cdad050@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrW06XjaWYD1O_HPXPDrHS96FZz9=OkPCQ3vsKrAxnr8+A@mail.gmail.com>
+In-Reply-To: <94aa563c-14da-7892-51a0-e1799cdad050@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Wed, Nov 01, 2017 at 01:01:45AM -0700, Andy Lutomirski wrote:
-> On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen
-> <dave.hansen@linux.intel.com> wrote:
-> >
-> > Our CR4-based TLB flush currently requries global pages to be
-> > supported *and* enabled.  But, we really only need for them to be
-> > supported.  Make the code more robust by alllowing X86_CR4_PGE to
-> > clear as well as set.
-> >
-> > This change was suggested by Kirill Shutemov.
-> 
-> I may have missed something, but why would be ever have CR4.PGE off?
+On Wed, Nov 01, 2017 at 08:42:57AM +0100, Vlastimil Babka wrote:
+> The vma should be pinned by mmap_sem, but handle_userfault() will in some
+> scenarios release it and then acquire again, so when we return to
 
-This came out from me thinking on if we can disable global pages by not
-turning on CR4.PGE instead of making _PAGE_GLOBAL zero.
+In the above message and especially in the below comment, I would
+suggest to take the opportunity to more accurately document the
+specific scenario instead of "some scenario" which is only "A return
+to userland to repeat the page fault later with a VM_FAULT_NOPAGE
+retval (potentially after handling any pending signal during the
+return to userland). The return to userland is identified whenever
+FAULT_FLAG_USER|FAULT_FLAG_KILLABLE are both set in vmf->flags".
 
-Dave decided to not take this path, but this change would make
-__native_flush_tlb_global_irq_disabled() a bit less fragile in case
-if the situation would change in the future.
+> +	 * in some scenario (and not return VM_FAULT_RETRY), we have to be
 
--- 
- Kirill A. Shutemov
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
