@@ -1,51 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A41866B0260
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 17:28:30 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id q127so1932591wmd.1
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 14:28:30 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id c40si1374321wrc.47.2017.11.01.14.28.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 14:28:29 -0700 (PDT)
-Date: Wed, 1 Nov 2017 22:28:26 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
- page tables
-In-Reply-To: <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1711012225400.1942@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 341876B0038
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 17:35:36 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id 76so3250891pfr.3
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 14:35:36 -0700 (PDT)
+Received: from osg.samsung.com (osg.samsung.com. [64.30.133.232])
+        by mx.google.com with ESMTP id n10si521977plk.413.2017.11.01.14.35.34
+        for <linux-mm@kvack.org>;
+        Wed, 01 Nov 2017 14:35:35 -0700 (PDT)
+Subject: Re: [PATCH] selftests/vm: Add tests validating mremap mirror
+ functionality
+References: <20171030031808.24934-1-khandual@linux.vnet.ibm.com>
+From: Shuah Khan <shuahkh@osg.samsung.com>
+Message-ID: <0facab37-cdb3-1670-abc3-f4fdcc2e4e19@osg.samsung.com>
+Date: Wed, 1 Nov 2017 15:35:32 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20171030031808.24934-1-khandual@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: mike.kravetz@oracle.com, mhocko@kernel.org, Shuah Khan <shuahkh@osg.samsung.com>, Shuah Khan <shuah@kernel.org>
 
-On Wed, 1 Nov 2017, Andy Lutomirski wrote:
-
-> On Wed, Nov 1, 2017 at 2:11 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > On Tue, 31 Oct 2017, Dave Hansen wrote:
-> >
-> >>
-> >> init_mm is for kernel-exclusive use.  If someone is allocating page
-> >> tables in it, do not set _PAGE_USER on them.  This ensures that
-> >> we do *not* set NX on these page tables in the KAISER code.
-> >
-> > This changelog is confusing at best.
-> >
-> > Why is this a kaiser issue? Nothing should ever create _PAGE_USER entries
-> > in init_mm, right?
+On 10/29/2017 09:18 PM, Anshuman Khandual wrote:
+> This adds two tests to validate mirror functionality with mremap()
+> system call on shared and private anon mappings. After the commit
+> dba58d3b8c5 ("mm/mremap: fail map duplication attempts for private
+> mappings"), any attempt to mirror private anon mapping will fail.
 > 
-> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+> ---
+> Changes in V4:
+> 
+> - Folded these two test files into just one as per Mike
+> - Did some renaming of functions, cleans ups etc
+> 
+> Changes in V3: (https://patchwork.kernel.org/patch/10013469/)
+> 
+> - Fail any attempts to mirror an existing anon private mapping
+> - Updated run_vmtests to include these new mremap tests
+> - Updated the commit message
+> 
+> Changes in V2: (https://patchwork.kernel.org/patch/9861259/)
+> 
+> - Added a test for private anon mappings
+> - Used sysconf(_SC_PAGESIZE) instead of hard coding page size
+> - Used MREMAP_MAYMOVE instead of hard coding the flag value 1
+> 
+> Original V1: (https://patchwork.kernel.org/patch/9854415/)
 
-Groan, forgot about that abomination, but still there is no point in having
-it marked PAGE_USER in the init_mm at all, kaiser or not.
+Thanks. I will queue this up for 4.15-rc1
 
-Thanks,
-
-	tglx
+-- Shuah
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
