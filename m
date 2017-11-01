@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FB476B0268
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:12:21 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id o74so11176438iod.15
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:12:21 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c2sor1095784itf.1.2017.11.01.15.12.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3EFA16B0261
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:14:17 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id v78so3302679pfk.8
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:14:17 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q15si677497pli.661.2017.11.01.15.14.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Nov 2017 15:12:20 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 15:14:16 -0700 (PDT)
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <d7cb1705-5ef0-5f6e-b1cf-e3f28e998477@linux.intel.com>
+Date: Wed, 1 Nov 2017 15:14:11 -0700
 MIME-Version: 1.0
-In-Reply-To: <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
- <alpine.DEB.2.20.1711012225400.1942@nanos> <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 1 Nov 2017 15:12:19 -0700
-Message-ID: <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm page tables
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, borisBrian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Garnier <thgarnie@google.com>, Kees Cook <keescook@google.com>
 
-On Wed, Nov 1, 2017 at 2:52 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
-> On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
->> On Wed, 1 Nov 2017, Andy Lutomirski wrote:
->>> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
->>
->> Groan, forgot about that abomination, but still there is no point in having
->> it marked PAGE_USER in the init_mm at all, kaiser or not.
->
-> So shouldn't this patch effectively make the vsyscall page unusable?
-> Any idea why that didn't show up in any of the x86 selftests?
+On 11/01/2017 01:54 AM, Ingo Molnar wrote:
+> Beyond the inevitable cavalcade of (solvable) problems that will pop up during 
+> review, one major item I'd like to see addressed is runtime configurability: it 
+> should be possible to switch between a CR3-flushing and a regular syscall and page 
+> table model on the admin level, without restarting the kernel and apps. Distros 
+> really, really don't want to double the number of kernel variants they have.
+> 
+> The 'Kaiser off' runtime switch doesn't have to be as efficient as 
+> CONFIG_KAISER=n, at least initialloy, but at minimum it should avoid the most 
+> expensive page table switching paths in the syscall entry codepaths.
 
-I actually think there may be two issues here:
+Due to popular demand, I went and implemented this today.  It's not the
+prettiest code I ever wrote, but it's pretty small.
 
- - vsyscall isn't even used much - if any - any more
+Just in case anyone wants to play with it, I threw a snapshot of it up here:
 
- - the vsyscall emulation works fine without _PAGE_USER, since the
-whole point is that we take a fault on it and then emulate.
+> https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/log/?h=kaiser-dynamic-414rc6-20171101
 
-We do expose the vsyscall page read-only to user space in the
-emulation case, but I'm not convinced that's even required.
-
-Nobody who configures KAISER enabled would possibly want to have the
-actual native vsyscall page enabled. That would be an insane
-combination.
-
-So the only possibly difference would be a user mode program that
-actually looks at the vsyscall page, which sounds unlikely to be an
-issue.  It's legacy and not really used.
-
-            Linus
+I ran some quick tests.  When CONFIG_KAISER=y, but "echo 0 >
+kaiser-enabled", the tests that I ran were within the noise vs. a
+vanilla kernel, and that's with *zero* optimization.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
