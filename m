@@ -1,84 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 530D46B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:59:32 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id l23so1955041pgc.10
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:59:32 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id q124si144222pga.510.2017.11.01.01.59.30
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E93DF6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 05:07:55 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id t139so996522wmt.7
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 02:07:55 -0700 (PDT)
+Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
+        by mx.google.com with ESMTP id m76si352859wmi.36.2017.11.01.02.07.54
         for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 01:59:31 -0700 (PDT)
-Date: Wed, 1 Nov 2017 17:59:27 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171101085927.GB3172@X58A-UD3R>
-References: <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
- <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
- <20171030100921.GA18085@X58A-UD3R>
- <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
- <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
- <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
- <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
- <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz>
- <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
+        Wed, 01 Nov 2017 02:07:54 -0700 (PDT)
+Date: Wed, 1 Nov 2017 10:07:50 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 23/23] x86, kaiser: add Kconfig
+Message-ID: <20171101090750.fz3mgz5sefdkgwso@pd.tnic>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171031223228.9F2B69B4@viggo.jf.intel.com>
+ <CAGXu5jK3nwcO=520a0V22bs_-8wBYAO+E5aeX53PUfevA2KvVQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
+In-Reply-To: <CAGXu5jK3nwcO=520a0V22bs_-8wBYAO+E5aeX53PUfevA2KvVQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Kees Cook <keescook@google.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Hugh Dickins <hughd@google.com>, x86@kernel.org
 
-On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
-> On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
-> > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
-> > [...]
-> > > If we want to save those stacks; we have to save a stacktrace on _every_
-> > > lock acquire, simply because we never know ahead of time if there will
-> > > be a new link. Doing this is _expensive_.
-> > > 
-> > > Furthermore, the space into which we store stacktraces is limited;
-> > > since memory allocators use locks we can't very well use dynamic memory
-> > > for lockdep -- that would give recursive and robustness issues.
+On Tue, Oct 31, 2017 at 04:59:37PM -0700, Kees Cook wrote:
+> A quick look through "#ifdef CONFIG_KAISER" looks like it might be
+> possible to make this a runtime setting at some point. When doing
+> KASLR, it was much more useful to make this runtime selectable so that
+> distro kernels could build the support in, but let users decide if
+> they wanted to enable it.
 
-I agree with all you said.
+Yes please.
 
-But, I have a better idea, that is, to save only the caller's ip of each
-acquisition as an additional information? Of course, it's not enough in
-some cases, but it's cheep and better than doing nothing.
+-- 
+Regards/Gruss,
+    Boris.
 
-For example, when building A->B, let's save not only full stack of B,
-but also caller's ip of A together, then use them on warning like:
-
--> #3 aa_mutex:
-   a()
-   b()
-   c()
-   d()
-   ---
-   while holding bb_mutex at $IP <- additional information I said
-
--> #2 bb_mutex:
-   e()
-   f()
-   g()
-   h()
-   ---
-   while holding cc_mutex at $IP <- additional information I said
-
--> #1 cc_mutex:
-   i()
-   j()
-   k()
-   l()
-   ---
-   while holding xxx at $IP <- additional information I said
-
-and so on.
-
-Don't you think this is worth working it?
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
