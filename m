@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 32D75280253
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 595F2280245
 	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:37:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id i196so2846609pgd.2
+Received: by mail-pf0-f199.google.com with SMTP id 76so2527478pfr.3
         for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:37:13 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i6si1267022pgt.798.2017.11.01.08.37.03
+        by mx.google.com with ESMTPS id r15si1312495pfb.219.2017.11.01.08.37.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 01 Nov 2017 08:37:03 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH] mmap.2: Add description of MAP_SHARED_VALIDATE and MAP_SYNC
-Date: Wed,  1 Nov 2017 16:36:48 +0100
-Message-Id: <20171101153648.30166-20-jack@suse.cz>
+Subject: [PATCH 17/18] xfs: Implement xfs_filemap_pfn_mkwrite() using __xfs_filemap_fault()
+Date: Wed,  1 Nov 2017 16:36:46 +0100
+Message-Id: <20171101153648.30166-18-jack@suse.cz>
 In-Reply-To: <20171101153648.30166-1-jack@suse.cz>
 References: <20171101153648.30166-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,72 +20,75 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+xfs_filemap_pfn_mkwrite() duplicates a lot of __xfs_filemap_fault().
+It will also need to handle flushing for synchronous page faults. So
+just make that function use __xfs_filemap_fault().
+
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- man2/mmap.2 | 35 ++++++++++++++++++++++++++++++++++-
- 1 file changed, 34 insertions(+), 1 deletion(-)
+ fs/xfs/xfs_file.c  | 29 ++++-------------------------
+ fs/xfs/xfs_trace.h |  2 --
+ 2 files changed, 4 insertions(+), 27 deletions(-)
 
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 47c3148653be..b38ee6809327 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -125,6 +125,21 @@ are carried through to the underlying file.
- to the underlying file requires the use of
- .BR msync (2).)
- .TP
-+.BR MAP_SHARED_VALIDATE " (since Linux 4.15)"
-+The same as
-+.B MAP_SHARED
-+except that
-+.B MAP_SHARED
-+mappings ignore unknown flags in
-+.IR flags .
-+In contrast when creating mapping of
-+.B MAP_SHARED_VALIDATE
-+mapping type, the kernel verifies all passed flags are known and fails the
-+mapping with
-+.BR EOPNOTSUPP
-+otherwise. This mapping type is also required to be able to use some mapping
-+flags.
-+.TP
- .B MAP_PRIVATE
- Create a private copy-on-write mapping.
- Updates to the mapping are not visible to other processes
-@@ -134,7 +149,10 @@ It is unspecified whether changes made to the file after the
- .BR mmap ()
- call are visible in the mapped region.
- .PP
--Both of these flags are described in POSIX.1-2001 and POSIX.1-2008.
-+.B MAP_SHARED
-+and
-+.B MAP_PRIVATE
-+are described in POSIX.1-2001 and POSIX.1-2008.
- .PP
- In addition, zero or more of the following values can be ORed in
- .IR flags :
-@@ -352,6 +370,21 @@ option.
- Because of the security implications,
- that option is normally enabled only on embedded devices
- (i.e., devices where one has complete control of the contents of user memory).
-+.TP
-+.BR MAP_SYNC " (since Linux 4.15)"
-+This flags is available only with
-+.B MAP_SHARED_VALIDATE
-+mapping type. Mappings of
-+.B MAP_SHARED
-+type will silently ignore this flag.
-+This flag is supported only for files supporting DAX (direct mapping of persistent
-+memory). For other files, creating mapping with this flag results in
-+.B EOPNOTSUPP
-+error. Shared file mappings with this flag provide the guarantee that while
-+some memory is writeably mapped in the address space of the process, it will
-+be visible in the same file at the same offset even after the system crashes or
-+is rebooted. This allows users of such mappings to make data modifications
-+persistent in a more efficient way using appropriate CPU instructions.
- .PP
- Of the above flags, only
- .B MAP_FIXED
+diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
+index 7c6b8def6eed..4496b45678de 100644
+--- a/fs/xfs/xfs_file.c
++++ b/fs/xfs/xfs_file.c
+@@ -1085,37 +1085,16 @@ xfs_filemap_page_mkwrite(
+ }
+ 
+ /*
+- * pfn_mkwrite was originally inteneded to ensure we capture time stamp
+- * updates on write faults. In reality, it's need to serialise against
+- * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
+- * to ensure we serialise the fault barrier in place.
++ * pfn_mkwrite was originally intended to ensure we capture time stamp updates
++ * on write faults. In reality, it needs to serialise against truncate and
++ * prepare memory for writing so handle is as standard write fault.
+  */
+ static int
+ xfs_filemap_pfn_mkwrite(
+ 	struct vm_fault		*vmf)
+ {
+ 
+-	struct inode		*inode = file_inode(vmf->vma->vm_file);
+-	struct xfs_inode	*ip = XFS_I(inode);
+-	int			ret = VM_FAULT_NOPAGE;
+-	loff_t			size;
+-
+-	trace_xfs_filemap_pfn_mkwrite(ip);
+-
+-	sb_start_pagefault(inode->i_sb);
+-	file_update_time(vmf->vma->vm_file);
+-
+-	/* check if the faulting page hasn't raced with truncate */
+-	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
+-	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+-	if (vmf->pgoff >= size)
+-		ret = VM_FAULT_SIGBUS;
+-	else if (IS_DAX(inode))
+-		ret = dax_iomap_fault(vmf, PE_SIZE_PTE, NULL, &xfs_iomap_ops);
+-	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
+-	sb_end_pagefault(inode->i_sb);
+-	return ret;
+-
++	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+ }
+ 
+ static const struct vm_operations_struct xfs_file_vm_ops = {
+diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
+index bb5514688d47..6333ad09e0f3 100644
+--- a/fs/xfs/xfs_trace.h
++++ b/fs/xfs/xfs_trace.h
+@@ -688,8 +688,6 @@ DEFINE_INODE_EVENT(xfs_inode_set_cowblocks_tag);
+ DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
+ DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
+ 
+-DEFINE_INODE_EVENT(xfs_filemap_pfn_mkwrite);
+-
+ TRACE_EVENT(xfs_filemap_fault,
+ 	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
+ 		 bool write_fault),
 -- 
 2.12.3
 
