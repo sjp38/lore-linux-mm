@@ -1,50 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 417096B026D
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:24:06 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id g6so3745145pgn.11
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:24:06 -0700 (PDT)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id y72si637911plh.13.2017.11.01.15.24.05
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9607B6B026D
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:28:22 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id y7so1926376wmd.18
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:28:22 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id t103si1438253wrc.401.2017.11.01.15.28.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Nov 2017 15:24:05 -0700 (PDT)
-Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
- <20171031223154.67F15B2A@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711012222330.1942@nanos>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <d7db2bfd-e251-606f-a42f-55c9ef1aca55@linux.intel.com>
-Date: Wed, 1 Nov 2017 15:24:03 -0700
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 15:28:21 -0700 (PDT)
+Date: Wed, 1 Nov 2017 23:28:17 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 03/23] x86, kaiser: disable global pages
+In-Reply-To: <dad84c59-dea1-2ad6-b0be-14809426db01@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1711012321110.1942@nanos>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223152.B5D241B2@viggo.jf.intel.com> <alpine.DEB.2.20.1711012213370.1942@nanos> <dad84c59-dea1-2ad6-b0be-14809426db01@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711012222330.1942@nanos>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
+To: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On 11/01/2017 02:25 PM, Thomas Gleixner wrote:
->>  	cr4 = this_cpu_read(cpu_tlbstate.cr4);
->> -	/* clear PGE */
->> -	native_write_cr4(cr4 & ~X86_CR4_PGE);
->> -	/* write old PGE again and flush TLBs */
->> +	/*
->> +	 * This function is only called on systems that support X86_CR4_PGE
->> +	 * and where always set X86_CR4_PGE.  Warn if we are called without
->> +	 * PGE set.
->> +	 */
->> +	WARN_ON_ONCE(!(cr4 & X86_CR4_PGE));
-> Because if CR4_PGE is not set, this warning triggers. So this defeats the
-> toggle mode you are implementing.
+On Wed, 1 Nov 2017, Dave Hansen wrote:
+> On 11/01/2017 02:18 PM, Thomas Gleixner wrote:
+> > On Tue, 31 Oct 2017, Dave Hansen wrote:
+> >> --- a/arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages	2017-10-31 15:03:49.314064402 -0700
+> >> +++ b/arch/x86/include/asm/pgtable_types.h	2017-10-31 15:03:49.323064827 -0700
+> >> @@ -47,7 +47,12 @@
+> >>  #define _PAGE_ACCESSED	(_AT(pteval_t, 1) << _PAGE_BIT_ACCESSED)
+> >>  #define _PAGE_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_DIRTY)
+> >>  #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
+> >> +#ifdef CONFIG_X86_GLOBAL_PAGES
+> >>  #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+> >> +#else
+> >> +/* We must ensure that kernel TLBs are unusable while in userspace */
+> >> +#define _PAGE_GLOBAL	(_AT(pteval_t, 0))
+> >> +#endif
+> > 
+> > What you really want to do here is to clear PAGE_GLOBAL in the
+> > supported_pte_mask. probe_page_size_mask() is the proper place for that.
+> 
+> How does something like this look?  I just remove _PAGE_GLOBAL from the
+> default __PAGE_KERNEL permissions.
 
-The warning is there because there is probably plenty of *other* stuff
-that breaks if we have X86_FEATURE_PGE=1, but CR4.PGE=0.
+That should work, but how do you bring _PAGE_GLOBAL back when kaiser is
+disabled at boot/runtime?
 
-The point of this was to make this function do the right thing no matter
-what, but warn if it gets called in an unexpected way.
+You might want to make __PAGE_KERNEL_GLOBAL a variable, but that might be
+impossible for the early ASM stuff.
+
+> I was a bit worried that if we pull _PAGE_GLOBAL out of
+> __supported_pte_mask itself, we might not be able to use it for the
+> shadow entries that map the entry/exit code like Linus suggested.
+
+Hmm. Good point.  
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
