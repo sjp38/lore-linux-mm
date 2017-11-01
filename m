@@ -1,43 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7FB326B026B
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:31:26 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id r18so1890140pgu.9
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:31:26 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id u66si93841pfa.109.2017.11.01.01.31.24
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 01:31:25 -0700 (PDT)
-Date: Wed, 1 Nov 2017 17:31:16 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171101083116.GA3172@X58A-UD3R>
-References: <089e0825eec8955c1f055c83d476@google.com>
- <20171027093418.om5e566srz2ztsrk@dhcp22.suse.cz>
- <CACT4Y+Y=NCy20_k4YcrCF2Q0f16UPDZBVAF=RkkZ0uSxZq5XaA@mail.gmail.com>
- <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
- <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
- <20171030100921.GA18085@X58A-UD3R>
- <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
- <20171031152532.uah32qiftjerc3gx@hirez.programming.kicks-ass.net>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 746AC6B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:54:29 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id y39so902290wrd.17
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:54:29 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p79sor142210wmf.18.2017.11.01.01.54.28
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 01 Nov 2017 01:54:28 -0700 (PDT)
+Date: Wed, 1 Nov 2017 09:54:25 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+Message-ID: <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171031152532.uah32qiftjerc3gx@hirez.programming.kicks-ass.net>
+In-Reply-To: <20171031223146.6B47C861@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, borisBrian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Garnier <thgarnie@google.com>
 
-On Tue, Oct 31, 2017 at 04:25:32PM +0100, Peter Zijlstra wrote:
-> But this report only includes a single (cpu-up) part and therefore is
 
-Thanks for fixing me, Peter. I thought '#1 -> #2' and '#2 -> #3', where
-#2 is 'cpuhp_state', should have been built with two different classes
-of #2 as the latest code. Sorry for confusing Michal.
+(Filled in the missing Cc: list)
 
-> not affected by that change other than a lock name changing.
+* Dave Hansen <dave.hansen@linux.intel.com> wrote:
+
+> tl;dr:
+> 
+> KAISER makes it harder to defeat KASLR, but makes syscalls and
+> interrupts slower.  These patches are based on work from a team at
+> Graz University of Technology posted here[1].  The major addition is
+> support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
+> work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
+> for a wide variety of use cases.
+
+Ok, while I never thought I'd see the 4g:4g patch come to 64-bit kernels ;-),
+this series is a lot better than earlier versions of this feature, and it
+solves a number of KASLR timing attacks rather fundamentally.
+
+Beyond the inevitable cavalcade of (solvable) problems that will pop up during 
+review, one major item I'd like to see addressed is runtime configurability: it 
+should be possible to switch between a CR3-flushing and a regular syscall and page 
+table model on the admin level, without restarting the kernel and apps. Distros 
+really, really don't want to double the number of kernel variants they have.
+
+The 'Kaiser off' runtime switch doesn't have to be as efficient as 
+CONFIG_KAISER=n, at least initialloy, but at minimum it should avoid the most 
+expensive page table switching paths in the syscall entry codepaths.
+
+Also, this series should be based on Andy's latest syscall entry cleanup work.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
