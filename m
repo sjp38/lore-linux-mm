@@ -1,75 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BE6BA6B0069
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:10:37 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u27so3748341pgn.3
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:10:37 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m66si2024290pfg.114.2017.11.01.15.10.36
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F3A2C6B0261
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:11:59 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id f27so1954358wra.9
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:11:59 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id m5si1569811wme.22.2017.11.01.15.11.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 15:10:36 -0700 (PDT)
-Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes
- process to death row (new syscall)
-References: <20171101053244.5218-1-slandden@gmail.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <b98ae797-ce25-79bd-e405-35565256f673@I-love.SAKURA.ne.jp>
-Date: Thu, 2 Nov 2017 07:10:24 +0900
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 15:11:58 -0700 (PDT)
+Date: Wed, 1 Nov 2017 23:11:53 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
+ page tables
+In-Reply-To: <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1711012258590.1942@nanos>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com> <alpine.DEB.2.20.1711012225400.1942@nanos>
+ <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171101053244.5218-1-slandden@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Landden <slandden@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On 2017/11/01 14:32, Shawn Landden wrote:
-> @@ -1029,6 +1030,22 @@ bool out_of_memory(struct oom_control *oc)
->  		return true;
->  	}
->  
-> +	/*
-> +	 * Check death row.
-> +	 */
-> +	if (!list_empty(eventpoll_deathrow_list())) {
-> +		struct list_head *l = eventpoll_deathrow_list();
+On Wed, 1 Nov 2017, Dave Hansen wrote:
 
-Unsafe traversal. List can become empty at this moment.
-
-> +		struct task_struct *ts = list_first_entry(l,
-> +					 struct task_struct, se.deathrow);
-> +
-> +		pr_debug("Killing pid %u from EPOLL_KILLME death row.",
-> +			ts->pid);
-> +
-> +		/* We use SIGKILL so as to cleanly interrupt ep_poll() */
-> +		kill_pid(task_pid(ts), SIGKILL, 1);
-
-send_sig() ?
-
-> +		return true;
-> +	}
-> +
->  	/*
->  	 * The OOM killer does not compensate for IO-less reclaim.
->  	 * pagefault_out_of_memory lost its gfp context so we have to
+> On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
+> > On Wed, 1 Nov 2017, Andy Lutomirski wrote:
+> >> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
+> > 
+> > Groan, forgot about that abomination, but still there is no point in having
+> > it marked PAGE_USER in the init_mm at all, kaiser or not.
 > 
+> So shouldn't this patch effectively make the vsyscall page unusable?
+> Any idea why that didn't show up in any of the x86 selftests?
 
-And why is
+vsyscall is the legacy mechanism. Halfways modern userspace does not need
+it at all.
 
-  static int oom_fd = open("/proc/self/oom_score_adj", O_WRONLY);
+The default for it is EMULATE except you set it to NATIVE either via
+Kconfig or on the kernel command line. Distros ship it with EMULATE set.
+The emulation does not use the fixmap, it traps the access and emulates it.
 
-and then toggling between
+But that aside. The point is that the fixmap exists in the init_mm and if
+vsyscall is enabled then its also established in the process mappings.
 
-  write(fd, "1000", 4);
+So this can be done as a general correctness change:
 
-and
+  - Prevent USER mappings in init_mm
 
-  write(fd, "0", 1);
+  - Make sure the fixmap gets the USER bit in the process mapping when
+    vsyscall is in native mode.
 
-not sufficient? Adding prctl() that do this might be handy though.
+We can avoid the latter by just removing the native vsyscall support and only
+support emulation and none. It's about time to kill that stuff anyway.
+
+Thanks,
+
+	tglx
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
