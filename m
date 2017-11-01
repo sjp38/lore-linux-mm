@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 595F2280245
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ADDA28024A
 	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:37:13 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 76so2527478pfr.3
+Received: by mail-pg0-f71.google.com with SMTP id a192so2853030pge.1
         for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:37:13 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r15si1312495pfb.219.2017.11.01.08.37.03
+        by mx.google.com with ESMTPS id y69si1297376pfb.601.2017.11.01.08.37.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 01 Nov 2017 08:37:03 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 17/18] xfs: Implement xfs_filemap_pfn_mkwrite() using __xfs_filemap_fault()
-Date: Wed,  1 Nov 2017 16:36:46 +0100
-Message-Id: <20171101153648.30166-18-jack@suse.cz>
+Subject: [PATCH 03/18] dax: Simplify arguments of dax_insert_mapping()
+Date: Wed,  1 Nov 2017 16:36:32 +0100
+Message-Id: <20171101153648.30166-4-jack@suse.cz>
 In-Reply-To: <20171101153648.30166-1-jack@suse.cz>
 References: <20171101153648.30166-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,75 +20,100 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>
 
-xfs_filemap_pfn_mkwrite() duplicates a lot of __xfs_filemap_fault().
-It will also need to handle flushing for synchronous page faults. So
-just make that function use __xfs_filemap_fault().
+dax_insert_mapping() has lots of arguments and a lot of them is actuall
+duplicated by passing vm_fault structure as well. Change the function to
+take the same arguments as dax_pmd_insert_mapping().
 
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/xfs/xfs_file.c  | 29 ++++-------------------------
- fs/xfs/xfs_trace.h |  2 --
- 2 files changed, 4 insertions(+), 27 deletions(-)
+ fs/dax.c | 32 ++++++++++++++++----------------
+ 1 file changed, 16 insertions(+), 16 deletions(-)
 
-diff --git a/fs/xfs/xfs_file.c b/fs/xfs/xfs_file.c
-index 7c6b8def6eed..4496b45678de 100644
---- a/fs/xfs/xfs_file.c
-+++ b/fs/xfs/xfs_file.c
-@@ -1085,37 +1085,16 @@ xfs_filemap_page_mkwrite(
+diff --git a/fs/dax.c b/fs/dax.c
+index f001d8c72a06..0bc42ac294ca 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -820,23 +820,30 @@ int dax_writeback_mapping_range(struct address_space *mapping,
  }
+ EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
  
- /*
-- * pfn_mkwrite was originally inteneded to ensure we capture time stamp
-- * updates on write faults. In reality, it's need to serialise against
-- * truncate similar to page_mkwrite. Hence we cycle the XFS_MMAPLOCK_SHARED
-- * to ensure we serialise the fault barrier in place.
-+ * pfn_mkwrite was originally intended to ensure we capture time stamp updates
-+ * on write faults. In reality, it needs to serialise against truncate and
-+ * prepare memory for writing so handle is as standard write fault.
-  */
- static int
- xfs_filemap_pfn_mkwrite(
- 	struct vm_fault		*vmf)
+-static int dax_insert_mapping(struct address_space *mapping,
+-		struct block_device *bdev, struct dax_device *dax_dev,
+-		sector_t sector, size_t size, void *entry,
+-		struct vm_area_struct *vma, struct vm_fault *vmf)
++static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
++{
++	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
++}
++
++static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
++			      loff_t pos, void *entry)
  {
++	const sector_t sector = dax_iomap_sector(iomap, pos);
++	struct vm_area_struct *vma = vmf->vma;
++	struct address_space *mapping = vma->vm_file->f_mapping;
+ 	unsigned long vaddr = vmf->address;
+ 	void *ret, *kaddr;
+ 	pgoff_t pgoff;
+ 	int id, rc;
+ 	pfn_t pfn;
  
--	struct inode		*inode = file_inode(vmf->vma->vm_file);
--	struct xfs_inode	*ip = XFS_I(inode);
--	int			ret = VM_FAULT_NOPAGE;
--	loff_t			size;
--
--	trace_xfs_filemap_pfn_mkwrite(ip);
--
--	sb_start_pagefault(inode->i_sb);
--	file_update_time(vmf->vma->vm_file);
--
--	/* check if the faulting page hasn't raced with truncate */
--	xfs_ilock(ip, XFS_MMAPLOCK_SHARED);
--	size = (i_size_read(inode) + PAGE_SIZE - 1) >> PAGE_SHIFT;
--	if (vmf->pgoff >= size)
--		ret = VM_FAULT_SIGBUS;
--	else if (IS_DAX(inode))
--		ret = dax_iomap_fault(vmf, PE_SIZE_PTE, NULL, &xfs_iomap_ops);
--	xfs_iunlock(ip, XFS_MMAPLOCK_SHARED);
--	sb_end_pagefault(inode->i_sb);
--	return ret;
--
-+	return __xfs_filemap_fault(vmf, PE_SIZE_PTE, true);
+-	rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
++	rc = bdev_dax_pgoff(iomap->bdev, sector, PAGE_SIZE, &pgoff);
+ 	if (rc)
+ 		return rc;
+ 
+ 	id = dax_read_lock();
+-	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, &pfn);
++	rc = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(PAGE_SIZE),
++			       &kaddr, &pfn);
+ 	if (rc < 0) {
+ 		dax_read_unlock(id);
+ 		return rc;
+@@ -936,11 +943,6 @@ int __dax_zero_page_range(struct block_device *bdev,
  }
+ EXPORT_SYMBOL_GPL(__dax_zero_page_range);
  
- static const struct vm_operations_struct xfs_file_vm_ops = {
-diff --git a/fs/xfs/xfs_trace.h b/fs/xfs/xfs_trace.h
-index bb5514688d47..6333ad09e0f3 100644
---- a/fs/xfs/xfs_trace.h
-+++ b/fs/xfs/xfs_trace.h
-@@ -688,8 +688,6 @@ DEFINE_INODE_EVENT(xfs_inode_set_cowblocks_tag);
- DEFINE_INODE_EVENT(xfs_inode_clear_cowblocks_tag);
- DEFINE_INODE_EVENT(xfs_inode_free_cowblocks_invalid);
- 
--DEFINE_INODE_EVENT(xfs_filemap_pfn_mkwrite);
+-static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
+-{
+-	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
+-}
 -
- TRACE_EVENT(xfs_filemap_fault,
- 	TP_PROTO(struct xfs_inode *ip, enum page_entry_size pe_size,
- 		 bool write_fault),
+ static loff_t
+ dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+ 		struct iomap *iomap)
+@@ -1087,7 +1089,6 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+ 	struct inode *inode = mapping->host;
+ 	unsigned long vaddr = vmf->address;
+ 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
+-	sector_t sector;
+ 	struct iomap iomap = { 0 };
+ 	unsigned flags = IOMAP_FAULT;
+ 	int error, major = 0;
+@@ -1140,9 +1141,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+ 		goto error_finish_iomap;
+ 	}
+ 
+-	sector = dax_iomap_sector(&iomap, pos);
+-
+ 	if (vmf->cow_page) {
++		sector_t sector = dax_iomap_sector(&iomap, pos);
++
+ 		switch (iomap.type) {
+ 		case IOMAP_HOLE:
+ 		case IOMAP_UNWRITTEN:
+@@ -1175,8 +1176,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+ 			count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
+ 			major = VM_FAULT_MAJOR;
+ 		}
+-		error = dax_insert_mapping(mapping, iomap.bdev, iomap.dax_dev,
+-				sector, PAGE_SIZE, entry, vmf->vma, vmf);
++		error = dax_insert_mapping(vmf, &iomap, pos, entry);
+ 		/* -EBUSY is fine, somebody else faulted on the same PTE */
+ 		if (error == -EBUSY)
+ 			error = 0;
 -- 
 2.12.3
 
