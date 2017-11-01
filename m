@@ -1,55 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C394B6B026F
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:30:05 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id e8so2000478wmc.2
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:30:05 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id q197si1592455wmb.236.2017.11.01.15.30.04
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 932E46B0261
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:45:50 -0400 (EDT)
+Received: by mail-io0-f199.google.com with SMTP id f20so11464831ioj.2
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:45:50 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y19sor877628itb.11.2017.11.01.15.45.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 15:30:04 -0700 (PDT)
-Date: Wed, 1 Nov 2017 23:30:01 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
-In-Reply-To: <d7db2bfd-e251-606f-a42f-55c9ef1aca55@linux.intel.com>
-Message-ID: <alpine.DEB.2.20.1711012329240.1942@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223154.67F15B2A@viggo.jf.intel.com> <alpine.DEB.2.20.1711012222330.1942@nanos> <d7db2bfd-e251-606f-a42f-55c9ef1aca55@linux.intel.com>
+        (Google Transport Security);
+        Wed, 01 Nov 2017 15:45:49 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.20.1711012316130.1942@nanos>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com>
+ <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
+ <alpine.DEB.2.20.1711012225400.1942@nanos> <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
+ <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com> <alpine.DEB.2.20.1711012316130.1942@nanos>
+From: Kees Cook <keescook@google.com>
+Date: Wed, 1 Nov 2017 15:45:48 -0700
+Message-ID: <CAGXu5jLCkhhVmCbpxp4oWCgwCdkDQz2DsJnO=9EzfYZorNLMUQ@mail.gmail.com>
+Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
+On Wed, Nov 1, 2017 at 3:20 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Wed, 1 Nov 2017, Linus Torvalds wrote:
+>> On Wed, Nov 1, 2017 at 2:52 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
+>> > On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
+>> >> On Wed, 1 Nov 2017, Andy Lutomirski wrote:
+>> >>> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
+>> >>
+>> >> Groan, forgot about that abomination, but still there is no point in having
+>> >> it marked PAGE_USER in the init_mm at all, kaiser or not.
+>> >
+>> > So shouldn't this patch effectively make the vsyscall page unusable?
+>> > Any idea why that didn't show up in any of the x86 selftests?
+>>
+>> I actually think there may be two issues here:
+>>
+>>  - vsyscall isn't even used much - if any - any more
+>
+> Only legacy user space uses it.
+>
+>>  - the vsyscall emulation works fine without _PAGE_USER, since the
+>> whole point is that we take a fault on it and then emulate.
+>>
+>> We do expose the vsyscall page read-only to user space in the
+>> emulation case, but I'm not convinced that's even required.
+>
+> I don't see a reason why it needs to be mapped at all for emulation.
+>
+>> Nobody who configures KAISER enabled would possibly want to have the
+>> actual native vsyscall page enabled. That would be an insane
+>> combination.
+>>
+>> So the only possibly difference would be a user mode program that
+>> actually looks at the vsyscall page, which sounds unlikely to be an
+>> issue.  It's legacy and not really used.
+>
+> Right, and we can either disable the NATIVE mode when KAISER is on or just
+> rip the native mode out completely. Most distros have native mode disabled
+> anyway, so you cannot even enable it on the kernel command line.
+>
+> I'm all for ripping it out or at least removing the config switch to enable
+> native mode as a first step.
 
-On Wed, 1 Nov 2017, Dave Hansen wrote:
+I would like to see NATIVE removed too.
 
-> On 11/01/2017 02:25 PM, Thomas Gleixner wrote:
-> >>  	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-> >> -	/* clear PGE */
-> >> -	native_write_cr4(cr4 & ~X86_CR4_PGE);
-> >> -	/* write old PGE again and flush TLBs */
-> >> +	/*
-> >> +	 * This function is only called on systems that support X86_CR4_PGE
-> >> +	 * and where always set X86_CR4_PGE.  Warn if we are called without
-> >> +	 * PGE set.
-> >> +	 */
-> >> +	WARN_ON_ONCE(!(cr4 & X86_CR4_PGE));
-> > Because if CR4_PGE is not set, this warning triggers. So this defeats the
-> > toggle mode you are implementing.
-> 
-> The warning is there because there is probably plenty of *other* stuff
-> that breaks if we have X86_FEATURE_PGE=1, but CR4.PGE=0.
-> 
-> The point of this was to make this function do the right thing no matter
-> what, but warn if it gets called in an unexpected way.
+-Kees
 
-Fair enough. Can you please reflect that in the changelog ?
-
-Thanks,
-
-	tglx
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
