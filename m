@@ -1,57 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5443628025A
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 12:08:11 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k9so8947370iok.4
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 09:08:11 -0700 (PDT)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8487F28025D
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 12:17:06 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id o74so8903522iod.15
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 09:17:06 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 70sor418498ior.358.2017.11.01.09.08.09
+        by mx.google.com with SMTPS id e201sor539933itc.23.2017.11.01.09.17.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Nov 2017 09:08:10 -0700 (PDT)
+        Wed, 01 Nov 2017 09:17:05 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <9e45a167-3528-8f93-80bf-c333ae6acb71@linux.intel.com>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <CA+55aFzS8GZ7QHzMU-JsievHU5T9LBrFx2fRwkbCB8a_YAxmsw@mail.gmail.com>
- <9e45a167-3528-8f93-80bf-c333ae6acb71@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 1 Nov 2017 09:08:09 -0700
-Message-ID: <CA+55aFypdyt+3-JyD3U1da5EqznncxKZZKPGn4ykkD=4Q4rdvw@mail.gmail.com>
-Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
- page tables
+In-Reply-To: <2abff35f-8b06-ff69-0ab1-82f7ea9bb2bd@suse.cz>
+References: <001a114a6b20cafb9c055cd73f86@google.com> <CACT4Y+aCV2wEP2yAh7qDtmuTt55DMEQGXzumxR6iXqitjuruiw@mail.gmail.com>
+ <2abff35f-8b06-ff69-0ab1-82f7ea9bb2bd@suse.cz>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 1 Nov 2017 19:16:44 +0300
+Message-ID: <CACT4Y+YJLajoyaU83FHf-6EinhQuaEpkCYwisyPxe=aScygQKg@mail.gmail.com>
+Subject: Re: possible deadlock in __synchronize_srcu
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: syzbot <bot+b8ff4d5c3fa77f2e2f0f9be34e6b2795ffc3c65e@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, kasan-dev <kasan-dev@googlegroups.com>
 
-On Tue, Oct 31, 2017 at 4:44 PM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
-> On 10/31/2017 04:27 PM, Linus Torvalds wrote:
->>  (c) am I reading the code correctly, and the shadow page tables are
->> *completely* duplicated?
->>
->>      That seems insane. Why isn't only tyhe top level shadowed, and
->> then lower levels are shared between the shadowed and the "kernel"
->> page tables?
+On Tue, Oct 31, 2017 at 5:54 PM, Vlastimil Babka <vbabka@suse.cz> wrote:
+> On 10/31/2017 02:20 PM, Dmitry Vyukov wrote:
+>> On Tue, Oct 31, 2017 at 3:54 PM, syzbot
+>> <bot+b8ff4d5c3fa77f2e2f0f9be34e6b2795ffc3c65e@syzkaller.appspotmail.com>
+>> wrote:
+>>> Hello,
+>>>
+>>> syzkaller hit the following crash on
+>>> 9506597de2cde02d48c11d5c250250b9143f59f7
 >
-> There are obviously two PGDs.  The userspace half of the PGD is an exact
-> copy so all the lower levels are shared.  The userspace copying is
-> done via the code we add to native_set_pgd().
+> That's next-20170824. Why test/report such old next trees now?
 
-So the thing that made me think you do all levels was that confusing
-kaiser_pagetable_walk() code (and to a lesser degree
-get_pa_from_mapping()).
 
-That code definitely walks and allocates all levels.
-
-So it really doesn't seem to be just sharing the top page table entry.
-
-And that worries me because that seems to be a very fundamental coherency issue.
-
-I'm assuming that this is about mapping only the individual kernel
-parts, but I'd like to get comments and clarification about that.
-
-                  Linus
+That's just a side effect of the fact that we started testing and
+collecting crashes before we had all infrastructure to pipe bugs to
+kernel mailing lists. So we ended up with a bug jam and now trying to
+drain it. Some of the old bugs indeed ended up being fixed meanwhile.
+But we reported the ones that are still relevant. Once we drain the
+jam, we will start reporting fresh bugs. We are always testing the
+latest revisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
