@@ -1,121 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ADDA28024A
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:37:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id a192so2853030pge.1
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:37:13 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y69si1297376pfb.601.2017.11.01.08.37.02
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE786280254
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:37:22 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id t101so8741785ioe.0
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:37:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id i141si1313226ita.33.2017.11.01.08.37.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 08:37:03 -0700 (PDT)
-From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 03/18] dax: Simplify arguments of dax_insert_mapping()
-Date: Wed,  1 Nov 2017 16:36:32 +0100
-Message-Id: <20171101153648.30166-4-jack@suse.cz>
-In-Reply-To: <20171101153648.30166-1-jack@suse.cz>
-References: <20171101153648.30166-1-jack@suse.cz>
+        Wed, 01 Nov 2017 08:37:21 -0700 (PDT)
+Subject: Re: [PATCH] mm,oom: Try last second allocation before and after selecting an OOM victim.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171031141034.bg25xbo5cyfafnyp@dhcp22.suse.cz>
+	<201711012058.CIF81791.OQOFHFLOFMSJtV@I-love.SAKURA.ne.jp>
+	<20171101124601.aqk3ayjp643ifdw3@dhcp22.suse.cz>
+	<201711012338.AGB30781.JHOMFQFVSFtOLO@I-love.SAKURA.ne.jp>
+	<20171101144845.tey4ozou44tfpp3g@dhcp22.suse.cz>
+In-Reply-To: <20171101144845.tey4ozou44tfpp3g@dhcp22.suse.cz>
+Message-Id: <201711020037.CAI17621.FtLFOFMOJOHSVQ@I-love.SAKURA.ne.jp>
+Date: Thu, 2 Nov 2017 00:37:08 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>
+To: mhocko@kernel.org
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, mgorman@suse.de, oleg@redhat.com, vdavydov.dev@gmail.com, vbabka@suse.cz
 
-dax_insert_mapping() has lots of arguments and a lot of them is actuall
-duplicated by passing vm_fault structure as well. Change the function to
-take the same arguments as dax_pmd_insert_mapping().
+Michal Hocko wrote:
+> > Does "that comment" refer to
+> > 
+> >   Elaborating the comment: the reason for the high wmark is to reduce
+> >   the likelihood of livelocks and be sure to invoke the OOM killer, if
+> >   we're still under pressure and reclaim just failed. The high wmark is
+> >   used to be sure the failure of reclaim isn't going to be ignored. If
+> >   using the min wmark like you propose there's risk of livelock or
+> >   anyway of delayed OOM killer invocation.
+> > 
+> > part? Then, I know it is not about gfp flags.
+> > 
+> > But how can OOM livelock happen when the last second allocation does not
+> > wait for memory reclaim (because __GFP_DIRECT_RECLAIM is masked) ?
+> > The last second allocation shall return immediately, and we will call
+> > out_of_memory() if the last second allocation failed.
+> 
+> I think Andrea just wanted to say that we do want to invoke OOM killer
+> and resolve the memory pressure rather than keep looping in the
+> reclaim/oom path just because there are few pages allocated and freed in
+> the meantime.
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Jan Kara <jack@suse.cz>
----
- fs/dax.c | 32 ++++++++++++++++----------------
- 1 file changed, 16 insertions(+), 16 deletions(-)
+I see. Then, that motivation no longer applies to current code, except
 
-diff --git a/fs/dax.c b/fs/dax.c
-index f001d8c72a06..0bc42ac294ca 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -820,23 +820,30 @@ int dax_writeback_mapping_range(struct address_space *mapping,
- }
- EXPORT_SYMBOL_GPL(dax_writeback_mapping_range);
- 
--static int dax_insert_mapping(struct address_space *mapping,
--		struct block_device *bdev, struct dax_device *dax_dev,
--		sector_t sector, size_t size, void *entry,
--		struct vm_area_struct *vma, struct vm_fault *vmf)
-+static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
-+{
-+	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
-+}
-+
-+static int dax_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
-+			      loff_t pos, void *entry)
- {
-+	const sector_t sector = dax_iomap_sector(iomap, pos);
-+	struct vm_area_struct *vma = vmf->vma;
-+	struct address_space *mapping = vma->vm_file->f_mapping;
- 	unsigned long vaddr = vmf->address;
- 	void *ret, *kaddr;
- 	pgoff_t pgoff;
- 	int id, rc;
- 	pfn_t pfn;
- 
--	rc = bdev_dax_pgoff(bdev, sector, size, &pgoff);
-+	rc = bdev_dax_pgoff(iomap->bdev, sector, PAGE_SIZE, &pgoff);
- 	if (rc)
- 		return rc;
- 
- 	id = dax_read_lock();
--	rc = dax_direct_access(dax_dev, pgoff, PHYS_PFN(size), &kaddr, &pfn);
-+	rc = dax_direct_access(iomap->dax_dev, pgoff, PHYS_PFN(PAGE_SIZE),
-+			       &kaddr, &pfn);
- 	if (rc < 0) {
- 		dax_read_unlock(id);
- 		return rc;
-@@ -936,11 +943,6 @@ int __dax_zero_page_range(struct block_device *bdev,
- }
- EXPORT_SYMBOL_GPL(__dax_zero_page_range);
- 
--static sector_t dax_iomap_sector(struct iomap *iomap, loff_t pos)
--{
--	return iomap->blkno + (((pos & PAGE_MASK) - iomap->offset) >> 9);
--}
--
- static loff_t
- dax_iomap_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 		struct iomap *iomap)
-@@ -1087,7 +1089,6 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
- 	struct inode *inode = mapping->host;
- 	unsigned long vaddr = vmf->address;
- 	loff_t pos = (loff_t)vmf->pgoff << PAGE_SHIFT;
--	sector_t sector;
- 	struct iomap iomap = { 0 };
- 	unsigned flags = IOMAP_FAULT;
- 	int error, major = 0;
-@@ -1140,9 +1141,9 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
- 		goto error_finish_iomap;
- 	}
- 
--	sector = dax_iomap_sector(&iomap, pos);
--
- 	if (vmf->cow_page) {
-+		sector_t sector = dax_iomap_sector(&iomap, pos);
-+
- 		switch (iomap.type) {
- 		case IOMAP_HOLE:
- 		case IOMAP_UNWRITTEN:
-@@ -1175,8 +1176,7 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
- 			count_memcg_event_mm(vmf->vma->vm_mm, PGMAJFAULT);
- 			major = VM_FAULT_MAJOR;
- 		}
--		error = dax_insert_mapping(mapping, iomap.bdev, iomap.dax_dev,
--				sector, PAGE_SIZE, entry, vmf->vma, vmf);
-+		error = dax_insert_mapping(vmf, &iomap, pos, entry);
- 		/* -EBUSY is fine, somebody else faulted on the same PTE */
- 		if (error == -EBUSY)
- 			error = 0;
--- 
-2.12.3
+> 
+> [...]
+> > > I am not sure such a scenario matters all that much because it assumes
+> > > that the oom victim doesn't really free much memory [1] (basically less than
+> > > HIGH-MIN). Most OOM situation simply have a memory hog consuming
+> > > significant amount of memory.
+> > 
+> > The OOM killer does not always kill a memory hog consuming significant amount
+> > of memory. The OOM killer kills a process with highest OOM score (and instead
+> > one of its children if any). I don't think that assuming an OOM victim will free
+> > memory enough to succeed ALLOC_WMARK_HIGH is appropriate.
+> 
+> OK, so let's agree to disagree. I claim that we shouldn't care all that
+> much. If any of the current heuristics turns out to lead to killing too
+> many tasks then we should simply remove it rather than keep bloating an
+> already complex code with more and more kluges.
+
+using ALLOC_WMARK_HIGH might cause more OOM-killing than ALLOC_WMARK_MIN.
+
+Thanks for clarification.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
