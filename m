@@ -1,47 +1,350 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 16CD06B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 03:43:05 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id p9so1781217pgc.6
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 00:43:05 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d7si3887505pgq.14.2017.11.01.00.43.03
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 00:43:03 -0700 (PDT)
-Subject: Re: KASAN: use-after-free Read in __do_page_fault
-References: <94eb2c0433c8f42cac055cc86991@google.com>
- <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
- <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
- <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
- <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
- <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
- <20171031141152.tzx47fy26pvx7xug@node.shutemov.name>
- <fbf1e43d-1f73-09c1-1837-3600bcedd5d2@suse.cz>
- <20171031191506.GB2799@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <94aa563c-14da-7892-51a0-e1799cdad050@suse.cz>
-Date: Wed, 1 Nov 2017 08:42:57 +0100
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 68D826B0253
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 03:46:21 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id y128so1578895pfg.5
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 00:46:21 -0700 (PDT)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTP id j74si4211042pfk.66.2017.11.01.00.46.19
+        for <linux-mm@kvack.org>;
+        Wed, 01 Nov 2017 00:46:19 -0700 (PDT)
+Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
+References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
+ <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
+ <20170930161023.GI2965@mtr-leonro.local> <59DF60A3.7080803@huawei.com>
+ <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com>
+From: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
+Message-ID: <59F97BBE.5070207@huawei.com>
+Date: Wed, 1 Nov 2017 15:46:06 +0800
 MIME-Version: 1.0
-In-Reply-To: <20171031191506.GB2799@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com>
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: Leon Romanovsky <leon@kernel.org>, shaobo.xu@intel.com, xavier.huwei@tom.com, lijun_nudt@163.com, oulijun@huawei.com, linux-rdma@vger.kernel.org, charles.chenxin@huawei.com, linuxarm@huawei.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dledford@redhat.com, liuyixian@huawei.com, zhangxiping3@huawei.com, shaoboxu@tom.com
 
-On 10/31/2017 08:15 PM, Andrea Arcangeli wrote:
-> On Tue, Oct 31, 2017 at 03:28:26PM +0100, Vlastimil Babka wrote:
->> Hmm that could indeed work, Dmitry can you try the patch below?
->> But it still seems rather fragile so I'd hope Andrea can do it more
->> robust, or at least make sure that we don't reintroduce this kind of
->> problem in the future (explicitly set vma to NULL with a comment?).
-> 
-> Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
 
-Thanks. OK so here's the full patch for the immediate issue, unless we
-decide to do something more general.
 
-----8<----
+On 2017/10/12 20:59, Robin Murphy wrote:
+> On 12/10/17 13:31, Wei Hu (Xavier) wrote:
+>>
+>> On 2017/10/1 0:10, Leon Romanovsky wrote:
+>>> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
+>>>> If the IOMMU is enabled, the length of sg obtained from
+>>>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
+>>>> dma address, the IOVA will not be page continuous. and the VA
+>>>> returned from dma_alloc_coherent is a vmalloc address. However,
+>>>> the VA obtained by the page_address is a discontinuous VA. Under
+>>>> these circumstances, the IOVA should be calculated based on the
+>>>> sg length, and record the VA returned from dma_alloc_coherent
+>>>> in the struct of hem.
+>>>>
+>>>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
+>>>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
+>>>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
+>>>> ---
+>>> Doug,
+>>>
+>>> I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
+>>> driver code to deal with dma_alloc_coherent is most probably wrong.
+>>>
+>>> Thanks
+>> Hi,  Leon & Doug
+>>     We refered the function named __ttm_dma_alloc_page in the kernel
+>> code as below:
+>>     And there are similar methods in bch_bio_map and mem_to_page
+>> functions in current 4.14-rcx.
+>>
+>>         static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
+>>         {
+>>             struct dma_page *d_page;
+>>
+>>             d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
+>>             if (!d_page)
+>>                 return NULL;
+>>
+>>             d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
+>>                                &d_page->dma,
+>>                                    pool->gfp_flags);
+>>             if (d_page->vaddr) {
+>>                 if (is_vmalloc_addr(d_page->vaddr))
+>>                     d_page->p = vmalloc_to_page(d_page->vaddr);
+>>                 else
+>>                     d_page->p = virt_to_page(d_page->vaddr);
+> There are cases on various architectures where neither of those is
+> right. Whether those actually intersect with TTM or RDMA use-cases is
+> another matter, of course.
+>
+> What definitely is a problem is if you ever take that page and end up
+> accessing it through any virtual address other than the one explicitly
+> returned by dma_alloc_coherent(). That can blow the coherency wide open
+> and invite data loss, right up to killing the whole system with a
+> machine check on certain architectures.
+>
+> Robin.
+Hi, Robin
+    Thanks for your comment.
+
+    We have one problem and the related code as below.
+    1. call dma_alloc_coherent function  serval times to alloc memory.
+    2. vmap the allocated memory pages.
+    3. software access memory by using the return virt addr of vmap
+        and hardware using the dma addr of dma_alloc_coherent.
+ 
+    When IOMMU is disabled in ARM64 architecture, we use virt_to_page()
+    before vmap(), it works. And when IOMMU is enabled using
+    virt_to_page() will cause calltrace later, we found the return
+    addr of dma_alloc_coherent is vmalloc addr, so we add the
+    condition judgement statement as below, it works. 
+        for (i = 0; i < buf->nbufs; ++i)
+                pages[i] =
+                    is_vmalloc_addr(buf->page_list[i].buf) ?
+                    vmalloc_to_page(buf->page_list[i].buf) :
+                    virt_to_page(buf->page_list[i].buf);
+    Can you give us suggestion? better method?
+
+    The related code as below:
+        buf->page_list = kcalloc(buf->nbufs, sizeof(*buf->page_list),
+                     GFP_KERNEL);
+        if (!buf->page_list)
+            return -ENOMEM;
+
+        for (i = 0; i < buf->nbufs; ++i) {
+            buf->page_list[i].buf = dma_alloc_coherent(dev,
+                                  page_size, &t,
+                                  GFP_KERNEL);
+            if (!buf->page_list[i].buf)
+                goto err_free;
+
+            buf->page_list[i].map = t;
+            memset(buf->page_list[i].buf, 0, page_size);
+        }
+
+        pages = kmalloc_array(buf->nbufs, sizeof(*pages),
+                          GFP_KERNEL);
+        if (!pages)
+                goto err_free;
+
+        for (i = 0; i < buf->nbufs; ++i)
+                pages[i] =
+                    is_vmalloc_addr(buf->page_list[i].buf) ?
+                    vmalloc_to_page(buf->page_list[i].buf) :
+                    virt_to_page(buf->page_list[i].buf);
+
+        buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
+                           PAGE_KERNEL);
+        kfree(pages);
+        if (!buf->direct.buf)
+                goto err_free;
+
+    Regards
+Wei Hu
+>>             } else {
+>>                 kfree(d_page);
+>>                 d_page = NULL;
+>>             }
+>>             return d_page;
+>>         }
+>>
+>>     Regards
+>> Wei Hu
+>>>>   drivers/infiniband/hw/hns/hns_roce_alloc.c |  5 ++++-
+>>>>   drivers/infiniband/hw/hns/hns_roce_hem.c   | 30
+>>>> +++++++++++++++++++++++++++---
+>>>>   drivers/infiniband/hw/hns/hns_roce_hem.h   |  6 ++++++
+>>>>   drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-------
+>>>>   4 files changed, 52 insertions(+), 11 deletions(-)
+>>>>
+>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>>>> b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>>>> index 3e4c525..a69cd4b 100644
+>>>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+>>>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev
+>>>> *hr_dev, u32 size, u32 max_direct,
+>>>>                   goto err_free;
+>>>>
+>>>>               for (i = 0; i < buf->nbufs; ++i)
+>>>> -                pages[i] = virt_to_page(buf->page_list[i].buf);
+>>>> +                pages[i] =
+>>>> +                    is_vmalloc_addr(buf->page_list[i].buf) ?
+>>>> +                    vmalloc_to_page(buf->page_list[i].buf) :
+>>>> +                    virt_to_page(buf->page_list[i].buf);
+>>>>
+>>>>               buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
+>>>>                              PAGE_KERNEL);
+>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c
+>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.c
+>>>> index 8388ae2..4a3d1d4 100644
+>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
+>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
+>>>> @@ -200,6 +200,7 @@ static struct hns_roce_hem
+>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>>>                              gfp_t gfp_mask)
+>>>>   {
+>>>>       struct hns_roce_hem_chunk *chunk = NULL;
+>>>> +    struct hns_roce_vmalloc *vmalloc;
+>>>>       struct hns_roce_hem *hem;
+>>>>       struct scatterlist *mem;
+>>>>       int order;
+>>>> @@ -227,6 +228,7 @@ static struct hns_roce_hem
+>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>>>               sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
+>>>>               chunk->npages = 0;
+>>>>               chunk->nsg = 0;
+>>>> +            memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
+>>>>               list_add_tail(&chunk->list, &hem->chunk_list);
+>>>>           }
+>>>>
+>>>> @@ -243,7 +245,15 @@ static struct hns_roce_hem
+>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>>>           if (!buf)
+>>>>               goto fail;
+>>>>
+>>>> -        sg_set_buf(mem, buf, PAGE_SIZE << order);
+>>>> +        if (is_vmalloc_addr(buf)) {
+>>>> +            vmalloc = &chunk->vmalloc[chunk->npages];
+>>>> +            vmalloc->is_vmalloc_addr = true;
+>>>> +            vmalloc->vmalloc_addr = buf;
+>>>> +            sg_set_page(mem, vmalloc_to_page(buf),
+>>>> +                    PAGE_SIZE << order, offset_in_page(buf));
+>>>> +        } else {
+>>>> +            sg_set_buf(mem, buf, PAGE_SIZE << order);
+>>>> +        }
+>>>>           WARN_ON(mem->offset);
+>>>>           sg_dma_len(mem) = PAGE_SIZE << order;
+>>>>
+>>>> @@ -262,17 +272,25 @@ static struct hns_roce_hem
+>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+>>>>   void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct
+>>>> hns_roce_hem *hem)
+>>>>   {
+>>>>       struct hns_roce_hem_chunk *chunk, *tmp;
+>>>> +    void *cpu_addr;
+>>>>       int i;
+>>>>
+>>>>       if (!hem)
+>>>>           return;
+>>>>
+>>>>       list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
+>>>> -        for (i = 0; i < chunk->npages; ++i)
+>>>> +        for (i = 0; i < chunk->npages; ++i) {
+>>>> +            if (chunk->vmalloc[i].is_vmalloc_addr)
+>>>> +                cpu_addr = chunk->vmalloc[i].vmalloc_addr;
+>>>> +            else
+>>>> +                cpu_addr =
+>>>> +                   lowmem_page_address(sg_page(&chunk->mem[i]));
+>>>> +
+>>>>               dma_free_coherent(hr_dev->dev,
+>>>>                      chunk->mem[i].length,
+>>>> -                   lowmem_page_address(sg_page(&chunk->mem[i])),
+>>>> +                   cpu_addr,
+>>>>                      sg_dma_address(&chunk->mem[i]));
+>>>> +        }
+>>>>           kfree(chunk);
+>>>>       }
+>>>>
+>>>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev
+>>>> *hr_dev,
+>>>>
+>>>>               if (chunk->mem[i].length > (u32)offset) {
+>>>>                   page = sg_page(&chunk->mem[i]);
+>>>> +                if (chunk->vmalloc[i].is_vmalloc_addr) {
+>>>> +                    mutex_unlock(&table->mutex);
+>>>> +                    return page ?
+>>>> +                        chunk->vmalloc[i].vmalloc_addr
+>>>> +                        + offset : NULL;
+>>>> +                }
+>>>>                   goto out;
+>>>>               }
+>>>>               offset -= chunk->mem[i].length;
+>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h
+>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.h
+>>>> index af28bbf..62d712a 100644
+>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
+>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
+>>>> @@ -72,11 +72,17 @@ enum {
+>>>>        HNS_ROCE_HEM_PAGE_SIZE  = 1 << HNS_ROCE_HEM_PAGE_SHIFT,
+>>>>   };
+>>>>
+>>>> +struct hns_roce_vmalloc {
+>>>> +    bool    is_vmalloc_addr;
+>>>> +    void    *vmalloc_addr;
+>>>> +};
+>>>> +
+>>>>   struct hns_roce_hem_chunk {
+>>>>       struct list_head     list;
+>>>>       int             npages;
+>>>>       int             nsg;
+>>>>       struct scatterlist     mem[HNS_ROCE_HEM_CHUNK_LEN];
+>>>> +    struct hns_roce_vmalloc     vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
+>>>>   };
+>>>>
+>>>>   struct hns_roce_hem {
+>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>>>> b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>>>> index b99d70a..9e19bf1 100644
+>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+>>>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void
+>>>> *mb_buf, struct hns_roce_mr *mr,
+>>>>   {
+>>>>       struct hns_roce_v2_mpt_entry *mpt_entry;
+>>>>       struct scatterlist *sg;
+>>>> +    u64 page_addr = 0;
+>>>>       u64 *pages;
+>>>> +    int i = 0, j = 0;
+>>>> +    int len = 0;
+>>>>       int entry;
+>>>> -    int i;
+>>>>
+>>>>       mpt_entry = mb_buf;
+>>>>       memset(mpt_entry, 0, sizeof(*mpt_entry));
+>>>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void
+>>>> *mb_buf, struct hns_roce_mr *mr,
+>>>>
+>>>>       i = 0;
+>>>>       for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
+>>>> -        pages[i] = ((u64)sg_dma_address(sg)) >> 6;
+>>>> -
+>>>> -        /* Record the first 2 entry directly to MTPT table */
+>>>> -        if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+>>>> -            break;
+>>>> -        i++;
+>>>> +        len = sg_dma_len(sg) >> PAGE_SHIFT;
+>>>> +        for (j = 0; j < len; ++j) {
+>>>> +            page_addr = sg_dma_address(sg) +
+>>>> +                    (j << mr->umem->page_shift);
+>>>> +            pages[i] = page_addr >> 6;
+>>>> +
+>>>> +            /* Record the first 2 entry directly to MTPT table */
+>>>> +            if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+>>>> +                goto found;
+>>>> +            i++;
+>>>> +        }
+>>>>       }
+>>>>
+>>>> +found:
+>>>>       mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
+>>>>       roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
+>>>>                  V2_MPT_BYTE_56_PA0_H_S,
+>>>> -- 
+>>>> 1.9.1
+>>>>
+>>
+>> _______________________________________________
+>> iommu mailing list
+>> iommu@lists.linux-foundation.org
+>> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+>
+> .
+>
+
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
