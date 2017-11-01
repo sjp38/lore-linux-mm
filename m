@@ -1,58 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19D016B025F
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 16:42:49 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id y83so1829484wmc.8
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 13:42:49 -0700 (PDT)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id v5si1381158wme.189.2017.11.01.13.42.47
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 13:42:48 -0700 (PDT)
-Date: Wed, 1 Nov 2017 21:42:42 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 01/23] x86, kaiser: prepare assembly for entry/exit CR3
- switching
-Message-ID: <20171101204242.whvunv2yvgj2uw22@pd.tnic>
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
- <20171031223148.5334003A@viggo.jf.intel.com>
- <20171101181805.3jjzfe6vhmgorjtp@pd.tnic>
- <d991c9c0-ad36-929b-ae1b-05cc97aff19f@linux.intel.com>
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3581A6B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 16:54:28 -0400 (EDT)
+Received: by mail-vk0-f69.google.com with SMTP id h142so1778883vkf.14
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 13:54:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l10sor578854uab.43.2017.11.01.13.54.27
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 01 Nov 2017 13:54:27 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <d991c9c0-ad36-929b-ae1b-05cc97aff19f@linux.intel.com>
+In-Reply-To: <1509565071.2650718.1158454064.7E910622@webmail.messagingengine.com>
+References: <20171101053244.5218-1-slandden@gmail.com> <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
+ <CA+49okox_Hvg-dGyjZc3u0qLz1S=LJjS4-WT6SxQ9qfPyp6BjQ@mail.gmail.com> <1509565071.2650718.1158454064.7E910622@webmail.messagingengine.com>
+From: Shawn Landden <slandden@gmail.com>
+Date: Wed, 1 Nov 2017 13:54:26 -0700
+Message-ID: <CA+49okp99s_X6Y8Vt-UuUtJvj5RZ83iK2Nw+F1Hx7sj5E==Nwg@mail.gmail.com>
+Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes
+ process to death row (new syscall)
+Content-Type: multipart/alternative; boundary="94eb2c191064c450f8055cf213e2"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Colin Walters <walters@verbum.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 01, 2017 at 11:27:48AM -0700, Dave Hansen wrote:
-> This allows for a tiny optimization of Andy's that I realize I must have
-> blown away at some point.  It lets us do a 32-bit-register instruction
-> (and using %eXX) when checking KAISER_SWITCH_MASK instead of a 64-bit
-> register via %rXX.
-> 
-> I don't feel strongly about maintaining that optimization it looks weird
-> and surely doesn't actually do much.
+--94eb2c191064c450f8055cf213e2
+Content-Type: text/plain; charset="UTF-8"
 
-Yeah, and consistent syntax would probably bring more.
+On Wed, Nov 1, 2017 at 12:37 PM, Colin Walters <walters@verbum.org> wrote:
 
-> Thanks for catching that.  We can kill one of these.  I'm inclined to
-> kill the first one.  Looking at the second one since we've just saved
-> off ptregs, that should make %rdi safe to clobber without the push/pop
-> at all.
-> 
-> Does that seem like it would work?
+> On Wed, Nov 1, 2017, at 03:02 PM, Shawn Landden wrote:
+> >
+> > This solves the fact that epoll_pwait() already is a 6 argument (maximum
+> allowed) syscall. But what if the process has multiple epoll() instances in
+> multiple threads?
+>
+> Well, that's a subset of the general question of - what is the interaction
+> of this system call and threading?  It looks like you've prototyped this
+> out in userspace with systemd, but from a quick glance at the current git,
+> systemd's threading is limited doing sync()/fsync() and gethostbyname()
+> async.
+>
+> But languages with a GC tend to at least use a background thread for that,
+> and of course lots of modern userspace makes heavy use of multithreading
+> (or variants like goroutines).
+>
+> A common pattern though is to have a "main thread" that acts as a control
+> point and runs the mainloop (particularly for anything with a GUI).
+>  That's
+> going to be the thing calling prctl(SET_IDLE) - but I think its idle state
+> should implicitly
+> affect the whole process, since for a lot of apps those other threads are
+> going to
+> just be "background".
+>
+> It'd probably then be an error to use prctl(SET_IDLE) in more than one
+> thread
+> ever?  (Although that might break in golang due to the way goroutines can
+> be migrated across threads)
+>
+> That'd probably be a good "generality test" - what would it take to have
+> this system call be used for a simple golang webserver app that's e.g.
+> socket activated by systemd, or a Kubernetes service?  Or another
+> really interesting case would be qemu; make it easy to flag VMs as always
+> having this state (most of my testing VMs are like this; it's OK if they
+> get
+> destroyed, I just reinitialize them from the gold state).
+>
+> Going back to threading - a tricky thing we should handle in general
+> is when userspace libraries create threads that are unknown to the app;
+> the "async gethostbyname()" is a good example.  To be conservative we'd
+> likely need to "fail non-idle", but figure out some way tell the kernel
+> for e.g. GC threads that they're still idle.
+>
+prctl() still seems like it wouldn't work with threads. How about
+fnctl(F_SETFD, FD_KILLME) ?
+Attached only to epoll fds would be my preference, but allowing it to be
+attached to all fds would
+allow poll() and select() to work.
 
-Yap, sounds about right.
+--94eb2c191064c450f8055cf213e2
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Thx.
+<div dir=3D"ltr">On Wed, Nov 1, 2017 at 12:37 PM, Colin Walters <span dir=
+=3D"ltr">&lt;<a href=3D"mailto:walters@verbum.org" target=3D"_blank">walter=
+s@verbum.org</a>&gt;</span> wrote:<br><div class=3D"gmail_extra"><div class=
+=3D"gmail_quote"><blockquote class=3D"gmail_quote" style=3D"margin:0px 0px =
+0px 0.8ex;border-left:1px solid rgb(204,204,204);padding-left:1ex"><span cl=
+ass=3D"gmail-">On Wed, Nov 1, 2017, at 03:02 PM, Shawn Landden wrote:<br>
+&gt;<br>
+&gt; This solves the fact that epoll_pwait() already is a 6 argument (maxim=
+um allowed) syscall. But what if the process has multiple epoll() instances=
+ in multiple threads?<br>
+<br>
+</span>Well, that&#39;s a subset of the general question of - what is the i=
+nteraction<br>
+of this system call and threading?=C2=A0 It looks like you&#39;ve prototype=
+d this<br>
+out in userspace with systemd, but from a quick glance at the current git,<=
+br>
+systemd&#39;s threading is limited doing sync()/fsync() and gethostbyname()=
+ async.<br>
+<br>
+But languages with a GC tend to at least use a background thread for that,<=
+br>
+and of course lots of modern userspace makes heavy use of multithreading<br=
+>
+(or variants like goroutines).<br>
+<br>
+A common pattern though is to have a &quot;main thread&quot; that acts as a=
+ control<br>
+point and runs the mainloop (particularly for anything with a GUI).=C2=A0 =
+=C2=A0That&#39;s<br>
+going to be the thing calling prctl(SET_IDLE) - but I think its idle state =
+should implicitly<br>
+affect the whole process, since for a lot of apps those other threads are g=
+oing to<br>
+just be &quot;background&quot;.<br>
+<br>
+It&#39;d probably then be an error to use prctl(SET_IDLE) in more than one =
+thread<br>
+ever?=C2=A0 (Although that might break in golang due to the way goroutines =
+can<br>
+be migrated across threads)<br>
+<br>
+That&#39;d probably be a good &quot;generality test&quot; - what would it t=
+ake to have<br>
+this system call be used for a simple golang webserver app that&#39;s e.g.<=
+br>
+socket activated by systemd, or a Kubernetes service?=C2=A0 Or another<br>
+really interesting case would be qemu; make it easy to flag VMs as always<b=
+r>
+having this state (most of my testing VMs are like this; it&#39;s OK if the=
+y get<br>
+destroyed, I just reinitialize them from the gold state).<br>
+<br>
+Going back to threading - a tricky thing we should handle in general<br>
+is when userspace libraries create threads that are unknown to the app;<br>
+the &quot;async gethostbyname()&quot; is a good example.=C2=A0 To be conser=
+vative we&#39;d<br>
+likely need to &quot;fail non-idle&quot;, but figure out some way tell the =
+kernel<br>
+for e.g. GC threads that they&#39;re still idle.<br>
+</blockquote></div>prctl() still seems like it wouldn&#39;t work with threa=
+ds. How about fnctl(F_SETFD, FD_KILLME) ?</div><div class=3D"gmail_extra">A=
+ttached only to epoll fds would be my preference, but allowing it to be att=
+ached to all fds would</div><div class=3D"gmail_extra">allow poll() and sel=
+ect() to work.<br></div></div>
 
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+--94eb2c191064c450f8055cf213e2--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
