@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 79E976B0298
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 918976B0299
 	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:37:04 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id g75so2527290pfg.4
+Received: by mail-pf0-f197.google.com with SMTP id v78so2510752pfk.8
         for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:37:04 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b34si5611plc.22.2017.11.01.08.37.02
+        by mx.google.com with ESMTPS id h69si1359863pfe.479.2017.11.01.08.37.03
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 01 Nov 2017 08:37:03 -0700 (PDT)
 From: Jan Kara <jack@suse.cz>
-Subject: [PATCH 08/18] dax: Inline dax_pmd_insert_mapping() into the callsite
-Date: Wed,  1 Nov 2017 16:36:37 +0100
-Message-Id: <20171101153648.30166-9-jack@suse.cz>
+Subject: [PATCH 12/18] mm: Define MAP_SYNC and VM_SYNC flags
+Date: Wed,  1 Nov 2017 16:36:41 +0100
+Message-Id: <20171101153648.30166-13-jack@suse.cz>
 In-Reply-To: <20171101153648.30166-1-jack@suse.cz>
 References: <20171101153648.30166-1-jack@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,102 +20,90 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Christoph Hellwig <hch@infradead.org>, linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org, linux-mm@kvack.org, linux-api@vger.kernel.org, linux-ext4@vger.kernel.org, linux-xfs@vger.kernel.org, "Darrick J . Wong" <darrick.wong@oracle.com>, Jan Kara <jack@suse.cz>
 
-dax_pmd_insert_mapping() has only one callsite and we will need to
-further fine tune what it does for synchronous faults. Just inline it
-into the callsite so that we don't have to pass awkward bools around.
+Define new MAP_SYNC flag and corresponding VMA VM_SYNC flag. As the
+MAP_SYNC flag is not part of LEGACY_MAP_MASK, currently it will be
+refused by all MAP_SHARED_VALIDATE map attempts and silently ignored for
+everything else.
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 Signed-off-by: Jan Kara <jack@suse.cz>
 ---
- fs/dax.c                      | 47 +++++++++++++++++--------------------------
- include/trace/events/fs_dax.h |  1 -
- 2 files changed, 19 insertions(+), 29 deletions(-)
+ fs/proc/task_mmu.c              | 1 +
+ include/linux/mm.h              | 1 +
+ include/linux/mman.h            | 8 ++++++--
+ include/uapi/asm-generic/mman.h | 1 +
+ 4 files changed, 9 insertions(+), 2 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 5b20c6456926..675fab8ec41f 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1235,33 +1235,11 @@ static int dax_iomap_pte_fault(struct vm_fault *vmf,
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 5589b4bd4b85..ea78b37deeaa 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -664,6 +664,7 @@ static void show_smap_vma_flags(struct seq_file *m, struct vm_area_struct *vma)
+ 		[ilog2(VM_ACCOUNT)]	= "ac",
+ 		[ilog2(VM_NORESERVE)]	= "nr",
+ 		[ilog2(VM_HUGETLB)]	= "ht",
++		[ilog2(VM_SYNC)]	= "sf",
+ 		[ilog2(VM_ARCH_1)]	= "ar",
+ 		[ilog2(VM_WIPEONFORK)]	= "wf",
+ 		[ilog2(VM_DONTDUMP)]	= "dd",
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ca72b67153d5..5411cb7442de 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -189,6 +189,7 @@ extern unsigned int kobjsize(const void *objp);
+ #define VM_ACCOUNT	0x00100000	/* Is a VM accounted object */
+ #define VM_NORESERVE	0x00200000	/* should the VM suppress accounting */
+ #define VM_HUGETLB	0x00400000	/* Huge TLB Page VM */
++#define VM_SYNC		0x00800000	/* Synchronous page faults */
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+ #define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
+diff --git a/include/linux/mman.h b/include/linux/mman.h
+index 94b63b4d71ff..8f7cc87828e6 100644
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -9,7 +9,7 @@
+ 
+ /*
+  * Arrange for legacy / undefined architecture specific flags to be
+- * ignored by default in LEGACY_MAP_MASK.
++ * ignored by mmap handling code.
+  */
+ #ifndef MAP_32BIT
+ #define MAP_32BIT 0
+@@ -23,6 +23,9 @@
+ #ifndef MAP_UNINITIALIZED
+ #define MAP_UNINITIALIZED 0
+ #endif
++#ifndef MAP_SYNC
++#define MAP_SYNC 0
++#endif
+ 
+ /*
+  * The historical set of flags that all mmap implementations implicitly
+@@ -125,7 +128,8 @@ calc_vm_flag_bits(unsigned long flags)
+ {
+ 	return _calc_vm_trans(flags, MAP_GROWSDOWN,  VM_GROWSDOWN ) |
+ 	       _calc_vm_trans(flags, MAP_DENYWRITE,  VM_DENYWRITE ) |
+-	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    );
++	       _calc_vm_trans(flags, MAP_LOCKED,     VM_LOCKED    ) |
++	       _calc_vm_trans(flags, MAP_SYNC,	     VM_SYNC      );
  }
  
- #ifdef CONFIG_FS_DAX_PMD
--static int dax_pmd_insert_mapping(struct vm_fault *vmf, struct iomap *iomap,
--		loff_t pos, void *entry)
--{
--	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
--	const sector_t sector = dax_iomap_sector(iomap, pos);
--	struct inode *inode = mapping->host;
--	void *ret = NULL;
--	pfn_t pfn = {};
--	int rc;
--
--	rc = dax_iomap_pfn(iomap, pos, PMD_SIZE, &pfn);
--	if (rc < 0)
--		goto fallback;
--
--	ret = dax_insert_mapping_entry(mapping, vmf, entry, sector,
--			RADIX_DAX_PMD);
--	if (IS_ERR(ret))
--		goto fallback;
--
--	trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, ret);
--	return vmf_insert_pfn_pmd(vmf->vma, vmf->address, vmf->pmd,
--			pfn, vmf->flags & FAULT_FLAG_WRITE);
--
--fallback:
--	trace_dax_pmd_insert_mapping_fallback(inode, vmf, PMD_SIZE, pfn, ret);
--	return VM_FAULT_FALLBACK;
--}
-+/*
-+ * The 'colour' (ie low bits) within a PMD of a page offset.  This comes up
-+ * more often than one might expect in the below functions.
-+ */
-+#define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+ unsigned long vm_commit_limit(void);
+diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
+index 7162cd4cca73..00e55627d2df 100644
+--- a/include/uapi/asm-generic/mman.h
++++ b/include/uapi/asm-generic/mman.h
+@@ -12,6 +12,7 @@
+ #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+ #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+ #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
++#define MAP_SYNC	0x80000		/* perform synchronous page faults for the mapping */
  
- static int dax_pmd_load_hole(struct vm_fault *vmf, struct iomap *iomap,
- 		void *entry)
-@@ -1317,6 +1295,7 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
- 	void *entry;
- 	loff_t pos;
- 	int error;
-+	pfn_t pfn;
+ /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
  
- 	/*
- 	 * Check whether offset isn't beyond end of file now. Caller is
-@@ -1394,7 +1373,19 @@ static int dax_iomap_pmd_fault(struct vm_fault *vmf,
- 
- 	switch (iomap.type) {
- 	case IOMAP_MAPPED:
--		result = dax_pmd_insert_mapping(vmf, &iomap, pos, entry);
-+		error = dax_iomap_pfn(&iomap, pos, PMD_SIZE, &pfn);
-+		if (error < 0)
-+			goto finish_iomap;
-+
-+		entry = dax_insert_mapping_entry(mapping, vmf, entry,
-+						dax_iomap_sector(&iomap, pos),
-+						RADIX_DAX_PMD);
-+		if (IS_ERR(entry))
-+			goto finish_iomap;
-+
-+		trace_dax_pmd_insert_mapping(inode, vmf, PMD_SIZE, pfn, entry);
-+		result = vmf_insert_pfn_pmd(vma, vmf->address, vmf->pmd, pfn,
-+					    write);
- 		break;
- 	case IOMAP_UNWRITTEN:
- 	case IOMAP_HOLE:
-diff --git a/include/trace/events/fs_dax.h b/include/trace/events/fs_dax.h
-index fbc4a06f7310..88a9d19b8ff8 100644
---- a/include/trace/events/fs_dax.h
-+++ b/include/trace/events/fs_dax.h
-@@ -148,7 +148,6 @@ DEFINE_EVENT(dax_pmd_insert_mapping_class, name, \
- 	TP_ARGS(inode, vmf, length, pfn, radix_entry))
- 
- DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping);
--DEFINE_PMD_INSERT_MAPPING_EVENT(dax_pmd_insert_mapping_fallback);
- 
- DECLARE_EVENT_CLASS(dax_pte_fault_class,
- 	TP_PROTO(struct inode *inode, struct vm_fault *vmf, int result),
 -- 
 2.12.3
 
