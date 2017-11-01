@@ -1,29 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16A586B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 15:02:35 -0400 (EDT)
-Received: by mail-vk0-f71.google.com with SMTP id j2so1620852vki.15
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 12:02:35 -0700 (PDT)
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A0A576B0253
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 15:05:08 -0400 (EDT)
+Received: by mail-ua0-f200.google.com with SMTP id 10so1975906uav.16
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 12:05:08 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u190sor478768vkb.206.2017.11.01.12.02.33
+        by mx.google.com with SMTPS id s195sor542735vka.275.2017.11.01.12.05.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 01 Nov 2017 12:02:33 -0700 (PDT)
+        Wed, 01 Nov 2017 12:05:07 -0700 (PDT)
 MIME-Version: 1.0
 In-Reply-To: <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
 References: <20171101053244.5218-1-slandden@gmail.com> <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
 From: Shawn Landden <slandden@gmail.com>
-Date: Wed, 1 Nov 2017 12:02:33 -0700
-Message-ID: <CA+49okox_Hvg-dGyjZc3u0qLz1S=LJjS4-WT6SxQ9qfPyp6BjQ@mail.gmail.com>
+Date: Wed, 1 Nov 2017 12:05:07 -0700
+Message-ID: <CA+49okqRFoRUPvgFsOvYv7Y=fjS55vphw=WYN1bvFm0tcBYv4g@mail.gmail.com>
 Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes
  process to death row (new syscall)
-Content-Type: multipart/alternative; boundary="001a1143f7a89ec141055cf0838f"
+Content-Type: multipart/alternative; boundary="001a114db63ec9cdce055cf08c9f"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Colin Walters <walters@verbum.org>
 Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
---001a1143f7a89ec141055cf0838f
+--001a114db63ec9cdce055cf08c9f
 Content-Type: text/plain; charset="UTF-8"
 
 On Wed, Nov 1, 2017 at 8:16 AM, Colin Walters <walters@verbum.org> wrote:
@@ -68,11 +68,11 @@ On Wed, Nov 1, 2017 at 8:16 AM, Colin Walters <walters@verbum.org> wrote:
 > e.g. just ignore EINVAL
 > from the prctl().
 >
-This solves the fact that epoll_pwait() already is a 6 argument (maximum
-allowed) syscall. But what if the process has multiple epoll() instances in
-multiple threads?
+This solves the issue of epoll_pwait() already having the maximum number of
+arguments (6). But what if you want multiple epoll_wait()s in multiple
+threads?
 
---001a1143f7a89ec141055cf0838f
+--001a114db63ec9cdce055cf08c9f
 Content-Type: text/html; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 
@@ -127,12 +127,12 @@ poll()<br>
 <br>
 And as this is most often just going to be an optional hint it&#39;s easier=
  to e.g. just ignore EINVAL<br>
-from the prctl().<br></blockquote><div>This solves the fact that epoll_pwai=
-t() already is a 6 argument (maximum allowed) syscall. But what if the proc=
-ess has multiple epoll() instances in multiple threads? <br></div></div><br=
-></div></div>
+from the prctl().<br></blockquote><div>This solves the issue of epoll_pwait=
+() already having the maximum number of arguments (6). But what if you want=
+ multiple epoll_wait()s in multiple threads? <br></div></div><br></div></di=
+v>
 
---001a1143f7a89ec141055cf0838f--
+--001a114db63ec9cdce055cf08c9f--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
