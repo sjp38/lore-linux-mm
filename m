@@ -1,79 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB1D6B025F
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:30:10 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id m82so956252wmd.19
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:30:10 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o11si274823edh.327.2017.11.01.01.30.08
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 01:30:08 -0700 (PDT)
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171031153225.218234b4@gandalf.local.home>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
-Date: Wed, 1 Nov 2017 09:30:05 +0100
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7FB326B026B
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:31:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id r18so1890140pgu.9
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:31:26 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u66si93841pfa.109.2017.11.01.01.31.24
+        for <linux-mm@kvack.org>;
+        Wed, 01 Nov 2017 01:31:25 -0700 (PDT)
+Date: Wed, 1 Nov 2017 17:31:16 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: possible deadlock in lru_add_drain_all
+Message-ID: <20171101083116.GA3172@X58A-UD3R>
+References: <089e0825eec8955c1f055c83d476@google.com>
+ <20171027093418.om5e566srz2ztsrk@dhcp22.suse.cz>
+ <CACT4Y+Y=NCy20_k4YcrCF2Q0f16UPDZBVAF=RkkZ0uSxZq5XaA@mail.gmail.com>
+ <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
+ <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
+ <20171030100921.GA18085@X58A-UD3R>
+ <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
+ <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
+ <20171031152532.uah32qiftjerc3gx@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-In-Reply-To: <20171031153225.218234b4@gandalf.local.home>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171031152532.uah32qiftjerc3gx@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
 
-On 10/31/2017 08:32 PM, Steven Rostedt wrote:
-> 
-> Thank you for the perfect timing. You posted this the day after I
-> proposed a new solution at Kernel Summit in Prague for the printk lock
-> loop that you experienced here.
-> 
-> I attached the pdf that I used for that discussion (ignore the last
-> slide, it was left over and I never went there).
-> 
-> My proposal is to do something like this with printk:
-> 
-> Three types of printk usages:
-> 
-> 1) Active printer (actively writing to the console).
-> 2) Waiter (active printer, first user)
-> 3) Sees active printer and a waiter, and just adds to the log buffer
->    and leaves.
-> 
-> (new globals)
-> static DEFINE_SPIN_LOCK(console_owner_lock);
-> static struct task_struct console_owner;
-> static bool waiter;
-> 
-> console_unlock() {
-> 
-> [ Assumes this part can not preempt ]
-> 
-> 	spin_lock(console_owner_lock);
-> 	console_owner = current;
-> 	spin_unlock(console_owner_lock);
-> 
-> 	for each message
-> 		write message out to console
-> 
-> 		if (READ_ONCE(waiter))
-> 			break;
+On Tue, Oct 31, 2017 at 04:25:32PM +0100, Peter Zijlstra wrote:
+> But this report only includes a single (cpu-up) part and therefore is
 
-Ah, these two lines clarified for me what I didn't get from your talk,
-so I got the wrong impression that the new scheme is just postponing the
-problem.
+Thanks for fixing me, Peter. I thought '#1 -> #2' and '#2 -> #3', where
+#2 is 'cpuhp_state', should have been built with two different classes
+of #2 as the latest code. Sorry for confusing Michal.
 
-But still, it seems to me that the scheme only works as long as there
-are printk()'s coming with some reasonable frequency. There's still a
-corner case when a storm of printk()'s can come that will fill the ring
-buffers, and while during the storm the printing will be distributed
-between CPUs nicely, the last unfortunate CPU after the storm subsides
-will be left with a large accumulated buffer to print, and there will be
-no waiters to take over if there are no more printk()'s coming. What
-then, should it detect such situation and defer the flushing?
+> not affected by that change other than a lock name changing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
