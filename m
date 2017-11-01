@@ -1,393 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C1596B0261
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 08:26:18 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id c77so2340431oig.4
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 05:26:18 -0700 (PDT)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 64si329091oic.287.2017.11.01.05.26.13
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 05:26:13 -0700 (PDT)
-Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
-References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
- <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
- <20170930161023.GI2965@mtr-leonro.local> <59DF60A3.7080803@huawei.com>
- <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com> <59F97BBE.5070207@huawei.com>
-From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <fc7433af-4fa7-6b78-6bec-26941a427002@arm.com>
-Date: Wed, 1 Nov 2017 12:26:07 +0000
-MIME-Version: 1.0
-In-Reply-To: <59F97BBE.5070207@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B262F6B0253
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 08:35:33 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id j3so2453227pga.5
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 05:35:33 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id j70si797026pfj.558.2017.11.01.05.35.31
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 05:35:31 -0700 (PDT)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 2/2] mm,oom: Use ALLOC_OOM for OOM victim's last second allocation.
+Date: Wed,  1 Nov 2017 20:54:28 +0900
+Message-Id: <1509537268-4726-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
-Cc: Leon Romanovsky <leon@kernel.org>, shaobo.xu@intel.com, xavier.huwei@tom.com, lijun_nudt@163.com, oulijun@huawei.com, linux-rdma@vger.kernel.org, charles.chenxin@huawei.com, linuxarm@huawei.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dledford@redhat.com, liuyixian@huawei.com, zhangxiping3@huawei.com, shaoboxu@tom.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Manish Jaggi <mjaggi@caviumnetworks.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov@virtuozzo.com>
 
-On 01/11/17 07:46, Wei Hu (Xavier) wrote:
-> 
-> 
-> On 2017/10/12 20:59, Robin Murphy wrote:
->> On 12/10/17 13:31, Wei Hu (Xavier) wrote:
->>>
->>> On 2017/10/1 0:10, Leon Romanovsky wrote:
->>>> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
->>>>> If the IOMMU is enabled, the length of sg obtained from
->>>>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
->>>>> dma address, the IOVA will not be page continuous. and the VA
->>>>> returned from dma_alloc_coherent is a vmalloc address. However,
->>>>> the VA obtained by the page_address is a discontinuous VA. Under
->>>>> these circumstances, the IOVA should be calculated based on the
->>>>> sg length, and record the VA returned from dma_alloc_coherent
->>>>> in the struct of hem.
->>>>>
->>>>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
->>>>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
->>>>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
->>>>> ---
->>>> Doug,
->>>>
->>>> I didn't invest time in reviewing it, but having "is_vmalloc_addr" in
->>>> driver code to deal with dma_alloc_coherent is most probably wrong.
->>>>
->>>> Thanks
->>> Hi,  Leon & Doug
->>>     We refered the function named __ttm_dma_alloc_page in the kernel
->>> code as below:
->>>     And there are similar methods in bch_bio_map and mem_to_page
->>> functions in current 4.14-rcx.
->>>
->>>         static struct dma_page *__ttm_dma_alloc_page(struct dma_pool *pool)
->>>         {
->>>             struct dma_page *d_page;
->>>
->>>             d_page = kmalloc(sizeof(struct dma_page), GFP_KERNEL);
->>>             if (!d_page)
->>>                 return NULL;
->>>
->>>             d_page->vaddr = dma_alloc_coherent(pool->dev, pool->size,
->>>                                &d_page->dma,
->>>                                    pool->gfp_flags);
->>>             if (d_page->vaddr) {
->>>                 if (is_vmalloc_addr(d_page->vaddr))
->>>                     d_page->p = vmalloc_to_page(d_page->vaddr);
->>>                 else
->>>                     d_page->p = virt_to_page(d_page->vaddr);
->> There are cases on various architectures where neither of those is
->> right. Whether those actually intersect with TTM or RDMA use-cases is
->> another matter, of course.
->>
->> What definitely is a problem is if you ever take that page and end up
->> accessing it through any virtual address other than the one explicitly
->> returned by dma_alloc_coherent(). That can blow the coherency wide open
->> and invite data loss, right up to killing the whole system with a
->> machine check on certain architectures.
->>
->> Robin.
-> Hi, Robin
->     Thanks for your comment.
-> 
->     We have one problem and the related code as below.
->     1. call dma_alloc_coherent function  serval times to alloc memory.
->     2. vmap the allocated memory pages.
->     3. software access memory by using the return virt addr of vmap
->         and hardware using the dma addr of dma_alloc_coherent.
+Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
+count causes random kernel panics when an OOM victim which consumed memory
+in a way the OOM reaper does not help was selected by the OOM killer [1].
 
-The simple answer is "don't do that". Seriously. dma_alloc_coherent()
-gives you a CPU virtual address and a DMA address with which to access
-your buffer, and that is the limit of what you may infer about it. You
-have no guarantee that the virtual address is either in the linear map
-or vmalloc, and not some other special place. You have no guarantee that
-the underlying memory even has an associated struct page at all.
+----------
+oom02       0  TINFO  :  start OOM testing for mlocked pages.
+oom02       0  TINFO  :  expected victim is 4578.
+oom02       0  TINFO  :  thread (ffff8b0e71f0), allocating 3221225472 bytes.
+oom02       0  TINFO  :  thread (ffff8b8e71f0), allocating 3221225472 bytes.
+(...snipped...)
+oom02       0  TINFO  :  thread (ffff8a0e71f0), allocating 3221225472 bytes.
+[  364.737486] oom02:4583 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+(...snipped...)
+[  365.036127] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+[  365.044691] [ 1905]     0  1905     3236     1714      10       4        0             0 systemd-journal
+[  365.054172] [ 1908]     0  1908    20247      590       8       4        0             0 lvmetad
+[  365.062959] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
+[  365.072266] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
+[  365.080963] [ 3145]     0  3145     1086      630       6       4        0             0 systemd-logind
+[  365.090353] [ 3146]     0  3146     1208      596       7       3        0             0 irqbalance
+[  365.099413] [ 3147]    81  3147     1118      625       5       4        0          -900 dbus-daemon
+[  365.108548] [ 3149]   998  3149   116294     4180      26       5        0             0 polkitd
+[  365.117333] [ 3164]   997  3164    19992      785       9       3        0             0 chronyd
+[  365.126118] [ 3180]     0  3180    55605     7880      29       3        0             0 firewalld
+[  365.135075] [ 3187]     0  3187    87842     3033      26       3        0             0 NetworkManager
+[  365.144465] [ 3290]     0  3290    43037     1224      16       5        0             0 rsyslogd
+[  365.153335] [ 3295]     0  3295   108279     6617      30       3        0             0 tuned
+[  365.161944] [ 3308]     0  3308    27846      676      11       3        0             0 crond
+[  365.170554] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
+[  365.179076] [ 3371]     0  3371    27307      364       6       3        0             0 agetty
+[  365.187790] [ 3375]     0  3375    29397     1125      11       3        0             0 login
+[  365.196402] [ 4178]     0  4178     4797     1119      14       4        0             0 master
+[  365.205101] [ 4209]    89  4209     4823     1396      12       4        0             0 pickup
+[  365.213798] [ 4211]    89  4211     4842     1485      12       3        0             0 qmgr
+[  365.222325] [ 4491]     0  4491    27965     1022       8       3        0             0 bash
+[  365.230849] [ 4513]     0  4513      670      365       5       3        0             0 oom02
+[  365.239459] [ 4578]     0  4578 37776030 32890957   64257     138        0             0 oom02
+[  365.248067] Out of memory: Kill process 4578 (oom02) score 952 or sacrifice child
+[  365.255581] Killed process 4578 (oom02) total-vm:151104120kB, anon-rss:131562528kB, file-rss:1300kB, shmem-rss:0kB
+[  365.266829] out_of_memory: Current (4583) has a pending SIGKILL
+[  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
+[  365.282658] oom_reaper: reaped process 4583 (oom02), now anon-rss:131561664kB, file-rss:0kB, shmem-rss:0kB
+[  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+(...snipped...)
+[  365.576164] oom02:4585 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
+(...snipped...)
+[  365.576298] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
+[  365.576338] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
+[  365.576342] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
+[  365.576347] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
+[  365.576356] [ 4580]     0  4578 37776030 32890417   64258     138        0             0 oom02
+[  365.576361] Kernel panic - not syncing: Out of memory and no killable processes...
+----------
 
->     When IOMMU is disabled in ARM64 architecture, we use virt_to_page()
->     before vmap(), it works. And when IOMMU is enabled using
->     virt_to_page() will cause calltrace later, we found the return
->     addr of dma_alloc_coherent is vmalloc addr, so we add the
->     condition judgement statement as below, it works. 
->         for (i = 0; i < buf->nbufs; ++i)
->                 pages[i] =
->                     is_vmalloc_addr(buf->page_list[i].buf) ?
->                     vmalloc_to_page(buf->page_list[i].buf) :
->                     virt_to_page(buf->page_list[i].buf);
->     Can you give us suggestion? better method?
+Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
+to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
+victim's mm were not able to try allocation from memory reserves after the
+OOM reaper gave up reclaiming memory.
 
-Oh my goodness, having now taken a closer look at this driver, I'm lost
-for words in disbelief. To pick just one example:
+Until Linux 4.7, we were using
 
-	u32 bits_per_long = BITS_PER_LONG;
-	...
-	if (bits_per_long == 64) {
-		/* memory mapping nonsense */
-	}
+  if (current->mm &&
+      (fatal_signal_pending(current) || task_will_free_mem(current)))
 
-WTF does the size of a long have to do with DMA buffer management!?
+as a condition to try allocation from memory reserves with the risk of OOM
+lockup, but reports like [1] were impossible. Linux 4.8+ are regressed
+compared to Linux 4.7 due to the risk of needlessly selecting more OOM
+victims.
 
-Of course I can guess that it might be trying to make some tortuous
-inference about vmalloc space being constrained on 32-bit platforms, but
-still...
+There is no need that the OOM victim is such malicious that consumes all
+memory. It is possible that a multithreaded but non memory hog process is
+selected by the OOM killer, and the OOM reaper fails to reclaim memory due
+to e.g. khugepaged [2], and the process fails to try allocation from memory
+reserves. Therefore, this patch allows OOM victims to use ALLOC_OOM watermark
+for last second allocation attempt.
 
-> 
->     The related code as below:
->         buf->page_list = kcalloc(buf->nbufs, sizeof(*buf->page_list),
->                      GFP_KERNEL);
->         if (!buf->page_list)
->             return -ENOMEM;
-> 
->         for (i = 0; i < buf->nbufs; ++i) {
->             buf->page_list[i].buf = dma_alloc_coherent(dev,
->                                   page_size, &t,
->                                   GFP_KERNEL);
->             if (!buf->page_list[i].buf)
->                 goto err_free;
-> 
->             buf->page_list[i].map = t;
->             memset(buf->page_list[i].buf, 0, page_size);
->         }
-> 
->         pages = kmalloc_array(buf->nbufs, sizeof(*pages),
->                           GFP_KERNEL);
->         if (!pages)
->                 goto err_free;
-> 
->         for (i = 0; i < buf->nbufs; ++i)
->                 pages[i] =
->                     is_vmalloc_addr(buf->page_list[i].buf) ?
->                     vmalloc_to_page(buf->page_list[i].buf) :
->                     virt_to_page(buf->page_list[i].buf);
-> 
->         buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
->                            PAGE_KERNEL);
->         kfree(pages);
->         if (!buf->direct.buf)
->                 goto err_free;
+[1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
+[2] http://lkml.kernel.org/r/201708090835.ICI69305.VFFOLMHOStJOQF@I-love.SAKURA.ne.jp
 
-OK, this is complete crap. As above, you cannot assume that a struct
-page even exists; even if it does you cannot assume that using a
-PAGE_KERNEL mapping will not result in mismatched attributes,
-unpredictable behaviour and data loss. Trying to remap coherent DMA
-allocations like this is just egregiously wrong.
+Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
+Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-What I do like is that you can seemingly fix all this by simply deleting
-hns_roce_buf::direct and all the garbage code related to it, and using
-the page_list entries consistently because the alternate paths involving
-those appear to do the right thing already.
-
-That is, of course, assuming that the buffers involved can be so large
-that it's not practical to just always make a single allocation and
-fragment it into multiple descriptors if the hardware does have some
-maximum length constraint - frankly I'm a little puzzled by the
-PAGE_SIZE * 2 threshold, given that that's not a fixed size.
-
-Robin.
-
-> 
->     Regards
-> Wei Hu
->>>             } else {
->>>                 kfree(d_page);
->>>                 d_page = NULL;
->>>             }
->>>             return d_page;
->>>         }
->>>
->>>     Regards
->>> Wei Hu
->>>>>   drivers/infiniband/hw/hns/hns_roce_alloc.c |  5 ++++-
->>>>>   drivers/infiniband/hw/hns/hns_roce_hem.c   | 30
->>>>> +++++++++++++++++++++++++++---
->>>>>   drivers/infiniband/hw/hns/hns_roce_hem.h   |  6 ++++++
->>>>>   drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-------
->>>>>   4 files changed, 52 insertions(+), 11 deletions(-)
->>>>>
->>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>>>> b/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>>>> index 3e4c525..a69cd4b 100644
->>>>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
->>>>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev
->>>>> *hr_dev, u32 size, u32 max_direct,
->>>>>                   goto err_free;
->>>>>
->>>>>               for (i = 0; i < buf->nbufs; ++i)
->>>>> -                pages[i] = virt_to_page(buf->page_list[i].buf);
->>>>> +                pages[i] =
->>>>> +                    is_vmalloc_addr(buf->page_list[i].buf) ?
->>>>> +                    vmalloc_to_page(buf->page_list[i].buf) :
->>>>> +                    virt_to_page(buf->page_list[i].buf);
->>>>>
->>>>>               buf->direct.buf = vmap(pages, buf->nbufs, VM_MAP,
->>>>>                              PAGE_KERNEL);
->>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c
->>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.c
->>>>> index 8388ae2..4a3d1d4 100644
->>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
->>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
->>>>> @@ -200,6 +200,7 @@ static struct hns_roce_hem
->>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>>>>                              gfp_t gfp_mask)
->>>>>   {
->>>>>       struct hns_roce_hem_chunk *chunk = NULL;
->>>>> +    struct hns_roce_vmalloc *vmalloc;
->>>>>       struct hns_roce_hem *hem;
->>>>>       struct scatterlist *mem;
->>>>>       int order;
->>>>> @@ -227,6 +228,7 @@ static struct hns_roce_hem
->>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>>>>               sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
->>>>>               chunk->npages = 0;
->>>>>               chunk->nsg = 0;
->>>>> +            memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
->>>>>               list_add_tail(&chunk->list, &hem->chunk_list);
->>>>>           }
->>>>>
->>>>> @@ -243,7 +245,15 @@ static struct hns_roce_hem
->>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>>>>           if (!buf)
->>>>>               goto fail;
->>>>>
->>>>> -        sg_set_buf(mem, buf, PAGE_SIZE << order);
->>>>> +        if (is_vmalloc_addr(buf)) {
->>>>> +            vmalloc = &chunk->vmalloc[chunk->npages];
->>>>> +            vmalloc->is_vmalloc_addr = true;
->>>>> +            vmalloc->vmalloc_addr = buf;
->>>>> +            sg_set_page(mem, vmalloc_to_page(buf),
->>>>> +                    PAGE_SIZE << order, offset_in_page(buf));
->>>>> +        } else {
->>>>> +            sg_set_buf(mem, buf, PAGE_SIZE << order);
->>>>> +        }
->>>>>           WARN_ON(mem->offset);
->>>>>           sg_dma_len(mem) = PAGE_SIZE << order;
->>>>>
->>>>> @@ -262,17 +272,25 @@ static struct hns_roce_hem
->>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
->>>>>   void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct
->>>>> hns_roce_hem *hem)
->>>>>   {
->>>>>       struct hns_roce_hem_chunk *chunk, *tmp;
->>>>> +    void *cpu_addr;
->>>>>       int i;
->>>>>
->>>>>       if (!hem)
->>>>>           return;
->>>>>
->>>>>       list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list) {
->>>>> -        for (i = 0; i < chunk->npages; ++i)
->>>>> +        for (i = 0; i < chunk->npages; ++i) {
->>>>> +            if (chunk->vmalloc[i].is_vmalloc_addr)
->>>>> +                cpu_addr = chunk->vmalloc[i].vmalloc_addr;
->>>>> +            else
->>>>> +                cpu_addr =
->>>>> +                   lowmem_page_address(sg_page(&chunk->mem[i]));
->>>>> +
->>>>>               dma_free_coherent(hr_dev->dev,
->>>>>                      chunk->mem[i].length,
->>>>> -                   lowmem_page_address(sg_page(&chunk->mem[i])),
->>>>> +                   cpu_addr,
->>>>>                      sg_dma_address(&chunk->mem[i]));
->>>>> +        }
->>>>>           kfree(chunk);
->>>>>       }
->>>>>
->>>>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev
->>>>> *hr_dev,
->>>>>
->>>>>               if (chunk->mem[i].length > (u32)offset) {
->>>>>                   page = sg_page(&chunk->mem[i]);
->>>>> +                if (chunk->vmalloc[i].is_vmalloc_addr) {
->>>>> +                    mutex_unlock(&table->mutex);
->>>>> +                    return page ?
->>>>> +                        chunk->vmalloc[i].vmalloc_addr
->>>>> +                        + offset : NULL;
->>>>> +                }
->>>>>                   goto out;
->>>>>               }
->>>>>               offset -= chunk->mem[i].length;
->>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h
->>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.h
->>>>> index af28bbf..62d712a 100644
->>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
->>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
->>>>> @@ -72,11 +72,17 @@ enum {
->>>>>        HNS_ROCE_HEM_PAGE_SIZE  = 1 << HNS_ROCE_HEM_PAGE_SHIFT,
->>>>>   };
->>>>>
->>>>> +struct hns_roce_vmalloc {
->>>>> +    bool    is_vmalloc_addr;
->>>>> +    void    *vmalloc_addr;
->>>>> +};
->>>>> +
->>>>>   struct hns_roce_hem_chunk {
->>>>>       struct list_head     list;
->>>>>       int             npages;
->>>>>       int             nsg;
->>>>>       struct scatterlist     mem[HNS_ROCE_HEM_CHUNK_LEN];
->>>>> +    struct hns_roce_vmalloc     vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
->>>>>   };
->>>>>
->>>>>   struct hns_roce_hem {
->>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>>>> b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>>>> index b99d70a..9e19bf1 100644
->>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
->>>>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void
->>>>> *mb_buf, struct hns_roce_mr *mr,
->>>>>   {
->>>>>       struct hns_roce_v2_mpt_entry *mpt_entry;
->>>>>       struct scatterlist *sg;
->>>>> +    u64 page_addr = 0;
->>>>>       u64 *pages;
->>>>> +    int i = 0, j = 0;
->>>>> +    int len = 0;
->>>>>       int entry;
->>>>> -    int i;
->>>>>
->>>>>       mpt_entry = mb_buf;
->>>>>       memset(mpt_entry, 0, sizeof(*mpt_entry));
->>>>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void
->>>>> *mb_buf, struct hns_roce_mr *mr,
->>>>>
->>>>>       i = 0;
->>>>>       for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry) {
->>>>> -        pages[i] = ((u64)sg_dma_address(sg)) >> 6;
->>>>> -
->>>>> -        /* Record the first 2 entry directly to MTPT table */
->>>>> -        if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
->>>>> -            break;
->>>>> -        i++;
->>>>> +        len = sg_dma_len(sg) >> PAGE_SHIFT;
->>>>> +        for (j = 0; j < len; ++j) {
->>>>> +            page_addr = sg_dma_address(sg) +
->>>>> +                    (j << mr->umem->page_shift);
->>>>> +            pages[i] = page_addr >> 6;
->>>>> +
->>>>> +            /* Record the first 2 entry directly to MTPT table */
->>>>> +            if (i >= HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
->>>>> +                goto found;
->>>>> +            i++;
->>>>> +        }
->>>>>       }
->>>>>
->>>>> +found:
->>>>>       mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
->>>>>       roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_H_M,
->>>>>                  V2_MPT_BYTE_56_PA0_H_S,
->>>>> -- 
->>>>> 1.9.1
->>>>>
->>>
->>> _______________________________________________
->>> iommu mailing list
->>> iommu@lists.linux-foundation.org
->>> https://lists.linuxfoundation.org/mailman/listinfo/iommu
->>
->> .
->>
-> 
-> 
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 6654f52..382ed57 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4112,9 +4112,14 @@ struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
+ 	 * we're still under heavy pressure. But make sure that this reclaim
+ 	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+ 	 * allocation which will never fail due to oom_lock already held.
++	 * Also, make sure that OOM victims can try ALLOC_OOM watermark in case
++	 * they haven't tried ALLOC_OOM watermark.
+ 	 */
+ 	return get_page_from_freelist((oc->gfp_mask | __GFP_HARDWALL) &
+ 				      ~__GFP_DIRECT_RECLAIM, oc->order,
++				      oom_reserves_allowed(current) &&
++				      !(oc->gfp_mask & __GFP_NOMEMALLOC) ?
++				      ALLOC_OOM :
+ 				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, oc->ac);
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
