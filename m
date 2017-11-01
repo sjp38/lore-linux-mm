@@ -1,66 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B0786B025E
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 08:01:13 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id 15so2347968pgc.16
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 05:01:13 -0700 (PDT)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q81si726792pfi.503.2017.11.01.05.01.11
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8706B025E
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 08:14:48 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id 5so988252wmk.13
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 05:14:48 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j1si4793edc.100.2017.11.01.05.14.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Nov 2017 05:01:12 -0700 (PDT)
-Date: Wed, 1 Nov 2017 13:01:01 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
-References: <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
- <20171030100921.GA18085@X58A-UD3R>
- <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
- <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
- <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
- <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
- <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz>
- <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
- <20171101085927.GB3172@X58A-UD3R>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 05:14:47 -0700 (PDT)
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+References: <94eb2c0433c8f42cac055cc86991@google.com>
+ <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz>
+ <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz>
+ <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
+ <20171031141152.tzx47fy26pvx7xug@node.shutemov.name>
+ <fbf1e43d-1f73-09c1-1837-3600bcedd5d2@suse.cz>
+ <20171031191506.GB2799@redhat.com>
+ <94aa563c-14da-7892-51a0-e1799cdad050@suse.cz>
+ <20171101101744.GA1846@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <ec9d483c-3151-4bfe-2e5b-9396afd84bab@suse.cz>
+Date: Wed, 1 Nov 2017 13:14:45 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171101085927.GB3172@X58A-UD3R>
+In-Reply-To: <20171101101744.GA1846@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, ldufour@linux.vnet.ibm.com, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm@kvack.org, Linus Torvalds <torvalds@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Wed, Nov 01, 2017 at 05:59:27PM +0900, Byungchul Park wrote:
-> On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
-> > On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
-> > > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
-> > > [...]
-> > > > If we want to save those stacks; we have to save a stacktrace on _every_
-> > > > lock acquire, simply because we never know ahead of time if there will
-> > > > be a new link. Doing this is _expensive_.
-> > > > 
-> > > > Furthermore, the space into which we store stacktraces is limited;
-> > > > since memory allocators use locks we can't very well use dynamic memory
-> > > > for lockdep -- that would give recursive and robustness issues.
+On 11/01/2017 11:17 AM, Andrea Arcangeli wrote:
+> On Wed, Nov 01, 2017 at 08:42:57AM +0100, Vlastimil Babka wrote:
+>> The vma should be pinned by mmap_sem, but handle_userfault() will in some
+>> scenarios release it and then acquire again, so when we return to
 > 
-> I agree with all you said.
-> 
-> But, I have a better idea, that is, to save only the caller's ip of each
-> acquisition as an additional information? Of course, it's not enough in
-> some cases, but it's cheep and better than doing nothing.
-> 
-> For example, when building A->B, let's save not only full stack of B,
-> but also caller's ip of A together, then use them on warning like:
+> In the above message and especially in the below comment, I would
+> suggest to take the opportunity to more accurately document the
+> specific scenario instead of "some scenario" which is only "A return
+> to userland to repeat the page fault later with a VM_FAULT_NOPAGE
+> retval (potentially after handling any pending signal during the
+> return to userland). The return to userland is identified whenever
+> FAULT_FLAG_USER|FAULT_FLAG_KILLABLE are both set in vmf->flags".
 
-Like said; I've never really had trouble finding where we take A. And
-for the most difficult cases, just the IP isn't too useful either.
-
-So that would solve a non problem while leaving the real problem.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+OK, updated patch below
+----8<----
