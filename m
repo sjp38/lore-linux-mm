@@ -1,107 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 544EE6B026D
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 09:38:50 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id u23so2589991pgo.4
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 06:38:50 -0700 (PDT)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C4BC6B026F
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 09:47:26 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id v78so2560698pgb.18
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 06:47:26 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z187si965397pgb.341.2017.11.01.06.38.48
+        by mx.google.com with ESMTPS id v196si970356pgb.584.2017.11.01.06.47.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 06:38:48 -0700 (PDT)
-Date: Wed, 1 Nov 2017 14:38:45 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-Message-ID: <20171101133845.GF20040@pathway.suse.cz>
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171031153225.218234b4@gandalf.local.home>
- <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
+        Wed, 01 Nov 2017 06:47:25 -0700 (PDT)
+Date: Wed, 1 Nov 2017 14:47:22 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2 2/3] bdi: add error handle for bdi_debug_register
+Message-ID: <20171101134722.GB28572@quack2.suse.cz>
+References: <cover.1509415695.git.zhangweiping@didichuxing.com>
+ <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
+In-Reply-To: <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: weiping zhang <zhangweiping@didichuxing.com>
+Cc: axboe@kernel.dk, jack@suse.cz, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-On Wed 2017-11-01 09:30:05, Vlastimil Babka wrote:
-> On 10/31/2017 08:32 PM, Steven Rostedt wrote:
-> > 
-> > Thank you for the perfect timing. You posted this the day after I
-> > proposed a new solution at Kernel Summit in Prague for the printk lock
-> > loop that you experienced here.
-> > 
-> > I attached the pdf that I used for that discussion (ignore the last
-> > slide, it was left over and I never went there).
-> > 
-> > My proposal is to do something like this with printk:
-> > 
-> > Three types of printk usages:
-> > 
-> > 1) Active printer (actively writing to the console).
-> > 2) Waiter (active printer, first user)
-> > 3) Sees active printer and a waiter, and just adds to the log buffer
-> >    and leaves.
-> > 
-> > (new globals)
-> > static DEFINE_SPIN_LOCK(console_owner_lock);
-> > static struct task_struct console_owner;
-> > static bool waiter;
-> > 
-> > console_unlock() {
-> > 
-> > [ Assumes this part can not preempt ]
-> > 
-> > 	spin_lock(console_owner_lock);
-> > 	console_owner = current;
-> > 	spin_unlock(console_owner_lock);
-> > 
-> > 	for each message
-> > 		write message out to console
-> > 
-> > 		if (READ_ONCE(waiter))
-> > 			break;
+On Tue 31-10-17 18:38:24, weiping zhang wrote:
+> In order to make error handle more cleaner we call bdi_debug_register
+> before set state to WB_registered, that we can avoid call bdi_unregister
+> in release_bdi().
 > 
-> Ah, these two lines clarified for me what I didn't get from your talk,
-> so I got the wrong impression that the new scheme is just postponing the
-> problem.
+> Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
+
+Looks good to me. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  mm/backing-dev.c | 5 ++++-
+>  1 file changed, 4 insertions(+), 1 deletion(-)
 > 
-> But still, it seems to me that the scheme only works as long as there
-> are printk()'s coming with some reasonable frequency. There's still a
-> corner case when a storm of printk()'s can come that will fill the ring
-> buffers, and while during the storm the printing will be distributed
-> between CPUs nicely, the last unfortunate CPU after the storm subsides
-> will be left with a large accumulated buffer to print, and there will be
-> no waiters to take over if there are no more printk()'s coming. What
-> then, should it detect such situation and defer the flushing?
-
-This was my fear as well. Steven argued that this was theoretical.
-And I do not have a real-life bullets against this argument at
-the moment.
-
-My current main worry with Steven's approach is a risk of deadlocks
-that Jan Kara saw when he played with similar solution.
-
-Also I am afraid that it would add yet another twist to the console
-locking operations. It is already quite hard to follow the logic,
-see the games with:
-
-	+ console_locked
-	+ console_suspended
-	+ can_use_console()
-	+ exclusive_console
-
-And Steven is going to add:
-
-	+ console_owner
-	+ waiter
-
-But let's wait for the patch. It might look and work nicely
-in the end.
-
-Best Regards,
-Petr
+> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+> index b5f940ce0143..84b2dc76f140 100644
+> --- a/mm/backing-dev.c
+> +++ b/mm/backing-dev.c
+> @@ -882,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
+>  	if (IS_ERR(dev))
+>  		return PTR_ERR(dev);
+>  
+> +	if (bdi_debug_register(bdi, dev_name(dev))) {
+> +		device_destroy(bdi_class, dev->devt);
+> +		return -ENOMEM;
+> +	}
+>  	cgwb_bdi_register(bdi);
+>  	bdi->dev = dev;
+>  
+> -	bdi_debug_register(bdi, dev_name(dev));
+>  	set_bit(WB_registered, &bdi->wb.state);
+>  
+>  	spin_lock_bh(&bdi_lock);
+> -- 
+> 2.14.2
+> 
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
