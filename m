@@ -1,62 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 746AC6B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:54:29 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id y39so902290wrd.17
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:54:29 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p79sor142210wmf.18.2017.11.01.01.54.28
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Nov 2017 01:54:28 -0700 (PDT)
-Date: Wed, 1 Nov 2017 09:54:25 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
- page tables
-Message-ID: <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 530D46B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:59:32 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id l23so1955041pgc.10
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:59:32 -0700 (PDT)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id q124si144222pga.510.2017.11.01.01.59.30
+        for <linux-mm@kvack.org>;
+        Wed, 01 Nov 2017 01:59:31 -0700 (PDT)
+Date: Wed, 1 Nov 2017 17:59:27 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: possible deadlock in lru_add_drain_all
+Message-ID: <20171101085927.GB3172@X58A-UD3R>
+References: <20171027134234.7dyx4oshjwd44vqx@dhcp22.suse.cz>
+ <20171030082203.4xvq2af25shfci2z@dhcp22.suse.cz>
+ <20171030100921.GA18085@X58A-UD3R>
+ <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
+ <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
+ <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
+ <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
+ <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
+ <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz>
+ <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171031223146.6B47C861@viggo.jf.intel.com>
+In-Reply-To: <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, borisBrian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Garnier <thgarnie@google.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
 
+On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
+> On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
+> > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
+> > [...]
+> > > If we want to save those stacks; we have to save a stacktrace on _every_
+> > > lock acquire, simply because we never know ahead of time if there will
+> > > be a new link. Doing this is _expensive_.
+> > > 
+> > > Furthermore, the space into which we store stacktraces is limited;
+> > > since memory allocators use locks we can't very well use dynamic memory
+> > > for lockdep -- that would give recursive and robustness issues.
 
-(Filled in the missing Cc: list)
+I agree with all you said.
 
-* Dave Hansen <dave.hansen@linux.intel.com> wrote:
+But, I have a better idea, that is, to save only the caller's ip of each
+acquisition as an additional information? Of course, it's not enough in
+some cases, but it's cheep and better than doing nothing.
 
-> tl;dr:
-> 
-> KAISER makes it harder to defeat KASLR, but makes syscalls and
-> interrupts slower.  These patches are based on work from a team at
-> Graz University of Technology posted here[1].  The major addition is
-> support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
-> work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
-> for a wide variety of use cases.
+For example, when building A->B, let's save not only full stack of B,
+but also caller's ip of A together, then use them on warning like:
 
-Ok, while I never thought I'd see the 4g:4g patch come to 64-bit kernels ;-),
-this series is a lot better than earlier versions of this feature, and it
-solves a number of KASLR timing attacks rather fundamentally.
+-> #3 aa_mutex:
+   a()
+   b()
+   c()
+   d()
+   ---
+   while holding bb_mutex at $IP <- additional information I said
 
-Beyond the inevitable cavalcade of (solvable) problems that will pop up during 
-review, one major item I'd like to see addressed is runtime configurability: it 
-should be possible to switch between a CR3-flushing and a regular syscall and page 
-table model on the admin level, without restarting the kernel and apps. Distros 
-really, really don't want to double the number of kernel variants they have.
+-> #2 bb_mutex:
+   e()
+   f()
+   g()
+   h()
+   ---
+   while holding cc_mutex at $IP <- additional information I said
 
-The 'Kaiser off' runtime switch doesn't have to be as efficient as 
-CONFIG_KAISER=n, at least initialloy, but at minimum it should avoid the most 
-expensive page table switching paths in the syscall entry codepaths.
+-> #1 cc_mutex:
+   i()
+   j()
+   k()
+   l()
+   ---
+   while holding xxx at $IP <- additional information I said
 
-Also, this series should be based on Andy's latest syscall entry cleanup work.
+and so on.
 
-Thanks,
-
-	Ingo
+Don't you think this is worth working it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
