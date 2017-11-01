@@ -1,87 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 86A686B026B
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 09:27:09 -0400 (EDT)
-Received: by mail-pg0-f70.google.com with SMTP id 191so2567314pgd.0
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 06:27:09 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 544EE6B026D
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 09:38:50 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u23so2589991pgo.4
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 06:38:50 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r28si1068159pfk.101.2017.11.01.06.27.02
+        by mx.google.com with ESMTPS id z187si965397pgb.341.2017.11.01.06.38.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 06:27:03 -0700 (PDT)
-Date: Wed, 1 Nov 2017 14:27:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm,oom: Move last second allocation to inside the
- OOM killer.
-Message-ID: <20171101132700.qf4exnqezaepjgat@dhcp22.suse.cz>
-References: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Wed, 01 Nov 2017 06:38:48 -0700 (PDT)
+Date: Wed, 1 Nov 2017 14:38:45 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
+Message-ID: <20171101133845.GF20040@pathway.suse.cz>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171031153225.218234b4@gandalf.local.home>
+ <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-I would really suggest you to stick with the changelog I have suggested.
+On Wed 2017-11-01 09:30:05, Vlastimil Babka wrote:
+> On 10/31/2017 08:32 PM, Steven Rostedt wrote:
+> > 
+> > Thank you for the perfect timing. You posted this the day after I
+> > proposed a new solution at Kernel Summit in Prague for the printk lock
+> > loop that you experienced here.
+> > 
+> > I attached the pdf that I used for that discussion (ignore the last
+> > slide, it was left over and I never went there).
+> > 
+> > My proposal is to do something like this with printk:
+> > 
+> > Three types of printk usages:
+> > 
+> > 1) Active printer (actively writing to the console).
+> > 2) Waiter (active printer, first user)
+> > 3) Sees active printer and a waiter, and just adds to the log buffer
+> >    and leaves.
+> > 
+> > (new globals)
+> > static DEFINE_SPIN_LOCK(console_owner_lock);
+> > static struct task_struct console_owner;
+> > static bool waiter;
+> > 
+> > console_unlock() {
+> > 
+> > [ Assumes this part can not preempt ]
+> > 
+> > 	spin_lock(console_owner_lock);
+> > 	console_owner = current;
+> > 	spin_unlock(console_owner_lock);
+> > 
+> > 	for each message
+> > 		write message out to console
+> > 
+> > 		if (READ_ONCE(waiter))
+> > 			break;
+> 
+> Ah, these two lines clarified for me what I didn't get from your talk,
+> so I got the wrong impression that the new scheme is just postponing the
+> problem.
+> 
+> But still, it seems to me that the scheme only works as long as there
+> are printk()'s coming with some reasonable frequency. There's still a
+> corner case when a storm of printk()'s can come that will fill the ring
+> buffers, and while during the storm the printing will be distributed
+> between CPUs nicely, the last unfortunate CPU after the storm subsides
+> will be left with a large accumulated buffer to print, and there will be
+> no waiters to take over if there are no more printk()'s coming. What
+> then, should it detect such situation and defer the flushing?
 
-On Wed 01-11-17 20:54:27, Tetsuo Handa wrote:
-[...]
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 26add8a..118ecdb 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -870,6 +870,19 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  	}
->  	task_unlock(p);
->  
-> +	/*
-> +	 * Try really last second allocation attempt after we selected an OOM
-> +	 * victim, for somebody might have managed to free memory while we were
-> +	 * selecting an OOM victim which can take quite some time.
-> +	 */
-> +	if (oc->ac) {
-> +		oc->page = alloc_pages_before_oomkill(oc);
+This was my fear as well. Steven argued that this was theoretical.
+And I do not have a real-life bullets against this argument at
+the moment.
 
-I would stick the oc->ac check inside alloc_pages_before_oomkill.
+My current main worry with Steven's approach is a risk of deadlocks
+that Jan Kara saw when he played with similar solution.
 
-> +		if (oc->page) {
-> +			put_task_struct(p);
-> +			return;
-> +		}
-> +	}
-> +
->  	if (__ratelimit(&oom_rs))
->  		dump_header(oc, p);
->  
-> @@ -1081,6 +1094,16 @@ bool out_of_memory(struct oom_control *oc)
->  	select_bad_process(oc);
->  	/* Found nothing?!?! Either we hang forever, or we panic. */
->  	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
-> +		/*
-> +		 * Try really last second allocation attempt, for somebody
-> +		 * might have managed to free memory while we were trying to
-> +		 * find an OOM victim.
-> +		 */
-> +		if (oc->ac) {
-> +			oc->page = alloc_pages_before_oomkill(oc);
-> +			if (oc->page)
-> +				return true;
-> +		}
->  		dump_header(oc, NULL);
->  		panic("Out of memory and no killable processes...\n");
->  	}
+Also I am afraid that it would add yet another twist to the console
+locking operations. It is already quite hard to follow the logic,
+see the games with:
 
-Also, is there any strong reason to not do the last allocation after
-select_bad_process rather than having two call sites? I would understand
-that if you wanted to catch for_each_thread inside oom_kill_process but
-you are not doing that.
+	+ console_locked
+	+ console_suspended
+	+ can_use_console()
+	+ exclusive_console
 
-[...]
--- 
-Michal Hocko
-SUSE Labs
+And Steven is going to add:
+
+	+ console_owner
+	+ waiter
+
+But let's wait for the patch. It might look and work nicely
+in the end.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
