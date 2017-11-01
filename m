@@ -1,44 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A28786B025E
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 15:05:46 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 97so9949156iok.19
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 12:05:46 -0700 (PDT)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h99sor655269ioi.200.2017.11.01.12.05.45
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E4C246B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 15:37:52 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id r64so2566153qkc.0
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 12:37:52 -0700 (PDT)
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id y190si1282095qkc.411.2017.11.01.12.37.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Nov 2017 12:05:45 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 12:37:51 -0700 (PDT)
+Message-Id: <1509565071.2650718.1158454064.7E910622@webmail.messagingengine.com>
+From: Colin Walters <walters@verbum.org>
 MIME-Version: 1.0
-In-Reply-To: <5005a38e-4dbf-d302-9a82-97c92d0f8f07@linux.intel.com>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <CA+55aFzS8GZ7QHzMU-JsievHU5T9LBrFx2fRwkbCB8a_YAxmsw@mail.gmail.com>
- <9e45a167-3528-8f93-80bf-c333ae6acb71@linux.intel.com> <CA+55aFypdyt+3-JyD3U1da5EqznncxKZZKPGn4ykkD=4Q4rdvw@mail.gmail.com>
- <8bacac66-7d3e-b15d-a73b-92c55c0b1908@linux.intel.com> <CA+55aFxssHiO4f52UUCPXoxx+NOu5Epf6HhwsjUH8Ua+BP6Y=A@mail.gmail.com>
- <5005a38e-4dbf-d302-9a82-97c92d0f8f07@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 1 Nov 2017 12:05:44 -0700
-Message-ID: <CA+55aFzQ3cFin78_BcU8d1u1-kJugQh9c0PRJuDjXPf3Z75+Mw@mail.gmail.com>
-Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
- page tables
-Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset="utf-8"
+Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes process
+ to death row (new syscall)
+Date: Wed, 01 Nov 2017 15:37:51 -0400
+In-Reply-To: <CA+49okox_Hvg-dGyjZc3u0qLz1S=LJjS4-WT6SxQ9qfPyp6BjQ@mail.gmail.com>
+References: <20171101053244.5218-1-slandden@gmail.com>
+ <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
+ <CA+49okox_Hvg-dGyjZc3u0qLz1S=LJjS4-WT6SxQ9qfPyp6BjQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>
+To: Shawn Landden <slandden@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, Nov 1, 2017 at 11:46 AM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
->
-> The vmalloc()'d stacks definitely need the page table walk.
+On Wed, Nov 1, 2017, at 03:02 PM, Shawn Landden wrote:
+>=20
+> This solves the fact that epoll_pwait() already is a 6 argument (maximum =
+allowed) syscall. But what if the process has multiple epoll() instances in=
+ multiple threads?=20
 
-Ugh, yes. Nasty.
+Well, that's a subset of the general question of - what is the interaction
+of this system call and threading?=C2=A0 It looks like you've prototyped th=
+is
+out in userspace with systemd, but from a quick glance at the current git,
+systemd's threading is limited doing sync()/fsync() and gethostbyname() asy=
+nc.
 
-Andy at some point mentioned a per-cpu initial stack trampoline thing
-for his exception patches, but I'm not sure he actually ever did that.
+But languages with a GC tend to at least use a background thread for that,
+and of course lots of modern userspace makes heavy use of multithreading
+(or variants like goroutines).
 
-Andy?
+A common pattern though is to have a "main thread" that acts as a control
+point and runs the mainloop (particularly for anything with a GUI).   That's
+going to be the thing calling prctl(SET_IDLE) - but I think its idle state =
+should implicitly
+affect the whole process, since for a lot of apps those other threads are g=
+oing to
+just be "background".
 
-              Linus
+It'd probably then be an error to use prctl(SET_IDLE) in more than one thre=
+ad
+ever?  (Although that might break in golang due to the way goroutines can
+be migrated across threads)
+
+That'd probably be a good "generality test" - what would it take to have
+this system call be used for a simple golang webserver app that's e.g.
+socket activated by systemd, or a Kubernetes service?  Or another
+really interesting case would be qemu; make it easy to flag VMs as always
+having this state (most of my testing VMs are like this; it's OK if they get
+destroyed, I just reinitialize them from the gold state).
+
+Going back to threading - a tricky thing we should handle in general
+is when userspace libraries create threads that are unknown to the app;
+the "async gethostbyname()" is a good example.  To be conservative we'd
+likely need to "fail non-idle", but figure out some way tell the kernel
+for e.g. GC threads that they're still idle.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
