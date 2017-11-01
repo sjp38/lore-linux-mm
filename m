@@ -1,45 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F41B6B0287
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:22:31 -0400 (EDT)
-Received: by mail-oi0-f69.google.com with SMTP id n82so2789650oig.22
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:22:31 -0700 (PDT)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id j29si577692otd.180.2017.11.01.08.22.29
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A2AC56B0289
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:26:26 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id n33so8517215ioi.7
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:26:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r81sor505358itb.14.2017.11.01.08.26.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Nov 2017 08:22:30 -0700 (PDT)
-Message-Id: <1509549749.2563336.1158179384.52E1E4B4@webmail.messagingengine.com>
-From: Colin Walters <walters@verbum.org>
+        (Google Transport Security);
+        Wed, 01 Nov 2017 08:26:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="utf-8"
-References: <20171101053244.5218-1-slandden@gmail.com>
- <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
-Date: Wed, 01 Nov 2017 11:22:29 -0400
-In-Reply-To: <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
-Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes process
- to death row (new syscall)
+In-Reply-To: <20171031191336.GA2799@redhat.com>
+References: <94eb2c0433c8f42cac055cc86991@google.com> <CACT4Y+YtdzYFPZfs0gjDtuHqkkZdRNwKfe-zBJex_uXUevNtBg@mail.gmail.com>
+ <b9c543d1-27f9-8db7-238e-7c1305b1bff5@suse.cz> <CACT4Y+ZzrcHAUSG25HSi7ybKJd8gxDtimXHE_6UsowOT3wcT5g@mail.gmail.com>
+ <8e92c891-a9e0-efed-f0b9-9bf567d8fbcd@suse.cz> <4bc852be-7ef3-0b60-6dbb-81139d25a817@suse.cz>
+ <CA+55aFwWJyArZMEuo1-4+VaiP95e__cRHkVvrfiQ+NUVJ15DNQ@mail.gmail.com> <20171031191336.GA2799@redhat.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 1 Nov 2017 08:26:24 -0700
+Message-ID: <CA+55aFyxA2mdSEKaP7v2GTWY2qC971unym8grwe1VnxQRctaUA@mail.gmail.com>
+Subject: Re: KASAN: use-after-free Read in __do_page_fault
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Landden <slandden@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+6a5269ce759a7bb12754ed9622076dc93f65a1f6@syzkaller.appspotmail.com>, Jan Beulich <JBeulich@suse.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@redhat.com>, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Hugh Dickins <hughd@google.com>, David Rientjes <rientjes@google.com>, linux-mm <linux-mm@kvack.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-
-
-On Wed, Nov 1, 2017, at 11:16 AM, Colin Walters wrote:
+On Tue, Oct 31, 2017 at 12:13 PM, Andrea Arcangeli <aarcange@redhat.com> wrote:
 >
-> as the maintainer of glib2 which is used by a *lot* of things; I'm not
+> The problematic path for the return to userland (get_user_pages
+> returns to kernel) is this one:
+>
+>         if (return_to_userland) {
+>                 if (signal_pending(current) &&
+>                     !fatal_signal_pending(current)) {
+>                         /*
+>                          * If we got a SIGSTOP or SIGCONT and this is
+>                          * a normal userland page fault, just let
+>                          * userland return so the signal will be
+>                          * handled and gdb debugging works.  The page
+>                          * fault code immediately after we return from
+>                          * this function is going to release the
+>                          * mmap_sem and it's not depending on it
+>                          * (unlike gup would if we were not to return
+>                          * VM_FAULT_RETRY).
+>                          *
+>                          * If a fatal signal is pending we still take
+>                          * the streamlined VM_FAULT_RETRY failure path
+>                          * and there's no need to retake the mmap_sem
+>                          * in such case.
+>                          */
+>                         down_read(&mm->mmap_sem);
+>                         ret = VM_FAULT_NOPAGE;
+>                 }
+>         }
+>
+> We could remove the above branch all together and then
+> handle_userfault() would always return VM_FAULT_RETRY whenever it
+> decides to release the mmap_sem.
 
-(I meant to say "a" maintainer)
+Honestly, I would *much* prefer that.
 
-Also, while I'm not an expert in Android, I think the "what to kill" logic
-there lives in userspace, right?   So it feels like we should expose this
-state in e.g. /proc and allow userspace daemons (e.g. systemd, kubelet) to perform
-idle collection too, even if the system isn't actually low on resources
-from the kernel's perspective.
+>    The above makes debugging with gdb
+> more user friendly and it potentially lowers the latency of signals as
+> signals can unblock handle_userfault.
 
-And doing that requires some sort of kill(pid, SIGKILL_IF_IDLE) or so?
+I don't disagree about that, but why don't you use VM_FAULT_RETRY and
+not re-take the mmap_sem? Then we wouldn't have a special case for
+userfaultfd at all.
+
+I see the gdb issue, but I wonder if we shouldn't fix that differently
+by changing the retry logic in the fault handler.
+
+In particular, right now we do
+
+ -  Retry at most once
+
+ - handle fatal signals specially
+
+and I think the gdb case actually shows that both of those decisions
+may have been wrong, or at least something we could improve on?
+
+Maybe we should return to user space on _any_ pending signal? That
+might help latency for other things than gdb (think ^Z etc, but also
+things that catch SIGSEGV and abort).
+
+And maybe we should allow FAULT_FLAG_ALLOW_RETRY to just go on forever
+- although that will want to verify that every case that returns
+VM_FAULT_RETRY does wait for the condition it dropped the mmap
+semaphore and is retrying for.
+
+There aren't that many places that return VM_FAULT_RETRY. The
+important one is lock_page_or_retry(), and that one does wait for the
+page.
+
+(There's one in mm/shmem.c too, and obviously the userfaultfd case,
+but those seem to do waiting too).
+
+So maybe we could just fix the gdb case without that userfaultfd hack?
+
+             Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
