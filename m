@@ -1,47 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EBFB6B026F
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:28:50 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id m81so11347604ioi.3
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:28:50 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c6sor888731iob.42.2017.11.01.15.28.49
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C394B6B026F
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 18:30:05 -0400 (EDT)
+Received: by mail-wm0-f72.google.com with SMTP id e8so2000478wmc.2
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 15:30:05 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id q197si1592455wmb.236.2017.11.01.15.30.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 01 Nov 2017 15:28:49 -0700 (PDT)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 15:30:04 -0700 (PDT)
+Date: Wed, 1 Nov 2017 23:30:01 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 04/23] x86, tlb: make CR4-based TLB flushes more robust
+In-Reply-To: <d7db2bfd-e251-606f-a42f-55c9ef1aca55@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1711012329240.1942@nanos>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223154.67F15B2A@viggo.jf.intel.com> <alpine.DEB.2.20.1711012222330.1942@nanos> <d7db2bfd-e251-606f-a42f-55c9ef1aca55@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <d7cb1705-5ef0-5f6e-b1cf-e3f28e998477@linux.intel.com>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
- <d7cb1705-5ef0-5f6e-b1cf-e3f28e998477@linux.intel.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 1 Nov 2017 15:28:48 -0700
-Message-ID: <CA+55aFw0OF0JSio47KVPrAz6CaJuX8kEvMk0DWVG2HZzRFr_+Q@mail.gmail.com>
-Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
- page tables
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, borisBrian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Garnier <thgarnie@google.com>, Kees Cook <keescook@google.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Wed, Nov 1, 2017 at 3:14 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
->
-> I ran some quick tests.  When CONFIG_KAISER=y, but "echo 0 >
-> kaiser-enabled", the tests that I ran were within the noise vs. a
-> vanilla kernel, and that's with *zero* optimization.
 
-I guess the optimal version just ends up switching between two
-different entrypoints for the on/off case.
+On Wed, 1 Nov 2017, Dave Hansen wrote:
 
-And the not-quite-as-aggressive, but almost-optimal version would just
-be a two-byte asm alternative with an unconditional branch to the
-movcr3 code and back, and is turned into a noop when it's off.
+> On 11/01/2017 02:25 PM, Thomas Gleixner wrote:
+> >>  	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+> >> -	/* clear PGE */
+> >> -	native_write_cr4(cr4 & ~X86_CR4_PGE);
+> >> -	/* write old PGE again and flush TLBs */
+> >> +	/*
+> >> +	 * This function is only called on systems that support X86_CR4_PGE
+> >> +	 * and where always set X86_CR4_PGE.  Warn if we are called without
+> >> +	 * PGE set.
+> >> +	 */
+> >> +	WARN_ON_ONCE(!(cr4 & X86_CR4_PGE));
+> > Because if CR4_PGE is not set, this warning triggers. So this defeats the
+> > toggle mode you are implementing.
+> 
+> The warning is there because there is probably plenty of *other* stuff
+> that breaks if we have X86_FEATURE_PGE=1, but CR4.PGE=0.
+> 
+> The point of this was to make this function do the right thing no matter
+> what, but warn if it gets called in an unexpected way.
 
-But since 99%+ of the cost is going to be that cr3 write, even the
-stupid "just load value and branch over the cr3 conditionally" is
-going to make things hard to measure.
+Fair enough. Can you please reflect that in the changelog ?
 
-                Linus
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
