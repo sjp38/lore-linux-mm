@@ -1,50 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7A06B0283
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:16:04 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id g6so2776576pgn.11
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:16:04 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x85si1279500pff.344.2017.11.01.08.16.03
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 17DA66B0285
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 11:16:40 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 5so1229230wmk.13
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 08:16:40 -0700 (PDT)
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id e6si759004wrd.79.2017.11.01.08.16.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 08:16:03 -0700 (PDT)
-Date: Wed, 1 Nov 2017 16:16:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm,oom: Use ALLOC_OOM for OOM victim's last second
- allocation.
-Message-ID: <20171101151600.olalzdipejtylkok@dhcp22.suse.cz>
-References: <1509537268-4726-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1509537268-4726-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171101135855.bqg2kuj6ao2cicqi@dhcp22.suse.cz>
- <201711020008.EHB87824.QFFOJMLOHVFSOt@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 08:16:38 -0700 (PDT)
+Message-Id: <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
+From: Colin Walters <walters@verbum.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201711020008.EHB87824.QFFOJMLOHVFSOt@I-love.SAKURA.ne.jp>
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes process
+ to death row (new syscall)
+References: <20171101053244.5218-1-slandden@gmail.com>
+Date: Wed, 01 Nov 2017 11:16:37 -0400
+In-Reply-To: <20171101053244.5218-1-slandden@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov@virtuozzo.com
+To: Shawn Landden <slandden@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 02-11-17 00:08:59, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-[...]
-> > I am not sure about this part though. If the oom_reaper cannot take the
-> > mmap_sem then it retries for 1s. Have you ever seen the race to be that
-> > large?
+
+
+On Wed, Nov 1, 2017, at 01:32 AM, Shawn Landden wrote:
+> It is common for services to be stateless around their main event loop.
+> If a process passes the EPOLL_KILLME flag to epoll_wait5() then it
+> signals to the kernel that epoll_wait5() may not complete, and the kernel
+> may send SIGKILL if resources get tight.
 > 
-> Like shown in [2], khugepaged can prevent oom_reaper from taking the mmap_sem
-> for 1 second. Also, it won't be impossible for OOM victims to spend 1 second
-> between post __gfp_pfmemalloc_flags(gfp_mask) and pre mutex_trylock(&oom_lock)
-> (in other words, the race window (1-2) above). Therefore, non artificial
-> workloads could hit the same result.
 
-but this is a speculation so I wouldn't mention it in the changelog. It
-might confuse readers.
--- 
-Michal Hocko
-SUSE Labs
+I've thought about something like this in the past too and would love
+to see it land.  Bigger picture, this also comes up in (server) container
+environments, see e.g.:
+
+https://docs.openshift.com/container-platform/3.3/admin_guide/idling_applications.html
+
+There's going to be a long slog getting apps to actually make use
+of this, but I suspect if it gets wrapped up nicely in some "framework"
+libraries for C/C++, and be bound in the language ecosystems like golang
+we could see a fair amount of adoption on the order of a year or two.
+
+However, while I understand why it feels natural to tie this to epoll,
+as the maintainer of glib2 which is used by a *lot* of things; I'm not
+sure we're going to port to epoll anytime soon.
+
+Why not just make this a prctl()?  It's not like it's really any less racy to do:
+
+prctl(PR_SET_IDLE)
+epoll()
+
+and this also allows:
+
+prctl(PR_SET_IDLE)
+poll()
+
+And as this is most often just going to be an optional hint it's easier to e.g. just ignore EINVAL
+from the prctl().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
