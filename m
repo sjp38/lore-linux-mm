@@ -1,21 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 682506B0038
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 17:11:42 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id z96so1869721wrb.21
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 14:11:42 -0700 (PDT)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D4466B0038
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 17:18:24 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id k9so1889090wmg.11
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 14:18:24 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 18si1329417wry.218.2017.11.01.14.11.41
+        by mx.google.com with ESMTPS id k40si1484517wrf.308.2017.11.01.14.18.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 01 Nov 2017 14:11:41 -0700 (PDT)
-Date: Wed, 1 Nov 2017 22:11:37 +0100 (CET)
+        Wed, 01 Nov 2017 14:18:23 -0700 (PDT)
+Date: Wed, 1 Nov 2017 22:18:18 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
- page tables
-In-Reply-To: <20171031223150.AB41C68F@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1711012206050.1942@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com>
+Subject: Re: [PATCH 03/23] x86, kaiser: disable global pages
+In-Reply-To: <20171031223152.B5D241B2@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.20.1711012213370.1942@nanos>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223152.B5D241B2@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -24,38 +23,32 @@ To: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 On Tue, 31 Oct 2017, Dave Hansen wrote:
+> --- a/arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages	2017-10-31 15:03:49.314064402 -0700
+> +++ b/arch/x86/include/asm/pgtable_types.h	2017-10-31 15:03:49.323064827 -0700
+> @@ -47,7 +47,12 @@
+>  #define _PAGE_ACCESSED	(_AT(pteval_t, 1) << _PAGE_BIT_ACCESSED)
+>  #define _PAGE_DIRTY	(_AT(pteval_t, 1) << _PAGE_BIT_DIRTY)
+>  #define _PAGE_PSE	(_AT(pteval_t, 1) << _PAGE_BIT_PSE)
+> +#ifdef CONFIG_X86_GLOBAL_PAGES
+>  #define _PAGE_GLOBAL	(_AT(pteval_t, 1) << _PAGE_BIT_GLOBAL)
+> +#else
+> +/* We must ensure that kernel TLBs are unusable while in userspace */
+> +#define _PAGE_GLOBAL	(_AT(pteval_t, 0))
+> +#endif
 
-> 
-> init_mm is for kernel-exclusive use.  If someone is allocating page
-> tables in it, do not set _PAGE_USER on them.  This ensures that
-> we do *not* set NX on these page tables in the KAISER code.
+What you really want to do here is to clear PAGE_GLOBAL in the
+supported_pte_mask. probe_page_size_mask() is the proper place for that.
 
-This changelog is confusing at best.
-
-Why is this a kaiser issue? Nothing should ever create _PAGE_USER entries
-in init_mm, right?
-
-So this is a general improvement and creating a _PAGE_USER entry in init_mm
-should be considered a bug in the first place.
-
-> +/*
-> + * _KERNPG_TABLE has _PAGE_USER clear which tells the KAISER code
-> + * that this mapping is for kernel use only.  That makes sure that
-> + * we leave the mapping usable by the kernel and do not try to
-> + * sabotage it by doing stuff like setting _PAGE_NX on it.
-
-So this comment should not mention KAISER at all. As I explained above
-there are no user mappings in init_mm and this should be expressed here.
-
-The fact that KAISER can make use of this information is a different story.
-
-Other than that:
-
-      Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+This allows both .config and boottime configuration.
 
 Thanks,
 
 	tglx
+
+
+
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
