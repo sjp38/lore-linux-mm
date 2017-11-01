@@ -1,8 +1,8 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E63F6B0069
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CEBFA6B0069
 	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 07:55:12 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id v78so2081705pfk.8
+Received: by mail-pf0-f197.google.com with SMTP id z11so2053867pfk.23
         for <linux-mm@kvack.org>; Wed, 01 Nov 2017 04:55:12 -0700 (PDT)
 Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
         by mx.google.com with ESMTPS id v18si778520pge.275.2017.11.01.04.55.11
@@ -10,9 +10,9 @@ Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 01 Nov 2017 04:55:11 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH 1/4] x86/boot/compressed/64: Compile pagetable.c unconditionally
-Date: Wed,  1 Nov 2017 14:55:00 +0300
-Message-Id: <20171101115503.18358-2-kirill.shutemov@linux.intel.com>
+Subject: [PATCH 2/4] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+Date: Wed,  1 Nov 2017 14:55:01 +0300
+Message-Id: <20171101115503.18358-3-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20171101115503.18358-1-kirill.shutemov@linux.intel.com>
 References: <20171101115503.18358-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,69 @@ List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-We are going to put few helpers into pagetable.c that are not specific
-to KASLR.
-
-Let's make compilation of the file independent of KASLR and wrap
-KASLR-depended code into ifdef.
+This patch prepare decompression code to boot-time switching between 4-
+and 5-level paging.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/boot/compressed/Makefile    | 2 +-
- arch/x86/boot/compressed/pagetable.c | 5 +++++
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ arch/x86/boot/compressed/head_64.S   | 16 ++++++++++++----
+ arch/x86/boot/compressed/pagetable.c | 19 +++++++++++++++++++
+ 2 files changed, 31 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
-index 65a150a7f15c..f7b64ecd09b3 100644
---- a/arch/x86/boot/compressed/Makefile
-+++ b/arch/x86/boot/compressed/Makefile
-@@ -77,7 +77,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
- vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
- vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
- ifdef CONFIG_X86_64
--	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
-+	vmlinux-objs-y += $(obj)/pagetable.o
- endif
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index b4a5d284391c..6ac8239af2b6 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -288,10 +288,18 @@ ENTRY(startup_64)
+ 	leaq	boot_stack_end(%rbx), %rsp
  
- $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
+ #ifdef CONFIG_X86_5LEVEL
+-	/* Check if 5-level paging has already enabled */
+-	movq	%cr4, %rax
+-	testl	$X86_CR4_LA57, %eax
+-	jnz	lvl5
++	/*
++	 * Check if we need to enable 5-level paging.
++	 * RSI holds real mode data and need to be preserved across
++	 * a function call.
++	 */
++	pushq	%rsi
++	call	need_to_enabled_l5
++	popq	%rsi
++
++	/* If need_to_enabled_l5() returned zero, we're done here. */
++	cmpq	$0, %rax
++	je	lvl5
+ 
+ 	/*
+ 	 * At this point we are in long mode with 4-level paging enabled,
 diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
-index f1aa43854bed..a15bbfcb3413 100644
+index a15bbfcb3413..cd2dd49333cc 100644
 --- a/arch/x86/boot/compressed/pagetable.c
 +++ b/arch/x86/boot/compressed/pagetable.c
-@@ -27,6 +27,9 @@
- /* These actually do the work of building the kernel identity maps. */
- #include <asm/init.h>
- #include <asm/pgtable.h>
-+
-+#ifdef CONFIG_RANDOMIZE_BASE
-+
- /* Use the static base for this part of the boot process */
- #undef __PAGE_OFFSET
- #define __PAGE_OFFSET __PAGE_OFFSET_BASE
-@@ -149,3 +152,5 @@ void finalize_identity_maps(void)
- {
- 	write_cr3(top_level_pgt);
+@@ -154,3 +154,22 @@ void finalize_identity_maps(void)
  }
+ 
+ #endif /* CONFIG_RANDOMIZE_BASE */
 +
-+#endif /* CONFIG_RANDOMIZE_BASE */
++#ifdef CONFIG_X86_5LEVEL
++int need_to_enabled_l5(void)
++{
++	/* Check i leaf 7 is supported. */
++	if (native_cpuid_eax(0) < 7)
++		return 0;
++
++	/* Check if la57 is supported. */
++	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
++		return 0;
++
++	/* Check if 5-level paging has already been enabled. */
++	if (native_read_cr4() & X86_CR4_LA57)
++		return 0;
++
++	return 1;
++}
++#endif
 -- 
 2.14.2
 
