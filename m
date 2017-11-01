@@ -1,83 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BD7E86B0268
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:12:46 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id d28so1644696pfe.1
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:12:46 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id i6si4108786pgt.798.2017.11.01.01.12.45
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EAB1D6B025F
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 04:30:10 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id m82so956252wmd.19
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:30:10 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o11si274823edh.327.2017.11.01.01.30.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Nov 2017 01:12:45 -0700 (PDT)
-Received: from mail-io0-f181.google.com (mail-io0-f181.google.com [209.85.223.181])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 318EF21871
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 08:12:45 +0000 (UTC)
-Received: by mail-io0-f181.google.com with SMTP id h70so4396155ioi.4
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 01:12:45 -0700 (PDT)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 01:30:08 -0700 (PDT)
+Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171031153225.218234b4@gandalf.local.home>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
+Date: Wed, 1 Nov 2017 09:30:05 +0100
 MIME-Version: 1.0
-In-Reply-To: <20171031180757.8B5DA496@viggo.jf.intel.com>
-References: <20171031180757.8B5DA496@viggo.jf.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 1 Nov 2017 01:12:24 -0700
-Message-ID: <CALCETrVw5nJoK99FQ+n4SiJPKEQ6umDBYat9zesaxFLLcE+yZg@mail.gmail.com>
-Subject: Re: [PATCH] x86, mm: make alternatives code do stronger TLB flush
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171031153225.218234b4@gandalf.local.home>
+Content-Type: text/plain; charset=windows-1252
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, X86 ML <x86@kernel.org>, Andrew Lutomirski <luto@kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-On Tue, Oct 31, 2017 at 11:07 AM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> local_flush_tlb() does a CR3 write.  But, that kind of TLB flush is
-> not guaranteed to invalidate global pages.  The entire kernel is
-> mapped with global pages.
->
-> Also, now that we have PCIDs, local_flush_tlb() will only flush the
-> *current* PCID.  It would not flush the entries for all PCIDs.
-> At the moment, this is a moot point because all kernel pages are
-> _PAGE_GLOBAL which do not really *have* a particular PCID.
->
-> Use the stronger __flush_tlb_all() which does flush global pages.
->
-> This was found because of a warning I added to __native_flush_tlb()
-> to look for calls to it when PCIDs are enabled.  This patch does
-> not fix any bug known to be hit in practice.
+On 10/31/2017 08:32 PM, Steven Rostedt wrote:
+> 
+> Thank you for the perfect timing. You posted this the day after I
+> proposed a new solution at Kernel Summit in Prague for the printk lock
+> loop that you experienced here.
+> 
+> I attached the pdf that I used for that discussion (ignore the last
+> slide, it was left over and I never went there).
+> 
+> My proposal is to do something like this with printk:
+> 
+> Three types of printk usages:
+> 
+> 1) Active printer (actively writing to the console).
+> 2) Waiter (active printer, first user)
+> 3) Sees active printer and a waiter, and just adds to the log buffer
+>    and leaves.
+> 
+> (new globals)
+> static DEFINE_SPIN_LOCK(console_owner_lock);
+> static struct task_struct console_owner;
+> static bool waiter;
+> 
+> console_unlock() {
+> 
+> [ Assumes this part can not preempt ]
+> 
+> 	spin_lock(console_owner_lock);
+> 	console_owner = current;
+> 	spin_unlock(console_owner_lock);
+> 
+> 	for each message
+> 		write message out to console
+> 
+> 		if (READ_ONCE(waiter))
+> 			break;
 
-I'm very confused here.  set_fixmap() does a flush.  clear_fixmap()
-calls set_fixmap() and therefore also flushes.  So I don't see why the
-flush you're modifying is needed at all.  Could you just delete it
-instead?
+Ah, these two lines clarified for me what I didn't get from your talk,
+so I got the wrong impression that the new scheme is just postponing the
+problem.
 
-If your KAISER series were applied, then the situation is slightly
-different.  We have this code:
-
-static void __set_pte_vaddr(pud_t *pud, unsigned long vaddr, pte_t new_pte)
-{
-        pmd_t *pmd = fill_pmd(pud, vaddr);
-        pte_t *pte = fill_pte(pmd, vaddr);
-
-        set_pte(pte, new_pte);
-
-        /*
-         * It's enough to flush this one mapping.
-         * (PGE mappings get flushed as well)
-         */
-        __flush_tlb_one(vaddr);
-}
-
-and that is no longer correct.  You may need to add a helper
-__flush_tlb_kernel_one() that does the right thing.  For the
-alternatives case, you could skip it since you know that the mapping
-never got propagated to any other PCID slot on the current CPU, but
-that's probably not worth trying to optimize.
-
---Andy
+But still, it seems to me that the scheme only works as long as there
+are printk()'s coming with some reasonable frequency. There's still a
+corner case when a storm of printk()'s can come that will fill the ring
+buffers, and while during the storm the printing will be distributed
+between CPUs nicely, the last unfortunate CPU after the storm subsides
+will be left with a large accumulated buffer to print, and there will be
+no waiters to take over if there are no more printk()'s coming. What
+then, should it detect such situation and defer the flushing?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
