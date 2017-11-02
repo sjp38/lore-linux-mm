@@ -1,132 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C44E6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 10:49:57 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id r6so5489314pfj.14
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 07:49:57 -0700 (PDT)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EA46B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 10:55:18 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id v2so5499697pfa.10
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 07:55:18 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y1si2429821plk.261.2017.11.02.07.49.55
+        by mx.google.com with ESMTPS id u187si3608209pgb.536.2017.11.02.07.55.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 07:49:55 -0700 (PDT)
-Date: Thu, 2 Nov 2017 10:49:51 -0400
+        Thu, 02 Nov 2017 07:55:16 -0700 (PDT)
+Date: Thu, 2 Nov 2017 10:55:13 -0400
 From: Steven Rostedt <rostedt@goodmis.org>
 Subject: Re: [PATCH] mm: don't warn about allocations which stall for too
  long
-Message-ID: <20171102104951.63c7b2ac@gandalf.local.home>
-In-Reply-To: <20171102114650.GB31148@pathway.suse.cz>
+Message-ID: <20171102105513.50f8e29e@gandalf.local.home>
+In-Reply-To: <20171102085313.GD655@jagdpanzerIV>
 References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 	<20171031153225.218234b4@gandalf.local.home>
-	<187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
-	<20171101133845.GF20040@pathway.suse.cz>
-	<20171101113647.243eecf8@gandalf.local.home>
-	<20171102114650.GB31148@pathway.suse.cz>
+	<20171102085313.GD655@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-On Thu, 2 Nov 2017 12:46:50 +0100
-Petr Mladek <pmladek@suse.com> wrote:
+On Thu, 2 Nov 2017 17:53:13 +0900
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
 
-> On Wed 2017-11-01 11:36:47, Steven Rostedt wrote:
-> > On Wed, 1 Nov 2017 14:38:45 +0100
-> > Petr Mladek <pmladek@suse.com> wrote:  
-> > > My current main worry with Steven's approach is a risk of deadlocks
-> > > that Jan Kara saw when he played with similar solution.  
+> On (10/31/17 15:32), Steven Rostedt wrote:
+> [..]
+> > (new globals)
+> > static DEFINE_SPIN_LOCK(console_owner_lock);
+> > static struct task_struct console_owner;
+> > static bool waiter;
 > > 
-> > And if there exists such a deadlock, then the deadlock exists today.  
-> 
-> The patch is going to effectively change console_trylock() to
-> console_lock() and this might add problems.
-> 
-> The most simple example is:
-> 
->        console_lock()
->          printk()
-> 	    console_trylock() was SAFE.
-> 
->        console_lock()
->          printk()
-> 	   console_lock() cause DEADLOCK!
-> 
-> Sure, we could detect this and avoid waiting when
-> console_owner == current. But does this cover all
-
-Which I will do.
-
-> situations? What about?
-> 
-> CPU0			CPU1
-> 
-> console_lock()          func()
->   console->write()        take_lockA()
->     func()		    printk()
-> 			      busy wait for console_lock()
-> 
->       take_lockA()
-
-How does this not deadlock without my changes?
-
- func()
-   take_lockA()
-     printk()
-       console_lock()
-         console->write()
-             func()
-                take_lockA()
-
-DEADLOCK!
-
-
-> 
-> By other words, it used to be safe to call printk() from
-> console->write() functions because printk() used console_trylock().
-
-I still don't see how this can be safe now.
-
-> Your patch is going to change this. It is even worse because
-> you probably will not use console_lock() directly and therefore
-> this might be hidden for lockdep.
-
-And no, my patch adds lockdep annotation for the spinner. And if I get
-that wrong, I'm sure Peter Zijltra will help.
-
-> 
-> BTW: I am still not sure how to make the busy waiter preferred
-> over console_lock() callers. I mean that the busy waiter has
-> to get console_sem even if there are some tasks in the workqueue.
-
-I started struggling with this, then realized that console_sem is just
-that: a semaphore. Which doesn't have a concept of ownership. I can
-simply hand off the semaphore without ever letting it go. My RFC patch
-is almost done, you'll see it soon.
-
-> 
-> 
-> > > But let's wait for the patch. It might look and work nicely
-> > > in the end.  
+> > console_unlock() {
 > > 
-> > Oh, I need to write a patch? Bah, I guess I should. Where's all those
-> > developers dying to do kernel programing where I can pass this off to?  
+> > [ Assumes this part can not preempt ]
+> >
+> > 	spin_lock(console_owner_lock);
+> > 	console_owner = current;
+> > 	spin_unlock(console_owner_lock);  
 > 
-> Yes, where are these days when my primary task was to learn kernel
-> hacking? This would have been a great training material.
+>  + disables IRQs?
 
-:)
+Yes, this was pseudo code, just to get an idea out. I'll have a patch
+soon that will include all the nasty details.
 
 > 
-> I still have to invest time into fixing printk. But I personally
-> think that the lazy offloading to kthreads is more promising
-> way to go. It is pretty straightforward. The only problem is
-> the guaranty of the takeover. But there must be a reasonable
-> way how to detect that the system heart is still beating
-> and we are not the only working CPU.
+> > 	for each message
+> > 		write message out to console
+> > 
+> > 		if (READ_ONCE(waiter))
+> > 			break;
+> > 
+> > 	spin_lock(console_owner_lock);
+> > 	console_owner = NULL;
+> > 	spin_unlock(console_owner_lock);
+> > 
+> > [ preemption possible ]  
+> 
+> otherwise
+> 
+>      printk()
+>       if (console_trylock())
+>         console_unlock()
+>          preempt_disable()
+>           spin_lock(console_owner_lock);
+>           console_owner = current;
+>           spin_unlock(console_owner_lock);
+>           .......
+>           spin_lock(console_owner_lock);
+> IRQ
+>     printk()
+>      console_trylock() // fails so we go to busy-loop part
+>       spin_lock(console_owner_lock);       << deadlock
 
-My patch isn't that big. Let's talk more after I post it.
+Yeah, I do disable interrupts. The pseudo code was just a way to
+quickly convey the idea. I said "spin_lock" where I could have just
+said "lock".
+
+> 
+> 
+> even if we would replace spin_lock(console_owner_lock) with IRQ
+> spin_lock, we still would need to protect against IRQs on the very
+> same CPU. right? IOW, we need to store smp_processor_id() of a CPU
+> currently doing console_unlock() and check it in vprintk_emit()?
+> and we need to protect the entire console_unlock() function. not
+> just the printing loop, otherwise the IRQ CPU will spin forever
+> waiting for itself to up() the console_sem.
+
+Yes and it will.
+
+> 
+> this somehow reminds me of "static unsigned int logbuf_cpu", which
+> we used to have in vprintk_emit() and were happy to remove it...
+> 
+> 
+> the whole "console_unlock() is non-preemptible" can bite, I'm
+> afraid. it's not always printk()->console_unlock(), sometimes
+> it's console_lock()->console_unlock() that has to flush the
+> logbuf.
+> 
+> CPU0					CPU1  ~  CPU99
+> console_lock();
+> 					printk(); ... printk();
+> console_unlock()
+>  preempt_disable();
+>   for (;;)
+>     call_console_drivers();
+>     <<lockup>>
+> 
+> 
+> this pattern is not so unusual. _especially_ in the existing scheme
+> of things.
+> 
+> not to mention the problem of "the last printk()", which will take
+> over and do the flush.
+> 
+> CPU0					CPU1  ~  CPU99
+> console_lock();
+> 					printk(); ... printk();
+> console_unlock();
+> 					    IRQ on CPU2
+> 					     printk()
+> 					      // take over console_sem
+> 					      console_unlock()
+> 
+> and so on.
+> seems that there will be lots of if-s.
+
+
+Let's wait for the patch and talk more after I post it.
 
 -- Steve
 
