@@ -1,101 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 695606B025E
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:14:38 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id e64so4747519pfk.0
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:14:38 -0700 (PDT)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CA0F6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:36:30 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id q127so2643525wmd.1
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:36:30 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n10sor698420pgc.136.2017.11.02.02.14.37
+        by mx.google.com with SMTPS id r29sor1769303edi.35.2017.11.02.02.36.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 Nov 2017 02:14:37 -0700 (PDT)
-Date: Thu, 2 Nov 2017 18:14:32 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-Message-ID: <20171102091432.GE655@jagdpanzerIV>
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171031153225.218234b4@gandalf.local.home>
- <20171102085313.GD655@jagdpanzerIV>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171102085313.GD655@jagdpanzerIV>
+        Thu, 02 Nov 2017 02:36:29 -0700 (PDT)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC 0/2] do not depend on cpuhotplug logs in lru_add_drain_all 
+Date: Thu,  2 Nov 2017 10:36:11 +0100
+Message-Id: <20171102093613.3616-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: linux-mm@kvack.org
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On (11/02/17 17:53), Sergey Senozhatsky wrote:
-> On (10/31/17 15:32), Steven Rostedt wrote:
-> [..]
-> > (new globals)
-> > static DEFINE_SPIN_LOCK(console_owner_lock);
-> > static struct task_struct console_owner;
-> > static bool waiter;
-> > 
-> > console_unlock() {
-> > 
-> > [ Assumes this part can not preempt ]
-> >
-> > 	spin_lock(console_owner_lock);
-> > 	console_owner = current;
-> > 	spin_unlock(console_owner_lock);
-> 
->  + disables IRQs?
-> 
-> > 	for each message
-> > 		write message out to console
-> > 
-> > 		if (READ_ONCE(waiter))
-> > 			break;
-> > 
-> > 	spin_lock(console_owner_lock);
-> > 	console_owner = NULL;
-> > 	spin_unlock(console_owner_lock);
-> > 
-> > [ preemption possible ]
-> 
-> otherwise
-> 
->      printk()
->       if (console_trylock())
->         console_unlock()
->          preempt_disable()
->           spin_lock(console_owner_lock);
->           console_owner = current;
->           spin_unlock(console_owner_lock);
->           .......
->           spin_lock(console_owner_lock);
-> IRQ
->     printk()
->      console_trylock() // fails so we go to busy-loop part
->       spin_lock(console_owner_lock);       << deadlock
-> 
-> 
-> even if we would replace spin_lock(console_owner_lock) with IRQ
-> spin_lock, we still would need to protect against IRQs on the very
-> same CPU. right? IOW, we need to store smp_processor_id() of a CPU
-> currently doing console_unlock() and check it in vprintk_emit()?
+Hi,
+this is an RFC to drop get_online_cpus from lru_add_drain_all ad this
+has caused a very subtle lockdep splats recently [1]. I didn't get even
+to properly test this yet and I am sending it early to check whether the
+thinking behind is sound. I am basically following the same pattern we
+have used for removing get_online_cpus from drain_all_pages which should
+be the similar case.
 
+Does anybody see any obvious problem?
 
-a major self-correction:
-
-> and we need to protect the entire console_unlock() function. not
-> just the printing loop, otherwise the IRQ CPU will spin forever
-> waiting for itself to up() the console_sem.
-
-this part is wrong. should have been
-	"we need to protect the entire printing loop"
-
-
-so now console_unlock()'s printing loop is going to run
-
-a) under preempt_disable()
-b) under local_irq_save()
-
-which is risky.
-
-	-ss
+[1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
