@@ -1,75 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E27296B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 03:10:31 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id t188so4440107pfd.20
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:10:31 -0700 (PDT)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F12476B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 03:32:38 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id g6so5089830pgn.11
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:32:38 -0700 (PDT)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e4si2896227pfg.198.2017.11.02.00.10.30
+        by mx.google.com with ESMTPS id f34si1609860ple.249.2017.11.02.00.32.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 00:10:30 -0700 (PDT)
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+        Thu, 02 Nov 2017 00:32:37 -0700 (PDT)
+Received: from mail-io0-f182.google.com (mail-io0-f182.google.com [209.85.223.182])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4BCEC2192C
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 07:10:30 +0000 (UTC)
-Received: by mail-io0-f175.google.com with SMTP id 101so11665178ioj.3
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:10:30 -0700 (PDT)
+	by mail.kernel.org (Postfix) with ESMTPSA id 87A7021923
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 07:32:37 +0000 (UTC)
+Received: by mail-io0-f182.google.com with SMTP id 101so11788523ioj.3
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:32:37 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711012316130.1942@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
- <alpine.DEB.2.20.1711012225400.1942@nanos> <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
- <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com> <alpine.DEB.2.20.1711012316130.1942@nanos>
+In-Reply-To: <CALCETrX4bxhLWeaTYPWQ8EdNscfUmWeUi6gfDuADqZtUvM01cA@mail.gmail.com>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <CA+55aFzS8GZ7QHzMU-JsievHU5T9LBrFx2fRwkbCB8a_YAxmsw@mail.gmail.com>
+ <9e45a167-3528-8f93-80bf-c333ae6acb71@linux.intel.com> <CA+55aFypdyt+3-JyD3U1da5EqznncxKZZKPGn4ykkD=4Q4rdvw@mail.gmail.com>
+ <8bacac66-7d3e-b15d-a73b-92c55c0b1908@linux.intel.com> <CA+55aFxssHiO4f52UUCPXoxx+NOu5Epf6HhwsjUH8Ua+BP6Y=A@mail.gmail.com>
+ <5005a38e-4dbf-d302-9a82-97c92d0f8f07@linux.intel.com> <CA+55aFzQ3cFin78_BcU8d1u1-kJugQh9c0PRJuDjXPf3Z75+Mw@mail.gmail.com>
+ <CALCETrX4bxhLWeaTYPWQ8EdNscfUmWeUi6gfDuADqZtUvM01cA@mail.gmail.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 2 Nov 2017 00:10:09 -0700
-Message-ID: <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm page tables
+Date: Thu, 2 Nov 2017 00:32:16 -0700
+Message-ID: <CALCETrUFddZwQmB9OBzbS-RObg_tU8CA70aEB4n+MG15yYLQRA@mail.gmail.com>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>
 
-On Wed, Nov 1, 2017 at 3:20 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> On Wed, 1 Nov 2017, Linus Torvalds wrote:
->> On Wed, Nov 1, 2017 at 2:52 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
->> > On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
->> >> On Wed, 1 Nov 2017, Andy Lutomirski wrote:
->> >>> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
->> >>
->> >> Groan, forgot about that abomination, but still there is no point in having
->> >> it marked PAGE_USER in the init_mm at all, kaiser or not.
->> >
->> > So shouldn't this patch effectively make the vsyscall page unusable?
->> > Any idea why that didn't show up in any of the x86 selftests?
+On Wed, Nov 1, 2017 at 1:33 PM, Andy Lutomirski <luto@kernel.org> wrote:
+> On Wed, Nov 1, 2017 at 12:05 PM, Linus Torvalds
+> <torvalds@linux-foundation.org> wrote:
+>> On Wed, Nov 1, 2017 at 11:46 AM, Dave Hansen
+>> <dave.hansen@linux.intel.com> wrote:
+>>>
+>>> The vmalloc()'d stacks definitely need the page table walk.
 >>
->> I actually think there may be two issues here:
+>> Ugh, yes. Nasty.
 >>
->>  - vsyscall isn't even used much - if any - any more
->
-> Only legacy user space uses it.
->
->>  - the vsyscall emulation works fine without _PAGE_USER, since the
->> whole point is that we take a fault on it and then emulate.
+>> Andy at some point mentioned a per-cpu initial stack trampoline thing
+>> for his exception patches, but I'm not sure he actually ever did that.
 >>
->> We do expose the vsyscall page read-only to user space in the
->> emulation case, but I'm not convinced that's even required.
+>> Andy?
 >
-> I don't see a reason why it needs to be mapped at all for emulation.
+> I'm going to push it to kernel.org very shortly (like twenty minutes
+> maybe).  Then the 0day bot can chew on it.  With the proposed LDT
+> rework, we don't need to do any of dynamic mapping stuff, I think.
 
-At least a couple years ago, the maintainers of some userspace tracing
-tools complained very loudly at the early versions of the patches.
-There are programs like pin (semi-open-source IIRC) that parse
-instructions, make an instrumented copy, and run it.  This means that
-the vsyscall page needs to contain text that is semantically
-equivalent to what calling it actually does.
-
-So yes, read access needs to work.  I should add a selftest for this.
-
-This is needed in emulation mode as well as native mode, so removing
-native mode is totally orthogonal.
+FWIW, I pushed all but the actual stack switching part.  Something
+broke in the rebase and it doesn't boot right now :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
