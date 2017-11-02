@@ -1,69 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 602796B0038
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 19:55:01 -0400 (EDT)
-Received: by mail-pf0-f198.google.com with SMTP id r6so3481850pfj.14
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 16:55:01 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id w9si670835plp.208.2017.11.01.16.54.59
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 16:54:59 -0700 (PDT)
-Date: Thu, 2 Nov 2017 08:54:56 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: possible deadlock in lru_add_drain_all
-Message-ID: <20171101235456.GA3928@X58A-UD3R>
-References: <20171030100921.GA18085@X58A-UD3R>
- <20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net>
- <20171031131333.pr2ophwd2bsvxc3l@dhcp22.suse.cz>
- <20171031135104.rnlytzawi2xzuih3@hirez.programming.kicks-ass.net>
- <CACT4Y+Zi_Gqh1V7QHzUdRuYQAtNjyNU2awcPOHSQYw9TsCwEsw@mail.gmail.com>
- <20171031145247.5kjbanjqged34lbp@hirez.programming.kicks-ass.net>
- <20171031145804.ulrpk245ih6t7q7h@dhcp22.suse.cz>
- <20171031151024.uhbaynabzq6k7fbc@hirez.programming.kicks-ass.net>
- <20171101085927.GB3172@X58A-UD3R>
- <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B84E66B0038
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 20:18:47 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id z80so3531083pff.11
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 17:18:47 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id x85si2112983pff.344.2017.11.01.17.18.45
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 17:18:46 -0700 (PDT)
+Subject: Re: [PATCH 5/6] shmem: add sealing support to hugetlb-backed memfd
+References: <20171031184052.25253-1-marcandre.lureau@redhat.com>
+ <20171031184052.25253-6-marcandre.lureau@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e9b1cda0-4216-3d04-233b-d229069bf529@oracle.com>
+Date: Wed, 1 Nov 2017 17:18:37 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171101120101.d6jlzwjks2j3az2v@hirez.programming.kicks-ass.net>
+In-Reply-To: <20171031184052.25253-6-marcandre.lureau@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+e7353c7141ff7cbb718e4c888a14fa92de41ebaa@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Dan Williams <dan.j.williams@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Jan Kara <jack@suse.cz>, jglisse@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, shli@fb.com, syzkaller-bugs@googlegroups.com, Thomas Gleixner <tglx@linutronix.de>, Vlastimil Babka <vbabka@suse.cz>, ying.huang@intel.com, kernel-team@lge.com
+To: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com
 
-On Wed, Nov 01, 2017 at 01:01:01PM +0100, Peter Zijlstra wrote:
-> On Wed, Nov 01, 2017 at 05:59:27PM +0900, Byungchul Park wrote:
-> > On Tue, Oct 31, 2017 at 04:10:24PM +0100, Peter Zijlstra wrote:
-> > > On Tue, Oct 31, 2017 at 03:58:04PM +0100, Michal Hocko wrote:
-> > > > On Tue 31-10-17 15:52:47, Peter Zijlstra wrote:
-> > > > [...]
-> > > > > If we want to save those stacks; we have to save a stacktrace on _every_
-> > > > > lock acquire, simply because we never know ahead of time if there will
-> > > > > be a new link. Doing this is _expensive_.
-> > > > > 
-> > > > > Furthermore, the space into which we store stacktraces is limited;
-> > > > > since memory allocators use locks we can't very well use dynamic memory
-> > > > > for lockdep -- that would give recursive and robustness issues.
-> > 
-> > I agree with all you said.
-> > 
-> > But, I have a better idea, that is, to save only the caller's ip of each
-> > acquisition as an additional information? Of course, it's not enough in
-> > some cases, but it's cheep and better than doing nothing.
-> > 
-> > For example, when building A->B, let's save not only full stack of B,
-> > but also caller's ip of A together, then use them on warning like:
+On 10/31/2017 11:40 AM, Marc-AndrA(C) Lureau wrote:
+> Adapt add_seals()/get_seals() to work with hugetbfs-backed memory.
 > 
-> Like said; I've never really had trouble finding where we take A. And
-
-Me, either, since I know the way. But I've seen many guys who got
-confused with it, which is why I suggested it.
-
-But, leave it if you don't think so.
-
-> for the most difficult cases, just the IP isn't too useful either.
+> Teach memfd_create() to allow sealing operations on MFD_HUGETLB.
 > 
-> So that would solve a non problem while leaving the real problem.
+> Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
+> ---
+>  mm/shmem.c | 51 ++++++++++++++++++++++++++++++---------------------
+>  1 file changed, 30 insertions(+), 21 deletions(-)
+> 
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index b7811979611f..b7c59d993c19 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -2717,6 +2717,19 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+>  	return error;
+>  }
+>  
+> +static unsigned int *memfd_get_seals(struct file *file)
+
+I would have named this something like 'memfd_file_seal_ptr', and not
+changed the name of memfd_get_seals below.  Just my preference, and it
+does not carry as much weight as Hugh who originally write this code.
+
+> +{
+> +	if (file->f_op == &shmem_file_operations)
+> +		return &SHMEM_I(file_inode(file))->seals;
+> +
+> +#ifdef CONFIG_HUGETLBFS
+> +	if (file->f_op == &hugetlbfs_file_operations)
+> +		return &HUGETLBFS_I(file_inode(file))->seals;
+> +#endif
+> +
+> +	return NULL;
+> +}
+> +
+
+As mentioned in patch 2, I think this code will need to be restructured
+so that hugetlbfs file sealing will work even is CONFIG_TMPFS is not
+defined.  The above routine is behind #ifdef CONFIG_TMPFS.
+
+In general the code looks fine, but this config issue needs to be addressed.
+-- 
+Mike Kravetz
+
+>  #define F_ALL_SEALS (F_SEAL_SEAL | \
+>  		     F_SEAL_SHRINK | \
+>  		     F_SEAL_GROW | \
+> @@ -2725,7 +2738,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+>  static int memfd_add_seals(struct file *file, unsigned int seals)
+>  {
+>  	struct inode *inode = file_inode(file);
+> -	struct shmem_inode_info *info = SHMEM_I(inode);
+> +	unsigned int *file_seals;
+>  	int error;
+>  
+>  	/*
+> @@ -2758,8 +2771,6 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+>  	 * other file types.
+>  	 */
+>  
+> -	if (file->f_op != &shmem_file_operations)
+> -		return -EINVAL;
+>  	if (!(file->f_mode & FMODE_WRITE))
+>  		return -EPERM;
+>  	if (seals & ~(unsigned int)F_ALL_SEALS)
+> @@ -2767,12 +2778,18 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+>  
+>  	inode_lock(inode);
+>  
+> -	if (info->seals & F_SEAL_SEAL) {
+> +	file_seals = memfd_get_seals(file);
+> +	if (!file_seals) {
+> +		error = -EINVAL;
+> +		goto unlock;
+> +	}
+> +
+> +	if (*file_seals & F_SEAL_SEAL) {
+>  		error = -EPERM;
+>  		goto unlock;
+>  	}
+>  
+> -	if ((seals & F_SEAL_WRITE) && !(info->seals & F_SEAL_WRITE)) {
+> +	if ((seals & F_SEAL_WRITE) && !(*file_seals & F_SEAL_WRITE)) {
+>  		error = mapping_deny_writable(file->f_mapping);
+>  		if (error)
+>  			goto unlock;
+> @@ -2784,7 +2801,7 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+>  		}
+>  	}
+>  
+> -	info->seals |= seals;
+> +	*file_seals |= seals;
+>  	error = 0;
+>  
+>  unlock:
+> @@ -2792,12 +2809,11 @@ static int memfd_add_seals(struct file *file, unsigned int seals)
+>  	return error;
+>  }
+>  
+> -static int memfd_get_seals(struct file *file)
+> +static int memfd_fcntl_get_seals(struct file *file)
+>  {
+> -	if (file->f_op != &shmem_file_operations)
+> -		return -EINVAL;
+> +	unsigned int *seals = memfd_get_seals(file);
+>  
+> -	return SHMEM_I(file_inode(file))->seals;
+> +	return seals ? *seals : -EINVAL;
+>  }
+>  
+>  long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+> @@ -2813,7 +2829,7 @@ long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+>  		error = memfd_add_seals(file, arg);
+>  		break;
+>  	case F_GET_SEALS:
+> -		error = memfd_get_seals(file);
+> +		error = memfd_fcntl_get_seals(file);
+>  		break;
+>  	default:
+>  		error = -EINVAL;
+> @@ -3657,7 +3673,7 @@ SYSCALL_DEFINE2(memfd_create,
+>  		const char __user *, uname,
+>  		unsigned int, flags)
+>  {
+> -	struct shmem_inode_info *info;
+> +	unsigned int *file_seals;
+>  	struct file *file;
+>  	int fd, error;
+>  	char *name;
+> @@ -3667,9 +3683,6 @@ SYSCALL_DEFINE2(memfd_create,
+>  		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
+>  			return -EINVAL;
+>  	} else {
+> -		/* Sealing not supported in hugetlbfs (MFD_HUGETLB) */
+> -		if (flags & MFD_ALLOW_SEALING)
+> -			return -EINVAL;
+>  		/* Allow huge page size encoding in flags. */
+>  		if (flags & ~(unsigned int)(MFD_ALL_FLAGS |
+>  				(MFD_HUGE_MASK << MFD_HUGE_SHIFT)))
+> @@ -3722,12 +3735,8 @@ SYSCALL_DEFINE2(memfd_create,
+>  	file->f_flags |= O_RDWR | O_LARGEFILE;
+>  
+>  	if (flags & MFD_ALLOW_SEALING) {
+> -		/*
+> -		 * flags check at beginning of function ensures
+> -		 * this is not a hugetlbfs (MFD_HUGETLB) file.
+> -		 */
+> -		info = SHMEM_I(file_inode(file));
+> -		info->seals &= ~F_SEAL_SEAL;
+> +		file_seals = memfd_get_seals(file);
+> +		*file_seals &= ~F_SEAL_SEAL;
+>  	}
+>  
+>  	fd_install(fd, file);
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
