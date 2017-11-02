@@ -1,121 +1,195 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 039AA6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 04:53:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id v78so5266287pgb.18
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 01:53:19 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e16sor728709pgn.126.2017.11.02.01.53.18
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 681B06B0253
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:09:55 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v105so2619204wrc.11
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:09:55 -0700 (PDT)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 90sor1102188wrl.59.2017.11.02.02.09.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 02 Nov 2017 01:53:18 -0700 (PDT)
-Date: Thu, 2 Nov 2017 17:53:13 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-Message-ID: <20171102085313.GD655@jagdpanzerIV>
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171031153225.218234b4@gandalf.local.home>
+        Thu, 02 Nov 2017 02:09:54 -0700 (PDT)
+Date: Thu, 2 Nov 2017 12:09:51 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [alsa-devel] BUG: soft lockup
+Message-ID: <20171102090951.drjf7wc2urcmtla5@node.shutemov.name>
+References: <94eb2c19df188b1926055cf13c21@google.com>
+ <CACT4Y+ZDVP7mJHaOpq9N5oewE0WwCCWgrtWX08DFdBJN4sBRhQ@mail.gmail.com>
+ <s5hshdxay1t.wl-tiwai@suse.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/mixed; boundary="xqvwsu7vpwjsljlm"
 Content-Disposition: inline
-In-Reply-To: <20171031153225.218234b4@gandalf.local.home>
+In-Reply-To: <s5hshdxay1t.wl-tiwai@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: Takashi Iwai <tiwai@suse.de>
+Cc: Dmitry Vyukov <dvyukov@google.com>, syzbot <bot+63583aefef5457348dcfa06b87d4fd1378b26b09@syzkaller.appspotmail.com>, aaron.lu@intel.com, alsa-devel@alsa-project.org, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, ying.huang@intel.com, syzkaller-bugs@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, Takashi Iwai <tiwai@suse.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, shli@fb.com, David Rientjes <rientjes@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, zi.yan@cs.rutgers.edu, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On (10/31/17 15:32), Steven Rostedt wrote:
-[..]
-> (new globals)
-> static DEFINE_SPIN_LOCK(console_owner_lock);
-> static struct task_struct console_owner;
-> static bool waiter;
+
+--xqvwsu7vpwjsljlm
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+
+On Thu, Nov 02, 2017 at 09:23:58AM +0100, Takashi Iwai wrote:
 > 
-> console_unlock() {
+> Currently the least ALSA timer interrupt period is limited to 1ms.
+> Does it still too much?
 > 
-> [ Assumes this part can not preempt ]
->
-> 	spin_lock(console_owner_lock);
-> 	console_owner = current;
-> 	spin_unlock(console_owner_lock);
+> Can the reproducer triggers it reliably?  If yes, could you forward
+> it, too (and config as well), so that I'll try to dig down more exact
+> code paths?
 
- + disables IRQs?
+All of that is part of original report:
 
-> 	for each message
-> 		write message out to console
-> 
-> 		if (READ_ONCE(waiter))
-> 			break;
-> 
-> 	spin_lock(console_owner_lock);
-> 	console_owner = NULL;
-> 	spin_unlock(console_owner_lock);
-> 
-> [ preemption possible ]
+http://lkml.kernel.org/r/94eb2c19df188b1926055cf13c21@google.com
 
-otherwise
+marc.info hasn't stored repro.c for some reasone. Attached.
 
-     printk()
-      if (console_trylock())
-        console_unlock()
-         preempt_disable()
-          spin_lock(console_owner_lock);
-          console_owner = current;
-          spin_unlock(console_owner_lock);
-          .......
-          spin_lock(console_owner_lock);
-IRQ
-    printk()
-     console_trylock() // fails so we go to busy-loop part
-      spin_lock(console_owner_lock);       << deadlock
+I've just check it reproduces reliably for me in KVM.
 
+I also checked that it's not specific to THP -- still trigirable with huge
+pages disabled.
 
-even if we would replace spin_lock(console_owner_lock) with IRQ
-spin_lock, we still would need to protect against IRQs on the very
-same CPU. right? IOW, we need to store smp_processor_id() of a CPU
-currently doing console_unlock() and check it in vprintk_emit()?
-and we need to protect the entire console_unlock() function. not
-just the printing loop, otherwise the IRQ CPU will spin forever
-waiting for itself to up() the console_sem.
+-- 
+ Kirill A. Shutemov
 
-this somehow reminds me of "static unsigned int logbuf_cpu", which
-we used to have in vprintk_emit() and were happy to remove it...
+--xqvwsu7vpwjsljlm
+Content-Type: text/x-c; charset=us-ascii
+Content-Disposition: attachment; filename="repro.c"
 
+// autogenerated by syzkaller (http://github.com/google/syzkaller)
 
-the whole "console_unlock() is non-preemptible" can bite, I'm
-afraid. it's not always printk()->console_unlock(), sometimes
-it's console_lock()->console_unlock() that has to flush the
-logbuf.
+#define _GNU_SOURCE
 
-CPU0					CPU1  ~  CPU99
-console_lock();
-					printk(); ... printk();
-console_unlock()
- preempt_disable();
-  for (;;)
-    call_console_drivers();
-    <<lockup>>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
+static uintptr_t syz_open_dev(uintptr_t a0, uintptr_t a1, uintptr_t a2)
+{
+  if (a0 == 0xc || a0 == 0xb) {
+    char buf[128];
+    sprintf(buf, "/dev/%s/%d:%d", a0 == 0xc ? "char" : "block",
+            (uint8_t)a1, (uint8_t)a2);
+    return open(buf, O_RDWR, 0);
+  } else {
+    char buf[1024];
+    char* hash;
+    strncpy(buf, (char*)a0, sizeof(buf));
+    buf[sizeof(buf) - 1] = 0;
+    while ((hash = strchr(buf, '#'))) {
+      *hash = '0' + (char)(a1 % 10);
+      a1 /= 10;
+    }
+    return open(buf, a2, 0);
+  }
+}
 
-this pattern is not so unusual. _especially_ in the existing scheme
-of things.
+static void test();
 
-not to mention the problem of "the last printk()", which will take
-over and do the flush.
+void loop()
+{
+  while (1) {
+    test();
+  }
+}
 
-CPU0					CPU1  ~  CPU99
-console_lock();
-					printk(); ... printk();
-console_unlock();
-					    IRQ on CPU2
-					     printk()
-					      // take over console_sem
-					      console_unlock()
+long r[64];
+void test()
+{
+  memset(r, -1, sizeof(r));
+  r[0] = syscall(__NR_mmap, 0x20000000ul, 0xfff000ul, 0x3ul, 0x32ul,
+                 0xfffffffffffffffful, 0x0ul);
+  memcpy((void*)0x203a2000, "\x2e\x2f\x66\x69\x6c\x65\x30\x00", 8);
+  *(uint64_t*)0x20000fe0 = (uint64_t)0x0;
+  *(uint64_t*)0x20000fe8 = (uint64_t)0x2710;
+  *(uint64_t*)0x20000ff0 = (uint64_t)0x77359400;
+  *(uint64_t*)0x20000ff8 = (uint64_t)0x0;
+  r[6] = syscall(__NR_utimes, 0x203a2000ul, 0x20000fe0ul);
+  r[7] = syscall(__NR_getdents64, 0xfffffffffffffffful, 0x2076e000ul,
+                 0x0ul);
+  memcpy((void*)0x20c67ff1,
+         "\x2f\x64\x65\x76\x2f\x73\x6e\x64\x2f\x74\x69\x6d\x65\x72\x00",
+         15);
+  r[9] = syz_open_dev(0x20c67ff1ul, 0x0ul, 0x0ul);
+  *(uint32_t*)0x205a3fcc = (uint32_t)0x0;
+  *(uint32_t*)0x205a3fd0 = (uint32_t)0x2;
+  *(uint32_t*)0x205a3fd4 = (uint32_t)0x0;
+  *(uint32_t*)0x205a3fd8 = (uint32_t)0xffffffffffffffff;
+  *(uint32_t*)0x205a3fdc = (uint32_t)0x0;
+  *(uint8_t*)0x205a3fe0 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe1 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe2 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe3 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe4 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe5 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe6 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe7 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe8 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fe9 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fea = (uint8_t)0x0;
+  *(uint8_t*)0x205a3feb = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fec = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fed = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fee = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fef = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff0 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff1 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff2 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff3 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff4 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff5 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff6 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff7 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff8 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ff9 = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ffa = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ffb = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ffc = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ffd = (uint8_t)0x0;
+  *(uint8_t*)0x205a3ffe = (uint8_t)0x0;
+  *(uint8_t*)0x205a3fff = (uint8_t)0x0;
+  r[47] = syscall(__NR_ioctl, r[9], 0x40345410ul, 0x205a3fccul);
+  r[48] = syscall(__NR_ioctl, r[9], 0x54a2ul);
+  memcpy((void*)0x20bd8000,
+         "\x2f\x64\x65\x76\x2f\x73\x65\x71\x75\x65\x6e\x63\x65\x72\x32"
+         "\x00",
+         16);
+  r[50] = syscall(__NR_openat, 0xffffffffffffff9cul, 0x20bd8000ul,
+                  0x101000ul, 0x0ul);
+  *(uint32_t*)0x20d1e000 = (uint32_t)0xffffffffffffffff;
+  *(uint32_t*)0x20d1e004 = (uint32_t)0x730e;
+  *(uint32_t*)0x20d1e008 = (uint32_t)0x7;
+  *(uint32_t*)0x20d1e00c = (uint32_t)0x3;
+  *(uint8_t*)0x20d1e010 = (uint8_t)0xffffffffffffffff;
+  *(uint8_t*)0x20d1e011 = (uint8_t)0x80000001;
+  *(uint8_t*)0x20d1e012 = (uint8_t)0x4610;
+  *(uint8_t*)0x20d1e013 = (uint8_t)0x9;
+  *(uint32_t*)0x20d1e014 = (uint32_t)0x8;
+  *(uint32_t*)0x20d1e018 = (uint32_t)0x9;
+  *(uint32_t*)0x20d1e01c = (uint32_t)0x7;
+  *(uint32_t*)0x20d1e020 = (uint32_t)0x1;
+  r[63] = syscall(__NR_ioctl, r[50], 0x5402ul, 0x20d1e000ul);
+}
 
-and so on.
-seems that there will be lots of if-s.
+int main()
+{
+  int i;
+  for (i = 0; i < 8; i++) {
+    if (fork() == 0) {
+      loop();
+      return 0;
+    }
+  }
+  sleep(1000000);
+  return 0;
+}
 
-	-ss
+--xqvwsu7vpwjsljlm--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
