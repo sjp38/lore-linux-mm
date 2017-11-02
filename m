@@ -1,78 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 38F2A6B0069
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:36:31 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id q196so2629651wmg.15
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:36:31 -0700 (PDT)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A4796B0253
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:36:32 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id u97so2712443wrc.3
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:36:32 -0700 (PDT)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w51sor1737568edd.54.2017.11.02.02.36.29
+        by mx.google.com with SMTPS id d8sor1918138edk.17.2017.11.02.02.36.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Thu, 02 Nov 2017 02:36:30 -0700 (PDT)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 1/2] shmem: drop lru_add_drain_all from shmem_wait_for_pins
-Date: Thu,  2 Nov 2017 10:36:12 +0100
-Message-Id: <20171102093613.3616-2-mhocko@kernel.org>
+Subject: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
+Date: Thu,  2 Nov 2017 10:36:13 +0100
+Message-Id: <20171102093613.3616-3-mhocko@kernel.org>
 In-Reply-To: <20171102093613.3616-1-mhocko@kernel.org>
 References: <20171102093613.3616-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>, David Herrmann <dh.herrmann@gmail.com>, Hugh Dickins <hughd@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
 From: Michal Hocko <mhocko@suse.com>
 
-syzkaller has reported the following lockdep splat
-======================================================
-WARNING: possible circular locking dependency detected
-4.13.0-next-20170911+ #19 Not tainted
-------------------------------------------------------
-syz-executor5/6914 is trying to acquire lock:
-  (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] get_online_cpus  include/linux/cpu.h:126 [inline]
-  (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] lru_add_drain_all+0xe/0x20 mm/swap.c:729
+Pulling cpu hotplug locks inside the mm core function like
+lru_add_drain_all just asks for problems and the recent lockdep splat
+[1] just proves this. While the usage in that particular case might
+be wrong we should prevent from locking as lru_add_drain_all is used
+at many places. It seems that this is not all that hard to achieve
+actually.
 
-but task is already holding lock:
-  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] inode_lock include/linux/fs.h:712 [inline]
-  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] shmem_add_seals+0x197/0x1060 mm/shmem.c:2768
+We have done the same thing for drain_all_pages which is analogous by
+a459eeb7b852 ("mm, page_alloc: do not depend on cpu hotplug locks inside
+the allocator"). All we have to care about is to handle
+      - the work item might be executed on a different cpu in worker from
+        unbound pool so it doesn't run on pinned on the cpu
 
-more details [1] and dependencies explained [2]. The problem seems to be
-the usage of lru_add_drain_all from shmem_wait_for_pins. While the lock
-dependency is subtle as hell and we might want to make lru_add_drain_all
-less dependent on the hotplug locks the usage of lru_add_drain_all seems
-dubious here. The whole function cares only about radix tree tags, page
-count and page mapcount. None of those are touched from the draining
-context. So it doesn't make much sense to drain pcp caches. Moreover
-this looks like a wrong thing to do because it basically induces
-unpredictable latency to the call because draining is not for free
-(especially on larger machines with many cpus).
+      - we have to make sure that we do not race with page_alloc_cpu_dead
+        calling lru_add_drain_cpu
 
-Let's simply drop the call to lru_add_drain_all to address both issues.
+the first part is already handled because the worker calls lru_add_drain
+which disables preemption when calling lru_add_drain_cpu on the local
+cpu it is draining. The later is achieved by disabling IRQs around
+lru_add_drain_cpu in the hotplug callback.
 
 [1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
-[2] http://lkml.kernel.org/r/http://lkml.kernel.org/r/20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net
 
-Cc: David Herrmann <dh.herrmann@gmail.com>
-Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/shmem.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ include/linux/swap.h | 1 -
+ mm/memory_hotplug.c  | 2 +-
+ mm/page_alloc.c      | 4 ++++
+ mm/swap.c            | 9 +--------
+ 4 files changed, 6 insertions(+), 10 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index d6947d21f66c..e784f311d4ed 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2668,9 +2668,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
- 			break;
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 84255b3da7c1..cfc200673e13 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -331,7 +331,6 @@ extern void mark_page_accessed(struct page *);
+ extern void lru_add_drain(void);
+ extern void lru_add_drain_cpu(int cpu);
+ extern void lru_add_drain_all(void);
+-extern void lru_add_drain_all_cpuslocked(void);
+ extern void rotate_reclaimable_page(struct page *page);
+ extern void deactivate_file_page(struct page *page);
+ extern void mark_page_lazyfree(struct page *page);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 832a042134f8..c9f6b418be79 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1641,7 +1641,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+ 		goto failed_removal;
  
--		if (!scan)
--			lru_add_drain_all();
--		else if (schedule_timeout_killable((HZ << scan) / 200))
-+		if (scan && schedule_timeout_killable((HZ << scan) / 200))
- 			scan = LAST_SCAN;
+ 	cond_resched();
+-	lru_add_drain_all_cpuslocked();
++	lru_add_drain_all();
+ 	drain_all_pages(zone);
  
- 		start = 0;
+ 	pfn = scan_movable_pages(start_pfn, end_pfn);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 67330a438525..8c6e9c6d194c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
+ 
+ static int page_alloc_cpu_dead(unsigned int cpu)
+ {
++	unsigned long flags;
+ 
++	local_irq_save(flags);
+ 	lru_add_drain_cpu(cpu);
++	local_irq_restore(flags);
++
+ 	drain_pages(cpu);
+ 
+ 	/*
+diff --git a/mm/swap.c b/mm/swap.c
+index 381e0fe9efbf..6c4e77517bd2 100644
+--- a/mm/swap.c
++++ b/mm/swap.c
+@@ -688,7 +688,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
+ 
+ static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
+ 
+-void lru_add_drain_all_cpuslocked(void)
++void lru_add_drain_all_cpus(void)
+ {
+ 	static DEFINE_MUTEX(lock);
+ 	static struct cpumask has_work;
+@@ -724,13 +724,6 @@ void lru_add_drain_all_cpuslocked(void)
+ 	mutex_unlock(&lock);
+ }
+ 
+-void lru_add_drain_all(void)
+-{
+-	get_online_cpus();
+-	lru_add_drain_all_cpuslocked();
+-	put_online_cpus();
+-}
+-
+ /**
+  * release_pages - batched put_page()
+  * @pages: array of pages to release
 -- 
 2.14.2
 
