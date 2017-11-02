@@ -1,62 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 81E836B0038
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:23:22 -0400 (EDT)
-Received: by mail-wm0-f70.google.com with SMTP id 64so2879802wme.12
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:23:22 -0700 (PDT)
-Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
-        by mx.google.com with ESMTPS id n3si187247edb.333.2017.11.02.06.23.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6457B6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:32:37 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id 5so2720546wmk.13
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:32:37 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g20si103762edc.164.2017.11.02.06.32.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 06:23:21 -0700 (PDT)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 2526E1C1CB6
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:23:21 +0000 (GMT)
-Date: Thu, 2 Nov 2017 13:23:20 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, page_alloc: fix potential false positive in
- __zone_watermark_ok
-Message-ID: <20171102132320.c5gvc3xttguklwwi@techsingularity.net>
-References: <20171102125001.23708-1-vbabka@suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Nov 2017 06:32:35 -0700 (PDT)
+Date: Thu, 2 Nov 2017 14:32:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 1/1] mm: buddy page accessed before initialized
+Message-ID: <20171102133235.2vfmmut6w4of2y3j@dhcp22.suse.cz>
+References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
+ <20171031155002.21691-2-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171102125001.23708-1-vbabka@suse.cz>
+In-Reply-To: <20171031155002.21691-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Nov 02, 2017 at 01:50:01PM +0100, Vlastimil Babka wrote:
-> Since commit 97a16fc82a7c ("mm, page_alloc: only enforce watermarks for order-0
-> allocations"), __zone_watermark_ok() check for high-order allocations will
-> shortcut per-migratetype free list checks for ALLOC_HARDER allocations, and
-> return true as long as there's free page of any migratetype. The intention is
-> that ALLOC_HARDER can allocate from MIGRATE_HIGHATOMIC free lists, while normal
-> allocations can't.
+On Tue 31-10-17 11:50:02, Pavel Tatashin wrote:
+[...]
+> The problem happens in this path:
 > 
-> However, as a side effect, the watermark check will then also return true when
-> there are pages only on the MIGRATE_ISOLATE list, or (prior to CMA conversion
-> to ZONE_MOVABLE) on the MIGRATE_CMA list. Since the allocation cannot actually
-> obtain isolated pages, and might not be able to obtain CMA pages, this can
-> result in a false positive.
+> page_alloc_init_late
+>   deferred_init_memmap
+>     deferred_init_range
+>       __def_free
+>         deferred_free_range
+>           __free_pages_boot_core(page, order)
+>             __free_pages()
+>               __free_pages_ok()
+>                 free_one_page()
+>                   __free_one_page(page, pfn, zone, order, migratetype);
 > 
-> The condition should be rare and perhaps the outcome is not a fatal one. Still,
-> it's better if the watermark check is correct. There also shouldn't be a
-> performance tradeoff here.
+> deferred_init_range() initializes one page at a time by calling
+> __init_single_page(), once it initializes pageblock_nr_pages pages, it
+> calls deferred_free_range() to free the initialized pages to the buddy
+> allocator. Eventually, we reach __free_one_page(), where we compute buddy
+> page:
+> 	buddy_pfn = __find_buddy_pfn(pfn, order);
+> 	buddy = page + (buddy_pfn - pfn);
 > 
-> Fixes: 97a16fc82a7c ("mm, page_alloc: only enforce watermarks for order-0 allocations")
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> buddy_pfn is computed as pfn ^ (1 << order), or pfn + pageblock_nr_pages.
+> Thefore, buddy page becomes a page one after the range that currently was
+> initialized, and we access this page in this function. Also, later when we
+> return back to deferred_init_range(), the buddy page is initialized again.
+> 
+> So, in order to avoid this issue, we must initialize the buddy page prior
+> to calling deferred_free_range().
 
-That outcome shouldn't be fatal or even misleading as the subsequent
-allocation attempt should fail due to not finding pages on an
-appropriate list. Still, as you say, the watermark check should not be
-misleading.
+How come we didn't have this problem previously? I am really confused.
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> ---
+>  mm/page_alloc.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 97687b38da05..f3ea06db3eed 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -1500,9 +1500,17 @@ static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
+>  			__init_single_page(page, pfn, zid, nid);
+>  			nr_free++;
+>  		} else {
+> -			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+>  			page = pfn_to_page(pfn);
+>  			__init_single_page(page, pfn, zid, nid);
+> +			/*
+> +			 * We must free previous range after initializing the
+> +			 * first page of the next range. This is because first
+> +			 * page may be accessed in __free_one_page(), when buddy
+> +			 * page is computed:
+> +			 *   buddy_pfn = pfn + pageblock_nr_pages
+> +			 */
+> +			deferred_free_range(free_base_pfn, nr_free);
+> +			nr_pages += nr_free;
+>  			free_base_pfn = pfn;
+>  			nr_free = 1;
+>  			cond_resched();
+> -- 
+> 2.14.3
+> 
 
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
