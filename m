@@ -1,87 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC5B6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 10:27:44 -0400 (EDT)
-Received: by mail-wr0-f197.google.com with SMTP id v105so3103612wrc.11
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 07:27:44 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p32si2095157edp.283.2017.11.02.07.27.43
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C44E6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 10:49:57 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id r6so5489314pfj.14
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 07:49:57 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y1si2429821plk.261.2017.11.02.07.49.55
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 07:27:43 -0700 (PDT)
-Date: Thu, 2 Nov 2017 15:27:42 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 1/1] mm: buddy page accessed before initialized
-Message-ID: <20171102142742.gpkif3hgnd62nyol@dhcp22.suse.cz>
-References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
- <20171031155002.21691-2-pasha.tatashin@oracle.com>
- <20171102133235.2vfmmut6w4of2y3j@dhcp22.suse.cz>
- <a9b637b0-2ff0-80e8-76a7-801c5c0820a8@oracle.com>
- <20171102135423.voxnzk2qkvfgu5l3@dhcp22.suse.cz>
- <94ab73c0-cd18-f58f-eebe-d585fde319e4@oracle.com>
- <20171102140830.z5uqmrurb6ohfvlj@dhcp22.suse.cz>
- <813ed7e3-9347-a1f2-1629-464d920f877d@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 07:49:55 -0700 (PDT)
+Date: Thu, 2 Nov 2017 10:49:51 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH] mm: don't warn about allocations which stall for too
+ long
+Message-ID: <20171102104951.63c7b2ac@gandalf.local.home>
+In-Reply-To: <20171102114650.GB31148@pathway.suse.cz>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171031153225.218234b4@gandalf.local.home>
+	<187a38c6-f964-ed60-932d-b7e0bee03316@suse.cz>
+	<20171101133845.GF20040@pathway.suse.cz>
+	<20171101113647.243eecf8@gandalf.local.home>
+	<20171102114650.GB31148@pathway.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <813ed7e3-9347-a1f2-1629-464d920f877d@oracle.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Petr Mladek <pmladek@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-On Thu 02-11-17 10:16:49, Pavel Tatashin wrote:
-> > > > > Now, that memory is not zeroed, page_is_buddy() can return true after kexec
-> > > > > when memory is dirty (unfortunately memset(1) with CONFIG_VM_DEBUG does not
-> > > > > catch this case). And proceed further to incorrectly remove buddy from the
-> > > > > list.
-> > > > 
-> > > > OK, I thought this was a regression from one of the recent patches. So
-> > > > the problem is not new. Why don't we see the same problem during the
-> > > > standard boot?
-> > > 
-> > > Because, I believe, BIOS is zeroing all the memory for us.
+On Thu, 2 Nov 2017 12:46:50 +0100
+Petr Mladek <pmladek@suse.com> wrote:
+
+> On Wed 2017-11-01 11:36:47, Steven Rostedt wrote:
+> > On Wed, 1 Nov 2017 14:38:45 +0100
+> > Petr Mladek <pmladek@suse.com> wrote:  
+> > > My current main worry with Steven's approach is a risk of deadlocks
+> > > that Jan Kara saw when he played with similar solution.  
 > > 
-> > I thought you were runnning with the debugging which poisons all the
-> > allocated memory...
+> > And if there exists such a deadlock, then the deadlock exists today.  
 > 
-> Yes, but as I said, unfortunately memset(1) with CONFIG_VM_DEBUG does not
-> catch this case. So, when CONFIG_VM_DEBUG is enabled kexec reboots without
-> issues.
+> The patch is going to effectively change console_trylock() to
+> console_lock() and this might add problems.
+> 
+> The most simple example is:
+> 
+>        console_lock()
+>          printk()
+> 	    console_trylock() was SAFE.
+> 
+>        console_lock()
+>          printk()
+> 	   console_lock() cause DEADLOCK!
+> 
+> Sure, we could detect this and avoid waiting when
+> console_owner == current. But does this cover all
 
-Can we make the init pattern to catch this?
+Which I will do.
 
-> > > > > This is why we must initialize the computed buddy page beforehand.
-> > > > 
-> > > > Ble, this is really ugly. I will think about it more.
-> > > > 
-> > > 
-> > > Another approach that I considered is to split loop inside
-> > > deferred_init_range() into two loops: one where we initialize pages by
-> > > calling __init_single_page(), another where we free them to buddy allocator
-> > > by calling deferred_free_range().
+> situations? What about?
+> 
+> CPU0			CPU1
+> 
+> console_lock()          func()
+>   console->write()        take_lockA()
+>     func()		    printk()
+> 			      busy wait for console_lock()
+> 
+>       take_lockA()
+
+How does this not deadlock without my changes?
+
+ func()
+   take_lockA()
+     printk()
+       console_lock()
+         console->write()
+             func()
+                take_lockA()
+
+DEADLOCK!
+
+
+> 
+> By other words, it used to be safe to call printk() from
+> console->write() functions because printk() used console_trylock().
+
+I still don't see how this can be safe now.
+
+> Your patch is going to change this. It is even worse because
+> you probably will not use console_lock() directly and therefore
+> this might be hidden for lockdep.
+
+And no, my patch adds lockdep annotation for the spinner. And if I get
+that wrong, I'm sure Peter Zijltra will help.
+
+> 
+> BTW: I am still not sure how to make the busy waiter preferred
+> over console_lock() callers. I mean that the busy waiter has
+> to get console_sem even if there are some tasks in the workqueue.
+
+I started struggling with this, then realized that console_sem is just
+that: a semaphore. Which doesn't have a concept of ownership. I can
+simply hand off the semaphore without ever letting it go. My RFC patch
+is almost done, you'll see it soon.
+
+> 
+> 
+> > > But let's wait for the patch. It might look and work nicely
+> > > in the end.  
 > > 
-> > Yes, that would make much more sense to me.
-> > 
+> > Oh, I need to write a patch? Bah, I guess I should. Where's all those
+> > developers dying to do kernel programing where I can pass this off to?  
 > 
-> Ok, so should I submit a new patch with two loops? (The logic within loops
-> is going to be the same:
+> Yes, where are these days when my primary task was to learn kernel
+> hacking? This would have been a great training material.
 
-Could you post it please?
- 
-> if (!pfn_valid_within(pfn)) {
-> } else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
-> } else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-> } else if (page && (pfn & nr_pgmask)) {
+:)
+
 > 
-> This fix was already added into mm-tree as
-> mm-deferred_init_memmap-improvements-fix-2.patch
+> I still have to invest time into fixing printk. But I personally
+> think that the lazy offloading to kthreads is more promising
+> way to go. It is pretty straightforward. The only problem is
+> the guaranty of the takeover. But there must be a reasonable
+> way how to detect that the system heart is still beating
+> and we are not the only working CPU.
 
-I think Andrew can drop it and replace by a different patch.
+My patch isn't that big. Let's talk more after I post it.
 
--- 
-Michal Hocko
-SUSE Labs
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
