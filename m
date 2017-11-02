@@ -1,171 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B9AD6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:14:27 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id i196so6000482pgd.2
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:14:27 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z100si2348413plh.355.2017.11.02.06.14.25
+	by kanga.kvack.org (Postfix) with ESMTP id AE4346B0260
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:15:22 -0400 (EDT)
+Received: by mail-pg0-f72.google.com with SMTP id t10so5980034pgo.20
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:15:22 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a3si2302310pld.455.2017.11.02.06.15.20
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 06:14:26 -0700 (PDT)
-Date: Thu, 2 Nov 2017 14:14:21 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 2/2] mm,oom: Use ALLOC_OOM for OOM victim's last
- second allocation.
-Message-ID: <20171102131421.5clordblejmoon76@dhcp22.suse.cz>
-References: <201711022015.BBE95844.QOHtJFMLFOOSVF@I-love.SAKURA.ne.jp>
- <1509621408-4066-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1509621408-4066-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Thu, 02 Nov 2017 06:15:21 -0700 (PDT)
+Subject: Re: swapper/0: page allocation failure: order:0,
+ mode:0x1204010(GFP_NOWAIT|__GFP_COMP|__GFP_RECLAIMABLE|__GFP_NOTRACK),
+ nodemask=(null)
+References: <CABXGCsPEkwzKUU9OPRDOMue7TpWa4axTWg0FbXZAq+JZmoubGw@mail.gmail.com>
+ <20171019035641.GB23773@intel.com>
+ <CABXGCsPL0pUHo_M-KxB3mabfdGMSHPC0uchLBBt0JCzF2BYBww@mail.gmail.com>
+ <20171020064305.GA13688@intel.com>
+ <20171020091239.cfwapdkx5g7afyp7@dhcp22.suse.cz>
+ <CABXGCsMZ0hFFJyPU2cu+JDLHZ+5eO5i=8FOv71biwpY5neyofA@mail.gmail.com>
+ <20171024200639.2pyxkw2cucwxrtlb@dhcp22.suse.cz>
+ <CABXGCsPukABMx40dGz7NSjKsWVsz_USFFeHdEY-ZMdgRLCfuwQ@mail.gmail.com>
+ <CABXGCsMVsn44xHH6SZxb6jrKv4S_GQFSqHNddAyDKOqNEpP6Ow@mail.gmail.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <a6eab5f2-7ce5-d4fc-5524-0f6b3449742d@I-love.SAKURA.ne.jp>
+Date: Thu, 2 Nov 2017 22:15:06 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1509621408-4066-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <CABXGCsMVsn44xHH6SZxb6jrKv4S_GQFSqHNddAyDKOqNEpP6Ow@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Manish Jaggi <mjaggi@caviumnetworks.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: =?UTF-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Michal Hocko <mhocko@kernel.org>
+Cc: "Du, Changbin" <changbin.du@intel.com>, linux-mm@kvack.org
 
-On Thu 02-11-17 20:16:48, Tetsuo Handa wrote:
-> Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
-> count causes random kernel panics when an OOM victim which consumed memory
-> in a way the OOM reaper does not help was selected by the OOM killer [1].
+I was waiting for Michal's comment, but it seems that he is too busy now.
+Thus, I post non-authoritative comment here. (I'm not a tracepoints user.)
+
+On 2017/10/30 6:48, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2 wrote:
+> On 26 October 2017 at 22:49, D?D,N?D?D,D>> D?D?D2N?D,D>>D 3/4 D2
+> <mikhail.v.gavrilov@gmail.com> wrote:
+>> On 25 October 2017 at 01:06, Michal Hocko <mhocko@kernel.org> wrote:
+>>>> [ 3551.169126] chrome: page allocation stalls for 11542ms, order:0,
+>>>> mode:0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null)
+>>>
+>>> this is a sleeping allocation which means that it is allowed to perform
+>>> the direct reclaim and that took a lot of time here. This is really
+>>> unusual and worth debugging some more.
+>>>
+>>> [...]
+>>>> [ 3551.169590] Mem-Info:
+>>>> [ 3551.169595] active_anon:6904352 inactive_anon:520427 isolated_anon:0
+>>>>                 active_file:55480 inactive_file:38890 isolated_file:0
+>>>>                 unevictable:1836 dirty:556 writeback:0 unstable:0
+>>>>                 slab_reclaimable:67559 slab_unreclaimable:95967
+>>>>                 mapped:353547 shmem:480723 pagetables:89161 bounce:0
+>>>>                 free:49404 free_pcp:1474 free_cma:0
+>>>
+>>> This tells us that there is quite some page cache (file LRUs) to reclaim
+>>> so I am wondering what could have caused such a delay. In order to debug
+>>> this some more we would need an additional debugging information. I
+>>> usually enable vmscan tracepoints to watch for events during the
+>>> reclaim.
+>>>
+>>
+>> I able got the needed tracepoints logs.
+>> If I understanded correctly vmscan tracepoints are possible enable by
+>> option 1 in the file /sys/kernel/debug/tracing/events/vmscan/enable
+>> All archives attached to this email.
+>>
+
+Two stalls were found in dmesg but only PID = 2798 part was recorded in the trace logs.
+
+  [ 6109.502115] chrome: page allocation stalls for 10321ms, order:0, mode:0x14000d2(GFP_TEMPORARY|__GFP_HIGHMEM), nodemask=(null)
+  [ 6109.502179] chrome cpuset=/ mems_allowed=0
+  [ 6109.502570] CPU: 0 PID: 2798 Comm: chrome Not tainted 4.13.9-300.fc27.x86_64+debug #1
+
+So, trying to analyze this one. 
+
+Since 10 seconds of blank was found between mm_shrink_slab_start and
+mm_shrink_slab_end, this alone can cause stall warning messages.
+
+  # tracer: nop
+  #
+  #                              _-----=> irqs-off
+  #                             / _----=> need-resched
+  #                            | / _---=> hardirq/softirq
+  #                            || / _--=> preempt-depth
+  #                            ||| /     delay
+  #           TASK-PID   CPU#  ||||    TIMESTAMP  FUNCTION
+  #              | |       |   ||||       |         |
+            chrome-2798  [000] .N.1  6099.188540: mm_shrink_slab_start: super_cache_scan+0x0/0x1b0 ffff8eefa4651830: nid: 0 objects to shrink 5895 gfp_flags GFP_TEMPORARY|__GFP_HIGHMEM pgs_scanned 90 lru_pgs 6992959 cache items 5049 delta 0 total_scan 2524
+            chrome-2798  [000] ...1  6109.494205: mm_shrink_slab_end: super_cache_scan+0x0/0x1b0 ffff8eefa4651830: nid: 0 unused scan count 5895 new scan count 941785 total_scan 476 last shrinker return val 1959
+
+Since need-resched flag was set as of mm_shrink_slab_start and was not set
+as of mm_shrink_slab_end, and last shrinker return val is larger than 0,
+PID = 2798 has called cond_resched() inside "while" loop in do_shrink_slab().
+
+During this blank, CPU 0 recorded many mm_vmscan_writepage: lines
+with flags=RECLAIM_WB_ANON|RECLAIM_WB_ASYNC. What is strange is that
+there was 4.7 seconds of blank inside of 10 seconds of blank.
+
+             <...>-13862 [000] .N.1  6102.008806: mm_vmscan_direct_reclaim_end: nr_reclaimed=42
+   qemu-system-x86-13763 [000] ...1  6106.732115: mm_shrink_slab_end: super_cache_scan+0x0/0x1b0 ffff8eefa4651830: nid: 0 unused scan count 7 new scan count 1079551 total_scan 0 last shrinker return val 0
+
+I wonder what CPU 0 was doing for this blank period.
+
 > 
-> ----------
-> oom02       0  TINFO  :  start OOM testing for mlocked pages.
-> oom02       0  TINFO  :  expected victim is 4578.
-> oom02       0  TINFO  :  thread (ffff8b0e71f0), allocating 3221225472 bytes.
-> oom02       0  TINFO  :  thread (ffff8b8e71f0), allocating 3221225472 bytes.
-> (...snipped...)
-> oom02       0  TINFO  :  thread (ffff8a0e71f0), allocating 3221225472 bytes.
-> [  364.737486] oom02:4583 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
-> (...snipped...)
-> [  365.036127] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-> [  365.044691] [ 1905]     0  1905     3236     1714      10       4        0             0 systemd-journal
-> [  365.054172] [ 1908]     0  1908    20247      590       8       4        0             0 lvmetad
-> [  365.062959] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
-> [  365.072266] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
-> [  365.080963] [ 3145]     0  3145     1086      630       6       4        0             0 systemd-logind
-> [  365.090353] [ 3146]     0  3146     1208      596       7       3        0             0 irqbalance
-> [  365.099413] [ 3147]    81  3147     1118      625       5       4        0          -900 dbus-daemon
-> [  365.108548] [ 3149]   998  3149   116294     4180      26       5        0             0 polkitd
-> [  365.117333] [ 3164]   997  3164    19992      785       9       3        0             0 chronyd
-> [  365.126118] [ 3180]     0  3180    55605     7880      29       3        0             0 firewalld
-> [  365.135075] [ 3187]     0  3187    87842     3033      26       3        0             0 NetworkManager
-> [  365.144465] [ 3290]     0  3290    43037     1224      16       5        0             0 rsyslogd
-> [  365.153335] [ 3295]     0  3295   108279     6617      30       3        0             0 tuned
-> [  365.161944] [ 3308]     0  3308    27846      676      11       3        0             0 crond
-> [  365.170554] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
-> [  365.179076] [ 3371]     0  3371    27307      364       6       3        0             0 agetty
-> [  365.187790] [ 3375]     0  3375    29397     1125      11       3        0             0 login
-> [  365.196402] [ 4178]     0  4178     4797     1119      14       4        0             0 master
-> [  365.205101] [ 4209]    89  4209     4823     1396      12       4        0             0 pickup
-> [  365.213798] [ 4211]    89  4211     4842     1485      12       3        0             0 qmgr
-> [  365.222325] [ 4491]     0  4491    27965     1022       8       3        0             0 bash
-> [  365.230849] [ 4513]     0  4513      670      365       5       3        0             0 oom02
-> [  365.239459] [ 4578]     0  4578 37776030 32890957   64257     138        0             0 oom02
-> [  365.248067] Out of memory: Kill process 4578 (oom02) score 952 or sacrifice child
-> [  365.255581] Killed process 4578 (oom02) total-vm:151104120kB, anon-rss:131562528kB, file-rss:1300kB, shmem-rss:0kB
-> [  365.266829] out_of_memory: Current (4583) has a pending SIGKILL
-> [  365.267347] oom_reaper: reaped process 4578 (oom02), now anon-rss:131559616kB, file-rss:0kB, shmem-rss:0kB
-> [  365.282658] oom_reaper: reaped process 4583 (oom02), now anon-rss:131561664kB, file-rss:0kB, shmem-rss:0kB
-> [  365.283361] oom02:4586 invoked oom-killer: gfp_mask=0x16040c0(GFP_KERNEL|__GFP_COMP|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
-> (...snipped...)
-> [  365.576164] oom02:4585 invoked oom-killer: gfp_mask=0x16080c0(GFP_KERNEL|__GFP_ZERO|__GFP_NOTRACK), nodemask=1,  order=0, oom_score_adj=0
-> (...snipped...)
-> [  365.576298] [ pid ]   uid  tgid total_vm      rss nr_ptes nr_pmds swapents oom_score_adj name
-> [  365.576338] [ 2421]     0  2421     3241      878       9       3        0         -1000 systemd-udevd
-> [  365.576342] [ 3125]     0  3125     3834      719       9       4        0         -1000 auditd
-> [  365.576347] [ 3309]     0  3309     3332      616      10       3        0         -1000 sshd
-> [  365.576356] [ 4580]     0  4578 37776030 32890417   64258     138        0             0 oom02
-> [  365.576361] Kernel panic - not syncing: Out of memory and no killable processes...
-> ----------
-> 
-> Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-> oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
-> to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
-> victim's mm were not able to try allocation from memory reserves after the
-> OOM reaper gave up reclaiming memory.
+> I was able to catch this issue again.
+> Is there anything interesting in the trace logs?
 
-I think it would be really helpful to outline the race scenario as
-suggested in http://lkml.kernel.org/r/20171101135855.bqg2kuj6ao2cicqi@dhcp22.suse.cz
+Nothing interesting was recorded. What is interesting is that nothing
+about PID = 6542 was recorded in the trace logs. It stalled for more
+than 10 seconds without ever hitting vmscan tracepoints!?
 
-> Until Linux 4.7, we were using
-> 
->   if (current->mm &&
->       (fatal_signal_pending(current) || task_will_free_mem(current)))
-> 
-> as a condition to try allocation from memory reserves with the risk of OOM
-> lockup, but reports like [1] were impossible. Linux 4.8+ are regressed
-> compared to Linux 4.7 due to the risk of needlessly selecting more OOM
-> victims.
+  [ 8445.912332] CFileWriterThre: page allocation stalls for 12123ms, order:4, mode:0x140c4c0(GFP_KERNEL|__GFP_RETRY_MAYFAIL|__GFP_COMP|__GFP_ZERO), nodemask=(null)
+  [ 8445.912355] CFileWriterThre cpuset=/ mems_allowed=0
+  [ 8445.912501] CPU: 3 PID: 6542 Comm: CFileWriterThre Not tainted 4.13.9-300.fc27.x86_64+debug #1
 
-I still believe that the wording makes the problem bigger than it
-actually is and that might confuse people reading it.
+I can't tell whether enabling more tracepoints gives us some clue. But
+your system might be merely overloaded. Your system is hosting a lot of
+processes including QEMU and Chrome on 8 CPUs + 32GB RAM + 64GB swap and
+nearly a half of swap is in use, isn't it?
 
-> Although commit cd04ae1e2dc8e365 ("mm, oom: do not rely on TIF_MEMDIE for
-> memory reserves access") mitigated this regression by not requiring each
-> OOM victim thread to call task_will_free_mem(current), some of OOM victim
-> threads which are between post __gfp_pfmemalloc_flags(gfp_mask) and pre
-> mutex_trylock(&oom_lock) (a race window which that commit cannot close)
-> can call out_of_memory() without ever trying ALLOC_OOM allocation.
-
-and this just confuses even more
-
-> Therefore, this patch allows OOM victims to use ALLOC_OOM watermark
-> for last second allocation attempt.
-
-Can we have something as simple as
-
-To reduce the above time window this patch allows OOM victims to ue
-ALLOC_OOM watermark for the last allocation attempt before invoking the
-oom killer.
-
-Other than that the patch looks good to me.
-
-> [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-> 
-> Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-> Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: David Rientjes <rientjes@google.com>
-> ---
->  mm/page_alloc.c | 6 ++++++
->  1 file changed, 6 insertions(+)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 1607326..45e763e 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4111,13 +4111,19 @@ struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
->  	 * !__GFP_NORETRY allocation which will never fail due to oom_lock
->  	 * already held. And since this allocation attempt does not sleep,
->  	 * there is no reason we must use high watermark here.
-> +	 * But anyway, make sure that OOM victims can try ALLOC_OOM watermark
-> +	 * in case they haven't tried ALLOC_OOM watermark.
->  	 */
->  	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
->  	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
-> +	int reserve_flags;
->  
->  	if (!oc->ac)
->  		return NULL;
->  	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-> +	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
-> +	if (reserve_flags)
-> +		alloc_flags = reserve_flags;
->  	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, oc->ac);
->  }
->  
-> -- 
-> 1.8.3.1
-
--- 
-Michal Hocko
-SUSE Labs
+Anyway, this allocation stall warning mechanism is about to be removed
+( http://lkml.kernel.org/r/1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp ).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
