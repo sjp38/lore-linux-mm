@@ -1,62 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 51E7C6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 00:22:28 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id u23so4663928pgo.4
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 21:22:28 -0700 (PDT)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id b75si2705678pfk.343.2017.11.01.21.22.26
-        for <linux-mm@kvack.org>;
-        Wed, 01 Nov 2017 21:22:26 -0700 (PDT)
-Date: Thu, 2 Nov 2017 13:22:23 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: =?utf-8?B?562U5aSNOiBbUEFUQ0g=?= =?utf-8?Q?=5D?= mm: extend
- reuse_swap_page range as much as possible
-Message-ID: <20171102042223.GA26523@bbox>
-References: <1509533474-98584-1-git-send-email-zhouxianrong@huawei.com>
- <87tvyd4fsx.fsf@yhuang-dev.intel.com>
- <AE94847B1D9E864B8593BD8051012AF36E13E3BE@DGGEMA505-MBS.china.huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <AE94847B1D9E864B8593BD8051012AF36E13E3BE@DGGEMA505-MBS.china.huawei.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C21126B0253
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 01:42:31 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id w24so4829785pgm.7
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 22:42:31 -0700 (PDT)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id a65si2561711pgc.699.2017.11.01.22.42.30
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 01 Nov 2017 22:42:30 -0700 (PDT)
+From: "Huang, Ying" <ying.huang@intel.com>
+Subject: [PATCH -mm -V3] mm, swap: Fix false error message in __swp_swapcount()
+Date: Thu,  2 Nov 2017 13:42:25 +0800
+Message-Id: <20171102054225.22897-1-ying.huang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong <zhouxianrong@huawei.com>
-Cc: "Huang, Ying" <ying.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "rientjes@google.com" <rientjes@google.com>, "mingo@kernel.org" <mingo@kernel.org>, "vegard.nossum@oracle.com" <vegard.nossum@oracle.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, Zhouxiyu <zhouxiyu@huawei.com>, "Duwei (Device OS)" <weidu.du@huawei.com>, fanghua <fanghua3@huawei.com>, hutj <hutj@huawei.com>, Won Ho Park <won.ho.park@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <huang.ying.caritas@gmail.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@suse.com>, stable@vger.kernel.org, "Huang, Ying" <ying.huang@intel.com>, Christian Kujau <lists@nerdbynature.de>, Minchan Kim <minchan@kernel.org>
 
-On Thu, Nov 02, 2017 at 02:09:57AM +0000, zhouxianrong wrote:
-> <zhouxianrong@huawei.com> writes:
-> 
-> > From: zhouxianrong <zhouxianrong@huawei.com>
-> >
-> > origanlly reuse_swap_page requires that the sum of page's mapcount and 
-> > swapcount less than or equal to one.
-> > in this case we can reuse this page and avoid COW currently.
-> >
-> > now reuse_swap_page requires only that page's mapcount less than or 
-> > equal to one and the page is not dirty in swap cache. in this case we 
-> > do not care its swap count.
-> >
-> > the page without dirty in swap cache means that it has been written to 
-> > swap device successfully for reclaim before and then read again on a 
-> > swap fault. in this case the page can be reused even though its swap 
-> > count is greater than one and postpone the COW on other successive 
-> > accesses to the swap cache page later rather than now.
-> >
-> > i did this patch test in kernel 4.4.23 with arm64 and none huge 
-> > memory. it work fine.
-> 
-> Why do you need this?  You saved copying one page from memory to memory
-> (COW) now, at the cost of reading a page from disk to memory later?
-> 
-> yes, accessing later does not always happen, there is probability for it, so postpone COW now.
+From: Huang Ying <huang.ying.caritas@gmail.com>
 
-So, it's trade-off. It means we need some number with some scenarios
-to prove it's better than as-is.
-It would help to drive reviewers/maintainer.
+When a page fault occurs for a swap entry, the physical swap readahead
+(not the VMA base swap readahead) may readahead several swap entries
+after the fault swap entry.  The readahead algorithm calculates some
+of the swap entries to readahead via increasing the offset of the
+fault swap entry without checking whether they are beyond the end of
+the swap device and it relys on the __swp_swapcount() and
+swapcache_prepare() to check it.  Although __swp_swapcount() checks
+for the swap entry passed in, it will complain with the error message
+as follow for the expected invalid swap entry.  This may make the end
+users confused.
 
-Thanks.
+  swap_info_get: Bad swap offset entry 0200f8a7
+
+To fix the false error message, the swap entry checking is added in
+swapin_readahead() to avoid to pass the out-of-bound swap entries and
+the swap entry reserved for the swap header to __swp_swapcount() and
+swapcache_prepare().
+
+Cc: Tim Chen <tim.c.chen@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: <stable@vger.kernel.org> # 4.11-4.13
+Fixes: e8c26ab60598 ("mm/swap: skip readahead for unreferenced swap slots")
+Reported-by: Christian Kujau <lists@nerdbynature.de>
+Suggested-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+---
+ mm/swap_state.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 6c017ced11e6..6c33ebd193a9 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -558,6 +558,7 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	unsigned long offset = entry_offset;
+ 	unsigned long start_offset, end_offset;
+ 	unsigned long mask;
++	struct swap_info_struct *si = swp_swap_info(entry);
+ 	struct blk_plug plug;
+ 	bool do_poll = true, page_allocated;
+ 
+@@ -571,6 +572,8 @@ struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
+ 	end_offset = offset | mask;
+ 	if (!start_offset)	/* First page is swap header. */
+ 		start_offset++;
++	if (end_offset >= si->max)
++		end_offset = si->max - 1;
+ 
+ 	blk_start_plug(&plug);
+ 	for (offset = start_offset; offset <= end_offset ; offset++) {
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
