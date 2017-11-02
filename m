@@ -1,100 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE5AE6B0033
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD0416B0253
 	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:17:27 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id r79so2882762wrb.7
+Received: by mail-wm0-f72.google.com with SMTP id 5so2612590wmk.13
         for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:17:27 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l33si2051894edl.265.2017.11.02.05.17.25
+        by mx.google.com with ESMTPS id h9si589511edf.446.2017.11.02.05.17.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 02 Nov 2017 05:17:26 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 1/3] mm, compaction: extend pageblock_skip_persistent() to all compound pages
-Date: Thu,  2 Nov 2017 13:17:04 +0100
-Message-Id: <20171102121706.21504-1-vbabka@suse.cz>
+Subject: [PATCH 2/3] mm, compaction: split off flag for not updating skip hints
+Date: Thu,  2 Nov 2017 13:17:05 +0100
+Message-Id: <20171102121706.21504-2-vbabka@suse.cz>
+In-Reply-To: <20171102121706.21504-1-vbabka@suse.cz>
+References: <20171102121706.21504-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
 
-The pageblock_skip_persistent() function checks for HugeTLB pages of pageblock
-order. When clearing pageblock skip bits for compaction, the bits are not
-cleared for such pageblocks, because they cannot contain base pages suitable
-for migration, nor free pages to use as migration targets.
+Pageblock skip hints were added as a heuristic for compaction, which shares
+core code with CMA. Since CMA reliability would suffer from the heuristics,
+compact_control flag ignore_skip_hint was added for the CMA use case.
+Since commit 6815bf3f233e ("mm/compaction: respect ignore_skip_hint in
+update_pageblock_skip") the flag also means that CMA won't *update* the skip
+hints in addition to ignoring them.
 
-This optimization can be simply extended to all compound pages of order equal
-or larger than pageblock order, because migrating such pages (if they support
-it) cannot help sub-pageblock fragmentation. This includes THP's and also
-gigantic HugeTLB pages, which the current implementation doesn't persistently
-skip due to a strict pageblock_order equality check and not recognizing tail
-pages.
-
-While THP pages are generally less "persistent" than HugeTLB, we can still
-expect that if a THP exists at the point of __reset_isolation_suitable(), it
-will exist also during the subsequent compaction run. The time difference here
-could be actually smaller than between a compaction run that sets a
-(non-persistent) skip bit on a THP, and the next compaction run that observes
-it.
+Today, direct compaction can also ignore the skip hints in the last resort
+attempt, but there's no reason not to set them when isolation fails in such
+case. Thus, this patch splits off a new no_set_skip_hint flag to avoid the
+updating, which only CMA sets. This should improve the heuristics a bit, and
+allow us to simplify the persistent skip bit handling as the next step.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 25 ++++++++++++++-----------
- 1 file changed, 14 insertions(+), 11 deletions(-)
+ mm/compaction.c | 2 +-
+ mm/internal.h   | 1 +
+ mm/page_alloc.c | 1 +
+ 3 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 445490ab2603..be7ab160f251 100644
+index be7ab160f251..a92860d89679 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -218,17 +218,21 @@ static void reset_cached_positions(struct zone *zone)
- }
+@@ -294,7 +294,7 @@ static void update_pageblock_skip(struct compact_control *cc,
+ 	struct zone *zone = cc->zone;
+ 	unsigned long pfn;
  
- /*
-- * Hugetlbfs pages should consistenly be skipped until updated by the hugetlb
-- * subsystem.  It is always pointless to compact pages of pageblock_order and
-- * the free scanner can reconsider when no longer huge.
-+ * Compound pages of >= pageblock_order should consistenly be skipped until
-+ * released. It is always pointless to compact pages of such order (if they are
-+ * migratable), and the pageblocks they occupy cannot contain any free pages.
-  */
--static bool pageblock_skip_persistent(struct page *page, unsigned int order)
-+static bool pageblock_skip_persistent(struct page *page)
- {
--	if (!PageHuge(page))
-+	if (!PageCompound(page))
- 		return false;
--	if (order != pageblock_order)
--		return false;
--	return true;
-+
-+	page = compound_head(page);
-+
-+	if (compound_order(page) >= pageblock_order)
-+		return true;
-+
-+	return false;
- }
+-	if (cc->ignore_skip_hint)
++	if (cc->no_set_skip_hint)
+ 		return;
  
- /*
-@@ -255,7 +259,7 @@ static void __reset_isolation_suitable(struct zone *zone)
- 			continue;
- 		if (zone != page_zone(page))
- 			continue;
--		if (pageblock_skip_persistent(page, compound_order(page)))
-+		if (pageblock_skip_persistent(page))
- 			continue;
- 
- 		clear_pageblock_skip(page);
-@@ -322,8 +326,7 @@ static inline bool isolation_suitable(struct compact_control *cc,
- 	return true;
- }
- 
--static inline bool pageblock_skip_persistent(struct page *page,
--					     unsigned int order)
-+static inline bool pageblock_skip_persistent(struct page *page)
- {
- 	return false;
- }
+ 	if (!page)
+diff --git a/mm/internal.h b/mm/internal.h
+index 0aaa05af7833..3e5dc95dc259 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -201,6 +201,7 @@ struct compact_control {
+ 	const int classzone_idx;	/* zone index of a direct compactor */
+ 	enum migrate_mode mode;		/* Async or sync migration mode */
+ 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
++	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
+ 	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
+ 	bool direct_compaction;		/* False from kcompactd or /proc/... */
+ 	bool whole_zone;		/* Whole zone should/has been scanned */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 67330a438525..79cdac1fee42 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7577,6 +7577,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 		.zone = page_zone(pfn_to_page(start)),
+ 		.mode = MIGRATE_SYNC,
+ 		.ignore_skip_hint = true,
++		.no_set_skip_hint = true,
+ 		.gfp_mask = current_gfp_context(gfp_mask),
+ 	};
+ 	INIT_LIST_HEAD(&cc.migratepages);
 -- 
 2.14.3
 
