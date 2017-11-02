@@ -1,70 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E78CF6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 12:03:42 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u97so27872wrc.3
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 09:03:42 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 128si3111838wmr.119.2017.11.02.09.03.41
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8634F6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 12:10:52 -0400 (EDT)
+Received: by mail-qt0-f199.google.com with SMTP id y45so17103qty.17
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 09:10:52 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id z190si316518qkd.72.2017.11.02.09.10.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 09:03:41 -0700 (PDT)
-Date: Thu, 2 Nov 2017 17:03:38 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: KAISER memory layout (Re: [PATCH 06/23] x86, kaiser: introduce
- user-mapped percpu areas)
-In-Reply-To: <65E6D547-2871-4D93-9E10-24C31DB10269@amacapital.net>
-Message-ID: <alpine.DEB.2.20.1711021653240.2090@nanos>
-References: <CALCETrXLJfmTg1MsQHKCL=WL-he_5wrOqeX2OatQCCqVE003VQ@mail.gmail.com> <alpine.DEB.2.20.1711021235290.2090@nanos> <89E52C9C-DBAB-4661-8172-0F6307857870@amacapital.net> <alpine.DEB.2.20.1711021343380.2090@nanos>
- <65E6D547-2871-4D93-9E10-24C31DB10269@amacapital.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 09:10:50 -0700 (PDT)
+Subject: Re: [PATCH v1 1/1] mm: buddy page accessed before initialized
+References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
+ <20171031155002.21691-2-pasha.tatashin@oracle.com>
+ <20171102133235.2vfmmut6w4of2y3j@dhcp22.suse.cz>
+ <a9b637b0-2ff0-80e8-76a7-801c5c0820a8@oracle.com>
+ <20171102135423.voxnzk2qkvfgu5l3@dhcp22.suse.cz>
+ <94ab73c0-cd18-f58f-eebe-d585fde319e4@oracle.com>
+ <20171102140830.z5uqmrurb6ohfvlj@dhcp22.suse.cz>
+ <813ed7e3-9347-a1f2-1629-464d920f877d@oracle.com>
+ <20171102142742.gpkif3hgnd62nyol@dhcp22.suse.cz>
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Message-ID: <8b3bb799-818b-b6b6-7c6b-9eee709decb7@oracle.com>
+Date: Thu, 2 Nov 2017 12:10:39 -0400
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20171102142742.gpkif3hgnd62nyol@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, 2 Nov 2017, Andy Lutomirski wrote:
-> > On Nov 2, 2017, at 1:45 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > Simpler is not the question. I want to avoid mapping the whole IST stacks.
-> > 
+>>
+>> Yes, but as I said, unfortunately memset(1) with CONFIG_VM_DEBUG does not
+>> catch this case. So, when CONFIG_VM_DEBUG is enabled kexec reboots without
+>> issues.
 > 
-> OK, let's see.  We can have the IDT be different in the user tables and
-> the kernel tables.  The user IDT could have IST-less entry stubs that do
-> their own CR3 switch and then bounce to the IST stack.  I don't see why
-> this wouldn't work aside from requiring a substantially larger entry
-> stack, but I'm also not convinced it's worth the added complexity.  The
-> NMI code would certainly need some careful thought to convince ourselves
-> that it would still be correct.  #DF would be, um, interesting because of
-> the silly ESPFIX64 thing.
+> Can we make the init pattern to catch this?
 
-> My inclination would be to deal with this later.  For the first upstream
-> version, we map the IST stacks.  Later on, we have a separate user IDT
-> that does whatever it needs to do.
->
-> The argument to the contrary would be that Dave's CR3 code *and* my entry
-> stack crap gets simpler if all the CR3 switches happen in special stubs.
->
-> The argument against *that* is that this erase_kstack crap might also
-> benefit from the magic stack switch.  OTOH that's the *exit* stack, which
-> is totally independent.
+Unfortunately, that is not easy: memset() gives us only one byte to play 
+with, and if we use something else that will make CONFIG_VM_DEBUG 
+unacceptably slow.
 
-My initial thought was: Use always IST stub stacks for entry and exit.
+One byte is not enough to trigger the pattern that satisfy 
+page_is_buddy() logic. I have tried it. With kexec, however it is more 
+predictable: we use the same memory during boot to allocate vmemmap, and 
+therefore the struct pages are more like "valid" struct pages from the 
+previous boot.
 
-So the entry/exit stubs deal with the CR3 stuff and also with the extra
-magic for espfix and nested NMIs, etc. Once that is done, you just flip
-over to the relevant kernel internal stack and switch back to the user
-visible one on return. Haven't thought that through completely, but in my
-naive view it made stuff simpler.
+> 
+>>>>>> This is why we must initialize the computed buddy page beforehand.
+>>>>>
+>>>>> Ble, this is really ugly. I will think about it more.
+>>>>>
+>>>>
+>>>> Another approach that I considered is to split loop inside
+>>>> deferred_init_range() into two loops: one where we initialize pages by
+>>>> calling __init_single_page(), another where we free them to buddy allocator
+>>>> by calling deferred_free_range().
+>>>
+>>> Yes, that would make much more sense to me.
+>>>
+>>
+>> Ok, so should I submit a new patch with two loops? (The logic within loops
+>> is going to be the same:
+> 
+> Could you post it please?
+>   
+>> if (!pfn_valid_within(pfn)) {
+>> } else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
+>> } else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+>> } else if (page && (pfn & nr_pgmask)) {
+>>
+>> This fix was already added into mm-tree as
+>> mm-deferred_init_memmap-improvements-fix-2.patch
+> 
+> I think Andrew can drop it and replace by a different patch.
+> 
 
-> FWIW, I want to get rid of the #DB and #BP stacks entirely, but that does
-> not deserve to block this series, I think.
+The new patch is coming, I will test it on two machines where I observed 
+the problem.
 
-Agreed.
-
-Thanks,
-
-	tglx
+Thank you,
+Pasha
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
