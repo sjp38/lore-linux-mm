@@ -1,52 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D42336B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:56:42 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id y7so2833358wmd.18
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:56:42 -0700 (PDT)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0866B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:02:56 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id l18so2905564wrc.23
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:02:56 -0700 (PDT)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o40si2638943wrf.300.2017.11.02.05.56.41
+        by mx.google.com with ESMTPS id r202si2912772wmd.7.2017.11.02.06.02.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 05:56:41 -0700 (PDT)
-Date: Thu, 2 Nov 2017 13:56:38 +0100 (CET)
+        Thu, 02 Nov 2017 06:02:54 -0700 (PDT)
+Date: Thu, 2 Nov 2017 14:02:53 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
- page tables
-In-Reply-To: <A4F58550-CAA8-4AE2-8DE5-C6970CC47210@amacapital.net>
-Message-ID: <alpine.DEB.2.20.1711021345550.2090@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com> <alpine.DEB.2.20.1711012225400.1942@nanos>
- <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com> <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com> <alpine.DEB.2.20.1711012316130.1942@nanos> <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com>
- <alpine.DEB.2.20.1711021226020.2090@nanos> <A4F58550-CAA8-4AE2-8DE5-C6970CC47210@amacapital.net>
+Subject: Re: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
+In-Reply-To: <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1711021359250.2090@nanos>
+References: <20171102093613.3616-1-mhocko@kernel.org> <20171102093613.3616-3-mhocko@kernel.org> <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, 2 Nov 2017, Andy Lutomirski wrote:
-> > On Nov 2, 2017, at 12:33 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > Fair enough. I enabled function tracing with emulate_vsyscall as the filter
-> > on a couple of machines and so far I have no hit at all. Though I found a
-> > VM with a real old user space (~2005) and that actually used it.
-> > 
-> > So for the problem at hand, I'd suggest we disable the vsyscall stuff if
-> > CONFIG_KAISER=y and be done with it.
-> 
-> I think that time() on not-so-old glibc uses it.
+On Thu, 2 Nov 2017, Michal Hocko wrote:
+> On Thu 02-11-17 10:36:13, Michal Hocko wrote:
+> [...]
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 67330a438525..8c6e9c6d194c 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
+> >  
+> >  static int page_alloc_cpu_dead(unsigned int cpu)
+> >  {
+> > +	unsigned long flags;
+> >  
+> > +	local_irq_save(flags);
+> >  	lru_add_drain_cpu(cpu);
+> > +	local_irq_restore(flags);
+> > +
+> >  	drain_pages(cpu);
+>   
+> I was staring into the hotplug code and tried to understand the context
+> this callback runs in and AFAIU IRQ disabling is not needed at all
+> because cpuhp_thread_fun runs with IRQ disabled when offlining an online
+> cpu. I have a bit hard time to follow the code due to all the
+> indirection so please correct me if I am wrong.
 
-Sigh.
+No. That function does neither run from the cpu hotplug thread of the
+outgoing CPU nor its called with interrupts disabled.
 
-> Even more recent versions of Go use it. :(
-
-Groan. VDSO is there since 2007 and the first usable version of Go was
-released in 2012.....
+The callback is in the DEAD section, i.e. its called on the controlling CPU
+_after_ the hotplugged CPU vanished completely.
 
 Thanks,
 
 	tglx
-
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
