@@ -1,76 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B72CD6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:22:51 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id b79so5294087pfk.9
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:22:51 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id a91si2256062pla.788.2017.11.02.06.22.50
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 81E836B0038
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:23:22 -0400 (EDT)
+Received: by mail-wm0-f70.google.com with SMTP id 64so2879802wme.12
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:23:22 -0700 (PDT)
+Received: from outbound-smtp12.blacknight.com (outbound-smtp12.blacknight.com. [46.22.139.17])
+        by mx.google.com with ESMTPS id n3si187247edb.333.2017.11.02.06.23.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 06:22:50 -0700 (PDT)
-Date: Thu, 2 Nov 2017 14:22:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: try to free swap only for reading swap fault
-Message-ID: <20171102132245.imhcjqbsuaub6dhj@dhcp22.suse.cz>
-References: <1509626119-39916-1-git-send-email-zhouxianrong@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 06:23:21 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp12.blacknight.com (Postfix) with ESMTPS id 2526E1C1CB6
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:23:21 +0000 (GMT)
+Date: Thu, 2 Nov 2017 13:23:20 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, page_alloc: fix potential false positive in
+ __zone_watermark_ok
+Message-ID: <20171102132320.c5gvc3xttguklwwi@techsingularity.net>
+References: <20171102125001.23708-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <1509626119-39916-1-git-send-email-zhouxianrong@huawei.com>
+In-Reply-To: <20171102125001.23708-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, jack@suse.cz, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, dave.jiang@intel.com, aneesh.kumar@linux.vnet.ibm.com, minchan@kernel.org, mingo@kernel.org, jglisse@redhat.com, willy@linux.intel.com, hughd@google.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, hutj@huawei.com, won.ho.park@huawei.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Rik van Riel <riel@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu 02-11-17 20:35:19, zhouxianrong@huawei.com wrote:
-> From: zhouxianrong <zhouxianrong@huawei.com>
+On Thu, Nov 02, 2017 at 01:50:01PM +0100, Vlastimil Babka wrote:
+> Since commit 97a16fc82a7c ("mm, page_alloc: only enforce watermarks for order-0
+> allocations"), __zone_watermark_ok() check for high-order allocations will
+> shortcut per-migratetype free list checks for ALLOC_HARDER allocations, and
+> return true as long as there's free page of any migratetype. The intention is
+> that ALLOC_HARDER can allocate from MIGRATE_HIGHATOMIC free lists, while normal
+> allocations can't.
 > 
-> the purpose of this patch is that when a reading swap fault
-> happens on a clean swap cache page whose swap count is equal
-> to one, then try_to_free_swap could remove this page from 
-> swap cache and mark this page dirty. so if later we reclaimed
-> this page then we could pageout this page due to this dirty.
-> so i want to allow this action only for writing swap fault.
+> However, as a side effect, the watermark check will then also return true when
+> there are pages only on the MIGRATE_ISOLATE list, or (prior to CMA conversion
+> to ZONE_MOVABLE) on the MIGRATE_CMA list. Since the allocation cannot actually
+> obtain isolated pages, and might not be able to obtain CMA pages, this can
+> result in a false positive.
 > 
-> i sampled the data of non-dirty anonymous pages which is no
-> need to pageout and total anonymous pages in shrink_page_list.
+> The condition should be rare and perhaps the outcome is not a fatal one. Still,
+> it's better if the watermark check is correct. There also shouldn't be a
+> performance tradeoff here.
 > 
-> the results are:
-> 
->         non-dirty anonymous pages     total anonymous pages
-> before  26343                         635218
-> after   36907                         634312
+> Fixes: 97a16fc82a7c ("mm, page_alloc: only enforce watermarks for order-0 allocations")
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-This data is absolutely pointless without describing the workload.
-You patch also stil fails to explain which workloads are going to
-benefit/suffer from the change and why it is a good thing to do in
-general.
+That outcome shouldn't be fatal or even misleading as the subsequent
+allocation attempt should fail due to not finding pages on an
+appropriate list. Still, as you say, the watermark check should not be
+misleading.
 
-> Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
-> ---
->  mm/memory.c |    2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index a728bed..5a944fe 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -2999,7 +2999,7 @@ int do_swap_page(struct vm_fault *vmf)
->  	}
->  
->  	swap_free(entry);
-> -	if (mem_cgroup_swap_full(page) ||
-> +	if (((vmf->flags & FAULT_FLAG_WRITE) && mem_cgroup_swap_full(page)) ||
->  	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
->  		try_to_free_swap(page);
->  	unlock_page(page);
-> -- 
-> 1.7.9.5
-> 
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
