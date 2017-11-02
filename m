@@ -1,65 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A9796B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:16:51 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id u27so6013520pgn.3
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:16:51 -0700 (PDT)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A2D976B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:21:30 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id u23so6025560pgo.4
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:21:30 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o21si3668191pgc.7.2017.11.02.06.16.49
+        by mx.google.com with ESMTPS id s67si3662287pgc.832.2017.11.02.06.21.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 06:16:50 -0700 (PDT)
-Date: Thu, 2 Nov 2017 14:16:47 +0100
+        Thu, 02 Nov 2017 06:21:29 -0700 (PDT)
+Date: Thu, 2 Nov 2017 14:21:27 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
-Message-ID: <20171102131647.wihtjsuaisfqefg5@dhcp22.suse.cz>
-References: <20171102093613.3616-1-mhocko@kernel.org>
- <20171102093613.3616-3-mhocko@kernel.org>
- <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
- <alpine.DEB.2.20.1711021359250.2090@nanos>
+Subject: Re: [PATCH v2 1/2] mm,oom: Move last second allocation to inside the
+ OOM killer.
+Message-ID: <20171102132127.pteu2jvvg5g47dle@dhcp22.suse.cz>
+References: <201711022015.BBE95844.QOHtJFMLFOOSVF@I-love.SAKURA.ne.jp>
+ <1509621408-4066-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1711021359250.2090@nanos>
+In-Reply-To: <1509621408-4066-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Thu 02-11-17 14:02:53, Thomas Gleixner wrote:
-> On Thu, 2 Nov 2017, Michal Hocko wrote:
-> > On Thu 02-11-17 10:36:13, Michal Hocko wrote:
-> > [...]
-> > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > index 67330a438525..8c6e9c6d194c 100644
-> > > --- a/mm/page_alloc.c
-> > > +++ b/mm/page_alloc.c
-> > > @@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
-> > >  
-> > >  static int page_alloc_cpu_dead(unsigned int cpu)
-> > >  {
-> > > +	unsigned long flags;
-> > >  
-> > > +	local_irq_save(flags);
-> > >  	lru_add_drain_cpu(cpu);
-> > > +	local_irq_restore(flags);
-> > > +
-> > >  	drain_pages(cpu);
-> >   
-> > I was staring into the hotplug code and tried to understand the context
-> > this callback runs in and AFAIU IRQ disabling is not needed at all
-> > because cpuhp_thread_fun runs with IRQ disabled when offlining an online
-> > cpu. I have a bit hard time to follow the code due to all the
-> > indirection so please correct me if I am wrong.
+On Thu 02-11-17 20:16:47, Tetsuo Handa wrote:
+> __alloc_pages_may_oom() is doing last second allocation attempt using
+> ALLOC_WMARK_HIGH before calling out_of_memory(). This had two reasons.
 > 
-> No. That function does neither run from the cpu hotplug thread of the
-> outgoing CPU nor its called with interrupts disabled.
+> The first reason is explained in the comment that it aims to catch
+> potential parallel OOM killing. But there is no longer parallel OOM
+> killing (in the sense that out_of_memory() is called "concurrently")
+> because we serialize out_of_memory() calls using oom_lock.
 > 
-> The callback is in the DEAD section, i.e. its called on the controlling CPU
-> _after_ the hotplugged CPU vanished completely.
+> The second reason is explained by Andrea Arcangeli (who added that code)
+> that it aims to reduce the likelihood of OOM livelocks and be sure to
+> invoke the OOM killer. There was a risk of livelock or anyway of delayed
+> OOM killer invocation if ALLOC_WMARK_MIN is used, for relying on last
+> few pages which are constantly allocated and freed in the meantime will
+> not improve the situation.
 
-OK, so IIUC there is no race possible because kworkders simply do not
-run on that cpu anymore.
+> But there is no longer possibility of OOM
+> livelocks or failing to invoke the OOM killer because we need to mask
+> __GFP_DIRECT_RECLAIM for last second allocation attempt because oom_lock
+> prevents __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations which last
+> second allocation attempt indirectly involve from failing.
+
+I really fail to see how this has anything to do with the paragraph
+above. We are not talking about the reclaim for the last attempt. We are
+talking about reclaim that might have happened in _other_ context. Why
+don't you simply stick with the changelog which I've suggested and which
+is much more clear and easier to read.
 -- 
 Michal Hocko
 SUSE Labs
