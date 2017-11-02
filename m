@@ -1,61 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B0866B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:02:56 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l18so2905564wrc.23
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:02:56 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id r202si2912772wmd.7.2017.11.02.06.02.54
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BF936B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:04:36 -0400 (EDT)
+Received: by mail-wr0-f199.google.com with SMTP id 11so2982171wrb.10
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:04:36 -0700 (PDT)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id n11si2650144edi.458.2017.11.02.06.04.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 06:02:54 -0700 (PDT)
-Date: Thu, 2 Nov 2017 14:02:53 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
-In-Reply-To: <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1711021359250.2090@nanos>
-References: <20171102093613.3616-1-mhocko@kernel.org> <20171102093613.3616-3-mhocko@kernel.org> <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 06:04:34 -0700 (PDT)
+Received: from mail.blacknight.com (unknown [81.17.255.152])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 3C8B81C1C2D
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:04:34 +0000 (GMT)
+Date: Thu, 2 Nov 2017 13:04:33 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH 1/3] mm, compaction: extend pageblock_skip_persistent()
+ to all compound pages
+Message-ID: <20171102130433.5n3n45gwttgcj3nj@techsingularity.net>
+References: <20171102121706.21504-1-vbabka@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20171102121706.21504-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, 2 Nov 2017, Michal Hocko wrote:
-> On Thu 02-11-17 10:36:13, Michal Hocko wrote:
-> [...]
-> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > index 67330a438525..8c6e9c6d194c 100644
-> > --- a/mm/page_alloc.c
-> > +++ b/mm/page_alloc.c
-> > @@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
-> >  
-> >  static int page_alloc_cpu_dead(unsigned int cpu)
-> >  {
-> > +	unsigned long flags;
-> >  
-> > +	local_irq_save(flags);
-> >  	lru_add_drain_cpu(cpu);
-> > +	local_irq_restore(flags);
-> > +
-> >  	drain_pages(cpu);
->   
-> I was staring into the hotplug code and tried to understand the context
-> this callback runs in and AFAIU IRQ disabling is not needed at all
-> because cpuhp_thread_fun runs with IRQ disabled when offlining an online
-> cpu. I have a bit hard time to follow the code due to all the
-> indirection so please correct me if I am wrong.
+On Thu, Nov 02, 2017 at 01:17:04PM +0100, Vlastimil Babka wrote:
+> The pageblock_skip_persistent() function checks for HugeTLB pages of pageblock
+> order. When clearing pageblock skip bits for compaction, the bits are not
+> cleared for such pageblocks, because they cannot contain base pages suitable
+> for migration, nor free pages to use as migration targets.
+> 
+> This optimization can be simply extended to all compound pages of order equal
+> or larger than pageblock order, because migrating such pages (if they support
+> it) cannot help sub-pageblock fragmentation. This includes THP's and also
+> gigantic HugeTLB pages, which the current implementation doesn't persistently
+> skip due to a strict pageblock_order equality check and not recognizing tail
+> pages.
+> 
+> While THP pages are generally less "persistent" than HugeTLB, we can still
+> expect that if a THP exists at the point of __reset_isolation_suitable(), it
+> will exist also during the subsequent compaction run. The time difference here
+> could be actually smaller than between a compaction run that sets a
+> (non-persistent) skip bit on a THP, and the next compaction run that observes
+> it.
+> 
+> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
-No. That function does neither run from the cpu hotplug thread of the
-outgoing CPU nor its called with interrupts disabled.
+Acked-by: Mel Gorman <mgorman@techsingularity.net>
 
-The callback is in the DEAD section, i.e. its called on the controlling CPU
-_after_ the hotplugged CPU vanished completely.
-
-Thanks,
-
-	tglx
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
