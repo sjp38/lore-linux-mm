@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD586B0260
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:38:50 -0400 (EDT)
-Received: by mail-qt0-f197.google.com with SMTP id p1so3785010qtg.18
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:38:50 -0700 (PDT)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id y190si1162487qkd.187.2017.11.02.05.38.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A80F56B0038
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:45:36 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id v127so2901568wma.3
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:45:36 -0700 (PDT)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id m8si2657440wma.126.2017.11.02.05.45.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 05:38:49 -0700 (PDT)
-From: <zhouxianrong@huawei.com>
-Subject: [PATCH] mm: try to free swap only for reading swap fault
-Date: Thu, 2 Nov 2017 20:35:19 +0800
-Message-ID: <1509626119-39916-1-git-send-email-zhouxianrong@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Nov 2017 05:45:35 -0700 (PDT)
+Date: Thu, 2 Nov 2017 13:45:31 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: KAISER memory layout (Re: [PATCH 06/23] x86, kaiser: introduce
+ user-mapped percpu areas)
+In-Reply-To: <89E52C9C-DBAB-4661-8172-0F6307857870@amacapital.net>
+Message-ID: <alpine.DEB.2.20.1711021343380.2090@nanos>
+References: <CALCETrXLJfmTg1MsQHKCL=WL-he_5wrOqeX2OatQCCqVE003VQ@mail.gmail.com> <alpine.DEB.2.20.1711021235290.2090@nanos> <89E52C9C-DBAB-4661-8172-0F6307857870@amacapital.net>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, jack@suse.cz, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, mhocko@suse.com, dave.jiang@intel.com, aneesh.kumar@linux.vnet.ibm.com, minchan@kernel.org, mingo@kernel.org, jglisse@redhat.com, willy@linux.intel.com, hughd@google.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, hutj@huawei.com, won.ho.park@huawei.com
+To: Andy Lutomirski <luto@amacapital.net>
+Cc: Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>
 
-From: zhouxianrong <zhouxianrong@huawei.com>
+On Thu, 2 Nov 2017, Andy Lutomirski wrote:
+> > On Nov 2, 2017, at 12:48 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > 
+> >> On Thu, 2 Nov 2017, Andy Lutomirski wrote:
+> >> I think we're far enough along here that it may be time to nail down
+> >> the memory layout for real.  I propose the following:
+> >> 
+> >> The user tables will contain the following:
+> >> 
+> >> - The GDT array.
+> >> - The IDT.
+> >> - The vsyscall page.  We can make this be _PAGE_USER.
+> > 
+> > I rather remove it for the kaiser case.
+> > 
+> >> - The TSS.
+> >> - The per-cpu entry stack.  Let's make it one page with guard pages
+> >> on either side.  This can replace rsp_scratch.
+> >> - cpu_current_top_of_stack.  This could be in the same page as the TSS.
+> >> - The entry text.
+> >> - The percpu IST (aka "EXCEPTION") stacks.
+> > 
+> > Do you really want to put the full exception stacks into that user mapping?
+> > I think we should not do that. There are two options:
+> > 
+> >  1) Always use the per-cpu entry stack and switch to the proper IST after
+> >     the CR3 fixup
+> 
+> Can't -- it's microcode, not software, that does that switch.
 
-the purpose of this patch is that when a reading swap fault
-happens on a clean swap cache page whose swap count is equal
-to one, then try_to_free_swap could remove this page from 
-swap cache and mark this page dirty. so if later we reclaimed
-this page then we could pageout this page due to this dirty.
-so i want to allow this action only for writing swap fault.
+Well, yes. The micro code does the stack switch to ISTs but software tells
+it to do so. We write the IDT IIRC.
 
-i sampled the data of non-dirty anonymous pages which is no
-need to pageout and total anonymous pages in shrink_page_list.
+> >  2) Have separate per-cpu entry stacks for the ISTs and switch to the real
+> >     ones after the CR3 fixup.
+> 
+> How is that simpler?
 
-the results are:
+Simpler is not the question. I want to avoid mapping the whole IST stacks.
 
-        non-dirty anonymous pages     total anonymous pages
-before  26343                         635218
-after   36907                         634312
+Thanks,
 
-Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
----
- mm/memory.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index a728bed..5a944fe 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2999,7 +2999,7 @@ int do_swap_page(struct vm_fault *vmf)
- 	}
- 
- 	swap_free(entry);
--	if (mem_cgroup_swap_full(page) ||
-+	if (((vmf->flags & FAULT_FLAG_WRITE) && mem_cgroup_swap_full(page)) ||
- 	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
- 		try_to_free_swap(page);
- 	unlock_page(page);
--- 
-1.7.9.5
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
