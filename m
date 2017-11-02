@@ -1,96 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 67A2D6B0033
-	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 21:42:28 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 76so3753901pfr.3
-        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 18:42:28 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id n7si2138943pga.352.2017.11.01.18.42.26
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BD61B6B0033
+	for <linux-mm@kvack.org>; Wed,  1 Nov 2017 22:10:13 -0400 (EDT)
+Received: by mail-pg0-f69.google.com with SMTP id p9so4314973pgc.6
+        for <linux-mm@kvack.org>; Wed, 01 Nov 2017 19:10:13 -0700 (PDT)
+Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
+        by mx.google.com with ESMTPS id q4si991807plr.645.2017.11.01.19.10.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 01 Nov 2017 18:42:27 -0700 (PDT)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH] mm: extend reuse_swap_page range as much as possible
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 01 Nov 2017 19:10:12 -0700 (PDT)
+From: zhouxianrong <zhouxianrong@huawei.com>
+Subject: =?gb2312?B?tPC4tDogW1BBVENIXSBtbTogZXh0ZW5kIHJldXNlX3N3YXBfcGFnZSByYW5n?=
+ =?gb2312?Q?e_as_much_as_possible?=
+Date: Thu, 2 Nov 2017 02:09:57 +0000
+Message-ID: <AE94847B1D9E864B8593BD8051012AF36E13E3BE@DGGEMA505-MBS.china.huawei.com>
 References: <1509533474-98584-1-git-send-email-zhouxianrong@huawei.com>
-Date: Thu, 02 Nov 2017 09:42:22 +0800
-In-Reply-To: <1509533474-98584-1-git-send-email-zhouxianrong@huawei.com>
-	(zhouxianrong@huawei.com's message of "Wed, 1 Nov 2017 18:51:14
-	+0800")
-Message-ID: <87tvyd4fsx.fsf@yhuang-dev.intel.com>
+ <87tvyd4fsx.fsf@yhuang-dev.intel.com>
+In-Reply-To: <87tvyd4fsx.fsf@yhuang-dev.intel.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="gb2312"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhouxianrong@huawei.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, ying.huang@intel.com, tim.c.chen@linux.intel.com, mhocko@suse.com, rientjes@google.com, mingo@kernel.org, vegard.nossum@oracle.com, minchan@kernel.org, aaron.lu@intel.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, hutj@huawei.com, won.ho.park@huawei.com
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "rientjes@google.com" <rientjes@google.com>, "mingo@kernel.org" <mingo@kernel.org>, "vegard.nossum@oracle.com" <vegard.nossum@oracle.com>, "minchan@kernel.org" <minchan@kernel.org>, "aaron.lu@intel.com" <aaron.lu@intel.com>, Zhouxiyu <zhouxiyu@huawei.com>, "Duwei (Device OS)" <weidu.du@huawei.com>, fanghua <fanghua3@huawei.com>, hutj <hutj@huawei.com>, Won Ho Park <won.ho.park@huawei.com>
 
-<zhouxianrong@huawei.com> writes:
-
-> From: zhouxianrong <zhouxianrong@huawei.com>
->
-> origanlly reuse_swap_page requires that the sum of page's
-> mapcount and swapcount less than or equal to one.
-> in this case we can reuse this page and avoid COW currently.
->
-> now reuse_swap_page requires only that page's mapcount
-> less than or equal to one and the page is not dirty in
-> swap cache. in this case we do not care its swap count.
->
-> the page without dirty in swap cache means that it has
-> been written to swap device successfully for reclaim before
-> and then read again on a swap fault. in this case the page
-> can be reused even though its swap count is greater than one
-> and postpone the COW on other successive accesses to the swap
-> cache page later rather than now.
->
-> i did this patch test in kernel 4.4.23 with arm64 and none huge
-> memory. it work fine.
-
-Why do you need this?  You saved copying one page from memory to memory
-(COW) now, at the cost of reading a page from disk to memory later?
-
-Best Regards,
-Huang, Ying
-
-> Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
-> ---
->  mm/swapfile.c |    9 +++++++--
->  1 file changed, 7 insertions(+), 2 deletions(-)
->
-> diff --git a/mm/swapfile.c b/mm/swapfile.c
-> index bf91dc9..c21cf07 100644
-> --- a/mm/swapfile.c
-> +++ b/mm/swapfile.c
-> @@ -1543,22 +1543,27 @@ static int page_trans_huge_map_swapcount(struct page *page, int *total_mapcount,
->  bool reuse_swap_page(struct page *page, int *total_map_swapcount)
->  {
->  	int count, total_mapcount, total_swapcount;
-> +	int dirty;
->  
->  	VM_BUG_ON_PAGE(!PageLocked(page), page);
->  	if (unlikely(PageKsm(page)))
->  		return false;
-> +	dirty = PageDirty(page);
->  	count = page_trans_huge_map_swapcount(page, &total_mapcount,
->  					      &total_swapcount);
->  	if (total_map_swapcount)
->  		*total_map_swapcount = total_mapcount + total_swapcount;
-> -	if (count == 1 && PageSwapCache(page) &&
-> +	if ((total_mapcount <= 1 && !dirty) ||
-> +		(count == 1 && PageSwapCache(page) &&
->  	    (likely(!PageTransCompound(page)) ||
->  	     /* The remaining swap count will be freed soon */
-> -	     total_swapcount == page_swapcount(page))) {
-> +	     total_swapcount == page_swapcount(page)))) {
->  		if (!PageWriteback(page)) {
->  			page = compound_head(page);
->  			delete_from_swap_cache(page);
->  			SetPageDirty(page);
-> +			if (!dirty)
-> +				return true;
->  		} else {
->  			swp_entry_t entry;
->  			struct swap_info_struct *p;
+PHpob3V4aWFucm9uZ0BodWF3ZWkuY29tPiB3cml0ZXM6DQoNCj4gRnJvbTogemhvdXhpYW5yb25n
+IDx6aG91eGlhbnJvbmdAaHVhd2VpLmNvbT4NCj4NCj4gb3JpZ2FubGx5IHJldXNlX3N3YXBfcGFn
+ZSByZXF1aXJlcyB0aGF0IHRoZSBzdW0gb2YgcGFnZSdzIG1hcGNvdW50IGFuZCANCj4gc3dhcGNv
+dW50IGxlc3MgdGhhbiBvciBlcXVhbCB0byBvbmUuDQo+IGluIHRoaXMgY2FzZSB3ZSBjYW4gcmV1
+c2UgdGhpcyBwYWdlIGFuZCBhdm9pZCBDT1cgY3VycmVudGx5Lg0KPg0KPiBub3cgcmV1c2Vfc3dh
+cF9wYWdlIHJlcXVpcmVzIG9ubHkgdGhhdCBwYWdlJ3MgbWFwY291bnQgbGVzcyB0aGFuIG9yIA0K
+PiBlcXVhbCB0byBvbmUgYW5kIHRoZSBwYWdlIGlzIG5vdCBkaXJ0eSBpbiBzd2FwIGNhY2hlLiBp
+biB0aGlzIGNhc2Ugd2UgDQo+IGRvIG5vdCBjYXJlIGl0cyBzd2FwIGNvdW50Lg0KPg0KPiB0aGUg
+cGFnZSB3aXRob3V0IGRpcnR5IGluIHN3YXAgY2FjaGUgbWVhbnMgdGhhdCBpdCBoYXMgYmVlbiB3
+cml0dGVuIHRvIA0KPiBzd2FwIGRldmljZSBzdWNjZXNzZnVsbHkgZm9yIHJlY2xhaW0gYmVmb3Jl
+IGFuZCB0aGVuIHJlYWQgYWdhaW4gb24gYSANCj4gc3dhcCBmYXVsdC4gaW4gdGhpcyBjYXNlIHRo
+ZSBwYWdlIGNhbiBiZSByZXVzZWQgZXZlbiB0aG91Z2ggaXRzIHN3YXAgDQo+IGNvdW50IGlzIGdy
+ZWF0ZXIgdGhhbiBvbmUgYW5kIHBvc3Rwb25lIHRoZSBDT1cgb24gb3RoZXIgc3VjY2Vzc2l2ZSAN
+Cj4gYWNjZXNzZXMgdG8gdGhlIHN3YXAgY2FjaGUgcGFnZSBsYXRlciByYXRoZXIgdGhhbiBub3cu
+DQo+DQo+IGkgZGlkIHRoaXMgcGF0Y2ggdGVzdCBpbiBrZXJuZWwgNC40LjIzIHdpdGggYXJtNjQg
+YW5kIG5vbmUgaHVnZSANCj4gbWVtb3J5LiBpdCB3b3JrIGZpbmUuDQoNCldoeSBkbyB5b3UgbmVl
+ZCB0aGlzPyAgWW91IHNhdmVkIGNvcHlpbmcgb25lIHBhZ2UgZnJvbSBtZW1vcnkgdG8gbWVtb3J5
+DQooQ09XKSBub3csIGF0IHRoZSBjb3N0IG9mIHJlYWRpbmcgYSBwYWdlIGZyb20gZGlzayB0byBt
+ZW1vcnkgbGF0ZXI/DQoNCnllcywgYWNjZXNzaW5nIGxhdGVyIGRvZXMgbm90IGFsd2F5cyBoYXBw
+ZW4sIHRoZXJlIGlzIHByb2JhYmlsaXR5IGZvciBpdCwgc28gcG9zdHBvbmUgQ09XIG5vdy4NCg0K
+QmVzdCBSZWdhcmRzLA0KSHVhbmcsIFlpbmcNCg0KPiBTaWduZWQtb2ZmLWJ5OiB6aG91eGlhbnJv
+bmcgPHpob3V4aWFucm9uZ0BodWF3ZWkuY29tPg0KPiAtLS0NCj4gIG1tL3N3YXBmaWxlLmMgfCAg
+ICA5ICsrKysrKystLQ0KPiAgMSBmaWxlIGNoYW5nZWQsIDcgaW5zZXJ0aW9ucygrKSwgMiBkZWxl
+dGlvbnMoLSkNCj4NCj4gZGlmZiAtLWdpdCBhL21tL3N3YXBmaWxlLmMgYi9tbS9zd2FwZmlsZS5j
+IGluZGV4IGJmOTFkYzkuLmMyMWNmMDcgDQo+IDEwMDY0NA0KPiAtLS0gYS9tbS9zd2FwZmlsZS5j
+DQo+ICsrKyBiL21tL3N3YXBmaWxlLmMNCj4gQEAgLTE1NDMsMjIgKzE1NDMsMjcgQEAgc3RhdGlj
+IGludCANCj4gcGFnZV90cmFuc19odWdlX21hcF9zd2FwY291bnQoc3RydWN0IHBhZ2UgKnBhZ2Us
+IGludCAqdG90YWxfbWFwY291bnQsICANCj4gYm9vbCByZXVzZV9zd2FwX3BhZ2Uoc3RydWN0IHBh
+Z2UgKnBhZ2UsIGludCAqdG90YWxfbWFwX3N3YXBjb3VudCkgIHsNCj4gIAlpbnQgY291bnQsIHRv
+dGFsX21hcGNvdW50LCB0b3RhbF9zd2FwY291bnQ7DQo+ICsJaW50IGRpcnR5Ow0KPiAgDQo+ICAJ
+Vk1fQlVHX09OX1BBR0UoIVBhZ2VMb2NrZWQocGFnZSksIHBhZ2UpOw0KPiAgCWlmICh1bmxpa2Vs
+eShQYWdlS3NtKHBhZ2UpKSkNCj4gIAkJcmV0dXJuIGZhbHNlOw0KPiArCWRpcnR5ID0gUGFnZURp
+cnR5KHBhZ2UpOw0KPiAgCWNvdW50ID0gcGFnZV90cmFuc19odWdlX21hcF9zd2FwY291bnQocGFn
+ZSwgJnRvdGFsX21hcGNvdW50LA0KPiAgCQkJCQkgICAgICAmdG90YWxfc3dhcGNvdW50KTsNCj4g
+IAlpZiAodG90YWxfbWFwX3N3YXBjb3VudCkNCj4gIAkJKnRvdGFsX21hcF9zd2FwY291bnQgPSB0
+b3RhbF9tYXBjb3VudCArIHRvdGFsX3N3YXBjb3VudDsNCj4gLQlpZiAoY291bnQgPT0gMSAmJiBQ
+YWdlU3dhcENhY2hlKHBhZ2UpICYmDQo+ICsJaWYgKCh0b3RhbF9tYXBjb3VudCA8PSAxICYmICFk
+aXJ0eSkgfHwNCj4gKwkJKGNvdW50ID09IDEgJiYgUGFnZVN3YXBDYWNoZShwYWdlKSAmJg0KPiAg
+CSAgICAobGlrZWx5KCFQYWdlVHJhbnNDb21wb3VuZChwYWdlKSkgfHwNCj4gIAkgICAgIC8qIFRo
+ZSByZW1haW5pbmcgc3dhcCBjb3VudCB3aWxsIGJlIGZyZWVkIHNvb24gKi8NCj4gLQkgICAgIHRv
+dGFsX3N3YXBjb3VudCA9PSBwYWdlX3N3YXBjb3VudChwYWdlKSkpIHsNCj4gKwkgICAgIHRvdGFs
+X3N3YXBjb3VudCA9PSBwYWdlX3N3YXBjb3VudChwYWdlKSkpKSB7DQo+ICAJCWlmICghUGFnZVdy
+aXRlYmFjayhwYWdlKSkgew0KPiAgCQkJcGFnZSA9IGNvbXBvdW5kX2hlYWQocGFnZSk7DQo+ICAJ
+CQlkZWxldGVfZnJvbV9zd2FwX2NhY2hlKHBhZ2UpOw0KPiAgCQkJU2V0UGFnZURpcnR5KHBhZ2Up
+Ow0KPiArCQkJaWYgKCFkaXJ0eSkNCj4gKwkJCQlyZXR1cm4gdHJ1ZTsNCj4gIAkJfSBlbHNlIHsN
+Cj4gIAkJCXN3cF9lbnRyeV90IGVudHJ5Ow0KPiAgCQkJc3RydWN0IHN3YXBfaW5mb19zdHJ1Y3Qg
+KnA7DQo=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
