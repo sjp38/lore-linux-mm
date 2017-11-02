@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0416B0253
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC3FB6B0069
 	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:17:27 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 5so2612590wmk.13
+Received: by mail-wm0-f70.google.com with SMTP id q196so2847436wmg.15
         for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:17:27 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h9si589511edf.446.2017.11.02.05.17.25
+        by mx.google.com with ESMTPS id g92si511009ede.406.2017.11.02.05.17.25
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Thu, 02 Nov 2017 05:17:26 -0700 (PDT)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [PATCH 2/3] mm, compaction: split off flag for not updating skip hints
-Date: Thu,  2 Nov 2017 13:17:05 +0100
-Message-Id: <20171102121706.21504-2-vbabka@suse.cz>
+Subject: [PATCH 3/3] mm, compaction: remove unneeded pageblock_skip_persistent() checks
+Date: Thu,  2 Nov 2017 13:17:06 +0100
+Message-Id: <20171102121706.21504-3-vbabka@suse.cz>
 In-Reply-To: <20171102121706.21504-1-vbabka@suse.cz>
 References: <20171102121706.21504-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,63 +20,65 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mel Gorman <mgorman@techsingularity.net>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Pageblock skip hints were added as a heuristic for compaction, which shares
-core code with CMA. Since CMA reliability would suffer from the heuristics,
-compact_control flag ignore_skip_hint was added for the CMA use case.
-Since commit 6815bf3f233e ("mm/compaction: respect ignore_skip_hint in
-update_pageblock_skip") the flag also means that CMA won't *update* the skip
-hints in addition to ignoring them.
+Commit f3c931633a59 ("mm, compaction: persistently skip hugetlbfs pageblocks")
+has introduced pageblock_skip_persistent() checks into migration and free
+scanners, to make sure pageblocks that should be persistently skipped are
+marked as such, regardless of the ignore_skip_hint flag.
 
-Today, direct compaction can also ignore the skip hints in the last resort
-attempt, but there's no reason not to set them when isolation fails in such
-case. Thus, this patch splits off a new no_set_skip_hint flag to avoid the
-updating, which only CMA sets. This should improve the heuristics a bit, and
-allow us to simplify the persistent skip bit handling as the next step.
+Since the previous patch introduced a new no_set_skip_hint flag, the ignore flag
+no longer prevents marking pageblocks as skipped. Therefore we can remove the
+special cases. The relevant pageblocks will be marked as skipped by the common
+logic which marks each pageblock where no page could be isolated. This makes the
+code simpler.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- mm/compaction.c | 2 +-
- mm/internal.h   | 1 +
- mm/page_alloc.c | 1 +
- 3 files changed, 3 insertions(+), 1 deletion(-)
+ mm/compaction.c | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)
 
 diff --git a/mm/compaction.c b/mm/compaction.c
-index be7ab160f251..a92860d89679 100644
+index a92860d89679..b557aac09e92 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -294,7 +294,7 @@ static void update_pageblock_skip(struct compact_control *cc,
- 	struct zone *zone = cc->zone;
- 	unsigned long pfn;
+@@ -475,10 +475,7 @@ static unsigned long isolate_freepages_block(struct compact_control *cc,
+ 		if (PageCompound(page)) {
+ 			const unsigned int order = compound_order(page);
  
--	if (cc->ignore_skip_hint)
-+	if (cc->no_set_skip_hint)
- 		return;
+-			if (pageblock_skip_persistent(page, order)) {
+-				set_pageblock_skip(page);
+-				blockpfn = end_pfn;
+-			} else if (likely(order < MAX_ORDER)) {
++			if (likely(order < MAX_ORDER)) {
+ 				blockpfn += (1UL << order) - 1;
+ 				cursor += (1UL << order) - 1;
+ 			}
+@@ -800,10 +797,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 		if (PageCompound(page)) {
+ 			const unsigned int order = compound_order(page);
  
- 	if (!page)
-diff --git a/mm/internal.h b/mm/internal.h
-index 0aaa05af7833..3e5dc95dc259 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -201,6 +201,7 @@ struct compact_control {
- 	const int classzone_idx;	/* zone index of a direct compactor */
- 	enum migrate_mode mode;		/* Async or sync migration mode */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
-+	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
- 	bool ignore_block_suitable;	/* Scan blocks considered unsuitable */
- 	bool direct_compaction;		/* False from kcompactd or /proc/... */
- 	bool whole_zone;		/* Whole zone should/has been scanned */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 67330a438525..79cdac1fee42 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7577,6 +7577,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 		.zone = page_zone(pfn_to_page(start)),
- 		.mode = MIGRATE_SYNC,
- 		.ignore_skip_hint = true,
-+		.no_set_skip_hint = true,
- 		.gfp_mask = current_gfp_context(gfp_mask),
- 	};
- 	INIT_LIST_HEAD(&cc.migratepages);
+-			if (pageblock_skip_persistent(page, order)) {
+-				set_pageblock_skip(page);
+-				low_pfn = end_pfn;
+-			} else if (likely(order < MAX_ORDER))
++			if (likely(order < MAX_ORDER))
+ 				low_pfn += (1UL << order) - 1;
+ 			goto isolate_fail;
+ 		}
+@@ -866,13 +860,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
+ 			 * is safe to read and it's 0 for tail pages.
+ 			 */
+ 			if (unlikely(PageCompound(page))) {
+-				const unsigned int order = compound_order(page);
+-
+-				if (pageblock_skip_persistent(page, order)) {
+-					set_pageblock_skip(page);
+-					low_pfn = end_pfn;
+-				} else
+-					low_pfn += (1UL << order) - 1;
++				low_pfn += (1UL << compound_order(page)) - 1;
+ 				goto isolate_fail;
+ 			}
+ 		}
 -- 
 2.14.3
 
