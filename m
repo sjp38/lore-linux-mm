@@ -1,170 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E302C6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:25:27 -0400 (EDT)
-Received: by mail-qk0-f198.google.com with SMTP id w134so176710qkb.13
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:25:27 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id y7si3615682qky.415.2017.11.02.10.25.24
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ACB1F6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:38:41 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id z80so239233pff.11
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:38:41 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j1si4071819pgc.771.2017.11.02.10.38.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 10:25:25 -0700 (PDT)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA2HObZb049471
-	for <linux-mm@kvack.org>; Thu, 2 Nov 2017 13:25:24 -0400
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2e07q8041p-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 02 Nov 2017 13:25:23 -0400
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
-	Thu, 2 Nov 2017 17:25:21 -0000
-Subject: Re: [PATCH v5 07/22] mm: Protect VMA modifications using VMA sequence
- count
-From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-References: <1507729966-10660-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1507729966-10660-8-git-send-email-ldufour@linux.vnet.ibm.com>
- <20171026101833.GF563@redhat.com>
- <2cbea37c-c2a7-bfd4-4528-fd273b210e29@linux.vnet.ibm.com>
-Date: Thu, 2 Nov 2017 18:25:11 +0100
+        Thu, 02 Nov 2017 10:38:40 -0700 (PDT)
+Date: Thu, 2 Nov 2017 13:38:36 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v2] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171102133836.01208f60@gandalf.local.home>
+In-Reply-To: <20171102130605.05e987e8@gandalf.local.home>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171102115625.13892e18@gandalf.local.home>
+	<20171102130605.05e987e8@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <2cbea37c-c2a7-bfd4-4528-fd273b210e29@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-Message-Id: <ae35f020-3898-3f86-6d22-53b399d591be@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Arcangeli <aarcange@redhat.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+
+On Thu, 2 Nov 2017 13:06:05 -0400
+Steven Rostedt <rostedt@goodmis.org> wrote:
+
+
+> +		raw_spin_lock(&console_owner_lock);
+> +		waiter = console_waiter;
+> +		console_owner = NULL;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/*
+> +		 * If there is a waiter waiting for us, then pass the
+> +		 * rest of the work load over to that waiter.
+> +		 */
+> +		if (waiter)
+> +			break;
+
+OK, the spin_unlock() wont let the load leak. Thus it is fine as is.
+
+
+> +			raw_spin_lock(&console_owner_lock);
+> +			owner = console_owner;
+> +			waiter = console_waiter;
+> +			if (!waiter && owner && owner != current) {
+
+But Mathieu Desnoyers pointed out that usage of variables within a
+spinlock may be an issue. Although, it shouldn't affect the code as is,
+I think I'll add back READ/WRITE_ONCE() just to be on the safe side.
+
+I may add the waiter = READ_ONCE(console_waiter) to the first one too,
+more as documentation. It should cause any issues to add it.
+
+-- Steve
 
 
 
-On 02/11/2017 16:16, Laurent Dufour wrote:
-> Hi Andrea,
-> 
-> Thanks for reviewing this series, and sorry for the late answer, I took few
-> days off...
-> 
-> On 26/10/2017 12:18, Andrea Arcangeli wrote:
->> Hello Laurent,
->>
->> Message-ID: <7ca80231-fe02-a3a7-84bc-ce81690ea051@intel.com> shows
->> significant slowdown even for brk/malloc ops both single and
->> multi threaded.
->>
->> The single threaded case I think is the most important because it has
->> zero chance of getting back any benefit later during page faults.
->>
->> Could you check if:
->>
->> 1. it's possible change vm_write_begin to be a noop if mm->mm_count is
->>    <= 1? Hint: clone() will run single threaded so there's no way it can run
->>    in the middle of a being/end critical section (clone could set an
->>    MMF flag to possibly keep the sequence counter activated if a child
->>    thread exits and mm_count drops to 1 while the other cpu is in the
->>    middle of a critical section in the other thread).
-> 
-> This sounds to be a good idea, I'll dig on that.
-> The major risk here is to have a thread calling vm_*_begin() with
-> mm->mm_count > 1 and later calling vm_*_end() with mm->mm_count <= 1, but
-> as you mentioned we should find a way to work around this.
-> 
->>
->> 2. Same thing with RCU freeing of vmas. Wouldn't it be nicer if RCU
->>    freeing happened only once a MMF flag is set? That will at least
->>    reduce the risk of temporary memory waste until the next RCU grace
->>    period. The read of the MMF will scale fine. Of course to allow
->>    point 1 and 2 then the page fault should also take the mmap_sem
->>    until the MMF flag is set.
->>
-> 
-> I think we could also deal with the mm->mm_count value here, if there is
-> only one thread, no need to postpone the VMA's free operation. Isn't it ?
-> Also, if mm->mm_count <= 1, there is no need to try the speculative path.
-> 
->> Could you also investigate a much bigger change: I wonder if it's
->> possible to drop the sequence number entirely from the vma and stop
->> using sequence numbers entirely (which is likely the source of the
->> single threaded regression in point 1 that may explain the report in
->> the above message-id), and just call the vma rbtree lookup once again
->> and check that everything is still the same in the vma and the PT lock
->> obtained is still a match to finish the anon page fault and fill the
->> pte?
-> 
-> That's an interesting idea. The big deal here would be to detect that the
-> VMA has been touched in our back, but there are not so much VMA's fields
-> involved in the speculative path so that sounds reasonable. The other point
-> is to identify the impact of the vma rbtree lookup, it's also a known
-> order, but there is the vma_srcu's lock involved.
-
-I think there is some memory barrier missing when the VMA is modified so
-currently the modifications done in the VMA structure may not be written
-down at the time the pte is locked. So doing that change will also requires
-to call smp_wmb() before locking the page tables. In the current patch this
-is ensured by the call to write_seqcount_end().
-Doing so will still require to have a memory barrier when touching the VMA.
-Not sure we get far better performance compared to the sequence count
-change. But I'll give it a try anyway ;)
-
->>
->> Then of course we also need to add a method to the read-write
->> semaphore so it tells us if there's already one user holding the read
->> mmap_sem and we're the second one.  If we're the second one (or more
->> than second) only then we should skip taking the down_read mmap_sem.
->> Even a multithreaded app won't ever skip taking the mmap_sem until
->> there's sign of runtime contention, and it won't have to run the way
->> more expensive sequence number-less revalidation during page faults,
->> unless we get an immediate scalability payoff because we already know
->> the mmap_sem is already contended and there are multiple nested
->> threads in the page fault handler of the same mm.
-> 
-> The problem is that we may have a thread entering the page fault path,
-> seeing that the mmap_sem is free, grab it and continue processing the page
-> fault. Then another thread is entering mprotect or any other mm service
-> which grab the mmap_sem and it will be blocked until the page fault is
-> done. The idea with the speculative page fault is also to not block the
-> other thread which may need to grab the mmap_sem.
-> 
->>
->> Perhaps we'd need something more advanced than a
->> down_read_trylock_if_not_hold() (which has to guaranteed not to write
->> to any cacheline) and we'll have to count the per-thread exponential
->> backoff of mmap_sem frequency, but starting with
->> down_read_trylock_if_not_hold() would be good I think.
->>
->> This is not how the current patch works, the current patch uses a
->> sequence number because it pretends to go lockless always and in turn
->> has to slow down all vma updates fast paths or the revalidation
->> slowsdown performance for page fault too much (as it always
->> revalidates).
->>
->> I think it would be much better to go speculative only when there's
->> "detected" runtime contention on the mmap_sem with
->> down_read_trylock_if_not_hold() and that will make the revalidation
->> cost not an issue to worry about because normally we won't have to
->> revalidate the vma at all during page fault. In turn by making the
->> revalidation more expensive by starting a vma rbtree lookup from
->> scratch, we can drop the sequence number entirely and that should
->> simplify the patch tremendously because all vm_write_begin/end would
->> disappear from the patch and in turn the mmap/brk slowdown measured by
->> the message-id above, should disappear as well.
-> 
-> As I mentioned above, I'm not sure about checking the lock contention when
-> entering the page fault path, checking for the mm->mm_count or a dedicated
-> mm flags should be enough, but removing the sequence lock would be a very
-> good simplification. I'll dig further here, and come back soon.
-> 
-> Thanks a lot,
-> Laurent.
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> +				console_waiter = true;
+> +				spin = true;
+> +			}
+> +			raw_spin_unlock(&console_owner_lock);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
