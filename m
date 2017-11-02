@@ -1,83 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 874C36B025F
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 07:33:42 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id g10so2843494wrg.6
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 04:33:42 -0700 (PDT)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id d12si2559983wrg.307.2017.11.02.04.33.41
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F3FB96B025F
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 07:45:23 -0400 (EDT)
+Received: by mail-qk0-f200.google.com with SMTP id l194so3908985qke.22
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 04:45:23 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id p27si2873570qtb.84.2017.11.02.04.45.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 04:33:41 -0700 (PDT)
-Date: Thu, 2 Nov 2017 12:33:37 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm
- page tables
-In-Reply-To: <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1711021226020.2090@nanos>
-References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com> <alpine.DEB.2.20.1711012225400.1942@nanos>
- <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com> <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com> <alpine.DEB.2.20.1711012316130.1942@nanos> <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 04:45:23 -0700 (PDT)
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA2BjIES024783
+	for <linux-mm@kvack.org>; Thu, 2 Nov 2017 07:45:21 -0400
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2dyynxj9ph-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 Nov 2017 07:45:20 -0400
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 2 Nov 2017 11:44:55 -0000
+Subject: Re: [PATCH] mm/swap: Use page flags to determine LRU list in
+ __activate_page()
+References: <20171019145657.11199-1-khandual@linux.vnet.ibm.com>
+ <20171019153322.c4uqalws7l7fdzcx@dhcp22.suse.cz>
+ <23110557-b2db-9f4a-d072-ad58fd0c1931@suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 2 Nov 2017 17:14:40 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <23110557-b2db-9f4a-d072-ad58fd0c1931@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <40de21c5-9f6e-d34a-6db5-445c43a1266b@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, shli@kernel.org
 
-On Thu, 2 Nov 2017, Andy Lutomirski wrote:
-> On Wed, Nov 1, 2017 at 3:20 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > On Wed, 1 Nov 2017, Linus Torvalds wrote:
-> >> On Wed, Nov 1, 2017 at 2:52 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
-> >> > On 11/01/2017 02:28 PM, Thomas Gleixner wrote:
-> >> >> On Wed, 1 Nov 2017, Andy Lutomirski wrote:
-> >> >>> The vsyscall page is _PAGE_USER and lives in init_mm via the fixmap.
-> >> >>
-> >> >> Groan, forgot about that abomination, but still there is no point in having
-> >> >> it marked PAGE_USER in the init_mm at all, kaiser or not.
-> >> >
-> >> > So shouldn't this patch effectively make the vsyscall page unusable?
-> >> > Any idea why that didn't show up in any of the x86 selftests?
-> >>
-> >> I actually think there may be two issues here:
-> >>
-> >>  - vsyscall isn't even used much - if any - any more
-> >
-> > Only legacy user space uses it.
-> >
-> >>  - the vsyscall emulation works fine without _PAGE_USER, since the
-> >> whole point is that we take a fault on it and then emulate.
-> >>
-> >> We do expose the vsyscall page read-only to user space in the
-> >> emulation case, but I'm not convinced that's even required.
-> >
-> > I don't see a reason why it needs to be mapped at all for emulation.
+On 10/31/2017 06:15 PM, Vlastimil Babka wrote:
+> On 10/19/2017 05:33 PM, Michal Hocko wrote:
+>> On Thu 19-10-17 20:26:57, Anshuman Khandual wrote:
+>>> Its already assumed that the PageActive flag is clear on the input
+>>> page, hence page_lru(page) will pick the base LRU for the page. In
+>>> the same way page_lru(page) will pick active base LRU, once the
+>>> flag PageActive is set on the page. This change of LRU list should
+>>> happen implicitly through the page flags instead of being hard
+>>> coded.
+>>
+>> The patch description tells what but it doesn't explain _why_? Does the
+>> resulting code is better, more optimized or is this a pure readability
+>> thing?
+>>
+>> All I can see is that page_lru is more complex and a large part of it
+>> can be optimized away which has been done manually here. I suspect the
+>> compiler can deduce the same thing.
 > 
-> At least a couple years ago, the maintainers of some userspace tracing
-> tools complained very loudly at the early versions of the patches.
-> There are programs like pin (semi-open-source IIRC) that parse
-> instructions, make an instrumented copy, and run it.  This means that
-> the vsyscall page needs to contain text that is semantically
-> equivalent to what calling it actually does.
+> We shouldn't overestimate the compiler (or the objective conditions it
+> has) for optimizing stuff away:
 > 
-> So yes, read access needs to work.  I should add a selftest for this.
+> After applying the patch:
 > 
-> This is needed in emulation mode as well as native mode, so removing
-> native mode is totally orthogonal.
+> ./scripts/bloat-o-meter swap_before.o mm/swap.o
+> add/remove: 0/0 grow/shrink: 1/0 up/down: 160/0 (160)
+> function                                     old     new   delta
+> __activate_page                              708     868    +160
+> Total: Before=13538, After=13698, chg +1.18%
+> 
+> I don't think we want that, it's not exactly a cold code...
 
-Fair enough. I enabled function tracing with emulate_vsyscall as the filter
-on a couple of machines and so far I have no hit at all. Though I found a
-VM with a real old user space (~2005) and that actually used it.
-
-So for the problem at hand, I'd suggest we disable the vsyscall stuff if
-CONFIG_KAISER=y and be done with it.
-
-Thanks,
-
-	tglx
-
-
-
-
+Yeah, makes sense.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
