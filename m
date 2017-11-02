@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 330356B0253
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:37:52 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id n14so5159724pfh.15
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:37:52 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v14si3402186pgc.214.2017.11.02.05.37.50
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BD586B0260
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 08:38:50 -0400 (EDT)
+Received: by mail-qt0-f197.google.com with SMTP id p1so3785010qtg.18
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 05:38:50 -0700 (PDT)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id y190si1162487qkd.187.2017.11.02.05.38.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 05:37:51 -0700 (PDT)
-Date: Thu, 2 Nov 2017 13:37:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
-Message-ID: <20171102123749.zwnlsvpoictnmp53@dhcp22.suse.cz>
-References: <20171102093613.3616-1-mhocko@kernel.org>
- <20171102093613.3616-3-mhocko@kernel.org>
+        Thu, 02 Nov 2017 05:38:49 -0700 (PDT)
+From: <zhouxianrong@huawei.com>
+Subject: [PATCH] mm: try to free swap only for reading swap fault
+Date: Thu, 2 Nov 2017 20:35:19 +0800
+Message-ID: <1509626119-39916-1-git-send-email-zhouxianrong@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171102093613.3616-3-mhocko@kernel.org>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: linux-kernel@vger.kernel.org, akpm@linux-foundation.org, jack@suse.cz, kirill.shutemov@linux.intel.com, ross.zwisler@linux.intel.com, mhocko@suse.com, dave.jiang@intel.com, aneesh.kumar@linux.vnet.ibm.com, minchan@kernel.org, mingo@kernel.org, jglisse@redhat.com, willy@linux.intel.com, hughd@google.com, zhouxianrong@huawei.com, zhouxiyu@huawei.com, weidu.du@huawei.com, fanghua3@huawei.com, hutj@huawei.com, won.ho.park@huawei.com
 
-On Thu 02-11-17 10:36:13, Michal Hocko wrote:
-[...]
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 67330a438525..8c6e9c6d194c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
->  
->  static int page_alloc_cpu_dead(unsigned int cpu)
->  {
-> +	unsigned long flags;
->  
-> +	local_irq_save(flags);
->  	lru_add_drain_cpu(cpu);
-> +	local_irq_restore(flags);
-> +
->  	drain_pages(cpu);
-  
-I was staring into the hotplug code and tried to understand the context
-this callback runs in and AFAIU IRQ disabling is not needed at all
-because cpuhp_thread_fun runs with IRQ disabled when offlining an online
-cpu. I have a bit hard time to follow the code due to all the
-indirection so please correct me if I am wrong.
+From: zhouxianrong <zhouxianrong@huawei.com>
+
+the purpose of this patch is that when a reading swap fault
+happens on a clean swap cache page whose swap count is equal
+to one, then try_to_free_swap could remove this page from 
+swap cache and mark this page dirty. so if later we reclaimed
+this page then we could pageout this page due to this dirty.
+so i want to allow this action only for writing swap fault.
+
+i sampled the data of non-dirty anonymous pages which is no
+need to pageout and total anonymous pages in shrink_page_list.
+
+the results are:
+
+        non-dirty anonymous pages     total anonymous pages
+before  26343                         635218
+after   36907                         634312
+
+Signed-off-by: zhouxianrong <zhouxianrong@huawei.com>
+---
+ mm/memory.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index a728bed..5a944fe 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -2999,7 +2999,7 @@ int do_swap_page(struct vm_fault *vmf)
+ 	}
+ 
+ 	swap_free(entry);
+-	if (mem_cgroup_swap_full(page) ||
++	if (((vmf->flags & FAULT_FLAG_WRITE) && mem_cgroup_swap_full(page)) ||
+ 	    (vma->vm_flags & VM_LOCKED) || PageMlocked(page))
+ 		try_to_free_swap(page);
+ 	unlock_page(page);
 -- 
-Michal Hocko
-SUSE Labs
+1.7.9.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
