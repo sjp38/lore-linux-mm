@@ -1,47 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 029816B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 12:36:41 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id j3so119609pga.5
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 09:36:40 -0700 (PDT)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id y1si4075365pfy.314.2017.11.02.09.36.39
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E75DA6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 12:38:52 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id 15so74945pgc.21
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 09:38:52 -0700 (PDT)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id o1si2397060plk.182.2017.11.02.09.38.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 09:36:39 -0700 (PDT)
-Subject: Re: KAISER memory layout (Re: [PATCH 06/23] x86, kaiser: introduce
- user-mapped percpu areas)
-References: <CALCETrXLJfmTg1MsQHKCL=WL-he_5wrOqeX2OatQCCqVE003VQ@mail.gmail.com>
+        Thu, 02 Nov 2017 09:38:51 -0700 (PDT)
+Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm page
+ tables
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171031223150.AB41C68F@viggo.jf.intel.com>
+ <alpine.DEB.2.20.1711012206050.1942@nanos>
+ <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com>
+ <alpine.DEB.2.20.1711012225400.1942@nanos>
+ <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com>
+ <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com>
+ <alpine.DEB.2.20.1711012316130.1942@nanos>
+ <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com>
+ <alpine.DEB.2.20.1711021226020.2090@nanos>
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <606e6084-baf7-fc45-b2f3-92b78ea7fcad@linux.intel.com>
-Date: Thu, 2 Nov 2017 09:36:37 -0700
+Message-ID: <c4a5395b-5869-d088-9819-8457d138dc43@linux.intel.com>
+Date: Thu, 2 Nov 2017 09:38:50 -0700
 MIME-Version: 1.0
-In-Reply-To: <CALCETrXLJfmTg1MsQHKCL=WL-he_5wrOqeX2OatQCCqVE003VQ@mail.gmail.com>
+In-Reply-To: <alpine.DEB.2.20.1711021226020.2090@nanos>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On 11/02/2017 02:41 AM, Andy Lutomirski wrote:
-> 
->  - The GDT array.
->  - The IDT.
->  - The vsyscall page.  We can make this be _PAGE_USER.
->  - The TSS.
->  - The per-cpu entry stack.  Let's make it one page with guard pages
-> on either side.  This can replace rsp_scratch.
->  - cpu_current_top_of_stack.  This could be in the same page as the TSS.
->  - The entry text.
->  - The percpu IST (aka "EXCEPTION") stacks.
-> 
-> That's it.
+On 11/02/2017 04:33 AM, Thomas Gleixner wrote:
+> So for the problem at hand, I'd suggest we disable the vsyscall stuff if
+> CONFIG_KAISER=y and be done with it.
 
-The PEBS/BTS buffers need it too, I think:
-
-https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/commit/?h=kaiser-414rc6-20171031&id=97a334906d7853a8109b295ef94f3991418d0c07
+Just to be clear, are we suggesting to just disable
+LEGACY_VSYSCALL_NATIVE if KAISER=y, and allow LEGACY_VSYSCALL_EMULATE?
+Or, do we just force LEGACY_VSYSCALL_NONE=y?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
