@@ -1,201 +1,248 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 93AEC6B025E
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:02:37 -0400 (EDT)
-Received: by mail-wr0-f200.google.com with SMTP id l8so121482wre.19
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:02:37 -0700 (PDT)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id k1si2850657edb.160.2017.11.02.10.02.29
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 171C76B0253
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:06:11 -0400 (EDT)
+Received: by mail-pg0-f70.google.com with SMTP id l24so155479pgu.22
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:06:11 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g2si2705839pli.731.2017.11.02.10.06.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 10:02:30 -0700 (PDT)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v2 1/1] mm: buddy page accessed before initialized
-Date: Thu,  2 Nov 2017 13:02:21 -0400
-Message-Id: <20171102170221.7401-2-pasha.tatashin@oracle.com>
-In-Reply-To: <20171102170221.7401-1-pasha.tatashin@oracle.com>
-References: <20171102170221.7401-1-pasha.tatashin@oracle.com>
+        Thu, 02 Nov 2017 10:06:09 -0700 (PDT)
+Date: Thu, 2 Nov 2017 13:06:05 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: [PATCH v2] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171102130605.05e987e8@gandalf.local.home>
+In-Reply-To: <20171102115625.13892e18@gandalf.local.home>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171102115625.13892e18@gandalf.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-This problem is seen when machine is rebooted after kexec:
-A message like this is printed:
-==========================================================================
-WARNING: CPU: 21 PID: 249 at linux/lib/list_debug.c:53__listd+0x83/0xa0
-Modules linked in:
-CPU: 21 PID: 249 Comm: pgdatinit0 Not tainted 4.14.0-rc6_pt_deferred #90
-Hardware name: Oracle Corporation ORACLE SERVER X6-2/ASM,MOTHERBOARD,1U,
-BIOS 3016
-node 1 initialised, 32444607 pages in 1679ms
-task: ffff880180e75a00 task.stack: ffffc9000cdb0000
-RIP: 0010:__list_del_entry_valid+0x83/0xa0
-RSP: 0000:ffffc9000cdb3d18 EFLAGS: 00010046
-RAX: 0000000000000054 RBX: 0000000000000009 RCX: ffffffff81c5f3e8
-RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
-RBP: ffffc9000cdb3d18 R08: 00000000fffffffe R09: 0000000000000154
-R10: 0000000000000005 R11: 0000000000000153 R12: 0000000001fcdc00
-R13: 0000000001fcde00 R14: ffff88207ffded00 R15: ffffea007f370000
-FS:  0000000000000000(0000) GS:ffff881fffac0000(0000) knlGS:0
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000000000 CR3: 000000407ec09001 CR4: 00000000003606e0
-DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-Call Trace:
- free_one_page+0x103/0x390
- __free_pages_ok+0x1cf/0x2d0
- __free_pages+0x19/0x30
- __free_pages_boot_core+0xae/0xba
- deferred_free_range+0x60/0x94
- deferred_init_memmap+0x324/0x372
- kthread+0x109/0x140
- ? __free_pages_bootmem+0x2e/0x2e
- ? kthread_park+0x60/0x60
- ret_from_fork+0x25/0x30
+From: Steven Rostedt (VMware) <rostedt@goodmis.org>
 
-list_del corruption. next->prev should be ffffea007f428020, but was
-ffffea007f1d8020
-==========================================================================
+This patch implements what I discussed in Kernel Summit. I added
+lockdep annotation (hopefully correctly), and it hasn't had any splats
+(since I fixed some bugs in the first iterations). It did catch
+problems when I had the owner covering too much. But now that the owner
+is only set when actively calling the consoles, lockdep has stayed
+quiet.
+ 
+Here's the design again:
 
-The problem happens in this path:
+I added a "console_owner" which is set to a task that is actively
+writing to the consoles. It is *not* the same an the owner of the
+console_lock. It is only set when doing the calls to the console
+functions. It is protected by a console_owner_lock which is a raw spin
+lock.
 
-page_alloc_init_late
-  deferred_init_memmap
-    deferred_init_range
-      __def_free
-        deferred_free_range
-          __free_pages_boot_core(page, order)
-            __free_pages()
-              __free_pages_ok()
-                free_one_page()
-                  __free_one_page(page, pfn, zone, order, migratetype);
+There is a console_waiter. This is set when there is an active console
+owner that is not current, and waiter is not set. This too is protected
+by console_owner_lock.
 
-deferred_init_range() initializes one page at a time by calling
-__init_single_page(), once it initializes pageblock_nr_pages pages, it
-calls deferred_free_range() to free the initialized pages to the buddy
-allocator. Eventually, we reach __free_one_page(), where we compute buddy
-page:
-	buddy_pfn = __find_buddy_pfn(pfn, order);
-	buddy = page + (buddy_pfn - pfn);
+In printk() when it tries to write to the consoles, we have:
 
-buddy_pfn is computed as pfn ^ (1 << order), or pfn + pageblock_nr_pages.
-Thefore, buddy page becomes a page one after the range that currently was
-initialized, and we access this page in this function. Also, later when we
-return back to deferred_init_range(), the buddy page is initialized again.
+	if (console_trylock())
+		console_unlock();
 
-So, in order to avoid this issue, we must initialize the buddy page prior
-to calling deferred_free_range().
+Now I added an else, which will check if there is an active owner, and
+no current waiter. If that is the case, then console_waiter is set, and
+the task goes into a spin until it is no longer set.
 
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+When the active console owner finishes writing the current message to
+the consoles, it grabs the console_owner_lock and sees if there is a
+waiter, and clears console_owner.
+
+If there is a waiter, then it breaks out of the loop, clears the waiter
+flag (because that will release the waiter from its spin), and exits.
+Note, it does *not* release the console semaphore. Because it is a
+semaphore, there is no owner. Another task may release it. This means
+that the waiter is guaranteed to be the new console owner! Which it
+becomes.
+
+Then the waiter calls console_unlock() and continues to write to the
+consoles.
+
+If another task comes along and does a printk() it too can become the
+new waiter, and we wash rinse and repeat!
+
+Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
 ---
- mm/page_alloc.c | 66 +++++++++++++++++++++++++++++++++++++--------------------
- 1 file changed, 43 insertions(+), 23 deletions(-)
+Changes from v1:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 97687b38da05..201bf67ce042 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1449,9 +1449,9 @@ static inline void __init pgdat_init_report_one_done(void)
-  * Helper for deferred_init_range, free the given range, reset the counters, and
-  * return number of pages freed.
-  */
--static inline unsigned long __def_free(unsigned long *nr_free,
--				       unsigned long *free_base_pfn,
--				       struct page **page)
-+static inline unsigned long __init __def_free(unsigned long *nr_free,
-+					      unsigned long *free_base_pfn,
-+					      struct page **page)
- {
- 	unsigned long nr = *nr_free;
+  Use "spin_acquire" instead of "mutex_acquire" for the
+  console_lock_dep annotation. It may make a difference in the future,
+  and it does act like a spinlock and not a mutex. (thanks to Peter
+  Ziljstra).
+
+  Remove all READ/WRITE_ONCE() from inside the spin lock protected
+  areas, as they are unnecessary.
+
+  Add a WRITE_ONCE() for clearing console_owner, because that's done
+  outside the spin lock protection.
+
+Index: linux-trace.git/kernel/printk/printk.c
+===================================================================
+--- linux-trace.git.orig/kernel/printk/printk.c
++++ linux-trace.git/kernel/printk/printk.c
+@@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
+ static struct lockdep_map console_lock_dep_map = {
+ 	.name = "console_lock"
+ };
++static struct lockdep_map console_owner_dep_map = {
++	.name = "console_owner"
++};
+ #endif
  
-@@ -1463,8 +1463,9 @@ static inline unsigned long __def_free(unsigned long *nr_free,
- 	return nr;
- }
- 
--static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
--					 unsigned long end_pfn)
-+static unsigned long __init deferred_init_range(int nid, int zid,
-+						unsigned long start_pfn,
-+						unsigned long end_pfn)
- {
- 	struct mminit_pfnnid_cache nid_init_state = { };
- 	unsigned long nr_pgmask = pageblock_nr_pages - 1;
-@@ -1472,23 +1473,44 @@ static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
- 	unsigned long nr_pages = 0;
- 	unsigned long nr_free = 0;
- 	struct page *page = NULL;
-+	unsigned long pfn;
- 
--	for (; pfn < end_pfn; pfn++) {
--		/*
--		 * First we check if pfn is valid on architectures where it is
--		 * possible to have holes within pageblock_nr_pages. On systems
--		 * where it is not possible, this function is optimized out.
--		 *
--		 * Then, we check if a current large page is valid by only
--		 * checking the validity of the head pfn.
--		 *
--		 * meminit_pfn_in_nid is checked on systems where pfns can
--		 * interleave within a node: a pfn is between start and end
--		 * of a node, but does not belong to this memory node.
--		 *
--		 * Finally, we minimize pfn page lookups and scheduler checks by
--		 * performing it only once every pageblock_nr_pages.
--		 */
-+	/*
-+	 * First we check if pfn is valid on architectures where it is possible
-+	 * to have holes within pageblock_nr_pages. On systems where it is not
-+	 * possible, this function is optimized out.
-+	 *
-+	 * Then, we check if a current large page is valid by only checking the
-+	 * validity of the head pfn.
-+	 *
-+	 * meminit_pfn_in_nid is checked on systems where pfns can interleave
-+	 * within a node: a pfn is between start and end of a node, but does not
-+	 * belong to this memory node.
-+	 *
-+	 * Finally, we minimize pfn page lookups and scheduler checks by
-+	 * performing it only once every pageblock_nr_pages.
-+	 *
-+	 * We do it in two loops: first we initialize struct page, than free to
-+	 * buddy allocator, becuse while we are freeing pages we can access
-+	 * pages that are ahead (computing buddy page in __free_one_page()).
-+	 */
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
-+		if (!pfn_valid_within(pfn))
-+			continue;
-+		if ((pfn & nr_pgmask) || pfn_valid(pfn)) {
-+			if (meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
-+				if (page && (pfn & nr_pgmask))
-+					page++;
-+				else
-+					page = pfn_to_page(pfn);
-+				__init_single_page(page, pfn, zid, nid);
-+				cond_resched();
++static DEFINE_RAW_SPINLOCK(console_owner_lock);
++static struct task_struct *console_owner;
++static bool console_waiter;
++
+ enum devkmsg_log_bits {
+ 	__DEVKMSG_LOG_BIT_ON = 0,
+ 	__DEVKMSG_LOG_BIT_OFF,
+@@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
+ 		 * semaphore.  The release will print out buffers and wake up
+ 		 * /dev/kmsg and syslog() users.
+ 		 */
+-		if (console_trylock())
++		if (console_trylock()) {
+ 			console_unlock();
++		} else {
++			struct task_struct *owner = NULL;
++			bool waiter;
++			bool spin = false;
++
++			printk_safe_enter_irqsave(flags);
++
++			raw_spin_lock(&console_owner_lock);
++			owner = console_owner;
++			waiter = console_waiter;
++			if (!waiter && owner && owner != current) {
++				console_waiter = true;
++				spin = true;
 +			}
++			raw_spin_unlock(&console_owner_lock);
++
++			/*
++			 * If there is an active printk() writing to the
++			 * consoles, instead of having it write our data too,
++			 * see if we can offload that load from the active
++			 * printer, and do some printing ourselves.
++			 * Go into a spin only if there isn't already a waiter
++			 * spinning, and there is an active printer, and
++			 * that active printer isn't us (recursive printk?).
++			 */
++			if (spin) {
++				/* We spin waiting for the owner to release us */
++				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
++				/* Owner will clear console_waiter on hand off */
++				while (!READ_ONCE(console_waiter))
++					cpu_relax();
++
++				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
++				printk_safe_exit_irqrestore(flags);
++
++				/*
++				 * The owner passed the console lock to us.
++				 * Since we did not spin on console lock, annotate
++				 * this as a trylock. Otherwise lockdep will
++				 * complain.
++				 */
++				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
++				console_unlock();
++				printk_safe_enter_irqsave(flags);
++			}
++			printk_safe_exit_irqrestore(flags);
++
 +		}
+ 	}
+ 
+ 	return printed_len;
+@@ -2141,6 +2196,7 @@ void console_unlock(void)
+ 	static u64 seen_seq;
+ 	unsigned long flags;
+ 	bool wake_klogd = false;
++	bool waiter = false;
+ 	bool do_cond_resched, retry;
+ 
+ 	if (console_suspended) {
+@@ -2215,6 +2271,20 @@ skip:
+ 			goto skip;
+ 		}
+ 
++		/*
++		 * While actively printing out messages, if another printk()
++		 * were to occur on another CPU, it may wait for this one to
++		 * finish. This task can not be preempted if there is a
++		 * waiter waiting to take over.
++		 */
++
++		/* The waiter may spin on us after this */
++		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
++
++		raw_spin_lock(&console_owner_lock);
++		console_owner = current;
++		raw_spin_unlock(&console_owner_lock);
++
+ 		len += msg_print_text(msg, false, text + len, sizeof(text) - len);
+ 		if (nr_ext_console_drivers) {
+ 			ext_len = msg_print_ext_header(ext_text,
+@@ -2232,11 +2302,48 @@ skip:
+ 		stop_critical_timings();	/* don't trace print latency */
+ 		call_console_drivers(ext_text, ext_len, text, len);
+ 		start_critical_timings();
++
++		raw_spin_lock(&console_owner_lock);
++		waiter = console_waiter;
++		console_owner = NULL;
++		raw_spin_unlock(&console_owner_lock);
++
++		/*
++		 * If there is a waiter waiting for us, then pass the
++		 * rest of the work load over to that waiter.
++		 */
++		if (waiter)
++			break;
++
++		/* There was no waiter, and nothing will spin on us here */
++		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
++
+ 		printk_safe_exit_irqrestore(flags);
+ 
+ 		if (do_cond_resched)
+ 			cond_resched();
+ 	}
++
++	/*
++	 * If there is an active waiter waiting on the console_lock.
++	 * Pass off the printing to the waiter, and the waiter
++	 * will continue printing on its CPU, and when all writing
++	 * has finished, the last printer will wake up klogd.
++	 */
++	if (waiter) {
++		WRITE_ONCE(console_waiter, false);
++		/* The waiter is now free to continue */
++		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
++		/*
++		 * Hand off console_lock to waiter. The waiter will perform
++		 * the up(). After this, the waiter is the console_lock owner.
++		 */
++		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
++		printk_safe_exit_irqrestore(flags);
++		/* Note, if waiter is set, logbuf_lock is not held */
++		return;
 +	}
 +
-+	page = NULL;
-+	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
- 		if (!pfn_valid_within(pfn)) {
- 			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
- 		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
-@@ -1497,12 +1519,10 @@ static unsigned long deferred_init_range(int nid, int zid, unsigned long pfn,
- 			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
- 		} else if (page && (pfn & nr_pgmask)) {
- 			page++;
--			__init_single_page(page, pfn, zid, nid);
- 			nr_free++;
- 		} else {
- 			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
- 			page = pfn_to_page(pfn);
--			__init_single_page(page, pfn, zid, nid);
- 			free_base_pfn = pfn;
- 			nr_free = 1;
- 			cond_resched();
--- 
-2.15.0
+ 	console_locked = 0;
+ 
+ 	/* Release the exclusive_console once it is used */
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
