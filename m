@@ -1,71 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7731D6B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 03:49:22 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id p96so2489729wrb.12
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:49:22 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s3si2523970edm.63.2017.11.02.00.49.21
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A7486B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 03:54:59 -0400 (EDT)
+Received: by mail-pf0-f200.google.com with SMTP id p2so4544161pfk.13
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:54:59 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id bd7si1546530plb.577.2017.11.02.00.54.58
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 00:49:21 -0700 (PDT)
-Date: Thu, 2 Nov 2017 08:49:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: =?utf-8?B?562U5aSNOiBbUEFUQ0g=?= =?utf-8?Q?=5D?= mm: extend
- reuse_swap_page range as much as possible
-Message-ID: <20171102074917.y4uvfrzshtr7jahi@dhcp22.suse.cz>
-References: <1509533474-98584-1-git-send-email-zhouxianrong@huawei.com>
- <87tvyd4fsx.fsf@yhuang-dev.intel.com>
- <AE94847B1D9E864B8593BD8051012AF36E13E3BE@DGGEMA505-MBS.china.huawei.com>
- <20171102042223.GA26523@bbox>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 00:54:58 -0700 (PDT)
+Received: from mail-io0-f179.google.com (mail-io0-f179.google.com [209.85.223.179])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D7A562193A
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 07:54:57 +0000 (UTC)
+Received: by mail-io0-f179.google.com with SMTP id i38so11901184iod.2
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 00:54:57 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171102042223.GA26523@bbox>
+In-Reply-To: <CALCETrUFddZwQmB9OBzbS-RObg_tU8CA70aEB4n+MG15yYLQRA@mail.gmail.com>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <CA+55aFzS8GZ7QHzMU-JsievHU5T9LBrFx2fRwkbCB8a_YAxmsw@mail.gmail.com>
+ <9e45a167-3528-8f93-80bf-c333ae6acb71@linux.intel.com> <CA+55aFypdyt+3-JyD3U1da5EqznncxKZZKPGn4ykkD=4Q4rdvw@mail.gmail.com>
+ <8bacac66-7d3e-b15d-a73b-92c55c0b1908@linux.intel.com> <CA+55aFxssHiO4f52UUCPXoxx+NOu5Epf6HhwsjUH8Ua+BP6Y=A@mail.gmail.com>
+ <5005a38e-4dbf-d302-9a82-97c92d0f8f07@linux.intel.com> <CA+55aFzQ3cFin78_BcU8d1u1-kJugQh9c0PRJuDjXPf3Z75+Mw@mail.gmail.com>
+ <CALCETrX4bxhLWeaTYPWQ8EdNscfUmWeUi6gfDuADqZtUvM01cA@mail.gmail.com> <CALCETrUFddZwQmB9OBzbS-RObg_tU8CA70aEB4n+MG15yYLQRA@mail.gmail.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 2 Nov 2017 00:54:36 -0700
+Message-ID: <CALCETrWBcEp+5iFPqP=V740CmZOBQ9P_+9h57G9tEUiJfvnLJw@mail.gmail.com>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: zhouxianrong <zhouxianrong@huawei.com>, "Huang, Ying" <ying.huang@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "tim.c.chen@linux.intel.com" <tim.c.chen@linux.intel.com>, "rientjes@google.com" <rientjes@google.com>, "mingo@kernel.org" <mingo@kernel.org>, "vegard.nossum@oracle.com" <vegard.nossum@oracle.com>, "aaron.lu@intel.com" <aaron.lu@intel.com>, Zhouxiyu <zhouxiyu@huawei.com>, "Duwei (Device OS)" <weidu.du@huawei.com>, fanghua <fanghua3@huawei.com>, hutj <hutj@huawei.com>, Won Ho Park <won.ho.park@huawei.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>
 
-On Thu 02-11-17 13:22:23, Minchan Kim wrote:
-> On Thu, Nov 02, 2017 at 02:09:57AM +0000, zhouxianrong wrote:
-> > <zhouxianrong@huawei.com> writes:
-> > 
-> > > From: zhouxianrong <zhouxianrong@huawei.com>
-> > >
-> > > origanlly reuse_swap_page requires that the sum of page's mapcount and 
-> > > swapcount less than or equal to one.
-> > > in this case we can reuse this page and avoid COW currently.
-> > >
-> > > now reuse_swap_page requires only that page's mapcount less than or 
-> > > equal to one and the page is not dirty in swap cache. in this case we 
-> > > do not care its swap count.
-> > >
-> > > the page without dirty in swap cache means that it has been written to 
-> > > swap device successfully for reclaim before and then read again on a 
-> > > swap fault. in this case the page can be reused even though its swap 
-> > > count is greater than one and postpone the COW on other successive 
-> > > accesses to the swap cache page later rather than now.
-> > >
-> > > i did this patch test in kernel 4.4.23 with arm64 and none huge 
-> > > memory. it work fine.
+On Thu, Nov 2, 2017 at 12:32 AM, Andy Lutomirski <luto@kernel.org> wrote:
+> On Wed, Nov 1, 2017 at 1:33 PM, Andy Lutomirski <luto@kernel.org> wrote:
+>> On Wed, Nov 1, 2017 at 12:05 PM, Linus Torvalds
+>> <torvalds@linux-foundation.org> wrote:
+>>> On Wed, Nov 1, 2017 at 11:46 AM, Dave Hansen
+>>> <dave.hansen@linux.intel.com> wrote:
+>>>>
+>>>> The vmalloc()'d stacks definitely need the page table walk.
+>>>
+>>> Ugh, yes. Nasty.
+>>>
+>>> Andy at some point mentioned a per-cpu initial stack trampoline thing
+>>> for his exception patches, but I'm not sure he actually ever did that.
+>>>
+>>> Andy?
+>>
+>> I'm going to push it to kernel.org very shortly (like twenty minutes
+>> maybe).  Then the 0day bot can chew on it.  With the proposed LDT
+>> rework, we don't need to do any of dynamic mapping stuff, I think.
+>
+> FWIW, I pushed all but the actual stack switching part.  Something
+> broke in the rebase and it doesn't boot right now :(
 
-this is not an appropriate justification
+Okay, that was embarrassing.  The rebase error was, drumroll please, I
+forgot one of the patches.  Sigh.
 
-> > Why do you need this?  You saved copying one page from memory to memory
-> > (COW) now, at the cost of reading a page from disk to memory later?
-> > 
-> > yes, accessing later does not always happen, there is probability for it, so postpone COW now.
-> 
-> So, it's trade-off. It means we need some number with some scenarios
-> to prove it's better than as-is.
-> It would help to drive reviewers/maintainer.
+It's here:
 
-Absolutely agreed. We definitely need some numbers for different set of
-workloads.
--- 
-Michal Hocko
-SUSE Labs
+https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=x86/entry_consolidation
+
+The last few patches are terminally ugly.  I'll clean them up shortly
+and email them out.  That being said, unless there's a showstopper
+bug, this should be a fine base for Dave's development.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
