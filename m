@@ -1,236 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B3A266B0069
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:45:20 -0400 (EDT)
-Received: by mail-pg0-f72.google.com with SMTP id a192so316198pge.1
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:45:20 -0700 (PDT)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u9si2637207plz.76.2017.11.02.10.45.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BA5D6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 14:19:57 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id h28so322694pfh.16
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 11:19:57 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l8sor1227189pln.81.2017.11.02.11.19.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 10:45:19 -0700 (PDT)
-Date: Thu, 2 Nov 2017 13:45:15 -0400
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH v3] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171102134515.6eef16de@gandalf.local.home>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 02 Nov 2017 11:19:56 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH 02/23] x86, kaiser: do not set _PAGE_USER for init_mm page tables
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <c4a5395b-5869-d088-9819-8457d138dc43@linux.intel.com>
+Date: Thu, 2 Nov 2017 19:19:49 +0100
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <DADF7172-F2ED-4C2A-B921-8707DEDEABD7@amacapital.net>
+References: <20171031223146.6B47C861@viggo.jf.intel.com> <20171031223150.AB41C68F@viggo.jf.intel.com> <alpine.DEB.2.20.1711012206050.1942@nanos> <CALCETrWQ0W=Kp7fycZ2E9Dp84CCPOr1nEmsPom71ZAXeRYqr9g@mail.gmail.com> <alpine.DEB.2.20.1711012225400.1942@nanos> <e8149c9e-10f8-aa74-ff0e-e2de923b2128@linux.intel.com> <CA+55aFyijHb4WnDMKgeXekTZHYT8pajqSAu2peo3O4EKiZbYPA@mail.gmail.com> <alpine.DEB.2.20.1711012316130.1942@nanos> <CALCETrWS2Tqn=hthSnzxKj3tJrgK+HH2Nkdv-GiXA7bkHUBdcQ@mail.gmail.com> <alpine.DEB.2.20.1711021226020.2090@nanos> <c4a5395b-5869-d088-9819-8457d138dc43@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang\"   <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra <peterz@infradead.org>,  Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>,  Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa  <penguin-kernel@I-love.SAKURA.ne.jp>"@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-From: Steven Rostedt (VMware) <rostedt@goodmis.org>
 
-This patch implements what I discussed in Kernel Summit. I added
-lockdep annotation (hopefully correctly), and it hasn't had any splats
-(since I fixed some bugs in the first iterations). It did catch
-problems when I had the owner covering too much. But now that the owner
-is only set when actively calling the consoles, lockdep has stayed
-quiet.
- 
-Here's the design again:
 
-I added a "console_owner" which is set to a task that is actively
-writing to the consoles. It is *not* the same an the owner of the
-console_lock. It is only set when doing the calls to the console
-functions. It is protected by a console_owner_lock which is a raw spin
-lock.
+> On Nov 2, 2017, at 5:38 PM, Dave Hansen <dave.hansen@linux.intel.com> wrot=
+e:
+>=20
+>> On 11/02/2017 04:33 AM, Thomas Gleixner wrote:
+>> So for the problem at hand, I'd suggest we disable the vsyscall stuff if
+>> CONFIG_KAISER=3Dy and be done with it.
+>=20
+> Just to be clear, are we suggesting to just disable
+> LEGACY_VSYSCALL_NATIVE if KAISER=3Dy, and allow LEGACY_VSYSCALL_EMULATE?
+> Or, do we just force LEGACY_VSYSCALL_NONE=3Dy?
 
-There is a console_waiter. This is set when there is an active console
-owner that is not current, and waiter is not set. This too is protected
-by console_owner_lock.
-
-In printk() when it tries to write to the consoles, we have:
-
-	if (console_trylock())
-		console_unlock();
-
-Now I added an else, which will check if there is an active owner, and
-no current waiter. If that is the case, then console_waiter is set, and
-the task goes into a spin until it is no longer set.
-
-When the active console owner finishes writing the current message to
-the consoles, it grabs the console_owner_lock and sees if there is a
-waiter, and clears console_owner.
-
-If there is a waiter, then it breaks out of the loop, clears the waiter
-flag (because that will release the waiter from its spin), and exits.
-Note, it does *not* release the console semaphore. Because it is a
-semaphore, there is no owner. Another task may release it. This means
-that the waiter is guaranteed to be the new console owner! Which it
-becomes.
-
-Then the waiter calls console_unlock() and continues to write to the
-consoles.
-
-If another task comes along and does a printk() it too can become the
-new waiter, and we wash rinse and repeat!
-
-Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
----
-Changes from v2:
-
-  - Added back some READ/WRITE_ONCE() just to be on the safe side
-
-Index: linux-trace.git/kernel/printk/printk.c
-===================================================================
---- linux-trace.git.orig/kernel/printk/printk.c
-+++ linux-trace.git/kernel/printk/printk.c
-@@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
- static struct lockdep_map console_lock_dep_map = {
- 	.name = "console_lock"
- };
-+static struct lockdep_map console_owner_dep_map = {
-+	.name = "console_owner"
-+};
- #endif
- 
-+static DEFINE_RAW_SPINLOCK(console_owner_lock);
-+static struct task_struct *console_owner;
-+static bool console_waiter;
-+
- enum devkmsg_log_bits {
- 	__DEVKMSG_LOG_BIT_ON = 0,
- 	__DEVKMSG_LOG_BIT_OFF,
-@@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
- 		 * semaphore.  The release will print out buffers and wake up
- 		 * /dev/kmsg and syslog() users.
- 		 */
--		if (console_trylock())
-+		if (console_trylock()) {
- 			console_unlock();
-+		} else {
-+			struct task_struct *owner = NULL;
-+			bool waiter;
-+			bool spin = false;
-+
-+			printk_safe_enter_irqsave(flags);
-+
-+			raw_spin_lock(&console_owner_lock);
-+			owner = READ_ONCE(console_owner);
-+			waiter = READ_ONCE(console_waiter);
-+			if (!waiter && owner && owner != current) {
-+				WRITE_ONCE(console_waiter, true);
-+				spin = true;
-+			}
-+			raw_spin_unlock(&console_owner_lock);
-+
-+			/*
-+			 * If there is an active printk() writing to the
-+			 * consoles, instead of having it write our data too,
-+			 * see if we can offload that load from the active
-+			 * printer, and do some printing ourselves.
-+			 * Go into a spin only if there isn't already a waiter
-+			 * spinning, and there is an active printer, and
-+			 * that active printer isn't us (recursive printk?).
-+			 */
-+			if (spin) {
-+				/* We spin waiting for the owner to release us */
-+				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-+				/* Owner will clear console_waiter on hand off */
-+				while (!READ_ONCE(console_waiter))
-+					cpu_relax();
-+
-+				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-+				printk_safe_exit_irqrestore(flags);
-+
-+				/*
-+				 * The owner passed the console lock to us.
-+				 * Since we did not spin on console lock, annotate
-+				 * this as a trylock. Otherwise lockdep will
-+				 * complain.
-+				 */
-+				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
-+				console_unlock();
-+				printk_safe_enter_irqsave(flags);
-+			}
-+			printk_safe_exit_irqrestore(flags);
-+
-+		}
- 	}
- 
- 	return printed_len;
-@@ -2141,6 +2196,7 @@ void console_unlock(void)
- 	static u64 seen_seq;
- 	unsigned long flags;
- 	bool wake_klogd = false;
-+	bool waiter = false;
- 	bool do_cond_resched, retry;
- 
- 	if (console_suspended) {
-@@ -2215,6 +2271,20 @@ skip:
- 			goto skip;
- 		}
- 
-+		/*
-+		 * While actively printing out messages, if another printk()
-+		 * were to occur on another CPU, it may wait for this one to
-+		 * finish. This task can not be preempted if there is a
-+		 * waiter waiting to take over.
-+		 */
-+
-+		/* The waiter may spin on us after this */
-+		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-+
-+		raw_spin_lock(&console_owner_lock);
-+		console_owner = current;
-+		raw_spin_unlock(&console_owner_lock);
-+
- 		len += msg_print_text(msg, false, text + len, sizeof(text) - len);
- 		if (nr_ext_console_drivers) {
- 			ext_len = msg_print_ext_header(ext_text,
-@@ -2232,11 +2302,48 @@ skip:
- 		stop_critical_timings();	/* don't trace print latency */
- 		call_console_drivers(ext_text, ext_len, text, len);
- 		start_critical_timings();
-+
-+		raw_spin_lock(&console_owner_lock);
-+		waiter = READ_ONCE(console_waiter);
-+		console_owner = NULL;
-+		raw_spin_unlock(&console_owner_lock);
-+
-+		/*
-+		 * If there is a waiter waiting for us, then pass the
-+		 * rest of the work load over to that waiter.
-+		 */
-+		if (waiter)
-+			break;
-+
-+		/* There was no waiter, and nothing will spin on us here */
-+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-+
- 		printk_safe_exit_irqrestore(flags);
- 
- 		if (do_cond_resched)
- 			cond_resched();
- 	}
-+
-+	/*
-+	 * If there is an active waiter waiting on the console_lock.
-+	 * Pass off the printing to the waiter, and the waiter
-+	 * will continue printing on its CPU, and when all writing
-+	 * has finished, the last printer will wake up klogd.
-+	 */
-+	if (waiter) {
-+		WRITE_ONCE(console_waiter, false);
-+		/* The waiter is now free to continue */
-+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-+		/*
-+		 * Hand off console_lock to waiter. The waiter will perform
-+		 * the up(). After this, the waiter is the console_lock owner.
-+		 */
-+		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
-+		printk_safe_exit_irqrestore(flags);
-+		/* Note, if waiter is set, logbuf_lock is not held */
-+		return;
-+	}
-+
- 	console_locked = 0;
- 
- 	/* Release the exclusive_console once it is used */
+We'd have to force NONE, and Linus won't like it.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
