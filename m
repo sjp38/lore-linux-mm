@@ -1,51 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BF936B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:04:36 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id 11so2982171wrb.10
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:04:36 -0700 (PDT)
-Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
-        by mx.google.com with ESMTPS id n11si2650144edi.458.2017.11.02.06.04.34
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 175C06B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:09:45 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id o44so3014646wrf.0
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 06:09:45 -0700 (PDT)
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id a27si2185651edb.366.2017.11.02.06.09.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 02 Nov 2017 06:04:34 -0700 (PDT)
-Received: from mail.blacknight.com (unknown [81.17.255.152])
-	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id 3C8B81C1C2D
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:04:34 +0000 (GMT)
-Date: Thu, 2 Nov 2017 13:04:33 +0000
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 02 Nov 2017 06:09:44 -0700 (PDT)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id 86905987F1
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:09:43 +0000 (UTC)
+Date: Thu, 2 Nov 2017 13:09:43 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH 1/3] mm, compaction: extend pageblock_skip_persistent()
- to all compound pages
-Message-ID: <20171102130433.5n3n45gwttgcj3nj@techsingularity.net>
+Subject: Re: [PATCH 2/3] mm, compaction: split off flag for not updating skip
+ hints
+Message-ID: <20171102130943.7dpbuecrywtloein@techsingularity.net>
 References: <20171102121706.21504-1-vbabka@suse.cz>
+ <20171102121706.21504-2-vbabka@suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20171102121706.21504-1-vbabka@suse.cz>
+In-Reply-To: <20171102121706.21504-2-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Vlastimil Babka <vbabka@suse.cz>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Thu, Nov 02, 2017 at 01:17:04PM +0100, Vlastimil Babka wrote:
-> The pageblock_skip_persistent() function checks for HugeTLB pages of pageblock
-> order. When clearing pageblock skip bits for compaction, the bits are not
-> cleared for such pageblocks, because they cannot contain base pages suitable
-> for migration, nor free pages to use as migration targets.
+On Thu, Nov 02, 2017 at 01:17:05PM +0100, Vlastimil Babka wrote:
+> Pageblock skip hints were added as a heuristic for compaction, which shares
+> core code with CMA. Since CMA reliability would suffer from the heuristics,
+> compact_control flag ignore_skip_hint was added for the CMA use case.
+> Since commit 6815bf3f233e ("mm/compaction: respect ignore_skip_hint in
+> update_pageblock_skip") the flag also means that CMA won't *update* the skip
+> hints in addition to ignoring them.
 > 
-> This optimization can be simply extended to all compound pages of order equal
-> or larger than pageblock order, because migrating such pages (if they support
-> it) cannot help sub-pageblock fragmentation. This includes THP's and also
-> gigantic HugeTLB pages, which the current implementation doesn't persistently
-> skip due to a strict pageblock_order equality check and not recognizing tail
-> pages.
-> 
-> While THP pages are generally less "persistent" than HugeTLB, we can still
-> expect that if a THP exists at the point of __reset_isolation_suitable(), it
-> will exist also during the subsequent compaction run. The time difference here
-> could be actually smaller than between a compaction run that sets a
-> (non-persistent) skip bit on a THP, and the next compaction run that observes
-> it.
+> Today, direct compaction can also ignore the skip hints in the last resort
+> attempt, but there's no reason not to set them when isolation fails in such
+> case. Thus, this patch splits off a new no_set_skip_hint flag to avoid the
+> updating, which only CMA sets. This should improve the heuristics a bit, and
+> allow us to simplify the persistent skip bit handling as the next step.
 > 
 > Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 
