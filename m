@@ -1,129 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A4796B0253
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:36:32 -0400 (EDT)
-Received: by mail-wr0-f199.google.com with SMTP id u97so2712443wrc.3
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:36:32 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d8sor1918138edk.17.2017.11.02.02.36.30
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3216B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 05:42:10 -0400 (EDT)
+Received: by mail-pf0-f198.google.com with SMTP id b6so4743749pff.18
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:42:10 -0700 (PDT)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f7si2923456pgq.406.2017.11.02.02.42.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 02 Nov 2017 02:36:30 -0700 (PDT)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] mm: drop hotplug lock from lru_add_drain_all
-Date: Thu,  2 Nov 2017 10:36:13 +0100
-Message-Id: <20171102093613.3616-3-mhocko@kernel.org>
-In-Reply-To: <20171102093613.3616-1-mhocko@kernel.org>
-References: <20171102093613.3616-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 02:42:09 -0700 (PDT)
+Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0FEE821949
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 09:42:09 +0000 (UTC)
+Received: by mail-io0-f173.google.com with SMTP id h70so12523780ioi.4
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 02:42:09 -0700 (PDT)
+MIME-Version: 1.0
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 2 Nov 2017 02:41:47 -0700
+Message-ID: <CALCETrXLJfmTg1MsQHKCL=WL-he_5wrOqeX2OatQCCqVE003VQ@mail.gmail.com>
+Subject: KAISER memory layout (Re: [PATCH 06/23] x86, kaiser: introduce
+ user-mapped percpu areas)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>, Borislav Petkov <bp@alien8.de>, Josh Poimboeuf <jpoimboe@redhat.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On Tue, Oct 31, 2017 at 3:31 PM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> These patches are based on work from a team at Graz University of
+> Technology posted here: https://github.com/IAIK/KAISER
+>
 
-Pulling cpu hotplug locks inside the mm core function like
-lru_add_drain_all just asks for problems and the recent lockdep splat
-[1] just proves this. While the usage in that particular case might
-be wrong we should prevent from locking as lru_add_drain_all is used
-at many places. It seems that this is not all that hard to achieve
-actually.
+I think we're far enough along here that it may be time to nail down
+the memory layout for real.  I propose the following:
 
-We have done the same thing for drain_all_pages which is analogous by
-a459eeb7b852 ("mm, page_alloc: do not depend on cpu hotplug locks inside
-the allocator"). All we have to care about is to handle
-      - the work item might be executed on a different cpu in worker from
-        unbound pool so it doesn't run on pinned on the cpu
+The user tables will contain the following:
 
-      - we have to make sure that we do not race with page_alloc_cpu_dead
-        calling lru_add_drain_cpu
+ - The GDT array.
+ - The IDT.
+ - The vsyscall page.  We can make this be _PAGE_USER.
+ - The TSS.
+ - The per-cpu entry stack.  Let's make it one page with guard pages
+on either side.  This can replace rsp_scratch.
+ - cpu_current_top_of_stack.  This could be in the same page as the TSS.
+ - The entry text.
+ - The percpu IST (aka "EXCEPTION") stacks.
 
-the first part is already handled because the worker calls lru_add_drain
-which disables preemption when calling lru_add_drain_cpu on the local
-cpu it is draining. The later is achieved by disabling IRQs around
-lru_add_drain_cpu in the hotplug callback.
+That's it.
 
-[1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
+We can either try to move all of the above into the fixmap or we can
+have the user tables be sparse a la Dave's current approach.  If we do
+it the latter way, I think we'll want to add a mechanism to have holes
+in the percpu space to give the entry stack a guard page.
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/swap.h | 1 -
- mm/memory_hotplug.c  | 2 +-
- mm/page_alloc.c      | 4 ++++
- mm/swap.c            | 9 +--------
- 4 files changed, 6 insertions(+), 10 deletions(-)
+I would *much* prefer moving everything into the fixmap, but that's a
+wee bit awkward because we can't address per-cpu data in the fixmap
+using %gs, which makes the SYSCALL code awkward.  But we could alias
+the SYSCALL entry text itself per-cpu into the fixmap, which lets us
+use %rip-relative addressing, which is quite nice.
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 84255b3da7c1..cfc200673e13 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -331,7 +331,6 @@ extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
- extern void lru_add_drain_all(void);
--extern void lru_add_drain_all_cpuslocked(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
- extern void mark_page_lazyfree(struct page *page);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 832a042134f8..c9f6b418be79 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1641,7 +1641,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		goto failed_removal;
- 
- 	cond_resched();
--	lru_add_drain_all_cpuslocked();
-+	lru_add_drain_all();
- 	drain_all_pages(zone);
- 
- 	pfn = scan_movable_pages(start_pfn, end_pfn);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 67330a438525..8c6e9c6d194c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -6830,8 +6830,12 @@ void __init free_area_init(unsigned long *zones_size)
- 
- static int page_alloc_cpu_dead(unsigned int cpu)
- {
-+	unsigned long flags;
- 
-+	local_irq_save(flags);
- 	lru_add_drain_cpu(cpu);
-+	local_irq_restore(flags);
-+
- 	drain_pages(cpu);
- 
- 	/*
-diff --git a/mm/swap.c b/mm/swap.c
-index 381e0fe9efbf..6c4e77517bd2 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -688,7 +688,7 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
--void lru_add_drain_all_cpuslocked(void)
-+void lru_add_drain_all_cpus(void)
- {
- 	static DEFINE_MUTEX(lock);
- 	static struct cpumask has_work;
-@@ -724,13 +724,6 @@ void lru_add_drain_all_cpuslocked(void)
- 	mutex_unlock(&lock);
- }
- 
--void lru_add_drain_all(void)
--{
--	get_online_cpus();
--	lru_add_drain_all_cpuslocked();
--	put_online_cpus();
--}
--
- /**
-  * release_pages - batched put_page()
-  * @pages: array of pages to release
--- 
-2.14.2
+So I guess my preference is to actually try the fixmap approach.  We
+give the TSS the same aliasing treatment we gave the GDT, and I can
+try to make the entry trampoline work through the fixmap and thus not
+need %gs-based addressing until CR3 gets updated.  (This actually
+saves several cycles of latency.)
+
+What do you all think?
+
+I'll deal with the LDT separately.  It will either live in the
+fixmap-like region or it will live at the top of the user address
+space.
+
+[1] https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=x86/entry_consolidation
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
