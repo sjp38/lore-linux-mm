@@ -1,197 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB996B0033
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:21:21 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 15so196057pgc.21
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:21:21 -0700 (PDT)
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-ve1eur01on0085.outbound.protection.outlook.com. [104.47.1.85])
-        by mx.google.com with ESMTPS id t61si2667786plb.707.2017.11.02.10.21.19
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E302C6B0033
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 13:25:27 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id w134so176710qkb.13
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 10:25:27 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id y7si3615682qky.415.2017.11.02.10.25.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 02 Nov 2017 10:21:19 -0700 (PDT)
-Subject: Re: Page allocator bottleneck
-References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
- <20170915102320.zqceocmvvkyybekj@techsingularity.net>
- <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
-From: Tariq Toukan <tariqt@mellanox.com>
-Message-ID: <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
-Date: Thu, 2 Nov 2017 19:21:09 +0200
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 10:25:25 -0700 (PDT)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA2HObZb049471
+	for <linux-mm@kvack.org>; Thu, 2 Nov 2017 13:25:24 -0400
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2e07q8041p-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 02 Nov 2017 13:25:23 -0400
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ldufour@linux.vnet.ibm.com>;
+	Thu, 2 Nov 2017 17:25:21 -0000
+Subject: Re: [PATCH v5 07/22] mm: Protect VMA modifications using VMA sequence
+ count
+From: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+References: <1507729966-10660-1-git-send-email-ldufour@linux.vnet.ibm.com>
+ <1507729966-10660-8-git-send-email-ldufour@linux.vnet.ibm.com>
+ <20171026101833.GF563@redhat.com>
+ <2cbea37c-c2a7-bfd4-4528-fd273b210e29@linux.vnet.ibm.com>
+Date: Thu, 2 Nov 2017 18:25:11 +0100
 MIME-Version: 1.0
-In-Reply-To: <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
-Content-Type: text/plain; charset=iso-8859-15; format=flowed
+In-Reply-To: <2cbea37c-c2a7-bfd4-4528-fd273b210e29@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Message-Id: <ae35f020-3898-3f86-6d22-53b399d591be@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tariq Toukan <tariqt@mellanox.com>, Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
 
 
-On 18/09/2017 12:16 PM, Tariq Toukan wrote:
+On 02/11/2017 16:16, Laurent Dufour wrote:
+> Hi Andrea,
 > 
+> Thanks for reviewing this series, and sorry for the late answer, I took few
+> days off...
 > 
-> On 15/09/2017 1:23 PM, Mel Gorman wrote:
->> On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
->>> Insights: Major degradation between #1 and #2, not getting any
->>> close to linerate! Degradation is fixed between #2 and #3. This is
->>> because page allocator cannot stand the higher allocation rate. In
->>> #2, we also see that the addition of rings (cores) reduces BW (!!),
->>> as result of increasing congestion over shared resources.
->>>
+> On 26/10/2017 12:18, Andrea Arcangeli wrote:
+>> Hello Laurent,
 >>
->> Unfortunately, no surprises there.
+>> Message-ID: <7ca80231-fe02-a3a7-84bc-ce81690ea051@intel.com> shows
+>> significant slowdown even for brk/malloc ops both single and
+>> multi threaded.
 >>
->>> Congestion in this case is very clear. When monitored in perf top: 
->>> 85.58% [kernel] [k] queued_spin_lock_slowpath
->>>
+>> The single threaded case I think is the most important because it has
+>> zero chance of getting back any benefit later during page faults.
 >>
->> While it's not proven, the most likely candidate is the zone lock
->> and that should be confirmed using a call-graph profile. If so, then
->> the suggestion to tune to the size of the per-cpu allocator would
->> mitigate the problem.
+>> Could you check if:
 >>
-> Indeed, I tuned the per-cpu allocator and bottleneck is released.
+>> 1. it's possible change vm_write_begin to be a noop if mm->mm_count is
+>>    <= 1? Hint: clone() will run single threaded so there's no way it can run
+>>    in the middle of a being/end critical section (clone could set an
+>>    MMF flag to possibly keep the sequence counter activated if a child
+>>    thread exits and mm_count drops to 1 while the other cpu is in the
+>>    middle of a critical section in the other thread).
 > 
-
-Hi all,
-
-After leaving this task for a while doing other tasks, I got back to it 
-now and see that the good behavior I observed earlier was not stable.
-
-Recall: I work with a modified driver that allocates a page (4K) per 
-packet (MTU=1500), in order to simulate the stress on page-allocator in 
-200Gbps NICs.
-
-Performance is good as long as pages are available in the allocating 
-cores's PCP.
-Issue is that pages are allocated in one core, then free'd in another, 
-making it's hard for the PCP to work efficiently, and both the allocator 
-core and the freeing core need to access the buddy allocator very often.
-
-I'd like to share with you some testing numbers:
-
-Test: ./super_netperf 128 -H 24.134.0.51 -l 1000
-
-100% cpu on all cores, top func in perf:
-    84.98%  [kernel]             [k] queued_spin_lock_slowpath
-
-system wide (all cores)
-            1135941      kmem:mm_page_alloc 
-
-            2606629      kmem:mm_page_free 
-
-                  0      kmem:mm_page_alloc_extfrag
-            4784616      kmem:mm_page_alloc_zone_locked 
-
-               1337      kmem:mm_page_free_batched 
-
-            6488213      kmem:mm_page_pcpu_drain 
-
-            8925503      net:napi_gro_receive_entry 
-
-
-Two types of cores:
-A core mostly running napi (8 such cores):
-             221875      kmem:mm_page_alloc 
-
-              17100      kmem:mm_page_free 
-
-                  0      kmem:mm_page_alloc_extfrag
-             766584      kmem:mm_page_alloc_zone_locked 
-
-                 16      kmem:mm_page_free_batched 
-
-                 35      kmem:mm_page_pcpu_drain 
-
-            1340139      net:napi_gro_receive_entry 
-
-
-Other core, mostly running user application (40 such):
-                  2      kmem:mm_page_alloc 
-
-              38922      kmem:mm_page_free 
-
-                  0      kmem:mm_page_alloc_extfrag
-                  1      kmem:mm_page_alloc_zone_locked 
-
-                  8      kmem:mm_page_free_batched 
-
-             107289      kmem:mm_page_pcpu_drain 
-
-                 34      net:napi_gro_receive_entry 
-
-
-As you can see, sync overhead is enormous.
-
-PCP-wise, a key improvement in such scenarios would be reached if we 
-could (1) keep and handle the allocated page on same cpu, or (2) somehow 
-get the page back to the allocating core's PCP in a fast-path, without 
-going through the regular buddy allocator paths.
-
-Regards,
-Tariq
-
->>> I think that page allocator issues should be discussed separately: 1) 
->>> Rate: Increase the allocation rate on a single core. 2)
->>> Scalability: Reduce congestion and sync overhead between cores.
->>>
->>> This is clearly the current bottleneck in the network stack receive
->>> flow.
->>>
->>> I know about some efforts that were made in the past two years. For
->>> example the ones from Jesper et al.: - Page-pool (not accepted
->>> AFAIK).
+> This sounds to be a good idea, I'll dig on that.
+> The major risk here is to have a thread calling vm_*_begin() with
+> mm->mm_count > 1 and later calling vm_*_end() with mm->mm_count <= 1, but
+> as you mentioned we should find a way to work around this.
+> 
 >>
->> Indeed not and it would also need driver conversion.
->>
->>> - Page-allocation bulking.
->>
->> Prototypes exist but it's pointless without the pool or driver 
->> conversion so it's in the back burner for the moment.
+>> 2. Same thing with RCU freeing of vmas. Wouldn't it be nicer if RCU
+>>    freeing happened only once a MMF flag is set? That will at least
+>>    reduce the risk of temporary memory waste until the next RCU grace
+>>    period. The read of the MMF will scale fine. Of course to allow
+>>    point 1 and 2 then the page fault should also take the mmap_sem
+>>    until the MMF flag is set.
 >>
 > 
-> As I already mentioned in another reply (to Jesper), this would
-> perfectly fit with our Striding RQ feature, as we have large descriptors
-> that serve several packets, requiring the allocation of several pages at
-> once. I'd gladly move to using the bulking API.
+> I think we could also deal with the mm->mm_count value here, if there is
+> only one thread, no need to postpone the VMA's free operation. Isn't it ?
+> Also, if mm->mm_count <= 1, there is no need to try the speculative path.
 > 
->>> - Optimize order-0 allocations in Per-Cpu-Pages.
->>>
+>> Could you also investigate a much bigger change: I wonder if it's
+>> possible to drop the sequence number entirely from the vma and stop
+>> using sequence numbers entirely (which is likely the source of the
+>> single threaded regression in point 1 that may explain the report in
+>> the above message-id), and just call the vma rbtree lookup once again
+>> and check that everything is still the same in the vma and the PT lock
+>> obtained is still a match to finish the anon page fault and fill the
+>> pte?
+> 
+> That's an interesting idea. The big deal here would be to detect that the
+> VMA has been touched in our back, but there are not so much VMA's fields
+> involved in the speculative path so that sounds reasonable. The other point
+> is to identify the impact of the vma rbtree lookup, it's also a known
+> order, but there is the vma_srcu's lock involved.
+
+I think there is some memory barrier missing when the VMA is modified so
+currently the modifications done in the VMA structure may not be written
+down at the time the pte is locked. So doing that change will also requires
+to call smp_wmb() before locking the page tables. In the current patch this
+is ensured by the call to write_seqcount_end().
+Doing so will still require to have a memory barrier when touching the VMA.
+Not sure we get far better performance compared to the sequence count
+change. But I'll give it a try anyway ;)
+
 >>
->> This had a prototype that was reverted as it must be able to cope
->> with both irq and noirq contexts.
-> Yeah, I remember that I tested and reported the issue.
+>> Then of course we also need to add a method to the read-write
+>> semaphore so it tells us if there's already one user holding the read
+>> mmap_sem and we're the second one.  If we're the second one (or more
+>> than second) only then we should skip taking the down_read mmap_sem.
+>> Even a multithreaded app won't ever skip taking the mmap_sem until
+>> there's sign of runtime contention, and it won't have to run the way
+>> more expensive sequence number-less revalidation during page faults,
+>> unless we get an immediate scalability payoff because we already know
+>> the mmap_sem is already contended and there are multiple nested
+>> threads in the page fault handler of the same mm.
 > 
-> Unfortunately I never found the time to
->> revisit it but a split there to handle both would mitigate the
->> problem. Probably not enough to actually reach line speed though so
->> tuning of the per-cpu allocator sizes would still be needed. I don't
->> know when I'll get the chance to revisit it. I'm travelling all next
->> week and am mostly occupied with other work at the moment that is
->> consuming all my concentration.
+> The problem is that we may have a thread entering the page fault path,
+> seeing that the mmap_sem is free, grab it and continue processing the page
+> fault. Then another thread is entering mprotect or any other mm service
+> which grab the mmap_sem and it will be blocked until the page fault is
+> done. The idea with the speculative page fault is also to not block the
+> other thread which may need to grab the mmap_sem.
+> 
 >>
->>> I am not an mm expert, but wanted to raise the issue again, to
->>> combine the efforts and hear from you guys about status and
->>> possible directions.
+>> Perhaps we'd need something more advanced than a
+>> down_read_trylock_if_not_hold() (which has to guaranteed not to write
+>> to any cacheline) and we'll have to count the per-thread exponential
+>> backoff of mmap_sem frequency, but starting with
+>> down_read_trylock_if_not_hold() would be good I think.
 >>
->> The recent effort to reduce overhead from stats will help mitigate
->> the problem.
-> I should get more familiar with these stats, check how costly they are, 
-> and whether they can be turned off in Kconfig.
-> 
->> Finishing the page pool, the bulk allocator and converting drivers 
->> would be the most likely successful path forward but it's currently
->> stalled as everyone that was previously involved is too busy.
+>> This is not how the current patch works, the current patch uses a
+>> sequence number because it pretends to go lockless always and in turn
+>> has to slow down all vma updates fast paths or the revalidation
+>> slowsdown performance for page fault too much (as it always
+>> revalidates).
 >>
-> I think we should consider changing the default allocation of PCP 
-> fraction as well, or implement some smart dynamic heuristic.
-> This turned on to have significant effect over networking performance.
+>> I think it would be much better to go speculative only when there's
+>> "detected" runtime contention on the mmap_sem with
+>> down_read_trylock_if_not_hold() and that will make the revalidation
+>> cost not an issue to worry about because normally we won't have to
+>> revalidate the vma at all during page fault. In turn by making the
+>> revalidation more expensive by starting a vma rbtree lookup from
+>> scratch, we can drop the sequence number entirely and that should
+>> simplify the patch tremendously because all vm_write_begin/end would
+>> disappear from the patch and in turn the mmap/brk slowdown measured by
+>> the message-id above, should disappear as well.
 > 
-> Many thanks Mel!
+> As I mentioned above, I'm not sure about checking the lock contention when
+> entering the page fault path, checking for the mm->mm_count or a dedicated
+> mm flags should be enough, but removing the sequence lock would be a very
+> good simplification. I'll dig further here, and come back soon.
 > 
-> Regards,
-> Tariq
+> Thanks a lot,
+> Laurent.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
