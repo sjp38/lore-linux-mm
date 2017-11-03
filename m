@@ -1,193 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 85C946B0038
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 07:27:18 -0400 (EDT)
-Received: by mail-wm0-f72.google.com with SMTP id 5so174570wmk.1
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 04:27:18 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w51sor3351847edd.54.2017.11.03.04.27.17
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1CB6B0069
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 07:54:14 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id m81so5456248ioi.15
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 04:54:14 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0030.hostedemail.com. [216.40.44.30])
+        by mx.google.com with ESMTPS id c81si2200588itc.103.2017.11.03.04.54.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 03 Nov 2017 04:27:17 -0700 (PDT)
-Date: Fri, 3 Nov 2017 12:27:14 +0100
-From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
-Subject: Re: [PATCH v2 1/1] virtio_balloon: include buffers and cached
- memory statistics
-Message-ID: <20171103122714.1e2da10d@fiorina>
-In-Reply-To: <20171031180315-mutt-send-email-mst@kernel.org>
-References: <cover.1505998455.git.tgolembi@redhat.com>
-	<b13f11c03ed394bd8ad367dc90996ed134ea98da.1505998455.git.tgolembi@redhat.com>
-	<20171019160405-mutt-send-email-mst@kernel.org>
-	<20171022200557.02558e37@fiorina>
-	<20171031132019.76197945@fiorina>
-	<20171031180315-mutt-send-email-mst@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Nov 2017 04:54:09 -0700 (PDT)
+Date: Fri, 3 Nov 2017 07:54:04 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171103075404.14f9058a@vmware.local.home>
+In-Reply-To: <20171103072121.3c2fd5ab@vmware.local.home>
+References: <20171102134515.6eef16de@gandalf.local.home>
+	<82a3df5e-c8ad-dc41-8739-247e5034de29@suse.cz>
+	<9f3bbbab-ef58-a2a6-d4c5-89e62ade34f8@nvidia.com>
+	<20171103072121.3c2fd5ab@vmware.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Sivak <msivak@redhat.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, linux-mm@kvack.org, virtualization@lists.linux-foundation.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtio-dev@lists.oasis-open.org, Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Huang Ying <ying.huang@intel.com>, Jason Wang <jasowang@redhat.com>, Gal Hammer <ghammer@redhat.com>, Amnon Ilan <ailan@redhat.com>, riel@redhat.com
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-On Tue, 31 Oct 2017 18:15:48 +0200
-"Michael S. Tsirkin" <mst@redhat.com> wrote:
+On Fri, 3 Nov 2017 07:21:21 -0400
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-> On Tue, Oct 31, 2017 at 01:20:19PM +0100, Tom=C3=A1=C5=A1 Golembiovsk=C3=
-=BD wrote:
-> > ping
-> >=20
-> > +Gil, +Amnon... could you maybe aid in reviewing the patch, please?
-> >=20
-> >=20
-> >     Tomas
-> >=20
-> > On Sun, 22 Oct 2017 20:05:57 +0200
-> > Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
-> >=20
-> > > On Thu, 19 Oct 2017 16:12:20 +0300
-> > > "Michael S. Tsirkin" <mst@redhat.com> wrote:
-> > >=20
-> > > > On Thu, Sep 21, 2017 at 02:55:41PM +0200, Tom=C3=A1=C5=A1 Golembiov=
-sk=C3=BD wrote: =20
-> > > > > Add a new fields, VIRTIO_BALLOON_S_BUFFERS and VIRTIO_BALLOON_S_C=
-ACHED,
-> > > > > to virtio_balloon memory statistics protocol. The values correspo=
-nd to
-> > > > > 'Buffers' and 'Cached' in /proc/meminfo.
-> > > > >=20
-> > > > > To be able to compute the value of 'Cached' memory it is necessar=
-y to
-> > > > > export total_swapcache_pages() to modules.
-> > > > >=20
-> > > > > Signed-off-by: Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat=
-.com> =20
-> > > >=20
-> > > > Does 'Buffers' actually make sense? It's a temporary storage -
-> > > > wouldn't it be significantly out of date by the time
-> > > > host receives it? =20
-> > >=20
-> > > That would be best answered by somebody from kernel. But my personal
-> > > opinion is that it would not be out of date. The amount of memory
-> > > dedicated to Buffers does not seem to fluctuate too much.
-> > >=20
-> > >     Tomas
-> > >=20
->=20
-> I would be inclined to say, just report
-> global_node_page_state(NR_FILE_PAGES).
-> Maybe subtract buffer ram.
->=20
-> It's not clear host cares about the distinction,
-> it's all memory that can shrink in response to
-> memory pressure such as inflating the balloon.
+> On Thu, 2 Nov 2017 21:09:32 -0700
+> John Hubbard <jhubbard@nvidia.com> wrote:
+>
 
-So in procfs terms we'd be sending sum Cached+SwapCahced.
-Martin, would that be good enough?
+ > 
+> > For example, if there are 3 or more threads, you can do the following:
+> > 
+> > thread A: holds the console lock, is printing, then moves into the console_unlock
+> >           phase
+> > 
+> > thread B: goes into the waiter spin loop above, and (once the polarity is corrected)
+> >           waits for console_waiter to become 0
+> > 
+> > thread A: finishing up, sets console_waiter --> 0
+> > 
+> > thread C: before thread B notices, thread C goes into the "else" section, sees that
+> >           console_waiter == 0, and sets console_waiter --> 1. So thread C now
+> >           becomes the waiter  
+> 
+> But console_waiter only gets set to 1 if console_waiter is 0 *and*
+> console_owner is not NULL and is not current. console_owner is only
+> updated under a spin lock and console_waiter is only set under a spin
+> lock when console_owner is not NULL.
+> 
+> This means this scenario can not happen.
+> 
+> 
+> > 
+> > thread B: gets *very* unlucky and never sees the 1 --> 0 --> 1 transition of
+> >           console_waiter, so it continues waiting.  And now we have both B
+> >           and C in the same spin loop, and this is now broken.
+> > 
+> > At the root, this is really due to the absence of a pre-existing "hand-off this lock"
+> > mechanism. And this one here is not quite correct.
+> > 
+> > Solution ideas: for a true hand-off, there needs to be a bit more information
+> > exchanged. Conceptually, a (lock-protected) list of waiters (which would 
+> > only ever have zero or one entries) is a good way to start thinking about it.  
+> 
+> As stated above, the console owner check will prevent this issue.
+> 
 
-I wonder whether it would still make sense to send Buffers as a separate
-value though. Maybe we should forget about having some granularity here
-and just report all the disk caches as one value.
+I'll condense the patch to show what I mean:
 
-    Tomas
+To become a waiter, a task must do the following:
 
->=20
-> This statistic is portable as well I think, most guests have
-> storage cache.
->=20
->=20
-> > > > > ---
-> > > > >  drivers/virtio/virtio_balloon.c     | 11 +++++++++++
-> > > > >  include/uapi/linux/virtio_balloon.h |  4 +++-
-> > > > >  mm/swap_state.c                     |  1 +
-> > > > >  3 files changed, 15 insertions(+), 1 deletion(-)
-> > > > >=20
-> > > > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/vir=
-tio_balloon.c
-> > > > > index f0b3a0b9d42f..c2558ec47a62 100644
-> > > > > --- a/drivers/virtio/virtio_balloon.c
-> > > > > +++ b/drivers/virtio/virtio_balloon.c
-> > > > > @@ -244,12 +244,19 @@ static unsigned int update_balloon_stats(st=
-ruct virtio_balloon *vb)
-> > > > >  	struct sysinfo i;
-> > > > >  	unsigned int idx =3D 0;
-> > > > >  	long available;
-> > > > > +	long cached;
-> > > > > =20
-> > > > >  	all_vm_events(events);
-> > > > >  	si_meminfo(&i);
-> > > > > =20
-> > > > >  	available =3D si_mem_available();
-> > > > > =20
-> > > > > +	cached =3D global_node_page_state(NR_FILE_PAGES) -
-> > > > > +			total_swapcache_pages() - i.bufferram;
-> > > > > +	if (cached < 0)
-> > > > > +		cached =3D 0;
-> > > > > +
-> > > > > +
-> > > > >  #ifdef CONFIG_VM_EVENT_COUNTERS
-> > > > >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
-> > > > >  				pages_to_bytes(events[PSWPIN]));
-> > > > > @@ -264,6 +271,10 @@ static unsigned int update_balloon_stats(str=
-uct virtio_balloon *vb)
-> > > > >  				pages_to_bytes(i.totalram));
-> > > > >  	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
-> > > > >  				pages_to_bytes(available));
-> > > > > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_BUFFERS,
-> > > > > +				pages_to_bytes(i.bufferram));
-> > > > > +	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHED,
-> > > > > +				pages_to_bytes(cached));
-> > > > > =20
-> > > > >  	return idx;
-> > > > >  }
-> > > > > diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/l=
-inux/virtio_balloon.h
-> > > > > index 343d7ddefe04..d5dc8a56a497 100644
-> > > > > --- a/include/uapi/linux/virtio_balloon.h
-> > > > > +++ b/include/uapi/linux/virtio_balloon.h
-> > > > > @@ -52,7 +52,9 @@ struct virtio_balloon_config {
-> > > > >  #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free me=
-mory */
-> > > > >  #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory =
-*/
-> > > > >  #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in =
-/proc */
-> > > > > -#define VIRTIO_BALLOON_S_NR       7
-> > > > > +#define VIRTIO_BALLOON_S_BUFFERS  7   /* Buffers memory as in /p=
-roc */
-> > > > > +#define VIRTIO_BALLOON_S_CACHED   8   /* Cached memory as in /pr=
-oc */
-> > > > > +#define VIRTIO_BALLOON_S_NR       9
-> > > > > =20
-> > > > >  /*
-> > > > >   * Memory statistics structure.
-> > > > > diff --git a/mm/swap_state.c b/mm/swap_state.c
-> > > > > index 71ce2d1ccbf7..f3a4ff7d6c52 100644
-> > > > > --- a/mm/swap_state.c
-> > > > > +++ b/mm/swap_state.c
-> > > > > @@ -95,6 +95,7 @@ unsigned long total_swapcache_pages(void)
-> > > > >  	rcu_read_unlock();
-> > > > >  	return ret;
-> > > > >  }
-> > > > > +EXPORT_SYMBOL_GPL(total_swapcache_pages);
-> > > > > =20
-> > > > >  static atomic_t swapin_readahead_hits =3D ATOMIC_INIT(4); =20
-> > > >=20
-> > > > Need an ack from MM crowd on that.
-> > > >  =20
-> > > > > --=20
-> > > > > 2.14.1 =20
-> > >=20
-> > >=20
-> > > --=20
-> > > Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
-> >=20
-> >=20
-> > --=20
-> > Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
++			printk_safe_enter_irqsave(flags);
++
++			raw_spin_lock(&console_owner_lock);
++			owner = READ_ONCE(console_owner);
++			waiter = READ_ONCE(console_waiter);
++			if (!waiter && owner && owner != current) {
++				WRITE_ONCE(console_waiter, true);
++				spin = true;
++			}
++			raw_spin_unlock(&console_owner_lock);
 
 
---=20
-Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
+The new waiter gets set only if there isn't already a waiter *and*
+there is an owner that is not current (and with the printk_safe_enter I
+don't think that is even needed).
+
++				while (!READ_ONCE(console_waiter))
++					cpu_relax();
+
+The spin is outside the spin lock. But only the owner can clear it.
+
+Now the owner is doing a loop of this (with interrupts disabled)
+
++		raw_spin_lock(&console_owner_lock);
++		console_owner = current;
++		raw_spin_unlock(&console_owner_lock);
+
+Write to consoles.
+
++		raw_spin_lock(&console_owner_lock);
++		waiter = READ_ONCE(console_waiter);
++		console_owner = NULL;
++		raw_spin_unlock(&console_owner_lock);
+
++		if (waiter)
++			break;
+
+At this moment console_owner is NULL, and no new waiters can happen.
+The next owner will be the waiter that is spinning.
+
++	if (waiter) {
++		WRITE_ONCE(console_waiter, false);
+
+There is no possibility of another task sneaking in and becoming a
+waiter at this moment. The console_owner was cleared under spin lock,
+and a waiter is only set under the same spin lock if owner is set.
+There will be no new owner sneaking in because to become the owner, you
+must have the console lock. Since it is never released between the time
+the owner clears console_waiter and the waiter takes the console lock,
+there is no race.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
