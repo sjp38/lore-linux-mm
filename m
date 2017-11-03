@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CB776B0038
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 07:00:25 -0400 (EDT)
-Received: by mail-io0-f198.google.com with SMTP id f16so7612726ioe.1
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 04:00:25 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i126si2215703ith.160.2017.11.03.04.00.23
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B186B0038
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 07:07:15 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id v88so1361933wrb.22
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 04:07:15 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x12sor3377419edi.45.2017.11.03.04.07.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 04:00:24 -0700 (PDT)
-Subject: Re: [PATCH v17 3/6] mm/balloon_compaction.c: split balloon page allocation and enqueue
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
-	<1509696786-1597-4-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1509696786-1597-4-git-send-email-wei.w.wang@intel.com>
-Message-Id: <201711031959.CCC21876.tQFLHOOFVMJSFO@I-love.SAKURA.ne.jp>
-Date: Fri, 3 Nov 2017 19:59:38 +0900
-Mime-Version: 1.0
+        (Google Transport Security);
+        Fri, 03 Nov 2017 04:07:14 -0700 (PDT)
+Date: Fri, 3 Nov 2017 14:07:11 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+Message-ID: <20171103110711.ifzl4czmam7rluhu@node.shutemov.name>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171101085424.cwvc4nrrdhvjc3su@gmail.com>
+ <d7cb1705-5ef0-5f6e-b1cf-e3f28e998477@linux.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d7cb1705-5ef0-5f6e-b1cf-e3f28e998477@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Ingo Molnar <mingo@kernel.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <a.p.zijlstra@chello.nl>, "H. Peter Anvin" <hpa@zytor.com>, borisBrian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Thomas Garnier <thgarnie@google.com>, Kees Cook <keescook@google.com>
 
-Wei Wang wrote:
-> Here's a detailed analysis of the deadlock by Tetsuo Handa:
+On Wed, Nov 01, 2017 at 03:14:11PM -0700, Dave Hansen wrote:
+> On 11/01/2017 01:54 AM, Ingo Molnar wrote:
+> > Beyond the inevitable cavalcade of (solvable) problems that will pop up during 
+> > review, one major item I'd like to see addressed is runtime configurability: it 
+> > should be possible to switch between a CR3-flushing and a regular syscall and page 
+> > table model on the admin level, without restarting the kernel and apps. Distros 
+> > really, really don't want to double the number of kernel variants they have.
+> > 
+> > The 'Kaiser off' runtime switch doesn't have to be as efficient as 
+> > CONFIG_KAISER=n, at least initialloy, but at minimum it should avoid the most 
+> > expensive page table switching paths in the syscall entry codepaths.
 > 
-> In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-> serialize against fill_balloon(). But in fill_balloon(),
-> alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-> called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
-> implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
-> is specified, this allocation attempt might indirectly depend on somebody
-> else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
-> __GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
-> virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
-> out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
-> mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
-> will cause OOM lockup. Thus, do not wait for vb->balloon_lock mutex if
-> leak_balloon() is called from out_of_memory().
-
-Please drop "Thus, do not wait for vb->balloon_lock mutex if leak_balloon()
-is called from out_of_memory()." part. This is not what this patch will do.
-
+> Due to popular demand, I went and implemented this today.  It's not the
+> prettiest code I ever wrote, but it's pretty small.
 > 
-> Thread1                                Thread2
-> fill_balloon()
->  takes a balloon_lock
->   balloon_page_enqueue()
->    alloc_page(GFP_HIGHUSER_MOVABLE)
->     direct reclaim (__GFP_FS context)  takes a fs lock
->      waits for that fs lock             alloc_page(GFP_NOFS)
->                                          __alloc_pages_may_oom()
->                                           takes the oom_lock
->                                            out_of_memory()
->                                             blocking_notifier_call_chain()
->                                              leak_balloon()
->                                                tries to take that
-> 					       balloon_lock and deadlocks
+> Just in case anyone wants to play with it, I threw a snapshot of it up here:
+> 
+> > https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/log/?h=kaiser-dynamic-414rc6-20171101
+> 
+> I ran some quick tests.  When CONFIG_KAISER=y, but "echo 0 >
+> kaiser-enabled", the tests that I ran were within the noise vs. a
+> vanilla kernel, and that's with *zero* optimization.
+
+It doesn't compile with KASLR enabled :P
+
+Fixup:
+
+diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
+index f1aa43854bed..7be5fdd77a3f 100644
+--- a/arch/x86/boot/compressed/pagetable.c
++++ b/arch/x86/boot/compressed/pagetable.c
+@@ -35,6 +35,10 @@
+ /* Used by pgtable.h asm code to force instruction serialization. */
+ unsigned long __force_order;
+ 
++#ifdef CONFIG_KAISER
++int kaiser_enabled = 1;
++#endif
++
+ /* Used to track our page table allocation area. */
+ struct alloc_pgt_data {
+ 	unsigned char *pgt_buf;
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
