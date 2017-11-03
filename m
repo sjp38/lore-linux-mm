@@ -1,56 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A1FE6B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:26:46 -0400 (EDT)
-Received: by mail-lf0-f71.google.com with SMTP id u5so640600lfg.9
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:26:46 -0700 (PDT)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id x18si2684846ljb.445.2017.11.03.02.26.45
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 909896B025F
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:27:07 -0400 (EDT)
+Received: by mail-pg0-f71.google.com with SMTP id w24so2716714pgm.7
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:27:07 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q61si4391582plb.581.2017.11.03.02.27.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 02:26:45 -0700 (PDT)
-Subject: Re: [RFC] EPOLL_KILLME: New flag to epoll_wait() that subscribes
- process to death row (new syscall)
-References: <20171101053244.5218-1-slandden@gmail.com>
- <1509549397.2561228.1158168688.4CFA4326@webmail.messagingengine.com>
- <1509549749.2563336.1158179384.52E1E4B4@webmail.messagingengine.com>
-From: peter enderborg <peter.enderborg@sonymobile.com>
-Message-ID: <2cc07a12-9cf4-429b-11d3-269c486879e3@sonymobile.com>
-Date: Fri, 3 Nov 2017 10:22:49 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Nov 2017 02:27:06 -0700 (PDT)
+Date: Fri, 3 Nov 2017 10:27:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 1/1] mm: buddy page accessed before initialized
+Message-ID: <20171103092703.63qyafmg7rnpoqab@dhcp22.suse.cz>
+References: <20171102170221.7401-1-pasha.tatashin@oracle.com>
+ <20171102170221.7401-2-pasha.tatashin@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <1509549749.2563336.1158179384.52E1E4B4@webmail.messagingengine.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171102170221.7401-2-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Colin Walters <walters@verbum.org>, Shawn Landden <slandden@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/01/2017 04:22 PM, Colin Walters wrote:
->
-> On Wed, Nov 1, 2017, at 11:16 AM, Colin Walters wrote:
->> as the maintainer of glib2 which is used by a *lot* of things; I'm not
-> (I meant to say "a" maintainer)
->
-> Also, while I'm not an expert in Android, I think the "what to kill" logic
-> there lives in userspace, right?   So it feels like we should expose this
-> state in e.g. /proc and allow userspace daemons (e.g. systemd, kubelet) to perform
-> idle collection too, even if the system isn't actually low on resources
-> from the kernel's perspective.
->
-> And doing that requires some sort of kill(pid, SIGKILL_IF_IDLE) or so?
->
-You are right, in android it is the activity manager that performs this tasks. And if services
-dies without talking to the activity manager the service is restarted, unless it is
-on highest oom score. A other problem is that a lot communication in android is binder not epoll.
+On Thu 02-11-17 13:02:21, Pavel Tatashin wrote:
+> This problem is seen when machine is rebooted after kexec:
+> A message like this is printed:
+> ==========================================================================
+> WARNING: CPU: 21 PID: 249 at linux/lib/list_debug.c:53__listd+0x83/0xa0
+> Modules linked in:
+> CPU: 21 PID: 249 Comm: pgdatinit0 Not tainted 4.14.0-rc6_pt_deferred #90
+> Hardware name: Oracle Corporation ORACLE SERVER X6-2/ASM,MOTHERBOARD,1U,
+> BIOS 3016
+> node 1 initialised, 32444607 pages in 1679ms
+> task: ffff880180e75a00 task.stack: ffffc9000cdb0000
+> RIP: 0010:__list_del_entry_valid+0x83/0xa0
+> RSP: 0000:ffffc9000cdb3d18 EFLAGS: 00010046
+> RAX: 0000000000000054 RBX: 0000000000000009 RCX: ffffffff81c5f3e8
+> RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
+> RBP: ffffc9000cdb3d18 R08: 00000000fffffffe R09: 0000000000000154
+> R10: 0000000000000005 R11: 0000000000000153 R12: 0000000001fcdc00
+> R13: 0000000001fcde00 R14: ffff88207ffded00 R15: ffffea007f370000
+> FS:  0000000000000000(0000) GS:ffff881fffac0000(0000) knlGS:0
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 0000000000000000 CR3: 000000407ec09001 CR4: 00000000003606e0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>  free_one_page+0x103/0x390
+>  __free_pages_ok+0x1cf/0x2d0
+>  __free_pages+0x19/0x30
+>  __free_pages_boot_core+0xae/0xba
+>  deferred_free_range+0x60/0x94
+>  deferred_init_memmap+0x324/0x372
+>  kthread+0x109/0x140
+>  ? __free_pages_bootmem+0x2e/0x2e
+>  ? kthread_park+0x60/0x60
+>  ret_from_fork+0x25/0x30
+> 
+> list_del corruption. next->prev should be ffffea007f428020, but was
+> ffffea007f1d8020
+> ==========================================================================
+> 
+> The problem happens in this path:
+> 
+> page_alloc_init_late
+>   deferred_init_memmap
+>     deferred_init_range
+>       __def_free
+>         deferred_free_range
+>           __free_pages_boot_core(page, order)
+>             __free_pages()
+>               __free_pages_ok()
+>                 free_one_page()
+>                   __free_one_page(page, pfn, zone, order, migratetype);
+> 
+> deferred_init_range() initializes one page at a time by calling
+> __init_single_page(), once it initializes pageblock_nr_pages pages, it
+> calls deferred_free_range() to free the initialized pages to the buddy
+> allocator. Eventually, we reach __free_one_page(), where we compute buddy
+> page:
+> 	buddy_pfn = __find_buddy_pfn(pfn, order);
+> 	buddy = page + (buddy_pfn - pfn);
+> 
+> buddy_pfn is computed as pfn ^ (1 << order), or pfn + pageblock_nr_pages.
+> Thefore, buddy page becomes a page one after the range that currently was
+> initialized, and we access this page in this function. Also, later when we
+> return back to deferred_init_range(), the buddy page is initialized again.
+> 
+> So, in order to avoid this issue, we must initialize the buddy page prior
+> to calling deferred_free_range().
 
-And a signal that can not be caught not that good. But a "warn" signal of the userspace choice in
-something in a context similar to ulimit. SIGXFSZ/SIGXCPU that you can pickup and notify activity manager might work.
+Have you measured any negative performance impact with this change?
 
-However, in android this is already solved with OnTrimMemory that is message sent from activitymanager to
-application, services etc when system need memory back.
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
 
+The patch looks good to me otherwise. So if this doesn't introduce a
+noticeable overhead, which I whope it doesn't then feel free to add
+Acked-by: Michal Hocko <mhocko@suse.com>
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
