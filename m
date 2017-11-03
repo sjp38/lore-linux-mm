@@ -1,70 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 845F06B0038
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 06:11:10 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id f66so2331913oib.1
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 03:11:10 -0700 (PDT)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 32si2837173otr.352.2017.11.03.03.11.09
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1DC726B0253
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 06:19:57 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id b189so75002wmd.9
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 03:19:57 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o6si2438238eda.375.2017.11.03.03.19.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 03:11:09 -0700 (PDT)
-Date: Fri, 3 Nov 2017 11:11:04 +0100
-From: Karel Zak <kzak@redhat.com>
-Subject: Re: [PATCH 0/3] lsmem/chmem: add memory zone awareness
-Message-ID: <20171103101104.kw6xoxust3r7f7v3@ws.net.home>
-References: <20170927174446.20459-1-gerald.schaefer@de.ibm.com>
- <20171018114009.7b4iax6536un5bnr@ws.net.home>
- <20171102175408.18d4eafc@thinkpad>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Nov 2017 03:19:55 -0700 (PDT)
+Date: Fri, 3 Nov 2017 11:19:53 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171103101953.GA5280@quack2.suse.cz>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171102115625.13892e18@gandalf.local.home>
+ <20171102130605.05e987e8@gandalf.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171102175408.18d4eafc@thinkpad>
+In-Reply-To: <20171102130605.05e987e8@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Cc: util-linux@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andre Wild <wild@linux.vnet.ibm.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 
-On Thu, Nov 02, 2017 at 05:54:08PM +0100, Gerald Schaefer wrote:
-> Sorry for the late answer. I'm not sure if I understand the problem, it
-> "works as designed" that the range merging is done based on the output
-> columns, but I see that it was not really described as such. So I do
-> like the note that you added with the above mentioned commit.
-> 
-> However, regarding the --split option, I think it may be confusing at
-> least for human users, if an "lsmem -oRANGE" will now print more than
-> one range, even if this is now based on a "fixed" set of default columns
-> that are used for merging (but "subject to change" according to the man
-> page).
+Hi,
 
-OK, I think we can support both concepts :-) I have modified lsmem to:
+On Thu 02-11-17 13:06:05, Steven Rostedt wrote:
+> +			if (spin) {
+> +				/* We spin waiting for the owner to release us */
+> +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +				/* Owner will clear console_waiter on hand off */
+> +				while (!READ_ONCE(console_waiter))
+> +					cpu_relax();
 
- - follow output columns for split policy by default (= your original implementation)
- - the --split is optional and may be used to override the default behavior
+Hum, what prevents us from rescheduling here? And what if the process
+stored in console_owner is scheduled out? Both seem to be possible with
+CONFIG_PREEMPT kernel? Unless I'm missing something you will need to
+disable preemption in some places...
 
-it means for humans it's probably less concussing and advanced users may
-define by --split another way how to generate the ranges.
+Other than that I like the simplicity of your approach.
 
-I think it's good compromise and it's backwardly compatible with
-the previous version. OK?
+								Honza
 
-If yes, I need to backport this change to RHEL7.5 :-)
-
-> I also do not really see the benefit for script usage, at least if we
-> define it as "expected behavior" to have the ranges merged based on the
-
-We want to keep it user friendly. The "expected behavior" (now
-default) forces you to parse lsmem output to filter out unnecessary 
-columns (if you care about RANGE only). 
-
-And in all our utils the --output option really control the output, but 
-no another behavior.
-
-    Karel
-
+> +
+> +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +				printk_safe_exit_irqrestore(flags);
+> +
+> +				/*
+> +				 * The owner passed the console lock to us.
+> +				 * Since we did not spin on console lock, annotate
+> +				 * this as a trylock. Otherwise lockdep will
+> +				 * complain.
+> +				 */
+> +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
+> +				console_unlock();
+> +				printk_safe_enter_irqsave(flags);
+> +			}
+> +			printk_safe_exit_irqrestore(flags);
+> +
+> +		}
+>  	}
+>  
+>  	return printed_len;
+> @@ -2141,6 +2196,7 @@ void console_unlock(void)
+>  	static u64 seen_seq;
+>  	unsigned long flags;
+>  	bool wake_klogd = false;
+> +	bool waiter = false;
+>  	bool do_cond_resched, retry;
+>  
+>  	if (console_suspended) {
+> @@ -2215,6 +2271,20 @@ skip:
+>  			goto skip;
+>  		}
+>  
+> +		/*
+> +		 * While actively printing out messages, if another printk()
+> +		 * were to occur on another CPU, it may wait for this one to
+> +		 * finish. This task can not be preempted if there is a
+> +		 * waiter waiting to take over.
+> +		 */
+> +
+> +		/* The waiter may spin on us after this */
+> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +
+> +		raw_spin_lock(&console_owner_lock);
+> +		console_owner = current;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+>  		len += msg_print_text(msg, false, text + len, sizeof(text) - len);
+>  		if (nr_ext_console_drivers) {
+>  			ext_len = msg_print_ext_header(ext_text,
+> @@ -2232,11 +2302,48 @@ skip:
+>  		stop_critical_timings();	/* don't trace print latency */
+>  		call_console_drivers(ext_text, ext_len, text, len);
+>  		start_critical_timings();
+> +
+> +		raw_spin_lock(&console_owner_lock);
+> +		waiter = console_waiter;
+> +		console_owner = NULL;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/*
+> +		 * If there is a waiter waiting for us, then pass the
+> +		 * rest of the work load over to that waiter.
+> +		 */
+> +		if (waiter)
+> +			break;
+> +
+> +		/* There was no waiter, and nothing will spin on us here */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +
+>  		printk_safe_exit_irqrestore(flags);
+>  
+>  		if (do_cond_resched)
+>  			cond_resched();
+>  	}
+> +
+> +	/*
+> +	 * If there is an active waiter waiting on the console_lock.
+> +	 * Pass off the printing to the waiter, and the waiter
+> +	 * will continue printing on its CPU, and when all writing
+> +	 * has finished, the last printer will wake up klogd.
+> +	 */
+> +	if (waiter) {
+> +		WRITE_ONCE(console_waiter, false);
+> +		/* The waiter is now free to continue */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +		/*
+> +		 * Hand off console_lock to waiter. The waiter will perform
+> +		 * the up(). After this, the waiter is the console_lock owner.
+> +		 */
+> +		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
+> +		printk_safe_exit_irqrestore(flags);
+> +		/* Note, if waiter is set, logbuf_lock is not held */
+> +		return;
+> +	}
+> +
+>  	console_locked = 0;
+>  
+>  	/* Release the exclusive_console once it is used */
 -- 
- Karel Zak  <kzak@redhat.com>
- http://karelzak.blogspot.com
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
