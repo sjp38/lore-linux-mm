@@ -1,92 +1,300 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9496B0033
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 11:06:44 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id z11so2983850pfk.23
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:06:44 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id v68si6923943pfj.359.2017.11.03.08.06.42
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 869486B0253
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 11:12:28 -0400 (EDT)
+Received: by mail-io0-f197.google.com with SMTP id m16so8978658iod.11
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:12:28 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h203sor3128093iof.196.2017.11.03.08.12.26
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Fri, 03 Nov 2017 08:12:26 -0700 (PDT)
+Received: from mail-io0-f177.google.com (mail-io0-f177.google.com. [209.85.223.177])
+        by smtp.gmail.com with ESMTPSA id 92sm2748113iol.8.2017.11.03.08.12.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 08:06:42 -0700 (PDT)
-Subject: Re: Can someone explain what free_pgd_range(), etc actually do?
-References: <CALCETrW73eB7GFkO6BEkF25wJODr2KCCv0baUykzfBZnWwOrVQ@mail.gmail.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <6afed21b-c017-13f8-40b7-15773fc3ecda@intel.com>
-Date: Fri, 3 Nov 2017 08:06:41 -0700
+        Fri, 03 Nov 2017 08:12:24 -0700 (PDT)
+Received: by mail-io0-f177.google.com with SMTP id e89so6895649ioi.11
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:12:24 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <CALCETrW73eB7GFkO6BEkF25wJODr2KCCv0baUykzfBZnWwOrVQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <d9464b0d7c861021ed8f494e4a40d6cd10f1eddd.1500319216.git.thomas.lendacky@amd.com>
+References: <cover.1500319216.git.thomas.lendacky@amd.com> <d9464b0d7c861021ed8f494e4a40d6cd10f1eddd.1500319216.git.thomas.lendacky@amd.com>
+From: Tomeu Vizoso <tomeu@tomeuvizoso.net>
+Date: Fri, 3 Nov 2017 16:12:03 +0100
+Message-ID: <CAAObsKDNwxevQVjob9zNwBWR+PjL8VVvCuxRwdGmgNgZ0uhEYw@mail.gmail.com>
+Subject: Re: [PATCH v10 20/38] x86, mpparse: Use memremap to map the mpf and
+ mpc data
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>, "Kirill A. Shutemov" <kirill@shutemov.name>, Hugh Dickins <hughd@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Cc: X86 ML <x86@kernel.org>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: x86@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Guenter Roeck <groeck@google.com>, Zach Reizner <zachr@google.com>, Dylan Reid <dgreid@chromium.org>
 
-On 11/03/2017 05:11 AM, Andy Lutomirski wrote:
->  - What is the intended purpose of addr, end, floor, and ceiling?
-> What are the pagetable freeing functions actually *supposed* to do?
+On 17 July 2017 at 23:10, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+> The SMP MP-table is built by UEFI and placed in memory in a decrypted
+> state. These tables are accessed using a mix of early_memremap(),
+> early_memunmap(), phys_to_virt() and virt_to_phys(). Change all accesses
+> to use early_memremap()/early_memunmap(). This allows for proper setting
+> of the encryption mask so that the data can be successfully accessed when
+> SME is active.
+>
+> Reviewed-by: Borislav Petkov <bp@suse.de>
+> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+> ---
+>  arch/x86/kernel/mpparse.c | 98 +++++++++++++++++++++++++++++++++--------------
+>  1 file changed, 70 insertions(+), 28 deletions(-)
 
-I've always logically thought of it as: the VMA (and this addr/end) tell
-us where we _must_ walk and free.  floor/ceiling tell us about
-neighboring areas that are unused.  We do not have to walk the unused
-areas, but we must free them if we clear out their last use.
+Hi there,
 
-Walking is presumably expensive.  We use the VMA information and plumb
-it down through floor/ceiling to make sure that we're not having to look
-at a full page of data at each level every time we free a VMA.
+today I played a bit with crosvm [0] and noticed that 4.14-rc7 doesn't
+boot. git-bisect pointed to this patch, and reverting it indeed gets
+things working again.
 
-I think that might be what's tripping you up: floor/ceiling is just an
-optimization.  It's not logically required for freeing page tables, but
-it does speed things up.
+Anybody has an idea of why this could be?
 
->  - Are there any invariants that, for example, there is never a
-> pagetable that doesn't have any vmas at all under it?  I can
-> understand how all the code would be correct if this invariant were to
-> exist, but I don't see what would preserve it.  But maybe
-> free_pgd_range(), etc really do preserve it.
+Thanks,
 
-I think it's implemented more like: the last VMA using a page table will
-free the page table when the VMA is torn down.  It does this by looking
-at its neighbors (or lack thereof) at unmap_region() time and expanding
-the range covered by floor/ceiling.
+Tomeu
 
->  - What keeps mm->mmap pointing to the lowest-addressed vma?  I see
-> lots of code that seems to assume that you can start at mm->mmap,
-> follow the vm_next links, and find all vmas, but I can't figure out
-> why this would work.
+[0] https://chromium.googlesource.com/chromiumos/platform/crosvm
 
-__vma_(un)link_list() is where the magic normally happens.  It
-effectively uses the rbtree to determine where to put the VMA in the
-list to maintain ordering.
-
->  - What happens if a process exits while mm->mmap is NULL?
-
-You mean how do we free the page tables for it?  We had to do a bunch of
-unmap_regions() before that to axe all the VMAs and the page tables
-_should_ have zapped then.
-
-Now, if someone goes and just sets mm->mmap, we're obviously screwed,
-but we leaked a bunch of VMAs _anyway_, in addition to the page tables.
-
->  - Is there any piece of code that makes it obvious that all the
-> pagetables are gone by the time the exit_mmap() finishes?
-
-mm->nr_ptes and mm->nr_pmds (and soon nr_puds) should tell us if we
-forgot to free one.  I think that's our main defense.
-
-I have some vague recollection that we also looked for zero'd page table
-pages somewhere at free time, but I'm not finding it.
-
-> Because I'm staring to wonder whether some weird combination of maps
-> and unmaps will just leak pagetables, and the code is rather
-> complicated, subtle, and completely lacking in documentation, and I've
-> learned to be quite suspicious of such things.
-There have surely been bugs.  FWIW, there's some code in the MPX
-selftests that tries to map and free a bunch of random addresses to trip
-up the MPX code.  I ran it a *lot* and this code never got tripped up on
-it that I can remember.
+>
+> diff --git a/arch/x86/kernel/mpparse.c b/arch/x86/kernel/mpparse.c
+> index fd37f39..5cbb317 100644
+> --- a/arch/x86/kernel/mpparse.c
+> +++ b/arch/x86/kernel/mpparse.c
+> @@ -429,7 +429,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
+>         }
+>  }
+>
+> -static struct mpf_intel *mpf_found;
+> +static unsigned long mpf_base;
+>
+>  static unsigned long __init get_mpc_size(unsigned long physptr)
+>  {
+> @@ -451,6 +451,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+>
+>         size = get_mpc_size(mpf->physptr);
+>         mpc = early_memremap(mpf->physptr, size);
+> +
+>         /*
+>          * Read the physical hardware table.  Anything here will
+>          * override the defaults.
+> @@ -497,12 +498,12 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
+>   */
+>  void __init default_get_smp_config(unsigned int early)
+>  {
+> -       struct mpf_intel *mpf = mpf_found;
+> +       struct mpf_intel *mpf;
+>
+>         if (!smp_found_config)
+>                 return;
+>
+> -       if (!mpf)
+> +       if (!mpf_base)
+>                 return;
+>
+>         if (acpi_lapic && early)
+> @@ -515,6 +516,12 @@ void __init default_get_smp_config(unsigned int early)
+>         if (acpi_lapic && acpi_ioapic)
+>                 return;
+>
+> +       mpf = early_memremap(mpf_base, sizeof(*mpf));
+> +       if (!mpf) {
+> +               pr_err("MPTABLE: error mapping MP table\n");
+> +               return;
+> +       }
+> +
+>         pr_info("Intel MultiProcessor Specification v1.%d\n",
+>                 mpf->specification);
+>  #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
+> @@ -529,7 +536,7 @@ void __init default_get_smp_config(unsigned int early)
+>         /*
+>          * Now see if we need to read further.
+>          */
+> -       if (mpf->feature1 != 0) {
+> +       if (mpf->feature1) {
+>                 if (early) {
+>                         /*
+>                          * local APIC has default address
+> @@ -542,8 +549,10 @@ void __init default_get_smp_config(unsigned int early)
+>                 construct_default_ISA_mptable(mpf->feature1);
+>
+>         } else if (mpf->physptr) {
+> -               if (check_physptr(mpf, early))
+> +               if (check_physptr(mpf, early)) {
+> +                       early_memunmap(mpf, sizeof(*mpf));
+>                         return;
+> +               }
+>         } else
+>                 BUG();
+>
+> @@ -552,6 +561,8 @@ void __init default_get_smp_config(unsigned int early)
+>         /*
+>          * Only use the first configuration found.
+>          */
+> +
+> +       early_memunmap(mpf, sizeof(*mpf));
+>  }
+>
+>  static void __init smp_reserve_memory(struct mpf_intel *mpf)
+> @@ -561,15 +572,16 @@ static void __init smp_reserve_memory(struct mpf_intel *mpf)
+>
+>  static int __init smp_scan_config(unsigned long base, unsigned long length)
+>  {
+> -       unsigned int *bp = phys_to_virt(base);
+> +       unsigned int *bp;
+>         struct mpf_intel *mpf;
+> -       unsigned long mem;
+> +       int ret = 0;
+>
+>         apic_printk(APIC_VERBOSE, "Scan for SMP in [mem %#010lx-%#010lx]\n",
+>                     base, base + length - 1);
+>         BUILD_BUG_ON(sizeof(*mpf) != 16);
+>
+>         while (length > 0) {
+> +               bp = early_memremap(base, length);
+>                 mpf = (struct mpf_intel *)bp;
+>                 if ((*bp == SMP_MAGIC_IDENT) &&
+>                     (mpf->length == 1) &&
+> @@ -579,24 +591,26 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
+>  #ifdef CONFIG_X86_LOCAL_APIC
+>                         smp_found_config = 1;
+>  #endif
+> -                       mpf_found = mpf;
+> +                       mpf_base = base;
+>
+> -                       pr_info("found SMP MP-table at [mem %#010llx-%#010llx] mapped at [%p]\n",
+> -                               (unsigned long long) virt_to_phys(mpf),
+> -                               (unsigned long long) virt_to_phys(mpf) +
+> -                               sizeof(*mpf) - 1, mpf);
+> +                       pr_info("found SMP MP-table at [mem %#010lx-%#010lx] mapped at [%p]\n",
+> +                               base, base + sizeof(*mpf) - 1, mpf);
+>
+> -                       mem = virt_to_phys(mpf);
+> -                       memblock_reserve(mem, sizeof(*mpf));
+> +                       memblock_reserve(base, sizeof(*mpf));
+>                         if (mpf->physptr)
+>                                 smp_reserve_memory(mpf);
+>
+> -                       return 1;
+> +                       ret = 1;
+>                 }
+> -               bp += 4;
+> +               early_memunmap(bp, length);
+> +
+> +               if (ret)
+> +                       break;
+> +
+> +               base += 16;
+>                 length -= 16;
+>         }
+> -       return 0;
+> +       return ret;
+>  }
+>
+>  void __init default_find_smp_config(void)
+> @@ -838,29 +852,40 @@ static int __init update_mp_table(void)
+>         char oem[10];
+>         struct mpf_intel *mpf;
+>         struct mpc_table *mpc, *mpc_new;
+> +       unsigned long size;
+>
+>         if (!enable_update_mptable)
+>                 return 0;
+>
+> -       mpf = mpf_found;
+> -       if (!mpf)
+> +       if (!mpf_base)
+> +               return 0;
+> +
+> +       mpf = early_memremap(mpf_base, sizeof(*mpf));
+> +       if (!mpf) {
+> +               pr_err("MPTABLE: mpf early_memremap() failed\n");
+>                 return 0;
+> +       }
+>
+>         /*
+>          * Now see if we need to go further.
+>          */
+> -       if (mpf->feature1 != 0)
+> -               return 0;
+> +       if (mpf->feature1)
+> +               goto do_unmap_mpf;
+>
+>         if (!mpf->physptr)
+> -               return 0;
+> +               goto do_unmap_mpf;
+>
+> -       mpc = phys_to_virt(mpf->physptr);
+> +       size = get_mpc_size(mpf->physptr);
+> +       mpc = early_memremap(mpf->physptr, size);
+> +       if (!mpc) {
+> +               pr_err("MPTABLE: mpc early_memremap() failed\n");
+> +               goto do_unmap_mpf;
+> +       }
+>
+>         if (!smp_check_mpc(mpc, oem, str))
+> -               return 0;
+> +               goto do_unmap_mpc;
+>
+> -       pr_info("mpf: %llx\n", (u64)virt_to_phys(mpf));
+> +       pr_info("mpf: %llx\n", (u64)mpf_base);
+>         pr_info("physptr: %x\n", mpf->physptr);
+>
+>         if (mpc_new_phys && mpc->length > mpc_new_length) {
+> @@ -878,21 +903,32 @@ static int __init update_mp_table(void)
+>                 new = mpf_checksum((unsigned char *)mpc, mpc->length);
+>                 if (old == new) {
+>                         pr_info("mpc is readonly, please try alloc_mptable instead\n");
+> -                       return 0;
+> +                       goto do_unmap_mpc;
+>                 }
+>                 pr_info("use in-position replacing\n");
+>         } else {
+> +               mpc_new = early_memremap(mpc_new_phys, mpc_new_length);
+> +               if (!mpc_new) {
+> +                       pr_err("MPTABLE: new mpc early_memremap() failed\n");
+> +                       goto do_unmap_mpc;
+> +               }
+>                 mpf->physptr = mpc_new_phys;
+> -               mpc_new = phys_to_virt(mpc_new_phys);
+>                 memcpy(mpc_new, mpc, mpc->length);
+> +               early_memunmap(mpc, size);
+>                 mpc = mpc_new;
+> +               size = mpc_new_length;
+>                 /* check if we can modify that */
+>                 if (mpc_new_phys - mpf->physptr) {
+>                         struct mpf_intel *mpf_new;
+>                         /* steal 16 bytes from [0, 1k) */
+> +                       mpf_new = early_memremap(0x400 - 16, sizeof(*mpf_new));
+> +                       if (!mpf_new) {
+> +                               pr_err("MPTABLE: new mpf early_memremap() failed\n");
+> +                               goto do_unmap_mpc;
+> +                       }
+>                         pr_info("mpf new: %x\n", 0x400 - 16);
+> -                       mpf_new = phys_to_virt(0x400 - 16);
+>                         memcpy(mpf_new, mpf, 16);
+> +                       early_memunmap(mpf, sizeof(*mpf));
+>                         mpf = mpf_new;
+>                         mpf->physptr = mpc_new_phys;
+>                 }
+> @@ -909,6 +945,12 @@ static int __init update_mp_table(void)
+>          */
+>         replace_intsrc_all(mpc, mpc_new_phys, mpc_new_length);
+>
+> +do_unmap_mpc:
+> +       early_memunmap(mpc, size);
+> +
+> +do_unmap_mpf:
+> +       early_memunmap(mpf, sizeof(*mpf));
+> +
+>         return 0;
+>  }
+>
+> --
+> 1.9.1
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
