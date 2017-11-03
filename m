@@ -1,107 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 909896B025F
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:27:07 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id w24so2716714pgm.7
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:27:07 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q61si4391582plb.581.2017.11.03.02.27.06
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ED2926B0038
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:52:26 -0400 (EDT)
+Received: by mail-io0-f200.google.com with SMTP id k9so7226994iok.4
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:52:26 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u11sor1012308itc.60.2017.11.03.02.52.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 02:27:06 -0700 (PDT)
-Date: Fri, 3 Nov 2017 10:27:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/1] mm: buddy page accessed before initialized
-Message-ID: <20171103092703.63qyafmg7rnpoqab@dhcp22.suse.cz>
-References: <20171102170221.7401-1-pasha.tatashin@oracle.com>
- <20171102170221.7401-2-pasha.tatashin@oracle.com>
+        (Google Transport Security);
+        Fri, 03 Nov 2017 02:52:25 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171102170221.7401-2-pasha.tatashin@oracle.com>
+In-Reply-To: <20171103082417.7rwns74txzzoyzyv@dhcp22.suse.cz>
+References: <20171102093613.3616-1-mhocko@kernel.org> <20171102093613.3616-2-mhocko@kernel.org>
+ <alpine.LSU.2.11.1711030004260.4821@eggly.anvils> <20171103082417.7rwns74txzzoyzyv@dhcp22.suse.cz>
+From: David Herrmann <dh.herrmann@gmail.com>
+Date: Fri, 3 Nov 2017 10:52:24 +0100
+Message-ID: <CANq1E4QZFaj41ZisjotrpcjLHJzQQrGcrGTZ0RJg=odJKnnVJw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] shmem: drop lru_add_drain_all from shmem_wait_for_pins
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hugh Dickins <hughd@google.com>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu 02-11-17 13:02:21, Pavel Tatashin wrote:
-> This problem is seen when machine is rebooted after kexec:
-> A message like this is printed:
-> ==========================================================================
-> WARNING: CPU: 21 PID: 249 at linux/lib/list_debug.c:53__listd+0x83/0xa0
-> Modules linked in:
-> CPU: 21 PID: 249 Comm: pgdatinit0 Not tainted 4.14.0-rc6_pt_deferred #90
-> Hardware name: Oracle Corporation ORACLE SERVER X6-2/ASM,MOTHERBOARD,1U,
-> BIOS 3016
-> node 1 initialised, 32444607 pages in 1679ms
-> task: ffff880180e75a00 task.stack: ffffc9000cdb0000
-> RIP: 0010:__list_del_entry_valid+0x83/0xa0
-> RSP: 0000:ffffc9000cdb3d18 EFLAGS: 00010046
-> RAX: 0000000000000054 RBX: 0000000000000009 RCX: ffffffff81c5f3e8
-> RDX: 0000000000000000 RSI: 0000000000000086 RDI: 0000000000000046
-> RBP: ffffc9000cdb3d18 R08: 00000000fffffffe R09: 0000000000000154
-> R10: 0000000000000005 R11: 0000000000000153 R12: 0000000001fcdc00
-> R13: 0000000001fcde00 R14: ffff88207ffded00 R15: ffffea007f370000
-> FS:  0000000000000000(0000) GS:ffff881fffac0000(0000) knlGS:0
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000000000000 CR3: 000000407ec09001 CR4: 00000000003606e0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->  free_one_page+0x103/0x390
->  __free_pages_ok+0x1cf/0x2d0
->  __free_pages+0x19/0x30
->  __free_pages_boot_core+0xae/0xba
->  deferred_free_range+0x60/0x94
->  deferred_init_memmap+0x324/0x372
->  kthread+0x109/0x140
->  ? __free_pages_bootmem+0x2e/0x2e
->  ? kthread_park+0x60/0x60
->  ret_from_fork+0x25/0x30
-> 
-> list_del corruption. next->prev should be ffffea007f428020, but was
-> ffffea007f1d8020
-> ==========================================================================
-> 
-> The problem happens in this path:
-> 
-> page_alloc_init_late
->   deferred_init_memmap
->     deferred_init_range
->       __def_free
->         deferred_free_range
->           __free_pages_boot_core(page, order)
->             __free_pages()
->               __free_pages_ok()
->                 free_one_page()
->                   __free_one_page(page, pfn, zone, order, migratetype);
-> 
-> deferred_init_range() initializes one page at a time by calling
-> __init_single_page(), once it initializes pageblock_nr_pages pages, it
-> calls deferred_free_range() to free the initialized pages to the buddy
-> allocator. Eventually, we reach __free_one_page(), where we compute buddy
-> page:
-> 	buddy_pfn = __find_buddy_pfn(pfn, order);
-> 	buddy = page + (buddy_pfn - pfn);
-> 
-> buddy_pfn is computed as pfn ^ (1 << order), or pfn + pageblock_nr_pages.
-> Thefore, buddy page becomes a page one after the range that currently was
-> initialized, and we access this page in this function. Also, later when we
-> return back to deferred_init_range(), the buddy page is initialized again.
-> 
-> So, in order to avoid this issue, we must initialize the buddy page prior
-> to calling deferred_free_range().
+Hi
 
-Have you measured any negative performance impact with this change?
+On Fri, Nov 3, 2017 at 9:24 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Fri 03-11-17 00:46:18, Hugh Dickins wrote:
+>> On Thu, 2 Nov 2017, Michal Hocko wrote:
+>> > From: Michal Hocko <mhocko@suse.com>
+>> >
+>> > syzkaller has reported the following lockdep splat
+>> > ======================================================
+>> > WARNING: possible circular locking dependency detected
+>> > 4.13.0-next-20170911+ #19 Not tainted
+>> > ------------------------------------------------------
+>> > syz-executor5/6914 is trying to acquire lock:
+>> >   (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] get_online_cpus  include/linux/cpu.h:126 [inline]
+>> >   (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] lru_add_drain_all+0xe/0x20 mm/swap.c:729
+>> >
+>> > but task is already holding lock:
+>> >   (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] inode_lock include/linux/fs.h:712 [inline]
+>> >   (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] shmem_add_seals+0x197/0x1060 mm/shmem.c:2768
+>> >
+>> > more details [1] and dependencies explained [2]. The problem seems to be
+>> > the usage of lru_add_drain_all from shmem_wait_for_pins. While the lock
+>> > dependency is subtle as hell and we might want to make lru_add_drain_all
+>> > less dependent on the hotplug locks the usage of lru_add_drain_all seems
+>> > dubious here. The whole function cares only about radix tree tags, page
+>> > count and page mapcount. None of those are touched from the draining
+>> > context. So it doesn't make much sense to drain pcp caches. Moreover
+>> > this looks like a wrong thing to do because it basically induces
+>> > unpredictable latency to the call because draining is not for free
+>> > (especially on larger machines with many cpus).
+>> >
+>> > Let's simply drop the call to lru_add_drain_all to address both issues.
+>> >
+>> > [1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
+>> > [2] http://lkml.kernel.org/r/http://lkml.kernel.org/r/20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net
+>> >
+>> > Cc: David Herrmann <dh.herrmann@gmail.com>
+>> > Cc: Hugh Dickins <hughd@google.com>
+>> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+>>
+>> NAK.  shmem_wait_for_pins() is waiting for temporary pins on the pages
+>> to go away, and using lru_add_drain_all() in the usual way, to lower
+>> the refcount of pages temporarily pinned in a pagevec somewhere.  Page
+>> count is touched by draining pagevecs: I'm surprised to see you say
+>> that it isn't - or have pagevec page references been eliminated by
+>> a recent commit that I missed?
+>
+> I must be missing something here. __pagevec_lru_add_fn merely about
+> moving the page into the appropriate LRU list, pagevec_move_tail only
+> rotates, lru_deactivate_file_fn moves from active to inactive LRUs,
+> lru_lazyfree_fn moves from anon to file LRUs and activate_page_drain
+> just moves to the active list. None of those operations touch the page
+> count AFAICS. So I would agree that some pages might be pinned outside
+> of the LRU (lru_add_pvec) and thus unreclaimable but does this really
+> matter. Or what else I am missing?
 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Yes, we need to make sure those page-pins are dropped.
+shmem_wait_for_pins() literally just waits for all those to be
+cleared, since there is no way to tell whether a page is still
+inflight for some pending async WRITE operation. Hence, if the
+pagevecs keep pinning those pages, we must fail the shmem-seal
+operation, as we cannot guarantee there are no further WRITEs to this
+file. The refcount is our only way to tell.
 
-The patch looks good to me otherwise. So if this doesn't introduce a
-noticeable overhead, which I whope it doesn't then feel free to add
-Acked-by: Michal Hocko <mhocko@suse.com>
--- 
-Michal Hocko
-SUSE Labs
+I think the caller could just call lru_add_drain_all() between
+mapping_deny_writable() and shmem_wait_for_pins(), releasing the
+inode-lock in between. But that means we drain it even if
+shmem_tag_pins() does not find anything (presumably the common case).
+It would also have weird interactions with parallel inode-operations,
+in case the seal-operation fails and is reverted. Not sure I like
+that.
+
+Thanks
+David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
