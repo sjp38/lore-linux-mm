@@ -1,151 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DC726B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 06:19:57 -0400 (EDT)
-Received: by mail-wm0-f69.google.com with SMTP id b189so75002wmd.9
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 03:19:57 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o6si2438238eda.375.2017.11.03.03.19.55
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4424B6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 06:56:37 -0400 (EDT)
+Received: by mail-oi0-f70.google.com with SMTP id h200so2347453oib.18
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 03:56:37 -0700 (PDT)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u73si2847421oie.335.2017.11.03.03.56.35
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 03:19:55 -0700 (PDT)
-Date: Fri, 3 Nov 2017 11:19:53 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171103101953.GA5280@quack2.suse.cz>
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171102115625.13892e18@gandalf.local.home>
- <20171102130605.05e987e8@gandalf.local.home>
-MIME-Version: 1.0
+        Fri, 03 Nov 2017 03:56:35 -0700 (PDT)
+Subject: Re: [PATCH v17 1/6] lib/xbitmap: Introduce xbitmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
+	<1509696786-1597-2-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1509696786-1597-2-git-send-email-wei.w.wang@intel.com>
+Message-Id: <201711031955.FFE57823.VFLMFtFJSOOQHO@I-love.SAKURA.ne.jp>
+Date: Fri, 3 Nov 2017 19:55:43 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171102130605.05e987e8@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-Hi,
+I'm commenting without understanding the logic.
 
-On Thu 02-11-17 13:06:05, Steven Rostedt wrote:
-> +			if (spin) {
-> +				/* We spin waiting for the owner to release us */
-> +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-> +				/* Owner will clear console_waiter on hand off */
-> +				while (!READ_ONCE(console_waiter))
-> +					cpu_relax();
-
-Hum, what prevents us from rescheduling here? And what if the process
-stored in console_owner is scheduled out? Both seem to be possible with
-CONFIG_PREEMPT kernel? Unless I'm missing something you will need to
-disable preemption in some places...
-
-Other than that I like the simplicity of your approach.
-
-								Honza
-
+Wei Wang wrote:
 > +
-> +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +				printk_safe_exit_irqrestore(flags);
+> +bool xb_preload(gfp_t gfp);
 > +
-> +				/*
-> +				 * The owner passed the console lock to us.
-> +				 * Since we did not spin on console lock, annotate
-> +				 * this as a trylock. Otherwise lockdep will
-> +				 * complain.
-> +				 */
-> +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
-> +				console_unlock();
-> +				printk_safe_enter_irqsave(flags);
-> +			}
-> +			printk_safe_exit_irqrestore(flags);
+
+Want __must_check annotation, for __radix_tree_preload() is marked
+with __must_check annotation. By error failing to check result of
+xb_preload() will lead to preemption kept disabled unexpectedly.
+
+
+
+> +int xb_set_bit(struct xb *xb, unsigned long bit)
+> +{
+> +	int err;
+> +	unsigned long index = bit / IDA_BITMAP_BITS;
+> +	struct radix_tree_root *root = &xb->xbrt;
+> +	struct radix_tree_node *node;
+> +	void **slot;
+> +	struct ida_bitmap *bitmap;
+> +	unsigned long ebit;
 > +
+> +	bit %= IDA_BITMAP_BITS;
+> +	ebit = bit + 2;
+> +
+> +	err = __radix_tree_create(root, index, 0, &node, &slot);
+> +	if (err)
+> +		return err;
+> +	bitmap = rcu_dereference_raw(*slot);
+> +	if (radix_tree_exception(bitmap)) {
+> +		unsigned long tmp = (unsigned long)bitmap;
+> +
+> +		if (ebit < BITS_PER_LONG) {
+> +			tmp |= 1UL << ebit;
+> +			rcu_assign_pointer(*slot, (void *)tmp);
+> +			return 0;
 > +		}
->  	}
->  
->  	return printed_len;
-> @@ -2141,6 +2196,7 @@ void console_unlock(void)
->  	static u64 seen_seq;
->  	unsigned long flags;
->  	bool wake_klogd = false;
-> +	bool waiter = false;
->  	bool do_cond_resched, retry;
->  
->  	if (console_suspended) {
-> @@ -2215,6 +2271,20 @@ skip:
->  			goto skip;
->  		}
->  
-> +		/*
-> +		 * While actively printing out messages, if another printk()
-> +		 * were to occur on another CPU, it may wait for this one to
-> +		 * finish. This task can not be preempted if there is a
-> +		 * waiter waiting to take over.
-> +		 */
+> +		bitmap = this_cpu_xchg(ida_bitmap, NULL);
+> +		if (!bitmap)
+
+Please write locking rules, in order to explain how memory
+allocated by __radix_tree_create() will not leak.
+
+> +			return -EAGAIN;
+> +		memset(bitmap, 0, sizeof(*bitmap));
+> +		bitmap->bitmap[0] = tmp >> RADIX_TREE_EXCEPTIONAL_SHIFT;
+> +		rcu_assign_pointer(*slot, bitmap);
+> +	}
 > +
-> +		/* The waiter may spin on us after this */
-> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +	if (!bitmap) {
+> +		if (ebit < BITS_PER_LONG) {
+> +			bitmap = (void *)((1UL << ebit) |
+> +					RADIX_TREE_EXCEPTIONAL_ENTRY);
+> +			__radix_tree_replace(root, node, slot, bitmap, NULL,
+> +						NULL);
+> +			return 0;
+> +		}
+> +		bitmap = this_cpu_xchg(ida_bitmap, NULL);
+> +		if (!bitmap)
+
+Same here.
+
+> +			return -EAGAIN;
+> +		memset(bitmap, 0, sizeof(*bitmap));
+> +		__radix_tree_replace(root, node, slot, bitmap, NULL, NULL);
+> +	}
 > +
-> +		raw_spin_lock(&console_owner_lock);
-> +		console_owner = current;
-> +		raw_spin_unlock(&console_owner_lock);
+> +	__set_bit(bit, bitmap->bitmap);
+> +	return 0;
+> +}
+
+
+
+> +void xb_clear_bit(struct xb *xb, unsigned long bit)
+> +{
+> +	unsigned long index = bit / IDA_BITMAP_BITS;
+> +	struct radix_tree_root *root = &xb->xbrt;
+> +	struct radix_tree_node *node;
+> +	void **slot;
+> +	struct ida_bitmap *bitmap;
+> +	unsigned long ebit;
 > +
->  		len += msg_print_text(msg, false, text + len, sizeof(text) - len);
->  		if (nr_ext_console_drivers) {
->  			ext_len = msg_print_ext_header(ext_text,
-> @@ -2232,11 +2302,48 @@ skip:
->  		stop_critical_timings();	/* don't trace print latency */
->  		call_console_drivers(ext_text, ext_len, text, len);
->  		start_critical_timings();
+> +	bit %= IDA_BITMAP_BITS;
+> +	ebit = bit + 2;
 > +
-> +		raw_spin_lock(&console_owner_lock);
-> +		waiter = console_waiter;
-> +		console_owner = NULL;
-> +		raw_spin_unlock(&console_owner_lock);
+> +	bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> +	if (radix_tree_exception(bitmap)) {
+> +		unsigned long tmp = (unsigned long)bitmap;
 > +
-> +		/*
-> +		 * If there is a waiter waiting for us, then pass the
-> +		 * rest of the work load over to that waiter.
-> +		 */
-> +		if (waiter)
-> +			break;
-> +
-> +		/* There was no waiter, and nothing will spin on us here */
-> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +
->  		printk_safe_exit_irqrestore(flags);
->  
->  		if (do_cond_resched)
->  			cond_resched();
->  	}
-> +
-> +	/*
-> +	 * If there is an active waiter waiting on the console_lock.
-> +	 * Pass off the printing to the waiter, and the waiter
-> +	 * will continue printing on its CPU, and when all writing
-> +	 * has finished, the last printer will wake up klogd.
-> +	 */
-> +	if (waiter) {
-> +		WRITE_ONCE(console_waiter, false);
-> +		/* The waiter is now free to continue */
-> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +		/*
-> +		 * Hand off console_lock to waiter. The waiter will perform
-> +		 * the up(). After this, the waiter is the console_lock owner.
-> +		 */
-> +		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
-> +		printk_safe_exit_irqrestore(flags);
-> +		/* Note, if waiter is set, logbuf_lock is not held */
+> +		if (ebit >= BITS_PER_LONG)
+> +			return;
+> +		tmp &= ~(1UL << ebit);
+> +		if (tmp == RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +			__radix_tree_delete(root, node, slot);
+> +		else
+> +			rcu_assign_pointer(*slot, (void *)tmp);
 > +		return;
 > +	}
 > +
->  	console_locked = 0;
->  
->  	/* Release the exclusive_console once it is used */
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> +	if (!bitmap)
+> +		return;
+> +
+> +	__clear_bit(bit, bitmap->bitmap);
+> +	if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+
+Please write locking rules, in order to explain how double kfree() and/or
+use-after-free can be avoided.
+
+> +		kfree(bitmap);
+> +		__radix_tree_delete(root, node, slot);
+> +	}
+> +}
+
+
+
+> +void xb_clear_bit_range(struct xb *xb, unsigned long start, unsigned long end)
+> +{
+> +	struct radix_tree_root *root = &xb->xbrt;
+> +	struct radix_tree_node *node;
+> +	void **slot;
+> +	struct ida_bitmap *bitmap;
+> +	unsigned int nbits;
+> +
+> +	for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+> +		unsigned long index = start / IDA_BITMAP_BITS;
+> +		unsigned long bit = start % IDA_BITMAP_BITS;
+> +
+> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> +		if (radix_tree_exception(bitmap)) {
+> +			unsigned long ebit = bit + 2;
+> +			unsigned long tmp = (unsigned long)bitmap;
+> +
+> +			nbits = min(end - start + 1, BITS_PER_LONG - ebit);
+> +
+> +			if (ebit >= BITS_PER_LONG)
+> +				continue;
+> +			bitmap_clear(&tmp, ebit, nbits);
+> +			if (tmp == RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +				__radix_tree_delete(root, node, slot);
+> +			else
+> +				rcu_assign_pointer(*slot, (void *)tmp);
+> +		} else if (bitmap) {
+> +			nbits = min(end - start + 1, IDA_BITMAP_BITS - bit);
+> +
+> +			if (nbits != IDA_BITMAP_BITS)
+> +				bitmap_clear(bitmap->bitmap, bit, nbits);
+> +
+> +			if (nbits == IDA_BITMAP_BITS ||
+> +				bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+
+Same here.
+
+> +				kfree(bitmap);
+> +				__radix_tree_delete(root, node, slot);
+> +			}
+> +		}
+> +	}
+> +}
+
+
+
+> +bool xb_test_bit(struct xb *xb, unsigned long bit)
+> +{
+> +	unsigned long index = bit / IDA_BITMAP_BITS;
+> +	const struct radix_tree_root *root = &xb->xbrt;
+> +	struct ida_bitmap *bitmap = radix_tree_lookup(root, index);
+> +
+> +	bit %= IDA_BITMAP_BITS;
+> +
+> +	if (!bitmap)
+> +		return false;
+> +	if (radix_tree_exception(bitmap)) {
+> +		bit += RADIX_TREE_EXCEPTIONAL_SHIFT;
+> +		if (bit > BITS_PER_LONG)
+
+Why not bit >= BITS_PER_LONG here?
+
+> +			return false;
+> +		return (unsigned long)bitmap & (1UL << bit);
+> +	}
+> +
+> +	return test_bit(bit, bitmap->bitmap);
+> +}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
