@@ -1,93 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 02B476B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 09:31:50 -0400 (EDT)
-Received: by mail-qk0-f199.google.com with SMTP id o187so1980959qke.1
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 06:31:49 -0700 (PDT)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f65si4776748qkj.405.2017.11.03.06.31.48
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 889A86B025F
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 09:40:43 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id k15so1636113wrc.1
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 06:40:43 -0700 (PDT)
+Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
+        by mx.google.com with ESMTPS id s52si5075809eda.2.2017.11.03.06.40.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 06:31:48 -0700 (PDT)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA3DU2wJ048561
-	for <linux-mm@kvack.org>; Fri, 3 Nov 2017 09:31:47 -0400
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2e0p7e3v7a-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 03 Nov 2017 09:31:47 -0400
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <gerald.schaefer@de.ibm.com>;
-	Fri, 3 Nov 2017 13:31:44 -0000
-Date: Fri, 3 Nov 2017 14:31:37 +0100
-From: Gerald Schaefer <gerald.schaefer@de.ibm.com>
-Subject: Re: [PATCH 0/3] lsmem/chmem: add memory zone awareness
-In-Reply-To: <20171103101104.kw6xoxust3r7f7v3@ws.net.home>
-References: <20170927174446.20459-1-gerald.schaefer@de.ibm.com>
-	<20171018114009.7b4iax6536un5bnr@ws.net.home>
-	<20171102175408.18d4eafc@thinkpad>
-	<20171103101104.kw6xoxust3r7f7v3@ws.net.home>
+        Fri, 03 Nov 2017 06:40:42 -0700 (PDT)
+Received: from outbound-smtp14.blacknight.com (outbound-smtp14.blacknight.com [46.22.139.231])
+	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E35A11C2959
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 13:40:41 +0000 (GMT)
+Received: from mail.blacknight.com (unknown [81.17.254.17])
+	by outbound-smtp14.blacknight.com (Postfix) with ESMTPS id D2AB51C29FA
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 13:40:41 +0000 (GMT)
+Date: Fri, 3 Nov 2017 13:40:20 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: Page allocator bottleneck
+Message-ID: <20171103134020.3hwquerifnc6k6qw@techsingularity.net>
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+ <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+ <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
+ <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
-Message-Id: <20171103143137.35c41e7f@thinkpad>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Karel Zak <kzak@redhat.com>
-Cc: util-linux@vger.kernel.org, Michal Hocko <mhocko@kernel.org>, linux-mm <linux-mm@kvack.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andre Wild <wild@linux.vnet.ibm.com>
+To: Tariq Toukan <tariqt@mellanox.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri, 3 Nov 2017 11:11:04 +0100
-Karel Zak <kzak@redhat.com> wrote:
-
-> On Thu, Nov 02, 2017 at 05:54:08PM +0100, Gerald Schaefer wrote:
-> > Sorry for the late answer. I'm not sure if I understand the problem, it
-> > "works as designed" that the range merging is done based on the output
-> > columns, but I see that it was not really described as such. So I do
-> > like the note that you added with the above mentioned commit.
+On Thu, Nov 02, 2017 at 07:21:09PM +0200, Tariq Toukan wrote:
+> 
+> 
+> On 18/09/2017 12:16 PM, Tariq Toukan wrote:
 > > 
-> > However, regarding the --split option, I think it may be confusing at
-> > least for human users, if an "lsmem -oRANGE" will now print more than
-> > one range, even if this is now based on a "fixed" set of default columns
-> > that are used for merging (but "subject to change" according to the man
-> > page).  
+> > 
+> > On 15/09/2017 1:23 PM, Mel Gorman wrote:
+> > > On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
+> > > > Insights: Major degradation between #1 and #2, not getting any
+> > > > close to linerate! Degradation is fixed between #2 and #3. This is
+> > > > because page allocator cannot stand the higher allocation rate. In
+> > > > #2, we also see that the addition of rings (cores) reduces BW (!!),
+> > > > as result of increasing congestion over shared resources.
+> > > > 
+> > > 
+> > > Unfortunately, no surprises there.
+> > > 
+> > > > Congestion in this case is very clear. When monitored in perf
+> > > > top: 85.58% [kernel] [k] queued_spin_lock_slowpath
+> > > > 
+> > > 
+> > > While it's not proven, the most likely candidate is the zone lock
+> > > and that should be confirmed using a call-graph profile. If so, then
+> > > the suggestion to tune to the size of the per-cpu allocator would
+> > > mitigate the problem.
+> > > 
+> > Indeed, I tuned the per-cpu allocator and bottleneck is released.
+> > 
 > 
-> OK, I think we can support both concepts :-) I have modified lsmem to:
+> Hi all,
 > 
->  - follow output columns for split policy by default (= your original implementation)
->  - the --split is optional and may be used to override the default behavior
+> After leaving this task for a while doing other tasks, I got back to it now
+> and see that the good behavior I observed earlier was not stable.
 > 
-> it means for humans it's probably less concussing and advanced users may
-> define by --split another way how to generate the ranges.
+> Recall: I work with a modified driver that allocates a page (4K) per packet
+> (MTU=1500), in order to simulate the stress on page-allocator in 200Gbps
+> NICs.
 > 
-> I think it's good compromise and it's backwardly compatible with
-> the previous version. OK?
 
-Yes, that looks good.
+There is almost new in the data that hasn't been discussed before. The
+suggestion to free on a remote per-cpu list would be expensive as it would
+require per-cpu lists to have a lock for safe remote access.  However,
+I'd be curious if you could test the mm-pagealloc-irqpvec-v1r4 branch
+ttps://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git .  It's an
+unfinished prototype I worked on a few weeks ago. I was going to revisit
+in about a months time when 4.15-rc1 was out. I'd be interested in seeing
+if it has a postive gain in normal page allocations without destroying
+the performance of interrupt and softirq allocation contexts. The
+interrupt/softirq context testing is crucial as that is something that
+hurt us before when trying to improve page allocator performance.
 
-> 
-> If yes, I need to backport this change to RHEL7.5 :-)
-> 
-
-Yes, please :-)
-
-
-> > I also do not really see the benefit for script usage, at least if we
-> > define it as "expected behavior" to have the ranges merged based on the  
-> 
-> We want to keep it user friendly. The "expected behavior" (now
-> default) forces you to parse lsmem output to filter out unnecessary 
-> columns (if you care about RANGE only). 
-> 
-> And in all our utils the --output option really control the output, but 
-> no another behavior.
-
-OK, that makes sense. I did not have any output selection in the original
-implementation, and also no focus on script usage, but as (maybe so far
-the only) human user I did get confused by the new range merging.
-
-Regards,
-Gerald
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
