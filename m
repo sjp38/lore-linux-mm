@@ -1,305 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C3E66B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 11:31:44 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 15so3706310pgc.16
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:31:44 -0700 (PDT)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0050.outbound.protection.outlook.com. [104.47.32.50])
-        by mx.google.com with ESMTPS id s186si6601246pgc.383.2017.11.03.08.31.41
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A9D696B025F
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 11:33:41 -0400 (EDT)
+Received: by mail-wr0-f200.google.com with SMTP id g10so1785689wrg.6
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:33:41 -0700 (PDT)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id x23si603363edi.455.2017.11.03.08.33.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 08:31:42 -0700 (PDT)
-Subject: Re: [PATCH v10 20/38] x86, mpparse: Use memremap to map the mpf and
- mpc data
-References: <cover.1500319216.git.thomas.lendacky@amd.com>
- <d9464b0d7c861021ed8f494e4a40d6cd10f1eddd.1500319216.git.thomas.lendacky@amd.com>
- <CAAObsKDNwxevQVjob9zNwBWR+PjL8VVvCuxRwdGmgNgZ0uhEYw@mail.gmail.com>
-From: Tom Lendacky <thomas.lendacky@amd.com>
-Message-ID: <ea487555-0f56-d3f5-863d-7007e9631235@amd.com>
-Date: Fri, 3 Nov 2017 10:31:20 -0500
-MIME-Version: 1.0
-In-Reply-To: <CAAObsKDNwxevQVjob9zNwBWR+PjL8VVvCuxRwdGmgNgZ0uhEYw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 03 Nov 2017 08:33:39 -0700 (PDT)
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: [PATCH 1/3] mm: memcontrol: eliminate raw access to stat and event counters
+Date: Fri,  3 Nov 2017 11:33:34 -0400
+Message-Id: <20171103153336.24044-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tomeu Vizoso <tomeu@tomeuvizoso.net>
-Cc: x86@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Guenter Roeck <groeck@google.com>, Zach Reizner <zachr@google.com>, Dylan Reid <dgreid@chromium.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-On 11/3/2017 10:12 AM, Tomeu Vizoso wrote:
-> On 17 July 2017 at 23:10, Tom Lendacky <thomas.lendacky@amd.com> wrote:
->> The SMP MP-table is built by UEFI and placed in memory in a decrypted
->> state. These tables are accessed using a mix of early_memremap(),
->> early_memunmap(), phys_to_virt() and virt_to_phys(). Change all accesses
->> to use early_memremap()/early_memunmap(). This allows for proper setting
->> of the encryption mask so that the data can be successfully accessed when
->> SME is active.
->>
->> Reviewed-by: Borislav Petkov <bp@suse.de>
->> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->> ---
->>   arch/x86/kernel/mpparse.c | 98 +++++++++++++++++++++++++++++++++--------------
->>   1 file changed, 70 insertions(+), 28 deletions(-)
-> 
-> Hi there,
-> 
-> today I played a bit with crosvm [0] and noticed that 4.14-rc7 doesn't
-> boot. git-bisect pointed to this patch, and reverting it indeed gets
-> things working again.
-> 
-> Anybody has an idea of why this could be?
+Replace all raw 'this_cpu_' modifications of the stat and event
+per-cpu counters with API functions such as mod_memcg_state().
 
-If you send me your kernel config I'll see if I can reproduce the issue
-and debug it.
+This makes the code easier to read, but is also in preparation for the
+next patch, which changes the per-cpu implementation of those counters.
 
-Thanks,
-Tom
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
+ include/linux/memcontrol.h | 31 +++++++++++++++---------
+ mm/memcontrol.c            | 59 ++++++++++++++++++++--------------------------
+ 2 files changed, 45 insertions(+), 45 deletions(-)
 
-> 
-> Thanks,
-> 
-> Tomeu
-> 
-> [0] https://chromium.googlesource.com/chromiumos/platform/crosvm
-> 
->>
->> diff --git a/arch/x86/kernel/mpparse.c b/arch/x86/kernel/mpparse.c
->> index fd37f39..5cbb317 100644
->> --- a/arch/x86/kernel/mpparse.c
->> +++ b/arch/x86/kernel/mpparse.c
->> @@ -429,7 +429,7 @@ static inline void __init construct_default_ISA_mptable(int mpc_default_type)
->>          }
->>   }
->>
->> -static struct mpf_intel *mpf_found;
->> +static unsigned long mpf_base;
->>
->>   static unsigned long __init get_mpc_size(unsigned long physptr)
->>   {
->> @@ -451,6 +451,7 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
->>
->>          size = get_mpc_size(mpf->physptr);
->>          mpc = early_memremap(mpf->physptr, size);
->> +
->>          /*
->>           * Read the physical hardware table.  Anything here will
->>           * override the defaults.
->> @@ -497,12 +498,12 @@ static int __init check_physptr(struct mpf_intel *mpf, unsigned int early)
->>    */
->>   void __init default_get_smp_config(unsigned int early)
->>   {
->> -       struct mpf_intel *mpf = mpf_found;
->> +       struct mpf_intel *mpf;
->>
->>          if (!smp_found_config)
->>                  return;
->>
->> -       if (!mpf)
->> +       if (!mpf_base)
->>                  return;
->>
->>          if (acpi_lapic && early)
->> @@ -515,6 +516,12 @@ void __init default_get_smp_config(unsigned int early)
->>          if (acpi_lapic && acpi_ioapic)
->>                  return;
->>
->> +       mpf = early_memremap(mpf_base, sizeof(*mpf));
->> +       if (!mpf) {
->> +               pr_err("MPTABLE: error mapping MP table\n");
->> +               return;
->> +       }
->> +
->>          pr_info("Intel MultiProcessor Specification v1.%d\n",
->>                  mpf->specification);
->>   #if defined(CONFIG_X86_LOCAL_APIC) && defined(CONFIG_X86_32)
->> @@ -529,7 +536,7 @@ void __init default_get_smp_config(unsigned int early)
->>          /*
->>           * Now see if we need to read further.
->>           */
->> -       if (mpf->feature1 != 0) {
->> +       if (mpf->feature1) {
->>                  if (early) {
->>                          /*
->>                           * local APIC has default address
->> @@ -542,8 +549,10 @@ void __init default_get_smp_config(unsigned int early)
->>                  construct_default_ISA_mptable(mpf->feature1);
->>
->>          } else if (mpf->physptr) {
->> -               if (check_physptr(mpf, early))
->> +               if (check_physptr(mpf, early)) {
->> +                       early_memunmap(mpf, sizeof(*mpf));
->>                          return;
->> +               }
->>          } else
->>                  BUG();
->>
->> @@ -552,6 +561,8 @@ void __init default_get_smp_config(unsigned int early)
->>          /*
->>           * Only use the first configuration found.
->>           */
->> +
->> +       early_memunmap(mpf, sizeof(*mpf));
->>   }
->>
->>   static void __init smp_reserve_memory(struct mpf_intel *mpf)
->> @@ -561,15 +572,16 @@ static void __init smp_reserve_memory(struct mpf_intel *mpf)
->>
->>   static int __init smp_scan_config(unsigned long base, unsigned long length)
->>   {
->> -       unsigned int *bp = phys_to_virt(base);
->> +       unsigned int *bp;
->>          struct mpf_intel *mpf;
->> -       unsigned long mem;
->> +       int ret = 0;
->>
->>          apic_printk(APIC_VERBOSE, "Scan for SMP in [mem %#010lx-%#010lx]\n",
->>                      base, base + length - 1);
->>          BUILD_BUG_ON(sizeof(*mpf) != 16);
->>
->>          while (length > 0) {
->> +               bp = early_memremap(base, length);
->>                  mpf = (struct mpf_intel *)bp;
->>                  if ((*bp == SMP_MAGIC_IDENT) &&
->>                      (mpf->length == 1) &&
->> @@ -579,24 +591,26 @@ static int __init smp_scan_config(unsigned long base, unsigned long length)
->>   #ifdef CONFIG_X86_LOCAL_APIC
->>                          smp_found_config = 1;
->>   #endif
->> -                       mpf_found = mpf;
->> +                       mpf_base = base;
->>
->> -                       pr_info("found SMP MP-table at [mem %#010llx-%#010llx] mapped at [%p]\n",
->> -                               (unsigned long long) virt_to_phys(mpf),
->> -                               (unsigned long long) virt_to_phys(mpf) +
->> -                               sizeof(*mpf) - 1, mpf);
->> +                       pr_info("found SMP MP-table at [mem %#010lx-%#010lx] mapped at [%p]\n",
->> +                               base, base + sizeof(*mpf) - 1, mpf);
->>
->> -                       mem = virt_to_phys(mpf);
->> -                       memblock_reserve(mem, sizeof(*mpf));
->> +                       memblock_reserve(base, sizeof(*mpf));
->>                          if (mpf->physptr)
->>                                  smp_reserve_memory(mpf);
->>
->> -                       return 1;
->> +                       ret = 1;
->>                  }
->> -               bp += 4;
->> +               early_memunmap(bp, length);
->> +
->> +               if (ret)
->> +                       break;
->> +
->> +               base += 16;
->>                  length -= 16;
->>          }
->> -       return 0;
->> +       return ret;
->>   }
->>
->>   void __init default_find_smp_config(void)
->> @@ -838,29 +852,40 @@ static int __init update_mp_table(void)
->>          char oem[10];
->>          struct mpf_intel *mpf;
->>          struct mpc_table *mpc, *mpc_new;
->> +       unsigned long size;
->>
->>          if (!enable_update_mptable)
->>                  return 0;
->>
->> -       mpf = mpf_found;
->> -       if (!mpf)
->> +       if (!mpf_base)
->> +               return 0;
->> +
->> +       mpf = early_memremap(mpf_base, sizeof(*mpf));
->> +       if (!mpf) {
->> +               pr_err("MPTABLE: mpf early_memremap() failed\n");
->>                  return 0;
->> +       }
->>
->>          /*
->>           * Now see if we need to go further.
->>           */
->> -       if (mpf->feature1 != 0)
->> -               return 0;
->> +       if (mpf->feature1)
->> +               goto do_unmap_mpf;
->>
->>          if (!mpf->physptr)
->> -               return 0;
->> +               goto do_unmap_mpf;
->>
->> -       mpc = phys_to_virt(mpf->physptr);
->> +       size = get_mpc_size(mpf->physptr);
->> +       mpc = early_memremap(mpf->physptr, size);
->> +       if (!mpc) {
->> +               pr_err("MPTABLE: mpc early_memremap() failed\n");
->> +               goto do_unmap_mpf;
->> +       }
->>
->>          if (!smp_check_mpc(mpc, oem, str))
->> -               return 0;
->> +               goto do_unmap_mpc;
->>
->> -       pr_info("mpf: %llx\n", (u64)virt_to_phys(mpf));
->> +       pr_info("mpf: %llx\n", (u64)mpf_base);
->>          pr_info("physptr: %x\n", mpf->physptr);
->>
->>          if (mpc_new_phys && mpc->length > mpc_new_length) {
->> @@ -878,21 +903,32 @@ static int __init update_mp_table(void)
->>                  new = mpf_checksum((unsigned char *)mpc, mpc->length);
->>                  if (old == new) {
->>                          pr_info("mpc is readonly, please try alloc_mptable instead\n");
->> -                       return 0;
->> +                       goto do_unmap_mpc;
->>                  }
->>                  pr_info("use in-position replacing\n");
->>          } else {
->> +               mpc_new = early_memremap(mpc_new_phys, mpc_new_length);
->> +               if (!mpc_new) {
->> +                       pr_err("MPTABLE: new mpc early_memremap() failed\n");
->> +                       goto do_unmap_mpc;
->> +               }
->>                  mpf->physptr = mpc_new_phys;
->> -               mpc_new = phys_to_virt(mpc_new_phys);
->>                  memcpy(mpc_new, mpc, mpc->length);
->> +               early_memunmap(mpc, size);
->>                  mpc = mpc_new;
->> +               size = mpc_new_length;
->>                  /* check if we can modify that */
->>                  if (mpc_new_phys - mpf->physptr) {
->>                          struct mpf_intel *mpf_new;
->>                          /* steal 16 bytes from [0, 1k) */
->> +                       mpf_new = early_memremap(0x400 - 16, sizeof(*mpf_new));
->> +                       if (!mpf_new) {
->> +                               pr_err("MPTABLE: new mpf early_memremap() failed\n");
->> +                               goto do_unmap_mpc;
->> +                       }
->>                          pr_info("mpf new: %x\n", 0x400 - 16);
->> -                       mpf_new = phys_to_virt(0x400 - 16);
->>                          memcpy(mpf_new, mpf, 16);
->> +                       early_memunmap(mpf, sizeof(*mpf));
->>                          mpf = mpf_new;
->>                          mpf->physptr = mpc_new_phys;
->>                  }
->> @@ -909,6 +945,12 @@ static int __init update_mp_table(void)
->>           */
->>          replace_intsrc_all(mpc, mpc_new_phys, mpc_new_length);
->>
->> +do_unmap_mpc:
->> +       early_memunmap(mpc, size);
->> +
->> +do_unmap_mpf:
->> +       early_memunmap(mpf, sizeof(*mpf));
->> +
->>          return 0;
->>   }
->>
->> --
->> 1.9.1
->>
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 69966c461d1c..2c80b69dd266 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -272,13 +272,6 @@ static inline bool mem_cgroup_disabled(void)
+ 	return !cgroup_subsys_enabled(memory_cgrp_subsys);
+ }
+ 
+-static inline void mem_cgroup_event(struct mem_cgroup *memcg,
+-				    enum memcg_event_item event)
+-{
+-	this_cpu_inc(memcg->stat->events[event]);
+-	cgroup_file_notify(&memcg->events_file);
+-}
+-
+ bool mem_cgroup_low(struct mem_cgroup *root, struct mem_cgroup *memcg);
+ 
+ int mem_cgroup_try_charge(struct page *page, struct mm_struct *mm,
+@@ -627,15 +620,23 @@ unsigned long mem_cgroup_soft_limit_reclaim(pg_data_t *pgdat, int order,
+ 						gfp_t gfp_mask,
+ 						unsigned long *total_scanned);
+ 
++/* idx can be of type enum memcg_event_item or vm_event_item */
++static inline void __count_memcg_events(struct mem_cgroup *memcg,
++					int idx, unsigned long count)
++{
++	if (!mem_cgroup_disabled())
++		__this_cpu_add(memcg->stat->events[idx], count);
++}
++
++/* idx can be of type enum memcg_event_item or vm_event_item */
+ static inline void count_memcg_events(struct mem_cgroup *memcg,
+-				      enum vm_event_item idx,
+-				      unsigned long count)
++				      int idx, unsigned long count)
+ {
+ 	if (!mem_cgroup_disabled())
+ 		this_cpu_add(memcg->stat->events[idx], count);
+ }
+ 
+-/* idx can be of type enum memcg_stat_item or node_stat_item */
++/* idx can be of type enum memcg_event_item or vm_event_item */
+ static inline void count_memcg_page_event(struct page *page,
+ 					  int idx)
+ {
+@@ -654,12 +655,20 @@ static inline void count_memcg_event_mm(struct mm_struct *mm,
+ 	rcu_read_lock();
+ 	memcg = mem_cgroup_from_task(rcu_dereference(mm->owner));
+ 	if (likely(memcg)) {
+-		this_cpu_inc(memcg->stat->events[idx]);
++		count_memcg_events(memcg, idx, 1);
+ 		if (idx == OOM_KILL)
+ 			cgroup_file_notify(&memcg->events_file);
+ 	}
+ 	rcu_read_unlock();
+ }
++
++static inline void mem_cgroup_event(struct mem_cgroup *memcg,
++				    enum memcg_event_item event)
++{
++	count_memcg_events(memcg, event, 1);
++	cgroup_file_notify(&memcg->events_file);
++}
++
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+ void mem_cgroup_split_huge_fixup(struct page *head);
+ #endif
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 50e6906314f8..dabbc076e503 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -586,23 +586,23 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *memcg,
+ 	 * counted as CACHE even if it's on ANON LRU.
+ 	 */
+ 	if (PageAnon(page))
+-		__this_cpu_add(memcg->stat->count[MEMCG_RSS], nr_pages);
++		__mod_memcg_state(memcg, MEMCG_RSS, nr_pages);
+ 	else {
+-		__this_cpu_add(memcg->stat->count[MEMCG_CACHE], nr_pages);
++		__mod_memcg_state(memcg, MEMCG_CACHE, nr_pages);
+ 		if (PageSwapBacked(page))
+-			__this_cpu_add(memcg->stat->count[NR_SHMEM], nr_pages);
++			__mod_memcg_state(memcg, NR_SHMEM, nr_pages);
+ 	}
+ 
+ 	if (compound) {
+ 		VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+-		__this_cpu_add(memcg->stat->count[MEMCG_RSS_HUGE], nr_pages);
++		__mod_memcg_state(memcg, MEMCG_RSS_HUGE, nr_pages);
+ 	}
+ 
+ 	/* pagein of a big page is an event. So, ignore page size */
+ 	if (nr_pages > 0)
+-		__this_cpu_inc(memcg->stat->events[PGPGIN]);
++		__count_memcg_events(memcg, PGPGIN, 1);
+ 	else {
+-		__this_cpu_inc(memcg->stat->events[PGPGOUT]);
++		__count_memcg_events(memcg, PGPGOUT, 1);
+ 		nr_pages = -nr_pages; /* for event */
+ 	}
+ 
+@@ -2415,18 +2415,11 @@ void mem_cgroup_split_huge_fixup(struct page *head)
+ 	for (i = 1; i < HPAGE_PMD_NR; i++)
+ 		head[i].mem_cgroup = head->mem_cgroup;
+ 
+-	__this_cpu_sub(head->mem_cgroup->stat->count[MEMCG_RSS_HUGE],
+-		       HPAGE_PMD_NR);
++	__mod_memcg_state(head->mem_cgroup, MEMCG_RSS_HUGE, -HPAGE_PMD_NR);
+ }
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+ 
+ #ifdef CONFIG_MEMCG_SWAP
+-static void mem_cgroup_swap_statistics(struct mem_cgroup *memcg,
+-				       int nr_entries)
+-{
+-	this_cpu_add(memcg->stat->count[MEMCG_SWAP], nr_entries);
+-}
+-
+ /**
+  * mem_cgroup_move_swap_account - move swap charge and swap_cgroup's record.
+  * @entry: swap entry to be moved
+@@ -2450,8 +2443,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 	new_id = mem_cgroup_id(to);
+ 
+ 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+-		mem_cgroup_swap_statistics(from, -1);
+-		mem_cgroup_swap_statistics(to, 1);
++		mod_memcg_state(from, MEMCG_SWAP, -1);
++		mod_memcg_state(to, MEMCG_SWAP, 1);
+ 		return 0;
+ 	}
+ 	return -EINVAL;
+@@ -4584,8 +4577,8 @@ static int mem_cgroup_move_account(struct page *page,
+ 	spin_lock_irqsave(&from->move_lock, flags);
+ 
+ 	if (!anon && page_mapped(page)) {
+-		__this_cpu_sub(from->stat->count[NR_FILE_MAPPED], nr_pages);
+-		__this_cpu_add(to->stat->count[NR_FILE_MAPPED], nr_pages);
++		__mod_memcg_state(from, NR_FILE_MAPPED, -nr_pages);
++		__mod_memcg_state(to, NR_FILE_MAPPED, nr_pages);
+ 	}
+ 
+ 	/*
+@@ -4597,16 +4590,14 @@ static int mem_cgroup_move_account(struct page *page,
+ 		struct address_space *mapping = page_mapping(page);
+ 
+ 		if (mapping_cap_account_dirty(mapping)) {
+-			__this_cpu_sub(from->stat->count[NR_FILE_DIRTY],
+-				       nr_pages);
+-			__this_cpu_add(to->stat->count[NR_FILE_DIRTY],
+-				       nr_pages);
++			__mod_memcg_state(from, NR_FILE_DIRTY, -nr_pages);
++			__mod_memcg_state(to, NR_FILE_DIRTY, nr_pages);
+ 		}
+ 	}
+ 
+ 	if (PageWriteback(page)) {
+-		__this_cpu_sub(from->stat->count[NR_WRITEBACK], nr_pages);
+-		__this_cpu_add(to->stat->count[NR_WRITEBACK], nr_pages);
++		__mod_memcg_state(from, NR_WRITEBACK, -nr_pages);
++		__mod_memcg_state(to, NR_WRITEBACK, nr_pages);
+ 	}
+ 
+ 	/*
+@@ -5642,11 +5633,11 @@ static void uncharge_batch(const struct uncharge_gather *ug)
+ 	}
+ 
+ 	local_irq_save(flags);
+-	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS], ug->nr_anon);
+-	__this_cpu_sub(ug->memcg->stat->count[MEMCG_CACHE], ug->nr_file);
+-	__this_cpu_sub(ug->memcg->stat->count[MEMCG_RSS_HUGE], ug->nr_huge);
+-	__this_cpu_sub(ug->memcg->stat->count[NR_SHMEM], ug->nr_shmem);
+-	__this_cpu_add(ug->memcg->stat->events[PGPGOUT], ug->pgpgout);
++	__mod_memcg_state(ug->memcg, MEMCG_RSS, -ug->nr_anon);
++	__mod_memcg_state(ug->memcg, MEMCG_CACHE, -ug->nr_file);
++	__mod_memcg_state(ug->memcg, MEMCG_RSS_HUGE, -ug->nr_huge);
++	__mod_memcg_state(ug->memcg, NR_SHMEM, -ug->nr_shmem);
++	__count_memcg_events(ug->memcg, PGPGOUT, ug->pgpgout);
+ 	__this_cpu_add(ug->memcg->stat->nr_page_events, nr_pages);
+ 	memcg_check_events(ug->memcg, ug->dummy_page);
+ 	local_irq_restore(flags);
+@@ -5874,7 +5865,7 @@ bool mem_cgroup_charge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 	if (in_softirq())
+ 		gfp_mask = GFP_NOWAIT;
+ 
+-	this_cpu_add(memcg->stat->count[MEMCG_SOCK], nr_pages);
++	mod_memcg_state(memcg, MEMCG_SOCK, nr_pages);
+ 
+ 	if (try_charge(memcg, gfp_mask, nr_pages) == 0)
+ 		return true;
+@@ -5895,7 +5886,7 @@ void mem_cgroup_uncharge_skmem(struct mem_cgroup *memcg, unsigned int nr_pages)
+ 		return;
+ 	}
+ 
+-	this_cpu_sub(memcg->stat->count[MEMCG_SOCK], nr_pages);
++	mod_memcg_state(memcg, MEMCG_SOCK, -nr_pages);
+ 
+ 	refill_stock(memcg, nr_pages);
+ }
+@@ -6019,7 +6010,7 @@ void mem_cgroup_swapout(struct page *page, swp_entry_t entry)
+ 	oldid = swap_cgroup_record(entry, mem_cgroup_id(swap_memcg),
+ 				   nr_entries);
+ 	VM_BUG_ON_PAGE(oldid, page);
+-	mem_cgroup_swap_statistics(swap_memcg, nr_entries);
++	mod_memcg_state(swap_memcg, MEMCG_SWAP, nr_entries);
+ 
+ 	page->mem_cgroup = NULL;
+ 
+@@ -6085,7 +6076,7 @@ int mem_cgroup_try_charge_swap(struct page *page, swp_entry_t entry)
+ 		mem_cgroup_id_get_many(memcg, nr_pages - 1);
+ 	oldid = swap_cgroup_record(entry, mem_cgroup_id(memcg), nr_pages);
+ 	VM_BUG_ON_PAGE(oldid, page);
+-	mem_cgroup_swap_statistics(memcg, nr_pages);
++	mod_memcg_state(memcg, MEMCG_SWAP, nr_pages);
+ 
+ 	return 0;
+ }
+@@ -6113,7 +6104,7 @@ void mem_cgroup_uncharge_swap(swp_entry_t entry, unsigned int nr_pages)
+ 			else
+ 				page_counter_uncharge(&memcg->memsw, nr_pages);
+ 		}
+-		mem_cgroup_swap_statistics(memcg, -nr_pages);
++		mod_memcg_state(memcg, MEMCG_SWAP, -nr_pages);
+ 		mem_cgroup_id_put_many(memcg, nr_pages);
+ 	}
+ 	rcu_read_unlock();
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
