@@ -1,81 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BA7B6B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:09:19 -0400 (EDT)
-Received: by mail-pf0-f200.google.com with SMTP id 76so2238784pfr.3
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:09:19 -0700 (PDT)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D85FE6B0253
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:17:10 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id o88so1220507wrb.18
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:17:10 -0700 (PDT)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t184si5957175pfd.381.2017.11.03.02.09.17
+        by mx.google.com with ESMTPS id 64si4888571ede.469.2017.11.03.02.17.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 02:09:18 -0700 (PDT)
-Date: Fri, 3 Nov 2017 10:09:15 +0100
+        Fri, 03 Nov 2017 02:17:09 -0700 (PDT)
+Date: Fri, 3 Nov 2017 10:17:08 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC v2] prctl: prctl(PR_SET_IDLE, PR_IDLE_MODE_KILLME), for
- stateless idle loops
-Message-ID: <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
-References: <20171101053244.5218-1-slandden@gmail.com>
- <20171103063544.13383-1-slandden@gmail.com>
+Subject: Re: [PATCH] s390/mm: fix pud table accounting
+Message-ID: <20171103091708.eh4qgoxp3bc5vvkb@dhcp22.suse.cz>
+References: <20171103090551.18231-1-heiko.carstens@de.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171103063544.13383-1-slandden@gmail.com>
+In-Reply-To: <20171103090551.18231-1-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Landden <slandden@gmail.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: Heiko Carstens <heiko.carstens@de.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-next@vger.kernel.org, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu 02-11-17 23:35:44, Shawn Landden wrote:
-> It is common for services to be stateless around their main event loop.
-> If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it
-> signals to the kernel that epoll_wait() and friends may not complete,
-> and the kernel may send SIGKILL if resources get tight.
+On Fri 03-11-17 10:05:51, Heiko Carstens wrote:
+> With "mm: account pud page tables" and "mm: consolidate page table
+> accounting" pud page table accounting was introduced which now results
+> in tons of warnings like this one on s390:
 > 
-> See my systemd patch: https://github.com/shawnl/systemd/tree/prctl
+> BUG: non-zero pgtables_bytes on freeing mm: -16384
 > 
-> Android uses this memory model for all programs, and having it in the
-> kernel will enable integration with the page cache (not in this
-> series).
+> Reason for this are our run-time folded page tables: by default new
+> processes start with three page table levels where the allocated pgd
+> is the same as the first pud. In this case there won't ever be a pud
+> allocated and therefore mm_inc_nr_puds() will also never be called.
 > 
-> 16 bytes per process is kinda spendy, but I want to keep
-> lru behavior, which mem_score_adj does not allow. When a supervisor,
-> like Android's user input is keeping track this can be done in user-space.
-> It could be pulled out of task_struct if an cross-indexing additional
-> red-black tree is added to support pid-based lookup.
+> However when freeing the address space free_pud_range() will call
+> exactly once mm_dec_nr_puds() which leads to misaccounting.
+> 
+> Therefore call mm_inc_nr_puds() within init_new_context() to fix
+> this. This is the same like we have it already for processes that run
+> with two page table levels (aka compat processes).
+> 
+> While at it also adjust the comment, since there is no "mm->nr_pmds"
+> anymore.
 
-This is still an abuse and the patch is wrong. We really do have an API
-to use I fail to see why you do not use it.
+Subtle...
 
-[...]
-> @@ -1018,6 +1060,24 @@ bool out_of_memory(struct oom_control *oc)
->  			return true;
+Thanks for the fix, I didn't have any idea about this when reviewing.
+
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+> Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+> Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+> ---
+>  arch/s390/include/asm/mmu_context.h | 4 +++-
+>  1 file changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
+> index 3c9abedc323c..4f943d58cbac 100644
+> --- a/arch/s390/include/asm/mmu_context.h
+> +++ b/arch/s390/include/asm/mmu_context.h
+> @@ -43,6 +43,8 @@ static inline int init_new_context(struct task_struct *tsk,
+>  		mm->context.asce_limit = STACK_TOP_MAX;
+>  		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+>  				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
+> +		/* pgd_alloc() did not account this pud */
+> +		mm_inc_nr_puds(mm);
+>  		break;
+>  	case -PAGE_SIZE:
+>  		/* forked 5-level task, set new asce with new_mm->pgd */
+> @@ -58,7 +60,7 @@ static inline int init_new_context(struct task_struct *tsk,
+>  		/* forked 2-level compat task, set new asce with new mm->pgd */
+>  		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+>  				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+> -		/* pgd_alloc() did not increase mm->nr_pmds */
+> +		/* pgd_alloc() did not account this pmd */
+>  		mm_inc_nr_pmds(mm);
 >  	}
->  
-> +	/*
-> +	 * Check death row for current memcg or global.
-> +	 */
-> +	l = oom_target_get_queue(current);
-> +	if (!list_empty(l)) {
-> +		struct task_struct *ts = list_first_entry(l,
-> +				struct task_struct, se.oom_target_queue);
-> +
-> +		pr_debug("Killing pid %u from EPOLL_KILLME death row.",
-> +			 ts->pid);
-> +
-> +		/* We use SIGKILL instead of the oom killer
-> +		 * so as to cleanly interrupt ep_poll()
-> +		 */
-> +		send_sig(SIGKILL, ts, 1);
-> +		return true;
-> +	}
+>  	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
+> -- 
+> 2.13.5
+> 
 
-Still not NUMA aware and completely backwards. If this is a memcg OOM
-then it is _memcg_ to evaluate not the current. The oom might happen up
-the hierarchy due to hard limit.
-
-But still, you should be very clear _why_ the existing oom tuning is not
-appropropriate and we can think of a way to hanle it better but cramming
-the oom selection this way is simply not acceptable.
 -- 
 Michal Hocko
 SUSE Labs
