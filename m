@@ -1,98 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E764D6B026E
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 04:29:02 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id b189so838616wmd.9
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 01:29:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v10si303025edf.238.2017.11.03.01.29.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 11BF46B0261
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 04:33:09 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id 76so2169160pfr.3
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 01:33:09 -0700 (PDT)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id j13si5468720pgf.700.2017.11.03.01.33.07
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 01:29:01 -0700 (PDT)
-Date: Fri, 3 Nov 2017 09:29:00 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: use in_atomic() in print_vma_addr()
-Message-ID: <20171103082900.463jh6474vf63lvt@dhcp22.suse.cz>
-References: <1509572313-102989-1-git-send-email-yang.s@alibaba-inc.com>
- <20171102075744.whhxjmqbdkfaxghd@dhcp22.suse.cz>
- <ace5b078-652b-cbc0-176a-25f69612f7fa@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Nov 2017 01:33:07 -0700 (PDT)
+Message-ID: <59FC2A47.3020103@intel.com>
+Date: Fri, 03 Nov 2017 16:35:19 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ace5b078-652b-cbc0-176a-25f69612f7fa@alibaba-inc.com>
+Subject: Re: [PATCH v1 0/3] Virtio-balloon Improvement
+References: <1508500466-21165-1-git-send-email-wei.w.wang@intel.com> <20171022061307-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171022061307-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: mingo@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: penguin-kernel@I-love.SAKURA.ne.jp, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
 
-On Fri 03-11-17 01:44:44, Yang Shi wrote:
-> 
-> 
-> On 11/2/17 12:57 AM, Michal Hocko wrote:
-> > On Thu 02-11-17 05:38:33, Yang Shi wrote:
-> > > commit 3e51f3c4004c9b01f66da03214a3e206f5ed627b
-> > > ("sched/preempt: Remove PREEMPT_ACTIVE unmasking off in_atomic()") makes
-> > > in_atomic() just check the preempt count, so it is not necessary to use
-> > > preempt_count() in print_vma_addr() any more. Replace preempt_count() to
-> > > in_atomic() which is a generic API for checking atomic context.
-> > 
-> > But why? Is there some general work to get rid of the direct preempt_count
-> > usage outside of the generic API?
-> 
-> I may not articulate it in the commit log, I would say "in_atomic" is
-> *preferred* API for checking atomic context instead of preempt_count() which
-> should be used for retrieving the preemption count value.
-> 
-> I would say there is not such general elimination work undergoing right now,
-> but if we go through the kernel code, almost everywhere "in_atomic" is used
-> for such use case already, except two places:
-> 
-> - print_vma_addr()
-> - debug_smp_processor_id()
-> 
-> Both came from Ingo long time ago before commit
-> 3e51f3c4004c9b01f66da03214a3e206f5ed627b ("sched/preempt: Remove
-> PREEMPT_ACTIVE unmasking off in_atomic()"). But, after this commit was
-> merged, I don't see why *not* use in_atomic() to follow the convention.
+On 10/22/2017 11:19 AM, Michael S. Tsirkin wrote:
+> On Fri, Oct 20, 2017 at 07:54:23PM +0800, Wei Wang wrote:
+>> This patch series intends to summarize the recent contributions made by
+>> Michael S. Tsirkin, Tetsuo Handa, Michal Hocko etc. via reporting and
+>> discussing the related deadlock issues on the mailinglist. Please check
+>> each patch for details.
+>>
+>> >From a high-level point of view, this patch series achieves:
+>> 1) eliminate the deadlock issue fundamentally caused by the inability
+>> to run leak_balloon and fill_balloon concurrently;
+> We need to think about this carefully. Is it an issue that
+> leak can now bypass fill? It seems that we can now
+> try to leak a page before fill was seen by host,
+> but I did not look into it deeply.
+>
+> I really like my patch for this better at least for
+> current kernel. I agree we need to work more on 2+3.
+>
 
-OK.
+Since we have many customers interested in the "Virtio-balloon 
+Enhancement" series,
+please review the v17 patches first (it has a dependency on your patch 
+for that deadlock fix,
+so I included it there too), and we can get back to 2+3 here after that 
+series is done. Thanks.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-> 
-> Thanks,
-> Yang
-> 
-> > 
-> > > Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-> > > ---
-> > >   mm/memory.c | 2 +-
-> > >   1 file changed, 1 insertion(+), 1 deletion(-)
-> > > 
-> > > diff --git a/mm/memory.c b/mm/memory.c
-> > > index a728bed..19b684e 100644
-> > > --- a/mm/memory.c
-> > > +++ b/mm/memory.c
-> > > @@ -4460,7 +4460,7 @@ void print_vma_addr(char *prefix, unsigned long ip)
-> > >   	 * Do not print if we are in atomic
-> > >   	 * contexts (in exception stacks, etc.):
-> > >   	 */
-> > > -	if (preempt_count())
-> > > +	if (in_atomic())
-> > >   		return;
-> > >   	down_read(&mm->mmap_sem);
-> > > -- 
-> > > 1.8.3.1
-> > 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
