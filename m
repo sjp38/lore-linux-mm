@@ -1,56 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 11BF46B0261
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 04:33:09 -0400 (EDT)
-Received: by mail-pf0-f199.google.com with SMTP id 76so2169160pfr.3
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 01:33:09 -0700 (PDT)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id j13si5468720pgf.700.2017.11.03.01.33.07
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 879BA6B0038
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:00:02 -0400 (EDT)
+Received: by mail-wm0-f71.google.com with SMTP id n8so885406wmg.4
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:00:02 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k2si4554888edi.308.2017.11.03.02.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 01:33:07 -0700 (PDT)
-Message-ID: <59FC2A47.3020103@intel.com>
-Date: Fri, 03 Nov 2017 16:35:19 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Nov 2017 02:00:01 -0700 (PDT)
+Date: Fri, 3 Nov 2017 09:59:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v1 1/1] mm: buddy page accessed before initialized
+Message-ID: <20171103085958.pewhlyvkr5oa2fgf@dhcp22.suse.cz>
+References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
+ <20171031155002.21691-2-pasha.tatashin@oracle.com>
+ <20171102133235.2vfmmut6w4of2y3j@dhcp22.suse.cz>
+ <a9b637b0-2ff0-80e8-76a7-801c5c0820a8@oracle.com>
+ <20171102135423.voxnzk2qkvfgu5l3@dhcp22.suse.cz>
+ <94ab73c0-cd18-f58f-eebe-d585fde319e4@oracle.com>
+ <20171102140830.z5uqmrurb6ohfvlj@dhcp22.suse.cz>
+ <813ed7e3-9347-a1f2-1629-464d920f877d@oracle.com>
+ <20171102142742.gpkif3hgnd62nyol@dhcp22.suse.cz>
+ <8b3bb799-818b-b6b6-7c6b-9eee709decb7@oracle.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v1 0/3] Virtio-balloon Improvement
-References: <1508500466-21165-1-git-send-email-wei.w.wang@intel.com> <20171022061307-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171022061307-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <8b3bb799-818b-b6b6-7c6b-9eee709decb7@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: penguin-kernel@I-love.SAKURA.ne.jp, mhocko@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, virtualization@lists.linux-foundation.org
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 10/22/2017 11:19 AM, Michael S. Tsirkin wrote:
-> On Fri, Oct 20, 2017 at 07:54:23PM +0800, Wei Wang wrote:
->> This patch series intends to summarize the recent contributions made by
->> Michael S. Tsirkin, Tetsuo Handa, Michal Hocko etc. via reporting and
->> discussing the related deadlock issues on the mailinglist. Please check
->> each patch for details.
->>
->> >From a high-level point of view, this patch series achieves:
->> 1) eliminate the deadlock issue fundamentally caused by the inability
->> to run leak_balloon and fill_balloon concurrently;
-> We need to think about this carefully. Is it an issue that
-> leak can now bypass fill? It seems that we can now
-> try to leak a page before fill was seen by host,
-> but I did not look into it deeply.
->
-> I really like my patch for this better at least for
-> current kernel. I agree we need to work more on 2+3.
->
+On Thu 02-11-17 12:10:39, Pavel Tatashin wrote:
+> > > 
+> > > Yes, but as I said, unfortunately memset(1) with CONFIG_VM_DEBUG does not
+> > > catch this case. So, when CONFIG_VM_DEBUG is enabled kexec reboots without
+> > > issues.
+> > 
+> > Can we make the init pattern to catch this?
+> 
+> Unfortunately, that is not easy: memset() gives us only one byte to play
+> with, and if we use something else that will make CONFIG_VM_DEBUG
+> unacceptably slow.
 
-Since we have many customers interested in the "Virtio-balloon 
-Enhancement" series,
-please review the v17 patches first (it has a dependency on your patch 
-for that deadlock fix,
-so I included it there too), and we can get back to 2+3 here after that 
-series is done. Thanks.
-
-Best,
-Wei
+Why cannot we do something similar to the optimized struct page
+initialization and write 8B at the time and fill up the size unaligned
+chunk in 1B?
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
