@@ -1,98 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BDFDE6B0033
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 10:28:07 -0400 (EDT)
-Received: by mail-oi0-f72.google.com with SMTP id w197so2848460oif.23
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 07:28:07 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m4si2995629ote.297.2017.11.03.07.28.06
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A16AA6B0033
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 11:00:26 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id q83so2110339qke.16
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 08:00:26 -0700 (PDT)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0137.outbound.protection.outlook.com. [104.47.33.137])
+        by mx.google.com with ESMTPS id a1si5096331qtc.353.2017.11.03.08.00.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 07:28:06 -0700 (PDT)
-Subject: Re: [PATCH] mm,page_alloc: Update comment for last second allocation attempt.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201711022015.BBE95844.QOHtJFMLFOOSVF@I-love.SAKURA.ne.jp>
-	<1509716789-7218-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171103135739.svmtesmgynshjuth@dhcp22.suse.cz>
-	<201711032308.GHE78150.LQOFOtVFFJMHSO@I-love.SAKURA.ne.jp>
-	<20171103141703.lgke7jetrjelydd3@dhcp22.suse.cz>
-In-Reply-To: <20171103141703.lgke7jetrjelydd3@dhcp22.suse.cz>
-Message-Id: <201711032327.HGC39566.MLFQSFtOOJHFVO@I-love.SAKURA.ne.jp>
-Date: Fri, 3 Nov 2017 23:27:57 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 03 Nov 2017 08:00:21 -0700 (PDT)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [RFC -mm] mm, userfaultfd, THP: Avoid waiting when PMD under THP
+ migration
+Date: Fri, 03 Nov 2017 11:00:14 -0400
+Message-ID: <D3FBD1E2-FC24-46B1-9CFF-B73295292675@cs.rutgers.edu>
+In-Reply-To: <20171103075231.25416-1-ying.huang@intel.com>
+References: <20171103075231.25416-1-ying.huang@intel.com>
+MIME-Version: 1.0
+Content-Type: multipart/signed;
+ boundary="=_MailMate_A623C49A-6A90-489F-A16A-2539662222BC_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, aarcange@redhat.com, hannes@cmpxchg.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.UK>
 
-Michal Hocko wrote:
-> On Fri 03-11-17 23:08:35, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Fri 03-11-17 22:46:29, Tetsuo Handa wrote:
-> > > [...]
-> > > > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> > > > index c274960..547e9cb 100644
-> > > > --- a/mm/page_alloc.c
-> > > > +++ b/mm/page_alloc.c
-> > > > @@ -3312,11 +3312,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
-> > > >  	}
-> > > >  
-> > > >  	/*
-> > > > -	 * Go through the zonelist yet one more time, keep very high watermark
-> > > > -	 * here, this is only to catch a parallel oom killing, we must fail if
-> > > > -	 * we're still under heavy pressure. But make sure that this reclaim
-> > > > -	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> > > > -	 * allocation which will never fail due to oom_lock already held.
-> > > > +	 * This allocation attempt must not depend on __GFP_DIRECT_RECLAIM &&
-> > > > +	 * !__GFP_NORETRY allocation which will never fail due to oom_lock
-> > > > +	 * already held. And since this allocation attempt does not sleep,
-> > > > +	 * there is no reason we must use high watermark here.
-> > > >  	 */
-> > > >  	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
-> > > >  				      ~__GFP_DIRECT_RECLAIM, order,
-> > > 
-> > > Which patch does this depend on?
-> > 
-> > This patch is preparation for "mm,oom: Move last second allocation to inside
-> > the OOM killer." patch in order to use changelog close to what you suggested.
-> > That is, I will move this comment and get_page_from_freelist() together to
-> > alloc_pages_before_oomkill(), after we recorded why using ALLOC_WMARK_HIGH.
-> 
-> Is it really worth a separate patch, though? Aren't you overcomplicating
-> things again?
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-It is really worth a separate patch, for you don't want to include the paragraph
-below into "mm,oom: Move last second allocation to inside the OOM killer." patch
+--=_MailMate_A623C49A-6A90-489F-A16A-2539662222BC_=
+Content-Type: text/plain
 
-  > __alloc_pages_may_oom() is doing last second allocation attempt using
-  > ALLOC_WMARK_HIGH before calling out_of_memory(). This had two reasons.
-  > 
-  > The first reason is explained in the comment that it aims to catch
-  > potential parallel OOM killing. But there is no longer parallel OOM
-  > killing (in the sense that out_of_memory() is called "concurrently")
-  > because we serialize out_of_memory() calls using oom_lock.
-  > 
-  > The second reason is explained by Andrea Arcangeli (who added that code)
-  > that it aims to reduce the likelihood of OOM livelocks and be sure to
-  > invoke the OOM killer. There was a risk of livelock or anyway of delayed
-  > OOM killer invocation if ALLOC_WMARK_MIN is used, for relying on last
-  > few pages which are constantly allocated and freed in the meantime will
-  > not improve the situation.
-  
-  > But there is no longer possibility of OOM
-  > livelocks or failing to invoke the OOM killer because we need to mask
-  > __GFP_DIRECT_RECLAIM for last second allocation attempt because oom_lock
-  > prevents __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations which last
-  > second allocation attempt indirectly involve from failing.
-  
-  I really fail to see how this has anything to do with the paragraph
-  above. We are not talking about the reclaim for the last attempt. We are
-  talking about reclaim that might have happened in _other_ context. Why
-  don't you simply stick with the changelog which I've suggested and which
-  is much more clear and easier to read.
+On 3 Nov 2017, at 3:52, Huang, Ying wrote:
 
-while I want to avoid blindly copying or moving outdated comments.
+> From: Huang Ying <ying.huang@intel.com>
+>
+> If THP migration is enabled, the following situation is possible,
+>
+> - A THP is mapped at source address
+> - Migration is started to move the THP to another node
+> - Page fault occurs
+> - The PMD (migration entry) is copied to the destination address in mremap
+>
+
+You mean the page fault path follows the source address and sees pmd_none() now
+because mremap() clears it and remaps the page with dest address.
+Otherwise, it seems not possible to get into handle_userfault(), since it is called in
+pmd_none() branch inside do_huge_pmd_anonymous_page().
+
+
+> That is, it is possible for handle_userfault() encounter a PMD entry
+> which has been handled but !pmd_present().  In the current
+> implementation, we will wait for such PMD entries, which may cause
+> unnecessary waiting, and potential soft lockup.
+
+handle_userfault() should only see pmd_none() in the situation you describe,
+whereas !pmd_present() (migration entry case) should lead to
+pmd_migration_entry_wait().
+
+Am I missing anything here?
+
+
+--
+Best Regards
+Yan Zi
+
+--=_MailMate_A623C49A-6A90-489F-A16A-2539662222BC_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQEcBAEBCgAGBQJZ/IR/AAoJEEGLLxGcTqbMuoUIALSM9JuTIT4JBK6bqVxn8B60
+XlpqJ9uxoxQYBAeiOge6kLlS+9yEwMKBUeLPInLC2WzdU/qWx7RwOmyBx8wcif9y
+CO5uVAcz47u1/3xtLyzP5jkws9WJ5Ocm2WX8+t9t65yMX93CbY4TFGhaIBH1aslL
+FZWMpDijgSbedMTciyyqNv/lL1eGnaN9EIXTjc/PyCFz3cJPcfAeK+VWFm8hiCdW
+lrXcQJqgtT/eBQn8/aeZK96yp83zZXc3y8i2SISv70VUFaxiAJqrG33DSLILrzHn
+M4kNwHWv7mkoOwChyrYtIaDyFddjFx8/fdXoyVuoGODDnVdVR5RLP9H7rsbTS4g=
+=UjK2
+-----END PGP SIGNATURE-----
+
+--=_MailMate_A623C49A-6A90-489F-A16A-2539662222BC_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
