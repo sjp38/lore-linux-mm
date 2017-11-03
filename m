@@ -1,46 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AD5A16B0038
-	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 22:32:55 -0400 (EDT)
-Received: by mail-pg0-f71.google.com with SMTP id i196so1754902pgd.2
-        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 19:32:55 -0700 (PDT)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id o29si5368468pfi.90.2017.11.02.19.32.50
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA2876B0038
+	for <linux-mm@kvack.org>; Thu,  2 Nov 2017 23:15:13 -0400 (EDT)
+Received: by mail-io0-f198.google.com with SMTP id n137so4318754iod.18
+        for <linux-mm@kvack.org>; Thu, 02 Nov 2017 20:15:13 -0700 (PDT)
+Received: from smtprelay.hostedemail.com (smtprelay0191.hostedemail.com. [216.40.44.191])
+        by mx.google.com with ESMTPS id 65si1200287iti.86.2017.11.02.20.15.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 02 Nov 2017 19:32:50 -0700 (PDT)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH 02/15] mm, dax: introduce pfn_t_special()
-In-Reply-To: <150949210553.24061.5992572975056748512.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com> <150949210553.24061.5992572975056748512.stgit@dwillia2-desk3.amr.corp.intel.com>
-Date: Fri, 03 Nov 2017 13:32:44 +1100
-Message-ID: <87ines6qib.fsf@concordia.ellerman.id.au>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 02 Nov 2017 20:15:11 -0700 (PDT)
+Date: Thu, 2 Nov 2017 23:15:07 -0400
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171102231507.18f6b3b6@vmware.local.home>
+In-Reply-To: <82a3df5e-c8ad-dc41-8739-247e5034de29@suse.cz>
+References: <20171102134515.6eef16de@gandalf.local.home>
+	<82a3df5e-c8ad-dc41-8739-247e5034de29@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>, linux-nvdimm@lists.01.org
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de, Arnd Bergmann <arnd@arndb.de>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Dan Williams <dan.j.williams@intel.com> writes:
+On Thu, 2 Nov 2017 23:16:16 +0100
+Vlastimil Babka <vbabka@suse.cz> wrote:
 
-> In support of removing the VM_MIXEDMAP indication from DAX VMAs,
-> introduce pfn_t_special() for drivers to indicate that _PAGE_SPECIAL
-> should be used for DAX ptes. This also helps identify drivers like
-> dccssblk that only want to use DAX in a read-only fashion without
-> get_user_pages() support.
->
-> Ideally we could delete axonram and dcssblk DAX support, but if we need
-> to keep it better make it explicit that axonram and dcssblk only support
-> a sub-set of DAX due to missing _PAGE_DEVMAP support.
+> > +			if (spin) {
+> > +				/* We spin waiting for the owner to release us */
+> > +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> > +				/* Owner will clear console_waiter on hand off */
+> > +				while (!READ_ONCE(console_waiter))  
+> 
+> This should not be negated, right? We should spin while it's true, not
+> false.
 
-I sent a patch to remove axonram (sorry meant to Cc you):
+Ug, yes. How did that not crash in my tests.
 
-  http://patchwork.ozlabs.org/patch/833588/
+Will fix.
 
-Will see if there's any feedback.
-
-cheers
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
