@@ -1,48 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E7186B0033
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 18:41:46 -0400 (EDT)
-Received: by mail-io0-f200.google.com with SMTP id 189so12126453iow.14
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 15:41:46 -0700 (PDT)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 10si3408031itz.41.2017.11.03.15.41.44
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 656A26B0033
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 19:31:19 -0400 (EDT)
+Received: by mail-qk0-f198.google.com with SMTP id q83so3056617qke.16
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 16:31:19 -0700 (PDT)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id x28si721214qtx.41.2017.11.03.16.31.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 15:41:44 -0700 (PDT)
-Subject: Re: mmotm 2017-11-03-13-00 uploaded
-References: <59fccb0b.sRkbr0rZ7jKYyY01%akpm@linux-foundation.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <7137ff17-e194-2896-f471-91395b447f59@infradead.org>
-Date: Fri, 3 Nov 2017 15:41:35 -0700
+        Fri, 03 Nov 2017 16:31:17 -0700 (PDT)
+Subject: Re: [PATCH 4/6] hugetlbfs: implement memfd sealing
+From: Mike Kravetz <mike.kravetz@oracle.com>
+References: <20171031184052.25253-1-marcandre.lureau@redhat.com>
+ <20171031184052.25253-5-marcandre.lureau@redhat.com>
+ <CANq1E4SC8Hi4h9hxUM70+qOL4K95cXuMF9DKGw4dGhfmktrqsA@mail.gmail.com>
+ <ca908533-2905-e28a-db3a-c3cf9c98bbed@oracle.com>
+ <CANq1E4Tb5zuMxwuHFjLBJ==H219ucmO2=V7iM+K7AAuY-iinoQ@mail.gmail.com>
+ <15b59408-7c4d-bbdb-7573-5789faa05e6c@oracle.com>
+Message-ID: <c6c1c10f-a572-bdda-fe5d-5c28ce1c7a11@oracle.com>
+Date: Fri, 3 Nov 2017 16:31:06 -0700
 MIME-Version: 1.0
-In-Reply-To: <59fccb0b.sRkbr0rZ7jKYyY01%akpm@linux-foundation.org>
+In-Reply-To: <15b59408-7c4d-bbdb-7573-5789faa05e6c@oracle.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org, X86 ML <x86@kernel.org>
+To: David Herrmann <dh.herrmann@gmail.com>
+Cc: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>, aarcange@redhat.com, Hugh Dickins <hughd@google.com>, nyc@holomorphy.com
 
-On 11/03/2017 01:01 PM, akpm@linux-foundation.org wrote:
+On 11/03/2017 10:56 AM, Mike Kravetz wrote:
+> On 11/03/2017 10:41 AM, David Herrmann wrote:
+>> Hi
+>>
+>> On Fri, Nov 3, 2017 at 6:12 PM, Mike Kravetz <mike.kravetz@oracle.com> wrote:
+>>> On 11/03/2017 10:03 AM, David Herrmann wrote:
+>>>> Hi
+>>>>
+>>>> On Tue, Oct 31, 2017 at 7:40 PM, Marc-AndrA(C) Lureau
+>>>> <marcandre.lureau@redhat.com> wrote:
+>>>>> Implements memfd sealing, similar to shmem:
+>>>>> - WRITE: deny fallocate(PUNCH_HOLE). mmap() write is denied in
+>>>>>   memfd_add_seals(). write() doesn't exist for hugetlbfs.
+>>>>> - SHRINK: added similar check as shmem_setattr()
+>>>>> - GROW: added similar check as shmem_setattr() & shmem_fallocate()
+>>>>>
+>>>>> Except write() operation that doesn't exist with hugetlbfs, that
+>>>>> should make sealing as close as it can be to shmem support.
+>>>>
+>>>> SEAL, SHRINK, and GROW look fine to me.
+>>>>
+>>>> Regarding WRITE
+>>>
+>>> The commit message may not be clear.  However, hugetlbfs does not support
+>>> the write system call (or aio).  The only way to modify contents of a
+>>> hugetlbfs file is via mmap or hole punch/truncate.  So, we do not really
+>>> need to worry about those special (a)io cases for hugetlbfs.
+>>
+>> This is not about the write(2) syscall. Please consider this scenario
+>> about shmem:
+>>
+>> You create a memfd via memfd_create() and map it writable. You now
+>> call another kernel syscall that takes as input _any mapped page
+>> range_. You pass your mapped memfd-addresses to it. Those syscalls
+>> tend to use get_user_pages() to pin arbitrary user-mapped pages, as
+>> such this also affects shmem. In this case, those pages might stay
+>> mapped even if you munmap() your memfd!
+>>
+>> One example of this is using AIO-read() on any other file that
+>> supports it, passing your mapped memfd as buffer to _read into_. The
+>> operations supported on the memfd are irrelevant here.
+>> The selftests contain a FUSE-based test for this, since FUSE allows
+>> user-space to GUP pages for an arbitrary amount of time.
+>>
+>> The original fix for this is:
+>>
+>>     commit 05f65b5c70909ef686f865f0a85406d74d75f70f
+>>     Author: David Herrmann <dh.herrmann@gmail.com>
+>>     Date:   Fri Aug 8 14:25:36 2014 -0700
+>>
+>>         shm: wait for pins to be released when sealing
+>>
+>> Please have a look at this. Your patches use shmem_add_seals() almost
+>> unchanged, and as such you call into shmem_wait_for_pins() on
+>> hugetlbfs. I would really like to see an explicit ACK that this works
+>> on hugetlbfs.
 > 
-> This mmotm tree contains the following patches against 4.14-rc7:
-> (patches marked "*" will be included in linux-next)
-> 
->   origin.patch
-origin.patch has a problem.  When CONFIG_SMP is not enabled (on x86_64 e.g.):
+> Thanks for the explanation.  I missed that in your first reply.  I'll
+> look into this for hugetlbfs.
 
--	if (cpu_has(c, X86_FEATURE_TSC))
-+	if (cpu_has(c, X86_FEATURE_TSC)) {
-+		unsigned int freq = arch_freq_get_on_cpu(cpu);
+I reviewed the routines in the above commit and did not see anything that
+would prevent them from working properly with hugetlbfs.  I modified the
+fuse test to use hugetlbfs based mapping.  I also instrumented the above
+routines and verified that tags were set/checked/cleared as designed for
+hugetlb pages.  So, that is an ACK on working with hugetlbfs.
 
-
-arch/x86/kernel/cpu/proc.o: In function `show_cpuinfo':
-proc.c:(.text+0x13d): undefined reference to `arch_freq_get_on_cpu'
-/local/lnx/mmotm/mmotm-2017-1103-1300/Makefile:994: recipe for target 'vmlinux' failed
-
+This does bring up the point that the fuse seals test should also be
+modified to work with hugetlbfs as part of this series.
 
 -- 
-~Randy
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
