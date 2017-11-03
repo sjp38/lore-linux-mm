@@ -1,91 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 889A86B025F
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 09:40:43 -0400 (EDT)
-Received: by mail-wr0-f198.google.com with SMTP id k15so1636113wrc.1
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 06:40:43 -0700 (PDT)
-Received: from outbound-smtp09.blacknight.com (outbound-smtp09.blacknight.com. [46.22.139.14])
-        by mx.google.com with ESMTPS id s52si5075809eda.2.2017.11.03.06.40.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 06:40:42 -0700 (PDT)
-Received: from outbound-smtp14.blacknight.com (outbound-smtp14.blacknight.com [46.22.139.231])
-	by outbound-smtp09.blacknight.com (Postfix) with ESMTPS id E35A11C2959
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 13:40:41 +0000 (GMT)
-Received: from mail.blacknight.com (unknown [81.17.254.17])
-	by outbound-smtp14.blacknight.com (Postfix) with ESMTPS id D2AB51C29FA
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 13:40:41 +0000 (GMT)
-Date: Fri, 3 Nov 2017 13:40:20 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: Page allocator bottleneck
-Message-ID: <20171103134020.3hwquerifnc6k6qw@techsingularity.net>
-References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
- <20170915102320.zqceocmvvkyybekj@techsingularity.net>
- <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
- <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CAE446B0260
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 09:41:52 -0400 (EDT)
+Received: by mail-oi0-f71.google.com with SMTP id s185so2748125oif.16
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 06:41:52 -0700 (PDT)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id 89si3650417ott.417.2017.11.03.06.41.51
+        for <linux-mm@kvack.org>;
+        Fri, 03 Nov 2017 06:41:51 -0700 (PDT)
+Date: Fri, 3 Nov 2017 13:41:54 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+Message-ID: <20171103134154.GB13499@arm.com>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171102190106.GC22263@arm.com>
+ <816a3491-3c2c-ec0a-810f-b593c25968f2@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
+In-Reply-To: <816a3491-3c2c-ec0a-810f-b593c25968f2@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tariq Toukan <tariqt@mellanox.com>
-Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org
 
-On Thu, Nov 02, 2017 at 07:21:09PM +0200, Tariq Toukan wrote:
+On Thu, Nov 02, 2017 at 12:38:05PM -0700, Dave Hansen wrote:
+> On 11/02/2017 12:01 PM, Will Deacon wrote:
+> > On Tue, Oct 31, 2017 at 03:31:46PM -0700, Dave Hansen wrote:
+> >> KAISER makes it harder to defeat KASLR, but makes syscalls and
+> >> interrupts slower.  These patches are based on work from a team at
+> >> Graz University of Technology posted here[1].  The major addition is
+> >> support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
+> >> work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
+> >> for a wide variety of use cases.
+> > I just wanted to say that I've got a version of this up and running for
+> > arm64. I'm still ironing out a few small details, but I hope to post it
+> > after the merge window. We always use ASIDs, and the perf impact looks
+> > like it aligns roughly with your findings for a PCID-enabled x86 system.
 > 
+> Welcome to the party!
 > 
-> On 18/09/2017 12:16 PM, Tariq Toukan wrote:
-> > 
-> > 
-> > On 15/09/2017 1:23 PM, Mel Gorman wrote:
-> > > On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
-> > > > Insights: Major degradation between #1 and #2, not getting any
-> > > > close to linerate! Degradation is fixed between #2 and #3. This is
-> > > > because page allocator cannot stand the higher allocation rate. In
-> > > > #2, we also see that the addition of rings (cores) reduces BW (!!),
-> > > > as result of increasing congestion over shared resources.
-> > > > 
-> > > 
-> > > Unfortunately, no surprises there.
-> > > 
-> > > > Congestion in this case is very clear. When monitored in perf
-> > > > top: 85.58% [kernel] [k] queued_spin_lock_slowpath
-> > > > 
-> > > 
-> > > While it's not proven, the most likely candidate is the zone lock
-> > > and that should be confirmed using a call-graph profile. If so, then
-> > > the suggestion to tune to the size of the per-cpu allocator would
-> > > mitigate the problem.
-> > > 
-> > Indeed, I tuned the per-cpu allocator and bottleneck is released.
-> > 
-> 
-> Hi all,
-> 
-> After leaving this task for a while doing other tasks, I got back to it now
-> and see that the good behavior I observed earlier was not stable.
-> 
-> Recall: I work with a modified driver that allocates a page (4K) per packet
-> (MTU=1500), in order to simulate the stress on page-allocator in 200Gbps
-> NICs.
-> 
+> I don't know if you've found anything different, but there been woefully
+> little code that's really cross-architecture.  The kernel task
+> stack-mapping stuff _was_, but it's going away.  The per-cpu-user-mapped
+> section stuff might be common, I guess.
 
-There is almost new in the data that hasn't been discussed before. The
-suggestion to free on a remote per-cpu list would be expensive as it would
-require per-cpu lists to have a lock for safe remote access.  However,
-I'd be curious if you could test the mm-pagealloc-irqpvec-v1r4 branch
-ttps://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git .  It's an
-unfinished prototype I worked on a few weeks ago. I was going to revisit
-in about a months time when 4.15-rc1 was out. I'd be interested in seeing
-if it has a postive gain in normal page allocations without destroying
-the performance of interrupt and softirq allocation contexts. The
-interrupt/softirq context testing is crucial as that is something that
-hurt us before when trying to improve page allocator performance.
+I currently don't have anything mapped other than the trampoline page, so
+I haven't had to do per-cpu stuff (yet). This will interfere with perf
+tracing using SPE, but if that's the only thing that needs it then it's
+a hard sell, I think.
 
--- 
-Mel Gorman
-SUSE Labs
+> Is there any other common infrastructure that we can or should be sharing?
+
+I really can't see anything. My changes are broadly divided into:
+
+  * Page table setup
+  * Exception entry/exit via trampoline
+  * User access (e.g. get_user)
+  * TLB invalidation
+  * Context switch (backend of switch_mm)
+
+which is all deeply arch-specific.
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
