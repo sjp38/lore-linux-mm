@@ -1,80 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 019526B0253
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 03:54:00 -0400 (EDT)
-Received: by mail-pg0-f69.google.com with SMTP id 191so2496072pgd.0
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 00:53:59 -0700 (PDT)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id o28si5310423pgc.521.2017.11.03.00.53.58
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id ECDE76B0038
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 04:24:21 -0400 (EDT)
+Received: by mail-wr0-f198.google.com with SMTP id p96so1165676wrb.12
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 01:24:21 -0700 (PDT)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r12si4868026edb.481.2017.11.03.01.24.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 03 Nov 2017 00:53:58 -0700 (PDT)
-From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [RFC -mm] mm, userfaultfd, THP: Avoid waiting when PMD under THP migration
-Date: Fri,  3 Nov 2017 15:52:31 +0800
-Message-Id: <20171103075231.25416-1-ying.huang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 03 Nov 2017 01:24:19 -0700 (PDT)
+Date: Fri, 3 Nov 2017 09:24:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] shmem: drop lru_add_drain_all from
+ shmem_wait_for_pins
+Message-ID: <20171103082417.7rwns74txzzoyzyv@dhcp22.suse.cz>
+References: <20171102093613.3616-1-mhocko@kernel.org>
+ <20171102093613.3616-2-mhocko@kernel.org>
+ <alpine.LSU.2.11.1711030004260.4821@eggly.anvils>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.LSU.2.11.1711030004260.4821@eggly.anvils>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huang Ying <ying.huang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.UK>
+To: Hugh Dickins <hughd@google.com>
+Cc: linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Tejun Heo <tj@kernel.org>, LKML <linux-kernel@vger.kernel.org>, David Herrmann <dh.herrmann@gmail.com>
 
-From: Huang Ying <ying.huang@intel.com>
+On Fri 03-11-17 00:46:18, Hugh Dickins wrote:
+> On Thu, 2 Nov 2017, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
+> > 
+> > syzkaller has reported the following lockdep splat
+> > ======================================================
+> > WARNING: possible circular locking dependency detected
+> > 4.13.0-next-20170911+ #19 Not tainted
+> > ------------------------------------------------------
+> > syz-executor5/6914 is trying to acquire lock:
+> >   (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] get_online_cpus  include/linux/cpu.h:126 [inline]
+> >   (cpu_hotplug_lock.rw_sem){++++}, at: [<ffffffff818c1b3e>] lru_add_drain_all+0xe/0x20 mm/swap.c:729
+> > 
+> > but task is already holding lock:
+> >   (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] inode_lock include/linux/fs.h:712 [inline]
+> >   (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff818fbef7>] shmem_add_seals+0x197/0x1060 mm/shmem.c:2768
+> > 
+> > more details [1] and dependencies explained [2]. The problem seems to be
+> > the usage of lru_add_drain_all from shmem_wait_for_pins. While the lock
+> > dependency is subtle as hell and we might want to make lru_add_drain_all
+> > less dependent on the hotplug locks the usage of lru_add_drain_all seems
+> > dubious here. The whole function cares only about radix tree tags, page
+> > count and page mapcount. None of those are touched from the draining
+> > context. So it doesn't make much sense to drain pcp caches. Moreover
+> > this looks like a wrong thing to do because it basically induces
+> > unpredictable latency to the call because draining is not for free
+> > (especially on larger machines with many cpus).
+> > 
+> > Let's simply drop the call to lru_add_drain_all to address both issues.
+> > 
+> > [1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
+> > [2] http://lkml.kernel.org/r/http://lkml.kernel.org/r/20171030151009.ip4k7nwan7muouca@hirez.programming.kicks-ass.net
+> > 
+> > Cc: David Herrmann <dh.herrmann@gmail.com>
+> > Cc: Hugh Dickins <hughd@google.com>
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> 
+> NAK.  shmem_wait_for_pins() is waiting for temporary pins on the pages
+> to go away, and using lru_add_drain_all() in the usual way, to lower
+> the refcount of pages temporarily pinned in a pagevec somewhere.  Page
+> count is touched by draining pagevecs: I'm surprised to see you say
+> that it isn't - or have pagevec page references been eliminated by
+> a recent commit that I missed?
 
-If THP migration is enabled, the following situation is possible,
-
-- A THP is mapped at source address
-- Migration is started to move the THP to another node
-- Page fault occurs
-- The PMD (migration entry) is copied to the destination address in mremap
-
-That is, it is possible for handle_userfault() encounter a PMD entry
-which has been handled but !pmd_present().  In the current
-implementation, we will wait for such PMD entries, which may cause
-unnecessary waiting, and potential soft lockup.
-
-This is fixed via avoiding to wait when !pmd_present(), only wait when
-pmd_none().
-
-Question:
-
-I found userfaultfd_must_wait() is always called when PMD or PTE is
-none, and with mm->mmap_sem read-lock held.  mremap() will write-lock
-mm->mmap_sem.  And UFFDIO_COPY don't support to copy THP mapping.  So
-the situation described above couldn't happen in practice?
-
-Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.UK>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
----
- fs/userfaultfd.c | 5 ++++-
- 1 file changed, 4 insertions(+), 1 deletion(-)
-
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index b5a0193e1960..0fcf66c3e439 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -294,10 +294,13 @@ static inline bool userfaultfd_must_wait(struct userfaultfd_ctx *ctx,
- 	 * pmd_trans_unstable) of the pmd.
- 	 */
- 	_pmd = READ_ONCE(*pmd);
--	if (!pmd_present(_pmd))
-+	if (pmd_none(_pmd))
- 		goto out;
- 
- 	ret = false;
-+	if (!pmd_present(_pmd))
-+		goto out;
-+
- 	if (pmd_trans_huge(_pmd))
- 		goto out;
- 
+I must be missing something here. __pagevec_lru_add_fn merely about
+moving the page into the appropriate LRU list, pagevec_move_tail only
+rotates, lru_deactivate_file_fn moves from active to inactive LRUs,
+lru_lazyfree_fn moves from anon to file LRUs and activate_page_drain
+just moves to the active list. None of those operations touch the page
+count AFAICS. So I would agree that some pages might be pinned outside
+of the LRU (lru_add_pvec) and thus unreclaimable but does this really
+matter. Or what else I am missing?
 -- 
-2.14.2
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
