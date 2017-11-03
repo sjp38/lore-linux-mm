@@ -1,55 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 879BA6B0038
-	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:00:02 -0400 (EDT)
-Received: by mail-wm0-f71.google.com with SMTP id n8so885406wmg.4
-        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:00:02 -0700 (PDT)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k2si4554888edi.308.2017.11.03.02.00.00
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 32E356B0253
+	for <linux-mm@kvack.org>; Fri,  3 Nov 2017 05:06:18 -0400 (EDT)
+Received: by mail-wr0-f197.google.com with SMTP id u98so1270804wrb.4
+        for <linux-mm@kvack.org>; Fri, 03 Nov 2017 02:06:18 -0700 (PDT)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id b18si5133357edh.47.2017.11.03.02.06.16
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 03 Nov 2017 02:00:01 -0700 (PDT)
-Date: Fri, 3 Nov 2017 09:59:58 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v1 1/1] mm: buddy page accessed before initialized
-Message-ID: <20171103085958.pewhlyvkr5oa2fgf@dhcp22.suse.cz>
-References: <20171031155002.21691-1-pasha.tatashin@oracle.com>
- <20171031155002.21691-2-pasha.tatashin@oracle.com>
- <20171102133235.2vfmmut6w4of2y3j@dhcp22.suse.cz>
- <a9b637b0-2ff0-80e8-76a7-801c5c0820a8@oracle.com>
- <20171102135423.voxnzk2qkvfgu5l3@dhcp22.suse.cz>
- <94ab73c0-cd18-f58f-eebe-d585fde319e4@oracle.com>
- <20171102140830.z5uqmrurb6ohfvlj@dhcp22.suse.cz>
- <813ed7e3-9347-a1f2-1629-464d920f877d@oracle.com>
- <20171102142742.gpkif3hgnd62nyol@dhcp22.suse.cz>
- <8b3bb799-818b-b6b6-7c6b-9eee709decb7@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8b3bb799-818b-b6b6-7c6b-9eee709decb7@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 03 Nov 2017 02:06:16 -0700 (PDT)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA3943sK077850
+	for <linux-mm@kvack.org>; Fri, 3 Nov 2017 05:06:15 -0400
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2e0hqfky48-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 03 Nov 2017 05:06:15 -0400
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
+	Fri, 3 Nov 2017 09:06:13 -0000
+From: Heiko Carstens <heiko.carstens@de.ibm.com>
+Subject: [PATCH] s390/mm: fix pud table accounting
+Date: Fri,  3 Nov 2017 10:05:51 +0100
+Message-Id: <20171103090551.18231-1-heiko.carstens@de.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-next@vger.kernel.org, linux-s390@vger.kernel.org, linux-kernel@vger.kernel.org, Heiko Carstens <heiko.carstens@de.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Michal Hocko <mhocko@suse.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>
 
-On Thu 02-11-17 12:10:39, Pavel Tatashin wrote:
-> > > 
-> > > Yes, but as I said, unfortunately memset(1) with CONFIG_VM_DEBUG does not
-> > > catch this case. So, when CONFIG_VM_DEBUG is enabled kexec reboots without
-> > > issues.
-> > 
-> > Can we make the init pattern to catch this?
-> 
-> Unfortunately, that is not easy: memset() gives us only one byte to play
-> with, and if we use something else that will make CONFIG_VM_DEBUG
-> unacceptably slow.
+With "mm: account pud page tables" and "mm: consolidate page table
+accounting" pud page table accounting was introduced which now results
+in tons of warnings like this one on s390:
 
-Why cannot we do something similar to the optimized struct page
-initialization and write 8B at the time and fill up the size unaligned
-chunk in 1B?
+BUG: non-zero pgtables_bytes on freeing mm: -16384
+
+Reason for this are our run-time folded page tables: by default new
+processes start with three page table levels where the allocated pgd
+is the same as the first pud. In this case there won't ever be a pud
+allocated and therefore mm_inc_nr_puds() will also never be called.
+
+However when freeing the address space free_pud_range() will call
+exactly once mm_dec_nr_puds() which leads to misaccounting.
+
+Therefore call mm_inc_nr_puds() within init_new_context() to fix
+this. This is the same like we have it already for processes that run
+with two page table levels (aka compat processes).
+
+While at it also adjust the comment, since there is no "mm->nr_pmds"
+anymore.
+
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Gerald Schaefer <gerald.schaefer@de.ibm.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+---
+ arch/s390/include/asm/mmu_context.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/arch/s390/include/asm/mmu_context.h b/arch/s390/include/asm/mmu_context.h
+index 3c9abedc323c..4f943d58cbac 100644
+--- a/arch/s390/include/asm/mmu_context.h
++++ b/arch/s390/include/asm/mmu_context.h
+@@ -43,6 +43,8 @@ static inline int init_new_context(struct task_struct *tsk,
+ 		mm->context.asce_limit = STACK_TOP_MAX;
+ 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+ 				   _ASCE_USER_BITS | _ASCE_TYPE_REGION3;
++		/* pgd_alloc() did not account this pud */
++		mm_inc_nr_puds(mm);
+ 		break;
+ 	case -PAGE_SIZE:
+ 		/* forked 5-level task, set new asce with new_mm->pgd */
+@@ -58,7 +60,7 @@ static inline int init_new_context(struct task_struct *tsk,
+ 		/* forked 2-level compat task, set new asce with new mm->pgd */
+ 		mm->context.asce = __pa(mm->pgd) | _ASCE_TABLE_LENGTH |
+ 				   _ASCE_USER_BITS | _ASCE_TYPE_SEGMENT;
+-		/* pgd_alloc() did not increase mm->nr_pmds */
++		/* pgd_alloc() did not account this pmd */
+ 		mm_inc_nr_pmds(mm);
+ 	}
+ 	crst_table_init((unsigned long *) mm->pgd, pgd_entry_type(mm));
 -- 
-Michal Hocko
-SUSE Labs
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
