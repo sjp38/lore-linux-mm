@@ -1,56 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E20756B0253
-	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 04:45:10 -0400 (EDT)
-Received: by mail-io0-f197.google.com with SMTP id k9so15967846iok.4
-        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 01:45:10 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 78si7432137ioo.217.2017.11.04.01.45.09
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 206F56B0033
+	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 05:55:36 -0400 (EDT)
+Received: by mail-ua0-f198.google.com with SMTP id e46so3060153uaa.6
+        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 02:55:36 -0700 (PDT)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k2sor2868687uad.249.2017.11.04.02.55.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 04 Nov 2017 01:45:10 -0700 (PDT)
-Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to loadbalance console writes
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171103072121.3c2fd5ab@vmware.local.home>
-	<20171103075404.14f9058a@vmware.local.home>
-	<a53b5ca3-507d-87f4-ce31-175e848259b6@nvidia.com>
-	<6b1cda44-126d-bf47-66cc-fc80bdb7eb7d@nvidia.com>
-	<201711041732.BFE78178.OFFLOtVQMFHSJO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201711041732.BFE78178.OFFLOtVQMFHSJO@I-love.SAKURA.ne.jp>
-Message-Id: <201711041743.GCG95335.OQFLJMFSHOVFtO@I-love.SAKURA.ne.jp>
-Date: Sat, 4 Nov 2017 17:43:53 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (Google Transport Security);
+        Sat, 04 Nov 2017 02:55:35 -0700 (PDT)
+MIME-Version: 1.0
+From: Maxim Levitsky <maximlevitsky@gmail.com>
+Date: Sat, 4 Nov 2017 11:55:14 +0200
+Message-ID: <CACAwPwY0owut+314c5sy7jNViZqfrKy3sSf1hjLTocXefrz3xA@mail.gmail.com>
+Subject: Guaranteed allocation of huge pages (1G) using movablecore=N doesn't
+ seem to work at all
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: jhubbard@nvidia.com, rostedt@goodmis.org
-Cc: vbabka@suse.cz, linux-kernel@vger.kernel.org, peterz@infradead.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, yuwang.yuwang@alibaba-inc.com, torvalds@linux-foundation.org, jack@suse.cz, mathieu.desnoyers@efficios.com, penguin-kernel@I-love.SAKURA.ne.jp
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-Tetsuo Handa wrote:
-> John Hubbard wrote:
-> > On 11/03/2017 02:46 PM, John Hubbard wrote:
-> > > On 11/03/2017 04:54 AM, Steven Rostedt wrote:
-> > >> On Fri, 3 Nov 2017 07:21:21 -0400
-> > >> Steven Rostedt <rostedt@goodmis.org> wrote:
-> > [...]
-> > >>
-> > >> I'll condense the patch to show what I mean:
-> > >>
-> > >> To become a waiter, a task must do the following:
-> > >>
-> > >> +			printk_safe_enter_irqsave(flags);
-> > >> +
-> > >> +			raw_spin_lock(&console_owner_lock);
-> > >> +			owner = READ_ONCE(console_owner);
-> > >> +			waiter = READ_ONCE(console_waiter);
-> 
-> When CPU0 is writing to consoles after "console_owner = current;",
-> what prevents from CPU1 and CPU2 concurrently reached this line from
-> seeing waiter == false && owner != NULL && owner != current (which will
-> concurrently set console_waiter = true and spin = true) without
-> using atomic instructions?
+Hi!
 
-Oops. I overlooked that console_owner_lock is held.
+My system has 64G of ram and I want to create 32 1G huge pages to use
+in KVM virtualization,
+on demand, only when VM is running.
+
+So I booted the kernel with
+'hugepagesz=1G hugepages=0 default_hugepagesz=1G movablecore=40G'
+
+However I still can't allocate the pages reliably.
+For instance this simple script is enough to make it not possible to
+even allocate one 1G huge page after few dozens of iterations:
+
+while true ; do
+    sudo hugeadm  --enable-zone-movable  --pool-pages-min 1G:0G
+    sudo hugeadm  --enable-zone-movable  --pool-pages-min 1G:60G
+done
+
+
+I disabled mlock systemwide (now ulimit -l shows 0), I still see 8
+pages mlocked in  zone 'Movable' but this is not enough to explain
+this
+nr_mlock     8
+
+I do have around 64GB of swap too, but I see no even an attempt to use it.
+
+# free
+              total        used        free      shared  buff/cache   available
+Mem:       65887928     1748344    62640276       61688     1499308    62053832
+Swap:      67108860           0    67108860
+
+Any idea about what is going on?
+
+This was tested on 4.14.0-rc5 (my custom compiled) and on several
+older kernels (4.10,4.12,4.13) from ubuntu repositories.
+
+Disabling/enabling transparent huge pages in the kernel config didn't
+make a difference.
+
+VT-d was enabled during the tests (intel_iommu=on,igfx_off) if that
+would make any difference, but no VM was started when I run the above
+script, in fact I run it just after the system booted.
+
+Best regards,
+          Maxim Levitsky
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
