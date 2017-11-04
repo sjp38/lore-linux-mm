@@ -1,69 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5810A6B0253
-	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 07:30:09 -0400 (EDT)
-Received: by mail-ot0-f197.google.com with SMTP id u41so451234otf.12
-        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 04:30:09 -0700 (PDT)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id q45si4782814ota.337.2017.11.04.04.30.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 27E706B0033
+	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 07:41:08 -0400 (EDT)
+Received: by mail-wm0-f69.google.com with SMTP id l8so1569745wmg.7
+        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 04:41:08 -0700 (PDT)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id o13si3743500wmf.223.2017.11.04.04.41.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 04 Nov 2017 04:30:08 -0700 (PDT)
-Subject: Re: [PATCH v17 4/6] virtio-balloon: VIRTIO_BALLOON_F_SG
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
-	<1509696786-1597-5-git-send-email-wei.w.wang@intel.com>
-	<201711032025.HJC78622.SFFOMLOtFQHVJO@I-love.SAKURA.ne.jp>
-	<59FD9FE3.5090409@intel.com>
-In-Reply-To: <59FD9FE3.5090409@intel.com>
-Message-Id: <201711042028.EGB64074.FOLMHtFJVQOOFS@I-love.SAKURA.ne.jp>
-Date: Sat, 4 Nov 2017 20:28:47 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 04 Nov 2017 04:41:07 -0700 (PDT)
+Date: Sat, 4 Nov 2017 12:41:18 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH] writeback: remove the unused function parameter
+Message-ID: <20171104114118.GA10809@kroah.com>
+References: <1509680672-10004-1-git-send-email-wanglong19@meituan.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1509680672-10004-1-git-send-email-wanglong19@meituan.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Wang Long <wanglong19@meituan.com>
+Cc: jack@suse.cz, tj@kernel.org, akpm@linux-foundation.org, axboe@fb.com, nborisov@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Wei Wang wrote:
-> On 11/03/2017 07:25 PM, Tetsuo Handa wrote:
-> >> @@ -184,8 +307,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
-> >>   
-> >>   	num_allocated_pages = vb->num_pfns;
-> >>   	/* Did we get any? */
-> >> -	if (vb->num_pfns != 0)
-> >> -		tell_host(vb, vb->inflate_vq);
-> >> +	if (vb->num_pfns) {
-> >> +		if (use_sg)
-> >> +			tell_host_sgs(vb, vb->inflate_vq, pfn_min, pfn_max);
-> > Please describe why tell_host_sgs() can work without __GFP_DIRECT_RECLAIM allocation,
-> > for tell_host_sgs() is called with vb->balloon_lock mutex held.
-> 
-> Essentially, 
-> tell_host_sgs()-->send_balloon_page_sg()-->add_one_sg()-->virtqueue_add_inbuf( 
-> , , num=1 ,,GFP_KERNEL)
-> won't need any memory allocation, because we always add one sg (i.e. 
-> num=1) each time. That memory
-> allocation option is only used when multiple sgs are added (i.e. num > 
-> 1) and the implementation inside virtqueue_add_inbuf
-> need allocation of indirect descriptor table.
-> 
-> We could also add some comments above the function to explain a little 
-> about this if necessary.
+On Thu, Nov 02, 2017 at 11:44:32PM -0400, Wang Long wrote:
+> Signed-off-by: Wang Long <wanglong19@meituan.com>
+> ---
 
-Yes, please do so.
-
-Or maybe replace GFP_KERNEL with GFP_NOWAIT or 0. Though Michael might remove that GFP
-argument ( http://lkml.kernel.org/r/201710022344.JII17368.HQtLOMJOOSFFVF@I-love.SAKURA.ne.jp ).
-
-> > If this is inside vb->balloon_lock mutex (isn't this?), xb_set_page() must not
-> > use __GFP_DIRECT_RECLAIM allocation, for leak_balloon_sg_oom() will be blocked
-> > on vb->balloon_lock mutex.
-> 
-> OK. Since the preload() doesn't need too much memory (< 4K in total), 
-> how about GFP_NOWAIT here?
-
-Maybe GFP_NOWAIT | __GFP_NOWARN ?
+I know I don't take patches without any changelog text :(
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
