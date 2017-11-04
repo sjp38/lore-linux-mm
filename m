@@ -1,42 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 91DBC6B0033
-	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 08:43:57 -0400 (EDT)
-Received: by mail-oi0-f70.google.com with SMTP id s185so5461797oif.16
-        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 05:43:57 -0700 (PDT)
-Received: from mx02.meituan.com (mx-fe5-210.meituan.com. [103.37.138.210])
-        by mx.google.com with ESMTPS id 96si4491245otj.513.2017.11.04.05.43.56
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 214286B0033
+	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 09:47:14 -0400 (EDT)
+Received: by mail-pf0-f197.google.com with SMTP id v78so5684809pfk.8
+        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 06:47:14 -0700 (PDT)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id m16si8322692pgv.244.2017.11.04.06.47.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 04 Nov 2017 05:43:56 -0700 (PDT)
+        Sat, 04 Nov 2017 06:47:12 -0700 (PDT)
+Date: Sat, 4 Nov 2017 06:47:09 -0700
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mm: filemap: remove include of hardirq.h
+Message-ID: <20171104134709.GA23784@bombadil.infradead.org>
+References: <1509734868-120762-1-git-send-email-yang.s@alibaba-inc.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: =?utf-8?B?UmU6IFtQQVRDSF0gd3JpdGViYWNrOiByZW1vdmUgdGhlIHVudXNl?=
- =?utf-8?B?ZCBmdW5jdGlvbiBwYXJhbWV0ZXIg44CQ5aSW5Z+f6YKu5Lu2LuiwqOaFjg==?=
- =?utf-8?B?5p+l6ZiF44CR?=
-From: wanglong <wanglong19@meituan.com>
-In-Reply-To: <20171104114118.GA10809@kroah.com>
-Date: Sat, 4 Nov 2017 20:43:09 +0800
-Content-Transfer-Encoding: 7bit
-Message-Id: <43D1A76F-6B28-415D-8FE8-34768B2245D4@meituan.com>
-References: <1509680672-10004-1-git-send-email-wanglong19@meituan.com>
- <20171104114118.GA10809@kroah.com>
+Content-Disposition: inline
+In-Reply-To: <1509734868-120762-1-git-send-email-yang.s@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gregkh@linuxfoundation.org
-Cc: jack@suse.cz, tj@kernel.org, akpm@linux-foundation.org, axboe@fb.com, nborisov@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
+On Sat, Nov 04, 2017 at 02:47:48AM +0800, Yang Shi wrote:
+> in_atomic() has been moved to include/linux/preempt.h, and the filemap.c
+> doesn't use in_atomic() directly at all, so it sounds unnecessary to
+> include hardirq.h.
+> With removing hardirq.h, around 32 bytes can be saved for x86_64 bzImage
+> with allnoconfig.
 
-> On 4 Nov 2017, at 7:41 PM, gregkh@linuxfoundation.org wrote:
-> 
-> On Thu, Nov 02, 2017 at 11:44:32PM -0400, Wang Long wrote:
->> Signed-off-by: Wang Long <wanglong19@meituan.com>
->> ---
-> 
-> I know I don't take patches without any changelog text :(
-> 
-
-I will add some changelog and send v2 patch.  thanks.
+Wait, what?  How would including an unused header file increase the size
+of the final image?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
