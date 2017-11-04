@@ -1,71 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 206F56B0033
-	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 05:55:36 -0400 (EDT)
-Received: by mail-ua0-f198.google.com with SMTP id e46so3060153uaa.6
-        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 02:55:36 -0700 (PDT)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k2sor2868687uad.249.2017.11.04.02.55.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E00B46B0033
+	for <linux-mm@kvack.org>; Sat,  4 Nov 2017 07:07:16 -0400 (EDT)
+Received: by mail-pf0-f199.google.com with SMTP id x7so5388539pfa.19
+        for <linux-mm@kvack.org>; Sat, 04 Nov 2017 04:07:16 -0700 (PDT)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id r17si8244616pgd.673.2017.11.04.04.07.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 04 Nov 2017 02:55:35 -0700 (PDT)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 04 Nov 2017 04:07:13 -0700 (PDT)
+Message-ID: <59FD9FE3.5090409@intel.com>
+Date: Sat, 04 Nov 2017 19:09:23 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-From: Maxim Levitsky <maximlevitsky@gmail.com>
-Date: Sat, 4 Nov 2017 11:55:14 +0200
-Message-ID: <CACAwPwY0owut+314c5sy7jNViZqfrKy3sSf1hjLTocXefrz3xA@mail.gmail.com>
-Subject: Guaranteed allocation of huge pages (1G) using movablecore=N doesn't
- seem to work at all
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH v17 4/6] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>	<1509696786-1597-5-git-send-email-wei.w.wang@intel.com> <201711032025.HJC78622.SFFOMLOtFQHVJO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711032025.HJC78622.SFFOMLOtFQHVJO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: linux-mm@kvack.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-Hi!
-
-My system has 64G of ram and I want to create 32 1G huge pages to use
-in KVM virtualization,
-on demand, only when VM is running.
-
-So I booted the kernel with
-'hugepagesz=1G hugepages=0 default_hugepagesz=1G movablecore=40G'
-
-However I still can't allocate the pages reliably.
-For instance this simple script is enough to make it not possible to
-even allocate one 1G huge page after few dozens of iterations:
-
-while true ; do
-    sudo hugeadm  --enable-zone-movable  --pool-pages-min 1G:0G
-    sudo hugeadm  --enable-zone-movable  --pool-pages-min 1G:60G
-done
+On 11/03/2017 07:25 PM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+>> @@ -164,6 +284,8 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+>>   			break;
+>>   		}
+>>   
+>> +		if (use_sg && xb_set_page(vb, page, &pfn_min, &pfn_max) < 0)
+> Isn't this leaking "page" ?
 
 
-I disabled mlock systemwide (now ulimit -l shows 0), I still see 8
-pages mlocked in  zone 'Movable' but this is not enough to explain
-this
-nr_mlock     8
+Right, thanks, will add __free_page(page) here.
 
-I do have around 64GB of swap too, but I see no even an attempt to use it.
+>> @@ -184,8 +307,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+>>   
+>>   	num_allocated_pages = vb->num_pfns;
+>>   	/* Did we get any? */
+>> -	if (vb->num_pfns != 0)
+>> -		tell_host(vb, vb->inflate_vq);
+>> +	if (vb->num_pfns) {
+>> +		if (use_sg)
+>> +			tell_host_sgs(vb, vb->inflate_vq, pfn_min, pfn_max);
+> Please describe why tell_host_sgs() can work without __GFP_DIRECT_RECLAIM allocation,
+> for tell_host_sgs() is called with vb->balloon_lock mutex held.
 
-# free
-              total        used        free      shared  buff/cache   available
-Mem:       65887928     1748344    62640276       61688     1499308    62053832
-Swap:      67108860           0    67108860
+Essentially, 
+tell_host_sgs()-->send_balloon_page_sg()-->add_one_sg()-->virtqueue_add_inbuf( 
+, , num=1 ,,GFP_KERNEL)
+won't need any memory allocation, because we always add one sg (i.e. 
+num=1) each time. That memory
+allocation option is only used when multiple sgs are added (i.e. num > 
+1) and the implementation inside virtqueue_add_inbuf
+need allocation of indirect descriptor table.
 
-Any idea about what is going on?
+We could also add some comments above the function to explain a little 
+about this if necessary.
 
-This was tested on 4.14.0-rc5 (my custom compiled) and on several
-older kernels (4.10,4.12,4.13) from ubuntu repositories.
+>
+>
+>> @@ -223,7 +353,13 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
+>>   		page = balloon_page_dequeue(vb_dev_info);
+>>   		if (!page)
+>>   			break;
+>> -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+>> +		if (use_sg) {
+>> +			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0)
+> Isn't this leaking "page" ?
 
-Disabling/enabling transparent huge pages in the kernel config didn't
-make a difference.
+Yes, will make it:
 
-VT-d was enabled during the tests (intel_iommu=on,igfx_off) if that
-would make any difference, but no VM was started when I run the above
-script, in fact I run it just after the system booted.
+     if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
+         balloon_page_enqueue(..., page);
+         break;
+     }
 
-Best regards,
-          Maxim Levitsky
+>
+> If this is inside vb->balloon_lock mutex (isn't this?), xb_set_page() must not
+> use __GFP_DIRECT_RECLAIM allocation, for leak_balloon_sg_oom() will be blocked
+> on vb->balloon_lock mutex.
+
+OK. Since the preload() doesn't need too much memory (< 4K in total), 
+how about GFP_NOWAIT here?
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
