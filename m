@@ -1,77 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 501606B0033
-	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 09:50:33 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id e123so7854848oig.14
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 06:50:33 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c3si4714189oia.140.2017.11.05.06.50.31
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C6976B0033
+	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 16:56:50 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id p96so4927224wrb.12
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 13:56:50 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [212.227.17.10])
+        by mx.google.com with ESMTPS id c10si9624957wrg.554.2017.11.05.13.56.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Nov 2017 06:50:32 -0800 (PST)
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
- <20171105231850.5e313e46@roar.ozlabs.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <6d293bb3-78bd-6d20-3684-be6358bd3d7b@redhat.com>
-Date: Sun, 5 Nov 2017 15:50:28 +0100
+        Sun, 05 Nov 2017 13:56:45 -0800 (PST)
+Date: Sun, 5 Nov 2017 22:56:32 +0100 (CET)
+From: Stefan Wahren <stefan.wahren@i2se.com>
+Message-ID: <1976258473.140703.1509918992800@email.1und1.de>
+Subject: Re: [1/2] mm: drop migrate type checks from has_unmovable_pages
 MIME-Version: 1.0
-In-Reply-To: <20171105231850.5e313e46@roar.ozlabs.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-kernel@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>
 
-On 11/05/2017 01:18 PM, Nicholas Piggin wrote:
-> Something like the following patch may help if you could test.
+Hi Michal,
 
-The patch appears to fix it:
+the dwc2 USB driver on BCM2835 in linux-next is affected by the CMA allocation issue. A quick web search guide me to your patch, which avoid the issue.
 
-# /lib64/ld64.so.1 ./a.out
-initial brk value: 0x7fffe4590000
-probing at 0x80000001fffc
+Since the patch wasn't accepted, i want to know is there another solution?
+Is this an issue in dwc2?
 
-I used the follow simplified reproducer:
-
-#include <err.h>
-#include <unistd.h>
-#include <inttypes.h>
-#include <errno.h>
-#include <stdio.h>
-
-int
-main (void)
-{
-   errno = 0;
-   void *p = sbrk (0);
-   if (errno != 0)
-     err (1, "sbrk (0)");
-   printf ("initial brk value: %p\n", p);
-   unsigned long long target = 0x800000020000ULL;
-   if ((uintptr_t) p >= target)
-     errx (1, "initial brk value is already above target");
-   unsigned long long increment = target - (uintptr_t) p;
-   errno = 0;
-   sbrk (increment);
-   if (errno != 0)
-     err (1, "sbrk (0x%llx)", increment);
-   volatile int *pi = (volatile int *) (target - 4);
-   printf ("probing at %p\n", pi);
-   *pi = 1;
-}
-
-
-It is still probabilistic because if the increment is too large, the 
-second sbrk call will fail with an out of memory error (which is 
-expected), so you'll have to run it a couple of times.
-
-If the test fails, the write at the will segfault.
-
-Thanks,
-Florian
+Best regards
+Stefan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
