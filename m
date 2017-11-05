@@ -1,217 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id F31866B0253
-	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 07:35:44 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id e123so7642117oig.14
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 04:35:44 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v19si4735902oia.5.2017.11.05.04.35.43
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 461C36B0033
+	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 07:54:56 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 15so9271395pgc.16
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 04:54:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t67sor2824349pgb.205.2017.11.05.04.54.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Nov 2017 04:35:44 -0800 (PST)
+        (Google Transport Security);
+        Sun, 05 Nov 2017 04:54:55 -0800 (PST)
+Date: Sun, 5 Nov 2017 23:54:43 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
 Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171105235443.045fb4b7@roar.ozlabs.ibm.com>
+In-Reply-To: <919a1cb5-c3b5-ddee-d6a6-0994c282ae84@redhat.com>
 References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
- <20171105231850.5e313e46@roar.ozlabs.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <919a1cb5-c3b5-ddee-d6a6-0994c282ae84@redhat.com>
-Date: Sun, 5 Nov 2017 13:35:40 +0100
+	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
+	<919a1cb5-c3b5-ddee-d6a6-0994c282ae84@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171105231850.5e313e46@roar.ozlabs.ibm.com>
-Content-Type: multipart/mixed;
- boundary="------------B8C2898AF8C15A8B4627E032"
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
 
-This is a multi-part message in MIME format.
---------------B8C2898AF8C15A8B4627E032
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+On Sun, 5 Nov 2017 13:35:40 +0100
+Florian Weimer <fweimer@redhat.com> wrote:
 
-On 11/05/2017 01:18 PM, Nicholas Piggin wrote:
-
-> There was a recent change to move to 128TB address space by default,
-> and option for 512TB addresses if explicitly requested.
-
-Do you have a commit hash for the introduction of 128TB by default?  Thanks.
-
-> Your brk request asked for > 128TB which the kernel gave it, but the
-> address limit in the paca that the SLB miss tests against was not
-> updated to reflect the switch to 512TB address space.
+> On 11/05/2017 01:18 PM, Nicholas Piggin wrote:
 > 
-> Why is your brk starting so high? Are you trying to test the > 128TB
-> case, or maybe something is confused by the 64->128TB change? What's
-> the strace look like if you run on a distro or <= 4.10 kernel?
+> > There was a recent change to move to 128TB address space by default,
+> > and option for 512TB addresses if explicitly requested.  
+> 
+> Do you have a commit hash for the introduction of 128TB by default?  Thanks.
 
-I think it is a consequence of running with an explicit loader 
-invocation.  With that, the heap is placed above ld.so, which can be 
-quite high in the address space.
+I guess this one
 
-I'm attaching two runs of cat, one executing directly as /bin/cat, and 
-one with /lib64/ld64.so.1 /bin/cat.
+f6eedbba7a26 ("powerpc/mm/hash: Increase VA range to 128TB")
 
-Fortunately, this does *not* apply to PIE binaries (also attached). 
-However, explicit loader invocations are sometimes used in test suites 
-(not just for glibc), and these sporadic test failures are quite annoying.
+> 
+> > Your brk request asked for > 128TB which the kernel gave it, but the
+> > address limit in the paca that the SLB miss tests against was not
+> > updated to reflect the switch to 512TB address space.
+> > 
+> > Why is your brk starting so high? Are you trying to test the > 128TB
+> > case, or maybe something is confused by the 64->128TB change? What's
+> > the strace look like if you run on a distro or <= 4.10 kernel?  
+> 
+> I think it is a consequence of running with an explicit loader 
+> invocation.  With that, the heap is placed above ld.so, which can be 
+> quite high in the address space.
+> 
+> I'm attaching two runs of cat, one executing directly as /bin/cat, and 
+> one with /lib64/ld64.so.1 /bin/cat.
+> 
+> Fortunately, this does *not* apply to PIE binaries (also attached). 
+> However, explicit loader invocations are sometimes used in test suites 
+> (not just for glibc), and these sporadic test failures are quite annoying.
+> 
+> Do you still need the strace log?  And if yes, of what exactly?
 
-Do you still need the strace log?  And if yes, of what exactly?
+Thanks, that should be quite helpful. I'll spend a bit more time to
+study it, I'll let you know if I need any other traces.
 
-> Something like the following patch may help if you could test.
+> 
+> > Something like the following patch may help if you could test.  
+> 
+> Okay, this will take some time.
 
-Okay, this will take some time.
+It's no rush, there will probably be a revision to come.
 
 Thanks,
-Florian
-
---------------B8C2898AF8C15A8B4627E032
-Content-Type: text/plain; charset=UTF-8;
- name="pie.txt"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="pie.txt"
-
-MTIzMWQwMDAwLTEyMzFlMDAwMCByLXhwIDAwMDAwMDAwIGZkOjAwIDE3ODUyNDI1ICAgICAg
-ICAgICAgICAgICAgICAgICAgIC9yb290L2Eub3V0CjEyMzFlMDAwMC0xMjMxZjAwMDAgci0t
-cCAwMDAwMDAwMCBmZDowMCAxNzg1MjQyNSAgICAgICAgICAgICAgICAgICAgICAgICAvcm9v
-dC9hLm91dAoxMjMxZjAwMDAtMTIzMjAwMDAwIHJ3LXAgMDAwMTAwMDAgZmQ6MDAgMTc4NTI0
-MjUgICAgICAgICAgICAgICAgICAgICAgICAgL3Jvb3QvYS5vdXQKMTAwMGRiYzAwMDAtMTAw
-MGRiZjAwMDAgcnctcCAwMDAwMDAwMCAwMDowMCAwICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgIFtoZWFwXQo3ZmZmYTMxZDAwMDAtN2ZmZmEzNDAwMDAwIHIteHAgMDAwMDAwMDAgZmQ6
-MDAgMjUxNjc5MzYgICAgICAgICAgICAgICAgICAgL3Vzci9saWI2NC9wb3dlcjgvbGliYy0y
-LjI1LnNvCjdmZmZhMzQwMDAwMC03ZmZmYTM0MTAwMDAgLS0tcCAwMDIzMDAwMCBmZDowMCAy
-NTE2NzkzNiAgICAgICAgICAgICAgICAgICAvdXNyL2xpYjY0L3Bvd2VyOC9saWJjLTIuMjUu
-c28KN2ZmZmEzNDEwMDAwLTdmZmZhMzQyMDAwMCByLS1wIDAwMjMwMDAwIGZkOjAwIDI1MTY3
-OTM2ICAgICAgICAgICAgICAgICAgIC91c3IvbGliNjQvcG93ZXI4L2xpYmMtMi4yNS5zbwo3
-ZmZmYTM0MjAwMDAtN2ZmZmEzNDMwMDAwIHJ3LXAgMDAyNDAwMDAgZmQ6MDAgMjUxNjc5MzYg
-ICAgICAgICAgICAgICAgICAgL3Vzci9saWI2NC9wb3dlcjgvbGliYy0yLjI1LnNvCjdmZmZh
-MzQ0MDAwMC03ZmZmYTM0NjAwMDAgci14cCAwMDAwMDAwMCAwMDowMCAwICAgICAgICAgICAg
-ICAgICAgICAgICAgICBbdmRzb10KN2ZmZmEzNDYwMDAwLTdmZmZhMzRhMDAwMCByLXhwIDAw
-MDAwMDAwIGZkOjAwIDgzOTAzMjkgICAgICAgICAgICAgICAgICAgIC91c3IvbGliNjQvbGQt
-Mi4yNS5zbwo3ZmZmYTM0YTAwMDAtN2ZmZmEzNGIwMDAwIHItLXAgMDAwMzAwMDAgZmQ6MDAg
-ODM5MDMyOSAgICAgICAgICAgICAgICAgICAgL3Vzci9saWI2NC9sZC0yLjI1LnNvCjdmZmZh
-MzRiMDAwMC03ZmZmYTM0YzAwMDAgcnctcCAwMDA0MDAwMCBmZDowMCA4MzkwMzI5ICAgICAg
-ICAgICAgICAgICAgICAvdXNyL2xpYjY0L2xkLTIuMjUuc28KN2ZmZmU5NDUwMDAwLTdmZmZl
-OTQ4MDAwMCBydy1wIDAwMDAwMDAwIDAwOjAwIDAgICAgICAgICAgICAgICAgICAgICAgICAg
-IFtzdGFja10K
---------------B8C2898AF8C15A8B4627E032
-Content-Type: text/plain; charset=UTF-8;
- name="explicit-ldso.txt"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="explicit-ldso.txt"
-
-N2ZmZjdlNzkwMDAwLTdmZmY3ZTdkMDAwMCBydy1wIDAwMDAwMDAwIDAwOjAwIDAgCjdmZmY3
-ZTdkMDAwMC03ZmZmN2U4MzAwMDAgci0tcCAwMDAwMDAwMCBmZDowMCAyNTE2NzkyNSAgICAg
-ICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMudXRmOC9MQ19DVFlQRQo3ZmZm
-N2U4MzAwMDAtN2ZmZjdlODQwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMjUxNjc5MjggICAg
-ICAgICAgICAgICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfTlVNRVJJQwo3
-ZmZmN2U4NDAwMDAtN2ZmZjdlODUwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5Mjkg
-ICAgICAgICAgICAgICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfVElNRQo3
-ZmZmN2U4NTAwMDAtN2ZmZjdlOTgwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMjUxNjc5MjQg
-ICAgICAgICAgICAgICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfQ09MTEFU
-RQo3ZmZmN2U5ODAwMDAtN2ZmZjdlOTkwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5
-MjcgICAgICAgICAgICAgICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfTU9O
-RVRBUlkKN2ZmZjdlOTkwMDAwLTdmZmY3ZTlhMDAwMCByLS1wIDAwMDAwMDAwIGZkOjAwIDI1
-MTEgICAgICAgICAgICAgICAgICAgICAgIC91c3IvbGliL2xvY2FsZS9lbl9VUy51dGY4L0xD
-X01FU1NBR0VTL1NZU19MQ19NRVNTQUdFUwo3ZmZmN2U5YTAwMDAtN2ZmZjdlOWIwMDAwIHIt
-LXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5NDIgICAgICAgICAgICAgICAgICAgL3Vzci9saWIv
-bG9jYWxlL2VuX1VTLnV0ZjgvTENfUEFQRVIKN2ZmZjdlOWIwMDAwLTdmZmY3ZTljMDAwMCBy
-LS1wIDAwMDAwMDAwIGZkOjAwIDI1MTY3OTI3ICAgICAgICAgICAgICAgICAgIC91c3IvbGli
-L2xvY2FsZS9lbl9VUy51dGY4L0xDX05BTUUKN2ZmZjdlOWMwMDAwLTdmZmY3ZTlkMDAwMCBy
-LS1wIDAwMDAwMDAwIGZkOjAwIDE2Nzk4OTI0ICAgICAgICAgICAgICAgICAgIC91c3IvbGli
-L2xvY2FsZS9lbl9VUy51dGY4L0xDX0FERFJFU1MKN2ZmZjdlOWQwMDAwLTdmZmY3ZTllMDAw
-MCByLS1wIDAwMDAwMDAwIGZkOjAwIDE2Nzk4OTI4ICAgICAgICAgICAgICAgICAgIC91c3Iv
-bGliL2xvY2FsZS9lbl9VUy51dGY4L0xDX1RFTEVQSE9ORQo3ZmZmN2U5ZTAwMDAtN2ZmZjdl
-OWYwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5MjYgICAgICAgICAgICAgICAgICAg
-L3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfTUVBU1VSRU1FTlQKN2ZmZjdlOWYwMDAw
-LTdmZmY3ZWEwMDAwMCByLS1zIDAwMDAwMDAwIGZkOjAwIDgzOTA2NjkgICAgICAgICAgICAg
-ICAgICAgIC91c3IvbGliNjQvZ2NvbnYvZ2NvbnYtbW9kdWxlcy5jYWNoZQo3ZmZmN2VhMDAw
-MDAtN2ZmZjdlYzMwMDAwIHIteHAgMDAwMDAwMDAgZmQ6MDAgMjUxNjc5MzYgICAgICAgICAg
-ICAgICAgICAgL3Vzci9saWI2NC9wb3dlcjgvbGliYy0yLjI1LnNvCjdmZmY3ZWMzMDAwMC03
-ZmZmN2VjNDAwMDAgLS0tcCAwMDIzMDAwMCBmZDowMCAyNTE2NzkzNiAgICAgICAgICAgICAg
-ICAgICAvdXNyL2xpYjY0L3Bvd2VyOC9saWJjLTIuMjUuc28KN2ZmZjdlYzQwMDAwLTdmZmY3
-ZWM1MDAwMCByLS1wIDAwMjMwMDAwIGZkOjAwIDI1MTY3OTM2ICAgICAgICAgICAgICAgICAg
-IC91c3IvbGliNjQvcG93ZXI4L2xpYmMtMi4yNS5zbwo3ZmZmN2VjNTAwMDAtN2ZmZjdlYzYw
-MDAwIHJ3LXAgMDAyNDAwMDAgZmQ6MDAgMjUxNjc5MzYgICAgICAgICAgICAgICAgICAgL3Vz
-ci9saWI2NC9wb3dlcjgvbGliYy0yLjI1LnNvCjdmZmY3ZWM2MDAwMC03ZmZmN2VjNzAwMDAg
-ci0tcCAwMDAwMDAwMCBmZDowMCAxNjc5ODkyNSAgICAgICAgICAgICAgICAgICAvdXNyL2xp
-Yi9sb2NhbGUvZW5fVVMudXRmOC9MQ19JREVOVElGSUNBVElPTgo3ZmZmN2VjNzAwMDAtN2Zm
-ZjdlYzgwMDAwIHIteHAgMDAwMDAwMDAgZmQ6MDAgMjAyMjkzICAgICAgICAgICAgICAgICAg
-ICAgL3Vzci9iaW4vY2F0CjdmZmY3ZWM4MDAwMC03ZmZmN2VjOTAwMDAgci0tcCAwMDAwMDAw
-MCBmZDowMCAyMDIyOTMgICAgICAgICAgICAgICAgICAgICAvdXNyL2Jpbi9jYXQKN2ZmZjdl
-YzkwMDAwLTdmZmY3ZWNhMDAwMCBydy1wIDAwMDEwMDAwIGZkOjAwIDIwMjI5MyAgICAgICAg
-ICAgICAgICAgICAgIC91c3IvYmluL2NhdAo3ZmZmN2VjYTAwMDAtN2ZmZjdlY2MwMDAwIHIt
-eHAgMDAwMDAwMDAgMDA6MDAgMCAgICAgICAgICAgICAgICAgICAgICAgICAgW3Zkc29dCjdm
-ZmY3ZWNjMDAwMC03ZmZmN2VkMDAwMDAgci14cCAwMDAwMDAwMCBmZDowMCA4MzkwMzI5ICAg
-ICAgICAgICAgICAgICAgICAvdXNyL2xpYjY0L2xkLTIuMjUuc28KN2ZmZjdlZDAwMDAwLTdm
-ZmY3ZWQxMDAwMCByLS1wIDAwMDMwMDAwIGZkOjAwIDgzOTAzMjkgICAgICAgICAgICAgICAg
-ICAgIC91c3IvbGliNjQvbGQtMi4yNS5zbwo3ZmZmN2VkMTAwMDAtN2ZmZjdlZDIwMDAwIHJ3
-LXAgMDAwNDAwMDAgZmQ6MDAgODM5MDMyOSAgICAgICAgICAgICAgICAgICAgL3Vzci9saWI2
-NC9sZC0yLjI1LnNvCjdmZmY5YmUyMDAwMC03ZmZmOWJlNTAwMDAgcnctcCAwMDAwMDAwMCAw
-MDowMCAwICAgICAgICAgICAgICAgICAgICAgICAgICBbaGVhcF0KN2ZmZmZkNDcwMDAwLTdm
-ZmZmZDRhMDAwMCBydy1wIDAwMDAwMDAwIDAwOjAwIDAgICAgICAgICAgICAgICAgICAgICAg
-ICAgIFtzdGFja10K
---------------B8C2898AF8C15A8B4627E032
-Content-Type: text/plain; charset=UTF-8;
- name="direct.txt"
-Content-Transfer-Encoding: base64
-Content-Disposition: attachment;
- filename="direct.txt"
-
-MTNlZWEwMDAwLTEzZWViMDAwMCByLXhwIDAwMDAwMDAwIGZkOjAwIDIwMjI5MyAgICAgICAg
-ICAgICAgICAgICAgICAgICAgIC91c3IvYmluL2NhdAoxM2VlYjAwMDAtMTNlZWMwMDAwIHIt
-LXAgMDAwMDAwMDAgZmQ6MDAgMjAyMjkzICAgICAgICAgICAgICAgICAgICAgICAgICAgL3Vz
-ci9iaW4vY2F0CjEzZWVjMDAwMC0xM2VlZDAwMDAgcnctcCAwMDAxMDAwMCBmZDowMCAyMDIy
-OTMgICAgICAgICAgICAgICAgICAgICAgICAgICAvdXNyL2Jpbi9jYXQKMTAwM2ViZTAwMDAt
-MTAwM2VjMTAwMDAgcnctcCAwMDAwMDAwMCAwMDowMCAwICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgIFtoZWFwXQo3ZmZmOTc0OTAwMDAtN2ZmZjk3NGQwMDAwIHJ3LXAgMDAwMDAwMDAg
-MDA6MDAgMCAKN2ZmZjk3NGQwMDAwLTdmZmY5NzUzMDAwMCByLS1wIDAwMDAwMDAwIGZkOjAw
-IDI1MTY3OTI1ICAgICAgICAgICAgICAgICAgIC91c3IvbGliL2xvY2FsZS9lbl9VUy51dGY4
-L0xDX0NUWVBFCjdmZmY5NzUzMDAwMC03ZmZmOTc1NDAwMDAgci0tcCAwMDAwMDAwMCBmZDow
-MCAyNTE2NzkyOCAgICAgICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMudXRm
-OC9MQ19OVU1FUklDCjdmZmY5NzU0MDAwMC03ZmZmOTc1NTAwMDAgci0tcCAwMDAwMDAwMCBm
-ZDowMCAxNjc5ODkyOSAgICAgICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMu
-dXRmOC9MQ19USU1FCjdmZmY5NzU1MDAwMC03ZmZmOTc2ODAwMDAgci0tcCAwMDAwMDAwMCBm
-ZDowMCAyNTE2NzkyNCAgICAgICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMu
-dXRmOC9MQ19DT0xMQVRFCjdmZmY5NzY4MDAwMC03ZmZmOTc2OTAwMDAgci0tcCAwMDAwMDAw
-MCBmZDowMCAxNjc5ODkyNyAgICAgICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5f
-VVMudXRmOC9MQ19NT05FVEFSWQo3ZmZmOTc2OTAwMDAtN2ZmZjk3NmEwMDAwIHItLXAgMDAw
-MDAwMDAgZmQ6MDAgMjUxMSAgICAgICAgICAgICAgICAgICAgICAgL3Vzci9saWIvbG9jYWxl
-L2VuX1VTLnV0ZjgvTENfTUVTU0FHRVMvU1lTX0xDX01FU1NBR0VTCjdmZmY5NzZhMDAwMC03
-ZmZmOTc2YjAwMDAgci0tcCAwMDAwMDAwMCBmZDowMCAxNjc5ODk0MiAgICAgICAgICAgICAg
-ICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMudXRmOC9MQ19QQVBFUgo3ZmZmOTc2YjAwMDAt
-N2ZmZjk3NmMwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMjUxNjc5MjcgICAgICAgICAgICAg
-ICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfTkFNRQo3ZmZmOTc2YzAwMDAt
-N2ZmZjk3NmQwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5MjQgICAgICAgICAgICAg
-ICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfQUREUkVTUwo3ZmZmOTc2ZDAw
-MDAtN2ZmZjk3NmUwMDAwIHItLXAgMDAwMDAwMDAgZmQ6MDAgMTY3OTg5MjggICAgICAgICAg
-ICAgICAgICAgL3Vzci9saWIvbG9jYWxlL2VuX1VTLnV0ZjgvTENfVEVMRVBIT05FCjdmZmY5
-NzZlMDAwMC03ZmZmOTc2ZjAwMDAgci0tcCAwMDAwMDAwMCBmZDowMCAxNjc5ODkyNiAgICAg
-ICAgICAgICAgICAgICAvdXNyL2xpYi9sb2NhbGUvZW5fVVMudXRmOC9MQ19NRUFTVVJFTUVO
-VAo3ZmZmOTc2ZjAwMDAtN2ZmZjk3NzAwMDAwIHItLXMgMDAwMDAwMDAgZmQ6MDAgODM5MDY2
-OSAgICAgICAgICAgICAgICAgICAgL3Vzci9saWI2NC9nY29udi9nY29udi1tb2R1bGVzLmNh
-Y2hlCjdmZmY5NzcwMDAwMC03ZmZmOTc5MzAwMDAgci14cCAwMDAwMDAwMCBmZDowMCAyNTE2
-NzkzNiAgICAgICAgICAgICAgICAgICAvdXNyL2xpYjY0L3Bvd2VyOC9saWJjLTIuMjUuc28K
-N2ZmZjk3OTMwMDAwLTdmZmY5Nzk0MDAwMCAtLS1wIDAwMjMwMDAwIGZkOjAwIDI1MTY3OTM2
-ICAgICAgICAgICAgICAgICAgIC91c3IvbGliNjQvcG93ZXI4L2xpYmMtMi4yNS5zbwo3ZmZm
-OTc5NDAwMDAtN2ZmZjk3OTUwMDAwIHItLXAgMDAyMzAwMDAgZmQ6MDAgMjUxNjc5MzYgICAg
-ICAgICAgICAgICAgICAgL3Vzci9saWI2NC9wb3dlcjgvbGliYy0yLjI1LnNvCjdmZmY5Nzk1
-MDAwMC03ZmZmOTc5NjAwMDAgcnctcCAwMDI0MDAwMCBmZDowMCAyNTE2NzkzNiAgICAgICAg
-ICAgICAgICAgICAvdXNyL2xpYjY0L3Bvd2VyOC9saWJjLTIuMjUuc28KN2ZmZjk3OTYwMDAw
-LTdmZmY5Nzk3MDAwMCByLS1wIDAwMDAwMDAwIGZkOjAwIDE2Nzk4OTI1ICAgICAgICAgICAg
-ICAgICAgIC91c3IvbGliL2xvY2FsZS9lbl9VUy51dGY4L0xDX0lERU5USUZJQ0FUSU9OCjdm
-ZmY5Nzk3MDAwMC03ZmZmOTc5OTAwMDAgci14cCAwMDAwMDAwMCAwMDowMCAwICAgICAgICAg
-ICAgICAgICAgICAgICAgICBbdmRzb10KN2ZmZjk3OTkwMDAwLTdmZmY5NzlkMDAwMCByLXhw
-IDAwMDAwMDAwIGZkOjAwIDgzOTAzMjkgICAgICAgICAgICAgICAgICAgIC91c3IvbGliNjQv
-bGQtMi4yNS5zbwo3ZmZmOTc5ZDAwMDAtN2ZmZjk3OWUwMDAwIHItLXAgMDAwMzAwMDAgZmQ6
-MDAgODM5MDMyOSAgICAgICAgICAgICAgICAgICAgL3Vzci9saWI2NC9sZC0yLjI1LnNvCjdm
-ZmY5NzllMDAwMC03ZmZmOTc5ZjAwMDAgcnctcCAwMDA0MDAwMCBmZDowMCA4MzkwMzI5ICAg
-ICAgICAgICAgICAgICAgICAvdXNyL2xpYjY0L2xkLTIuMjUuc28KN2ZmZmRkMTEwMDAwLTdm
-ZmZkZDE0MDAwMCBydy1wIDAwMDAwMDAwIDAwOjAwIDAgICAgICAgICAgICAgICAgICAgICAg
-ICAgIFtzdGFja10K
---------------B8C2898AF8C15A8B4627E032--
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
