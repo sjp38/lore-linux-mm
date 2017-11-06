@@ -1,46 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5D16B0253
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:11:41 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id 14so9605911oii.2
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:11:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z7si1222502otb.330.2017.11.06.00.11.40
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BBB76B0253
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:13:19 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id y128so10434648pfg.5
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:13:19 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id o19si10746132pgn.751.2017.11.06.00.13.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 00:11:40 -0800 (PST)
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
- <20171105231850.5e313e46@roar.ozlabs.ibm.com>
- <871slcszfl.fsf@linux.vnet.ibm.com>
- <20171106174707.19f6c495@roar.ozlabs.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
-Date: Mon, 6 Nov 2017 09:11:37 +0100
+        Mon, 06 Nov 2017 00:13:17 -0800 (PST)
+Message-ID: <5A001A21.80901@intel.com>
+Date: Mon, 06 Nov 2017 16:15:29 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171106174707.19f6c495@roar.ozlabs.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
+Subject: Re: [PATCH v17 1/6] lib/xbitmap: Introduce xbitmap
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>	<1509696786-1597-2-git-send-email-wei.w.wang@intel.com> <201711031955.FFE57823.VFLMFtFJSOOQHO@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711031955.FFE57823.VFLMFtFJSOOQHO@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On 11/06/2017 07:47 AM, Nicholas Piggin wrote:
-> "You get < 128TB unless explicitly requested."
-> 
-> Simple, reasonable, obvious rule. Avoids breaking apps that store
-> some bits in the top of pointers (provided that memory allocator
-> userspace libraries also do the right thing).
+On 11/03/2017 06:55 PM, Tetsuo Handa wrote:
+> I'm commenting without understanding the logic.
+>
+> Wei Wang wrote:
+>> +
+>> +bool xb_preload(gfp_t gfp);
+>> +
+> Want __must_check annotation, for __radix_tree_preload() is marked
+> with __must_check annotation. By error failing to check result of
+> xb_preload() will lead to preemption kept disabled unexpectedly.
+>
 
-So brk would simplify fail instead of crossing the 128 TiB threshold?
+I don't disagree with this, but I find its wrappers, e.g. 
+radix_tree_preload() and radix_tree_maybe_preload(), don't seem to have 
+__must_chek added.
 
-glibc malloc should cope with that and switch to malloc, but this code 
-path is obviously less well-tested than the regular way.
 
-Thanks,
-Florian
+>
+>> +int xb_set_bit(struct xb *xb, unsigned long bit)
+>> +{
+>> +	int err;
+>> +	unsigned long index = bit / IDA_BITMAP_BITS;
+>> +	struct radix_tree_root *root = &xb->xbrt;
+>> +	struct radix_tree_node *node;
+>> +	void **slot;
+>> +	struct ida_bitmap *bitmap;
+>> +	unsigned long ebit;
+>> +
+>> +	bit %= IDA_BITMAP_BITS;
+>> +	ebit = bit + 2;
+>> +
+>> +	err = __radix_tree_create(root, index, 0, &node, &slot);
+>> +	if (err)
+>> +		return err;
+>> +	bitmap = rcu_dereference_raw(*slot);
+>> +	if (radix_tree_exception(bitmap)) {
+>> +		unsigned long tmp = (unsigned long)bitmap;
+>> +
+>> +		if (ebit < BITS_PER_LONG) {
+>> +			tmp |= 1UL << ebit;
+>> +			rcu_assign_pointer(*slot, (void *)tmp);
+>> +			return 0;
+>> +		}
+>> +		bitmap = this_cpu_xchg(ida_bitmap, NULL);
+>> +		if (!bitmap)
+> Please write locking rules, in order to explain how memory
+> allocated by __radix_tree_create() will not leak.
+>
+
+For the memory allocated by __radix_tree_create(), I think we could add:
+
+     if (!bitmap) {
+         __radix_tree_delete(root, node, slot);
+         break;
+     }
+
+
+For the locking rules, how about adding the following "Developer notes:" 
+at the top of the file:
+
+"
+Locks are required to ensure that concurrent calls to xb_set_bit, 
+xb_preload_and_set_bit, xb_test_bit, xb_clear_bit, xb_clear_bit_range, 
+xb_find_next_set_bit and xb_find_next_zero_bit, for the same ida bitmap 
+will not happen.
+"
+
+>> +bool xb_test_bit(struct xb *xb, unsigned long bit)
+>> +{
+>> +	unsigned long index = bit / IDA_BITMAP_BITS;
+>> +	const struct radix_tree_root *root = &xb->xbrt;
+>> +	struct ida_bitmap *bitmap = radix_tree_lookup(root, index);
+>> +
+>> +	bit %= IDA_BITMAP_BITS;
+>> +
+>> +	if (!bitmap)
+>> +		return false;
+>> +	if (radix_tree_exception(bitmap)) {
+>> +		bit += RADIX_TREE_EXCEPTIONAL_SHIFT;
+>> +		if (bit > BITS_PER_LONG)
+> Why not bit >= BITS_PER_LONG here?
+
+Yes, I think it should be ">=" here. Thanks.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
