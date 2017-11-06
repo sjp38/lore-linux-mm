@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DC238280246
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:58:56 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id p1so6531041qtg.18
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:58:56 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 90719280257
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:58:59 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id b15so6731014qkg.23
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:58:59 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x35sor8111948qte.88.2017.11.06.00.58.56
+        by mx.google.com with SMTPS id y31sor8106150qta.37.2017.11.06.00.58.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Nov 2017 00:58:56 -0800 (PST)
+        Mon, 06 Nov 2017 00:58:58 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v9 13/51] powerpc: implementation for arch_override_mprotect_pkey()
-Date: Mon,  6 Nov 2017 00:57:05 -0800
-Message-Id: <1509958663-18737-14-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v9 14/51] powerpc: map vma key-protection bits to pte key bits.
+Date: Mon,  6 Nov 2017 00:57:06 -0800
+Message-Id: <1509958663-18737-15-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
 References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,120 +20,121 @@ List-ID: <linux-mm.kvack.org>
 To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
 
-arch independent code calls arch_override_mprotect_pkey()
-to return a pkey that best matches the requested protection.
+Map  the  key  protection  bits of the vma to the pkey bits in
+the PTE.
 
-This patch provides the implementation.
+The PTE  bits used  for pkey  are  3,4,5,6  and 57. The  first
+four bits are the same four bits that were freed up  initially
+in this patch series. remember? :-) Without those four bits
+this patch wouldn't be possible.
+
+BUT, on 4k kernel, bit 3, and 4 could not be freed up. remember?
+Hence we have to be satisfied with 5, 6 and 7.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- arch/powerpc/include/asm/mmu_context.h |    5 ++++
- arch/powerpc/include/asm/pkeys.h       |   21 +++++++++++++++++-
- arch/powerpc/mm/pkeys.c                |   36 ++++++++++++++++++++++++++++++++
- 3 files changed, 61 insertions(+), 1 deletions(-)
+ arch/powerpc/include/asm/book3s/64/pgtable.h |   25 ++++++++++++++++++++++++-
+ arch/powerpc/include/asm/mman.h              |    6 ++++++
+ arch/powerpc/include/asm/pkeys.h             |   12 ++++++++++++
+ 3 files changed, 42 insertions(+), 1 deletions(-)
 
-diff --git a/arch/powerpc/include/asm/mmu_context.h b/arch/powerpc/include/asm/mmu_context.h
-index 4eccc2f..a83d540 100644
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -149,6 +149,11 @@ static inline bool arch_vma_access_permitted(struct vm_area_struct *vma,
- #define thread_pkey_regs_save(thread)
- #define thread_pkey_regs_restore(new_thread, old_thread)
- #define thread_pkey_regs_init(thread)
-+
-+static inline int vma_pkey(struct vm_area_struct *vma)
-+{
-+	return 0;
-+}
- #endif /* CONFIG_PPC_MEM_KEYS */
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 9a677cd..4c1ee6e 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -39,6 +39,7 @@
+ #define _RPAGE_RSV2		0x0800000000000000UL
+ #define _RPAGE_RSV3		0x0400000000000000UL
+ #define _RPAGE_RSV4		0x0200000000000000UL
++#define _RPAGE_RSV5		0x00040UL
  
- #endif /* __KERNEL__ */
+ #define _PAGE_PTE		0x4000000000000000UL	/* distinguishes PTEs from pointers */
+ #define _PAGE_PRESENT		0x8000000000000000UL	/* pte contains a translation */
+@@ -58,6 +59,25 @@
+ /* Max physical address bit as per radix table */
+ #define _RPAGE_PA_MAX		57
+ 
++#ifdef CONFIG_PPC_MEM_KEYS
++#ifdef CONFIG_PPC_64K_PAGES
++#define H_PTE_PKEY_BIT0	_RPAGE_RSV1
++#define H_PTE_PKEY_BIT1	_RPAGE_RSV2
++#else /* CONFIG_PPC_64K_PAGES */
++#define H_PTE_PKEY_BIT0	0 /* _RPAGE_RSV1 is not available */
++#define H_PTE_PKEY_BIT1	0 /* _RPAGE_RSV2 is not available */
++#endif /* CONFIG_PPC_64K_PAGES */
++#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
++#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
++#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
++#else /*  CONFIG_PPC_MEM_KEYS */
++#define H_PTE_PKEY_BIT0	0
++#define H_PTE_PKEY_BIT1	0
++#define H_PTE_PKEY_BIT2	0
++#define H_PTE_PKEY_BIT3	0
++#define H_PTE_PKEY_BIT4	0
++#endif /*  CONFIG_PPC_MEM_KEYS */
++
+ /*
+  * Max physical address bit we will use for now.
+  *
+@@ -121,13 +141,16 @@
+ #define _PAGE_CHG_MASK	(PTE_RPN_MASK | _PAGE_HPTEFLAGS | _PAGE_DIRTY | \
+ 			 _PAGE_ACCESSED | _PAGE_SPECIAL | _PAGE_PTE |	\
+ 			 _PAGE_SOFT_DIRTY)
++
++#define H_PTE_PKEY  (H_PTE_PKEY_BIT0 | H_PTE_PKEY_BIT1 | H_PTE_PKEY_BIT2 | \
++		     H_PTE_PKEY_BIT3 | H_PTE_PKEY_BIT4)
+ /*
+  * Mask of bits returned by pte_pgprot()
+  */
+ #define PAGE_PROT_BITS  (_PAGE_SAO | _PAGE_NON_IDEMPOTENT | _PAGE_TOLERANT | \
+ 			 H_PAGE_4K_PFN | _PAGE_PRIVILEGED | _PAGE_ACCESSED | \
+ 			 _PAGE_READ | _PAGE_WRITE |  _PAGE_DIRTY | _PAGE_EXEC | \
+-			 _PAGE_SOFT_DIRTY)
++			 _PAGE_SOFT_DIRTY | H_PTE_PKEY)
+ /*
+  * We define 2 sets of base prot bits, one for basic pages (ie,
+  * cacheable kernel and user pages) and one for non cacheable
+diff --git a/arch/powerpc/include/asm/mman.h b/arch/powerpc/include/asm/mman.h
+index 2999478..07e3f54 100644
+--- a/arch/powerpc/include/asm/mman.h
++++ b/arch/powerpc/include/asm/mman.h
+@@ -33,7 +33,13 @@ static inline unsigned long arch_calc_vm_prot_bits(unsigned long prot,
+ 
+ static inline pgprot_t arch_vm_get_page_prot(unsigned long vm_flags)
+ {
++#ifdef CONFIG_PPC_MEM_KEYS
++	return (vm_flags & VM_SAO) ?
++		__pgprot(_PAGE_SAO | vmflag_to_pte_pkey_bits(vm_flags)) :
++		__pgprot(0 | vmflag_to_pte_pkey_bits(vm_flags));
++#else
+ 	return (vm_flags & VM_SAO) ? __pgprot(_PAGE_SAO) : __pgprot(0);
++#endif
+ }
+ #define arch_vm_get_page_prot(vm_flags) arch_vm_get_page_prot(vm_flags)
+ 
 diff --git a/arch/powerpc/include/asm/pkeys.h b/arch/powerpc/include/asm/pkeys.h
-index 1bd41ef..441bbf3 100644
+index 441bbf3..cfe61a9 100644
 --- a/arch/powerpc/include/asm/pkeys.h
 +++ b/arch/powerpc/include/asm/pkeys.h
-@@ -52,6 +52,13 @@ static inline u64 pkey_to_vmflag_bits(u16 pkey)
+@@ -52,6 +52,18 @@ static inline u64 pkey_to_vmflag_bits(u16 pkey)
  	return (((u64)pkey << VM_PKEY_SHIFT) & ARCH_VM_PKEY_FLAGS);
  }
  
-+static inline int vma_pkey(struct vm_area_struct *vma)
++static inline u64 vmflag_to_pte_pkey_bits(u64 vm_flags)
 +{
 +	if (static_branch_likely(&pkey_disabled))
-+		return 0;
-+	return (vma->vm_flags & ARCH_VM_PKEY_FLAGS) >> VM_PKEY_SHIFT;
++		return 0x0UL;
++
++	return (((vm_flags & VM_PKEY_BIT0) ? H_PTE_PKEY_BIT4 : 0x0UL) |
++		((vm_flags & VM_PKEY_BIT1) ? H_PTE_PKEY_BIT3 : 0x0UL) |
++		((vm_flags & VM_PKEY_BIT2) ? H_PTE_PKEY_BIT2 : 0x0UL) |
++		((vm_flags & VM_PKEY_BIT3) ? H_PTE_PKEY_BIT1 : 0x0UL) |
++		((vm_flags & VM_PKEY_BIT4) ? H_PTE_PKEY_BIT0 : 0x0UL));
 +}
 +
- #define arch_max_pkey() pkeys_total
- 
- #define pkey_alloc_mask(pkey) (0x1 << pkey)
-@@ -148,10 +155,22 @@ static inline int execute_only_pkey(struct mm_struct *mm)
- 	return __execute_only_pkey(mm);
- }
- 
-+extern int __arch_override_mprotect_pkey(struct vm_area_struct *vma,
-+					 int prot, int pkey);
- static inline int arch_override_mprotect_pkey(struct vm_area_struct *vma,
- 					      int prot, int pkey)
+ static inline int vma_pkey(struct vm_area_struct *vma)
  {
--	return 0;
-+	if (static_branch_likely(&pkey_disabled))
-+		return 0;
-+
-+	/*
-+	 * Is this an mprotect_pkey() call? If so, never override the value that
-+	 * came from the user.
-+	 */
-+	if (pkey != -1)
-+		return pkey;
-+
-+	return __arch_override_mprotect_pkey(vma, prot, pkey);
- }
- 
- extern int __arch_set_user_pkey_access(struct task_struct *tsk, int pkey,
-diff --git a/arch/powerpc/mm/pkeys.c b/arch/powerpc/mm/pkeys.c
-index 4d704ea..f1c6195 100644
---- a/arch/powerpc/mm/pkeys.c
-+++ b/arch/powerpc/mm/pkeys.c
-@@ -311,3 +311,39 @@ int __execute_only_pkey(struct mm_struct *mm)
- 		mm->context.execute_only_pkey = execute_only_pkey;
- 	return execute_only_pkey;
- }
-+
-+static inline bool vma_is_pkey_exec_only(struct vm_area_struct *vma)
-+{
-+	/* Do this check first since the vm_flags should be hot */
-+	if ((vma->vm_flags & (VM_READ | VM_WRITE | VM_EXEC)) != VM_EXEC)
-+		return false;
-+
-+	return (vma_pkey(vma) == vma->vm_mm->context.execute_only_pkey);
-+}
-+
-+/*
-+ * This should only be called for *plain* mprotect calls.
-+ */
-+int __arch_override_mprotect_pkey(struct vm_area_struct *vma, int prot,
-+				  int pkey)
-+{
-+	/*
-+	 * If the currently associated pkey is execute-only, but the requested
-+	 * protection requires read or write, move it back to the default pkey.
-+	 */
-+	if (vma_is_pkey_exec_only(vma) && (prot & (PROT_READ | PROT_WRITE)))
-+		return 0;
-+
-+	/*
-+	 * The requested protection is execute-only. Hence let's use an
-+	 * execute-only pkey.
-+	 */
-+	if (prot == PROT_EXEC) {
-+		pkey = execute_only_pkey(vma->vm_mm);
-+		if (pkey > 0)
-+			return pkey;
-+	}
-+
-+	/* Nothing to override. */
-+	return vma_pkey(vma);
-+}
+ 	if (static_branch_likely(&pkey_disabled))
 -- 
 1.7.1
 
