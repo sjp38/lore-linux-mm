@@ -1,107 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0809F6B0038
-	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 20:32:31 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id s144so8924115oih.5
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 17:32:31 -0800 (PST)
-Received: from huawei.com ([45.249.212.32])
-        by mx.google.com with ESMTP id s11si4904795oth.307.2017.11.05.17.32.29
-        for <linux-mm@kvack.org>;
-        Sun, 05 Nov 2017 17:32:29 -0800 (PST)
-Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
- <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
- <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
-Date: Mon, 6 Nov 2017 09:31:44 +0800
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 016186B0038
+	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 22:29:54 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id a20so2601658wrc.1
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 19:29:53 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id h139si5877444wme.230.2017.11.05.19.29.52
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 05 Nov 2017 19:29:52 -0800 (PST)
+Date: Mon, 6 Nov 2017 03:29:42 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: possible deadlock in generic_file_write_iter
+Message-ID: <20171106032941.GR21978@ZenIV.linux.org.uk>
+References: <94eb2c05f6a018dc21055d39c05b@google.com>
 MIME-Version: 1.0
-In-Reply-To: <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <94eb2c05f6a018dc21055d39c05b@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Christoph Lameter <cl@linux.com>
+To: syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com
 
-Hi Vlastimil,
+On Sun, Nov 05, 2017 at 02:25:00AM -0800, syzbot wrote:
 
-On 2017/10/31 17:46, Vlastimil Babka wrote:
-> +CC Andi and Christoph
+> loop0/2986 is trying to acquire lock:
+>  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff8186f9ec>] inode_lock
+> include/linux/fs.h:712 [inline]
+>  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff8186f9ec>]
+> generic_file_write_iter+0xdc/0x7a0 mm/filemap.c:3151
 > 
-> On 10/27/2017 12:14 PM, Yisheng Xie wrote:
->> As manpage of migrate_pages, the errno should be set to EINVAL when none
->> of the specified nodes contain memory. However, when new_nodes is null,
->> i.e. the specified nodes also do not have memory, as the following case:
->>
->> 	new_nodes = 0;
->> 	old_nodes = 0xf;
->> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
->>
->> The ret will be 0 and no errno is set.
->>
->> This patch is to add nodes_empty check to fix above case.
+> but now in release context of a crosslock acquired at the following:
+>  ((complete)&ret.event){+.+.}, at: [<ffffffff822a055e>]
+> submit_bio_wait+0x15e/0x200 block/bio.c:953
 > 
-> Hmm, I think we have a bigger problem than "empty set is a subset of
-> anything" here.
-> 
-> The existing checks are:
-> 
->         task_nodes = cpuset_mems_allowed(task);
->         if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
->                 err = -EPERM;
->                 goto out_put;
->         }
-> 
->         if (!nodes_subset(*new, node_states[N_MEMORY])) {
->                 err = -EINVAL;
->                 goto out_put;
->         }
-> 
-> 
-> And manpage says:
-> 
->        EINVAL The value specified by maxnode exceeds a kernel-imposed
-> limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
-> are greater than the maximum supported node
->               ID.  *Or, none of the node IDs specified by new_nodes are
-> on-line and allowed by the process's current cpuset context, or none of
-> the specified nodes contain memory.*
-> 
->        EPERM  Insufficient privilege (CAP_SYS_NICE) to move pages of the
-> process specified by pid, or insufficient privilege (CAP_SYS_NICE) to
-> access the specified target nodes.
-> 
-> - it says "none ... are allowed", but checking for subset means we check
-> if "all ... are allowed". Shouldn't we be checking for a non-empty
-> intersection?
+> which lock already depends on the new lock.
 
-You are absolutely right. To follow the manpage, we should check non-empty
-of intersection instead of subset. I meani 1/4 ?
-         nodes_and(*new, *new, task_nodes);
-         if (!node_empty(*new) && !capable(CAP_SYS_NICE)) {
-                 err = -EPERM;
-                 goto out_put;
-         }
+Almost certainly a false positive...  lockdep can't tell ->i_rwsem of
+inode on filesystem that lives on /dev/loop0 and that of inode of
+the backing file of /dev/loop0.
 
-         nodes_and(*new, *new, node_states[N_MEMORY]);
-         if (!node_empty(*new)) {
-                 err = -EINVAL;
-                 goto out_put;
-         }
-
-So finally, we should only migrate the smallest intersection of all the node
-set, right?
-
-> - there doesn't seem to be any EINVAL check for "process's current
-> cpuset context", there's just an EPERM check for "target process's
-> cpuset context".
-
-This also need to be checked as manpage.
-
-Thanks
-Yisheng Xie
+Try and put them on different filesystem types and see if you still
+can reproduce that.  We do have a partial ordering between the filesystems,
+namely "(parts of) hosting device of X live in a file on Y".  It's
+going to be acyclic, or you have a much worse problem.  And that's
+what really orders the things here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
