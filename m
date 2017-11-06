@@ -1,66 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 52A3E6B026C
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 05:42:49 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id 143so5508819itf.1
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 02:42:49 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a46sor4706513itj.102.2017.11.06.02.42.47
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C94B06B026F
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 05:44:10 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id a192so12417768pge.1
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 02:44:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m18si11866331pfh.138.2017.11.06.02.44.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 02:42:47 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Nov 2017 02:44:09 -0800 (PST)
+Date: Mon, 6 Nov 2017 11:43:54 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: use in_atomic() in print_vma_addr()
+Message-ID: <20171106104354.2jlgd2m4j4gxx4qo@dhcp22.suse.cz>
+References: <1509572313-102989-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171102075744.whhxjmqbdkfaxghd@dhcp22.suse.cz>
+ <ace5b078-652b-cbc0-176a-25f69612f7fa@alibaba-inc.com>
+ <20171103110245.7049460a05cc18c7e8a9feb2@linux-foundation.org>
+ <1509739786.2473.33.camel@wdc.com>
+ <20171105081946.yr2pvalbegxygcky@dhcp22.suse.cz>
+ <20171106100558.GD3165@worktop.lehotels.local>
 MIME-Version: 1.0
-In-Reply-To: <s5hy3njlmhe.wl-tiwai@suse.de>
-References: <94eb2c19df188b1926055cf13c21@google.com> <CACT4Y+ZDVP7mJHaOpq9N5oewE0WwCCWgrtWX08DFdBJN4sBRhQ@mail.gmail.com>
- <s5hshdxay1t.wl-tiwai@suse.de> <20171102090951.drjf7wc2urcmtla5@node.shutemov.name>
- <s5hy3njlmhe.wl-tiwai@suse.de>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Mon, 6 Nov 2017 11:42:26 +0100
-Message-ID: <CACT4Y+bGBRrnu_rb9zZG1jWb8Zz4vx=ObmT-2K6bZGAQryA9Mg@mail.gmail.com>
-Subject: Re: [alsa-devel] BUG: soft lockup
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171106100558.GD3165@worktop.lehotels.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Takashi Iwai <tiwai@suse.de>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, syzbot <bot+63583aefef5457348dcfa06b87d4fd1378b26b09@syzkaller.appspotmail.com>, aaron.lu@intel.com, alsa-devel@alsa-project.org, Michal Hocko <mhocko@suse.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan@kernel.org>, Peter Zijlstra <peterz@infradead.org>, ying.huang@intel.com, syzkaller-bugs@googlegroups.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, shli@fb.com, David Rientjes <rientjes@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrew Morton <akpm@linux-foundation.org>, zi.yan@cs.rutgers.edu, Matthew Wilcox <willy@linux.intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Bart Van Assche <Bart.VanAssche@wdc.com>, "yang.s@alibaba-inc.com" <yang.s@alibaba-inc.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "joe@perches.com" <joe@perches.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>
 
-On Mon, Nov 6, 2017 at 11:39 AM, Takashi Iwai <tiwai@suse.de> wrote:
-> On Thu, 02 Nov 2017 10:09:51 +0100,
-> Kirill A. Shutemov wrote:
->>
->> On Thu, Nov 02, 2017 at 09:23:58AM +0100, Takashi Iwai wrote:
->> >
->> > Currently the least ALSA timer interrupt period is limited to 1ms.
->> > Does it still too much?
->> >
->> > Can the reproducer triggers it reliably?  If yes, could you forward
->> > it, too (and config as well), so that I'll try to dig down more exact
->> > code paths?
->>
->> All of that is part of original report:
->>
->> http://lkml.kernel.org/r/94eb2c19df188b1926055cf13c21@google.com
->>
->> marc.info hasn't stored repro.c for some reasone. Attached.
->>
->> I've just check it reproduces reliably for me in KVM.
->>
->> I also checked that it's not specific to THP -- still trigirable with huge
->> pages disabled.
->
-> I guess this is the same issue Jerome forwarded recently, and it was
-> fixed by limiting the amount of ALSA timer instances.  I queued the
-> fix in sound git tree for-linus branch, commit
-> 9b7d869ee5a77ed4a462372bb89af622e705bfb8
->     ALSA: timer: Limit max instances per timer
->
-> It'll be likely included in 4.14 final.
+On Mon 06-11-17 11:05:58, Peter Zijlstra wrote:
+> On Sun, Nov 05, 2017 at 09:19:46AM +0100, Michal Hocko wrote:
+> > [CC Peter]
+> > 
+> > On Fri 03-11-17 20:09:49, Bart Van Assche wrote:
+> > > On Fri, 2017-11-03 at 11:02 -0700, Andrew Morton wrote:
+> > > > Also, checkpatch says
+> > > > 
+> > > > WARNING: use of in_atomic() is incorrect outside core kernel code
+> > > > #43: FILE: mm/memory.c:4491:
+> > > > +       if (in_atomic())
+> > > > 
+> > > > I don't recall why we did that, but perhaps this should be revisited?
+> > > 
+> > > Is the comment above in_atomic() still up-to-date? From <linux/preempt.h>:
+> > > 
+> > > /*
+> > >  * Are we running in atomic context?  WARNING: this macro cannot
+> > >  * always detect atomic context; in particular, it cannot know about
+> > >  * held spinlocks in non-preemptible kernels.  Thus it should not be
+> > >  * used in the general case to determine whether sleeping is possible.
+> > >  * Do not use in_atomic() in driver code.
+> > >  */
+> > > #define in_atomic()	(preempt_count() != 0)
+> > 
+> > I can still see preempt_disable NOOP for !CONFIG_PREEMPT_COUNT kernels
+> > which makes me think this is still a valid comment.
+> 
+> Yes the comment is very much accurate.
 
-Thanks
+Which suggests that print_vma_addr might be problematic, right?
+Shouldn't we do trylock on mmap_sem instead?
 
-Let's also tell the bot what fixes this:
-
-#syz fix: ALSA: timer: Limit max instances per timer
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
