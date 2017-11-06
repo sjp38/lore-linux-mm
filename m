@@ -1,496 +1,230 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 434EA4403DD
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 04:00:47 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id a142so177957qkb.0
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 01:00:47 -0800 (PST)
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 82E3D4403DD
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 04:04:56 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id a132so2674065lfa.17
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 01:04:56 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s81sor2136863qkl.167.2017.11.06.01.00.45
+        by mx.google.com with SMTPS id i140sor1907993lfe.68.2017.11.06.01.04.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Nov 2017 01:00:45 -0800 (PST)
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v9 51/51] selftests/powerpc: Add core file test for Protection Key register
-Date: Mon,  6 Nov 2017 00:57:43 -0800
-Message-Id: <1509958663-18737-52-git-send-email-linuxram@us.ibm.com>
-In-Reply-To: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
-References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+        Mon, 06 Nov 2017 01:04:54 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <c14854ea-2f58-2d30-1b6c-153a7f3e24a6@arm.com>
+References: <20170921085922.11659-1-ganapatrao.kulkarni@cavium.com>
+ <20170921085922.11659-4-ganapatrao.kulkarni@cavium.com> <db28d6ff-77e5-ed59-c1b8-57c917564a68@arm.com>
+ <CAKTKpr508ArR1RUSY8HnaOkp==zPZ2=P_6gcXOAfi9hJq6XcqA@mail.gmail.com> <c14854ea-2f58-2d30-1b6c-153a7f3e24a6@arm.com>
+From: Ganapatrao Kulkarni <gklkml16@gmail.com>
+Date: Mon, 6 Nov 2017 14:34:52 +0530
+Message-ID: <CAKTKpr7OEDC+Yn=qnK3j50ddrexjyYkYhzoMe1-_G342z1=1Kg@mail.gmail.com>
+Subject: Re: [PATCH 3/4] iommu/arm-smmu-v3: Use NUMA memory allocations for
+ stream tables and comamnd queues
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
-Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
+To: Robin Murphy <robin.murphy@arm.com>, Will Deacon <Will.Deacon@arm.com>
+Cc: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>, linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org, iommu@lists.linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, Marek Szyprowski <m.szyprowski@samsung.com>, Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>, Hanjun Guo <hanjun.guo@linaro.org>, Joerg Roedel <joro@8bytes.org>, vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, Tomasz.Nowicki@cavium.com, Robert Richter <Robert.Richter@cavium.com>, jnair@caviumnetworks.com
 
-From: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
+On Wed, Oct 18, 2017 at 7:06 PM, Robin Murphy <robin.murphy@arm.com> wrote:
+> On 04/10/17 14:53, Ganapatrao Kulkarni wrote:
+>> Hi Robin,
+>>
+>>
+>> On Thu, Sep 21, 2017 at 5:28 PM, Robin Murphy <robin.murphy@arm.com> wrote:
+>>> [+Christoph and Marek]
+>>>
+>>> On 21/09/17 09:59, Ganapatrao Kulkarni wrote:
+>>>> Introduce smmu_alloc_coherent and smmu_free_coherent functions to
+>>>> allocate/free dma coherent memory from NUMA node associated with SMMU.
+>>>> Replace all calls of dmam_alloc_coherent with smmu_alloc_coherent
+>>>> for SMMU stream tables and command queues.
+>>>
+>>> This doesn't work - not only do you lose the 'managed' aspect and risk
+>>> leaking various tables on probe failure or device removal, but more
+>>> importantly, unless you add DMA syncs around all the CPU accesses to the
+>>> tables, you lose the critical 'coherent' aspect, and that's a horribly
+>>> invasive change that I really don't want to make.
+>>
+>> this implementation is similar to function used to allocate memory for
+>> translation tables.
+>
+> The concept is similar, yes, and would work if implemented *correctly*
+> with the aforementioned comprehensive and hugely invasive changes. The
+> implementation as presented in this patch, however, is incomplete and
+> badly broken.
+>
+> By way of comparison, the io-pgtable implementations contain all the
+> necessary dma_sync_* calls, never relied on devres, and only have one
+> DMA direction to worry about (hint: the queues don't all work
+> identically). There are also a couple of practical reasons for using
+> streaming mappings with the DMA == phys restriction there - tracking
+> both the CPU and DMA addresses for each table would significantly
+> increase the memory overhead, and using the cacheable linear map address
+> in all cases sidesteps any potential problems with the atomic PTE
+> updates. Neither of those concerns apply to the SMMUv3 data structures,
+> which are textbook coherent DMA allocations (being tied to the lifetime
+> of the device, rather than transient).
+>
+>> why do you see it affects to stream tables and not to page tables.
+>> at runtime, both tables are accessed by SMMU only.
+>>
+>> As said in cover letter, having stream table from respective NUMA node
+>> is yielding
+>> around 30% performance!
+>> please suggest, if there is any better way to address this issue?
+>
+> I fully agree that NUMA-aware allocations are a worthwhile thing that we
+> want. I just don't like the idea of going around individual drivers
+> replacing coherent API usage with bodged-up streaming mappings - I
+> really think it's worth making the effort to to tackle it once, in the
+> proper place, in a way that benefits all users together.
+>
+> Robin.
+>
+>>>
+>>> Christoph, Marek; how reasonable do you think it is to expect
+>>> dma_alloc_coherent() to be inherently NUMA-aware on NUMA-capable
+>>> systems? SWIOTLB looks fairly straightforward to fix up (for the simple
+>>> allocation case; I'm not sure it's even worth it for bounce-buffering),
+>>> but the likes of CMA might be a little trickier...
 
-This test verifies that the AMR is being written to a
-process' core file.
+IIUC, having DMA allocation per node may become issue for 32 bit PCI
+devices connected on NODE 1 on IOMMU less platforms.
+most of the platforms may have NODE 1 RAM located beyond 4GB and
+having DMA allocation beyond 32bit for NODE1(and above) devices may
+make 32 bit pci devices not usable.
 
-Signed-off-by: Thiago Jung Bauermann <bauerman@linux.vnet.ibm.com>
----
- tools/testing/selftests/powerpc/ptrace/Makefile    |    2 +-
- tools/testing/selftests/powerpc/ptrace/core-pkey.c |  438 ++++++++++++++++++++
- 2 files changed, 439 insertions(+), 1 deletions(-)
- create mode 100644 tools/testing/selftests/powerpc/ptrace/core-pkey.c
+DMA/IOMMU experts, please advise?
 
-diff --git a/tools/testing/selftests/powerpc/ptrace/Makefile b/tools/testing/selftests/powerpc/ptrace/Makefile
-index fd896b2..ca25fda 100644
---- a/tools/testing/selftests/powerpc/ptrace/Makefile
-+++ b/tools/testing/selftests/powerpc/ptrace/Makefile
-@@ -1,7 +1,7 @@
- # SPDX-License-Identifier: GPL-2.0
- TEST_PROGS := ptrace-gpr ptrace-tm-gpr ptrace-tm-spd-gpr \
-               ptrace-tar ptrace-tm-tar ptrace-tm-spd-tar ptrace-vsx ptrace-tm-vsx \
--              ptrace-tm-spd-vsx ptrace-tm-spr ptrace-pkey
-+              ptrace-tm-spd-vsx ptrace-tm-spr ptrace-pkey core-pkey
- 
- include ../../lib.mk
- 
-diff --git a/tools/testing/selftests/powerpc/ptrace/core-pkey.c b/tools/testing/selftests/powerpc/ptrace/core-pkey.c
-new file mode 100644
-index 0000000..2328f8c
---- /dev/null
-+++ b/tools/testing/selftests/powerpc/ptrace/core-pkey.c
-@@ -0,0 +1,438 @@
-+/*
-+ * Ptrace test for Memory Protection Key registers
-+ *
-+ * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
-+ * Copyright (C) 2017 IBM Corporation.
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License
-+ * as published by the Free Software Foundation; either version
-+ * 2 of the License, or (at your option) any later version.
-+ */
-+#include <limits.h>
-+#include <semaphore.h>
-+#include <linux/kernel.h>
-+#include <sys/mman.h>
-+#include <sys/types.h>
-+#include <sys/stat.h>
-+#include <sys/time.h>
-+#include <sys/resource.h>
-+#include <fcntl.h>
-+#include <unistd.h>
-+#include "ptrace.h"
-+
-+#ifndef __NR_pkey_alloc
-+#define __NR_pkey_alloc		384
-+#endif
-+
-+#ifndef __NR_pkey_free
-+#define __NR_pkey_free		385
-+#endif
-+
-+#ifndef NT_PPC_PKEY
-+#define NT_PPC_PKEY		0x110
-+#endif
-+
-+#ifndef PKEY_DISABLE_EXECUTE
-+#define PKEY_DISABLE_EXECUTE	0x4
-+#endif
-+
-+#define AMR_BITS_PER_PKEY 2
-+#define PKEY_REG_BITS (sizeof(u64) * 8)
-+#define pkeyshift(pkey) (PKEY_REG_BITS - ((pkey + 1) * AMR_BITS_PER_PKEY))
-+
-+#define CORE_FILE_LIMIT	(5 * 1024 * 1024)	/* 5 MB should be enough */
-+
-+static const char core_pattern_file[] = "/proc/sys/kernel/core_pattern";
-+
-+static const char user_write[] = "[User Write (Running)]";
-+static const char core_read_running[] = "[Core Read (Running)]";
-+
-+/* Information shared between the parent and the child. */
-+struct shared_info {
-+	/* AMR value the parent expects to read in the core file. */
-+	unsigned long amr;
-+
-+	/* IAMR value the parent expects to read from the child. */
-+	unsigned long iamr;
-+
-+	/* UAMOR value the parent expects to read from the child. */
-+	unsigned long uamor;
-+
-+	/* When the child crashed. */
-+	time_t core_time;
-+};
-+
-+static int sys_pkey_alloc(unsigned long flags, unsigned long init_access_rights)
-+{
-+	return syscall(__NR_pkey_alloc, flags, init_access_rights);
-+}
-+
-+static int sys_pkey_free(int pkey)
-+{
-+	return syscall(__NR_pkey_free, pkey);
-+}
-+
-+static int increase_core_file_limit(void)
-+{
-+	struct rlimit rlim;
-+	int ret;
-+
-+	ret = getrlimit(RLIMIT_CORE, &rlim);
-+	FAIL_IF(ret);
-+
-+	if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < CORE_FILE_LIMIT) {
-+		rlim.rlim_cur = CORE_FILE_LIMIT;
-+
-+		if (rlim.rlim_max != RLIM_INFINITY &&
-+		    rlim.rlim_max < CORE_FILE_LIMIT)
-+			rlim.rlim_max = CORE_FILE_LIMIT;
-+
-+		ret = setrlimit(RLIMIT_CORE, &rlim);
-+		FAIL_IF(ret);
-+	}
-+
-+	ret = getrlimit(RLIMIT_FSIZE, &rlim);
-+	FAIL_IF(ret);
-+
-+	if (rlim.rlim_cur != RLIM_INFINITY && rlim.rlim_cur < CORE_FILE_LIMIT) {
-+		rlim.rlim_cur = CORE_FILE_LIMIT;
-+
-+		if (rlim.rlim_max != RLIM_INFINITY &&
-+		    rlim.rlim_max < CORE_FILE_LIMIT)
-+			rlim.rlim_max = CORE_FILE_LIMIT;
-+
-+		ret = setrlimit(RLIMIT_FSIZE, &rlim);
-+		FAIL_IF(ret);
-+	}
-+
-+	return TEST_PASS;
-+}
-+
-+static int child(struct shared_info *info)
-+{
-+	bool disable_execute = true;
-+	int pkey1, pkey2, pkey3;
-+	int *ptr, ret;
-+
-+	ret = increase_core_file_limit();
-+	FAIL_IF(ret);
-+
-+	/* Get some pkeys so that we can change their bits in the AMR. */
-+	pkey1 = sys_pkey_alloc(0, PKEY_DISABLE_EXECUTE);
-+	if (pkey1 < 0) {
-+		pkey1 = sys_pkey_alloc(0, 0);
-+		FAIL_IF(pkey1 < 0);
-+
-+		disable_execute = false;
-+	}
-+
-+	pkey2 = sys_pkey_alloc(0, 0);
-+	FAIL_IF(pkey2 < 0);
-+
-+	pkey3 = sys_pkey_alloc(0, 0);
-+	FAIL_IF(pkey3 < 0);
-+
-+	info->amr = 3ul << pkeyshift(pkey1) | 2ul << pkeyshift(pkey2);
-+
-+	if (disable_execute)
-+		info->iamr = 1ul << pkeyshift(pkey1);
-+	else
-+		info->iamr = 0;
-+
-+	info->uamor = 3ul << pkeyshift(pkey1) | 3ul << pkeyshift(pkey2);
-+
-+	printf("%-30s AMR: %016lx pkey1: %d pkey2: %d pkey3: %d\n",
-+	       user_write, info->amr, pkey1, pkey2, pkey3);
-+
-+	mtspr(SPRN_AMR, info->amr);
-+
-+	/*
-+	 * We won't use pkey3. This tests whether the kernel restores the UAMOR
-+	 * permissions after a key is freed.
-+	 */
-+	sys_pkey_free(pkey3);
-+
-+	info->core_time = time(NULL);
-+
-+	/* Crash. */
-+	ptr = 0;
-+	*ptr = 1;
-+
-+	/* Shouldn't get here. */
-+	FAIL_IF(true);
-+
-+	return TEST_FAIL;
-+}
-+
-+/* Return file size if filename exists and pass sanity check, or zero if not. */
-+static off_t try_core_file(const char *filename, struct shared_info *info,
-+			   pid_t pid)
-+{
-+	struct stat buf;
-+	int ret;
-+
-+	ret = stat(filename, &buf);
-+	if (ret == -1)
-+		return TEST_FAIL;
-+
-+	/* Make sure we're not using a stale core file. */
-+	return buf.st_mtime >= info->core_time ? buf.st_size : TEST_FAIL;
-+}
-+
-+static Elf64_Nhdr *next_note(Elf64_Nhdr *nhdr)
-+{
-+	return (void *) nhdr + sizeof(*nhdr) +
-+		__ALIGN_KERNEL(nhdr->n_namesz, 4) +
-+		__ALIGN_KERNEL(nhdr->n_descsz, 4);
-+}
-+
-+static int check_core_file(struct shared_info *info, Elf64_Ehdr *ehdr,
-+			   off_t core_size)
-+{
-+	unsigned long *regs;
-+	Elf64_Phdr *phdr;
-+	Elf64_Nhdr *nhdr;
-+	size_t phdr_size;
-+	void *p = ehdr, *note;
-+	int ret;
-+
-+	ret = memcmp(ehdr->e_ident, ELFMAG, SELFMAG);
-+	FAIL_IF(ret);
-+
-+	FAIL_IF(ehdr->e_type != ET_CORE);
-+	FAIL_IF(ehdr->e_machine != EM_PPC64);
-+	FAIL_IF(ehdr->e_phoff == 0 || ehdr->e_phnum == 0);
-+
-+	/*
-+	 * e_phnum is at most 65535 so calculating the size of the
-+	 * program header cannot overflow.
-+	 */
-+	phdr_size = sizeof(*phdr) * ehdr->e_phnum;
-+
-+	/* Sanity check the program header table location. */
-+	FAIL_IF(ehdr->e_phoff + phdr_size < ehdr->e_phoff);
-+	FAIL_IF(ehdr->e_phoff + phdr_size > core_size);
-+
-+	/* Find the PT_NOTE segment. */
-+	for (phdr = p + ehdr->e_phoff;
-+	     (void *) phdr < p + ehdr->e_phoff + phdr_size;
-+	     phdr += ehdr->e_phentsize)
-+		if (phdr->p_type == PT_NOTE)
-+			break;
-+
-+	FAIL_IF((void *) phdr >= p + ehdr->e_phoff + phdr_size);
-+
-+	/* Find the NT_PPC_PKEY note. */
-+	for (nhdr = p + phdr->p_offset;
-+	     (void *) nhdr < p + phdr->p_offset + phdr->p_filesz;
-+	     nhdr = next_note(nhdr))
-+		if (nhdr->n_type == NT_PPC_PKEY)
-+			break;
-+
-+	FAIL_IF((void *) nhdr >= p + phdr->p_offset + phdr->p_filesz);
-+	FAIL_IF(nhdr->n_descsz == 0);
-+
-+	p = nhdr;
-+	note = p + sizeof(*nhdr) + __ALIGN_KERNEL(nhdr->n_namesz, 4);
-+
-+	regs = (unsigned long *) note;
-+
-+	printf("%-30s AMR: %016lx IAMR: %016lx UAMOR: %016lx\n",
-+	       core_read_running, regs[0], regs[1], regs[2]);
-+
-+	FAIL_IF(regs[0] != info->amr);
-+	FAIL_IF(regs[1] != info->iamr);
-+	FAIL_IF(regs[2] != info->uamor);
-+
-+	return TEST_PASS;
-+}
-+
-+static int parent(struct shared_info *info, pid_t pid)
-+{
-+	char *filenames, *filename[3];
-+	int fd, i, ret, status;
-+	off_t core_size;
-+	void *core;
-+
-+	ret = wait(&status);
-+	if (ret != pid) {
-+		printf("Child's exit status not captured\n");
-+		return TEST_FAIL;
-+	} else if (!WIFSIGNALED(status) || !WCOREDUMP(status)) {
-+		printf("Child didn't dump core\n");
-+		return TEST_FAIL;
-+	}
-+
-+	/* Construct array of core file names to try. */
-+
-+	filename[0] = filenames = malloc(PATH_MAX);
-+	if (!filenames) {
-+		perror("Error allocating memory");
-+		return TEST_FAIL;
-+	}
-+
-+	ret = snprintf(filename[0], PATH_MAX, "core-pkey.%d", pid);
-+	if (ret < 0 || ret >= PATH_MAX) {
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	filename[1] = filename[0] + ret + 1;
-+	ret = snprintf(filename[1], PATH_MAX - ret - 1, "core.%d", pid);
-+	if (ret < 0 || ret >= PATH_MAX - ret - 1) {
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+	filename[2] = "core";
-+
-+	for (i = 0; i < 3; i++) {
-+		core_size = try_core_file(filename[i], info, pid);
-+		if (core_size != TEST_FAIL)
-+			break;
-+	}
-+
-+	if (i == 3) {
-+		printf("Couldn't find core file\n");
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	fd = open(filename[i], O_RDONLY);
-+	if (fd == -1) {
-+		perror("Error opening core file");
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	core = mmap(NULL, core_size, PROT_READ, MAP_PRIVATE, fd, 0);
-+	if (core == (void *) -1) {
-+		perror("Error mmaping core file");
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	ret = check_core_file(info, core, core_size);
-+
-+	munmap(core, core_size);
-+	close(fd);
-+	unlink(filename[i]);
-+
-+ out:
-+	free(filenames);
-+
-+	return ret;
-+}
-+
-+static int write_core_pattern(const char *core_pattern)
-+{
-+	size_t len = strlen(core_pattern), ret;
-+	FILE *f;
-+
-+	f = fopen(core_pattern_file, "w");
-+	if (!f) {
-+		perror("Error writing to core_pattern file");
-+		return TEST_FAIL;
-+	}
-+
-+	ret = fwrite(core_pattern, 1, len, f);
-+	fclose(f);
-+	if (ret != len) {
-+		perror("Error writing to core_pattern file");
-+		return TEST_FAIL;
-+	}
-+
-+	return TEST_PASS;
-+}
-+
-+static int setup_core_pattern(char **core_pattern_, bool *changed_)
-+{
-+	FILE *f;
-+	char *core_pattern;
-+	int ret;
-+
-+	core_pattern = malloc(PATH_MAX);
-+	if (!core_pattern) {
-+		perror("Error allocating memory");
-+		return TEST_FAIL;
-+	}
-+
-+	f = fopen(core_pattern_file, "r");
-+	if (!f) {
-+		perror("Error opening core_pattern file");
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	ret = fread(core_pattern, 1, PATH_MAX, f);
-+	fclose(f);
-+	if (!ret) {
-+		perror("Error reading core_pattern file");
-+		ret = TEST_FAIL;
-+		goto out;
-+	}
-+
-+	/* Check whether we can predict the name of the core file. */
-+	if (!strcmp(core_pattern, "core") || !strcmp(core_pattern, "core.%p"))
-+		*changed_ = false;
-+	else {
-+		ret = write_core_pattern("core-pkey.%p");
-+		if (ret)
-+			goto out;
-+
-+		*changed_ = true;
-+	}
-+
-+	*core_pattern_ = core_pattern;
-+	ret = TEST_PASS;
-+
-+ out:
-+	if (ret)
-+		free(core_pattern);
-+
-+	return ret;
-+}
-+
-+static int core_pkey(void)
-+{
-+	char *core_pattern;
-+	bool changed_core_pattern;
-+	struct shared_info *info;
-+	int shm_id;
-+	int ret;
-+	pid_t pid;
-+
-+	ret = setup_core_pattern(&core_pattern, &changed_core_pattern);
-+	if (ret)
-+		return ret;
-+
-+	shm_id = shmget(IPC_PRIVATE, sizeof(*info), 0777 | IPC_CREAT);
-+	info = shmat(shm_id, NULL, 0);
-+
-+	pid = fork();
-+	if (pid < 0) {
-+		perror("fork() failed");
-+		ret = TEST_FAIL;
-+	} else if (pid == 0)
-+		ret = child(info);
-+	else
-+		ret = parent(info, pid);
-+
-+	shmdt(info);
-+
-+	if (pid) {
-+		shmctl(shm_id, IPC_RMID, NULL);
-+
-+		if (changed_core_pattern)
-+			write_core_pattern(core_pattern);
-+	}
-+
-+	free(core_pattern);
-+
-+	return ret;
-+}
-+
-+int main(int argc, char *argv[])
-+{
-+	return test_harness(core_pkey, "core_pkey");
-+}
--- 
-1.7.1
+>>>
+>>> Robin.
+>>>
+>>>> Signed-off-by: Ganapatrao Kulkarni <ganapatrao.kulkarni@cavium.com>
+>>>> ---
+>>>>  drivers/iommu/arm-smmu-v3.c | 57 ++++++++++++++++++++++++++++++++++++++++-----
+>>>>  1 file changed, 51 insertions(+), 6 deletions(-)
+>>>>
+>>>> diff --git a/drivers/iommu/arm-smmu-v3.c b/drivers/iommu/arm-smmu-v3.c
+>>>> index e67ba6c..bc4ba1f 100644
+>>>> --- a/drivers/iommu/arm-smmu-v3.c
+>>>> +++ b/drivers/iommu/arm-smmu-v3.c
+>>>> @@ -1158,6 +1158,50 @@ static void arm_smmu_init_bypass_stes(u64 *strtab, unsigned int nent)
+>>>>       }
+>>>>  }
+>>>>
+>>>> +static void *smmu_alloc_coherent(struct arm_smmu_device *smmu, size_t size,
+>>>> +             dma_addr_t *dma_handle, gfp_t gfp)
+>>>> +{
+>>>> +     struct device *dev = smmu->dev;
+>>>> +     void *pages;
+>>>> +     dma_addr_t dma;
+>>>> +     int numa_node = dev_to_node(dev);
+>>>> +
+>>>> +     pages = alloc_pages_exact_nid(numa_node, size, gfp | __GFP_ZERO);
+>>>> +     if (!pages)
+>>>> +             return NULL;
+>>>> +
+>>>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY)) {
+>>>> +             dma = dma_map_single(dev, pages, size, DMA_TO_DEVICE);
+>>>> +             if (dma_mapping_error(dev, dma))
+>>>> +                     goto out_free;
+>>>> +             /*
+>>>> +              * We depend on the SMMU being able to work with any physical
+>>>> +              * address directly, so if the DMA layer suggests otherwise by
+>>>> +              * translating or truncating them, that bodes very badly...
+>>>> +              */
+>>>> +             if (dma != virt_to_phys(pages))
+>>>> +                     goto out_unmap;
+>>>> +     }
+>>>> +
+>>>> +     *dma_handle = (dma_addr_t)virt_to_phys(pages);
+>>>> +     return pages;
+>>>> +
+>>>> +out_unmap:
+>>>> +     dev_err(dev, "Cannot accommodate DMA translation for IOMMU page tables\n");
+>>>> +     dma_unmap_single(dev, dma, size, DMA_TO_DEVICE);
+>>>> +out_free:
+>>>> +     free_pages_exact(pages, size);
+>>>> +     return NULL;
+>>>> +}
+>>>> +
+>>>> +static void smmu_free_coherent(struct arm_smmu_device *smmu, size_t size,
+>>>> +             void *pages, dma_addr_t dma_handle)
+>>>> +{
+>>>> +     if (!(smmu->features & ARM_SMMU_FEAT_COHERENCY))
+>>>> +             dma_unmap_single(smmu->dev, dma_handle, size, DMA_TO_DEVICE);
+>>>> +     free_pages_exact(pages, size);
+>>>> +}
+>>>> +
+>>>>  static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
+>>>>  {
+>>>>       size_t size;
+>>>> @@ -1172,7 +1216,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
+>>>>       strtab = &cfg->strtab[(sid >> STRTAB_SPLIT) * STRTAB_L1_DESC_DWORDS];
+>>>>
+>>>>       desc->span = STRTAB_SPLIT + 1;
+>>>> -     desc->l2ptr = dmam_alloc_coherent(smmu->dev, size, &desc->l2ptr_dma,
+>>>> +     desc->l2ptr = smmu_alloc_coherent(smmu, size, &desc->l2ptr_dma,
+>>>>                                         GFP_KERNEL | __GFP_ZERO);
+>>>>       if (!desc->l2ptr) {
+>>>>               dev_err(smmu->dev,
+>>>> @@ -1487,7 +1531,7 @@ static void arm_smmu_domain_free(struct iommu_domain *domain)
+>>>>               struct arm_smmu_s1_cfg *cfg = &smmu_domain->s1_cfg;
+>>>>
+>>>>               if (cfg->cdptr) {
+>>>> -                     dmam_free_coherent(smmu_domain->smmu->dev,
+>>>> +                     smmu_free_coherent(smmu,
+>>>>                                          CTXDESC_CD_DWORDS << 3,
+>>>>                                          cfg->cdptr,
+>>>>                                          cfg->cdptr_dma);
+>>>> @@ -1515,7 +1559,7 @@ static int arm_smmu_domain_finalise_s1(struct arm_smmu_domain *smmu_domain,
+>>>>       if (asid < 0)
+>>>>               return asid;
+>>>>
+>>>> -     cfg->cdptr = dmam_alloc_coherent(smmu->dev, CTXDESC_CD_DWORDS << 3,
+>>>> +     cfg->cdptr = smmu_alloc_coherent(smmu, CTXDESC_CD_DWORDS << 3,
+>>>>                                        &cfg->cdptr_dma,
+>>>>                                        GFP_KERNEL | __GFP_ZERO);
+>>>>       if (!cfg->cdptr) {
+>>>> @@ -1984,7 +2028,7 @@ static int arm_smmu_init_one_queue(struct arm_smmu_device *smmu,
+>>>>  {
+>>>>       size_t qsz = ((1 << q->max_n_shift) * dwords) << 3;
+>>>>
+>>>> -     q->base = dmam_alloc_coherent(smmu->dev, qsz, &q->base_dma, GFP_KERNEL);
+>>>> +     q->base = smmu_alloc_coherent(smmu, qsz, &q->base_dma, GFP_KERNEL);
+>>>>       if (!q->base) {
+>>>>               dev_err(smmu->dev, "failed to allocate queue (0x%zx bytes)\n",
+>>>>                       qsz);
+>>>> @@ -2069,7 +2113,7 @@ static int arm_smmu_init_strtab_2lvl(struct arm_smmu_device *smmu)
+>>>>                        size, smmu->sid_bits);
+>>>>
+>>>>       l1size = cfg->num_l1_ents * (STRTAB_L1_DESC_DWORDS << 3);
+>>>> -     strtab = dmam_alloc_coherent(smmu->dev, l1size, &cfg->strtab_dma,
+>>>> +     strtab = smmu_alloc_coherent(smmu, l1size, &cfg->strtab_dma,
+>>>>                                    GFP_KERNEL | __GFP_ZERO);
+>>>>       if (!strtab) {
+>>>>               dev_err(smmu->dev,
+>>>> @@ -2097,8 +2141,9 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
+>>>>       u32 size;
+>>>>       struct arm_smmu_strtab_cfg *cfg = &smmu->strtab_cfg;
+>>>>
+>>>> +
+>>>>       size = (1 << smmu->sid_bits) * (STRTAB_STE_DWORDS << 3);
+>>>> -     strtab = dmam_alloc_coherent(smmu->dev, size, &cfg->strtab_dma,
+>>>> +     strtab = smmu_alloc_coherent(smmu, size, &cfg->strtab_dma,
+>>>>                                    GFP_KERNEL | __GFP_ZERO);
+>>>>       if (!strtab) {
+>>>>               dev_err(smmu->dev,
+>>>>
+>>>
+>>
+>> thanks
+>> Ganapat
+>>
+>
+
+thanks
+Ganapat
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
