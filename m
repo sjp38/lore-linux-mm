@@ -1,73 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 85D4E6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:32:39 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id l8so3984807wmg.7
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:32:39 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x33si712474edm.58.2017.11.06.10.32.38
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C8406B0253
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:36:04 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id j15so6539744wre.15
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:36:04 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id p6si9748856edk.106.2017.11.06.10.36.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Nov 2017 10:32:38 -0800 (PST)
-Date: Mon, 6 Nov 2017 19:32:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Guaranteed allocation of huge pages (1G) using movablecore=N
- doesn't seem to work at all
-Message-ID: <20171106183237.64b3hj25hbfw7v4l@dhcp22.suse.cz>
-References: <CACAwPwZqFRyFJhb7pyyrufah+1TfCDuzQMo3qwJuMKkp6aYd_Q@mail.gmail.com>
- <CACAwPwbA0NpTC9bfV7ySHkxPrbZJVvjH=Be5_c25Q3S8qNay+w@mail.gmail.com>
- <CACAwPwamD4RL9O8wujK_jCKGu=x0dBBmH9O-9078cUEEk4WsMA@mail.gmail.com>
- <CACAwPwYKjK5RT-ChQqqUnD7PrtpXg1WhTHGK3q60i6StvDMDRg@mail.gmail.com>
- <CACAwPwav-eY4_nt=Z7TQB8WMFg+1X5WY2Gkgxph74X7=Ovfvrw@mail.gmail.com>
- <CACAwPwaP05FgxTp=kavwgFZF+LEGO-OSspJ4jH+Y=_uRxiVZaA@mail.gmail.com>
- <CACAwPwY5ss_D9kj7XoLVVkQ9=KXDFCnyDzdoxkGxhJZBNFre3w@mail.gmail.com>
- <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com>
- <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz>
- <CACAwPwaTejMB8yOrkOxpDj297B=Y6bTvw2nAyHsiJKC+aB=a2w@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACAwPwaTejMB8yOrkOxpDj297B=Y6bTvw2nAyHsiJKC+aB=a2w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 10:36:02 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v2 0/2] don't use vmemmap_populate() to initialize shadow
+Date: Mon,  6 Nov 2017 13:35:14 -0500
+Message-Id: <20171106183516.6644-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maxim Levitsky <maximlevitsky@gmail.com>
-Cc: linux-mm@kvack.org
+To: aryabinin@virtuozzo.com, will.deacon@arm.com, mhocko@kernel.org, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, kasan-dev@googlegroups.com, borntraeger@de.ibm.com, heiko.carstens@de.ibm.com, willy@infradead.org, ard.biesheuvel@linaro.org, mark.rutland@arm.com, catalin.marinas@arm.com, sam@ravnborg.org, mgorman@techsingularity.net, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, bob.picco@oracle.com
 
-On Mon 06-11-17 20:13:36, Maxim Levitsky wrote:
-> Yes, I tested git head from mainline and few kernels from ubuntu repos
-> since I was lazy to compile them too.
+Corrected "From" fields in these two patches to preserve the original
+authorship.
 
-OK, so this hasn't worked realiably as I've suspected.
+Andrey Ryabinin (1):
+  x86/mm/kasan: don't use vmemmap_populate() to initialize shadow
 
-> Do you have an idea what can I do about this issue? Do you think its
-> feasable to fix this?
+Will Deacon (1):
+  arm64/mm/kasan: don't use vmemmap_populate() to initialize shadow
 
-Well, I think that giga pages need quite some love to be usable
-reliably. The current implementation is more towards "make it work if
-there is enough unused memory".
+ arch/arm64/Kconfig          |   2 +-
+ arch/arm64/mm/kasan_init.c  | 130 ++++++++++++++++++++++++----------------
+ arch/x86/Kconfig            |   2 +-
+ arch/x86/mm/kasan_init_64.c | 143 +++++++++++++++++++++++++++++++++++++++++---
+ 4 files changed, 218 insertions(+), 59 deletions(-)
 
-> And if not using moveable zone, how would it even be possible to have
-> guaranreed allocation of 1g pages
-
-Having a guaranteed giga pages is something the kernel is not yet ready
-to offer.  Abusing zone movable might look like the right direction
-but that is not really the case until we make sure those pages are
-migratable.
-
-There has been a simple patch which makes PUD (1GB) pages migrateable
-http://lkml.kernel.org/r/20170913101047.GA13026@gmail.com but I've had
-concerns that it really didn't consider the migration path much
-http://lkml.kernel.org/r/20171003073301.hydw7jf2wztsx2om%40dhcp22.suse.cz
-I still believe the patch is not complete but maybe it is not that far
-away from being so. E.g. the said pfn_range_valid_gigantic can be
-enhanced to make the migration much more reliable or get rid of it
-altogether because the pfn based allocator already knows how to do
-migration and other stuff.
-
-I can help some with that.
 -- 
-Michal Hocko
-SUSE Labs
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
