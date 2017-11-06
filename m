@@ -1,94 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D606A6B026C
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 05:20:50 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id j3so12356377pga.5
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 02:20:50 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 860076B026C
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 05:27:33 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id l23so12346312pgc.10
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 02:27:33 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f79sor3673222pfk.29.2017.11.06.02.20.49
+        by mx.google.com with SMTPS id q61sor3842423plb.97.2017.11.06.02.27.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Nov 2017 02:20:49 -0800 (PST)
-Date: Mon, 6 Nov 2017 21:20:38 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171106212038.61163712@roar.ozlabs.ibm.com>
-In-Reply-To: <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
-	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
-	<871slcszfl.fsf@linux.vnet.ibm.com>
-	<20171106174707.19f6c495@roar.ozlabs.ibm.com>
-	<24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
-	<20171106192524.12ea3187@roar.ozlabs.ibm.com>
-	<d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
-	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+        Mon, 06 Nov 2017 02:27:32 -0800 (PST)
+Date: Mon, 6 Nov 2017 19:27:26 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [v5,22/22] powerpc/mm: Add speculative page fault
+Message-ID: <20171106102726.GB1298@jagdpanzerIV>
+References: <1507729966-10660-23-git-send-email-ldufour@linux.vnet.ibm.com>
+ <7ca80231-fe02-a3a7-84bc-ce81690ea051@intel.com>
+ <c0b7f172-5d9c-eec6-540d-216b908f005f@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c0b7f172-5d9c-eec6-540d-216b908f005f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
+Cc: kemi <kemi.wang@intel.com>, paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, Matthew Wilcox <willy@infradead.org>, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
 
-On Mon, 6 Nov 2017 09:32:25 +0100
-Florian Weimer <fweimer@redhat.com> wrote:
-
-> On 11/06/2017 09:30 AM, Aneesh Kumar K.V wrote:
-> > On 11/06/2017 01:55 PM, Nicholas Piggin wrote:  
-> >> On Mon, 6 Nov 2017 09:11:37 +0100
-> >> Florian Weimer <fweimer@redhat.com> wrote:
-> >>  
-> >>> On 11/06/2017 07:47 AM, Nicholas Piggin wrote:  
-> >>>> "You get < 128TB unless explicitly requested."
-> >>>>
-> >>>> Simple, reasonable, obvious rule. Avoids breaking apps that store
-> >>>> some bits in the top of pointers (provided that memory allocator
-> >>>> userspace libraries also do the right thing).  
-> >>>
-> >>> So brk would simplify fail instead of crossing the 128 TiB threshold?  
-> >>
-> >> Yes, that was the intention and that's what x86 seems to do.
-> >>  
-> >>>
-> >>> glibc malloc should cope with that and switch to malloc, but this code
-> >>> path is obviously less well-tested than the regular way.  
-> >>
-> >> Switch to mmap() I guess you meant?  
+On (11/02/17 15:11), Laurent Dufour wrote:
+> On 26/10/2017 10:14, kemi wrote:
+> > Some regression is found by LKP-tools(linux kernel performance) on this patch series
+> > tested on Intel 2s/4s Skylake platform. 
+> > The regression result is sorted by the metric will-it-scale.per_process_ops.
 > 
-> Yes, sorry.
+> Hi Kemi,
 > 
-> >> powerpc has a couple of bugs in corner cases, so those should be fixed
-> >> according to intended policy for stable kernels I think.
-> >>
-> >> But I question the policy. Just seems like an ugly and ineffective wart.
-> >> Exactly for such cases as this -- behaviour would change from run to run
-> >> depending on your address space randomization for example! In case your
-> >> brk happens to land nicely on 128TB then the next one would succeed.  
-> > 
-> > Why ? It should not change between run to run. We limit the free
-> > area search range based on hint address. So we should get consistent 
-> > results across run. even if we changed the context.addr_limit.  
-> 
-> The size of the gap to the 128 TiB limit varies between runs because of 
-> ASLR.  So some runs would use brk alone, others would use brk + malloc. 
-> That's not really desirable IMHO.
+> Thanks for reporting this, I'll try to address it by turning some features
+> of the SPF path off when the process is monothreaded.
 
-Yeah. Actually I looked at the code a bit more, and it seems that the
-intention is for MAP_FIXED to do exactly what I wanted. brk() uses
-MAP_FIXED under the covers, so this case should be okay I think. I'm
-just slightly happier now, but I still think it's not the right thing
-to do to fail an explicit request for crossing 128TB with a hint. Same
-fundamental criticism still applies -- it does not really solve bugs
-and just adds an unintuitive wart to the API, and a random change in
-behaviour based on randomization.
+make them madvice()-able?
+not all multi-threaded apps will necessarily benefit of SPF. right?
+just an idea.
 
-Anyway I sent some patches that are split up better and hopefully solve
-some bugs for powerpc without changing intended policy. That's left for
-another discussion.
-
-Thanks,
-Nick
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
