@@ -1,51 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 016186B0038
-	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 22:29:54 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id a20so2601658wrc.1
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 19:29:53 -0800 (PST)
-Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
-        by mx.google.com with ESMTPS id h139si5877444wme.230.2017.11.05.19.29.52
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Nov 2017 19:29:52 -0800 (PST)
-Date: Mon, 6 Nov 2017 03:29:42 +0000
-From: Al Viro <viro@ZenIV.linux.org.uk>
-Subject: Re: possible deadlock in generic_file_write_iter
-Message-ID: <20171106032941.GR21978@ZenIV.linux.org.uk>
-References: <94eb2c05f6a018dc21055d39c05b@google.com>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E63AD6B0253
+	for <linux-mm@kvack.org>; Sun,  5 Nov 2017 22:37:57 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id z52so5389305wrc.5
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 19:37:57 -0800 (PST)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTP id j1si3320238edc.100.2017.11.05.19.37.56
+        for <linux-mm@kvack.org>;
+        Sun, 05 Nov 2017 19:37:56 -0800 (PST)
+From: Wang Nan <wangnan0@huawei.com>
+Subject: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking TLB entry
+Date: Mon, 6 Nov 2017 03:36:51 +0000
+Message-ID: <20171106033651.172368-1-wangnan0@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <94eb2c05f6a018dc21055d39c05b@google.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Wang Nan <wangnan0@huawei.com>, Bob Liu <liubo95@huawei.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea
+ Arcangeli <aarcange@redhat.com>
 
-On Sun, Nov 05, 2017 at 02:25:00AM -0800, syzbot wrote:
+tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
+In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
+TLB when tlb->fullmm is true:
 
-> loop0/2986 is trying to acquire lock:
->  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff8186f9ec>] inode_lock
-> include/linux/fs.h:712 [inline]
->  (&sb->s_type->i_mutex_key#9){++++}, at: [<ffffffff8186f9ec>]
-> generic_file_write_iter+0xdc/0x7a0 mm/filemap.c:3151
-> 
-> but now in release context of a crosslock acquired at the following:
->  ((complete)&ret.event){+.+.}, at: [<ffffffff822a055e>]
-> submit_bio_wait+0x15e/0x200 block/bio.c:953
-> 
-> which lock already depends on the new lock.
+  commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
 
-Almost certainly a false positive...  lockdep can't tell ->i_rwsem of
-inode on filesystem that lives on /dev/loop0 and that of inode of
-the backing file of /dev/loop0.
+Which makes leaking of tlb entries. For example, when oom_reaper
+selects a task and reaps its virtual memory space, another thread
+in this task group may still running on another core and access
+these already freed memory through tlb entries.
 
-Try and put them on different filesystem types and see if you still
-can reproduce that.  We do have a partial ordering between the filesystems,
-namely "(parts of) hosting device of X live in a file on Y".  It's
-going to be acyclic, or you have a much worse problem.  And that's
-what really orders the things here.
+This patch gather each vma instead of gathering full vm space,
+tlb->fullmm is not true. The behavior of oom reaper become similar
+to munmapping before do_exit, which should be safe for all archs.
+
+Signed-off-by: Wang Nan <wangnan0@huawei.com>
+Cc: Bob Liu <liubo95@huawei.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+---
+ mm/oom_kill.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index dee0f75..18c5b35 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	 */
+ 	set_bit(MMF_UNSTABLE, &mm->flags);
+ 
+-	tlb_gather_mmu(&tlb, mm, 0, -1);
+ 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+ 		if (!can_madv_dontneed_vma(vma))
+ 			continue;
+@@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 		 * we do not want to block exit_mmap by keeping mm ref
+ 		 * count elevated without a good reason.
+ 		 */
+-		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
++		if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
++			tlb_gather_mmu(&tlb, mm, vma->vm_start, vma->vm_end);
+ 			unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+ 					 NULL);
++			tlb_finish_mmu(&tlb, vma->vm_start, vma->vm_end);
++		}
+ 	}
+-	tlb_finish_mmu(&tlb, 0, -1);
+ 	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+ 			task_pid_nr(tsk), tsk->comm,
+ 			K(get_mm_counter(mm, MM_ANONPAGES)),
+-- 
+2.10.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
