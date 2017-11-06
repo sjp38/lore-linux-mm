@@ -1,63 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B33D46B0260
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:03:01 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id m81so22615386ioi.3
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:03:01 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0224.hostedemail.com. [216.40.44.224])
-        by mx.google.com with ESMTPS id x3si8133562itb.172.2017.11.06.10.03.00
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 939696B0260
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:04:17 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id s75so13458601pgs.12
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:04:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b5si11537820pgr.120.2017.11.06.10.04.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 10:03:00 -0800 (PST)
-From: Joe Perches <joe@perches.com>
-Subject: [PATCH] mm/page_alloc: Avoid KERN_CONT uses in warn_alloc
-Date: Mon,  6 Nov 2017 10:02:56 -0800
-Message-Id: <b31236dfe3fc924054fd7842bde678e71d193638.1509991345.git.joe@perches.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Nov 2017 10:04:16 -0800 (PST)
+Date: Mon, 6 Nov 2017 19:04:06 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Guaranteed allocation of huge pages (1G) using movablecore=N
+ doesn't seem to work at all
+Message-ID: <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz>
+References: <20171106171150.7a2lent6vdrewsk7@dhcp22.suse.cz>
+ <CACAwPwZuiT9BfunVgy73KYjGfVopgcE0dknAxSLPNeJB8rkcMQ@mail.gmail.com>
+ <CACAwPwZqFRyFJhb7pyyrufah+1TfCDuzQMo3qwJuMKkp6aYd_Q@mail.gmail.com>
+ <CACAwPwbA0NpTC9bfV7ySHkxPrbZJVvjH=Be5_c25Q3S8qNay+w@mail.gmail.com>
+ <CACAwPwamD4RL9O8wujK_jCKGu=x0dBBmH9O-9078cUEEk4WsMA@mail.gmail.com>
+ <CACAwPwYKjK5RT-ChQqqUnD7PrtpXg1WhTHGK3q60i6StvDMDRg@mail.gmail.com>
+ <CACAwPwav-eY4_nt=Z7TQB8WMFg+1X5WY2Gkgxph74X7=Ovfvrw@mail.gmail.com>
+ <CACAwPwaP05FgxTp=kavwgFZF+LEGO-OSspJ4jH+Y=_uRxiVZaA@mail.gmail.com>
+ <CACAwPwY5ss_D9kj7XoLVVkQ9=KXDFCnyDzdoxkGxhJZBNFre3w@mail.gmail.com>
+ <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
+To: Maxim Levitsky <maximlevitsky@gmail.com>
 Cc: linux-mm@kvack.org
 
-KERN_CONT/pr_cont uses should be avoided where possible.
-Use single pr_warn calls instead.
+On Mon 06-11-17 19:36:38, Maxim Levitsky wrote:
+> Isn't this a non backward compatible change? Why to remove an optional non
+> default option for use cases like mine.
 
-Signed-off-by: Joe Perches <joe@perches.com>
----
- mm/page_alloc.c | 14 ++++++--------
- 1 file changed, 6 insertions(+), 8 deletions(-)
+Well, strictly speaking it is. The reality is that with the current
+implementation the option breaks the hotplug usecase. I can see your
+argument about the opt in and we might need to hold on this patch for
+merging uut it seems that http://lkml.kernel.org/r/20171003072619.8654-1-mhocko@kernel.org
+is not the problem you are seeing.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 536431bf0f0c..82e6d2c914ab 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3275,19 +3275,17 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
- 		return;
- 
--	pr_warn("%s: ", current->comm);
--
- 	va_start(args, fmt);
- 	vaf.fmt = fmt;
- 	vaf.va = &args;
--	pr_cont("%pV", &vaf);
--	va_end(args);
--
--	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
- 	if (nodemask)
--		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
-+		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
-+			current->comm, &vaf, gfp_mask, &gfp_mask,
-+			nodemask_pr_args(nodemask));
- 	else
--		pr_cont("(null)\n");
-+		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=(null)\n",
-+			current->comm, &vaf, gfp_mask, &gfp_mask);
-+	va_end(args);
- 
- 	cpuset_print_current_mems_allowed();
- 
+> I won't argue with you on this, but my question was different, and was why
+> the kernel can't move other pages from moveable zone in my case.
+
+OK, I have re-read your original report where you say
+: This was tested on 4.14.0-rc5 (my custom compiled) and on several
+: older kernels (4.10,4.12,4.13) from ubuntu repositories.
+
+Does that mean that this a new regression in 4.14-rc5 or you see the
+problem in other kernels too?
+
+If this a new rc5 thing then 79b63f12abcb ("mm, hugetlb: do not
+allocate non-migrateable gigantic pages from movable zones") might be
+related. Although it shouldn't if hugepages_treat_as_movable is enabled.
+
+I wouldn't be all that surprised if this was an older issue, though. If
+I look at pfn_range_valid_gigantic it seems that the page count check
+makes it just too easy to fail even on migratable memory. To be honest
+I consider the giga pages runtime support rather fragile and that is
+why I wasn't very much afraid to remove hacks that allow breaking other
+usecases.
 -- 
-2.15.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
