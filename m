@@ -1,75 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 397A16B0038
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:13:39 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id k123so4910942vkb.18
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:13:39 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w124sor4580674vka.256.2017.11.06.10.13.38
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48E826B0069
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 13:15:26 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id q80so5030853vkf.1
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 10:15:26 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id p24si4565274uah.369.2017.11.06.10.15.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 10:13:38 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz>
-References: <20171106171150.7a2lent6vdrewsk7@dhcp22.suse.cz>
- <CACAwPwZuiT9BfunVgy73KYjGfVopgcE0dknAxSLPNeJB8rkcMQ@mail.gmail.com>
- <CACAwPwZqFRyFJhb7pyyrufah+1TfCDuzQMo3qwJuMKkp6aYd_Q@mail.gmail.com>
- <CACAwPwbA0NpTC9bfV7ySHkxPrbZJVvjH=Be5_c25Q3S8qNay+w@mail.gmail.com>
- <CACAwPwamD4RL9O8wujK_jCKGu=x0dBBmH9O-9078cUEEk4WsMA@mail.gmail.com>
- <CACAwPwYKjK5RT-ChQqqUnD7PrtpXg1WhTHGK3q60i6StvDMDRg@mail.gmail.com>
- <CACAwPwav-eY4_nt=Z7TQB8WMFg+1X5WY2Gkgxph74X7=Ovfvrw@mail.gmail.com>
- <CACAwPwaP05FgxTp=kavwgFZF+LEGO-OSspJ4jH+Y=_uRxiVZaA@mail.gmail.com>
- <CACAwPwY5ss_D9kj7XoLVVkQ9=KXDFCnyDzdoxkGxhJZBNFre3w@mail.gmail.com>
- <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com> <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz>
-From: Maxim Levitsky <maximlevitsky@gmail.com>
-Date: Mon, 6 Nov 2017 20:13:36 +0200
-Message-ID: <CACAwPwaTejMB8yOrkOxpDj297B=Y6bTvw2nAyHsiJKC+aB=a2w@mail.gmail.com>
-Subject: Re: Guaranteed allocation of huge pages (1G) using movablecore=N
- doesn't seem to work at all
-Content-Type: multipart/alternative; boundary="001a11457176d4205f055d5469fe"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 10:15:25 -0800 (PST)
+Message-ID: <1509992067.4140.1.camel@oracle.com>
+Subject: Re: [PATCH] mm, sparse: do not swamp log with huge vmemmap
+ allocation failures
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Date: Mon, 06 Nov 2017 11:14:27 -0700
+In-Reply-To: <20171106092228.31098-1-mhocko@kernel.org>
+References: <20171106092228.31098-1-mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
---001a11457176d4205f055d5469fe
-Content-Type: text/plain; charset="UTF-8"
+On Mon, 2017-11-06 at 10:22 +0100, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+>=20
+> While doing a memory hotplug tests under a heavy memory pressure we
+> have
+> noticed too many page allocation failures when allocating vmemmap
+> memmap
+> backed by huge page
+> ......... deleted .........
+> +
+> +		if (!warned) {
+> +			warn_alloc(gfp_mask, NULL, "vmemmap alloc
+> failure: order:%u", order);
+> +			warned =3D true;
+> +		}
+> =C2=A0		return NULL;
+> =C2=A0	} else
+> =C2=A0		return __earlyonly_bootmem_alloc(node, size, size,
 
-Yes, I tested git head from mainline and few kernels from ubuntu repos
-since I was lazy to compile them too.
+This will warn once and only once after a kernel is booted. This
+condition may happen repeatedly over a long period of time with
+significant time span between two such events and it can be useful to
+know if this is happening repeatedly. There might be better ways to
+throttle the rate of warnings, something like warn once and then
+suppress warnings for the next 15 minutes (or pick any other time
+frame). If this condition happens again later, there will be another
+warning.
 
-Do you have an idea what can I do about this issue? Do you think its
-feasable to fix this?
-
-And if not using moveable zone, how would it even be possible to have
-guaranreed allocation of 1g pages
-
-I do know some kernel programming (I contributed some drivers for my
-laptop) so I could help if you have a direction for me to take.
-
-Best regards,
-      Maxim Levitsky
-
---001a11457176d4205f055d5469fe
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"auto"><br><div class=3D"gmail_extra" dir=3D"auto"><div class=3D=
-"gmail_quote">Yes, I tested git head from mainline and few kernels from ubu=
-ntu repos since I was lazy to compile them too.</div><div class=3D"gmail_qu=
-ote" dir=3D"auto"><br></div><div class=3D"gmail_quote" dir=3D"auto">Do you =
-have an idea what can I do about this issue? Do you think its feasable to f=
-ix this?=C2=A0</div><div class=3D"gmail_quote" dir=3D"auto"><br></div><div =
-class=3D"gmail_quote" dir=3D"auto">And if not using moveable zone, how woul=
-d it even be possible to have guaranreed allocation of 1g pages</div><div c=
-lass=3D"gmail_quote" dir=3D"auto"><br></div><div class=3D"gmail_quote" dir=
-=3D"auto">I do know some kernel programming (I contributed some drivers for=
- my laptop) so I could help if you have a direction for me to take.</div><d=
-iv class=3D"gmail_quote" dir=3D"auto"><br></div><div class=3D"gmail_quote" =
-dir=3D"auto">Best regards,</div><div class=3D"gmail_quote" dir=3D"auto">=C2=
-=A0 =C2=A0 =C2=A0 Maxim Levitsky</div></div></div>
-
---001a11457176d4205f055d5469fe--
+--
+Khalid
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
