@@ -1,45 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A429A6B0253
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:46:55 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p75so3289310wmg.2
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:46:55 -0800 (PST)
-Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
-        by mx.google.com with ESMTPS id f5si2040446wrf.288.2017.11.06.00.46.54
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 633016B0253
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:52:55 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id b79so10518657pfk.9
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:52:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l4si3066434plt.290.2017.11.06.00.52.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 00:46:54 -0800 (PST)
-Subject: Re: [1/2] mm: drop migrate type checks from has_unmovable_pages
-References: <1976258473.140703.1509918992800@email.1und1.de>
- <20171106081440.44ixziaqh5ued7zl@dhcp22.suse.cz>
-From: Stefan Wahren <stefan.wahren@i2se.com>
-Message-ID: <ba63643c-e63f-01e5-6013-eea0b4c4ee39@i2se.com>
-Date: Mon, 6 Nov 2017 09:46:43 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 06 Nov 2017 00:52:54 -0800 (PST)
+Date: Mon, 6 Nov 2017 09:52:51 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
+ TLB entry
+Message-ID: <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
+References: <20171106033651.172368-1-wangnan0@huawei.com>
+ <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171106081440.44ixziaqh5ued7zl@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: de-DE
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-kernel@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>
+To: Bob Liu <lliubbo@gmail.com>
+Cc: Wang Nan <wangnan0@huawei.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, will.deacon@arm.com
 
-Am 06.11.2017 um 09:14 schrieb Michal Hocko:
-> On Sun 05-11-17 22:56:32, Stefan Wahren wrote:
->> Hi Michal,
->>
->> the dwc2 USB driver on BCM2835 in linux-next is affected by the CMA
->> allocation issue. A quick web search guide me to your patch, which
->> avoid the issue.
-> Thanks for your testing. Can I assume your Tested-by?
+On Mon 06-11-17 15:04:40, Bob Liu wrote:
+> On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
+> > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
+> > In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
+> > TLB when tlb->fullmm is true:
+> >
+> >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
+> >
+> 
+> CC'ed Will Deacon.
+> 
+> > Which makes leaking of tlb entries. For example, when oom_reaper
+> > selects a task and reaps its virtual memory space, another thread
+> > in this task group may still running on another core and access
+> > these already freed memory through tlb entries.
 
-Yes
+No threads should be running in userspace by the time the reaper gets to
+unmap their address space. So the only potential case is they are
+accessing the user memory from the kernel when we should fault and we
+have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing
+real?
 
->
->> Since the patch wasn't accepted, i want to know is there another solution?
-> The patch should be in next-20171106
->
+> > This patch gather each vma instead of gathering full vm space,
+> > tlb->fullmm is not true. The behavior of oom reaper become similar
+> > to munmapping before do_exit, which should be safe for all archs.
+
+I do not have any objections to do per vma tlb flushing because it would
+free gathered pages sooner but I am not sure I see any real problem
+here. Have you seen any real issues or this is more of a review driven
+fix?
+
+> > Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> > Cc: Bob Liu <liubo95@huawei.com>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: David Rientjes <rientjes@google.com>
+> > Cc: Ingo Molnar <mingo@kernel.org>
+> > Cc: Roman Gushchin <guro@fb.com>
+> > Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> > Cc: Andrea Arcangeli <aarcange@redhat.com>
+> > ---
+> >  mm/oom_kill.c | 7 ++++---
+> >  1 file changed, 4 insertions(+), 3 deletions(-)
+> >
+> > diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> > index dee0f75..18c5b35 100644
+> > --- a/mm/oom_kill.c
+> > +++ b/mm/oom_kill.c
+> > @@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+> >          */
+> >         set_bit(MMF_UNSTABLE, &mm->flags);
+> >
+> > -       tlb_gather_mmu(&tlb, mm, 0, -1);
+> >         for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+> >                 if (!can_madv_dontneed_vma(vma))
+> >                         continue;
+> > @@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+> >                  * we do not want to block exit_mmap by keeping mm ref
+> >                  * count elevated without a good reason.
+> >                  */
+> > -               if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+> > +               if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
+> > +                       tlb_gather_mmu(&tlb, mm, vma->vm_start, vma->vm_end);
+> >                         unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+> >                                          NULL);
+> > +                       tlb_finish_mmu(&tlb, vma->vm_start, vma->vm_end);
+> > +               }
+> >         }
+> > -       tlb_finish_mmu(&tlb, 0, -1);
+> >         pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+> >                         task_pid_nr(tsk), tsk->comm,
+> >                         K(get_mm_counter(mm, MM_ANONPAGES)),
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
