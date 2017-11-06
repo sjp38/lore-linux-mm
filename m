@@ -1,44 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DA1D6B025F
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:14:44 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id j15so5660486wre.15
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:14:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 10si2438546edw.364.2017.11.06.00.14.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 76C0F6B025F
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:19:11 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 76so10441359pfr.3
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:19:11 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id i13si10924122pgp.62.2017.11.06.00.19.10
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Nov 2017 00:14:42 -0800 (PST)
-Date: Mon, 6 Nov 2017 09:14:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [1/2] mm: drop migrate type checks from has_unmovable_pages
-Message-ID: <20171106081440.44ixziaqh5ued7zl@dhcp22.suse.cz>
-References: <1976258473.140703.1509918992800@email.1und1.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 00:19:10 -0800 (PST)
+Message-ID: <5A001B72.1010204@intel.com>
+Date: Mon, 06 Nov 2017 16:21:06 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1976258473.140703.1509918992800@email.1und1.de>
+Subject: Re: [PATCH v17 4/6] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>	<1509696786-1597-5-git-send-email-wei.w.wang@intel.com>	<201711032025.HJC78622.SFFOMLOtFQHVJO@I-love.SAKURA.ne.jp>	<59FD9FE3.5090409@intel.com> <201711042028.EGB64074.FOLMHtFJVQOOFS@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711042028.EGB64074.FOLMHtFJVQOOFS@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Stefan Wahren <stefan.wahren@i2se.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, linux-kernel@vger.kernel.org, linux-usb@vger.kernel.org, linux-mm@kvack.org, Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, qiuxishi@huawei.com, Igor Mammedov <imammedo@redhat.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
 
-On Sun 05-11-17 22:56:32, Stefan Wahren wrote:
-> Hi Michal,
-> 
-> the dwc2 USB driver on BCM2835 in linux-next is affected by the CMA
-> allocation issue. A quick web search guide me to your patch, which
-> avoid the issue.
+On 11/04/2017 07:28 PM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+>> On 11/03/2017 07:25 PM, Tetsuo Handa wrote:
+>>
+>> If this is inside vb->balloon_lock mutex (isn't this?), xb_set_page() must not
+>> use __GFP_DIRECT_RECLAIM allocation, for leak_balloon_sg_oom() will be blocked
+>> on vb->balloon_lock mutex.
+>> OK. Since the preload() doesn't need too much memory (< 4K in total),
+>> how about GFP_NOWAIT here?
+> Maybe GFP_NOWAIT | __GFP_NOWARN ?
 
-Thanks for your testing. Can I assume your Tested-by?
+Sounds good to me. I also plan to move "xb_set_page()" under mutex_lock, 
+that is,
 
-> Since the patch wasn't accepted, i want to know is there another solution?
+     fill_balloon()
+     {
+         ...
+         mutex_lock(&vb->balloon_lock);
 
-The patch should be in next-20171106
+         vb->num_pfns = 0;
+         while ((page = balloon_page_pop(&pages))) {
+==>        xb_set_page(..,page,..);
+                 balloon_page_enqueue(&vb->vb_dev_info, page);
+         ...
+     }
 
--- 
-Michal Hocko
-SUSE Labs
+As explained in the xbitmap patch, we need the lock to avoid concurrent 
+access to the bitmap.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
