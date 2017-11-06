@@ -1,59 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 76C0F6B025F
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:19:11 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 76so10441359pfr.3
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:19:11 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id i13si10924122pgp.62.2017.11.06.00.19.10
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 659046B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 03:25:37 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id k7so11958220pga.8
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 00:25:37 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k8sor3348920pgo.33.2017.11.06.00.25.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 00:19:10 -0800 (PST)
-Message-ID: <5A001B72.1010204@intel.com>
-Date: Mon, 06 Nov 2017 16:21:06 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Mon, 06 Nov 2017 00:25:36 -0800 (PST)
+Date: Mon, 6 Nov 2017 19:25:24 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171106192524.12ea3187@roar.ozlabs.ibm.com>
+In-Reply-To: <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
+References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
+	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
+	<871slcszfl.fsf@linux.vnet.ibm.com>
+	<20171106174707.19f6c495@roar.ozlabs.ibm.com>
+	<24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v17 4/6] virtio-balloon: VIRTIO_BALLOON_F_SG
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>	<1509696786-1597-5-git-send-email-wei.w.wang@intel.com>	<201711032025.HJC78622.SFFOMLOtFQHVJO@I-love.SAKURA.ne.jp>	<59FD9FE3.5090409@intel.com> <201711042028.EGB64074.FOLMHtFJVQOOFS@I-love.SAKURA.ne.jp>
-In-Reply-To: <201711042028.EGB64074.FOLMHtFJVQOOFS@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com
+To: Florian Weimer <fweimer@redhat.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
 
-On 11/04/2017 07:28 PM, Tetsuo Handa wrote:
-> Wei Wang wrote:
->> On 11/03/2017 07:25 PM, Tetsuo Handa wrote:
->>
->> If this is inside vb->balloon_lock mutex (isn't this?), xb_set_page() must not
->> use __GFP_DIRECT_RECLAIM allocation, for leak_balloon_sg_oom() will be blocked
->> on vb->balloon_lock mutex.
->> OK. Since the preload() doesn't need too much memory (< 4K in total),
->> how about GFP_NOWAIT here?
-> Maybe GFP_NOWAIT | __GFP_NOWARN ?
+On Mon, 6 Nov 2017 09:11:37 +0100
+Florian Weimer <fweimer@redhat.com> wrote:
 
-Sounds good to me. I also plan to move "xb_set_page()" under mutex_lock, 
-that is,
+> On 11/06/2017 07:47 AM, Nicholas Piggin wrote:
+> > "You get < 128TB unless explicitly requested."
+> > 
+> > Simple, reasonable, obvious rule. Avoids breaking apps that store
+> > some bits in the top of pointers (provided that memory allocator
+> > userspace libraries also do the right thing).  
+> 
+> So brk would simplify fail instead of crossing the 128 TiB threshold?
 
-     fill_balloon()
-     {
-         ...
-         mutex_lock(&vb->balloon_lock);
+Yes, that was the intention and that's what x86 seems to do.
 
-         vb->num_pfns = 0;
-         while ((page = balloon_page_pop(&pages))) {
-==>        xb_set_page(..,page,..);
-                 balloon_page_enqueue(&vb->vb_dev_info, page);
-         ...
-     }
+> 
+> glibc malloc should cope with that and switch to malloc, but this code 
+> path is obviously less well-tested than the regular way.
 
-As explained in the xbitmap patch, we need the lock to avoid concurrent 
-access to the bitmap.
+Switch to mmap() I guess you meant?
 
-Best,
-Wei
+powerpc has a couple of bugs in corner cases, so those should be fixed
+according to intended policy for stable kernels I think.
+
+But I question the policy. Just seems like an ugly and ineffective wart.
+Exactly for such cases as this -- behaviour would change from run to run
+depending on your address space randomization for example! In case your
+brk happens to land nicely on 128TB then the next one would succeed. If
+not, then behaviour changes. And you didn't catch or prevent any bugs.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
