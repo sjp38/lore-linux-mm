@@ -1,76 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BC76B0038
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 02:13:25 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id 143so5114326itf.1
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 23:13:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x73sor6202186ioi.300.2017.11.05.23.13.24
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 570A26B0253
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 02:39:11 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id y83so2311239wmc.8
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 23:39:11 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b17si1511753edj.328.2017.11.05.23.39.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 05 Nov 2017 23:13:24 -0800 (PST)
-Received: from mail-it0-f45.google.com (mail-it0-f45.google.com. [209.85.214.45])
-        by smtp.gmail.com with ESMTPSA id b66sm4090179itb.28.2017.11.05.23.13.22
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 05 Nov 2017 23:13:23 -0800 (PST)
-Received: by mail-it0-f45.google.com with SMTP id n195so4115949itg.0
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 23:13:22 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 05 Nov 2017 23:39:09 -0800 (PST)
+Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
+ SYSC_migrate_pages
+References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
+ <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
+ <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
+ <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
+Date: Mon, 6 Nov 2017 08:39:06 +0100
 MIME-Version: 1.0
-In-Reply-To: <ea487555-0f56-d3f5-863d-7007e9631235@amd.com>
-References: <cover.1500319216.git.thomas.lendacky@amd.com> <d9464b0d7c861021ed8f494e4a40d6cd10f1eddd.1500319216.git.thomas.lendacky@amd.com>
- <CAAObsKDNwxevQVjob9zNwBWR+PjL8VVvCuxRwdGmgNgZ0uhEYw@mail.gmail.com> <ea487555-0f56-d3f5-863d-7007e9631235@amd.com>
-From: Tomeu Vizoso <tomeu@tomeuvizoso.net>
-Date: Mon, 6 Nov 2017 08:13:02 +0100
-Message-ID: <CAAObsKAn5JZyOQiXgJcTyeDQMBr1xCCsPMQ27J0VbdD7vy9opQ@mail.gmail.com>
-Subject: Re: [PATCH v10 20/38] x86, mpparse: Use memremap to map the mpf and
- mpc data
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: x86@kernel.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, linux-efi@vger.kernel.org, "linux-doc@vger.kernel.org" <linux-doc@vger.kernel.org>, linux-mm@kvack.org, kvm@vger.kernel.org, kasan-dev@googlegroups.com, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Jonathan Corbet <corbet@lwn.net>, Matt Fleming <matt@codeblueprint.co.uk>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, Paolo Bonzini <pbonzini@redhat.com>, Alexander Potapenko <glider@google.com>, Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>, Rik van Riel <riel@redhat.com>, Larry Woodman <lwoodman@redhat.com>, Dave Young <dyoung@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, "Michael S. Tsirkin" <mst@redhat.com>, Brijesh Singh <brijesh.singh@amd.com>, Guenter Roeck <groeck@google.com>, Zach Reizner <zachr@google.com>, Dylan Reid <dgreid@chromium.org>
+To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>, Christoph Lameter <cl@linux.com>
 
-On 3 November 2017 at 16:31, Tom Lendacky <thomas.lendacky@amd.com> wrote:
-> On 11/3/2017 10:12 AM, Tomeu Vizoso wrote:
+On 11/06/2017 02:31 AM, Yisheng Xie wrote:
+> Hi Vlastimil,
+> 
+> On 2017/10/31 17:46, Vlastimil Babka wrote:
+>> +CC Andi and Christoph
 >>
->> On 17 July 2017 at 23:10, Tom Lendacky <thomas.lendacky@amd.com> wrote:
+>> On 10/27/2017 12:14 PM, Yisheng Xie wrote:
+>>> As manpage of migrate_pages, the errno should be set to EINVAL when none
+>>> of the specified nodes contain memory. However, when new_nodes is null,
+>>> i.e. the specified nodes also do not have memory, as the following case:
 >>>
->>> The SMP MP-table is built by UEFI and placed in memory in a decrypted
->>> state. These tables are accessed using a mix of early_memremap(),
->>> early_memunmap(), phys_to_virt() and virt_to_phys(). Change all accesses
->>> to use early_memremap()/early_memunmap(). This allows for proper setting
->>> of the encryption mask so that the data can be successfully accessed when
->>> SME is active.
+>>> 	new_nodes = 0;
+>>> 	old_nodes = 0xf;
+>>> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
 >>>
->>> Reviewed-by: Borislav Petkov <bp@suse.de>
->>> Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
->>> ---
->>>   arch/x86/kernel/mpparse.c | 98
->>> +++++++++++++++++++++++++++++++++--------------
->>>   1 file changed, 70 insertions(+), 28 deletions(-)
+>>> The ret will be 0 and no errno is set.
+>>>
+>>> This patch is to add nodes_empty check to fix above case.
+>>
+>> Hmm, I think we have a bigger problem than "empty set is a subset of
+>> anything" here.
+>>
+>> The existing checks are:
+>>
+>>         task_nodes = cpuset_mems_allowed(task);
+>>         if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
+>>                 err = -EPERM;
+>>                 goto out_put;
+>>         }
+>>
+>>         if (!nodes_subset(*new, node_states[N_MEMORY])) {
+>>                 err = -EINVAL;
+>>                 goto out_put;
+>>         }
 >>
 >>
->> Hi there,
+>> And manpage says:
 >>
->> today I played a bit with crosvm [0] and noticed that 4.14-rc7 doesn't
->> boot. git-bisect pointed to this patch, and reverting it indeed gets
->> things working again.
+>>        EINVAL The value specified by maxnode exceeds a kernel-imposed
+>> limit.  Or, old_nodes or new_nodes specifies one or more node IDs that
+>> are greater than the maximum supported node
+>>               ID.  *Or, none of the node IDs specified by new_nodes are
+>> on-line and allowed by the process's current cpuset context, or none of
+>> the specified nodes contain memory.*
 >>
->> Anybody has an idea of why this could be?
->
->
-> If you send me your kernel config I'll see if I can reproduce the issue
-> and debug it.
+>>        EPERM  Insufficient privilege (CAP_SYS_NICE) to move pages of the
+>> process specified by pid, or insufficient privilege (CAP_SYS_NICE) to
+>> access the specified target nodes.
+>>
+>> - it says "none ... are allowed", but checking for subset means we check
+>> if "all ... are allowed". Shouldn't we be checking for a non-empty
+>> intersection?
+> 
+> You are absolutely right. To follow the manpage, we should check non-empty
+> of intersection instead of subset. I meani 1/4 ?
+>          nodes_and(*new, *new, task_nodes);
+>          if (!node_empty(*new) && !capable(CAP_SYS_NICE)) {
+>                  err = -EPERM;
+>                  goto out_put;
+>          }
+> 
+>          nodes_and(*new, *new, node_states[N_MEMORY]);
+>          if (!node_empty(*new)) {
+>                  err = -EINVAL;
+>                  goto out_put;
+>          }
 
-x86_64_defconfig should be enough. I have pasted my dev env
-instructions here in case they help:
+Maybe not exactly like this, see below.
 
-http://blog.tomeuvizoso.net/2017/11/experiments-with-crosvm_6.html
+> So finally, we should only migrate the smallest intersection of all the node
+> set, right?
 
-Thanks,
+That's right.
 
-Tomeu
+So if new_nodes AND task_nodes AND node_states[N_MEMORY] is empty, then
+EINVAL.
+
+I'm not sure what exactly is the EPERM intention. Should really the
+capability of THIS process override the cpuset restriction of the TARGET
+process? Maybe yes. Then, does "insufficient privilege (CAP_SYS_NICE) to
+access the specified target nodes." mean that at least some nodes must
+be allowed, or all of them? Maybe the subset check is after all OK for
+the EPERM check, but still wrong for the EINVAL check.
+
+>> - there doesn't seem to be any EINVAL check for "process's current
+>> cpuset context", there's just an EPERM check for "target process's
+>> cpuset context".
+> 
+> This also need to be checked as manpage.
+> 
+> Thanks
+> Yisheng Xie
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
