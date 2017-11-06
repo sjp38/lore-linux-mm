@@ -1,62 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EA93A6B0261
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 07:27:29 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id a192so12679561pge.1
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 04:27:29 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E296B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 07:52:35 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id l18so5876755wrc.23
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 04:52:35 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s13si10129275plq.584.2017.11.06.04.27.28
+        by mx.google.com with ESMTPS id i63si1932774edi.407.2017.11.06.04.52.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Nov 2017 04:27:28 -0800 (PST)
-Date: Mon, 6 Nov 2017 13:27:26 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
- TLB entry
-Message-ID: <20171106122726.jwe2ecymlu7qclkk@dhcp22.suse.cz>
-References: <20171106033651.172368-1-wangnan0@huawei.com>
- <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
- <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
+        Mon, 06 Nov 2017 04:52:33 -0800 (PST)
+Date: Mon, 6 Nov 2017 13:52:26 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2] writeback: remove the unused function parameter
+Message-ID: <20171106125226.GA4359@quack2.suse.cz>
+References: <1509685485-15278-1-git-send-email-wanglong19@meituan.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
+In-Reply-To: <1509685485-15278-1-git-send-email-wanglong19@meituan.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <lliubbo@gmail.com>, Will Deacon <will.deacon@arm.com>
-Cc: Wang Nan <wangnan0@huawei.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
+To: Wang Long <wanglong19@meituan.com>
+Cc: jack@suse.cz, tj@kernel.org, akpm@linux-foundation.org, gregkh@linuxfoundation.org, axboe@fb.com, nborisov@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 06-11-17 09:52:51, Michal Hocko wrote:
-> On Mon 06-11-17 15:04:40, Bob Liu wrote:
-> > On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
-> > > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
-> > > In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
-> > > TLB when tlb->fullmm is true:
-> > >
-> > >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
-> > >
-> > 
-> > CC'ed Will Deacon.
-> > 
-> > > Which makes leaking of tlb entries. For example, when oom_reaper
-> > > selects a task and reaps its virtual memory space, another thread
-> > > in this task group may still running on another core and access
-> > > these already freed memory through tlb entries.
+On Fri 03-11-17 01:04:45, Wang Long wrote:
+> The parameter `struct bdi_writeback *wb` is not been used in the function
+> body. so we just remove it.
 > 
-> No threads should be running in userspace by the time the reaper gets to
-> unmap their address space. So the only potential case is they are
-> accessing the user memory from the kernel when we should fault and we
-> have MMF_UNSTABLE to cause a SIGBUS.
+> Signed-off-by: Wang Long <wanglong19@meituan.com>
 
-I hope we have clarified that the tasks are not running in userspace at
-the time of reaping. I am still wondering whether this is real from the
-kernel space via copy_{from,to}_user. Is it possible we won't fault?
-I am not sure I understand what "Given that the ASID allocator will
-never re-allocate a dirty ASID" means exactly. Will, could you clarify
-please?
+Looks good. You can add:
+
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  include/linux/backing-dev.h | 2 +-
+>  mm/page-writeback.c         | 4 ++--
+>  2 files changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+> index 1662157..186a2e7 100644
+> --- a/include/linux/backing-dev.h
+> +++ b/include/linux/backing-dev.h
+> @@ -95,7 +95,7 @@ static inline s64 wb_stat_sum(struct bdi_writeback *wb, enum wb_stat_item item)
+>  /*
+>   * maximal error of a stat counter.
+>   */
+> -static inline unsigned long wb_stat_error(struct bdi_writeback *wb)
+> +static inline unsigned long wb_stat_error(void)
+>  {
+>  #ifdef CONFIG_SMP
+>  	return nr_cpu_ids * WB_STAT_BATCH;
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 0b9c5cb..9287466 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -1543,7 +1543,7 @@ static inline void wb_dirty_limits(struct dirty_throttle_control *dtc)
+>  	 * actually dirty; with m+n sitting in the percpu
+>  	 * deltas.
+>  	 */
+> -	if (dtc->wb_thresh < 2 * wb_stat_error(wb)) {
+> +	if (dtc->wb_thresh < 2 * wb_stat_error()) {
+>  		wb_reclaimable = wb_stat_sum(wb, WB_RECLAIMABLE);
+>  		dtc->wb_dirty = wb_reclaimable + wb_stat_sum(wb, WB_WRITEBACK);
+>  	} else {
+> @@ -1802,7 +1802,7 @@ static void balance_dirty_pages(struct address_space *mapping,
+>  		 * more page. However wb_dirty has accounting errors.  So use
+>  		 * the larger and more IO friendly wb_stat_error.
+>  		 */
+> -		if (sdtc->wb_dirty <= wb_stat_error(wb))
+> +		if (sdtc->wb_dirty <= wb_stat_error())
+>  			break;
+>  
+>  		if (fatal_signal_pending(current))
+> -- 
+> 1.8.3.1
+> 
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
