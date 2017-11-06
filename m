@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D5C04403DD
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 04:00:26 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id 10so6535192qty.10
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 01:00:26 -0800 (PST)
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AFBE4403DD
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 04:00:33 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id m189so6728028qke.21
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 01:00:33 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y9sor7383725qkl.121.2017.11.06.01.00.25
+        by mx.google.com with SMTPS id a125sor8195962qkd.56.2017.11.06.01.00.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 06 Nov 2017 01:00:25 -0800 (PST)
+        Mon, 06 Nov 2017 01:00:32 -0800 (PST)
 From: Ram Pai <linuxram@us.ibm.com>
-Subject: [PATCH v9 45/51] selftest/vm: fix an assertion in test_pkey_alloc_exhaust()
-Date: Mon,  6 Nov 2017 00:57:37 -0800
-Message-Id: <1509958663-18737-46-git-send-email-linuxram@us.ibm.com>
+Subject: [PATCH v9 46/51] selftest/vm: associate key on a mapped page and detect access violation
+Date: Mon,  6 Nov 2017 00:57:38 -0800
+Message-Id: <1509958663-18737-47-git-send-email-linuxram@us.ibm.com>
 In-Reply-To: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
 References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,63 +20,51 @@ List-ID: <linux-mm.kvack.org>
 To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
 Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com, linuxram@us.ibm.com
 
-The maximum number of keys that can be allocated has to
-take into consideration, that some keys are reserved by
-the architecture for   specific   purpose. Hence cannot
-be allocated.
-
-Fix the assertion in test_pkey_alloc_exhaust()
+detect access-violation on a page to which access-disabled
+key is associated much after the page is mapped.
 
 Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 ---
- tools/testing/selftests/vm/pkey-helpers.h    |   14 ++++++++++++++
- tools/testing/selftests/vm/protection_keys.c |    9 ++++-----
- 2 files changed, 18 insertions(+), 5 deletions(-)
+ tools/testing/selftests/vm/protection_keys.c |   19 +++++++++++++++++++
+ 1 files changed, 19 insertions(+), 0 deletions(-)
 
-diff --git a/tools/testing/selftests/vm/pkey-helpers.h b/tools/testing/selftests/vm/pkey-helpers.h
-index f764d66..3ea3e06 100644
---- a/tools/testing/selftests/vm/pkey-helpers.h
-+++ b/tools/testing/selftests/vm/pkey-helpers.h
-@@ -388,4 +388,18 @@ static inline int get_start_key(void)
- #endif /* arch */
- }
- 
-+static inline int arch_reserved_keys(void)
-+{
-+#if defined(__i386__) || defined(__x86_64__) /* arch */
-+	return NR_RESERVED_PKEYS;
-+#elif __powerpc64__ /* arch */
-+	if (sysconf(_SC_PAGESIZE) == 4096)
-+		return NR_RESERVED_PKEYS_4K;
-+	else
-+		return NR_RESERVED_PKEYS_64K;
-+#else /* arch */
-+	NOT SUPPORTED
-+#endif /* arch */
-+}
-+
- #endif /* _PKEYS_HELPER_H */
 diff --git a/tools/testing/selftests/vm/protection_keys.c b/tools/testing/selftests/vm/protection_keys.c
-index 4fe42cc..8f0dd94 100644
+index 8f0dd94..998a44f 100644
 --- a/tools/testing/selftests/vm/protection_keys.c
 +++ b/tools/testing/selftests/vm/protection_keys.c
-@@ -1166,12 +1166,11 @@ void test_pkey_alloc_exhaust(int *ptr, u16 pkey)
- 	pkey_assert(i < NR_PKEYS*2);
- 
- 	/*
--	 * There are 16 pkeys supported in hardware.  One is taken
--	 * up for the default (0) and another can be taken up by
--	 * an execute-only mapping.  Ensure that we can allocate
--	 * at least 14 (16-2).
-+	 * There are NR_PKEYS pkeys supported in hardware. arch_reserved_keys()
-+	 * are reserved. One   can   be   taken   up by an execute-only mapping.
-+	 * Ensure that we can allocate at least the remaining.
- 	 */
--	pkey_assert(i >= NR_PKEYS-2);
-+	pkey_assert(i >= (NR_PKEYS-arch_reserved_keys()-1));
- 
- 	for (i = 0; i < nr_allocated_pkeys; i++) {
- 		err = sys_pkey_free(allocated_pkeys[i]);
+@@ -1015,6 +1015,24 @@ void test_read_of_access_disabled_region(int *ptr, u16 pkey)
+ 	dprintf1("*ptr: %d\n", ptr_contents);
+ 	expected_pkey_fault(pkey);
+ }
++
++void test_read_of_access_disabled_region_with_page_already_mapped(int *ptr,
++		u16 pkey)
++{
++	int ptr_contents;
++
++	dprintf1("disabling access to PKEY[%02d], doing read @ %p\n",
++				pkey, ptr);
++	ptr_contents = read_ptr(ptr);
++	dprintf1("reading ptr before disabling the read : %d\n",
++			ptr_contents);
++	rdpkey_reg();
++	pkey_access_deny(pkey);
++	ptr_contents = read_ptr(ptr);
++	dprintf1("*ptr: %d\n", ptr_contents);
++	expected_pkey_fault(pkey);
++}
++
+ void test_write_of_write_disabled_region(int *ptr, u16 pkey)
+ {
+ 	dprintf1("disabling write access to PKEY[%02d], doing write\n", pkey);
+@@ -1309,6 +1327,7 @@ void test_mprotect_pkey_on_unsupported_cpu(int *ptr, u16 pkey)
+ void (*pkey_tests[])(int *ptr, u16 pkey) = {
+ 	test_read_of_write_disabled_region,
+ 	test_read_of_access_disabled_region,
++	test_read_of_access_disabled_region_with_page_already_mapped,
+ 	test_write_of_write_disabled_region,
+ 	test_write_of_access_disabled_region,
+ 	test_kernel_write_of_access_disabled_region,
 -- 
 1.7.1
 
