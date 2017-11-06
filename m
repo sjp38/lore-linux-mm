@@ -1,40 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D1486B0253
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 09:56:13 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id j185so7344025qkj.15
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 06:56:13 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s2sor8748416qtd.118.2017.11.06.06.56.12
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 186E56B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 10:29:53 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id 72so6398286itl.1
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 07:29:53 -0800 (PST)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id z67si7745427itf.129.2017.11.06.07.29.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 06:56:12 -0800 (PST)
-Date: Mon, 6 Nov 2017 06:56:09 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v2] writeback: remove the unused function parameter
-Message-ID: <20171106145609.GX3252168@devbig577.frc2.facebook.com>
-References: <1509685485-15278-1-git-send-email-wanglong19@meituan.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 07:29:51 -0800 (PST)
+Date: Mon, 6 Nov 2017 09:29:49 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
+ SYSC_migrate_pages
+In-Reply-To: <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
+Message-ID: <alpine.DEB.2.20.1711060926001.9015@nuc-kabylake>
+References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com> <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com> <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz> <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
+ <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1509685485-15278-1-git-send-email-wanglong19@meituan.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wang Long <wanglong19@meituan.com>
-Cc: jack@suse.cz, akpm@linux-foundation.org, gregkh@linuxfoundation.org, axboe@fb.com, nborisov@suse.com, hannes@cmpxchg.org, vdavydov.dev@gmail.com, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
 
-On Fri, Nov 03, 2017 at 01:04:45AM -0400, Wang Long wrote:
-> The parameter `struct bdi_writeback *wb` is not been used in the function
-> body. so we just remove it.
-> 
-> Signed-off-by: Wang Long <wanglong19@meituan.com>
+On Mon, 6 Nov 2017, Vlastimil Babka wrote:
 
-Acked-by: Tejun Heo <tj@kernel.org>
+> I'm not sure what exactly is the EPERM intention. Should really the
+> capability of THIS process override the cpuset restriction of the TARGET
+> process? Maybe yes. Then, does "insufficient privilege (CAP_SYS_NICE) to
 
-Thanks.
+CAP_SYS_NICE never overrides cpuset restrictions. The cap can be used to
+migrate pages that are *also* mapped by other processes (and thus move
+pages of another process which may have different cpu set restrictions!).
+The cap should not allow migrating pages to nodes that are not allowed by
+the cpuset of the current process.
 
--- 
-tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
