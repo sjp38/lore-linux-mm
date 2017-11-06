@@ -1,106 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C9E6B0038
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 01:48:08 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 191so11753934pgd.0
-        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 22:48:08 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y1sor3575809pfl.26.2017.11.05.22.48.07
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C8FA76B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 02:04:41 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id n33so20790710ioi.7
+        for <linux-mm@kvack.org>; Sun, 05 Nov 2017 23:04:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j91sor6208950iod.276.2017.11.05.23.04.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 05 Nov 2017 22:48:07 -0800 (PST)
-Date: Mon, 6 Nov 2017 17:47:52 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171106174707.19f6c495@roar.ozlabs.ibm.com>
-In-Reply-To: <871slcszfl.fsf@linux.vnet.ibm.com>
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
-	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
-	<871slcszfl.fsf@linux.vnet.ibm.com>
+        Sun, 05 Nov 2017 23:04:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171106033651.172368-1-wangnan0@huawei.com>
+References: <20171106033651.172368-1-wangnan0@huawei.com>
+From: Bob Liu <lliubbo@gmail.com>
+Date: Mon, 6 Nov 2017 15:04:40 +0800
+Message-ID: <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
+ TLB entry
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Florian Weimer <fweimer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>
+To: Wang Nan <wangnan0@huawei.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, will.deacon@arm.com
 
-On Mon, 06 Nov 2017 11:48:06 +0530
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> wrote:
+On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
+> tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
+> In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
+> TLB when tlb->fullmm is true:
+>
+>   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
+>
 
-> Nicholas Piggin <npiggin@gmail.com> writes:
-> 
-> > On Fri, 3 Nov 2017 18:05:20 +0100
-> > Florian Weimer <fweimer@redhat.com> wrote:
-> >  
-> >> We are seeing an issue on ppc64le and ppc64 (and perhaps on some arm 
-> >> variant, but I have not seen it on our own builders) where running 
-> >> localedef as part of the glibc build crashes with a segmentation fault.
-> >> 
-> >> Kernel version is 4.13.9 (Fedora 26 variant).
-> >> 
-> >> I have only seen this with an explicit loader invocation, like this:
-> >> 
-> >> while I18NPATH=. /lib64/ld64.so.1 /usr/bin/localedef 
-> >> --alias-file=../intl/locale.alias --no-archive -i locales/nl_AW -c -f 
-> >> charmaps/UTF-8 
-> >> --prefix=/builddir/build/BUILDROOT/glibc-2.26-16.fc27.ppc64 nl_AW ; do : 
-> >> ; done
-> >> 
-> >> To be run in the localedata subdirectory of a glibc *source* tree, after 
-> >> a build.  You may have to create the 
-> >> /builddir/build/BUILDROOT/glibc-2.26-16.fc27.ppc64/usr/lib/locale 
-> >> directory.  I have only reproduced this inside a Fedora 27 chroot on a 
-> >> Fedora 26 host, but there it does not matter if you run the old (chroot) 
-> >> or newly built binary.
-> >> 
-> >> I filed this as a glibc bug for tracking:
-> >> 
-> >>    https://sourceware.org/bugzilla/show_bug.cgi?id=22390
-> >> 
-> >> There's an strace log and a coredump from the crash.
-> >> 
-> >> I think the data shows that the address in question should be writable.
-> >> 
-> >> The crossed 0x0000800000000000 binary is very suggestive.  I think that 
-> >> based on the operation of glibc's malloc, this write would be the first 
-> >> time this happens during the lifetime of the process.
-> >> 
-> >> Does that ring any bells?  Is there anything I can do to provide more 
-> >> data?  The host is an LPAR with a stock Fedora 26 kernel, so I can use 
-> >> any diagnostics tool which is provided by Fedora.  
-> >
-> > There was a recent change to move to 128TB address space by default,
-> > and option for 512TB addresses if explicitly requested.
-> >
-> > Your brk request asked for > 128TB which the kernel gave it, but the
-> > address limit in the paca that the SLB miss tests against was not
-> > updated to reflect the switch to 512TB address space.  
-> 
-> We should not return that address, unless we requested with a hint value
-> of > 128TB. IIRC we discussed this early during the mmap interface
-> change and said, we will return an address > 128T only if the hint
-> address is above 128TB (not hint addr + length).
+CC'ed Will Deacon.
 
-Yeah, I'm thinking we should change that. Make explicit addr + length
-hint return > 128TB. Well, it already seems to for this case, which
-is why powerpc breaks.
-
-This restriction was added for reasonably well written apps that just
-happened to assume they don't get > 128TB va returned by mmap. An app
-which asked for addr < 128TB && addr + len > 128TB and were relying on
-that to fail is very different. I don't think we should add a big
-unintuitive wart to the interface for such an obscure and broken type
-of app.
-
-"You get < 128TB unless explicitly requested."
-
-Simple, reasonable, obvious rule. Avoids breaking apps that store
-some bits in the top of pointers (provided that memory allocator
-userspace libraries also do the right thing).
-
-Thanks,
-Nick
+> Which makes leaking of tlb entries. For example, when oom_reaper
+> selects a task and reaps its virtual memory space, another thread
+> in this task group may still running on another core and access
+> these already freed memory through tlb entries.
+>
+> This patch gather each vma instead of gathering full vm space,
+> tlb->fullmm is not true. The behavior of oom reaper become similar
+> to munmapping before do_exit, which should be safe for all archs.
+>
+> Signed-off-by: Wang Nan <wangnan0@huawei.com>
+> Cc: Bob Liu <liubo95@huawei.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Rientjes <rientjes@google.com>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> ---
+>  mm/oom_kill.c | 7 ++++---
+>  1 file changed, 4 insertions(+), 3 deletions(-)
+>
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index dee0f75..18c5b35 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -532,7 +532,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>          */
+>         set_bit(MMF_UNSTABLE, &mm->flags);
+>
+> -       tlb_gather_mmu(&tlb, mm, 0, -1);
+>         for (vma = mm->mmap ; vma; vma = vma->vm_next) {
+>                 if (!can_madv_dontneed_vma(vma))
+>                         continue;
+> @@ -547,11 +546,13 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+>                  * we do not want to block exit_mmap by keeping mm ref
+>                  * count elevated without a good reason.
+>                  */
+> -               if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED))
+> +               if (vma_is_anonymous(vma) || !(vma->vm_flags & VM_SHARED)) {
+> +                       tlb_gather_mmu(&tlb, mm, vma->vm_start, vma->vm_end);
+>                         unmap_page_range(&tlb, vma, vma->vm_start, vma->vm_end,
+>                                          NULL);
+> +                       tlb_finish_mmu(&tlb, vma->vm_start, vma->vm_end);
+> +               }
+>         }
+> -       tlb_finish_mmu(&tlb, 0, -1);
+>         pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+>                         task_pid_nr(tsk), tsk->comm,
+>                         K(get_mm_counter(mm, MM_ANONPAGES)),
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
