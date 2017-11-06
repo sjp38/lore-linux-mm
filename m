@@ -1,127 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91F046B0038
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 09:28:28 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id l24so12945214pgu.17
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 06:28:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e7si12354495pfb.298.2017.11.06.06.28.27
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E03C66B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 09:39:50 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id j83so10257497oif.7
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 06:39:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l44si5846353ota.449.2017.11.06.06.39.49
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Nov 2017 06:28:27 -0800 (PST)
-Date: Mon, 6 Nov 2017 15:28:24 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: do not rely on preempt_count in print_vma_addr
-Message-ID: <20171106142824.w6aihyliktkkwxrh@dhcp22.suse.cz>
-References: <ace5b078-652b-cbc0-176a-25f69612f7fa@alibaba-inc.com>
- <20171103110245.7049460a05cc18c7e8a9feb2@linux-foundation.org>
- <1509739786.2473.33.camel@wdc.com>
- <20171105081946.yr2pvalbegxygcky@dhcp22.suse.cz>
- <20171106100558.GD3165@worktop.lehotels.local>
- <20171106104354.2jlgd2m4j4gxx4qo@dhcp22.suse.cz>
- <20171106120025.GH3165@worktop.lehotels.local>
- <20171106121222.nnzrr4cb7s7y5h74@dhcp22.suse.cz>
- <20171106134031.g6dbelg55mrbyc6i@dhcp22.suse.cz>
- <311432e8-95a1-9b0e-923c-dd8a54c34a10@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 06:39:49 -0800 (PST)
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Subject: [PATCH v2 0/9] memfd: add sealing to hugetlb-backed memory
+Date: Mon,  6 Nov 2017 15:39:35 +0100
+Message-Id: <20171106143944.13821-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <311432e8-95a1-9b0e-923c-dd8a54c34a10@suse.cz>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>, Bart Van Assche <Bart.VanAssche@wdc.com>, "yang.s@alibaba-inc.com" <yang.s@alibaba-inc.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "joe@perches.com" <joe@perches.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mingo@redhat.com" <mingo@redhat.com>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-On Mon 06-11-17 15:19:46, Vlastimil Babka wrote:
-> On 11/06/2017 02:40 PM, Michal Hocko wrote:
-> > On Mon 06-11-17 13:12:22, Michal Hocko wrote:
-> >> On Mon 06-11-17 13:00:25, Peter Zijlstra wrote:
-> >>> On Mon, Nov 06, 2017 at 11:43:54AM +0100, Michal Hocko wrote:
-> >>>>> Yes the comment is very much accurate.
-> >>>>
-> >>>> Which suggests that print_vma_addr might be problematic, right?
-> >>>> Shouldn't we do trylock on mmap_sem instead?
-> >>>
-> >>> Yes that's complete rubbish. trylock will get spurious failures to print
-> >>> when the lock is contended.
-> >>
-> >> Yes, but I guess that it is acceptable to to not print the state under
-> >> that condition.
-> > 
-> > So what do you think about this? I think this is more robust than
-> > playing tricks with the explicit preempt count checks and less tedious
-> > than checking to make it conditional on the context. This is on top of
-> > Linus tree and if accepted it should replace the patch discussed here.
-> > ---
-> > From 0de6d57cbc54ee2686d1f1e4ffcc4ed490ded8aa Mon Sep 17 00:00:00 2001
-> > From: Michal Hocko <mhocko@suse.com>
-> > Date: Mon, 6 Nov 2017 14:31:20 +0100
-> > Subject: [PATCH] mm: do not rely on preempt_count in print_vma_addr
-> > 
-> > The preempt count check on print_vma_addr has been added by e8bff74afbdb
-> > ("x86: fix "BUG: sleeping function called from invalid context" in
-> > print_vma_addr()") and it relied on the elevated preempt count from
-> > preempt_conditional_sti because preempt_count check doesn't work on
-> > non preemptive kernels by default. The code has evolved though and
-> > d99e1bd175f4 ("x86/entry/traps: Refactor preemption and interrupt flag
-> > handling") has replaced preempt_conditional_sti by an explicit
-> > preempt_disable which is noop on !PREEMPT so the check in print_vma_addr
-> > is broken.
-> > 
-> > Fix the issue by using trylock on mmap_sem rather than chacking the
-> > preempt count. The allocation we are relying on has to be GFP_NOWAIT
-> > as well. There is a chance that we won't dump the vma state if the lock
-> > is contended or the memory short but this is acceptable outcome and much
-> > less fragile than the not working preemption check or tricks around it.
-> 
-> If we fail to allocate the page, we could still print the addresses,
-> just miss the filename? But that's an improvement, not a fix.
+Hi,
 
-Agreed. Or we could have some preallocated buffer if this is more
-widespread pattern
-
-> > Fixes: d99e1bd175f4 ("x86/entry/traps: Refactor preemption and interrupt flag handling")
-> > Signed-off-by: Michal Hocko <mhocko@suse.com>
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
+didn't add sealing support. One of the reasons to use memfd is to have
+shared memory sealing when doing IPC or sharing memory with another
+process with some extra safety. qemu uses shared memory & hugetables
+with vhost-user (used by dpdk), so it is reasonable to use memfd
+now instead for convenience and security reasons.
 
 Thanks!
 
-> 
-> > ---
-> >  mm/memory.c | 8 +++-----
-> >  1 file changed, 3 insertions(+), 5 deletions(-)
-> > 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index a728bed16c20..1e308ac8ca0a 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -4457,17 +4457,15 @@ void print_vma_addr(char *prefix, unsigned long ip)
-> >  	struct vm_area_struct *vma;
-> >  
-> >  	/*
-> > -	 * Do not print if we are in atomic
-> > -	 * contexts (in exception stacks, etc.):
-> > +	 * we might be running from an atomic context so we cannot sleep
-> >  	 */
-> > -	if (preempt_count())
-> > +	if (!down_read_trylock(&mm->mmap_sem))
-> >  		return;
-> >  
-> > -	down_read(&mm->mmap_sem);
-> >  	vma = find_vma(mm, ip);
-> >  	if (vma && vma->vm_file) {
-> >  		struct file *f = vma->vm_file;
-> > -		char *buf = (char *)__get_free_page(GFP_KERNEL);
-> > +		char *buf = (char *)__get_free_page(GFP_NOWAIT);
-> >  		if (buf) {
-> >  			char *p;
-> >  
-> > 
+v1->v2: after Mike review,
+- add "memfd-hugetlb:" prefix in memfd-test
+- run fuse test on hugetlb backend memory
+- rename function memfd_file_get_seals() -> memfd_file_seals_ptr()
+- update commit messages
+- added reviewed-by tags
+
+RFC->v1:
+- split rfc patch, after early review feedback
+- added patch for memfd-test changes
+- fix build with hugetlbfs disabled
+- small code and commit messages improvements
+
+Marc-AndrA(C) Lureau (9):
+  shmem: unexport shmem_add_seals()/shmem_get_seals()
+  shmem: rename functions that are memfd-related
+  hugetlb: expose hugetlbfs_inode_info in header
+  hugetlbfs: implement memfd sealing
+  shmem: add sealing support to hugetlb-backed memfd
+  memfd-tests: test hugetlbfs sealing
+  memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
+  memfd-test: move common code to a shared unit
+  memfd-test: run fuse test on hugetlb backend memory
+
+ fs/fcntl.c                                     |   2 +-
+ fs/hugetlbfs/inode.c                           |  39 +++--
+ include/linux/hugetlb.h                        |  11 ++
+ include/linux/shmem_fs.h                       |   6 +-
+ mm/shmem.c                                     |  59 ++++---
+ tools/testing/selftests/memfd/Makefile         |   5 +
+ tools/testing/selftests/memfd/common.c         |  45 ++++++
+ tools/testing/selftests/memfd/common.h         |   9 ++
+ tools/testing/selftests/memfd/fuse_test.c      |  36 +++--
+ tools/testing/selftests/memfd/memfd_test.c     | 212 ++++---------------------
+ tools/testing/selftests/memfd/run_fuse_test.sh |   2 +-
+ tools/testing/selftests/memfd/run_tests.sh     |   1 +
+ 12 files changed, 195 insertions(+), 232 deletions(-)
+ create mode 100644 tools/testing/selftests/memfd/common.c
+ create mode 100644 tools/testing/selftests/memfd/common.h
 
 -- 
-Michal Hocko
-SUSE Labs
+2.15.0.rc0.40.gaefcc5f6f
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
