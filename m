@@ -1,116 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 307596B0033
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 15:21:53 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id s88so1301618ota.1
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 12:21:53 -0800 (PST)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0891E6B0033
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 15:35:31 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 82so11063268oid.11
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 12:35:31 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id v24si6581917otv.355.2017.11.06.12.21.52
+        by mx.google.com with ESMTPS id q82si5601801oih.443.2017.11.06.12.35.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 12:21:52 -0800 (PST)
-Date: Mon, 6 Nov 2017 21:21:48 +0100
+        Mon, 06 Nov 2017 12:35:30 -0800 (PST)
+Date: Mon, 6 Nov 2017 21:35:27 +0100
 From: Andrea Arcangeli <aarcange@redhat.com>
 Subject: Re: [RFC -mm] mm, userfaultfd, THP: Avoid waiting when PMD under THP
  migration
-Message-ID: <20171106202148.GA26645@redhat.com>
+Message-ID: <20171106203527.GB26645@redhat.com>
 References: <20171103075231.25416-1-ying.huang@intel.com>
  <D3FBD1E2-FC24-46B1-9CFF-B73295292675@cs.rutgers.edu>
  <CAC=cRTPCw4gBLCequmo6+osqGOrV_+n8puXn=R7u+XOVHLQxxA@mail.gmail.com>
+ <AC486A3D-F3D4-403D-B3EB-DB2A14CF4042@cs.rutgers.edu>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAC=cRTPCw4gBLCequmo6+osqGOrV_+n8puXn=R7u+XOVHLQxxA@mail.gmail.com>
+In-Reply-To: <AC486A3D-F3D4-403D-B3EB-DB2A14CF4042@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: huang ying <huang.ying.caritas@gmail.com>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, "Huang, Ying" <ying.huang@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: huang ying <huang.ying.caritas@gmail.com>, "Huang, Ying" <ying.huang@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-Hello,
-
-On Sun, Nov 05, 2017 at 11:01:05AM +0800, huang ying wrote:
-> On Fri, Nov 3, 2017 at 11:00 PM, Zi Yan <zi.yan@cs.rutgers.edu> wrote:
-> > On 3 Nov 2017, at 3:52, Huang, Ying wrote:
-> >
-> >> From: Huang Ying <ying.huang@intel.com>
-> >>
-> >> If THP migration is enabled, the following situation is possible,
-> >>
-> >> - A THP is mapped at source address
-> >> - Migration is started to move the THP to another node
-> >> - Page fault occurs
-> >> - The PMD (migration entry) is copied to the destination address in mremap
-> >>
-> >
-> > You mean the page fault path follows the source address and sees pmd_none() now
-> > because mremap() clears it and remaps the page with dest address.
-> > Otherwise, it seems not possible to get into handle_userfault(), since it is called in
-> > pmd_none() branch inside do_huge_pmd_anonymous_page().
-> >
-> >
-> >> That is, it is possible for handle_userfault() encounter a PMD entry
-> >> which has been handled but !pmd_present().  In the current
-> >> implementation, we will wait for such PMD entries, which may cause
-> >> unnecessary waiting, and potential soft lockup.
-> >
-> > handle_userfault() should only see pmd_none() in the situation you describe,
-> > whereas !pmd_present() (migration entry case) should lead to
-> > pmd_migration_entry_wait().
+On Mon, Nov 06, 2017 at 10:53:48AM -0500, Zi Yan wrote:
+> Thanks for clarifying it. We both agree that !pmd_present(), which means
+> PMD migration entry, does not get into userfaultfd_must_wait(),
+> then there seems to be no issue with current code yet.
 > 
-> Yes.  This is my understanding of the source code too.  And I
-> described it in the original patch description too.  I just want to
-> make sure whether it is possible that !pmd_none() and !pmd_present()
-> for a PMD in userfaultfd_must_wait().  And, whether it is possible for
+> However, the if (!pmd_present(_pmd)) in userfaultfd_must_wait() does not 
+> match
+> the exact condition. How about the patch below? It can catch pmd 
+> migration entries,
+> which are only possible in x86_64 at the moment.
+> 
+> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+> index 1c713fd5b3e6..dda25444a6ee 100644
+> --- a/fs/userfaultfd.c
+> +++ b/fs/userfaultfd.c
+> @@ -294,9 +294,11 @@ static inline bool userfaultfd_must_wait(struct 
+> userfaultfd_ctx *ctx,
+>           * pmd_trans_unstable) of the pmd.
+>           */
+>          _pmd = READ_ONCE(*pmd);
+> -       if (!pmd_present(_pmd))
+> +       if (pmd_none(_pmd))
+>                  goto out;
+> 
+> +       VM_BUG_ON(thp_migration_supported() && is_pmd_migration_entry(_pmd));
+> +
 
-I don't see how mremap is relevant above. mremap runs with mmap_sem
-for writing, so it can't race against userfaultfd_must_wait.
+As I wrote in prev email I'm not sure about this invariant to be
+correct 100% of the time (plus we'd want a VM_WARN_ON only
+here). Specifically, what does prevent try_to_unmap to run on a THP
+backed mapping with only the mmap_sem for reading?
 
-However the concern of set_pmd_migration_entry() being called with
-only the mmap_sem for reading through TTU_MIGRATION in
-__unmap_and_move and being interpreted as a "missing" THP page by
-userfaultfd_must_wait seems valid.
+I know what prevents to ever reproduce this in practice though (aside
+from the fact the race between the is_swap_pmd() check in the main
+page fault and the above check is small) and it's because compaction
+won't migrate THP and even the numa faults will not use the migration
+entry. So it'd require some more explicit migration numactl while
+userfaults are running to ever see an hang in there.
 
-Compaction won't normally compact pages that are already THP sized so
-you cannot see this normally because VM don't normally get migrated
-over SHM/hugetlbfs with hard bindings while userfaults are in
-progress.
-
-Overall your patch looks more correct than current code so it's good
-idea to apply and it should avoid surprises with the above corner
-case if CONFIG_ARCH_ENABLE_THP_MIGRATION is set.
-
-Worst case the process would hang in handle_userfault(), but it will
-still respond fine to sigkill, so it's not concerning, but it should
-be fixed nevertheless.
-
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-
-> us to implement PMD mapping copying in UFFDIO_COPY in the future?
-
-That's definitely good idea to add too. We don't have an userland
-model for THP yet in QEMU (so it wouldn't be making a difference right
-now), we have it for the hugetlbfs-only case though. It'd be nice to
-add a THP model and to have an option to do the faults at 2M
-granularity also on anon and SHM memory (not just with hugetlbfs).
-
-With userfaults the granularity of the fault is entirely decided by
-userland. The kernel can then map a THP directly into the destination
-if the granularity userland uses is 2M. The 8k user fault granularity
-would also be feasible on x86, but it won't provide any TLB benefits,
-while the 2M granularity will (after the kernel optimization you're
-asking about). So it should be an ideal faetu.
-
-I tried to defer the complexity to the point it could provide a
-runtime payoff and until we tested userfaults at 2M granularity we
-wouldn't know for sure how it would behave. Now we run userfaults on
-hugetlbfs in production and so by now know the latency of those 2M
-transfers over network is acceptable and the live migration runs
-slightly faster overall. All goes as expected at runtime, so in
-principle the THP model with anon/SHM THP should be a good tradeoff
-too. Note that it will only work well with the fastest network
-bandwidth available. Legacy gigabit likely wants to stay at current 4k
-granularity so the default should probably stick to 4k userfault
-granularity to avoid having to deal with unexpected higher latencies.
+I think it's a regression since the introduction of THP migration
+around commits 84c3fc4e9c563d8fb91cfdf5948da48fe1af34d3 /
+616b8371539a6c487404c3b8fb04078016dab4ba /
+9c670ea37947a82cb6d4df69139f7e46ed71a0ac etc.. before that pmd_none or
+!pmd_present used to be equivalent, not the case any longer. Of course
+pmd_none would have been better before too.
 
 Thanks,
 Andrea
