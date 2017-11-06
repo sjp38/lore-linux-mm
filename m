@@ -1,39 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CB9DA6B0253
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 17:32:33 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id g11so5256508vkd.12
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 14:32:33 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id d58sor5377683uaa.15.2017.11.06.14.32.32
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3E66B0033
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 18:45:41 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id b79so12492549pfk.9
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 15:45:41 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r6si10482751pls.575.2017.11.06.15.45.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 14:32:32 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 15:45:40 -0800 (PST)
+Date: Mon, 6 Nov 2017 15:45:20 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: possible deadlock in generic_file_write_iter
+Message-ID: <20171106234520.GA24984@bombadil.infradead.org>
+References: <94eb2c05f6a018dc21055d39c05b@google.com>
+ <20171106032941.GR21978@ZenIV.linux.org.uk>
+ <CACT4Y+abiKapoG9ms6RMqNkGBJtjX_Nf5WEQiYJcJ7=XCsyD2w@mail.gmail.com>
+ <20171106131544.GB4359@quack2.suse.cz>
+ <20171106133304.GS21978@ZenIV.linux.org.uk>
+ <CACT4Y+YHPOaCVO81VPuC9hDLCSx=KJmwRf7pa3b96UAowLmA2A@mail.gmail.com>
+ <20171106160107.GA20227@worktop.programming.kicks-ass.net>
+ <20171106173625.GA1058@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171106193145.v7s4rjyc3tfvcqkq@dhcp22.suse.cz>
-References: <CACAwPwbA0NpTC9bfV7ySHkxPrbZJVvjH=Be5_c25Q3S8qNay+w@mail.gmail.com>
- <CACAwPwamD4RL9O8wujK_jCKGu=x0dBBmH9O-9078cUEEk4WsMA@mail.gmail.com>
- <CACAwPwYKjK5RT-ChQqqUnD7PrtpXg1WhTHGK3q60i6StvDMDRg@mail.gmail.com>
- <CACAwPwav-eY4_nt=Z7TQB8WMFg+1X5WY2Gkgxph74X7=Ovfvrw@mail.gmail.com>
- <CACAwPwaP05FgxTp=kavwgFZF+LEGO-OSspJ4jH+Y=_uRxiVZaA@mail.gmail.com>
- <CACAwPwY5ss_D9kj7XoLVVkQ9=KXDFCnyDzdoxkGxhJZBNFre3w@mail.gmail.com>
- <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com>
- <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz> <CACAwPwaTejMB8yOrkOxpDj297B=Y6bTvw2nAyHsiJKC+aB=a2w@mail.gmail.com>
- <20171106183237.64b3hj25hbfw7v4l@dhcp22.suse.cz> <20171106193145.v7s4rjyc3tfvcqkq@dhcp22.suse.cz>
-From: Maxim Levitsky <maximlevitsky@gmail.com>
-Date: Tue, 7 Nov 2017 00:32:12 +0200
-Message-ID: <CACAwPwZrvr8fohWH06L7KJHfftjOik4oqFys-b2O593D0Ywppg@mail.gmail.com>
-Subject: Re: Guaranteed allocation of huge pages (1G) using movablecore=N
- doesn't seem to work at all
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171106173625.GA1058@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Dmitry Vyukov <dvyukov@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, Ingo Molnar <mingo@redhat.com>
 
-I'll try tomorrow. Thanks!
-Best regards,
-           Maxim Levitsky
+On Mon, Nov 06, 2017 at 09:36:25AM -0800, Christoph Hellwig wrote:
+> How about complete_nodep() as name?  Otherwise this looks ok to me - not
+> pretty, but not _that_ horrible either..
+
+I read that as node-p, not no-dep.  complete_nocheck()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
