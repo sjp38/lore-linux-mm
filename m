@@ -1,298 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F01B8280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:27 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id n19so1661317ote.23
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:27 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s63si509681oib.128.2017.11.07.04.28.26
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D059280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:29 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id t139so776899wmt.7
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:29 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w51sor803934edd.54.2017.11.07.04.28.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 04:28:26 -0800 (PST)
-From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH v3 6/9] memfd-test: test hugetlbfs sealing
-Date: Tue,  7 Nov 2017 13:27:57 +0100
-Message-Id: <20171107122800.25517-7-marcandre.lureau@redhat.com>
-In-Reply-To: <20171107122800.25517-1-marcandre.lureau@redhat.com>
-References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+        (Google Transport Security);
+        Tue, 07 Nov 2017 04:28:27 -0800 (PST)
+Date: Tue, 7 Nov 2017 15:28:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
+References: <20171105231850.5e313e46@roar.ozlabs.ibm.com>
+ <871slcszfl.fsf@linux.vnet.ibm.com>
+ <20171106174707.19f6c495@roar.ozlabs.ibm.com>
+ <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
+ <20171106192524.12ea3187@roar.ozlabs.ibm.com>
+ <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
+ <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+ <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
+ <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
+ <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+To: Nicholas Piggin <npiggin@gmail.com>
+Cc: Florian Weimer <fweimer@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-Remove most of the special-casing of hugetlbfs now that sealing
-is supported.
+On Tue, Nov 07, 2017 at 10:56:36PM +1100, Nicholas Piggin wrote:
+> > No, it won't. You will hit stack first.
+> 
+> I guess so. Florian's bug didn't crash there for some reason, okay
+> but I suppose my point about brk is not exactly where the standard
+> heap is, but the pattern of allocations. An allocator that uses
+> mmap for managing its address space might do the same thing, e.g.,
+> incrementally expand existing mmaps as necessary.
 
-Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- tools/testing/selftests/memfd/memfd_test.c | 150 +++--------------------------
- 1 file changed, 15 insertions(+), 135 deletions(-)
+With MAP_FIXED? I don't think so.
 
-diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
-index 845e5f67b6f0..cca957a06525 100644
---- a/tools/testing/selftests/memfd/memfd_test.c
-+++ b/tools/testing/selftests/memfd/memfd_test.c
-@@ -513,6 +513,10 @@ static void mfd_assert_grow_write(int fd)
- 	static char *buf;
- 	ssize_t l;
- 
-+	/* hugetlbfs does not support write */
-+	if (hugetlbfs_test)
-+		return;
-+
- 	buf = malloc(mfd_def_size * 8);
- 	if (!buf) {
- 		printf("malloc(%d) failed: %m\n", mfd_def_size * 8);
-@@ -533,6 +537,10 @@ static void mfd_fail_grow_write(int fd)
- 	static char *buf;
- 	ssize_t l;
- 
-+	/* hugetlbfs does not support write */
-+	if (hugetlbfs_test)
-+		return;
-+
- 	buf = malloc(mfd_def_size * 8);
- 	if (!buf) {
- 		printf("malloc(%d) failed: %m\n", mfd_def_size * 8);
-@@ -627,18 +635,13 @@ static void test_create(void)
- 	fd = mfd_assert_new("", 0, MFD_CLOEXEC);
- 	close(fd);
- 
--	if (!hugetlbfs_test) {
--		/* verify MFD_ALLOW_SEALING is allowed */
--		fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING);
--		close(fd);
--
--		/* verify MFD_ALLOW_SEALING | MFD_CLOEXEC is allowed */
--		fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING | MFD_CLOEXEC);
--		close(fd);
--	} else {
--		/* sealing is not supported on hugetlbfs */
--		mfd_fail_new("", MFD_ALLOW_SEALING);
--	}
-+	/* verify MFD_ALLOW_SEALING is allowed */
-+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING);
-+	close(fd);
-+
-+	/* verify MFD_ALLOW_SEALING | MFD_CLOEXEC is allowed */
-+	fd = mfd_assert_new("", 0, MFD_ALLOW_SEALING | MFD_CLOEXEC);
-+	close(fd);
- }
- 
- /*
-@@ -649,10 +652,6 @@ static void test_basic(void)
- {
- 	int fd;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s BASIC\n", MEMFD_STR);
- 
- 	fd = mfd_assert_new("kern_memfd_basic",
-@@ -697,28 +696,6 @@ static void test_basic(void)
- 	close(fd);
- }
- 
--/*
-- * hugetlbfs doesn't support seals or write, so just verify grow and shrink
-- * on a hugetlbfs file created via memfd_create.
-- */
--static void test_hugetlbfs_grow_shrink(void)
--{
--	int fd;
--
--	printf("%s HUGETLBFS-GROW-SHRINK\n", MEMFD_STR);
--
--	fd = mfd_assert_new("kern_memfd_seal_write",
--			    mfd_def_size,
--			    MFD_CLOEXEC);
--
--	mfd_assert_read(fd);
--	mfd_assert_write(fd);
--	mfd_assert_shrink(fd);
--	mfd_assert_grow(fd);
--
--	close(fd);
--}
--
- /*
-  * Test SEAL_WRITE
-  * Test whether SEAL_WRITE actually prevents modifications.
-@@ -727,13 +704,6 @@ static void test_seal_write(void)
- {
- 	int fd;
- 
--	/*
--	 * hugetlbfs does not contain sealing or write support.  Just test
--	 * basic grow and shrink via test_hugetlbfs_grow_shrink.
--	 */
--	if (hugetlbfs_test)
--		return test_hugetlbfs_grow_shrink();
--
- 	printf("%s SEAL-WRITE\n", MEMFD_STR);
- 
- 	fd = mfd_assert_new("kern_memfd_seal_write",
-@@ -760,10 +730,6 @@ static void test_seal_shrink(void)
- {
- 	int fd;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s SEAL-SHRINK\n", MEMFD_STR);
- 
- 	fd = mfd_assert_new("kern_memfd_seal_shrink",
-@@ -790,10 +756,6 @@ static void test_seal_grow(void)
- {
- 	int fd;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s SEAL-GROW\n", MEMFD_STR);
- 
- 	fd = mfd_assert_new("kern_memfd_seal_grow",
-@@ -820,10 +782,6 @@ static void test_seal_resize(void)
- {
- 	int fd;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s SEAL-RESIZE\n", MEMFD_STR);
- 
- 	fd = mfd_assert_new("kern_memfd_seal_resize",
-@@ -842,32 +800,6 @@ static void test_seal_resize(void)
- 	close(fd);
- }
- 
--/*
-- * hugetlbfs does not support seals.  Basic test to dup the memfd created
-- * fd and perform some basic operations on it.
-- */
--static void hugetlbfs_dup(char *b_suffix)
--{
--	int fd, fd2;
--
--	printf("%s HUGETLBFS-DUP %s\n", MEMFD_STR, b_suffix);
--
--	fd = mfd_assert_new("kern_memfd_share_dup",
--			    mfd_def_size,
--			    MFD_CLOEXEC);
--
--	fd2 = mfd_assert_dup(fd);
--
--	mfd_assert_read(fd);
--	mfd_assert_write(fd);
--
--	mfd_assert_shrink(fd2);
--	mfd_assert_grow(fd2);
--
--	close(fd2);
--	close(fd);
--}
--
- /*
-  * Test sharing via dup()
-  * Test that seals are shared between dupped FDs and they're all equal.
-@@ -876,15 +808,6 @@ static void test_share_dup(char *banner, char *b_suffix)
- {
- 	int fd, fd2;
- 
--	/*
--	 * hugetlbfs does not contain sealing support.  Perform some
--	 * basic testing on dup'ed fd instead via hugetlbfs_dup.
--	 */
--	if (hugetlbfs_test) {
--		hugetlbfs_dup(b_suffix);
--		return;
--	}
--
- 	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
- 
- 	fd = mfd_assert_new("kern_memfd_share_dup",
-@@ -927,10 +850,6 @@ static void test_share_mmap(char *banner, char *b_suffix)
- 	int fd;
- 	void *p;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s %s %s\n", MEMFD_STR,  banner, b_suffix);
- 
- 	fd = mfd_assert_new("kern_memfd_share_mmap",
-@@ -955,32 +874,6 @@ static void test_share_mmap(char *banner, char *b_suffix)
- 	close(fd);
- }
- 
--/*
-- * Basic test to make sure we can open the hugetlbfs fd via /proc and
-- * perform some simple operations on it.
-- */
--static void hugetlbfs_proc_open(char *b_suffix)
--{
--	int fd, fd2;
--
--	printf("%s HUGETLBFS-PROC-OPEN %s\n", MEMFD_STR, b_suffix);
--
--	fd = mfd_assert_new("kern_memfd_share_open",
--			    mfd_def_size,
--			    MFD_CLOEXEC);
--
--	fd2 = mfd_assert_open(fd, O_RDWR, 0);
--
--	mfd_assert_read(fd);
--	mfd_assert_write(fd);
--
--	mfd_assert_shrink(fd2);
--	mfd_assert_grow(fd2);
--
--	close(fd2);
--	close(fd);
--}
--
- /*
-  * Test sealing with open(/proc/self/fd/%d)
-  * Via /proc we can get access to a separate file-context for the same memfd.
-@@ -991,15 +884,6 @@ static void test_share_open(char *banner, char *b_suffix)
- {
- 	int fd, fd2;
- 
--	/*
--	 * hugetlbfs does not contain sealing support.  So test basic
--	 * functionality of using /proc fd via hugetlbfs_proc_open
--	 */
--	if (hugetlbfs_test) {
--		hugetlbfs_proc_open(b_suffix);
--		return;
--	}
--
- 	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
- 
- 	fd = mfd_assert_new("kern_memfd_share_open",
-@@ -1043,10 +927,6 @@ static void test_share_fork(char *banner, char *b_suffix)
- 	int fd;
- 	pid_t pid;
- 
--	/* hugetlbfs does not contain sealing support */
--	if (hugetlbfs_test)
--		return;
--
- 	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
- 
- 	fd = mfd_assert_new("kern_memfd_share_fork",
+> > > Second, the kernel can never completely solve the problem this way.
+> > > How do we know a malloc library will not ask for > 128TB addresses
+> > > and pass them to an unknowing application?  
+> > 
+> > The idea is that an application can provide hint (mallopt() ?) to malloc
+> > implementation that it's ready to full address space. In this case, malloc
+> > can use mmap((void *) -1,...) for its allocations and get full address
+> > space this way.
+> 
+> Point is, there's nothing stopping an allocator library or runtime
+> from asking for mmap anywhere and returning it to userspace.
+
+Right. Nobody would stop it from doing stupid things. There are many
+things that a library may do that application would not be happy about.
+
+> Do > 128TB pointers matter so much that we should add this heuristic
+> to prevent breakage, but little enough that we can accept some rare
+> cases getting through? Genuine question.
+
+At the end of the day what matters is if heuristic helps prevent breakage
+of existing userspace and doesn't stay in the way of legitimate use of
+full address space.
+
+So far, it looks okay to me.
+
+> > The idea was we shouldn't allow to slip above 47-bits by accidentally.
+> > 
+> > Correctly functioning program would never request addr+len above 47-bit
+> > with MAP_FIXED, unless it's ready to handle such addresses. Otherwise the
+> > request would simply fail on machine that doesn't support large VA.
+> > 
+> > In contrast, addr+len above 47-bit without MAP_FIXED will not fail on
+> > machine that doesn't support large VA, kernel will find another place
+> > under 47-bit. And I can imagine a reasonable application that does
+> > something like this.
+> > 
+> > So we cannot rely that application is ready to handle large
+> > addresses if we see addr+len without MAP_FIXED.
+> 
+> By the same logic, a request for addr > 128TB without MAP_FIXED will
+> not fail, therefore we can't rely on that either.
+> 
+> Or an app that links to a library that attempts MAP_FIXED allocation
+> of addr + len above 128TB might use high bits of pointer returned by
+> that library because those are never satisfied today and the library
+> would fall back.
+
+If you want to point that it's ABI break, yes it is.
+
+But we allow ABI break as long as nobody notices. I think it's reasonable
+to expect that nobody relies on such corner cases.
+
+If we would find any piece of software affect by the change we would need
+to reconsider.
+
 -- 
-2.15.0.125.g8f49766d64
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
