@@ -1,122 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8326B027A
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 22:52:25 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id w197so11793193oif.23
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 19:52:25 -0800 (PST)
-Received: from huawei.com ([45.249.212.32])
-        by mx.google.com with ESMTP id 93si117524oth.205.2017.11.06.19.52.23
-        for <linux-mm@kvack.org>;
-        Mon, 06 Nov 2017 19:52:24 -0800 (PST)
-Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
- TLB entry
-References: <20171106033651.172368-1-wangnan0@huawei.com>
- <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
- <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
- <0cf84560-c64a-0737-e654-162928872d5b@huawei.com>
- <20171106104008.yqjqsfolsnaotarr@dhcp22.suse.cz>
- <32853d25-4b72-443f-381c-5905de872221@huawei.com>
- <20171106115707.lrjniqqba6gfgsjs@dhcp22.suse.cz>
-From: "Wangnan (F)" <wangnan0@huawei.com>
-Message-ID: <15ca50d3-fa05-dfb0-fedf-6cb005b05290@huawei.com>
-Date: Tue, 7 Nov 2017 11:51:30 +0800
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C58756B027C
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 00:07:20 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id p2so13258926pfk.13
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 21:07:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n3sor84703pgt.340.2017.11.06.21.07.18
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 06 Nov 2017 21:07:19 -0800 (PST)
+Date: Tue, 7 Nov 2017 16:07:05 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
+In-Reply-To: <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
+	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
+	<871slcszfl.fsf@linux.vnet.ibm.com>
+	<20171106174707.19f6c495@roar.ozlabs.ibm.com>
+	<24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
+	<20171106192524.12ea3187@roar.ozlabs.ibm.com>
+	<d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
+	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171106115707.lrjniqqba6gfgsjs@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Bob Liu <lliubbo@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo
- Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin
- Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>, will.deacon@arm.com
+To: Florian Weimer <fweimer@redhat.com>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A.
+ Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
+C'ing everyone who was on the x86 56-bit user virtual address patch.
 
+I think we need more time to discuss this behaviour, in light of the
+regression Florian uncovered. I would propose we turn off the 56-bit
+user virtual address support for x86 for 4.14, and powerpc would
+follow and turn off its 512T support until we can get a better handle
+on the problems. (Actually Florian initially hit a couple of bugs in
+powerpc implementation, but pulling that string uncovers a whole lot
+of difficulties.)
 
-On 2017/11/6 19:57, Michal Hocko wrote:
-> On Mon 06-11-17 19:03:34, Wangnan (F) wrote:
->>
->> On 2017/11/6 18:40, Michal Hocko wrote:
->>> On Mon 06-11-17 17:59:54, Wangnan (F) wrote:
->>>> On 2017/11/6 16:52, Michal Hocko wrote:
->>>>> On Mon 06-11-17 15:04:40, Bob Liu wrote:
->>>>>> On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
->>>>>>> tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
->>>>>>> In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
->>>>>>> TLB when tlb->fullmm is true:
->>>>>>>
->>>>>>>      commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
->>>>>>>
->>>>>> CC'ed Will Deacon.
->>>>>>
->>>>>>> Which makes leaking of tlb entries. For example, when oom_reaper
->>>>>>> selects a task and reaps its virtual memory space, another thread
->>>>>>> in this task group may still running on another core and access
->>>>>>> these already freed memory through tlb entries.
->>>>> No threads should be running in userspace by the time the reaper gets to
->>>>> unmap their address space. So the only potential case is they are
->>>>> accessing the user memory from the kernel when we should fault and we
->>>>> have MMF_UNSTABLE to cause a SIGBUS. So is the race you are describing
->>>>> real?
->>>>>
->>>>>>> This patch gather each vma instead of gathering full vm space,
->>>>>>> tlb->fullmm is not true. The behavior of oom reaper become similar
->>>>>>> to munmapping before do_exit, which should be safe for all archs.
->>>>> I do not have any objections to do per vma tlb flushing because it would
->>>>> free gathered pages sooner but I am not sure I see any real problem
->>>>> here. Have you seen any real issues or this is more of a review driven
->>>>> fix?
->>>> We saw the problem when we try to reuse oom reaper's code in
->>>> another situation. In our situation, we allow reaping a task
->>>> before all other tasks in its task group finish their exiting
->>>> procedure.
->>>>
->>>> I'd like to know what ensures "No threads should be running in
->>>> userspace by the time the reaper"?
->>> All tasks are killed by the time. So they should be taken out to the
->>> kernel.
->> Sorry. I read oom_kill_process() but still unable to understand
->> why all tasks are killed.
->>
->> oom_kill_process() kill victim by sending SIGKILL. It will be
->> broadcast to all tasks in its task group, but it is asynchronized.
->> In the following case, race can happen (Thread1 in Task1's task group):
->>
->> core 1                core 2
->> Thread1 running       oom_kill_process() selects Task1 as victim
->>                        oom_kill_process() sends SIGKILL to Task1
->>                        oom_kill_process() sends SIGKILL to Thread1
->>                        oom_kill_process() wakes up oom reaper
->>                        switch to oom_reaper
->>                        __oom_reap_task_mm
->>                        tlb_gather_mmu
->>                        unmap_page_range, reap Task1
->>                        tlb_finish_mmu
->> Write page
->> be kicked off from core
->> Receives SIGKILL
->>
->> So what makes Thread1 being kicked off from core 1 before core 2
->> starting unmapping?
-> complete_signal should call signal_wake_up on all threads because this
-> is a group fatal signal and that should send an IPI to all of the cpus
-> they run on to. Even if we do not wait for IPI to complete the race
-> window should be few instructions only while it takes quite some time to
-> hand over to the oom reaper.
+The bi-modal behavior switched based on a combination of mmap address
+hint and MAP_FIXED just sucks. It's segregating our VA space with
+some non-standard heuristics, and it doesn't seem to work very well.
 
-If the complete_signal is the mechanism we rely on to ensure
-all threads are exited, then I'm sure it is not enough. As
-you said, we still have a small race window. In some platform,
-an IPI from one core to another core takes a little bit longer
-than you may expect, and the core who receive the IPI may in
-a very low frequency.
+What are we trying to do? Allow SAP HANA etc use huge address spaces
+by coding to these specific mmap heuristics we're going to add,
+rather than solving it properly in a way that requires adding a new
+syscall or personality or prctl or sysctl. Okay, but the cost is that
+despite best efforts, it still changes ABI behaviour for existing
+applications and these heuristics will become baked into the ABI that
+we will have to support. Not a good tradeoff IMO.
 
-In our situation, we put the reaper code in do_exit after receiving
-SIGKILL, and observe TLB entry leaking. Since this is a SIGKILL,
-complete_signal should have been executed. So I think oom_reaper
-have similar problem.
+First of all, using addr and MAP_FIXED to develop our heuristic can
+never really give unchanged ABI. It's an in-band signal. brk() is a
+good example that steadily keeps incrementing address, so depending
+on malloc usage and address space randomization, you will get a brk()
+that ends exactly at 128T, then the next one will be >
+DEFAULT_MAP_WINDOW, and it will switch you to 56 bit address space.
 
-Thank you.
+Second, the kernel can never completely solve the problem this way.
+How do we know a malloc library will not ask for > 128TB addresses
+and pass them to an unknowing application?
+
+And lastly, there are a fair few bugs and places where description
+in changelogs and mailing lists does not match code. You don't want
+to know the mess in powerpc, but even x86 has two I can see:
+MAP_FIXED succeeds even when crossing 128TB addresses (where changelog
+indicated it should not), arch_get_unmapped_area_topdown() with an
+address hint is checking against TASK_SIZE rather than the limited
+128TB address, so it looks like it won't follow the heuristics.
+
+So unless everyone else thinks I'm crazy and disagrees, I'd ask for
+a bit more time to make sure we get this interface right. I would
+hope for something like prctl PR_SET_MM which can be used to set
+our user virtual address bits on a fine grained basis. Maybe a
+sysctl, maybe a personality. Something out-of-band. I don't wan to
+get too far into that discussion yet. First we need to agree whether
+or not the code in the tree today is a problem.
+
+Thanks,
+Nick
+
+On Mon, 6 Nov 2017 09:32:25 +0100
+Florian Weimer <fweimer@redhat.com> wrote:
+
+> On 11/06/2017 09:30 AM, Aneesh Kumar K.V wrote:
+> > On 11/06/2017 01:55 PM, Nicholas Piggin wrote:  
+> >> On Mon, 6 Nov 2017 09:11:37 +0100
+> >> Florian Weimer <fweimer@redhat.com> wrote:
+> >>  
+> >>> On 11/06/2017 07:47 AM, Nicholas Piggin wrote:  
+> >>>> "You get < 128TB unless explicitly requested."
+> >>>>
+> >>>> Simple, reasonable, obvious rule. Avoids breaking apps that store
+> >>>> some bits in the top of pointers (provided that memory allocator
+> >>>> userspace libraries also do the right thing).  
+> >>>
+> >>> So brk would simplify fail instead of crossing the 128 TiB threshold?  
+> >>
+> >> Yes, that was the intention and that's what x86 seems to do.
+> >>  
+> >>>
+> >>> glibc malloc should cope with that and switch to malloc, but this code
+> >>> path is obviously less well-tested than the regular way.  
+> >>
+> >> Switch to mmap() I guess you meant?  
+> 
+> Yes, sorry.
+> 
+> >> powerpc has a couple of bugs in corner cases, so those should be fixed
+> >> according to intended policy for stable kernels I think.
+> >>
+> >> But I question the policy. Just seems like an ugly and ineffective wart.
+> >> Exactly for such cases as this -- behaviour would change from run to run
+> >> depending on your address space randomization for example! In case your
+> >> brk happens to land nicely on 128TB then the next one would succeed.  
+> > 
+> > Why ? It should not change between run to run. We limit the free
+> > area search range based on hint address. So we should get consistent 
+> > results across run. even if we changed the context.addr_limit.  
+> 
+> The size of the gap to the 128 TiB limit varies between runs because of 
+> ASLR.  So some runs would use brk alone, others would use brk + malloc. 
+> That's not really desirable IMHO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
