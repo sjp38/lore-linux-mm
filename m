@@ -1,169 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 961F66B026B
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:39:26 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id j3so14833401pga.5
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:39:26 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id c76si73037pga.197.2017.11.06.17.39.24
-        for <linux-mm@kvack.org>;
-        Mon, 06 Nov 2017 17:39:25 -0800 (PST)
-Subject: Re: Re: [PATCH] ksm : use checksum and memcmp for rb_tree
-References: <1509364987-29608-1-git-send-email-kyeongdon.kim@lge.com>
- <CAGqmi75C7DWczUw47+gtO8NkwtHVsBNha5zhzbnFLh=DoN08xQ@mail.gmail.com>
-From: Kyeongdon Kim <kyeongdon.kim@lge.com>
-Message-ID: <90991e35-1181-1676-7318-7f3d3f6cec55@lge.com>
-Date: Tue, 7 Nov 2017 10:39:21 +0900
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F7966B026D
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:40:22 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id r6so12774233pfj.14
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:40:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b17sor18500pgf.428.2017.11.06.17.40.20
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 06 Nov 2017 17:40:20 -0800 (PST)
+Date: Tue, 7 Nov 2017 10:40:15 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171107014015.GA1822@jagdpanzerIV>
+References: <20171102134515.6eef16de@gandalf.local.home>
+ <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <CAGqmi75C7DWczUw47+gtO8NkwtHVsBNha5zhzbnFLh=DoN08xQ@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Timofey Titovets <nefelim4ag@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Minchan Kim <minchan@kernel.org>, broonie@kernel.org, mhocko@suse.com, mingo@kernel.org, jglisse@redhat.com, Arvind Yadav <arvind.yadav.cs@gmail.com>, imbrenda@linux.vnet.ibm.com, kirill.shutemov@linux.intel.com, bongkyu.kim@lge.com, linux-mm@kvack.org, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
 
-Sorry, re-send this email because of the Delivery failed message (to 
-linux-kernel)
+On (11/06/17 21:06), Tetsuo Handa wrote:
+> I tried your patch with warn_alloc() torture. It did not cause lockups.
+> But I felt that possibility of failing to flush last second messages (such
+> as SysRq-c or SysRq-b) to consoles has increased. Is this psychological?
 
-On 2017-10-30 i??i?? 10:22, Timofey Titovets wrote:
-> 2017-10-30 15:03 GMT+03:00 Kyeongdon Kim <kyeongdon.kim@lge.com>:
-> > The current ksm is using memcmp to insert and search 'rb_tree'.
-> > It does cause very expensive computation cost.
-> > In order to reduce the time of this operation,
-> > we have added a checksum to traverse before memcmp operation.
-> >
-> > Nearly all 'rb_node' in stable_tree_insert() function
-> > can be inserted as a checksum, most of it is possible
-> > in unstable_tree_search_insert() function.
-> > In stable_tree_search() function, the checksum may be an additional.
-> > But, checksum check duration is extremely small.
-> > Considering the time of the whole cmp_and_merge_page() function,
-> > it requires very little cost on average.
-> >
-> > Using this patch, we compared the time of ksm_do_scan() function
-> > by adding kernel trace at the start-end position of operation.
-> > (ARM 32bit target android device,
-> > over 1000 sample time gap stamps average)
-> >
-> > On original KSM scan avg duration = 0.0166893 sec
-> > 24991.975619 : ksm_do_scan_start: START: ksm_do_scan
-> > 24991.990975 : ksm_do_scan_end: END: ksm_do_scan
-> > 24992.008989 : ksm_do_scan_start: START: ksm_do_scan
-> > 24992.016839 : ksm_do_scan_end: END: ksm_do_scan
-> > ...
-> >
-> > On patch KSM scan avg duration = 0.0041157 sec
-> > 41081.461312 : ksm_do_scan_start: START: ksm_do_scan
-> > 41081.466364 : ksm_do_scan_end: END: ksm_do_scan
-> > 41081.484767 : ksm_do_scan_start: START: ksm_do_scan
-> > 41081.487951 : ksm_do_scan_end: END: ksm_do_scan
-> > ...
-> >
-> > We have tested randomly so many times for the stability
-> > and couldn't see any abnormal issue until now.
-> > Also, we found out this patch can make some good advantage
-> > for the power consumption than KSM default enable.
-> >
-> > Signed-off-by: Kyeongdon Kim <kyeongdon.kim@lge.com>
-> > ---
-> > mm/ksm.c | 49 +++++++++++++++++++++++++++++++++++++++++++++----
-> > 1 file changed, 45 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/mm/ksm.c b/mm/ksm.c
-> > index be8f457..66ab4f4 100644
-> > --- a/mm/ksm.c
-> > +++ b/mm/ksm.c
-> > @@ -150,6 +150,7 @@ struct stable_node {
-> > struct hlist_head hlist;
-> > union {
-> > unsigned long kpfn;
-> > + u32 oldchecksum;
-> > unsigned long chain_prune_time;
-> > };
-> > /*
->
-> May be just checksum? i.e. that's can be "old", where checksum can 
-> change,
-> in stable tree, checksum also stable.
->
-> Also, as checksum are stable, may be that make a sense to move it out
-> of union? (I'm afraid of clashes)
->
-> Also, you miss update comment above struct stable_node, about checksum 
-> var.
->
-Thanks for your comment, and we may change those lines like below :
+do I understand it correctly that there are "lost messages"?
 
-+ * @oldchecksum: previous checksum of the page about a stable_node
- A  * @nid: NUMA node id of stable tree in which linked (may not match kpfn)
- A  */
- A struct stable_node {
-@@ -159,6 +160,7 @@ struct stable_node {
- A A A A A A A A  */
- A #define STABLE_NODE_CHAIN -1024
- A A A A A A A  int rmap_hlist_len;
-+A A A A A A  u32 oldchecksum;
- A #ifdef CONFIG_NUMA
+sysrq-b does an immediate emergency reboot. "normally" it's not expected
+to flush any pending logbuf messages because it's an emergency-reboot...
+but in fact it does. and this is why sysrq-b is not 100% reliable:
 
-And I think if checksum are matched,
-then we can use original memcmp logic in stable tree.
-the worst case that I imagine is no page merging(just in that moment).
-But, in my humble opinion, there will be no critical memory issue. but 
-just return.
-(as I said, we tested a lot to check some abnormal memory operation,
-but so far, so good - only performance improvement)
-> > @@ -1522,7 +1523,7 @@ static __always_inline struct page 
-> *chain(struct stable_node **s_n_d,
-> > * This function returns the stable tree node of identical content if 
-> found,
-> > * NULL otherwise.
-> > */
-> > -static struct page *stable_tree_search(struct page *page)
-> > +static struct page *stable_tree_search(struct page *page, u32 
-> checksum)
-> > {
-> > int nid;
-> > struct rb_root *root;
-> > @@ -1540,6 +1541,8 @@ static struct page *stable_tree_search(struct 
-> page *page)
-> >
-> > nid = get_kpfn_nid(page_to_pfn(page));
-> > root = root_stable_tree + nid;
-> > + if (!checksum)
-> > + return NULL;
->
-> That's not a pointer, and 0x0 - is a valid checksum.
-> Also, jhash2 not so collision free, i.e.:
-> jhash2((uint32_t *) &num, 2, 17);
->
-> Example of collisions, where hash = 0x0:
-> hash: 0x0 - num: 610041898
-> hash: 0x0 - num: 4893164379
-> hash: 0x0 - num: 16423540221
-> hash: 0x0 - num: 29036382188
->
-> You also compare values, so hash = 0, is a acceptable checksum.
->
-well, if then, I can remove this check line.
->
-> Thanks,
-> anyway in general idea looks good.
->
-> Reviewed-by: Timofey Titovets <nefelim4ag@gmail.com>
->
-> -- 
-> Have a nice day,
-> Timofey.
-Thanks a lot :)
-Actually, our organization want to use this KSM feature in general,
-but, current logic needs too high cost.
-So I wish to change more light version.
-Please kindly give your opinion on this idea.
+	__handle_sysrq()
+	{
+	  pr_info("SysRq : ");
 
-Thanks,
-Kyeongdon Kim
+	  op_p = __sysrq_get_key_op(key);
+	  pr_cont("%s\n", op_p->action_msg);
+
+	    op_p->handler(key);
+
+	  pr_cont("\n");
+	}
+
+those pr_info()/pr_cont() calls can spoil sysrq-b, depending on how
+badly the system is screwed. if pr_info() deadlocks, then we never
+go to op_p->handler(key)->emergency_restart(). even if you suppress
+printing of info loglevel messages, pr_info() still goes to
+console_unlock() and prints [console_seq, log_next_seq] messages,
+if there any.
+
+there is, however, a subtle behaviour change, I think.
+
+previously, in some cases [?], pr_info("SysRq : ") from __handle_sysrq()
+would flush logbuf messages. now we have that "break out of console_unlock()
+loop even though there are pending messages, there is another CPU doing
+printk()". so sysrb-b instead of looping in console_unlock() goes directly
+to emergency_restart(). without the change it would have continued looping
+in console_unlock() and would have called emergency_restart() only when
+"console_seq == log_next_seq".
+
+now... the "subtle" part here is that we had that thing:
+	- *IF* __handle_sysrq() grabs the console_sem then it will not
+	  return from console_unlock() until logbuf is empty. so
+	  concurrent printk() messages won't get lost.
+
+what we have now is:
+	- if there are concurrent printk() then __handle_sysrq() does not
+	  fully flush the logbuf *even* if it grabbed the console_sem.
+
+> ---------- vmcore-dmesg start ----------
+> [  169.016198] postgres cpuset=
+> [  169.032544]  filemap_fault+0x311/0x790
+> [  169.047745] /
+> [  169.047780]  mems_allowed=0
+> [  169.050577]  ? xfs_ilock+0x126/0x1a0 [xfs]
+> [  169.062769]  mems_allowed=0
+> [  169.065754]  ? down_read_nested+0x3a/0x60
+> [  169.065783]  ? xfs_ilock+0x126/0x1a0 [xfs]
+> [  189.700206] sysrq: SysRq :
+> [  189.700639]  __xfs_filemap_fault.isra.19+0x3f/0xe0 [xfs]
+> [  189.700799]  xfs_filemap_fault+0xb/0x10 [xfs]
+> [  189.703981] Trigger a crash
+> [  189.707032]  __do_fault+0x19/0xa0
+> [  189.710008] BUG: unable to handle kernel
+> [  189.713387]  __handle_mm_fault+0xbb3/0xda0
+> [  189.716473] NULL pointer dereference
+> [  189.719674]  handle_mm_fault+0x14f/0x300
+> [  189.722969]  at           (null)
+> [  189.722974] IP: sysrq_handle_crash+0x3b/0x70
+> [  189.726156]  ? handle_mm_fault+0x39/0x300
+> [  189.729537] PGD 1170dc067
+> [  189.732841]  __do_page_fault+0x23e/0x4f0
+> [  189.735876] P4D 1170dc067
+> [  189.739171]  do_page_fault+0x30/0x80
+> [  189.742323] PUD 1170dd067
+> [  189.745437]  page_fault+0x22/0x30
+> [  189.748329] PMD 0
+> [  189.751106] RIP: 0033:0x650390
+> [  189.756583] RSP: 002b:00007fffef6b1568 EFLAGS: 00010246
+> [  189.759574] Oops: 0002 [#1] SMP DEBUG_PAGEALLOC
+> [  189.762607] RAX: 0000000000000000 RBX: 00007fffef6b1594 RCX: 00007fae949caa20
+> [  189.765665] Modules linked in:
+> [  189.768423] RDX: 0000000000000008 RSI: 0000000000000000 RDI: 0000000000000000
+> [  189.768425] RBP: 00007fffef6b1590 R08: 0000000000000002 R09: 0000000000000010
+> [  189.771478]  ip6t_rpfilter
+> [  189.774297] R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000000
+> [  189.777016]  ipt_REJECT
+> [  189.779366] R13: 0000000000000000 R14: 00007fae969787e0 R15: 0000000000000004
+> [  189.782114]  nf_reject_ipv4
+> [  189.784839] CPU: 7 PID: 6959 Comm: sleep Not tainted 4.14.0-rc8+ #302
+> [  189.785113] Mem-Info:
+> ---------- vmcore-dmesg end ----------
+
+hm... wondering if this is a regression.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
