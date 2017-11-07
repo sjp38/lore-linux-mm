@@ -1,73 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A24C6B0033
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 19:46:58 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id d9so8178029qtd.8
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 16:46:58 -0800 (PST)
-Received: from mail.efficios.com (mail.efficios.com. [167.114.142.141])
-        by mx.google.com with ESMTPS id w134si17624qkw.38.2017.11.06.16.46.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 16:46:57 -0800 (PST)
-Date: Tue, 7 Nov 2017 00:47:17 +0000 (UTC)
-From: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
-Message-ID: <337041894.6072.1510015637355.JavaMail.zimbra@efficios.com>
-In-Reply-To: <20171107113729.13369a30@roar.ozlabs.ibm.com>
-References: <20171106092228.31098-1-mhocko@kernel.org> <1509992067.4140.1.camel@oracle.com> <20171106205644.29386-11-mathieu.desnoyers@efficios.com> <20171107113729.13369a30@roar.ozlabs.ibm.com>
-Subject: Re: [RFC PATCH for 4.15 10/14] cpu_opv: Wire up powerpc system call
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 859516B0033
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 19:54:29 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id i19so1409549ote.7
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 16:54:29 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id a35si7401otb.173.2017.11.06.16.54.28
+        for <linux-mm@kvack.org>;
+        Mon, 06 Nov 2017 16:54:28 -0800 (PST)
+Date: Tue, 7 Nov 2017 00:54:32 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
+ TLB entry
+Message-ID: <20171107005432.GB12761@arm.com>
+References: <20171106033651.172368-1-wangnan0@huawei.com>
+ <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
+ <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
+ <20171106122726.jwe2ecymlu7qclkk@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171106122726.jwe2ecymlu7qclkk@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Boqun Feng <boqun.feng@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Dave Watson <davejwatson@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Bob Liu <lliubbo@gmail.com>, Wang Nan <wangnan0@huawei.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
 
------ On Nov 6, 2017, at 7:37 PM, Nicholas Piggin npiggin@gmail.com wrote:
-
-> On Mon,  6 Nov 2017 15:56:40 -0500
-> Mathieu Desnoyers <mathieu.desnoyers@efficios.com> wrote:
+On Mon, Nov 06, 2017 at 01:27:26PM +0100, Michal Hocko wrote:
+> On Mon 06-11-17 09:52:51, Michal Hocko wrote:
+> > On Mon 06-11-17 15:04:40, Bob Liu wrote:
+> > > On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
+> > > > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
+> > > > In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
+> > > > TLB when tlb->fullmm is true:
+> > > >
+> > > >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
+> > > >
+> > > 
+> > > CC'ed Will Deacon.
+> > > 
+> > > > Which makes leaking of tlb entries. For example, when oom_reaper
+> > > > selects a task and reaps its virtual memory space, another thread
+> > > > in this task group may still running on another core and access
+> > > > these already freed memory through tlb entries.
+> > 
+> > No threads should be running in userspace by the time the reaper gets to
+> > unmap their address space. So the only potential case is they are
+> > accessing the user memory from the kernel when we should fault and we
+> > have MMF_UNSTABLE to cause a SIGBUS.
 > 
->> diff --git a/arch/powerpc/include/uapi/asm/unistd.h
->> b/arch/powerpc/include/uapi/asm/unistd.h
->> index b1980fcd56d5..972a7d68c143 100644
->> --- a/arch/powerpc/include/uapi/asm/unistd.h
->> +++ b/arch/powerpc/include/uapi/asm/unistd.h
->> @@ -396,5 +396,6 @@
->>  #define __NR_kexec_file_load	382
->>  #define __NR_statx		383
->>  #define __NR_rseq		384
->> +#define __NR_cpu_opv		385
-> 
-> Sorry for bike shedding, but could we invest a few more keystrokes to
-> make these names a bit more readable?
+> I hope we have clarified that the tasks are not running in userspace at
+> the time of reaping. I am still wondering whether this is real from the
+> kernel space via copy_{from,to}_user. Is it possible we won't fault?
+> I am not sure I understand what "Given that the ASID allocator will
+> never re-allocate a dirty ASID" means exactly. Will, could you clarify
+> please?
 
-Whenever I try to make variables or function names more explicit, I can
-literally feel my consciousness (taking the form of an angry Peter Zijlstra)
-breathing down my neck asking me to make them shorter. So I guess this is
-where it becomes a question of taste.
+Sure. Basically, we tag each address space with an ASID (PCID on x86) which
+is resident in the TLB. This means we can elide TLB invalidation when
+pulling down a full mm because we won't ever assign that ASID to another mm
+without doing TLB invalidation elsewhere (which actually just nukes the
+whole TLB).
 
-I think the "rseq" syscall name is short, to the point, and should be mostly
-fine.
+I think that means that we could potentially not fault on a kernel uaccess,
+because we could hit in the TLB. Perhaps a fix would be to set the force
+variable in tlb_finish_mmu if MMF_UNSTABLE is set on the mm?
 
-For "cpu_opv", it was just a short name that fit the bill until a
-better idea would come.
-
-I'm open to suggestions. Any color preference ? ;-)
-
-Thanks,
-
-Mathieu
-
-
-> 
-> Thanks,
-> Nick
-
--- 
-Mathieu Desnoyers
-EfficiOS Inc.
-http://www.efficios.com
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
