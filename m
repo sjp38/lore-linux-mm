@@ -1,130 +1,497 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C58756B027C
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 00:07:20 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id p2so13258926pfk.13
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 21:07:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n3sor84703pgt.340.2017.11.06.21.07.18
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A521B6B027E
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 01:32:16 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id m18so15616969pgd.13
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 22:32:16 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id h19si456409pgn.674.2017.11.06.22.32.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 21:07:19 -0800 (PST)
-Date: Tue, 7 Nov 2017 16:07:05 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
-In-Reply-To: <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
-	<20171105231850.5e313e46@roar.ozlabs.ibm.com>
-	<871slcszfl.fsf@linux.vnet.ibm.com>
-	<20171106174707.19f6c495@roar.ozlabs.ibm.com>
-	<24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
-	<20171106192524.12ea3187@roar.ozlabs.ibm.com>
-	<d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
-	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 22:32:15 -0800 (PST)
+Date: Tue, 7 Nov 2017 08:32:09 +0200
+From: Leon Romanovsky <leon@kernel.org>
+Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
+Message-ID: <20171107063209.GA18825@mtr-leonro.local>
+References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
+ <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
+ <20170930161023.GI2965@mtr-leonro.local>
+ <59DF60A3.7080803@huawei.com>
+ <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com>
+ <59F97BBE.5070207@huawei.com>
+ <fc7433af-4fa7-6b78-6bec-26941a427002@arm.com>
+ <5A011E49.6060407@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="FL5UXtIhxfXey3p5"
+Content-Disposition: inline
+In-Reply-To: <5A011E49.6060407@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A.
- Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
+Cc: Robin Murphy <robin.murphy@arm.com>, shaobo.xu@intel.com, xavier.huwei@tom.com, lijun_nudt@163.com, oulijun@huawei.com, linux-rdma@vger.kernel.org, charles.chenxin@huawei.com, linuxarm@huawei.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dledford@redhat.com, liuyixian@huawei.com, zhangxiping3@huawei.com, shaoboxu@tom.com
 
-C'ing everyone who was on the x86 56-bit user virtual address patch.
 
-I think we need more time to discuss this behaviour, in light of the
-regression Florian uncovered. I would propose we turn off the 56-bit
-user virtual address support for x86 for 4.14, and powerpc would
-follow and turn off its 512T support until we can get a better handle
-on the problems. (Actually Florian initially hit a couple of bugs in
-powerpc implementation, but pulling that string uncovers a whole lot
-of difficulties.)
+--FL5UXtIhxfXey3p5
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-The bi-modal behavior switched based on a combination of mmap address
-hint and MAP_FIXED just sucks. It's segregating our VA space with
-some non-standard heuristics, and it doesn't seem to work very well.
-
-What are we trying to do? Allow SAP HANA etc use huge address spaces
-by coding to these specific mmap heuristics we're going to add,
-rather than solving it properly in a way that requires adding a new
-syscall or personality or prctl or sysctl. Okay, but the cost is that
-despite best efforts, it still changes ABI behaviour for existing
-applications and these heuristics will become baked into the ABI that
-we will have to support. Not a good tradeoff IMO.
-
-First of all, using addr and MAP_FIXED to develop our heuristic can
-never really give unchanged ABI. It's an in-band signal. brk() is a
-good example that steadily keeps incrementing address, so depending
-on malloc usage and address space randomization, you will get a brk()
-that ends exactly at 128T, then the next one will be >
-DEFAULT_MAP_WINDOW, and it will switch you to 56 bit address space.
-
-Second, the kernel can never completely solve the problem this way.
-How do we know a malloc library will not ask for > 128TB addresses
-and pass them to an unknowing application?
-
-And lastly, there are a fair few bugs and places where description
-in changelogs and mailing lists does not match code. You don't want
-to know the mess in powerpc, but even x86 has two I can see:
-MAP_FIXED succeeds even when crossing 128TB addresses (where changelog
-indicated it should not), arch_get_unmapped_area_topdown() with an
-address hint is checking against TASK_SIZE rather than the limited
-128TB address, so it looks like it won't follow the heuristics.
-
-So unless everyone else thinks I'm crazy and disagrees, I'd ask for
-a bit more time to make sure we get this interface right. I would
-hope for something like prctl PR_SET_MM which can be used to set
-our user virtual address bits on a fine grained basis. Maybe a
-sysctl, maybe a personality. Something out-of-band. I don't wan to
-get too far into that discussion yet. First we need to agree whether
-or not the code in the tree today is a problem.
-
-Thanks,
-Nick
-
-On Mon, 6 Nov 2017 09:32:25 +0100
-Florian Weimer <fweimer@redhat.com> wrote:
-
-> On 11/06/2017 09:30 AM, Aneesh Kumar K.V wrote:
-> > On 11/06/2017 01:55 PM, Nicholas Piggin wrote:  
-> >> On Mon, 6 Nov 2017 09:11:37 +0100
-> >> Florian Weimer <fweimer@redhat.com> wrote:
-> >>  
-> >>> On 11/06/2017 07:47 AM, Nicholas Piggin wrote:  
-> >>>> "You get < 128TB unless explicitly requested."
+On Tue, Nov 07, 2017 at 10:45:29AM +0800, Wei Hu (Xavier) wrote:
+>
+>
+> On 2017/11/1 20:26, Robin Murphy wrote:
+> > On 01/11/17 07:46, Wei Hu (Xavier) wrote:
+> >>
+> >> On 2017/10/12 20:59, Robin Murphy wrote:
+> >>> On 12/10/17 13:31, Wei Hu (Xavier) wrote:
+> >>>> On 2017/10/1 0:10, Leon Romanovsky wrote:
+> >>>>> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
+> >>>>>> If the IOMMU is enabled, the length of sg obtained from
+> >>>>>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
+> >>>>>> dma address, the IOVA will not be page continuous. and the VA
+> >>>>>> returned from dma_alloc_coherent is a vmalloc address. However,
+> >>>>>> the VA obtained by the page_address is a discontinuous VA. Under
+> >>>>>> these circumstances, the IOVA should be calculated based on the
+> >>>>>> sg length, and record the VA returned from dma_alloc_coherent
+> >>>>>> in the struct of hem.
+> >>>>>>
+> >>>>>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
+> >>>>>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
+> >>>>>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
+> >>>>>> ---
+> >>>>> Doug,
+> >>>>>
+> >>>>> I didn't invest time in reviewing it, but having "is_vmalloc_addr" =
+in
+> >>>>> driver code to deal with dma_alloc_coherent is most probably wrong.
+> >>>>>
+> >>>>> Thanks
+> >>>> Hi,  Leon & Doug
+> >>>>     We refered the function named __ttm_dma_alloc_page in the kernel
+> >>>> code as below:
+> >>>>     And there are similar methods in bch_bio_map and mem_to_page
+> >>>> functions in current 4.14-rcx.
 > >>>>
-> >>>> Simple, reasonable, obvious rule. Avoids breaking apps that store
-> >>>> some bits in the top of pointers (provided that memory allocator
-> >>>> userspace libraries also do the right thing).  
+> >>>>         static struct dma_page *__ttm_dma_alloc_page(struct dma_pool=
+ *pool)
+> >>>>         {
+> >>>>             struct dma_page *d_page;
+> >>>>
+> >>>>             d_page =3D kmalloc(sizeof(struct dma_page), GFP_KERNEL);
+> >>>>             if (!d_page)
+> >>>>                 return NULL;
+> >>>>
+> >>>>             d_page->vaddr =3D dma_alloc_coherent(pool->dev, pool->si=
+ze,
+> >>>>                                &d_page->dma,
+> >>>>                                    pool->gfp_flags);
+> >>>>             if (d_page->vaddr) {
+> >>>>                 if (is_vmalloc_addr(d_page->vaddr))
+> >>>>                     d_page->p =3D vmalloc_to_page(d_page->vaddr);
+> >>>>                 else
+> >>>>                     d_page->p =3D virt_to_page(d_page->vaddr);
+> >>> There are cases on various architectures where neither of those is
+> >>> right. Whether those actually intersect with TTM or RDMA use-cases is
+> >>> another matter, of course.
 > >>>
-> >>> So brk would simplify fail instead of crossing the 128 TiB threshold?  
-> >>
-> >> Yes, that was the intention and that's what x86 seems to do.
-> >>  
+> >>> What definitely is a problem is if you ever take that page and end up
+> >>> accessing it through any virtual address other than the one explicitly
+> >>> returned by dma_alloc_coherent(). That can blow the coherency wide op=
+en
+> >>> and invite data loss, right up to killing the whole system with a
+> >>> machine check on certain architectures.
 > >>>
-> >>> glibc malloc should cope with that and switch to malloc, but this code
-> >>> path is obviously less well-tested than the regular way.  
+> >>> Robin.
+> >> Hi, Robin
+> >>     Thanks for your comment.
 > >>
-> >> Switch to mmap() I guess you meant?  
-> 
-> Yes, sorry.
-> 
-> >> powerpc has a couple of bugs in corner cases, so those should be fixed
-> >> according to intended policy for stable kernels I think.
+> >>     We have one problem and the related code as below.
+> >>     1. call dma_alloc_coherent function  serval times to alloc memory.
+> >>     2. vmap the allocated memory pages.
+> >>     3. software access memory by using the return virt addr of vmap
+> >>         and hardware using the dma addr of dma_alloc_coherent.
+> > The simple answer is "don't do that". Seriously. dma_alloc_coherent()
+> > gives you a CPU virtual address and a DMA address with which to access
+> > your buffer, and that is the limit of what you may infer about it. You
+> > have no guarantee that the virtual address is either in the linear map
+> > or vmalloc, and not some other special place. You have no guarantee that
+> > the underlying memory even has an associated struct page at all.
+> >
+> >>     When IOMMU is disabled in ARM64 architecture, we use virt_to_page()
+> >>     before vmap(), it works. And when IOMMU is enabled using
+> >>     virt_to_page() will cause calltrace later, we found the return
+> >>     addr of dma_alloc_coherent is vmalloc addr, so we add the
+> >>     condition judgement statement as below, it works.
+> >>         for (i =3D 0; i < buf->nbufs; ++i)
+> >>                 pages[i] =3D
+> >>                     is_vmalloc_addr(buf->page_list[i].buf) ?
+> >>                     vmalloc_to_page(buf->page_list[i].buf) :
+> >>                     virt_to_page(buf->page_list[i].buf);
+> >>     Can you give us suggestion? better method?
+> > Oh my goodness, having now taken a closer look at this driver, I'm lost
+> > for words in disbelief. To pick just one example:
+> >
+> > 	u32 bits_per_long =3D BITS_PER_LONG;
+> > 	...
+> > 	if (bits_per_long =3D=3D 64) {
+> > 		/* memory mapping nonsense */
+> > 	}
+> >
+> > WTF does the size of a long have to do with DMA buffer management!?
+> >
+> > Of course I can guess that it might be trying to make some tortuous
+> > inference about vmalloc space being constrained on 32-bit platforms, but
+> > still...
+> >
+> >>     The related code as below:
+> >>         buf->page_list =3D kcalloc(buf->nbufs, sizeof(*buf->page_list),
+> >>                      GFP_KERNEL);
+> >>         if (!buf->page_list)
+> >>             return -ENOMEM;
 > >>
-> >> But I question the policy. Just seems like an ugly and ineffective wart.
-> >> Exactly for such cases as this -- behaviour would change from run to run
-> >> depending on your address space randomization for example! In case your
-> >> brk happens to land nicely on 128TB then the next one would succeed.  
-> > 
-> > Why ? It should not change between run to run. We limit the free
-> > area search range based on hint address. So we should get consistent 
-> > results across run. even if we changed the context.addr_limit.  
-> 
-> The size of the gap to the 128 TiB limit varies between runs because of 
-> ASLR.  So some runs would use brk alone, others would use brk + malloc. 
-> That's not really desirable IMHO.
+> >>         for (i =3D 0; i < buf->nbufs; ++i) {
+> >>             buf->page_list[i].buf =3D dma_alloc_coherent(dev,
+> >>                                   page_size, &t,
+> >>                                   GFP_KERNEL);
+> >>             if (!buf->page_list[i].buf)
+> >>                 goto err_free;
+> >>
+> >>             buf->page_list[i].map =3D t;
+> >>             memset(buf->page_list[i].buf, 0, page_size);
+> >>         }
+> >>
+> >>         pages =3D kmalloc_array(buf->nbufs, sizeof(*pages),
+> >>                           GFP_KERNEL);
+> >>         if (!pages)
+> >>                 goto err_free;
+> >>
+> >>         for (i =3D 0; i < buf->nbufs; ++i)
+> >>                 pages[i] =3D
+> >>                     is_vmalloc_addr(buf->page_list[i].buf) ?
+> >>                     vmalloc_to_page(buf->page_list[i].buf) :
+> >>                     virt_to_page(buf->page_list[i].buf);
+> >>
+> >>         buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
+> >>                            PAGE_KERNEL);
+> >>         kfree(pages);
+> >>         if (!buf->direct.buf)
+> >>                 goto err_free;
+> > OK, this is complete crap. As above, you cannot assume that a struct
+> > page even exists; even if it does you cannot assume that using a
+> > PAGE_KERNEL mapping will not result in mismatched attributes,
+> > unpredictable behaviour and data loss. Trying to remap coherent DMA
+> > allocations like this is just egregiously wrong.
+> >
+> > What I do like is that you can seemingly fix all this by simply deleting
+> > hns_roce_buf::direct and all the garbage code related to it, and using
+> > the page_list entries consistently because the alternate paths involving
+> > those appear to do the right thing already.
+> >
+> > That is, of course, assuming that the buffers involved can be so large
+> > that it's not practical to just always make a single allocation and
+> > fragment it into multiple descriptors if the hardware does have some
+> > maximum length constraint - frankly I'm a little puzzled by the
+> > PAGE_SIZE * 2 threshold, given that that's not a fixed size.
+> >
+> > Robin.
+> Hi=EF=BC=8CRobin
+>
+>     We reconstruct the code as below:
+>             It replaces dma_alloc_coherent with __get_free_pages and
+> dma_map_single
+>     functions. So, we can vmap serveral ptrs returned by
+> __get_free_pages, right?
+
+Most probably not, you should get rid of your virt_to_page/vmap calls.
+
+Thanks
+
+>
+>
+>         buf->page_list =3D kcalloc(buf->nbufs, sizeof(*buf->page_list),
+>                      GFP_KERNEL);
+>         if (!buf->page_list)
+>             return -ENOMEM;
+>
+>         for (i =3D 0; i < buf->nbufs; ++i) {
+> 		ptr =3D (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+> 					       get_order(page_size));
+> 		if (!ptr) {
+> 			dev_err(dev, "Alloc pages error.\n");
+> 			goto err_free;
+> 		}
+>
+> 		t =3D dma_map_single(dev, ptr, page_size,
+> 				   DMA_BIDIRECTIONAL);
+> 		if (dma_mapping_error(dev, t)) {
+> 			dev_err(dev, "DMA mapping error.\n");
+> 			free_pages((unsigned long)ptr,
+> 				   get_order(page_size));
+> 			goto err_free;
+> 		}
+>
+> 		buf->page_list[i].buf =3D ptr;
+> 		buf->page_list[i].map =3D t;
+>         }
+>
+>         pages =3D kmalloc_array(buf->nbufs, sizeof(*pages),
+>                           GFP_KERNEL);
+>         if (!pages)
+>                 goto err_free;
+>
+>         for (i =3D 0; i < buf->nbufs; ++i)
+>                 pages[i] =3D virt_to_page(buf->page_list[i].buf);
+>
+>         buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
+>                            PAGE_KERNEL);
+>         kfree(pages);
+>         if (!buf->direct.buf)
+>                 goto err_free;
+>
+>
+>     Regards
+> Wei Hu
+> >>     Regards
+> >> Wei Hu
+> >>>>             } else {
+> >>>>                 kfree(d_page);
+> >>>>                 d_page =3D NULL;
+> >>>>             }
+> >>>>             return d_page;
+> >>>>         }
+> >>>>
+> >>>>     Regards
+> >>>> Wei Hu
+> >>>>>>   drivers/infiniband/hw/hns/hns_roce_alloc.c |  5 ++++-
+> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hem.c   | 30
+> >>>>>> +++++++++++++++++++++++++++---
+> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hem.h   |  6 ++++++
+> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-=
+------
+> >>>>>>   4 files changed, 52 insertions(+), 11 deletions(-)
+> >>>>>>
+> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c
+> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+> >>>>>> index 3e4c525..a69cd4b 100644
+> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
+> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
+> >>>>>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev
+> >>>>>> *hr_dev, u32 size, u32 max_direct,
+> >>>>>>                   goto err_free;
+> >>>>>>
+> >>>>>>               for (i =3D 0; i < buf->nbufs; ++i)
+> >>>>>> -                pages[i] =3D virt_to_page(buf->page_list[i].buf);
+> >>>>>> +                pages[i] =3D
+> >>>>>> +                    is_vmalloc_addr(buf->page_list[i].buf) ?
+> >>>>>> +                    vmalloc_to_page(buf->page_list[i].buf) :
+> >>>>>> +                    virt_to_page(buf->page_list[i].buf);
+> >>>>>>
+> >>>>>>               buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
+> >>>>>>                              PAGE_KERNEL);
+> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c
+> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.c
+> >>>>>> index 8388ae2..4a3d1d4 100644
+> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
+> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
+> >>>>>> @@ -200,6 +200,7 @@ static struct hns_roce_hem
+> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+> >>>>>>                              gfp_t gfp_mask)
+> >>>>>>   {
+> >>>>>>       struct hns_roce_hem_chunk *chunk =3D NULL;
+> >>>>>> +    struct hns_roce_vmalloc *vmalloc;
+> >>>>>>       struct hns_roce_hem *hem;
+> >>>>>>       struct scatterlist *mem;
+> >>>>>>       int order;
+> >>>>>> @@ -227,6 +228,7 @@ static struct hns_roce_hem
+> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+> >>>>>>               sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
+> >>>>>>               chunk->npages =3D 0;
+> >>>>>>               chunk->nsg =3D 0;
+> >>>>>> +            memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
+> >>>>>>               list_add_tail(&chunk->list, &hem->chunk_list);
+> >>>>>>           }
+> >>>>>>
+> >>>>>> @@ -243,7 +245,15 @@ static struct hns_roce_hem
+> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+> >>>>>>           if (!buf)
+> >>>>>>               goto fail;
+> >>>>>>
+> >>>>>> -        sg_set_buf(mem, buf, PAGE_SIZE << order);
+> >>>>>> +        if (is_vmalloc_addr(buf)) {
+> >>>>>> +            vmalloc =3D &chunk->vmalloc[chunk->npages];
+> >>>>>> +            vmalloc->is_vmalloc_addr =3D true;
+> >>>>>> +            vmalloc->vmalloc_addr =3D buf;
+> >>>>>> +            sg_set_page(mem, vmalloc_to_page(buf),
+> >>>>>> +                    PAGE_SIZE << order, offset_in_page(buf));
+> >>>>>> +        } else {
+> >>>>>> +            sg_set_buf(mem, buf, PAGE_SIZE << order);
+> >>>>>> +        }
+> >>>>>>           WARN_ON(mem->offset);
+> >>>>>>           sg_dma_len(mem) =3D PAGE_SIZE << order;
+> >>>>>>
+> >>>>>> @@ -262,17 +272,25 @@ static struct hns_roce_hem
+> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
+> >>>>>>   void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct
+> >>>>>> hns_roce_hem *hem)
+> >>>>>>   {
+> >>>>>>       struct hns_roce_hem_chunk *chunk, *tmp;
+> >>>>>> +    void *cpu_addr;
+> >>>>>>       int i;
+> >>>>>>
+> >>>>>>       if (!hem)
+> >>>>>>           return;
+> >>>>>>
+> >>>>>>       list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list)=
+ {
+> >>>>>> -        for (i =3D 0; i < chunk->npages; ++i)
+> >>>>>> +        for (i =3D 0; i < chunk->npages; ++i) {
+> >>>>>> +            if (chunk->vmalloc[i].is_vmalloc_addr)
+> >>>>>> +                cpu_addr =3D chunk->vmalloc[i].vmalloc_addr;
+> >>>>>> +            else
+> >>>>>> +                cpu_addr =3D
+> >>>>>> +                   lowmem_page_address(sg_page(&chunk->mem[i]));
+> >>>>>> +
+> >>>>>>               dma_free_coherent(hr_dev->dev,
+> >>>>>>                      chunk->mem[i].length,
+> >>>>>> -                   lowmem_page_address(sg_page(&chunk->mem[i])),
+> >>>>>> +                   cpu_addr,
+> >>>>>>                      sg_dma_address(&chunk->mem[i]));
+> >>>>>> +        }
+> >>>>>>           kfree(chunk);
+> >>>>>>       }
+> >>>>>>
+> >>>>>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev
+> >>>>>> *hr_dev,
+> >>>>>>
+> >>>>>>               if (chunk->mem[i].length > (u32)offset) {
+> >>>>>>                   page =3D sg_page(&chunk->mem[i]);
+> >>>>>> +                if (chunk->vmalloc[i].is_vmalloc_addr) {
+> >>>>>> +                    mutex_unlock(&table->mutex);
+> >>>>>> +                    return page ?
+> >>>>>> +                        chunk->vmalloc[i].vmalloc_addr
+> >>>>>> +                        + offset : NULL;
+> >>>>>> +                }
+> >>>>>>                   goto out;
+> >>>>>>               }
+> >>>>>>               offset -=3D chunk->mem[i].length;
+> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h
+> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.h
+> >>>>>> index af28bbf..62d712a 100644
+> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
+> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
+> >>>>>> @@ -72,11 +72,17 @@ enum {
+> >>>>>>        HNS_ROCE_HEM_PAGE_SIZE  =3D 1 << HNS_ROCE_HEM_PAGE_SHIFT,
+> >>>>>>   };
+> >>>>>>
+> >>>>>> +struct hns_roce_vmalloc {
+> >>>>>> +    bool    is_vmalloc_addr;
+> >>>>>> +    void    *vmalloc_addr;
+> >>>>>> +};
+> >>>>>> +
+> >>>>>>   struct hns_roce_hem_chunk {
+> >>>>>>       struct list_head     list;
+> >>>>>>       int             npages;
+> >>>>>>       int             nsg;
+> >>>>>>       struct scatterlist     mem[HNS_ROCE_HEM_CHUNK_LEN];
+> >>>>>> +    struct hns_roce_vmalloc     vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
+> >>>>>>   };
+> >>>>>>
+> >>>>>>   struct hns_roce_hem {
+> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+> >>>>>> index b99d70a..9e19bf1 100644
+> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
+> >>>>>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void
+> >>>>>> *mb_buf, struct hns_roce_mr *mr,
+> >>>>>>   {
+> >>>>>>       struct hns_roce_v2_mpt_entry *mpt_entry;
+> >>>>>>       struct scatterlist *sg;
+> >>>>>> +    u64 page_addr =3D 0;
+> >>>>>>       u64 *pages;
+> >>>>>> +    int i =3D 0, j =3D 0;
+> >>>>>> +    int len =3D 0;
+> >>>>>>       int entry;
+> >>>>>> -    int i;
+> >>>>>>
+> >>>>>>       mpt_entry =3D mb_buf;
+> >>>>>>       memset(mpt_entry, 0, sizeof(*mpt_entry));
+> >>>>>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void
+> >>>>>> *mb_buf, struct hns_roce_mr *mr,
+> >>>>>>
+> >>>>>>       i =3D 0;
+> >>>>>>       for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry=
+) {
+> >>>>>> -        pages[i] =3D ((u64)sg_dma_address(sg)) >> 6;
+> >>>>>> -
+> >>>>>> -        /* Record the first 2 entry directly to MTPT table */
+> >>>>>> -        if (i >=3D HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+> >>>>>> -            break;
+> >>>>>> -        i++;
+> >>>>>> +        len =3D sg_dma_len(sg) >> PAGE_SHIFT;
+> >>>>>> +        for (j =3D 0; j < len; ++j) {
+> >>>>>> +            page_addr =3D sg_dma_address(sg) +
+> >>>>>> +                    (j << mr->umem->page_shift);
+> >>>>>> +            pages[i] =3D page_addr >> 6;
+> >>>>>> +
+> >>>>>> +            /* Record the first 2 entry directly to MTPT table */
+> >>>>>> +            if (i >=3D HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
+> >>>>>> +                goto found;
+> >>>>>> +            i++;
+> >>>>>> +        }
+> >>>>>>       }
+> >>>>>>
+> >>>>>> +found:
+> >>>>>>       mpt_entry->pa0_l =3D cpu_to_le32(lower_32_bits(pages[0]));
+> >>>>>>       roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_=
+H_M,
+> >>>>>>                  V2_MPT_BYTE_56_PA0_H_S,
+> >>>>>> --
+> >>>>>> 1.9.1
+> >>>>>>
+> >>>> _______________________________________________
+> >>>> iommu mailing list
+> >>>> iommu@lists.linux-foundation.org
+> >>>> https://lists.linuxfoundation.org/mailman/listinfo/iommu
+> >>> .
+> >>>
+> >>
+> > --
+> > To unsubscribe from this list: send the line "unsubscribe linux-rdma" in
+> > the body of a message to majordomo@vger.kernel.org
+> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> >
+> > .
+> >
+>
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-rdma" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+
+--FL5UXtIhxfXey3p5
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAloBU1wACgkQ5GN7iDZy
+WKey+w//RdMtLSOgrC5hsBS2xOXo991uS2MGybdaF1CQUawRhJN/3Md0syUfF1qt
+iSash/1GaklAznR/RUTAaF9SEFwd2l0NHWtDOUev357Fl6FBeoavA0ooudgQ/ue5
+0aiO0IgyM4OcVvDWHK5f56EhUd9xGYCc6XLw7VeK1x0LSL5tfnM7vCv02R0o41at
+IkWZabtaT68PuVb3gA28MM+KiwH4JbuPNTIuvnUmSHF6AvgszEcak8WyLCfzPRfl
+Fb++hnFUtP0gfduF1Dv0wN/Efd6wspC2lBCfKybeG5KOxH+3aAJ0wo9Wmf/iRvyL
+wMgG1AGEWNE8HZIdAZp7x7HrcGZUX+Ybz9VjxUUFidOJoGy8v3MK4YAUM+0uQXDX
+wpmhKt9LqCzIBlWeSVr6ADAfO+Zy3qNXMJMDD/fcDm3apbQJY3kglAImsk2GSUfH
+qELOCL+CeCWdnR2FiWvTxKVVVvgHhuqo5t6g9lTfpH6/rm2ZZ4IvB2Lvpn1sk2xc
+K6Gy+YPQsb+wSA8M3blVxNWkXC8DDQC8T6UIbD6umkRDW+ITRnZaf6dVo8VgIY0Y
+yzbTmboBMdHDWuaoWnKJdat1it8NU/w8XFCNzEqzKJHaeXZWt74RiYlOoMOLFQYR
+x0zDACunlaPt1ML8k4+K1ZoWYtjnoGn89IL3AttvFM2UuhPFmGg=
+=iBDx
+-----END PGP SIGNATURE-----
+
+--FL5UXtIhxfXey3p5--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
