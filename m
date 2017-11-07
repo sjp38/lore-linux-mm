@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D8EB280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:35 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 82so12715126oid.11
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:35 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DD269280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:37 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id g125so12820540oib.13
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:37 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s8si522023ots.549.2017.11.07.04.28.34
+        by mx.google.com with ESMTPS id 12si536779otk.546.2017.11.07.04.28.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 04:28:34 -0800 (PST)
+        Tue, 07 Nov 2017 04:28:36 -0800 (PST)
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH v3 8/9] memfd-test: move common code to a shared unit
-Date: Tue,  7 Nov 2017 13:27:59 +0100
-Message-Id: <20171107122800.25517-9-marcandre.lureau@redhat.com>
+Subject: [PATCH v3 9/9] memfd-test: run fuse test on hugetlb backend memory
+Date: Tue,  7 Nov 2017 13:28:00 +0100
+Message-Id: <20171107122800.25517-10-marcandre.lureau@redhat.com>
 In-Reply-To: <20171107122800.25517-1-marcandre.lureau@redhat.com>
 References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
@@ -23,180 +23,152 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-The memfd & fuse tests will share more common code in the following
-commits to test hugetlb support.
-
+Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
 Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
- tools/testing/selftests/memfd/Makefile     |  5 ++++
- tools/testing/selftests/memfd/common.c     | 46 ++++++++++++++++++++++++++++++
- tools/testing/selftests/memfd/common.h     |  9 ++++++
- tools/testing/selftests/memfd/fuse_test.c  |  8 ++----
- tools/testing/selftests/memfd/memfd_test.c | 36 ++---------------------
- 5 files changed, 64 insertions(+), 40 deletions(-)
- create mode 100644 tools/testing/selftests/memfd/common.c
- create mode 100644 tools/testing/selftests/memfd/common.h
+ tools/testing/selftests/memfd/fuse_test.c      | 38 ++++++++++++++++++++------
+ tools/testing/selftests/memfd/run_fuse_test.sh |  2 +-
+ tools/testing/selftests/memfd/run_tests.sh     |  1 +
+ 3 files changed, 32 insertions(+), 9 deletions(-)
 
-diff --git a/tools/testing/selftests/memfd/Makefile b/tools/testing/selftests/memfd/Makefile
-index 3926a0409dda..a5276a91dfbf 100644
---- a/tools/testing/selftests/memfd/Makefile
-+++ b/tools/testing/selftests/memfd/Makefile
-@@ -12,3 +12,8 @@ fuse_mnt.o: CFLAGS += $(shell pkg-config fuse --cflags)
- include ../lib.mk
- 
- $(OUTPUT)/fuse_mnt: LDLIBS += $(shell pkg-config fuse --libs)
-+
-+$(OUTPUT)/memfd_test: memfd_test.c common.o
-+$(OUTPUT)/fuse_test: fuse_test.c common.o
-+
-+EXTRA_CLEAN = common.o
-diff --git a/tools/testing/selftests/memfd/common.c b/tools/testing/selftests/memfd/common.c
-new file mode 100644
-index 000000000000..8eb3d75f6e60
---- /dev/null
-+++ b/tools/testing/selftests/memfd/common.c
-@@ -0,0 +1,46 @@
-+// SPDX-License-Identifier: GPL-2.0
-+#define _GNU_SOURCE
-+#define __EXPORTED_HEADERS__
-+
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <linux/fcntl.h>
-+#include <linux/memfd.h>
-+#include <unistd.h>
-+#include <sys/syscall.h>
-+
-+#include "common.h"
-+
-+int hugetlbfs_test = 0;
-+
-+/*
-+ * Copied from mlock2-tests.c
-+ */
-+unsigned long default_huge_page_size(void)
-+{
-+	unsigned long hps = 0;
-+	char *line = NULL;
-+	size_t linelen = 0;
-+	FILE *f = fopen("/proc/meminfo", "r");
-+
-+	if (!f)
-+		return 0;
-+	while (getline(&line, &linelen, f) > 0) {
-+		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
-+			hps <<= 10;
-+			break;
-+		}
-+	}
-+
-+	free(line);
-+	fclose(f);
-+	return hps;
-+}
-+
-+int sys_memfd_create(const char *name, unsigned int flags)
-+{
-+	if (hugetlbfs_test)
-+		flags |= MFD_HUGETLB;
-+
-+	return syscall(__NR_memfd_create, name, flags);
-+}
-diff --git a/tools/testing/selftests/memfd/common.h b/tools/testing/selftests/memfd/common.h
-new file mode 100644
-index 000000000000..522d2c630bd8
---- /dev/null
-+++ b/tools/testing/selftests/memfd/common.h
-@@ -0,0 +1,9 @@
-+#ifndef COMMON_H_
-+#define COMMON_H_
-+
-+extern int hugetlbfs_test;
-+
-+unsigned long default_huge_page_size(void);
-+int sys_memfd_create(const char *name, unsigned int flags);
-+
-+#endif
 diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
-index 1ccb7a3eb14b..795a25ba8521 100644
+index 795a25ba8521..b018e835737d 100644
 --- a/tools/testing/selftests/memfd/fuse_test.c
 +++ b/tools/testing/selftests/memfd/fuse_test.c
-@@ -33,15 +33,11 @@
- #include <sys/wait.h>
- #include <unistd.h>
- 
-+#include "common.h"
-+
+@@ -38,6 +38,8 @@
  #define MFD_DEF_SIZE 8192
  #define STACK_SIZE 65536
  
--static int sys_memfd_create(const char *name,
--			    unsigned int flags)
--{
--	return syscall(__NR_memfd_create, name, flags);
--}
--
- static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
- {
- 	int r, fd;
-diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
-index 955d09ee16ca..4c049b6b6985 100644
---- a/tools/testing/selftests/memfd/memfd_test.c
-+++ b/tools/testing/selftests/memfd/memfd_test.c
-@@ -19,6 +19,8 @@
- #include <sys/wait.h>
- #include <unistd.h>
- 
-+#include "common.h"
++static size_t mfd_def_size = MFD_DEF_SIZE;
 +
- #define MEMFD_STR	"memfd:"
- #define MEMFD_HUGE_STR	"memfd-hugetlb:"
- #define SHARED_FT_STR	"(shared file-table)"
-@@ -29,43 +31,9 @@
- /*
-  * Default is not to test hugetlbfs
-  */
--static int hugetlbfs_test;
- static size_t mfd_def_size = MFD_DEF_SIZE;
- static const char *memfd_str = MEMFD_STR;
- 
--/*
-- * Copied from mlock2-tests.c
-- */
--static unsigned long default_huge_page_size(void)
--{
--	unsigned long hps = 0;
--	char *line = NULL;
--	size_t linelen = 0;
--	FILE *f = fopen("/proc/meminfo", "r");
--
--	if (!f)
--		return 0;
--	while (getline(&line, &linelen, f) > 0) {
--		if (sscanf(line, "Hugepagesize:       %lu kB", &hps) == 1) {
--			hps <<= 10;
--			break;
--		}
--	}
--
--	free(line);
--	fclose(f);
--	return hps;
--}
--
--static int sys_memfd_create(const char *name,
--			    unsigned int flags)
--{
--	if (hugetlbfs_test)
--		flags |= MFD_HUGETLB;
--
--	return syscall(__NR_memfd_create, name, flags);
--}
--
  static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
  {
  	int r, fd;
+@@ -123,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
+ 	void *p;
+ 
+ 	p = mmap(NULL,
+-		 MFD_DEF_SIZE,
++		 mfd_def_size,
+ 		 PROT_READ | PROT_WRITE,
+ 		 MAP_SHARED,
+ 		 fd,
+@@ -141,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
+ 	void *p;
+ 
+ 	p = mmap(NULL,
+-		 MFD_DEF_SIZE,
++		 mfd_def_size,
+ 		 PROT_READ | PROT_WRITE,
+ 		 MAP_PRIVATE,
+ 		 fd,
+@@ -174,7 +176,7 @@ static int sealing_thread_fn(void *arg)
+ 	usleep(200000);
+ 
+ 	/* unmount mapping before sealing to avoid i_mmap_writable failures */
+-	munmap(global_p, MFD_DEF_SIZE);
++	munmap(global_p, mfd_def_size);
+ 
+ 	/* Try sealing the global file; expect EBUSY or success. Current
+ 	 * kernels will never succeed, but in the future, kernels might
+@@ -224,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
+ 
+ int main(int argc, char **argv)
+ {
+-	static const char zero[MFD_DEF_SIZE];
++	char *zero;
+ 	int fd, mfd, r;
+ 	void *p;
+ 	int was_sealed;
+@@ -235,6 +237,25 @@ int main(int argc, char **argv)
+ 		abort();
+ 	}
+ 
++	if (argc >= 3) {
++		if (!strcmp(argv[2], "hugetlbfs")) {
++			unsigned long hpage_size = default_huge_page_size();
++
++			if (!hpage_size) {
++				printf("Unable to determine huge page size\n");
++				abort();
++			}
++
++			hugetlbfs_test = 1;
++			mfd_def_size = hpage_size * 2;
++		} else {
++			printf("Unknown option: %s\n", argv[2]);
++			abort();
++		}
++	}
++
++	zero = calloc(sizeof(*zero), mfd_def_size);
++
+ 	/* open FUSE memfd file for GUP testing */
+ 	printf("opening: %s\n", argv[1]);
+ 	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
+@@ -245,7 +266,7 @@ int main(int argc, char **argv)
+ 
+ 	/* create new memfd-object */
+ 	mfd = mfd_assert_new("kern_memfd_fuse",
+-			     MFD_DEF_SIZE,
++			     mfd_def_size,
+ 			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
+ 
+ 	/* mmap memfd-object for writing */
+@@ -264,7 +285,7 @@ int main(int argc, char **argv)
+ 	 * This guarantees that the receive-buffer is pinned for 1s until the
+ 	 * data is written into it. The racing ADD_SEALS should thus fail as
+ 	 * the pages are still pinned. */
+-	r = read(fd, p, MFD_DEF_SIZE);
++	r = read(fd, p, mfd_def_size);
+ 	if (r < 0) {
+ 		printf("read() failed: %m\n");
+ 		abort();
+@@ -291,10 +312,10 @@ int main(int argc, char **argv)
+ 	 * enough to avoid any in-flight writes. */
+ 
+ 	p = mfd_assert_mmap_private(mfd);
+-	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
++	if (was_sealed && memcmp(p, zero, mfd_def_size)) {
+ 		printf("memfd sealed during read() but data not discarded\n");
+ 		abort();
+-	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
++	} else if (!was_sealed && !memcmp(p, zero, mfd_def_size)) {
+ 		printf("memfd sealed after read() but data discarded\n");
+ 		abort();
+ 	}
+@@ -303,6 +324,7 @@ int main(int argc, char **argv)
+ 	close(fd);
+ 
+ 	printf("fuse: DONE\n");
++	free(zero);
+ 
+ 	return 0;
+ }
+diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
+index 407df68dfe27..22e572e2d66a 100755
+--- a/tools/testing/selftests/memfd/run_fuse_test.sh
++++ b/tools/testing/selftests/memfd/run_fuse_test.sh
+@@ -10,6 +10,6 @@ set -e
+ 
+ mkdir mnt
+ ./fuse_mnt ./mnt
+-./fuse_test ./mnt/memfd
++./fuse_test ./mnt/memfd $@
+ fusermount -u ./mnt
+ rmdir ./mnt
+diff --git a/tools/testing/selftests/memfd/run_tests.sh b/tools/testing/selftests/memfd/run_tests.sh
+index daabb350697c..c2d41ed81b24 100755
+--- a/tools/testing/selftests/memfd/run_tests.sh
++++ b/tools/testing/selftests/memfd/run_tests.sh
+@@ -60,6 +60,7 @@ fi
+ # Run the hugetlbfs test
+ #
+ ./memfd_test hugetlbfs
++./run_fuse_test.sh hugetlbfs
+ 
+ #
+ # Give back any huge pages allocated for the test
 -- 
 2.15.0.125.g8f49766d64
 
