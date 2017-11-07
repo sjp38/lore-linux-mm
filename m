@@ -1,88 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C0F356B0284
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 02:54:33 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v88so7215890wrb.22
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 23:54:33 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j3si149711edb.372.2017.11.06.23.54.32
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 17BD66B0286
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:12:04 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id f20so1397840ioj.2
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:12:04 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id m13si849150iti.12.2017.11.07.00.12.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 06 Nov 2017 23:54:32 -0800 (PST)
-Date: Tue, 7 Nov 2017 08:54:28 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH] mm, oom_reaper: gather each vma to prevent leaking
- TLB entry
-Message-ID: <20171107075428.xy4inqifbz6ucwjw@dhcp22.suse.cz>
-References: <20171106033651.172368-1-wangnan0@huawei.com>
- <CAA_GA1dZebSLTEX2W85svWW6O_9RqXDnD7oFW+tMqg+HX5XbPA@mail.gmail.com>
- <20171106085251.jwrpgne4dnl4gopy@dhcp22.suse.cz>
- <20171106122726.jwe2ecymlu7qclkk@dhcp22.suse.cz>
- <20171107005432.GB12761@arm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 00:12:03 -0800 (PST)
+Date: Tue, 7 Nov 2017 09:11:43 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: possible deadlock in generic_file_write_iter
+Message-ID: <20171107081143.GD3326@worktop>
+References: <94eb2c05f6a018dc21055d39c05b@google.com>
+ <20171106032941.GR21978@ZenIV.linux.org.uk>
+ <CACT4Y+abiKapoG9ms6RMqNkGBJtjX_Nf5WEQiYJcJ7=XCsyD2w@mail.gmail.com>
+ <20171106131544.GB4359@quack2.suse.cz>
+ <20171106133304.GS21978@ZenIV.linux.org.uk>
+ <CACT4Y+YHPOaCVO81VPuC9hDLCSx=KJmwRf7pa3b96UAowLmA2A@mail.gmail.com>
+ <20171106160107.GA20227@worktop.programming.kicks-ass.net>
+ <20171107005442.GA1405@X58A-UD3R>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171107005432.GB12761@arm.com>
+In-Reply-To: <20171107005442.GA1405@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>, Wang Nan <wangnan0@huawei.com>
-Cc: Bob Liu <lliubbo@gmail.com>, Linux-MM <linux-mm@kvack.org>, Linux-Kernel <linux-kernel@vger.kernel.org>, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, Ingo Molnar <mingo@redhat.com>, kernel-team@lge.com
 
-On Tue 07-11-17 00:54:32, Will Deacon wrote:
-> On Mon, Nov 06, 2017 at 01:27:26PM +0100, Michal Hocko wrote:
-> > On Mon 06-11-17 09:52:51, Michal Hocko wrote:
-> > > On Mon 06-11-17 15:04:40, Bob Liu wrote:
-> > > > On Mon, Nov 6, 2017 at 11:36 AM, Wang Nan <wangnan0@huawei.com> wrote:
-> > > > > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering all virtual memory space.
-> > > > > In this case, tlb->fullmm is true. Some archs like arm64 doesn't flush
-> > > > > TLB when tlb->fullmm is true:
-> > > > >
-> > > > >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
-> > > > >
-> > > > 
-> > > > CC'ed Will Deacon.
-> > > > 
-> > > > > Which makes leaking of tlb entries. For example, when oom_reaper
-> > > > > selects a task and reaps its virtual memory space, another thread
-> > > > > in this task group may still running on another core and access
-> > > > > these already freed memory through tlb entries.
-> > > 
-> > > No threads should be running in userspace by the time the reaper gets to
-> > > unmap their address space. So the only potential case is they are
-> > > accessing the user memory from the kernel when we should fault and we
-> > > have MMF_UNSTABLE to cause a SIGBUS.
-> > 
-> > I hope we have clarified that the tasks are not running in userspace at
-> > the time of reaping. I am still wondering whether this is real from the
-> > kernel space via copy_{from,to}_user. Is it possible we won't fault?
-> > I am not sure I understand what "Given that the ASID allocator will
-> > never re-allocate a dirty ASID" means exactly. Will, could you clarify
-> > please?
+On Tue, Nov 07, 2017 at 09:54:42AM +0900, Byungchul Park wrote:
+> > The best I could come up with is something like the below; its not
+> > at all pretty and I could see people objecting; least of all myself for
+> > the __complete() thing, but I ran out of creative naming juice.
 > 
-> Sure. Basically, we tag each address space with an ASID (PCID on x86) which
-> is resident in the TLB. This means we can elide TLB invalidation when
-> pulling down a full mm because we won't ever assign that ASID to another mm
-> without doing TLB invalidation elsewhere (which actually just nukes the
-> whole TLB).
+> Patches assigning a lock_class per gendisk were already applied in tip.
+> I believe that solves this.
+> 
+>    e319e1fbd9d42420ab6eec0bfd75eb9ad7ca63b1
+>    block, locking/lockdep: Assign a lock_class per gendisk used for
+>    wait_for_completion()
+> 
+> I think the following proposal makes kernel too hacky.
 
-Thanks for the clarification!
-
-> I think that means that we could potentially not fault on a kernel uaccess,
-> because we could hit in the TLB. Perhaps a fix would be to set the force
-> variable in tlb_finish_mmu if MMF_UNSTABLE is set on the mm?
-
-OK, I suspect this is a more likely scenario than a race with the
-reschedule IPI discussed elsewhere in the email thread. Even though I
-have to admit I have never checked how are IPIs implemented on arm64, so
-my perception might be off.
-
-I think it would be best to simply do per VMA tlb gather like the
-original patch does. It would be great if the changelog absorbed the
-above two paragraphs. Wangnan could you resend with those clarifications
-please?
--- 
-Michal Hocko
-SUSE Labs
+Ah, I tough this was with those included...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
