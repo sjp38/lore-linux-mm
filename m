@@ -1,126 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F7966B026D
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:40:22 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id r6so12774233pfj.14
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:40:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b17sor18500pgf.428.2017.11.06.17.40.20
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id ACFB36B026F
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:41:26 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id d66so448941ioe.23
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:41:26 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id l20si63864ioc.203.2017.11.06.17.41.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 06 Nov 2017 17:40:20 -0800 (PST)
-Date: Tue, 7 Nov 2017 10:40:15 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171107014015.GA1822@jagdpanzerIV>
-References: <20171102134515.6eef16de@gandalf.local.home>
- <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 06 Nov 2017 17:41:24 -0800 (PST)
+Subject: Re: [PATCH v2 9/9] memfd-test: run fuse test on hugetlb backend
+ memory
+References: <20171106143944.13821-1-marcandre.lureau@redhat.com>
+ <20171106143944.13821-10-marcandre.lureau@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <988f32e8-9073-0022-076b-6f86dc650a9c@oracle.com>
+Date: Mon, 6 Nov 2017 17:41:16 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171106143944.13821-10-marcandre.lureau@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
+To: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com
 
-On (11/06/17 21:06), Tetsuo Handa wrote:
-> I tried your patch with warn_alloc() torture. It did not cause lockups.
-> But I felt that possibility of failing to flush last second messages (such
-> as SysRq-c or SysRq-b) to consoles has increased. Is this psychological?
+On 11/06/2017 06:39 AM, Marc-AndrA(C) Lureau wrote:
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
+> ---
+>  tools/testing/selftests/memfd/fuse_test.c      | 30 ++++++++++++++++++++++----
+>  tools/testing/selftests/memfd/run_fuse_test.sh |  2 +-
+>  tools/testing/selftests/memfd/run_tests.sh     |  1 +
+>  3 files changed, 28 insertions(+), 5 deletions(-)
+> 
+> diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
+> index 795a25ba8521..0a85b34929e1 100644
+> --- a/tools/testing/selftests/memfd/fuse_test.c
+> +++ b/tools/testing/selftests/memfd/fuse_test.c
+> @@ -38,6 +38,8 @@
+>  #define MFD_DEF_SIZE 8192
+>  #define STACK_SIZE 65536
+>  
+> +static size_t mfd_def_size = MFD_DEF_SIZE;
+> +
+>  static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
+>  {
+>  	int r, fd;
+> @@ -123,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
+>  	void *p;
+>  
+>  	p = mmap(NULL,
+> -		 MFD_DEF_SIZE,
+> +		 mfd_def_size,
+>  		 PROT_READ | PROT_WRITE,
+>  		 MAP_SHARED,
+>  		 fd,
+> @@ -141,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
+>  	void *p;
+>  
+>  	p = mmap(NULL,
+> -		 MFD_DEF_SIZE,
+> +		 mfd_def_size,
+>  		 PROT_READ | PROT_WRITE,
+>  		 MAP_PRIVATE,
+>  		 fd,
+> @@ -174,7 +176,7 @@ static int sealing_thread_fn(void *arg)
+>  	usleep(200000);
+>  
+>  	/* unmount mapping before sealing to avoid i_mmap_writable failures */
+> -	munmap(global_p, MFD_DEF_SIZE);
+> +	munmap(global_p, mfd_def_size);
+>  
+>  	/* Try sealing the global file; expect EBUSY or success. Current
+>  	 * kernels will never succeed, but in the future, kernels might
+> @@ -224,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
+>  
+>  int main(int argc, char **argv)
+>  {
+> -	static const char zero[MFD_DEF_SIZE];
+> +	char *zero;
+>  	int fd, mfd, r;
+>  	void *p;
+>  	int was_sealed;
+> @@ -235,6 +237,25 @@ int main(int argc, char **argv)
+>  		abort();
+>  	}
+>  
+> +	if (argc >= 3) {
+> +		if (!strcmp(argv[2], "hugetlbfs")) {
+> +			unsigned long hpage_size = default_huge_page_size();
+> +
+> +			if (!hpage_size) {
+> +				printf("Unable to determine huge page size\n");
+> +				abort();
+> +			}
+> +
+> +			hugetlbfs_test = 1;
+> +			mfd_def_size = hpage_size * 2;
+> +		} else {
+> +			printf("Unknown option: %s\n", argv[2]);
+> +			abort();
+> +		}
+> +	}
+> +
+> +	zero = calloc(sizeof(*zero), mfd_def_size);
+> +
+>  	/* open FUSE memfd file for GUP testing */
+>  	printf("opening: %s\n", argv[1]);
+>  	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
 
-do I understand it correctly that there are "lost messages"?
+When ftruncate'ing the newly created file, you need to make sure length is
+a multiple of huge page size for hugetlbfs files.  So, you will want to
+do something like:
 
-sysrq-b does an immediate emergency reboot. "normally" it's not expected
-to flush any pending logbuf messages because it's an emergency-reboot...
-but in fact it does. and this is why sysrq-b is not 100% reliable:
+--- a/tools/testing/selftests/memfd/fuse_test.c
++++ b/tools/testing/selftests/memfd/fuse_test.c
+@@ -265,7 +265,7 @@ int main(int argc, char **argv)
+ 
+        /* create new memfd-object */
+        mfd = mfd_assert_new("kern_memfd_fuse",
+-                            MFD_DEF_SIZE,
++                            mfd_def_size,
+                             MFD_CLOEXEC | MFD_ALLOW_SEALING);
+ 
+        /* mmap memfd-object for writing */
 
-	__handle_sysrq()
-	{
-	  pr_info("SysRq : ");
+Leaving MFD_DEF_SIZE for the size of reads and writes should be fine.
 
-	  op_p = __sysrq_get_key_op(key);
-	  pr_cont("%s\n", op_p->action_msg);
+-- 
+Mike Kravetz
 
-	    op_p->handler(key);
-
-	  pr_cont("\n");
-	}
-
-those pr_info()/pr_cont() calls can spoil sysrq-b, depending on how
-badly the system is screwed. if pr_info() deadlocks, then we never
-go to op_p->handler(key)->emergency_restart(). even if you suppress
-printing of info loglevel messages, pr_info() still goes to
-console_unlock() and prints [console_seq, log_next_seq] messages,
-if there any.
-
-there is, however, a subtle behaviour change, I think.
-
-previously, in some cases [?], pr_info("SysRq : ") from __handle_sysrq()
-would flush logbuf messages. now we have that "break out of console_unlock()
-loop even though there are pending messages, there is another CPU doing
-printk()". so sysrb-b instead of looping in console_unlock() goes directly
-to emergency_restart(). without the change it would have continued looping
-in console_unlock() and would have called emergency_restart() only when
-"console_seq == log_next_seq".
-
-now... the "subtle" part here is that we had that thing:
-	- *IF* __handle_sysrq() grabs the console_sem then it will not
-	  return from console_unlock() until logbuf is empty. so
-	  concurrent printk() messages won't get lost.
-
-what we have now is:
-	- if there are concurrent printk() then __handle_sysrq() does not
-	  fully flush the logbuf *even* if it grabbed the console_sem.
-
-> ---------- vmcore-dmesg start ----------
-> [  169.016198] postgres cpuset=
-> [  169.032544]  filemap_fault+0x311/0x790
-> [  169.047745] /
-> [  169.047780]  mems_allowed=0
-> [  169.050577]  ? xfs_ilock+0x126/0x1a0 [xfs]
-> [  169.062769]  mems_allowed=0
-> [  169.065754]  ? down_read_nested+0x3a/0x60
-> [  169.065783]  ? xfs_ilock+0x126/0x1a0 [xfs]
-> [  189.700206] sysrq: SysRq :
-> [  189.700639]  __xfs_filemap_fault.isra.19+0x3f/0xe0 [xfs]
-> [  189.700799]  xfs_filemap_fault+0xb/0x10 [xfs]
-> [  189.703981] Trigger a crash
-> [  189.707032]  __do_fault+0x19/0xa0
-> [  189.710008] BUG: unable to handle kernel
-> [  189.713387]  __handle_mm_fault+0xbb3/0xda0
-> [  189.716473] NULL pointer dereference
-> [  189.719674]  handle_mm_fault+0x14f/0x300
-> [  189.722969]  at           (null)
-> [  189.722974] IP: sysrq_handle_crash+0x3b/0x70
-> [  189.726156]  ? handle_mm_fault+0x39/0x300
-> [  189.729537] PGD 1170dc067
-> [  189.732841]  __do_page_fault+0x23e/0x4f0
-> [  189.735876] P4D 1170dc067
-> [  189.739171]  do_page_fault+0x30/0x80
-> [  189.742323] PUD 1170dd067
-> [  189.745437]  page_fault+0x22/0x30
-> [  189.748329] PMD 0
-> [  189.751106] RIP: 0033:0x650390
-> [  189.756583] RSP: 002b:00007fffef6b1568 EFLAGS: 00010246
-> [  189.759574] Oops: 0002 [#1] SMP DEBUG_PAGEALLOC
-> [  189.762607] RAX: 0000000000000000 RBX: 00007fffef6b1594 RCX: 00007fae949caa20
-> [  189.765665] Modules linked in:
-> [  189.768423] RDX: 0000000000000008 RSI: 0000000000000000 RDI: 0000000000000000
-> [  189.768425] RBP: 00007fffef6b1590 R08: 0000000000000002 R09: 0000000000000010
-> [  189.771478]  ip6t_rpfilter
-> [  189.774297] R10: 0000000000000001 R11: 0000000000000246 R12: 0000000000000000
-> [  189.777016]  ipt_REJECT
-> [  189.779366] R13: 0000000000000000 R14: 00007fae969787e0 R15: 0000000000000004
-> [  189.782114]  nf_reject_ipv4
-> [  189.784839] CPU: 7 PID: 6959 Comm: sleep Not tainted 4.14.0-rc8+ #302
-> [  189.785113] Mem-Info:
-> ---------- vmcore-dmesg end ----------
-
-hm... wondering if this is a regression.
-
-	-ss
+> @@ -303,6 +324,7 @@ int main(int argc, char **argv)
+>  	close(fd);
+>  
+>  	printf("fuse: DONE\n");
+> +	free(zero);
+>  
+>  	return 0;
+>  }
+> diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
+> index 407df68dfe27..22e572e2d66a 100755
+> --- a/tools/testing/selftests/memfd/run_fuse_test.sh
+> +++ b/tools/testing/selftests/memfd/run_fuse_test.sh
+> @@ -10,6 +10,6 @@ set -e
+>  
+>  mkdir mnt
+>  ./fuse_mnt ./mnt
+> -./fuse_test ./mnt/memfd
+> +./fuse_test ./mnt/memfd $@
+>  fusermount -u ./mnt
+>  rmdir ./mnt
+> diff --git a/tools/testing/selftests/memfd/run_tests.sh b/tools/testing/selftests/memfd/run_tests.sh
+> index daabb350697c..c2d41ed81b24 100755
+> --- a/tools/testing/selftests/memfd/run_tests.sh
+> +++ b/tools/testing/selftests/memfd/run_tests.sh
+> @@ -60,6 +60,7 @@ fi
+>  # Run the hugetlbfs test
+>  #
+>  ./memfd_test hugetlbfs
+> +./run_fuse_test.sh hugetlbfs
+>  
+>  #
+>  # Give back any huge pages allocated for the test
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
