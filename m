@@ -1,93 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BC8B6B0271
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:47:30 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id f199so8641335qke.20
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:47:30 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f21si84176qka.383.2017.11.06.17.47.29
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 996CB6B0273
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 21:31:04 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id c16so8608930qke.17
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 18:31:04 -0800 (PST)
+Received: from NAM01-BN3-obe.outbound.protection.outlook.com (mail-bn3nam01on0094.outbound.protection.outlook.com. [104.47.33.94])
+        by mx.google.com with ESMTPS id n33si182193qtn.47.2017.11.06.18.31.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 17:47:29 -0800 (PST)
-Subject: Re: [PATCH v2 0/9] memfd: add sealing to hugetlb-backed memory
-References: <20171106143944.13821-1-marcandre.lureau@redhat.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <feeb8164-134f-5efa-018c-b80ca8e26414@oracle.com>
-Date: Mon, 6 Nov 2017 17:47:21 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 06 Nov 2017 18:31:03 -0800 (PST)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [RFC -mm] mm, userfaultfd, THP: Avoid waiting when PMD under THP
+ migration
+Date: Mon, 06 Nov 2017 21:30:54 -0500
+Message-ID: <AA90DD1E-A077-484C-B7B6-738D76CC2F91@cs.rutgers.edu>
+In-Reply-To: <20171106203527.GB26645@redhat.com>
+References: <20171103075231.25416-1-ying.huang@intel.com>
+ <D3FBD1E2-FC24-46B1-9CFF-B73295292675@cs.rutgers.edu>
+ <CAC=cRTPCw4gBLCequmo6+osqGOrV_+n8puXn=R7u+XOVHLQxxA@mail.gmail.com>
+ <AC486A3D-F3D4-403D-B3EB-DB2A14CF4042@cs.rutgers.edu>
+ <20171106203527.GB26645@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171106143944.13821-1-marcandre.lureau@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed;
+ boundary="=_MailMate_38156A7B-D9D7-4A8F-B960-D3F2C5442256_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, David Herrmann <dh.herrmann@gmail.com>
+To: Andrea Arcangeli <aarcange@redhat.com>
+Cc: huang ying <huang.ying.caritas@gmail.com>, "Huang, Ying" <ying.huang@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Alexander Viro <viro@zeniv.linux.org.uk>
 
-On 11/06/2017 06:39 AM, Marc-AndrA(C) Lureau wrote:
-> Hi,
-> 
-> Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
-> didn't add sealing support. One of the reasons to use memfd is to have
-> shared memory sealing when doing IPC or sharing memory with another
-> process with some extra safety. qemu uses shared memory & hugetables
-> with vhost-user (used by dpdk), so it is reasonable to use memfd
-> now instead for convenience and security reasons.
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-Thanks for doing this.
+--=_MailMate_38156A7B-D9D7-4A8F-B960-D3F2C5442256_=
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-I will create a patch to restructure the code such that memfd_create (and
-file sealing) is split out and will depend on CONFIG_TMPFS -or-
-CONFIG_HUGETLBFS.  I think this can wait to go in until after this patch
-series.  Unless, someone prefers that it go in first?
+On 6 Nov 2017, at 15:35, Andrea Arcangeli wrote:
 
--- 
-Mike Kravetz
+> On Mon, Nov 06, 2017 at 10:53:48AM -0500, Zi Yan wrote:
+>> Thanks for clarifying it. We both agree that !pmd_present(), which mea=
+ns
+>> PMD migration entry, does not get into userfaultfd_must_wait(),
+>> then there seems to be no issue with current code yet.
+>>
+>> However, the if (!pmd_present(_pmd)) in userfaultfd_must_wait() does n=
+ot
+>> match
+>> the exact condition. How about the patch below? It can catch pmd
+>> migration entries,
+>> which are only possible in x86_64 at the moment.
+>>
+>> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+>> index 1c713fd5b3e6..dda25444a6ee 100644
+>> --- a/fs/userfaultfd.c
+>> +++ b/fs/userfaultfd.c
+>> @@ -294,9 +294,11 @@ static inline bool userfaultfd_must_wait(struct
+>> userfaultfd_ctx *ctx,
+>>           * pmd_trans_unstable) of the pmd.
+>>           */
+>>          _pmd =3D READ_ONCE(*pmd);
+>> -       if (!pmd_present(_pmd))
+>> +       if (pmd_none(_pmd))
+>>                  goto out;
+>>
+>> +       VM_BUG_ON(thp_migration_supported() && is_pmd_migration_entry(=
+_pmd));
+>> +
+>
+> As I wrote in prev email I'm not sure about this invariant to be
+> correct 100% of the time (plus we'd want a VM_WARN_ON only
+> here). Specifically, what does prevent try_to_unmap to run on a THP
+> backed mapping with only the mmap_sem for reading?
+>
 
+Right. I missed the part that the page table lock is released before
+entering handle_userfault(). The pmd_none() can be mapped elsewhere
+and migrated, !pmd_present() but not pmd_none() is possible here when
+THP migration is enabled.
 
-> 
-> Thanks!
-> 
-> v1->v2: after Mike review,
-> - add "memfd-hugetlb:" prefix in memfd-test
-> - run fuse test on hugetlb backend memory
-> - rename function memfd_file_get_seals() -> memfd_file_seals_ptr()
-> - update commit messages
-> - added reviewed-by tags
-> 
-> RFC->v1:
-> - split rfc patch, after early review feedback
-> - added patch for memfd-test changes
-> - fix build with hugetlbfs disabled
-> - small code and commit messages improvements
-> 
-> Marc-AndrA(C) Lureau (9):
->   shmem: unexport shmem_add_seals()/shmem_get_seals()
->   shmem: rename functions that are memfd-related
->   hugetlb: expose hugetlbfs_inode_info in header
->   hugetlbfs: implement memfd sealing
->   shmem: add sealing support to hugetlb-backed memfd
->   memfd-tests: test hugetlbfs sealing
->   memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
->   memfd-test: move common code to a shared unit
->   memfd-test: run fuse test on hugetlb backend memory
-> 
->  fs/fcntl.c                                     |   2 +-
->  fs/hugetlbfs/inode.c                           |  39 +++--
->  include/linux/hugetlb.h                        |  11 ++
->  include/linux/shmem_fs.h                       |   6 +-
->  mm/shmem.c                                     |  59 ++++---
->  tools/testing/selftests/memfd/Makefile         |   5 +
->  tools/testing/selftests/memfd/common.c         |  45 ++++++
->  tools/testing/selftests/memfd/common.h         |   9 ++
->  tools/testing/selftests/memfd/fuse_test.c      |  36 +++--
->  tools/testing/selftests/memfd/memfd_test.c     | 212 ++++---------------------
->  tools/testing/selftests/memfd/run_fuse_test.sh |   2 +-
->  tools/testing/selftests/memfd/run_tests.sh     |   1 +
->  12 files changed, 195 insertions(+), 232 deletions(-)
->  create mode 100644 tools/testing/selftests/memfd/common.c
->  create mode 100644 tools/testing/selftests/memfd/common.h
-> 
+> I know what prevents to ever reproduce this in practice though (aside
+> from the fact the race between the is_swap_pmd() check in the main
+> page fault and the above check is small) and it's because compaction
+> won't migrate THP and even the numa faults will not use the migration
+> entry. So it'd require some more explicit migration numactl while
+> userfaults are running to ever see an hang in there.
+>
+> I think it's a regression since the introduction of THP migration
+> around commits 84c3fc4e9c563d8fb91cfdf5948da48fe1af34d3 /
+> 616b8371539a6c487404c3b8fb04078016dab4ba /
+> 9c670ea37947a82cb6d4df69139f7e46ed71a0ac etc.. before that pmd_none or
+> !pmd_present used to be equivalent, not the case any longer. Of course
+> pmd_none would have been better before too.
+>
+
+Right. Ying=E2=80=99s patch is a fix of the regression.
+
+Fixes: 84c3fc4e9c563 ("mm: thp: check pmd migration entry in common path"=
+)
+
+Thanks for pointing all these out.
+
+=E2=80=94
+Best Regards,
+Yan Zi
+
+--=_MailMate_38156A7B-D9D7-4A8F-B960-D3F2C5442256_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAloBGt4WHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzBasB/0S76/3qBUPYvT36zi5DsQV0klJ
+6rNaitKGr1BBRtXNgYCsg83awMpf9YUS6thgWEQ3XijGq9HCfIYytSgwXnxYAyiI
+Abb1KIMtsdm93llj4+Bk0Cos4h5CX2sYbTnbTwQi0Bi3ggl2DF2CF2Djs/8YREpi
+WSCdb2lcCJFAfahTuSRzJi8bGTVjjwr9gYqDVdO62E6zDwI681ySQk1KJSqPf8Ws
+hZev+rl//yFm/qK1BKVhoGC1UIbu5m5J3BrWHrpvOzS+ajSfcYc21iy0nNrwgdPM
+jM/xA0l9JysZnFhWHohhZpkQKlkPwcI/4Q2EXgolF9gATeO3vygLI5b4kvLm
+=oNMz
+-----END PGP SIGNATURE-----
+
+--=_MailMate_38156A7B-D9D7-4A8F-B960-D3F2C5442256_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
