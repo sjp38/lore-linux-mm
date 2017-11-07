@@ -1,288 +1,145 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F1C16B02D5
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 17:03:20 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id s144so568421oih.5
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 14:03:20 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x52si945488otb.218.2017.11.07.14.03.18
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 63A2E6B02E8
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 17:40:09 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id m6so649622qtc.6
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 14:40:09 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id r18si1670094qkl.26.2017.11.07.14.40.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 14:03:18 -0800 (PST)
-Date: Tue, 7 Nov 2017 17:03:11 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-Message-ID: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
+        Tue, 07 Nov 2017 14:40:07 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA7MdiHX004762
+	for <linux-mm@kvack.org>; Tue, 7 Nov 2017 17:40:06 -0500
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2e3gnfetbp-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 07 Nov 2017 17:40:05 -0500
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Tue, 7 Nov 2017 17:40:03 -0500
+Date: Tue, 7 Nov 2017 14:39:53 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v9 00/51] powerpc, mm: Memory Protection Keys
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+ <87efpbm706.fsf@mid.deneb.enyo.de>
+ <20171107012218.GA5546@ram.oc3035372033.ibm.com>
+ <87h8u6lf27.fsf@mid.deneb.enyo.de>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <87h8u6lf27.fsf@mid.deneb.enyo.de>
+Message-Id: <20171107223953.GB5546@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>
-Cc: dm-devel@redhat.com, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@lst.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Florian Weimer <fw@deneb.enyo.de>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linux-arch@vger.kernel.org, ebiederm@xmission.com, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
-Hi
+On Tue, Nov 07, 2017 at 08:32:16AM +0100, Florian Weimer wrote:
+> * Ram Pai:
+> 
+> > On Mon, Nov 06, 2017 at 10:28:41PM +0100, Florian Weimer wrote:
+> >> * Ram Pai:
+> >> 
+> >> > Testing:
+> >> > -------
+> >> > This patch series has passed all the protection key
+> >> > tests available in the selftest directory.The
+> >> > tests are updated to work on both x86 and powerpc.
+> >> > The selftests have passed on x86 and powerpc hardware.
+> >> 
+> >> How do you deal with the key reuse problem?  Is it the same as x86-64,
+> >> where it's quite easy to accidentally grant existing threads access to
+> >> a just-allocated key, either due to key reuse or a changed init_pkru
+> >> parameter?
+> >
+> > I am not sure how on x86-64, two threads get allocated the same key
+> > at the same time? the key allocation is guarded under the mmap_sem
+> > semaphore. So there cannot be a race where two threads get allocated
+> > the same key.
+> 
+> The problem is a pkey_alloc/pthread_create/pkey_free/pkey_alloc
+> sequence.  The pthread_create call makes the new thread inherit the
+> access rights of the current thread, but then the key is deallocated.
+> Reallocation of the same key will have that thread retain its access
+> rights, which is IMHO not correct.
 
-I am developing a driver that uses persistent memory for caching. A 
-persistent memory device can be mapped in several discontiguous ranges.
+(Dave Hansen: please correct me if I miss-speak below)
 
-The kernel has a function vmap that takes an array of pointers to pages 
-and maps these pages to contiguous linear address space. However, it can't 
-be used on persistent memory because persistent memory may not be backed 
-by page structures.
+As per the current semantics of sys_pkey_free(); the way I understand it,
+the calling thread is saying disassociate me from this key. Other
+threads continue to be associated with the key and could continue to
+get key-faults, but this calling thread will not get key-faults on that
+key any more.
 
-This patch introduces a new function vmap_pfn, it works like vmap, but 
-takes an array of pfn_t - so it can be used on persistent memory.
+Also the key should not get reallocated till all the threads in the process
+have disassocated from the key; by calling sys_pkey_free().
 
-This is an example how vmap_pfn is used: 
-https://www.redhat.com/archives/dm-devel/2017-November/msg00026.html (see 
-the function persistent_memory_claim)
+>From that point of view, I think there is a bug in the implementation of
+pkey on x86 and now on powerpc aswell.
 
-Mikulas
+> 
+> > Can you point me to the issue, if it is already discussed somewhere?
+> 
+> See a??MPK: pkey_free and key reusea?? on various lists (including
+> linux-mm and linux-arch).
+> 
+> It has a test case attached which demonstrates the behavior.
+> 
+> > As far as the semantics is concerned, a key allocated in one thread's
+> > context has no meaning if used in some other threads context within the
+> > same process.  The app should not try to re-use a key allocated in a
+> > thread's context in some other threads's context.
+> 
+> Uh-oh, that's not how this feature works on x86-64 at all.  There, the
+> keys are a process-global resource.  Treating them per-thread
+> seriously reduces their usefulness.
 
+Sorry. I was not thinking right. Let me restate.
 
+A key is a global resource, but the permissions on a key is
+local to a thread. For eg: the same key could disable
+access on a page for one thread, while it could disable write
+on the same page on another thread.
 
-From: Mikulas Patocka <mpatocka@redhat.com>
+> 
+> >> What about siglongjmp from a signal handler?
+> >
+> > On powerpc there is some relief.  the permissions on a key can be
+> > modified from anywhere, including from the signal handler, and the
+> > effect will be immediate.  You dont have to wait till the
+> > signal handler returns for the key permissions to be restore.
+> 
+> My concern is that the signal handler knows nothing about protection
+> keys, but the current x86-64 semantics will cause it to clobber the
+> access rights of the current thread.
+> 
+> > also after return from the sigsetjmp();
+> > possibly caused by siglongjmp(), the program can restore the permission
+> > on any key.
+> 
+> So that's not really an option.
+> 
+> > Atleast that is my theory. Can you give me a testcase; if you have one
+> > handy.
+> 
+> The glibc patch I posted under the a??MPK: pkey_free and key reusea??
+> thread covers this, too.
 
-There's a function vmap that can take discontiguous pages and map them 
-linearly to the vmalloc space. However, persistent memory may not be 
-backed by pages, so we can't use vmap on it.
+thanks. will try the test case with my kernel patches. But, on
+powerpc one can change the permissions on the key in the signal handler
+which takes into effect immediately, there should not be a bug
+in powerpc.
 
-This patch introduces a function vmap_pfn that works like vmap, but it 
-takes an array of page frame numbers (pfn_t). It can be used to remap 
-discontiguous chunks of persistent memory into a linear range.
+x86 has this requirement where it has to return from the signal handler
+back to the kernel in order to change the permission on a key,
+it can cause issues with longjump.
 
-Signed-off-by: Mikulas Patocka <mpatocka@redhat.com>
-
----
- include/linux/vmalloc.h |    2 +
- mm/vmalloc.c            |   88 +++++++++++++++++++++++++++++++++++++-----------
- 2 files changed, 71 insertions(+), 19 deletions(-)
-
-Index: linux-2.6/include/linux/vmalloc.h
-===================================================================
---- linux-2.6.orig/include/linux/vmalloc.h
-+++ linux-2.6/include/linux/vmalloc.h
-@@ -98,6 +98,8 @@ extern void vfree_atomic(const void *add
- 
- extern void *vmap(struct page **pages, unsigned int count,
- 			unsigned long flags, pgprot_t prot);
-+extern void *vmap_pfn(pfn_t *pfns, unsigned int count,
-+			unsigned long flags, pgprot_t prot);
- extern void vunmap(const void *addr);
- 
- extern int remap_vmalloc_range_partial(struct vm_area_struct *vma,
-Index: linux-2.6/mm/vmalloc.c
-===================================================================
---- linux-2.6.orig/mm/vmalloc.c
-+++ linux-2.6/mm/vmalloc.c
-@@ -31,6 +31,7 @@
- #include <linux/compiler.h>
- #include <linux/llist.h>
- #include <linux/bitops.h>
-+#include <linux/pfn_t.h>
- 
- #include <linux/uaccess.h>
- #include <asm/tlbflush.h>
-@@ -132,7 +133,7 @@ static void vunmap_page_range(unsigned l
- }
- 
- static int vmap_pte_range(pmd_t *pmd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+		unsigned long end, pgprot_t prot, struct page **pages, pfn_t *pfns, int *nr)
- {
- 	pte_t *pte;
- 
-@@ -145,20 +146,25 @@ static int vmap_pte_range(pmd_t *pmd, un
- 	if (!pte)
- 		return -ENOMEM;
- 	do {
--		struct page *page = pages[*nr];
--
-+		unsigned long pf;
-+		if (pages) {
-+			struct page *page = pages[*nr];
-+			if (WARN_ON(!page))
-+				return -ENOMEM;
-+			pf = page_to_pfn(page);
-+		} else {
-+			pf = pfn_t_to_pfn(pfns[*nr]);
-+		}
- 		if (WARN_ON(!pte_none(*pte)))
- 			return -EBUSY;
--		if (WARN_ON(!page))
--			return -ENOMEM;
--		set_pte_at(&init_mm, addr, pte, mk_pte(page, prot));
-+		set_pte_at(&init_mm, addr, pte, pfn_pte(pf, prot));
- 		(*nr)++;
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	return 0;
- }
- 
- static int vmap_pmd_range(pud_t *pud, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+		unsigned long end, pgprot_t prot, struct page **pages, pfn_t *pfns, int *nr)
- {
- 	pmd_t *pmd;
- 	unsigned long next;
-@@ -168,14 +174,14 @@ static int vmap_pmd_range(pud_t *pud, un
- 		return -ENOMEM;
- 	do {
- 		next = pmd_addr_end(addr, end);
--		if (vmap_pte_range(pmd, addr, next, prot, pages, nr))
-+		if (vmap_pte_range(pmd, addr, next, prot, pages, pfns, nr))
- 			return -ENOMEM;
- 	} while (pmd++, addr = next, addr != end);
- 	return 0;
- }
- 
- static int vmap_pud_range(p4d_t *p4d, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+		unsigned long end, pgprot_t prot, struct page **pages, pfn_t *pfns, int *nr)
- {
- 	pud_t *pud;
- 	unsigned long next;
-@@ -185,14 +191,14 @@ static int vmap_pud_range(p4d_t *p4d, un
- 		return -ENOMEM;
- 	do {
- 		next = pud_addr_end(addr, end);
--		if (vmap_pmd_range(pud, addr, next, prot, pages, nr))
-+		if (vmap_pmd_range(pud, addr, next, prot, pages, pfns, nr))
- 			return -ENOMEM;
- 	} while (pud++, addr = next, addr != end);
- 	return 0;
- }
- 
- static int vmap_p4d_range(pgd_t *pgd, unsigned long addr,
--		unsigned long end, pgprot_t prot, struct page **pages, int *nr)
-+		unsigned long end, pgprot_t prot, struct page **pages, pfn_t *pfns, int *nr)
- {
- 	p4d_t *p4d;
- 	unsigned long next;
-@@ -202,7 +208,7 @@ static int vmap_p4d_range(pgd_t *pgd, un
- 		return -ENOMEM;
- 	do {
- 		next = p4d_addr_end(addr, end);
--		if (vmap_pud_range(p4d, addr, next, prot, pages, nr))
-+		if (vmap_pud_range(p4d, addr, next, prot, pages, pfns, nr))
- 			return -ENOMEM;
- 	} while (p4d++, addr = next, addr != end);
- 	return 0;
-@@ -215,7 +221,7 @@ static int vmap_p4d_range(pgd_t *pgd, un
-  * Ie. pte at addr+N*PAGE_SIZE shall point to pfn corresponding to pages[N]
-  */
- static int vmap_page_range_noflush(unsigned long start, unsigned long end,
--				   pgprot_t prot, struct page **pages)
-+				   pgprot_t prot, struct page **pages, pfn_t *pfns)
- {
- 	pgd_t *pgd;
- 	unsigned long next;
-@@ -227,7 +233,7 @@ static int vmap_page_range_noflush(unsig
- 	pgd = pgd_offset_k(addr);
- 	do {
- 		next = pgd_addr_end(addr, end);
--		err = vmap_p4d_range(pgd, addr, next, prot, pages, &nr);
-+		err = vmap_p4d_range(pgd, addr, next, prot, pages, pfns, &nr);
- 		if (err)
- 			return err;
- 	} while (pgd++, addr = next, addr != end);
-@@ -236,11 +242,11 @@ static int vmap_page_range_noflush(unsig
- }
- 
- static int vmap_page_range(unsigned long start, unsigned long end,
--			   pgprot_t prot, struct page **pages)
-+			   pgprot_t prot, struct page **pages, pfn_t *pfns)
- {
- 	int ret;
- 
--	ret = vmap_page_range_noflush(start, end, prot, pages);
-+	ret = vmap_page_range_noflush(start, end, prot, pages, pfns);
- 	flush_cache_vmap(start, end);
- 	return ret;
- }
-@@ -1191,7 +1197,7 @@ void *vm_map_ram(struct page **pages, un
- 		addr = va->va_start;
- 		mem = (void *)addr;
- 	}
--	if (vmap_page_range(addr, addr + size, prot, pages) < 0) {
-+	if (vmap_page_range(addr, addr + size, prot, pages, NULL) < 0) {
- 		vm_unmap_ram(mem, count);
- 		return NULL;
- 	}
-@@ -1306,7 +1312,7 @@ void __init vmalloc_init(void)
- int map_kernel_range_noflush(unsigned long addr, unsigned long size,
- 			     pgprot_t prot, struct page **pages)
- {
--	return vmap_page_range_noflush(addr, addr + size, prot, pages);
-+	return vmap_page_range_noflush(addr, addr + size, prot, pages, NULL);
- }
- 
- /**
-@@ -1347,13 +1353,24 @@ void unmap_kernel_range(unsigned long ad
- }
- EXPORT_SYMBOL_GPL(unmap_kernel_range);
- 
-+static int map_vm_area_pfn(struct vm_struct *area, pgprot_t prot, pfn_t *pfns)
-+{
-+	unsigned long addr = (unsigned long)area->addr;
-+	unsigned long end = addr + get_vm_area_size(area);
-+	int err;
-+
-+	err = vmap_page_range(addr, end, prot, NULL, pfns);
-+
-+	return err > 0 ? 0 : err;
-+}
-+
- int map_vm_area(struct vm_struct *area, pgprot_t prot, struct page **pages)
- {
- 	unsigned long addr = (unsigned long)area->addr;
- 	unsigned long end = addr + get_vm_area_size(area);
- 	int err;
- 
--	err = vmap_page_range(addr, end, prot, pages);
-+	err = vmap_page_range(addr, end, prot, pages, NULL);
- 
- 	return err > 0 ? 0 : err;
- }
-@@ -1660,6 +1677,39 @@ void *vmap(struct page **pages, unsigned
- }
- EXPORT_SYMBOL(vmap);
- 
-+/**
-+ *	vmap_pfn  -  map an array of pages into virtually contiguous space
-+ *	@pfns:		array of page frame numbers
-+ *	@count:		number of pages to map
-+ *	@flags:		vm_area->flags
-+ *	@prot:		page protection for the mapping
-+ *
-+ *	Maps @count pages from @pages into contiguous kernel virtual
-+ *	space.
-+ */
-+void *vmap_pfn(pfn_t *pfns, unsigned int count, unsigned long flags, pgprot_t prot)
-+{
-+	struct vm_struct *area;
-+	unsigned long size;		/* In bytes */
-+
-+	might_sleep();
-+
-+	size = (unsigned long)count << PAGE_SHIFT;
-+	if (unlikely((size >> PAGE_SHIFT) != count))
-+		return NULL;
-+	area = get_vm_area_caller(size, flags, __builtin_return_address(0));
-+	if (!area)
-+		return NULL;
-+
-+	if (map_vm_area_pfn(area, prot, pfns)) {
-+		vunmap(area->addr);
-+		return NULL;
-+	}
-+
-+	return area->addr;
-+}
-+EXPORT_SYMBOL(vmap_pfn);
-+
- static void *__vmalloc_node(unsigned long size, unsigned long align,
- 			    gfp_t gfp_mask, pgprot_t prot,
- 			    int node, const void *caller);
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
