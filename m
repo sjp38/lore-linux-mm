@@ -1,48 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 20C306B02CE
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:23:21 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id q81so2489552ioi.12
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:23:21 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [69.252.207.40])
-        by mx.google.com with ESMTPS id t2si1169956ioa.218.2017.11.07.07.23.20
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D7B016B02D0
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:26:40 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id b189so1077727wmd.9
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:26:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j90si1540767edc.331.2017.11.07.07.26.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 07:23:20 -0800 (PST)
-Date: Tue, 7 Nov 2017 09:22:18 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
- slub_debug=O
-In-Reply-To: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
-Message-ID: <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
-References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Nov 2017 07:26:37 -0800 (PST)
+Date: Tue, 7 Nov 2017 16:26:29 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
+Message-ID: <20171107152629.GF11391@quack2.suse.cz>
+References: <20171009183129.GE11645@wotan.suse.de>
+ <87wp442lgm.fsf@xmission.com>
+ <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
+ <20171015130625.o5k6tk5uflm3rx65@thunk.org>
+ <87efq4qcry.fsf@xmission.com>
+ <20171016011301.dcam44qylno7rm6a@thunk.org>
+ <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
+ <20171017092017.GN9762@quack2.suse.cz>
+ <20171017141233.l3avshagrv7fr7xt@thunk.org>
+ <CAB=NE6UK3463JfiZQFHUiMj=v6HDG0k+uEE-2OvRMsW7i1EMhA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAB=NE6UK3463JfiZQFHUiMj=v6HDG0k+uEE-2OvRMsW7i1EMhA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miles Chen <miles.chen@mediatek.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
+To: "Luis R. Rodriguez" <mcgrof@kernel.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, colyli@suse.com, Jan Kara <jack@suse.cz>, Aleksa Sarai <asarai@suse.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oscar Salvador <osalvador@suse.com>, Hannes Reinecke <hare@suse.de>, xfs <linux-xfs@vger.kernel.org>
 
-On Tue, 7 Nov 2017, miles.chen@mediatek.com wrote:
+On Mon 06-11-17 11:25:34, Luis R. Rodriguez wrote:
+> On Tue, Oct 17, 2017 at 7:12 AM, Theodore Ts'o <tytso@mit.edu> wrote:
+> > On Tue, Oct 17, 2017 at 11:20:17AM +0200, Jan Kara wrote:
+> >> The operation we are speaking about here is different. It is more along the
+> >> lines of "release this device".  And in the current world of containers,
+> >> mount namespaces, etc. it is not trivial for userspace to implement this
+> >> using umount(2) as Ted points out. I believe we could do that by walking
+> >> through all mount points of a superblock and unmounting them (and I don't
+> >> want to get into a discussion how to efficiently implement that now but in
+> >> principle the kernel has all the necessary information).
+> >
+> > Yes, this is what I want.  And regardless of how efficiently or not
+> > the kernel can implement such an operatoin, by definition it will be
+> > more efficient than if we have to do it in userspace.
+> 
+> It seems most folks agree we could all benefit from this, to help
+> userspace with a sane implementation.
+> 
+> >> What I'm a bit concerned about is the "release device reference" part - for
+> >> a block device to stop looking busy we have to do that however then the
+> >> block device can go away and the filesystem isn't prepared to that - we
+> >> reference sb->s_bdev in lots of places, we have buffer heads which are part
+> >> of bdev page cache, and probably other indirect assumptions I forgot about
+> >> now.
+> 
+> Is this new operation really the only place where such type of work
+> could be useful for, or are there existing uses cases this sort of
+> functionality could also be used for?
 
-> When slub_debug=O is set. It is possible to clear debug flags
-> for an "unmergeable" slab cache in kmem_cache_open().
-> It makes the "unmergeable" cache became "mergeable" in sysfs_slab_add().
+The functionality of being able to "invalidate" open file descriptor so
+that it no longer points to the object it used to is useful also for other
+cases I guess...
 
-Right but that is only if disable_higher_order_debug is set.
+> For instance I don't think we do something similar to revokefs(2) (as
+> described below) when a devices has been removed from a system, you
+> seem to suggest we remove the dev from gendisk leaving it dangling and
+> invisible. But other than this, it would seem its up to the filesystem
+> to get anything else implemented correctly?
 
-> These caches will generate their "unique IDs" by create_unique_id(),
-> but it is possible to create identical unique IDs. In my experiment,
-> sgpool-128, names_cache, biovec-256 generate the same ID ":Ft-0004096"
-> and the kernel reports "sysfs: cannot create duplicate filename
-> '/kernel/slab/:Ft-0004096'".
+Yes, that's the current situation. When the device is yanked from under a
+filesystem the current implementation makes it relatively straightforward
+from fs POV - for all fs cares about the underlying device still exists. It
+just returns errors for any IO done to it. It is upto fs implementation to
+deal with it and be able to shutdown itself correctly in such case.
 
-Ok then the aliasing failed for some reason. The creation of the unique id
-and the alias detection needs to be in sync otherwise duplicate filenames
-are created. What is the difference there?
+> > This all doesn't have to be a single system call.  Perhaps it would
+> > make sense for first and second step to be one system call --- call it
+> > revokefs(2), perhaps.  And then the last step could be another system
+> > call --- maybe umountall(2).
+> 
+> Wouldn't *some* part of this also help *enhance* filesystem suspend /
+> thaw be used on system suspend / resume as well?
+>
+> If I may, if we split these up, into two, say revokefs(2) and
+> umountall(2), how about:
+> 
+> a) revokefs(2): ensures all file descriptors for the fs are closed
+>    - blocks access attempts high up in VFS
+>    - point any file descriptor to a revoked null struct file
+>    - redirect any task struct CWD's so as if the directory had rmmdir'd
+>    - munmap any mapped regions
+> 
+> Of these only the first one seems useful for fs suspend?
 
-The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
-should do the same right?
+If you reference "blocks access attempts high up in VFS" that already
+happens for writes when you freeze the filesystem. Also suspend is
+different in that userspace is already frozen when you get to freezing
+filesystems so you care only about in-kernel users and there you do not
+have standard set of entry points anyway... So I don't see much crossection
+with system suspend here.
+
+> 
+> b) umountall(2): properly unmounts filesystem from all namespaces
+>    - May need to verify if revokefs(2) was called, if so, now that all
+> file descriptors should
+>      be closed, do syncfs() to force out any dirty pages
+
+IMHO it doesn't need to verify this. The unmount will just fail if someone
+is still using some fs.
+
+>    - unmount() in all namespaces, this takes care of any buffer or page
+>      cache reference once the ref count of the struct super block goes to
+>      to zero
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
