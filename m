@@ -1,57 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E1C38680F85
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 15:11:31 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id a192so440547pge.1
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 12:11:31 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id u131si1959442pgc.272.2017.11.07.12.11.30
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A5508680F85
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 15:35:23 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id f20so3486840ioj.2
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 12:35:23 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v186sor1303174itc.92.2017.11.07.12.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 12:11:30 -0800 (PST)
-Date: Tue, 7 Nov 2017 12:11:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [mmotm:master 226/244] ERROR: "__aeabi_uldivmod"
- [drivers/net/ethernet/intel/i40e/i40e.ko] undefined!
-Message-Id: <20171107121128.5d92d3b9c3ed5f254ec57f85@linux-foundation.org>
-In-Reply-To: <201711072208.DrJFXgC6%fengguang.wu@intel.com>
-References: <201711072208.DrJFXgC6%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 07 Nov 2017 12:35:22 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <001a114096fec09301055d68d784@google.com>
+References: <001a114096fec09301055d68d784@google.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Tue, 7 Nov 2017 12:35:21 -0800
+Message-ID: <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
+Subject: Re: WARNING in __check_heap_object
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>, Amritha Nambiar <amritha.nambiar@intel.com>, Kiran Patil <kiran.patil@intel.com>, Anjali Singhai Jain <anjali.singhai@intel.com>, Jingjing Wu <jingjing.wu@intel.com>, Jeff Kirsher <jeffrey.t.kirsher@intel.com>
+To: syzbot <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, David Windsor <dave@nullcore.net>
 
-On Tue, 7 Nov 2017 22:25:11 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+On Tue, Nov 7, 2017 at 10:36 AM, syzbot
+<bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
+wrote:
+> Hello,
+>
+> syzkaller hit the following crash on
+> 5a3517e009e979f21977d362212b7729c5165d92
+> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> compiler: gcc (GCC) 7.1.1 20170620
+> .config is attached
+> Raw console output is attached.
+> C reproducer is attached
+> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> for information about syzkaller reproducers
+>
+>
 
-> Hi Andrew,
-> 
-> First bad commit (maybe != root cause):
-> 
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   8c953f23aaffa1931eb463adbe10f0303ef977b1
-> commit: 25ac8251382c3b2de9de3a861f8b74bfa565316d [226/244] linux-next-rejects
-> config: arm-allmodconfig (attached as .config)
-> compiler: arm-linux-gnueabi-gcc (Debian 6.1.1-9) 6.1.1 20160705
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 25ac8251382c3b2de9de3a861f8b74bfa565316d
->         # save the attached .config to linux build tree
->         make.cross ARCH=arm 
-> 
-> All errors (new ones prefixed by >>):
-> 
-> >> ERROR: "__aeabi_uldivmod" [drivers/net/ethernet/intel/i40e/i40e.ko] undefined!
-> 
+Please include the line _before_ the "cut here" (dumb, I know, but
+that's where warnings show up...)
 
-(cc everyone@intel)
+Found in the raw.log:
 
-At a guess I'd say that something in drivers/net/ethernet/intel/i40e/
-is now trying to do a 64-bit divide or mod operation.  But I don't seem to
-be able to reproduce this with arm or i386.  Maybe it was fixed today.
+[   44.227177] unexpected usercopy without slab whitelist from SCTPv6
+offset 1648 size 11
+
+This means some part of the SCTPv6 slab was being poked into userspace
+without a usercopy whitelist.
+
+>  check_heap_object mm/usercopy.c:222 [inline]
+>  __check_object_size+0x22c/0x4f0 mm/usercopy.c:248
+>  check_object_size include/linux/thread_info.h:112 [inline]
+>  check_copy_size include/linux/thread_info.h:143 [inline]
+>  copy_to_user include/linux/uaccess.h:154 [inline]
+>  sctp_getsockopt_events net/sctp/socket.c:4972 [inline]
+>  sctp_getsockopt+0x2b90/0x70b0 net/sctp/socket.c:7012
+>  sock_common_getsockopt+0x95/0xd0 net/core/sock.c:2924
+>  SYSC_getsockopt net/socket.c:1882 [inline]
+>  SyS_getsockopt+0x178/0x340 net/socket.c:1864
+>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+
+Looking at the SCTPv6 slab declaration, it seems David and I missed
+the usercopy whitelist for the sctpv6_sock struct. I'll update the
+usercopy whitelist patch with:
+
+#syz fix: sctp: Define usercopy region in SCTP proto slab cache
+
+diff --git a/net/sctp/socket.c b/net/sctp/socket.c
+index 5fd83974c5cc..8ac85877c0e4 100644
+--- a/net/sctp/socket.c
++++ b/net/sctp/socket.c
+@@ -8492,6 +8492,10 @@ struct proto sctpv6_prot = {
+        .unhash         = sctp_unhash,
+        .get_port       = sctp_get_port,
+        .obj_size       = sizeof(struct sctp6_sock),
++       .useroffset     = offsetof(struct sctp_sock, subscribe),
++       .usersize       = offsetof(struct sctp_sock, initmsg) -
++                               offsetof(struct sctp_sock, subscribe) +
++                               sizeof_field(struct sctp_sock, initmsg),
+        .sysctl_mem     = sysctl_sctp_mem,
+        .sysctl_rmem    = sysctl_sctp_rmem,
+        .sysctl_wmem    = sysctl_sctp_wmem,
+
+Thanks!
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
