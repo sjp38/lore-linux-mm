@@ -1,96 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A5508680F85
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 15:35:23 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id f20so3486840ioj.2
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 12:35:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v186sor1303174itc.92.2017.11.07.12.35.22
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Nov 2017 12:35:22 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8E0DA680F85
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 15:40:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id i196so524247pgd.2
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 12:40:03 -0800 (PST)
+Received: from osg.samsung.com (osg.samsung.com. [64.30.133.232])
+        by mx.google.com with ESMTP id f14si1939746pgn.367.2017.11.07.12.40.02
+        for <linux-mm@kvack.org>;
+        Tue, 07 Nov 2017 12:40:02 -0800 (PST)
+Date: Tue, 7 Nov 2017 18:39:50 -0200
+From: Mauro Carvalho Chehab <mchehab@s-opensource.com>
+Subject: Re: [PATCH 3/3] [media] v4l2: disable filesystem-dax mapping
+ support
+Message-ID: <20171107183950.46f238fd@vento.lan>
+In-Reply-To: <CAPcyv4hNSV=c4KY8omKEdRth2w4YEr8EQJQfOoxXS8XELGFVcA@mail.gmail.com>
+References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<151001624873.16354.2551756846133945335.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<20171107063345.22626a5d@vento.lan>
+	<CAPcyv4hNSV=c4KY8omKEdRth2w4YEr8EQJQfOoxXS8XELGFVcA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <001a114096fec09301055d68d784@google.com>
-References: <001a114096fec09301055d68d784@google.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Tue, 7 Nov 2017 12:35:21 -0800
-Message-ID: <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
-Subject: Re: WARNING in __check_heap_object
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, David Windsor <dave@nullcore.net>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Tue, Nov 7, 2017 at 10:36 AM, syzbot
-<bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
-wrote:
-> Hello,
->
-> syzkaller hit the following crash on
-> 5a3517e009e979f21977d362212b7729c5165d92
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached
-> Raw console output is attached.
-> C reproducer is attached
-> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
-> for information about syzkaller reproducers
->
->
+Em Tue, 7 Nov 2017 09:43:41 -0800
+Dan Williams <dan.j.williams@intel.com> escreveu:
 
-Please include the line _before_ the "cut here" (dumb, I know, but
-that's where warnings show up...)
+> On Tue, Nov 7, 2017 at 12:33 AM, Mauro Carvalho Chehab
+> <mchehab@s-opensource.com> wrote:
+> > Em Mon, 06 Nov 2017 16:57:28 -0800
+> > Dan Williams <dan.j.williams@intel.com> escreveu:
+> >  
+> >> V4L2 memory registrations are incompatible with filesystem-dax that
+> >> needs the ability to revoke dma access to a mapping at will, or
+> >> otherwise allow the kernel to wait for completion of DMA. The
+> >> filesystem-dax implementation breaks the traditional solution of
+> >> truncate of active file backed mappings since there is no page-cache
+> >> page we can orphan to sustain ongoing DMA.
+> >>
+> >> If v4l2 wants to support long lived DMA mappings it needs to arrange to
+> >> hold a file lease or use some other mechanism so that the kernel can
+> >> coordinate revoking DMA access when the filesystem needs to truncate
+> >> mappings.  
+> >
+> >
+> > Not sure if I understand this your comment here... what happens
+> > if FS_DAX is enabled? The new err = get_user_pages_longterm()
+> > would cause DMA allocation to fail?  
+> 
+> Correct, any attempt to specify a filesystem-dax mapping range to
+> get_user_pages_longterm will fail with EOPNOTSUPP. In the future we
+> want to add something like a 'struct file_lock *' argument to
+> get_user_pages_longterm so that the kernel has a handle to revoke
+> access to the returned pages. Once we have a safe way for the kernel
+> to undo elevated page counts we can stop failing the longterm vs
+> filesystem-dax case.
 
-Found in the raw.log:
+Argh! Perhaps we should make it depend on BROKEN while not fixed :-/
 
-[   44.227177] unexpected usercopy without slab whitelist from SCTPv6
-offset 1648 size 11
+> Here is more background on why _longterm gup is a problem for filesystem-dax:
+> 
+>     https://lwn.net/Articles/737273/
+> 
+> > If so, that doesn't sound
+> > right. Instead, mm should somehow mark this mapping to be out
+> > of FS_DAX control range.  
+> 
+> DAX is currently global setting for the entire backing device of the
+> filesystem, so any mapping of any file when the "-o dax" mount option
+> is set is in the "FS_DAX control range". In other words there's
+> currently no way to prevent FS_DAX mappings from being exposed to V4L2
+> outside of CONFIG_FS_DAX=n.
 
-This means some part of the SCTPv6 slab was being poked into userspace
-without a usercopy whitelist.
+Grrr...
 
->  check_heap_object mm/usercopy.c:222 [inline]
->  __check_object_size+0x22c/0x4f0 mm/usercopy.c:248
->  check_object_size include/linux/thread_info.h:112 [inline]
->  check_copy_size include/linux/thread_info.h:143 [inline]
->  copy_to_user include/linux/uaccess.h:154 [inline]
->  sctp_getsockopt_events net/sctp/socket.c:4972 [inline]
->  sctp_getsockopt+0x2b90/0x70b0 net/sctp/socket.c:7012
->  sock_common_getsockopt+0x95/0xd0 net/core/sock.c:2924
->  SYSC_getsockopt net/socket.c:1882 [inline]
->  SyS_getsockopt+0x178/0x340 net/socket.c:1864
->  entry_SYSCALL_64_fastpath+0x1f/0xbe
+> > Also, it is not only videobuf-dma-sg.c that does long lived
+> > DMA mappings. VB2 also does that (and videobuf-vmalloc).  
+> 
+> Without finding the code videobuf-vmalloc sounds like it should be ok
+> if the kernel is allocating memory separate from a file-backed DAX
+> mapping.
 
-Looking at the SCTPv6 slab declaration, it seems David and I missed
-the usercopy whitelist for the sctpv6_sock struct. I'll update the
-usercopy whitelist patch with:
+videobuf-vmalloc do DMA mapping for pages allocated via vmalloc(),
+via vmalloc_user()/remap_vmalloc_range().
 
-#syz fix: sctp: Define usercopy region in SCTP proto slab cache
+There aren't much drivers using VB1 anymore, but a change at VB2
+will likely break support for almost all webcams if fs DAX is
+in usage.
 
-diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-index 5fd83974c5cc..8ac85877c0e4 100644
---- a/net/sctp/socket.c
-+++ b/net/sctp/socket.c
-@@ -8492,6 +8492,10 @@ struct proto sctpv6_prot = {
-        .unhash         = sctp_unhash,
-        .get_port       = sctp_get_port,
-        .obj_size       = sizeof(struct sctp6_sock),
-+       .useroffset     = offsetof(struct sctp_sock, subscribe),
-+       .usersize       = offsetof(struct sctp_sock, initmsg) -
-+                               offsetof(struct sctp_sock, subscribe) +
-+                               sizeof_field(struct sctp_sock, initmsg),
-        .sysctl_mem     = sysctl_sctp_mem,
-        .sysctl_rmem    = sysctl_sctp_rmem,
-        .sysctl_wmem    = sysctl_sctp_wmem,
+> Where is the VB2 get_user_pages call?
 
-Thanks!
+Before changeset 3336c24f25ec, the logic for get_user_pages() were
+at drivers/media/v4l2-core/videobuf2-dma-sg.c. Now, the logic
+it uses is inside mm/frame_vector.c.
 
--Kees
-
--- 
-Kees Cook
-Pixel Security
+Thanks,
+Mauro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
