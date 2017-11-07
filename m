@@ -1,497 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A521B6B027E
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 01:32:16 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id m18so15616969pgd.13
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 22:32:16 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id h19si456409pgn.674.2017.11.06.22.32.14
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7306B0280
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 02:32:46 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id p96so7150371wrb.12
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 23:32:46 -0800 (PST)
+Received: from albireo.enyo.de (albireo.enyo.de. [5.158.152.32])
+        by mx.google.com with ESMTPS id 72si623023wmu.274.2017.11.06.23.32.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 22:32:15 -0800 (PST)
-Date: Tue, 7 Nov 2017 08:32:09 +0200
-From: Leon Romanovsky <leon@kernel.org>
-Subject: Re: [PATCH for-next 2/4] RDMA/hns: Add IOMMU enable support in hip08
-Message-ID: <20171107063209.GA18825@mtr-leonro.local>
-References: <1506763741-81429-1-git-send-email-xavier.huwei@huawei.com>
- <1506763741-81429-3-git-send-email-xavier.huwei@huawei.com>
- <20170930161023.GI2965@mtr-leonro.local>
- <59DF60A3.7080803@huawei.com>
- <5fe5f9b9-2c2b-ab3c-dafa-3e2add051bbb@arm.com>
- <59F97BBE.5070207@huawei.com>
- <fc7433af-4fa7-6b78-6bec-26941a427002@arm.com>
- <5A011E49.6060407@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 06 Nov 2017 23:32:45 -0800 (PST)
+From: Florian Weimer <fw@deneb.enyo.de>
+Subject: Re: [PATCH v9 00/51] powerpc, mm: Memory Protection Keys
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+	<87efpbm706.fsf@mid.deneb.enyo.de>
+	<20171107012218.GA5546@ram.oc3035372033.ibm.com>
+Date: Tue, 07 Nov 2017 08:32:16 +0100
+In-Reply-To: <20171107012218.GA5546@ram.oc3035372033.ibm.com> (Ram Pai's
+	message of "Mon, 6 Nov 2017 17:22:18 -0800")
+Message-ID: <87h8u6lf27.fsf@mid.deneb.enyo.de>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="FL5UXtIhxfXey3p5"
-Content-Disposition: inline
-In-Reply-To: <5A011E49.6060407@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wei Hu (Xavier)" <xavier.huwei@huawei.com>
-Cc: Robin Murphy <robin.murphy@arm.com>, shaobo.xu@intel.com, xavier.huwei@tom.com, lijun_nudt@163.com, oulijun@huawei.com, linux-rdma@vger.kernel.org, charles.chenxin@huawei.com, linuxarm@huawei.com, iommu@lists.linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, dledford@redhat.com, liuyixian@huawei.com, zhangxiping3@huawei.com, shaoboxu@tom.com
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linux-arch@vger.kernel.org, ebiederm@xmission.com, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
+* Ram Pai:
 
---FL5UXtIhxfXey3p5
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+> On Mon, Nov 06, 2017 at 10:28:41PM +0100, Florian Weimer wrote:
+>> * Ram Pai:
+>>=20
+>> > Testing:
+>> > -------
+>> > This patch series has passed all the protection key
+>> > tests available in the selftest directory.The
+>> > tests are updated to work on both x86 and powerpc.
+>> > The selftests have passed on x86 and powerpc hardware.
+>>=20
+>> How do you deal with the key reuse problem?  Is it the same as x86-64,
+>> where it's quite easy to accidentally grant existing threads access to
+>> a just-allocated key, either due to key reuse or a changed init_pkru
+>> parameter?
+>
+> I am not sure how on x86-64, two threads get allocated the same key
+> at the same time? the key allocation is guarded under the mmap_sem
+> semaphore. So there cannot be a race where two threads get allocated
+> the same key.
 
-On Tue, Nov 07, 2017 at 10:45:29AM +0800, Wei Hu (Xavier) wrote:
->
->
-> On 2017/11/1 20:26, Robin Murphy wrote:
-> > On 01/11/17 07:46, Wei Hu (Xavier) wrote:
-> >>
-> >> On 2017/10/12 20:59, Robin Murphy wrote:
-> >>> On 12/10/17 13:31, Wei Hu (Xavier) wrote:
-> >>>> On 2017/10/1 0:10, Leon Romanovsky wrote:
-> >>>>> On Sat, Sep 30, 2017 at 05:28:59PM +0800, Wei Hu (Xavier) wrote:
-> >>>>>> If the IOMMU is enabled, the length of sg obtained from
-> >>>>>> __iommu_map_sg_attrs is not 4kB. When the IOVA is set with the sg
-> >>>>>> dma address, the IOVA will not be page continuous. and the VA
-> >>>>>> returned from dma_alloc_coherent is a vmalloc address. However,
-> >>>>>> the VA obtained by the page_address is a discontinuous VA. Under
-> >>>>>> these circumstances, the IOVA should be calculated based on the
-> >>>>>> sg length, and record the VA returned from dma_alloc_coherent
-> >>>>>> in the struct of hem.
-> >>>>>>
-> >>>>>> Signed-off-by: Wei Hu (Xavier) <xavier.huwei@huawei.com>
-> >>>>>> Signed-off-by: Shaobo Xu <xushaobo2@huawei.com>
-> >>>>>> Signed-off-by: Lijun Ou <oulijun@huawei.com>
-> >>>>>> ---
-> >>>>> Doug,
-> >>>>>
-> >>>>> I didn't invest time in reviewing it, but having "is_vmalloc_addr" =
-in
-> >>>>> driver code to deal with dma_alloc_coherent is most probably wrong.
-> >>>>>
-> >>>>> Thanks
-> >>>> Hi,  Leon & Doug
-> >>>>     We refered the function named __ttm_dma_alloc_page in the kernel
-> >>>> code as below:
-> >>>>     And there are similar methods in bch_bio_map and mem_to_page
-> >>>> functions in current 4.14-rcx.
-> >>>>
-> >>>>         static struct dma_page *__ttm_dma_alloc_page(struct dma_pool=
- *pool)
-> >>>>         {
-> >>>>             struct dma_page *d_page;
-> >>>>
-> >>>>             d_page =3D kmalloc(sizeof(struct dma_page), GFP_KERNEL);
-> >>>>             if (!d_page)
-> >>>>                 return NULL;
-> >>>>
-> >>>>             d_page->vaddr =3D dma_alloc_coherent(pool->dev, pool->si=
-ze,
-> >>>>                                &d_page->dma,
-> >>>>                                    pool->gfp_flags);
-> >>>>             if (d_page->vaddr) {
-> >>>>                 if (is_vmalloc_addr(d_page->vaddr))
-> >>>>                     d_page->p =3D vmalloc_to_page(d_page->vaddr);
-> >>>>                 else
-> >>>>                     d_page->p =3D virt_to_page(d_page->vaddr);
-> >>> There are cases on various architectures where neither of those is
-> >>> right. Whether those actually intersect with TTM or RDMA use-cases is
-> >>> another matter, of course.
-> >>>
-> >>> What definitely is a problem is if you ever take that page and end up
-> >>> accessing it through any virtual address other than the one explicitly
-> >>> returned by dma_alloc_coherent(). That can blow the coherency wide op=
-en
-> >>> and invite data loss, right up to killing the whole system with a
-> >>> machine check on certain architectures.
-> >>>
-> >>> Robin.
-> >> Hi, Robin
-> >>     Thanks for your comment.
-> >>
-> >>     We have one problem and the related code as below.
-> >>     1. call dma_alloc_coherent function  serval times to alloc memory.
-> >>     2. vmap the allocated memory pages.
-> >>     3. software access memory by using the return virt addr of vmap
-> >>         and hardware using the dma addr of dma_alloc_coherent.
-> > The simple answer is "don't do that". Seriously. dma_alloc_coherent()
-> > gives you a CPU virtual address and a DMA address with which to access
-> > your buffer, and that is the limit of what you may infer about it. You
-> > have no guarantee that the virtual address is either in the linear map
-> > or vmalloc, and not some other special place. You have no guarantee that
-> > the underlying memory even has an associated struct page at all.
-> >
-> >>     When IOMMU is disabled in ARM64 architecture, we use virt_to_page()
-> >>     before vmap(), it works. And when IOMMU is enabled using
-> >>     virt_to_page() will cause calltrace later, we found the return
-> >>     addr of dma_alloc_coherent is vmalloc addr, so we add the
-> >>     condition judgement statement as below, it works.
-> >>         for (i =3D 0; i < buf->nbufs; ++i)
-> >>                 pages[i] =3D
-> >>                     is_vmalloc_addr(buf->page_list[i].buf) ?
-> >>                     vmalloc_to_page(buf->page_list[i].buf) :
-> >>                     virt_to_page(buf->page_list[i].buf);
-> >>     Can you give us suggestion? better method?
-> > Oh my goodness, having now taken a closer look at this driver, I'm lost
-> > for words in disbelief. To pick just one example:
-> >
-> > 	u32 bits_per_long =3D BITS_PER_LONG;
-> > 	...
-> > 	if (bits_per_long =3D=3D 64) {
-> > 		/* memory mapping nonsense */
-> > 	}
-> >
-> > WTF does the size of a long have to do with DMA buffer management!?
-> >
-> > Of course I can guess that it might be trying to make some tortuous
-> > inference about vmalloc space being constrained on 32-bit platforms, but
-> > still...
-> >
-> >>     The related code as below:
-> >>         buf->page_list =3D kcalloc(buf->nbufs, sizeof(*buf->page_list),
-> >>                      GFP_KERNEL);
-> >>         if (!buf->page_list)
-> >>             return -ENOMEM;
-> >>
-> >>         for (i =3D 0; i < buf->nbufs; ++i) {
-> >>             buf->page_list[i].buf =3D dma_alloc_coherent(dev,
-> >>                                   page_size, &t,
-> >>                                   GFP_KERNEL);
-> >>             if (!buf->page_list[i].buf)
-> >>                 goto err_free;
-> >>
-> >>             buf->page_list[i].map =3D t;
-> >>             memset(buf->page_list[i].buf, 0, page_size);
-> >>         }
-> >>
-> >>         pages =3D kmalloc_array(buf->nbufs, sizeof(*pages),
-> >>                           GFP_KERNEL);
-> >>         if (!pages)
-> >>                 goto err_free;
-> >>
-> >>         for (i =3D 0; i < buf->nbufs; ++i)
-> >>                 pages[i] =3D
-> >>                     is_vmalloc_addr(buf->page_list[i].buf) ?
-> >>                     vmalloc_to_page(buf->page_list[i].buf) :
-> >>                     virt_to_page(buf->page_list[i].buf);
-> >>
-> >>         buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
-> >>                            PAGE_KERNEL);
-> >>         kfree(pages);
-> >>         if (!buf->direct.buf)
-> >>                 goto err_free;
-> > OK, this is complete crap. As above, you cannot assume that a struct
-> > page even exists; even if it does you cannot assume that using a
-> > PAGE_KERNEL mapping will not result in mismatched attributes,
-> > unpredictable behaviour and data loss. Trying to remap coherent DMA
-> > allocations like this is just egregiously wrong.
-> >
-> > What I do like is that you can seemingly fix all this by simply deleting
-> > hns_roce_buf::direct and all the garbage code related to it, and using
-> > the page_list entries consistently because the alternate paths involving
-> > those appear to do the right thing already.
-> >
-> > That is, of course, assuming that the buffers involved can be so large
-> > that it's not practical to just always make a single allocation and
-> > fragment it into multiple descriptors if the hardware does have some
-> > maximum length constraint - frankly I'm a little puzzled by the
-> > PAGE_SIZE * 2 threshold, given that that's not a fixed size.
-> >
-> > Robin.
-> Hi=EF=BC=8CRobin
->
->     We reconstruct the code as below:
->             It replaces dma_alloc_coherent with __get_free_pages and
-> dma_map_single
->     functions. So, we can vmap serveral ptrs returned by
-> __get_free_pages, right?
+The problem is a pkey_alloc/pthread_create/pkey_free/pkey_alloc
+sequence.  The pthread_create call makes the new thread inherit the
+access rights of the current thread, but then the key is deallocated.
+Reallocation of the same key will have that thread retain its access
+rights, which is IMHO not correct.
 
-Most probably not, you should get rid of your virt_to_page/vmap calls.
+> Can you point me to the issue, if it is already discussed somewhere?
 
-Thanks
+See =E2=80=98MPK: pkey_free and key reuse=E2=80=99 on various lists (includ=
+ing
+linux-mm and linux-arch).
 
->
->
->         buf->page_list =3D kcalloc(buf->nbufs, sizeof(*buf->page_list),
->                      GFP_KERNEL);
->         if (!buf->page_list)
->             return -ENOMEM;
->
->         for (i =3D 0; i < buf->nbufs; ++i) {
-> 		ptr =3D (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
-> 					       get_order(page_size));
-> 		if (!ptr) {
-> 			dev_err(dev, "Alloc pages error.\n");
-> 			goto err_free;
-> 		}
->
-> 		t =3D dma_map_single(dev, ptr, page_size,
-> 				   DMA_BIDIRECTIONAL);
-> 		if (dma_mapping_error(dev, t)) {
-> 			dev_err(dev, "DMA mapping error.\n");
-> 			free_pages((unsigned long)ptr,
-> 				   get_order(page_size));
-> 			goto err_free;
-> 		}
->
-> 		buf->page_list[i].buf =3D ptr;
-> 		buf->page_list[i].map =3D t;
->         }
->
->         pages =3D kmalloc_array(buf->nbufs, sizeof(*pages),
->                           GFP_KERNEL);
->         if (!pages)
->                 goto err_free;
->
->         for (i =3D 0; i < buf->nbufs; ++i)
->                 pages[i] =3D virt_to_page(buf->page_list[i].buf);
->
->         buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
->                            PAGE_KERNEL);
->         kfree(pages);
->         if (!buf->direct.buf)
->                 goto err_free;
->
->
->     Regards
-> Wei Hu
-> >>     Regards
-> >> Wei Hu
-> >>>>             } else {
-> >>>>                 kfree(d_page);
-> >>>>                 d_page =3D NULL;
-> >>>>             }
-> >>>>             return d_page;
-> >>>>         }
-> >>>>
-> >>>>     Regards
-> >>>> Wei Hu
-> >>>>>>   drivers/infiniband/hw/hns/hns_roce_alloc.c |  5 ++++-
-> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hem.c   | 30
-> >>>>>> +++++++++++++++++++++++++++---
-> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hem.h   |  6 ++++++
-> >>>>>>   drivers/infiniband/hw/hns/hns_roce_hw_v2.c | 22 +++++++++++++++-=
-------
-> >>>>>>   4 files changed, 52 insertions(+), 11 deletions(-)
-> >>>>>>
-> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_alloc.c
-> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_alloc.c
-> >>>>>> index 3e4c525..a69cd4b 100644
-> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_alloc.c
-> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_alloc.c
-> >>>>>> @@ -243,7 +243,10 @@ int hns_roce_buf_alloc(struct hns_roce_dev
-> >>>>>> *hr_dev, u32 size, u32 max_direct,
-> >>>>>>                   goto err_free;
-> >>>>>>
-> >>>>>>               for (i =3D 0; i < buf->nbufs; ++i)
-> >>>>>> -                pages[i] =3D virt_to_page(buf->page_list[i].buf);
-> >>>>>> +                pages[i] =3D
-> >>>>>> +                    is_vmalloc_addr(buf->page_list[i].buf) ?
-> >>>>>> +                    vmalloc_to_page(buf->page_list[i].buf) :
-> >>>>>> +                    virt_to_page(buf->page_list[i].buf);
-> >>>>>>
-> >>>>>>               buf->direct.buf =3D vmap(pages, buf->nbufs, VM_MAP,
-> >>>>>>                              PAGE_KERNEL);
-> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.c
-> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.c
-> >>>>>> index 8388ae2..4a3d1d4 100644
-> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.c
-> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.c
-> >>>>>> @@ -200,6 +200,7 @@ static struct hns_roce_hem
-> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
-> >>>>>>                              gfp_t gfp_mask)
-> >>>>>>   {
-> >>>>>>       struct hns_roce_hem_chunk *chunk =3D NULL;
-> >>>>>> +    struct hns_roce_vmalloc *vmalloc;
-> >>>>>>       struct hns_roce_hem *hem;
-> >>>>>>       struct scatterlist *mem;
-> >>>>>>       int order;
-> >>>>>> @@ -227,6 +228,7 @@ static struct hns_roce_hem
-> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
-> >>>>>>               sg_init_table(chunk->mem, HNS_ROCE_HEM_CHUNK_LEN);
-> >>>>>>               chunk->npages =3D 0;
-> >>>>>>               chunk->nsg =3D 0;
-> >>>>>> +            memset(chunk->vmalloc, 0, sizeof(chunk->vmalloc));
-> >>>>>>               list_add_tail(&chunk->list, &hem->chunk_list);
-> >>>>>>           }
-> >>>>>>
-> >>>>>> @@ -243,7 +245,15 @@ static struct hns_roce_hem
-> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
-> >>>>>>           if (!buf)
-> >>>>>>               goto fail;
-> >>>>>>
-> >>>>>> -        sg_set_buf(mem, buf, PAGE_SIZE << order);
-> >>>>>> +        if (is_vmalloc_addr(buf)) {
-> >>>>>> +            vmalloc =3D &chunk->vmalloc[chunk->npages];
-> >>>>>> +            vmalloc->is_vmalloc_addr =3D true;
-> >>>>>> +            vmalloc->vmalloc_addr =3D buf;
-> >>>>>> +            sg_set_page(mem, vmalloc_to_page(buf),
-> >>>>>> +                    PAGE_SIZE << order, offset_in_page(buf));
-> >>>>>> +        } else {
-> >>>>>> +            sg_set_buf(mem, buf, PAGE_SIZE << order);
-> >>>>>> +        }
-> >>>>>>           WARN_ON(mem->offset);
-> >>>>>>           sg_dma_len(mem) =3D PAGE_SIZE << order;
-> >>>>>>
-> >>>>>> @@ -262,17 +272,25 @@ static struct hns_roce_hem
-> >>>>>> *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
-> >>>>>>   void hns_roce_free_hem(struct hns_roce_dev *hr_dev, struct
-> >>>>>> hns_roce_hem *hem)
-> >>>>>>   {
-> >>>>>>       struct hns_roce_hem_chunk *chunk, *tmp;
-> >>>>>> +    void *cpu_addr;
-> >>>>>>       int i;
-> >>>>>>
-> >>>>>>       if (!hem)
-> >>>>>>           return;
-> >>>>>>
-> >>>>>>       list_for_each_entry_safe(chunk, tmp, &hem->chunk_list, list)=
- {
-> >>>>>> -        for (i =3D 0; i < chunk->npages; ++i)
-> >>>>>> +        for (i =3D 0; i < chunk->npages; ++i) {
-> >>>>>> +            if (chunk->vmalloc[i].is_vmalloc_addr)
-> >>>>>> +                cpu_addr =3D chunk->vmalloc[i].vmalloc_addr;
-> >>>>>> +            else
-> >>>>>> +                cpu_addr =3D
-> >>>>>> +                   lowmem_page_address(sg_page(&chunk->mem[i]));
-> >>>>>> +
-> >>>>>>               dma_free_coherent(hr_dev->dev,
-> >>>>>>                      chunk->mem[i].length,
-> >>>>>> -                   lowmem_page_address(sg_page(&chunk->mem[i])),
-> >>>>>> +                   cpu_addr,
-> >>>>>>                      sg_dma_address(&chunk->mem[i]));
-> >>>>>> +        }
-> >>>>>>           kfree(chunk);
-> >>>>>>       }
-> >>>>>>
-> >>>>>> @@ -774,6 +792,12 @@ void *hns_roce_table_find(struct hns_roce_dev
-> >>>>>> *hr_dev,
-> >>>>>>
-> >>>>>>               if (chunk->mem[i].length > (u32)offset) {
-> >>>>>>                   page =3D sg_page(&chunk->mem[i]);
-> >>>>>> +                if (chunk->vmalloc[i].is_vmalloc_addr) {
-> >>>>>> +                    mutex_unlock(&table->mutex);
-> >>>>>> +                    return page ?
-> >>>>>> +                        chunk->vmalloc[i].vmalloc_addr
-> >>>>>> +                        + offset : NULL;
-> >>>>>> +                }
-> >>>>>>                   goto out;
-> >>>>>>               }
-> >>>>>>               offset -=3D chunk->mem[i].length;
-> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hem.h
-> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hem.h
-> >>>>>> index af28bbf..62d712a 100644
-> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hem.h
-> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hem.h
-> >>>>>> @@ -72,11 +72,17 @@ enum {
-> >>>>>>        HNS_ROCE_HEM_PAGE_SIZE  =3D 1 << HNS_ROCE_HEM_PAGE_SHIFT,
-> >>>>>>   };
-> >>>>>>
-> >>>>>> +struct hns_roce_vmalloc {
-> >>>>>> +    bool    is_vmalloc_addr;
-> >>>>>> +    void    *vmalloc_addr;
-> >>>>>> +};
-> >>>>>> +
-> >>>>>>   struct hns_roce_hem_chunk {
-> >>>>>>       struct list_head     list;
-> >>>>>>       int             npages;
-> >>>>>>       int             nsg;
-> >>>>>>       struct scatterlist     mem[HNS_ROCE_HEM_CHUNK_LEN];
-> >>>>>> +    struct hns_roce_vmalloc     vmalloc[HNS_ROCE_HEM_CHUNK_LEN];
-> >>>>>>   };
-> >>>>>>
-> >>>>>>   struct hns_roce_hem {
-> >>>>>> diff --git a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
-> >>>>>> b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
-> >>>>>> index b99d70a..9e19bf1 100644
-> >>>>>> --- a/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
-> >>>>>> +++ b/drivers/infiniband/hw/hns/hns_roce_hw_v2.c
-> >>>>>> @@ -1093,9 +1093,11 @@ static int hns_roce_v2_write_mtpt(void
-> >>>>>> *mb_buf, struct hns_roce_mr *mr,
-> >>>>>>   {
-> >>>>>>       struct hns_roce_v2_mpt_entry *mpt_entry;
-> >>>>>>       struct scatterlist *sg;
-> >>>>>> +    u64 page_addr =3D 0;
-> >>>>>>       u64 *pages;
-> >>>>>> +    int i =3D 0, j =3D 0;
-> >>>>>> +    int len =3D 0;
-> >>>>>>       int entry;
-> >>>>>> -    int i;
-> >>>>>>
-> >>>>>>       mpt_entry =3D mb_buf;
-> >>>>>>       memset(mpt_entry, 0, sizeof(*mpt_entry));
-> >>>>>> @@ -1153,14 +1155,20 @@ static int hns_roce_v2_write_mtpt(void
-> >>>>>> *mb_buf, struct hns_roce_mr *mr,
-> >>>>>>
-> >>>>>>       i =3D 0;
-> >>>>>>       for_each_sg(mr->umem->sg_head.sgl, sg, mr->umem->nmap, entry=
-) {
-> >>>>>> -        pages[i] =3D ((u64)sg_dma_address(sg)) >> 6;
-> >>>>>> -
-> >>>>>> -        /* Record the first 2 entry directly to MTPT table */
-> >>>>>> -        if (i >=3D HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
-> >>>>>> -            break;
-> >>>>>> -        i++;
-> >>>>>> +        len =3D sg_dma_len(sg) >> PAGE_SHIFT;
-> >>>>>> +        for (j =3D 0; j < len; ++j) {
-> >>>>>> +            page_addr =3D sg_dma_address(sg) +
-> >>>>>> +                    (j << mr->umem->page_shift);
-> >>>>>> +            pages[i] =3D page_addr >> 6;
-> >>>>>> +
-> >>>>>> +            /* Record the first 2 entry directly to MTPT table */
-> >>>>>> +            if (i >=3D HNS_ROCE_V2_MAX_INNER_MTPT_NUM - 1)
-> >>>>>> +                goto found;
-> >>>>>> +            i++;
-> >>>>>> +        }
-> >>>>>>       }
-> >>>>>>
-> >>>>>> +found:
-> >>>>>>       mpt_entry->pa0_l =3D cpu_to_le32(lower_32_bits(pages[0]));
-> >>>>>>       roce_set_field(mpt_entry->byte_56_pa0_h, V2_MPT_BYTE_56_PA0_=
-H_M,
-> >>>>>>                  V2_MPT_BYTE_56_PA0_H_S,
-> >>>>>> --
-> >>>>>> 1.9.1
-> >>>>>>
-> >>>> _______________________________________________
-> >>>> iommu mailing list
-> >>>> iommu@lists.linux-foundation.org
-> >>>> https://lists.linuxfoundation.org/mailman/listinfo/iommu
-> >>> .
-> >>>
-> >>
-> > --
-> > To unsubscribe from this list: send the line "unsubscribe linux-rdma" in
-> > the body of a message to majordomo@vger.kernel.org
-> > More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> >
-> > .
-> >
->
->
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-rdma" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+It has a test case attached which demonstrates the behavior.
 
---FL5UXtIhxfXey3p5
-Content-Type: application/pgp-signature; name="signature.asc"
+> As far as the semantics is concerned, a key allocated in one thread's
+> context has no meaning if used in some other threads context within the
+> same process.  The app should not try to re-use a key allocated in a
+> thread's context in some other threads's context.
 
------BEGIN PGP SIGNATURE-----
+Uh-oh, that's not how this feature works on x86-64 at all.  There, the
+keys are a process-global resource.  Treating them per-thread
+seriously reduces their usefulness.
 
-iQIzBAEBCAAdFiEEkhr/r4Op1/04yqaB5GN7iDZyWKcFAloBU1wACgkQ5GN7iDZy
-WKey+w//RdMtLSOgrC5hsBS2xOXo991uS2MGybdaF1CQUawRhJN/3Md0syUfF1qt
-iSash/1GaklAznR/RUTAaF9SEFwd2l0NHWtDOUev357Fl6FBeoavA0ooudgQ/ue5
-0aiO0IgyM4OcVvDWHK5f56EhUd9xGYCc6XLw7VeK1x0LSL5tfnM7vCv02R0o41at
-IkWZabtaT68PuVb3gA28MM+KiwH4JbuPNTIuvnUmSHF6AvgszEcak8WyLCfzPRfl
-Fb++hnFUtP0gfduF1Dv0wN/Efd6wspC2lBCfKybeG5KOxH+3aAJ0wo9Wmf/iRvyL
-wMgG1AGEWNE8HZIdAZp7x7HrcGZUX+Ybz9VjxUUFidOJoGy8v3MK4YAUM+0uQXDX
-wpmhKt9LqCzIBlWeSVr6ADAfO+Zy3qNXMJMDD/fcDm3apbQJY3kglAImsk2GSUfH
-qELOCL+CeCWdnR2FiWvTxKVVVvgHhuqo5t6g9lTfpH6/rm2ZZ4IvB2Lvpn1sk2xc
-K6Gy+YPQsb+wSA8M3blVxNWkXC8DDQC8T6UIbD6umkRDW+ITRnZaf6dVo8VgIY0Y
-yzbTmboBMdHDWuaoWnKJdat1it8NU/w8XFCNzEqzKJHaeXZWt74RiYlOoMOLFQYR
-x0zDACunlaPt1ML8k4+K1ZoWYtjnoGn89IL3AttvFM2UuhPFmGg=
-=iBDx
------END PGP SIGNATURE-----
+>> What about siglongjmp from a signal handler?
+>
+> On powerpc there is some relief.  the permissions on a key can be
+> modified from anywhere, including from the signal handler, and the
+> effect will be immediate.  You dont have to wait till the
+> signal handler returns for the key permissions to be restore.
 
---FL5UXtIhxfXey3p5--
+My concern is that the signal handler knows nothing about protection
+keys, but the current x86-64 semantics will cause it to clobber the
+access rights of the current thread.
+
+> also after return from the sigsetjmp();
+> possibly caused by siglongjmp(), the program can restore the permission
+> on any key.
+
+So that's not really an option.
+
+> Atleast that is my theory. Can you give me a testcase; if you have one
+> handy.
+
+The glibc patch I posted under the =E2=80=98MPK: pkey_free and key reuse=E2=
+=80=99
+thread covers this, too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
