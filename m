@@ -1,169 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id ACFB36B026F
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:41:26 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id d66so448941ioe.23
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:41:26 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BC8B6B0271
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:47:30 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id f199so8641335qke.20
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:47:30 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id l20si63864ioc.203.2017.11.06.17.41.24
+        by mx.google.com with ESMTPS id f21si84176qka.383.2017.11.06.17.47.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 17:41:24 -0800 (PST)
-Subject: Re: [PATCH v2 9/9] memfd-test: run fuse test on hugetlb backend
- memory
+        Mon, 06 Nov 2017 17:47:29 -0800 (PST)
+Subject: Re: [PATCH v2 0/9] memfd: add sealing to hugetlb-backed memory
 References: <20171106143944.13821-1-marcandre.lureau@redhat.com>
- <20171106143944.13821-10-marcandre.lureau@redhat.com>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <988f32e8-9073-0022-076b-6f86dc650a9c@oracle.com>
-Date: Mon, 6 Nov 2017 17:41:16 -0800
+Message-ID: <feeb8164-134f-5efa-018c-b80ca8e26414@oracle.com>
+Date: Mon, 6 Nov 2017 17:47:21 -0800
 MIME-Version: 1.0
-In-Reply-To: <20171106143944.13821-10-marcandre.lureau@redhat.com>
+In-Reply-To: <20171106143944.13821-1-marcandre.lureau@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, David Herrmann <dh.herrmann@gmail.com>
 
 On 11/06/2017 06:39 AM, Marc-AndrA(C) Lureau wrote:
-> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-> Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
-> ---
->  tools/testing/selftests/memfd/fuse_test.c      | 30 ++++++++++++++++++++++----
->  tools/testing/selftests/memfd/run_fuse_test.sh |  2 +-
->  tools/testing/selftests/memfd/run_tests.sh     |  1 +
->  3 files changed, 28 insertions(+), 5 deletions(-)
+> Hi,
 > 
-> diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
-> index 795a25ba8521..0a85b34929e1 100644
-> --- a/tools/testing/selftests/memfd/fuse_test.c
-> +++ b/tools/testing/selftests/memfd/fuse_test.c
-> @@ -38,6 +38,8 @@
->  #define MFD_DEF_SIZE 8192
->  #define STACK_SIZE 65536
->  
-> +static size_t mfd_def_size = MFD_DEF_SIZE;
-> +
->  static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
->  {
->  	int r, fd;
-> @@ -123,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
->  	void *p;
->  
->  	p = mmap(NULL,
-> -		 MFD_DEF_SIZE,
-> +		 mfd_def_size,
->  		 PROT_READ | PROT_WRITE,
->  		 MAP_SHARED,
->  		 fd,
-> @@ -141,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
->  	void *p;
->  
->  	p = mmap(NULL,
-> -		 MFD_DEF_SIZE,
-> +		 mfd_def_size,
->  		 PROT_READ | PROT_WRITE,
->  		 MAP_PRIVATE,
->  		 fd,
-> @@ -174,7 +176,7 @@ static int sealing_thread_fn(void *arg)
->  	usleep(200000);
->  
->  	/* unmount mapping before sealing to avoid i_mmap_writable failures */
-> -	munmap(global_p, MFD_DEF_SIZE);
-> +	munmap(global_p, mfd_def_size);
->  
->  	/* Try sealing the global file; expect EBUSY or success. Current
->  	 * kernels will never succeed, but in the future, kernels might
-> @@ -224,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
->  
->  int main(int argc, char **argv)
->  {
-> -	static const char zero[MFD_DEF_SIZE];
-> +	char *zero;
->  	int fd, mfd, r;
->  	void *p;
->  	int was_sealed;
-> @@ -235,6 +237,25 @@ int main(int argc, char **argv)
->  		abort();
->  	}
->  
-> +	if (argc >= 3) {
-> +		if (!strcmp(argv[2], "hugetlbfs")) {
-> +			unsigned long hpage_size = default_huge_page_size();
-> +
-> +			if (!hpage_size) {
-> +				printf("Unable to determine huge page size\n");
-> +				abort();
-> +			}
-> +
-> +			hugetlbfs_test = 1;
-> +			mfd_def_size = hpage_size * 2;
-> +		} else {
-> +			printf("Unknown option: %s\n", argv[2]);
-> +			abort();
-> +		}
-> +	}
-> +
-> +	zero = calloc(sizeof(*zero), mfd_def_size);
-> +
->  	/* open FUSE memfd file for GUP testing */
->  	printf("opening: %s\n", argv[1]);
->  	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
+> Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
+> didn't add sealing support. One of the reasons to use memfd is to have
+> shared memory sealing when doing IPC or sharing memory with another
+> process with some extra safety. qemu uses shared memory & hugetables
+> with vhost-user (used by dpdk), so it is reasonable to use memfd
+> now instead for convenience and security reasons.
 
-When ftruncate'ing the newly created file, you need to make sure length is
-a multiple of huge page size for hugetlbfs files.  So, you will want to
-do something like:
+Thanks for doing this.
 
---- a/tools/testing/selftests/memfd/fuse_test.c
-+++ b/tools/testing/selftests/memfd/fuse_test.c
-@@ -265,7 +265,7 @@ int main(int argc, char **argv)
- 
-        /* create new memfd-object */
-        mfd = mfd_assert_new("kern_memfd_fuse",
--                            MFD_DEF_SIZE,
-+                            mfd_def_size,
-                             MFD_CLOEXEC | MFD_ALLOW_SEALING);
- 
-        /* mmap memfd-object for writing */
-
-Leaving MFD_DEF_SIZE for the size of reads and writes should be fine.
+I will create a patch to restructure the code such that memfd_create (and
+file sealing) is split out and will depend on CONFIG_TMPFS -or-
+CONFIG_HUGETLBFS.  I think this can wait to go in until after this patch
+series.  Unless, someone prefers that it go in first?
 
 -- 
 Mike Kravetz
 
-> @@ -303,6 +324,7 @@ int main(int argc, char **argv)
->  	close(fd);
->  
->  	printf("fuse: DONE\n");
-> +	free(zero);
->  
->  	return 0;
->  }
-> diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
-> index 407df68dfe27..22e572e2d66a 100755
-> --- a/tools/testing/selftests/memfd/run_fuse_test.sh
-> +++ b/tools/testing/selftests/memfd/run_fuse_test.sh
-> @@ -10,6 +10,6 @@ set -e
->  
->  mkdir mnt
->  ./fuse_mnt ./mnt
-> -./fuse_test ./mnt/memfd
-> +./fuse_test ./mnt/memfd $@
->  fusermount -u ./mnt
->  rmdir ./mnt
-> diff --git a/tools/testing/selftests/memfd/run_tests.sh b/tools/testing/selftests/memfd/run_tests.sh
-> index daabb350697c..c2d41ed81b24 100755
-> --- a/tools/testing/selftests/memfd/run_tests.sh
-> +++ b/tools/testing/selftests/memfd/run_tests.sh
-> @@ -60,6 +60,7 @@ fi
->  # Run the hugetlbfs test
->  #
->  ./memfd_test hugetlbfs
-> +./run_fuse_test.sh hugetlbfs
->  
->  #
->  # Give back any huge pages allocated for the test
+
+> 
+> Thanks!
+> 
+> v1->v2: after Mike review,
+> - add "memfd-hugetlb:" prefix in memfd-test
+> - run fuse test on hugetlb backend memory
+> - rename function memfd_file_get_seals() -> memfd_file_seals_ptr()
+> - update commit messages
+> - added reviewed-by tags
+> 
+> RFC->v1:
+> - split rfc patch, after early review feedback
+> - added patch for memfd-test changes
+> - fix build with hugetlbfs disabled
+> - small code and commit messages improvements
+> 
+> Marc-AndrA(C) Lureau (9):
+>   shmem: unexport shmem_add_seals()/shmem_get_seals()
+>   shmem: rename functions that are memfd-related
+>   hugetlb: expose hugetlbfs_inode_info in header
+>   hugetlbfs: implement memfd sealing
+>   shmem: add sealing support to hugetlb-backed memfd
+>   memfd-tests: test hugetlbfs sealing
+>   memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
+>   memfd-test: move common code to a shared unit
+>   memfd-test: run fuse test on hugetlb backend memory
+> 
+>  fs/fcntl.c                                     |   2 +-
+>  fs/hugetlbfs/inode.c                           |  39 +++--
+>  include/linux/hugetlb.h                        |  11 ++
+>  include/linux/shmem_fs.h                       |   6 +-
+>  mm/shmem.c                                     |  59 ++++---
+>  tools/testing/selftests/memfd/Makefile         |   5 +
+>  tools/testing/selftests/memfd/common.c         |  45 ++++++
+>  tools/testing/selftests/memfd/common.h         |   9 ++
+>  tools/testing/selftests/memfd/fuse_test.c      |  36 +++--
+>  tools/testing/selftests/memfd/memfd_test.c     | 212 ++++---------------------
+>  tools/testing/selftests/memfd/run_fuse_test.sh |   2 +-
+>  tools/testing/selftests/memfd/run_tests.sh     |   1 +
+>  12 files changed, 195 insertions(+), 232 deletions(-)
+>  create mode 100644 tools/testing/selftests/memfd/common.c
+>  create mode 100644 tools/testing/selftests/memfd/common.h
 > 
 
 --
