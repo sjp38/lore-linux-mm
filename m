@@ -1,57 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BC506B028E
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:30:07 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id z11so13666202pfk.23
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:30:07 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 33si616987plv.670.2017.11.07.00.30.05
-        for <linux-mm@kvack.org>;
-        Tue, 07 Nov 2017 00:30:06 -0800 (PST)
-Subject: Re: possible deadlock in generic_file_write_iter
-References: <94eb2c05f6a018dc21055d39c05b@google.com>
- <20171106032941.GR21978@ZenIV.linux.org.uk>
- <CACT4Y+abiKapoG9ms6RMqNkGBJtjX_Nf5WEQiYJcJ7=XCsyD2w@mail.gmail.com>
- <20171106131544.GB4359@quack2.suse.cz>
- <20171106133304.GS21978@ZenIV.linux.org.uk>
- <CACT4Y+YHPOaCVO81VPuC9hDLCSx=KJmwRf7pa3b96UAowLmA2A@mail.gmail.com>
- <20171106160107.GA20227@worktop.programming.kicks-ass.net>
- <20171107005442.GA1405@X58A-UD3R> <20171107081143.GD3326@worktop>
-From: Byungchul Park <byungchul.park@lge.com>
-Message-ID: <8352ad42-8437-4e25-29f4-c3b93c6eed18@lge.com>
-Date: Tue, 7 Nov 2017 17:30:03 +0900
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B5AF16B0290
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:30:47 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id o7so2414699pgc.23
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:30:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m15si610951pga.189.2017.11.07.00.30.46
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Nov 2017 00:30:46 -0800 (PST)
+Date: Tue, 7 Nov 2017 09:30:42 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: Guaranteed allocation of huge pages (1G) using movablecore=N
+ doesn't seem to work at all
+Message-ID: <20171107083042.5lnmsz237ccbituj@dhcp22.suse.cz>
+References: <CACAwPwamD4RL9O8wujK_jCKGu=x0dBBmH9O-9078cUEEk4WsMA@mail.gmail.com>
+ <CACAwPwYKjK5RT-ChQqqUnD7PrtpXg1WhTHGK3q60i6StvDMDRg@mail.gmail.com>
+ <CACAwPwav-eY4_nt=Z7TQB8WMFg+1X5WY2Gkgxph74X7=Ovfvrw@mail.gmail.com>
+ <CACAwPwaP05FgxTp=kavwgFZF+LEGO-OSspJ4jH+Y=_uRxiVZaA@mail.gmail.com>
+ <CACAwPwY5ss_D9kj7XoLVVkQ9=KXDFCnyDzdoxkGxhJZBNFre3w@mail.gmail.com>
+ <CACAwPwYp4TysdH_1w1F9L7BpwFAGR8dNg04F6QASyQeYYNErkg@mail.gmail.com>
+ <20171106180406.diowlwanvucnwkbp@dhcp22.suse.cz>
+ <CACAwPwaTejMB8yOrkOxpDj297B=Y6bTvw2nAyHsiJKC+aB=a2w@mail.gmail.com>
+ <20171106183237.64b3hj25hbfw7v4l@dhcp22.suse.cz>
+ <c6ab988b-f95f-3881-a35c-7727292fd44a@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171107081143.GD3326@worktop>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: ko
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c6ab988b-f95f-3881-a35c-7727292fd44a@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, Ingo Molnar <mingo@redhat.com>, kernel-team@lge.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Maxim Levitsky <maximlevitsky@gmail.com>, linux-mm@kvack.org
 
-11/7/2017 5:11 PMi?? Peter Zijlstra i?'(e??) i?' e,?:
-> On Tue, Nov 07, 2017 at 09:54:42AM +0900, Byungchul Park wrote:
->>> The best I could come up with is something like the below; its not
->>> at all pretty and I could see people objecting; least of all myself for
->>> the __complete() thing, but I ran out of creative naming juice.
->>
->> Patches assigning a lock_class per gendisk were already applied in tip.
->> I believe that solves this.
->>
->>     e319e1fbd9d42420ab6eec0bfd75eb9ad7ca63b1
->>     block, locking/lockdep: Assign a lock_class per gendisk used for
->>     wait_for_completion()
->>
->> I think the following proposal makes kernel too hacky.
+On Tue 07-11-17 09:20:47, Vlastimil Babka wrote:
+> On 11/06/2017 07:32 PM, Michal Hocko wrote:
+> > On Mon 06-11-17 20:13:36, Maxim Levitsky wrote:
+> >> Yes, I tested git head from mainline and few kernels from ubuntu repos
+> >> since I was lazy to compile them too.
+> > 
+> > OK, so this hasn't worked realiably as I've suspected.
+> > 
+> >> Do you have an idea what can I do about this issue? Do you think its
+> >> feasable to fix this?
+> > 
+> > Well, I think that giga pages need quite some love to be usable
+> > reliably. The current implementation is more towards "make it work if
+> > there is enough unused memory".
+> > 
+> >> And if not using moveable zone, how would it even be possible to have
+> >> guaranreed allocation of 1g pages
+> > 
+> > Having a guaranteed giga pages is something the kernel is not yet ready
+> > to offer.  Abusing zone movable might look like the right direction
+> > but that is not really the case until we make sure those pages are
+> > migratable.
 > 
-> Ah, I tough this was with those included...
+> Migratable where? It's very unlikely you will be able to migrate them
+> away from a movable zone to a normal zone. So the use case is migration
+> between hotplugable nodes, so one of them can be removed?
 
-Please CC me for issues wrt. crossrelease.
+Yes, basically what we do for hugetlb pages normally. Smaller hugetlb
+pages are more likely to succeed, though.
 
---
-Thanks,
-Byungchul
+> That would
+> probably be an improvement (even if you could not guarantee to offline
+> all hotplugable nodes at once without admin intervention removing those
+> giga pages). Right now the only scenario where giga pages are compatible
+> with hot-remove is to put them on the already-limited non-removable node
+> 0...
+
+Yes, we will never be perfect, but I can see why people want to allocate
+from movable zones so we definitely should work on making giga pages
+more robust. The current state makes cry...
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
