@@ -1,71 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 182CB6B02CA
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:05:14 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 107so5674681wra.7
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:05:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x28si1259154edl.229.2017.11.07.07.05.12
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 20C306B02CE
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:23:21 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id q81so2489552ioi.12
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:23:21 -0800 (PST)
+Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [69.252.207.40])
+        by mx.google.com with ESMTPS id t2si1169956ioa.218.2017.11.07.07.23.20
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Nov 2017 07:05:12 -0800 (PST)
-Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
- <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
- <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
- <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
- <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
- <alpine.DEB.2.20.1711060926001.9015@nuc-kabylake>
- <a4f1212f-3903-abbc-772a-1ddee6f7f98b@huawei.com>
- <alpine.DEB.2.20.1711070851560.18776@nuc-kabylake>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <04e4cb50-8cba-58af-1a5e-61e818cffa70@suse.cz>
-Date: Tue, 7 Nov 2017 16:05:10 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 07:23:20 -0800 (PST)
+Date: Tue, 7 Nov 2017 09:22:18 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
+ slub_debug=O
+In-Reply-To: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
+Message-ID: <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
+References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711070851560.18776@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>, Yisheng Xie <xieyisheng1@huawei.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
 
-On 11/07/2017 03:54 PM, Christopher Lameter wrote:
-> On Tue, 7 Nov 2017, Yisheng Xie wrote:
-> 
->> On 2017/11/6 23:29, Christopher Lameter wrote:
->>> On Mon, 6 Nov 2017, Vlastimil Babka wrote:
->>>
->>>> I'm not sure what exactly is the EPERM intention. Should really the
->>>> capability of THIS process override the cpuset restriction of the TARGET
->>>> process? Maybe yes. Then, does "insufficient privilege (CAP_SYS_NICE) to
->>>
->>> CAP_SYS_NICE never overrides cpuset restrictions. The cap can be used to
->>> migrate pages that are *also* mapped by other processes (and thus move
->>> pages of another process which may have different cpu set restrictions!).
->>
->> So you means the specified nodes should be a subset of target cpu set, right?
-> 
-> The specified nodes need to be part of the *current* cpu set.
-> 
-> Migrate pages moves the pages of a single process there is no TARGET
-> process.
+On Tue, 7 Nov 2017, miles.chen@mediatek.com wrote:
 
-migrate_pages(2) takes a pid argument
+> When slub_debug=O is set. It is possible to clear debug flags
+> for an "unmergeable" slab cache in kmem_cache_open().
+> It makes the "unmergeable" cache became "mergeable" in sysfs_slab_add().
 
-"migrate_pages()  attempts  to  move all pages of the process pid that
-are in memory nodes old_nodes to the memory nodes in new_nodes. "
+Right but that is only if disable_higher_order_debug is set.
 
-> Thus thehe *target* nodes need to be a subset of the current cpu set.
-> 
-> 
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-api" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
-> 
+> These caches will generate their "unique IDs" by create_unique_id(),
+> but it is possible to create identical unique IDs. In my experiment,
+> sgpool-128, names_cache, biovec-256 generate the same ID ":Ft-0004096"
+> and the kernel reports "sysfs: cannot create duplicate filename
+> '/kernel/slab/:Ft-0004096'".
+
+Ok then the aliasing failed for some reason. The creation of the unique id
+and the alias detection needs to be in sync otherwise duplicate filenames
+are created. What is the difference there?
+
+The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
+should do the same right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
