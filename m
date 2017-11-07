@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 286AB280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:40:50 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p75so555373wmg.2
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:40:50 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w51sor498542edd.54.2017.11.07.00.40.48
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Nov 2017 00:40:49 -0800 (PST)
-Date: Tue, 7 Nov 2017 11:40:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: UBSAN: Undefined behaviour in mm/sparse.c:81:17
-Message-ID: <20171107084045.clzrn32pvsw4jthi@node.shutemov.name>
-References: <20171105125733.GA17434@Red>
- <20171106192759.GA29097@Red>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BCEE280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:42:42 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y128so13807675pfg.5
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:42:42 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id f26si703858pff.119.2017.11.07.00.42.40
+        for <linux-mm@kvack.org>;
+        Tue, 07 Nov 2017 00:42:41 -0800 (PST)
+Subject: Re: possible deadlock in generic_file_write_iter
+References: <94eb2c05f6a018dc21055d39c05b@google.com>
+ <20171106032941.GR21978@ZenIV.linux.org.uk>
+ <CACT4Y+abiKapoG9ms6RMqNkGBJtjX_Nf5WEQiYJcJ7=XCsyD2w@mail.gmail.com>
+ <20171106131544.GB4359@quack2.suse.cz>
+ <20171106133304.GS21978@ZenIV.linux.org.uk>
+ <CACT4Y+YHPOaCVO81VPuC9hDLCSx=KJmwRf7pa3b96UAowLmA2A@mail.gmail.com>
+ <20171106160107.GA20227@worktop.programming.kicks-ass.net>
+ <20171107005442.GA1405@X58A-UD3R> <20171107081143.GD3326@worktop>
+ <8352ad42-8437-4e25-29f4-c3b93c6eed18@lge.com>
+ <CACT4Y+aTQ1j-oPG2_2gAOLCasMqT95qWOYTR1Yx4nr05M-ZnMA@mail.gmail.com>
+From: Byungchul Park <byungchul.park@lge.com>
+Message-ID: <9cac5a72-e3ff-1b59-4903-a98167728a7a@lge.com>
+Date: Tue, 7 Nov 2017 17:42:36 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171106192759.GA29097@Red>
+In-Reply-To: <CACT4Y+aTQ1j-oPG2_2gAOLCasMqT95qWOYTR1Yx4nr05M-ZnMA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: ko
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Corentin Labbe <clabbe.montjoie@gmail.com>
-Cc: linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, yasu.isimatu@gmail.com, richard.weiyang@gmail.com, gregkh@linuxfoundation.org, dave.hansen@linux.intel.com, linux-kernel@vger.kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.cz>, syzbot <bot+f99f3a0db9007f4f4e32db54229a240c4fe57c15@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, npiggin@gmail.com, rgoldwyn@suse.com, ross.zwisler@linux.intel.com, syzkaller-bugs@googlegroups.com, Ingo Molnar <mingo@redhat.com>, kernel-team@lge.com
 
-On Mon, Nov 06, 2017 at 08:27:59PM +0100, Corentin Labbe wrote:
-> Hello
+11/7/2017 5:31 PMi?? Dmitry Vyukov i?'(e??) i?' e,?:
+> On Tue, Nov 7, 2017 at 9:30 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+>> 11/7/2017 5:11 PMi?? Peter Zijlstra i?'(e??) i?' e,?:
+>>
+>>> On Tue, Nov 07, 2017 at 09:54:42AM +0900, Byungchul Park wrote:
+>>>>>
+>>>>> The best I could come up with is something like the below; its not
+>>>>> at all pretty and I could see people objecting; least of all myself for
+>>>>> the __complete() thing, but I ran out of creative naming juice.
+>>>>
+>>>>
+>>>> Patches assigning a lock_class per gendisk were already applied in tip.
+>>>> I believe that solves this.
+>>>>
+>>>>      e319e1fbd9d42420ab6eec0bfd75eb9ad7ca63b1
+>>>>      block, locking/lockdep: Assign a lock_class per gendisk used for
+>>>>      wait_for_completion()
+>>>>
+>>>> I think the following proposal makes kernel too hacky.
+>>>
+>>>
+>>> Ah, I tough this was with those included...
+>>
+>>
+>> Please CC me for issues wrt. crossrelease.
 > 
-> Disabling UBSAN, does not change anything (NULL ptr dereference).
-> Reverting 83e3c48729d9ebb7af5a31a504f3fd6aff0348c4 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y") made the boot progress further.
+> Hi Byungchul,
 > 
-> Regards
-> 
-> PS: I have added more "TO" people according to get_maintainer.pl mm/sparse.c
-> 
+> Whom are you asking? And what is crossrelease?
 
-See
+Hi Dmitry,
 
-http://lkml.kernel.org/r/20171107083337.89952-1-kirill.shutemov@linux.intel.com
+Actually, I asked Peter since he know I am the author of
+crossrelease which is a feature enhancing lockdep detection.
 
--- 
- Kirill A. Shutemov
+That makes deadlocks caused by wait_for_completion() or
+lock_page() detectable.
+
+The feature was merged and disabled by default for now in
+vanilla because of its performance regression, though that
+was fixed and enabled in tip latest.
+
+--
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
