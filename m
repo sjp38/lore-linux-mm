@@ -1,176 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DD269280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:37 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id g125so12820540oib.13
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:37 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 12si536779otk.546.2017.11.07.04.28.36
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C862D6B0298
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:50:58 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id j15so7790602wre.15
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:50:58 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x5si1220909edj.433.2017.11.07.04.50.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 04:28:36 -0800 (PST)
-From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH v3 9/9] memfd-test: run fuse test on hugetlb backend memory
-Date: Tue,  7 Nov 2017 13:28:00 +0100
-Message-Id: <20171107122800.25517-10-marcandre.lureau@redhat.com>
-In-Reply-To: <20171107122800.25517-1-marcandre.lureau@redhat.com>
-References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 07 Nov 2017 04:50:57 -0800 (PST)
+Date: Tue, 7 Nov 2017 13:50:55 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: Avoid KERN_CONT uses in warn_alloc
+Message-ID: <20171107125055.cl5pyp2zwon44x5l@dhcp22.suse.cz>
+References: <b31236dfe3fc924054fd7842bde678e71d193638.1509991345.git.joe@perches.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b31236dfe3fc924054fd7842bde678e71d193638.1509991345.git.joe@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
+On Mon 06-11-17 10:02:56, Joe Perches wrote:
+> KERN_CONT/pr_cont uses should be avoided where possible.
+> Use single pr_warn calls instead.
+> 
+> Signed-off-by: Joe Perches <joe@perches.com>
+> ---
+>  mm/page_alloc.c | 14 ++++++--------
+>  1 file changed, 6 insertions(+), 8 deletions(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 536431bf0f0c..82e6d2c914ab 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3275,19 +3275,17 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>  	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
+>  		return;
+>  
+> -	pr_warn("%s: ", current->comm);
+> -
+>  	va_start(args, fmt);
+>  	vaf.fmt = fmt;
+>  	vaf.va = &args;
+> -	pr_cont("%pV", &vaf);
+> -	va_end(args);
+> -
+> -	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
+>  	if (nodemask)
+> -		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
+> +		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
+> +			current->comm, &vaf, gfp_mask, &gfp_mask,
+> +			nodemask_pr_args(nodemask));
+>  	else
+> -		pr_cont("(null)\n");
+> +		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=(null)\n",
+> +			current->comm, &vaf, gfp_mask, &gfp_mask);
+> +	va_end(args);
+>  
+>  	cpuset_print_current_mems_allowed();
+
+I do not like the duplication. It just calls for inconsistencies over
+time. Can we instead make %*pbl consume NULL nodemask instead?
+Something like the following pseudo patch + the if/else removed.
+If this would be possible we could simplify other code as well I think
+(at least oom code has to special case NULL nodemask).
+
+What do you think?
 ---
- tools/testing/selftests/memfd/fuse_test.c      | 38 ++++++++++++++++++++------
- tools/testing/selftests/memfd/run_fuse_test.sh |  2 +-
- tools/testing/selftests/memfd/run_tests.sh     |  1 +
- 3 files changed, 32 insertions(+), 9 deletions(-)
-
-diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
-index 795a25ba8521..b018e835737d 100644
---- a/tools/testing/selftests/memfd/fuse_test.c
-+++ b/tools/testing/selftests/memfd/fuse_test.c
-@@ -38,6 +38,8 @@
- #define MFD_DEF_SIZE 8192
- #define STACK_SIZE 65536
+diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+index de1c50b93c61..106fac744f49 100644
+--- a/include/linux/nodemask.h
++++ b/include/linux/nodemask.h
+@@ -104,7 +104,7 @@ extern nodemask_t _unused_nodemask_arg_;
+  *
+  * Can be used to provide arguments for '%*pb[l]' when printing a nodemask.
+  */
+-#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp)->bits
++#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp) ? (maskp)->bits : NULL
  
-+static size_t mfd_def_size = MFD_DEF_SIZE;
+ /*
+  * The inline keyword gives the compiler room to decide to inline, or
+diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+index 1746bae94d41..6f40cf319a76 100644
+--- a/lib/vsprintf.c
++++ b/lib/vsprintf.c
+@@ -902,6 +902,9 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
+ 	int cur, rbot, rtop;
+ 	bool first = true;
+ 
++	if (!bitmap)
++		return buf;
 +
- static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
- {
- 	int r, fd;
-@@ -123,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
- 	void *p;
+ 	/* reused to print numbers */
+ 	spec = (struct printf_spec){ .base = 10 };
  
- 	p = mmap(NULL,
--		 MFD_DEF_SIZE,
-+		 mfd_def_size,
- 		 PROT_READ | PROT_WRITE,
- 		 MAP_SHARED,
- 		 fd,
-@@ -141,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
- 	void *p;
- 
- 	p = mmap(NULL,
--		 MFD_DEF_SIZE,
-+		 mfd_def_size,
- 		 PROT_READ | PROT_WRITE,
- 		 MAP_PRIVATE,
- 		 fd,
-@@ -174,7 +176,7 @@ static int sealing_thread_fn(void *arg)
- 	usleep(200000);
- 
- 	/* unmount mapping before sealing to avoid i_mmap_writable failures */
--	munmap(global_p, MFD_DEF_SIZE);
-+	munmap(global_p, mfd_def_size);
- 
- 	/* Try sealing the global file; expect EBUSY or success. Current
- 	 * kernels will never succeed, but in the future, kernels might
-@@ -224,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
- 
- int main(int argc, char **argv)
- {
--	static const char zero[MFD_DEF_SIZE];
-+	char *zero;
- 	int fd, mfd, r;
- 	void *p;
- 	int was_sealed;
-@@ -235,6 +237,25 @@ int main(int argc, char **argv)
- 		abort();
- 	}
- 
-+	if (argc >= 3) {
-+		if (!strcmp(argv[2], "hugetlbfs")) {
-+			unsigned long hpage_size = default_huge_page_size();
-+
-+			if (!hpage_size) {
-+				printf("Unable to determine huge page size\n");
-+				abort();
-+			}
-+
-+			hugetlbfs_test = 1;
-+			mfd_def_size = hpage_size * 2;
-+		} else {
-+			printf("Unknown option: %s\n", argv[2]);
-+			abort();
-+		}
-+	}
-+
-+	zero = calloc(sizeof(*zero), mfd_def_size);
-+
- 	/* open FUSE memfd file for GUP testing */
- 	printf("opening: %s\n", argv[1]);
- 	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
-@@ -245,7 +266,7 @@ int main(int argc, char **argv)
- 
- 	/* create new memfd-object */
- 	mfd = mfd_assert_new("kern_memfd_fuse",
--			     MFD_DEF_SIZE,
-+			     mfd_def_size,
- 			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
- 
- 	/* mmap memfd-object for writing */
-@@ -264,7 +285,7 @@ int main(int argc, char **argv)
- 	 * This guarantees that the receive-buffer is pinned for 1s until the
- 	 * data is written into it. The racing ADD_SEALS should thus fail as
- 	 * the pages are still pinned. */
--	r = read(fd, p, MFD_DEF_SIZE);
-+	r = read(fd, p, mfd_def_size);
- 	if (r < 0) {
- 		printf("read() failed: %m\n");
- 		abort();
-@@ -291,10 +312,10 @@ int main(int argc, char **argv)
- 	 * enough to avoid any in-flight writes. */
- 
- 	p = mfd_assert_mmap_private(mfd);
--	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
-+	if (was_sealed && memcmp(p, zero, mfd_def_size)) {
- 		printf("memfd sealed during read() but data not discarded\n");
- 		abort();
--	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
-+	} else if (!was_sealed && !memcmp(p, zero, mfd_def_size)) {
- 		printf("memfd sealed after read() but data discarded\n");
- 		abort();
- 	}
-@@ -303,6 +324,7 @@ int main(int argc, char **argv)
- 	close(fd);
- 
- 	printf("fuse: DONE\n");
-+	free(zero);
- 
- 	return 0;
- }
-diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
-index 407df68dfe27..22e572e2d66a 100755
---- a/tools/testing/selftests/memfd/run_fuse_test.sh
-+++ b/tools/testing/selftests/memfd/run_fuse_test.sh
-@@ -10,6 +10,6 @@ set -e
- 
- mkdir mnt
- ./fuse_mnt ./mnt
--./fuse_test ./mnt/memfd
-+./fuse_test ./mnt/memfd $@
- fusermount -u ./mnt
- rmdir ./mnt
-diff --git a/tools/testing/selftests/memfd/run_tests.sh b/tools/testing/selftests/memfd/run_tests.sh
-index daabb350697c..c2d41ed81b24 100755
---- a/tools/testing/selftests/memfd/run_tests.sh
-+++ b/tools/testing/selftests/memfd/run_tests.sh
-@@ -60,6 +60,7 @@ fi
- # Run the hugetlbfs test
- #
- ./memfd_test hugetlbfs
-+./run_fuse_test.sh hugetlbfs
- 
- #
- # Give back any huge pages allocated for the test
 -- 
-2.15.0.125.g8f49766d64
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
