@@ -1,51 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E51746B0297
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 04:06:38 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id c21so7407044wrg.16
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 01:06:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 92si738808edn.391.2017.11.07.01.06.37
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DAF86B0299
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 04:15:45 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id a2so3607537lfh.4
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 01:15:45 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q21sor142136lfj.85.2017.11.07.01.15.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Nov 2017 01:06:37 -0800 (PST)
-Date: Tue, 7 Nov 2017 10:06:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, sparse: do not swamp log with huge vmemmap
- allocation failures
-Message-ID: <20171107090635.c27thtse2lchjgvb@dhcp22.suse.cz>
-References: <20171106092228.31098-1-mhocko@kernel.org>
+        (Google Transport Security);
+        Tue, 07 Nov 2017 01:15:43 -0800 (PST)
+Date: Tue, 7 Nov 2017 12:15:40 +0300
+From: Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH 1/3] mm: memcontrol: eliminate raw access to stat and
+ event counters
+Message-ID: <20171107091540.mmv2htftez3ffle4@esperanza>
+References: <20171103153336.24044-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171106092228.31098-1-mhocko@kernel.org>
+In-Reply-To: <20171103153336.24044-1-hannes@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, kernel-team@fb.com
 
-Dohh, forgot to git add the follow up fix on top of Johannes' original
-diff so it didn't make it into the finall commit. Could you fold this
-into the patch Andrew, please?
+On Fri, Nov 03, 2017 at 11:33:34AM -0400, Johannes Weiner wrote:
+> Replace all raw 'this_cpu_' modifications of the stat and event
+> per-cpu counters with API functions such as mod_memcg_state().
+> 
+> This makes the code easier to read, but is also in preparation for the
+> next patch, which changes the per-cpu implementation of those counters.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  include/linux/memcontrol.h | 31 +++++++++++++++---------
+>  mm/memcontrol.c            | 59 ++++++++++++++++++++--------------------------
+>  2 files changed, 45 insertions(+), 45 deletions(-)
 
-Sorry about that.
----
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index 3f85084cb8bb..9a745e2a6f9a 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -62,7 +62,7 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
- 			return page_address(page);
- 
- 		if (!warned) {
--			warn_alloc(gfp_mask, NULL, "vmemmap alloc failure: order:%u", order);
-+			warn_alloc(gfp_mask & ~__GFP_NOWARN, NULL, "vmemmap alloc failure: order:%u", order);
- 			warned = true;
- 		}
- 		return NULL;
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
