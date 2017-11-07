@@ -1,51 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 01E28280265
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 09:54:50 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id f16so2476491ioe.1
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 06:54:49 -0800 (PST)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id h67si1565253ita.4.2017.11.07.06.54.48
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3D326B02C5
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:04:57 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id l188so4304754wma.1
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:04:57 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id r6si881769edi.539.2017.11.07.07.04.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 06:54:48 -0800 (PST)
-Date: Tue, 7 Nov 2017 08:54:46 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-In-Reply-To: <a4f1212f-3903-abbc-772a-1ddee6f7f98b@huawei.com>
-Message-ID: <alpine.DEB.2.20.1711070851560.18776@nuc-kabylake>
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com> <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com> <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz> <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com> <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
- <alpine.DEB.2.20.1711060926001.9015@nuc-kabylake> <a4f1212f-3903-abbc-772a-1ddee6f7f98b@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        Tue, 07 Nov 2017 07:04:56 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v1 0/1] split deferred_init_range into initializing and freeing parts
+Date: Tue,  7 Nov 2017 10:04:45 -0500
+Message-Id: <20171107150446.32055-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, akpm@linux-foundation.org, mgorman@techsingularity.net, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 7 Nov 2017, Yisheng Xie wrote:
+As discussed last week with Michal Hocko, I am sending this as a separate
+patch:
+https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1528267.html
 
-> On 2017/11/6 23:29, Christopher Lameter wrote:
-> > On Mon, 6 Nov 2017, Vlastimil Babka wrote:
-> >
-> >> I'm not sure what exactly is the EPERM intention. Should really the
-> >> capability of THIS process override the cpuset restriction of the TARGET
-> >> process? Maybe yes. Then, does "insufficient privilege (CAP_SYS_NICE) to
-> >
-> > CAP_SYS_NICE never overrides cpuset restrictions. The cap can be used to
-> > migrate pages that are *also* mapped by other processes (and thus move
-> > pages of another process which may have different cpu set restrictions!).
->
-> So you means the specified nodes should be a subset of target cpu set, right?
+This patch farther improves deferred page initialization by enabling future
+mult-threading, covering some corner cases, and simplifies the logic and
+modularity.
 
-The specified nodes need to be part of the *current* cpu set.
+Tested with qemu, and on bare metal with kexec, and regular reboots.
 
-Migrate pages moves the pages of a single process there is no TARGET
-process.
+Pavel Tatashin (1):
+  mm: split deferred_init_range into initializing and freeing parts
 
-Thus thehe *target* nodes need to be a subset of the current cpu set.
+ mm/page_alloc.c | 146 +++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 76 insertions(+), 70 deletions(-)
 
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
