@@ -1,94 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B5569280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:33:56 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id b192so15978959pga.14
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:33:56 -0800 (PST)
-Received: from osg.samsung.com (osg.samsung.com. [64.30.133.232])
-        by mx.google.com with ESMTP id b9si611075pls.157.2017.11.07.00.33.55
-        for <linux-mm@kvack.org>;
-        Tue, 07 Nov 2017 00:33:55 -0800 (PST)
-Date: Tue, 7 Nov 2017 06:33:45 -0200
-From: Mauro Carvalho Chehab <mchehab@s-opensource.com>
-Subject: Re: [PATCH 3/3] [media] v4l2: disable filesystem-dax mapping
- support
-Message-ID: <20171107063345.22626a5d@vento.lan>
-In-Reply-To: <151001624873.16354.2551756846133945335.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<151001624873.16354.2551756846133945335.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A637280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 03:34:50 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id i196so16006199pgd.2
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 00:34:50 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id bj7si605839plb.394.2017.11.07.00.34.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 00:34:48 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] mm, sparse: Fix boot on arm64
+Date: Tue,  7 Nov 2017 11:33:37 +0300
+Message-Id: <20171107083337.89952-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jan Kara <jack@suse.cz>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Mauro Carvalho Chehab <mchehab@kernel.org>, linux-media@vger.kernel.org
+To: Ingo Molnar <mingo@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Bjorn Andersson <bjorn.andersson@linaro.org>, Sudeep Holla <sudeep.holla@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Em Mon, 06 Nov 2017 16:57:28 -0800
-Dan Williams <dan.j.williams@intel.com> escreveu:
+Since 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for
+CONFIG_SPARSEMEM_EXTREME=y") we allocate mem_section dynamically in
+sparse_memory_present_with_active_regions(). But some architectures, like
+arm64, don't use the routine to initialize sparsemem.
 
-> V4L2 memory registrations are incompatible with filesystem-dax that
-> needs the ability to revoke dma access to a mapping at will, or
-> otherwise allow the kernel to wait for completion of DMA. The
-> filesystem-dax implementation breaks the traditional solution of
-> truncate of active file backed mappings since there is no page-cache
-> page we can orphan to sustain ongoing DMA.
-> 
-> If v4l2 wants to support long lived DMA mappings it needs to arrange to
-> hold a file lease or use some other mechanism so that the kernel can
-> coordinate revoking DMA access when the filesystem needs to truncate
-> mappings.
+Let's move the initialization into memory_present() it should cover all
+architectures.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+Acked-by: Will Deacon <will.deacon@arm.com>
+Tested-by: Bjorn Andersson <bjorn.andersson@linaro.org>
+Reported-and-tested-by: Sudeep Holla <sudeep.holla@arm.com>
+---
+ mm/page_alloc.c | 10 ----------
+ mm/sparse.c     | 10 ++++++++++
+ 2 files changed, 10 insertions(+), 10 deletions(-)
 
-Not sure if I understand this your comment here... what happens
-if FS_DAX is enabled? The new err = get_user_pages_longterm()
-would cause DMA allocation to fail? If so, that doesn't sound
-right. Instead, mm should somehow mark this mapping to be out
-of FS_DAX control range.
-
-Also, it is not only videobuf-dma-sg.c that does long lived
-DMA mappings. VB2 also does that (and videobuf-vmalloc).
-
-Regards,
-Mauro
-
-
-> 
-> Reported-by: Jan Kara <jack@suse.cz>
-> Cc: Mauro Carvalho Chehab <mchehab@kernel.org>
-> Cc: linux-media@vger.kernel.org
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  drivers/media/v4l2-core/videobuf-dma-sg.c |    5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
-> 
-> diff --git a/drivers/media/v4l2-core/videobuf-dma-sg.c b/drivers/media/v4l2-core/videobuf-dma-sg.c
-> index 0b5c43f7e020..f412429cf5ba 100644
-> --- a/drivers/media/v4l2-core/videobuf-dma-sg.c
-> +++ b/drivers/media/v4l2-core/videobuf-dma-sg.c
-> @@ -185,12 +185,13 @@ static int videobuf_dma_init_user_locked(struct videobuf_dmabuf *dma,
->  	dprintk(1, "init user [0x%lx+0x%lx => %d pages]\n",
->  		data, size, dma->nr_pages);
->  
-> -	err = get_user_pages(data & PAGE_MASK, dma->nr_pages,
-> +	err = get_user_pages_longterm(data & PAGE_MASK, dma->nr_pages,
->  			     flags, dma->pages, NULL);
->  
->  	if (err != dma->nr_pages) {
->  		dma->nr_pages = (err >= 0) ? err : 0;
-> -		dprintk(1, "get_user_pages: err=%d [%d]\n", err, dma->nr_pages);
-> +		dprintk(1, "get_user_pages_longterm: err=%d [%d]\n", err,
-> +			dma->nr_pages);
->  		return err < 0 ? err : -EINVAL;
->  	}
->  	return 0;
-> 
-
-
-
-Thanks,
-Mauro
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 8dfd13f724d9..77e4d3c5c57b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5646,16 +5646,6 @@ void __init sparse_memory_present_with_active_regions(int nid)
+ 	unsigned long start_pfn, end_pfn;
+ 	int i, this_nid;
+ 
+-#ifdef CONFIG_SPARSEMEM_EXTREME
+-	if (!mem_section) {
+-		unsigned long size, align;
+-
+-		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
+-		align = 1 << (INTERNODE_CACHE_SHIFT);
+-		mem_section = memblock_virt_alloc(size, align);
+-	}
+-#endif
+-
+ 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
+ 		memory_present(this_nid, start_pfn, end_pfn);
+ }
+diff --git a/mm/sparse.c b/mm/sparse.c
+index b00a97398795..d294148ba395 100644
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -206,6 +206,16 @@ void __init memory_present(int nid, unsigned long start, unsigned long end)
+ {
+ 	unsigned long pfn;
+ 
++#ifdef CONFIG_SPARSEMEM_EXTREME
++	if (unlikely(!mem_section)) {
++		unsigned long size, align;
++
++		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
++		align = 1 << (INTERNODE_CACHE_SHIFT);
++		mem_section = memblock_virt_alloc(size, align);
++	}
++#endif
++
+ 	start &= PAGE_SECTION_MASK;
+ 	mminit_validate_memmodel_limits(&start, &end);
+ 	for (pfn = start; pfn < end; pfn += PAGES_PER_SECTION) {
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
