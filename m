@@ -1,105 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D059280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:29 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t139so776899wmt.7
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:29 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w51sor803934edd.54.2017.11.07.04.28.27
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 98E38280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:30 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id s144so12849378oih.5
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:30 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s109si513838otb.26.2017.11.07.04.28.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Nov 2017 04:28:27 -0800 (PST)
-Date: Tue, 7 Nov 2017 15:28:25 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
-References: <20171105231850.5e313e46@roar.ozlabs.ibm.com>
- <871slcszfl.fsf@linux.vnet.ibm.com>
- <20171106174707.19f6c495@roar.ozlabs.ibm.com>
- <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
- <20171106192524.12ea3187@roar.ozlabs.ibm.com>
- <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
- <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
- <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
- <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
- <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 04:28:29 -0800 (PST)
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Subject: [PATCH v3 7/9] memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
+Date: Tue,  7 Nov 2017 13:27:58 +0100
+Message-Id: <20171107122800.25517-8-marcandre.lureau@redhat.com>
+In-Reply-To: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: Florian Weimer <fweimer@redhat.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-On Tue, Nov 07, 2017 at 10:56:36PM +1100, Nicholas Piggin wrote:
-> > No, it won't. You will hit stack first.
-> 
-> I guess so. Florian's bug didn't crash there for some reason, okay
-> but I suppose my point about brk is not exactly where the standard
-> heap is, but the pattern of allocations. An allocator that uses
-> mmap for managing its address space might do the same thing, e.g.,
-> incrementally expand existing mmaps as necessary.
+Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ tools/testing/selftests/memfd/memfd_test.c | 26 ++++++++++++++++----------
+ 1 file changed, 16 insertions(+), 10 deletions(-)
 
-With MAP_FIXED? I don't think so.
-
-> > > Second, the kernel can never completely solve the problem this way.
-> > > How do we know a malloc library will not ask for > 128TB addresses
-> > > and pass them to an unknowing application?  
-> > 
-> > The idea is that an application can provide hint (mallopt() ?) to malloc
-> > implementation that it's ready to full address space. In this case, malloc
-> > can use mmap((void *) -1,...) for its allocations and get full address
-> > space this way.
-> 
-> Point is, there's nothing stopping an allocator library or runtime
-> from asking for mmap anywhere and returning it to userspace.
-
-Right. Nobody would stop it from doing stupid things. There are many
-things that a library may do that application would not be happy about.
-
-> Do > 128TB pointers matter so much that we should add this heuristic
-> to prevent breakage, but little enough that we can accept some rare
-> cases getting through? Genuine question.
-
-At the end of the day what matters is if heuristic helps prevent breakage
-of existing userspace and doesn't stay in the way of legitimate use of
-full address space.
-
-So far, it looks okay to me.
-
-> > The idea was we shouldn't allow to slip above 47-bits by accidentally.
-> > 
-> > Correctly functioning program would never request addr+len above 47-bit
-> > with MAP_FIXED, unless it's ready to handle such addresses. Otherwise the
-> > request would simply fail on machine that doesn't support large VA.
-> > 
-> > In contrast, addr+len above 47-bit without MAP_FIXED will not fail on
-> > machine that doesn't support large VA, kernel will find another place
-> > under 47-bit. And I can imagine a reasonable application that does
-> > something like this.
-> > 
-> > So we cannot rely that application is ready to handle large
-> > addresses if we see addr+len without MAP_FIXED.
-> 
-> By the same logic, a request for addr > 128TB without MAP_FIXED will
-> not fail, therefore we can't rely on that either.
-> 
-> Or an app that links to a library that attempts MAP_FIXED allocation
-> of addr + len above 128TB might use high bits of pointer returned by
-> that library because those are never satisfied today and the library
-> would fall back.
-
-If you want to point that it's ABI break, yes it is.
-
-But we allow ABI break as long as nobody notices. I think it's reasonable
-to expect that nobody relies on such corner cases.
-
-If we would find any piece of software affect by the change we would need
-to reconsider.
-
+diff --git a/tools/testing/selftests/memfd/memfd_test.c b/tools/testing/selftests/memfd/memfd_test.c
+index cca957a06525..955d09ee16ca 100644
+--- a/tools/testing/selftests/memfd/memfd_test.c
++++ b/tools/testing/selftests/memfd/memfd_test.c
+@@ -20,6 +20,7 @@
+ #include <unistd.h>
+ 
+ #define MEMFD_STR	"memfd:"
++#define MEMFD_HUGE_STR	"memfd-hugetlb:"
+ #define SHARED_FT_STR	"(shared file-table)"
+ 
+ #define MFD_DEF_SIZE 8192
+@@ -30,6 +31,7 @@
+  */
+ static int hugetlbfs_test;
+ static size_t mfd_def_size = MFD_DEF_SIZE;
++static const char *memfd_str = MEMFD_STR;
+ 
+ /*
+  * Copied from mlock2-tests.c
+@@ -606,7 +608,7 @@ static void test_create(void)
+ 	char buf[2048];
+ 	int fd;
+ 
+-	printf("%s CREATE\n", MEMFD_STR);
++	printf("%s CREATE\n", memfd_str);
+ 
+ 	/* test NULL name */
+ 	mfd_fail_new(NULL, 0);
+@@ -652,7 +654,7 @@ static void test_basic(void)
+ {
+ 	int fd;
+ 
+-	printf("%s BASIC\n", MEMFD_STR);
++	printf("%s BASIC\n", memfd_str);
+ 
+ 	fd = mfd_assert_new("kern_memfd_basic",
+ 			    mfd_def_size,
+@@ -704,7 +706,7 @@ static void test_seal_write(void)
+ {
+ 	int fd;
+ 
+-	printf("%s SEAL-WRITE\n", MEMFD_STR);
++	printf("%s SEAL-WRITE\n", memfd_str);
+ 
+ 	fd = mfd_assert_new("kern_memfd_seal_write",
+ 			    mfd_def_size,
+@@ -730,7 +732,7 @@ static void test_seal_shrink(void)
+ {
+ 	int fd;
+ 
+-	printf("%s SEAL-SHRINK\n", MEMFD_STR);
++	printf("%s SEAL-SHRINK\n", memfd_str);
+ 
+ 	fd = mfd_assert_new("kern_memfd_seal_shrink",
+ 			    mfd_def_size,
+@@ -756,7 +758,7 @@ static void test_seal_grow(void)
+ {
+ 	int fd;
+ 
+-	printf("%s SEAL-GROW\n", MEMFD_STR);
++	printf("%s SEAL-GROW\n", memfd_str);
+ 
+ 	fd = mfd_assert_new("kern_memfd_seal_grow",
+ 			    mfd_def_size,
+@@ -782,7 +784,7 @@ static void test_seal_resize(void)
+ {
+ 	int fd;
+ 
+-	printf("%s SEAL-RESIZE\n", MEMFD_STR);
++	printf("%s SEAL-RESIZE\n", memfd_str);
+ 
+ 	fd = mfd_assert_new("kern_memfd_seal_resize",
+ 			    mfd_def_size,
+@@ -808,7 +810,7 @@ static void test_share_dup(char *banner, char *b_suffix)
+ {
+ 	int fd, fd2;
+ 
+-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
++	printf("%s %s %s\n", memfd_str, banner, b_suffix);
+ 
+ 	fd = mfd_assert_new("kern_memfd_share_dup",
+ 			    mfd_def_size,
+@@ -850,7 +852,7 @@ static void test_share_mmap(char *banner, char *b_suffix)
+ 	int fd;
+ 	void *p;
+ 
+-	printf("%s %s %s\n", MEMFD_STR,  banner, b_suffix);
++	printf("%s %s %s\n", memfd_str,  banner, b_suffix);
+ 
+ 	fd = mfd_assert_new("kern_memfd_share_mmap",
+ 			    mfd_def_size,
+@@ -884,7 +886,7 @@ static void test_share_open(char *banner, char *b_suffix)
+ {
+ 	int fd, fd2;
+ 
+-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
++	printf("%s %s %s\n", memfd_str, banner, b_suffix);
+ 
+ 	fd = mfd_assert_new("kern_memfd_share_open",
+ 			    mfd_def_size,
+@@ -927,7 +929,7 @@ static void test_share_fork(char *banner, char *b_suffix)
+ 	int fd;
+ 	pid_t pid;
+ 
+-	printf("%s %s %s\n", MEMFD_STR, banner, b_suffix);
++	printf("%s %s %s\n", memfd_str, banner, b_suffix);
+ 
+ 	fd = mfd_assert_new("kern_memfd_share_fork",
+ 			    mfd_def_size,
+@@ -963,7 +965,11 @@ int main(int argc, char **argv)
+ 			}
+ 
+ 			hugetlbfs_test = 1;
++			memfd_str = MEMFD_HUGE_STR;
+ 			mfd_def_size = hpage_size * 2;
++		} else {
++			printf("Unknown option: %s\n", argv[1]);
++			abort();
+ 		}
+ 	}
+ 
 -- 
- Kirill A. Shutemov
+2.15.0.125.g8f49766d64
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
