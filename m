@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 26D866B025E
-	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:05:47 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id l23so14688722pgc.10
-        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:05:47 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id x18si33783pge.118.2017.11.06.17.05.45
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2E26B0038
+	for <linux-mm@kvack.org>; Mon,  6 Nov 2017 20:21:30 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id b6so12641451pff.18
+        for <linux-mm@kvack.org>; Mon, 06 Nov 2017 17:21:30 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i69sor16820pgc.225.2017.11.06.17.21.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 06 Nov 2017 17:05:46 -0800 (PST)
-Subject: [PATCH 2/3] IB/core: disable memory registration of fileystem-dax
- vmas
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 06 Nov 2017 16:57:21 -0800
-Message-ID: <151001624138.16354.16836728315400060928.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (Google Transport Security);
+        Mon, 06 Nov 2017 17:21:29 -0800 (PST)
+Date: Tue, 7 Nov 2017 12:21:16 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH for 4.15 10/14] cpu_opv: Wire up powerpc system call
+Message-ID: <20171107122116.7a75c3a8@roar.ozlabs.ibm.com>
+In-Reply-To: <337041894.6072.1510015637355.JavaMail.zimbra@efficios.com>
+References: <20171106092228.31098-1-mhocko@kernel.org>
+	<1509992067.4140.1.camel@oracle.com>
+	<20171106205644.29386-11-mathieu.desnoyers@efficios.com>
+	<20171107113729.13369a30@roar.ozlabs.ibm.com>
+	<337041894.6072.1510015637355.JavaMail.zimbra@efficios.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, linux-mm@kvack.org, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, Boqun Feng <boqun.feng@gmail.com>, Andy Lutomirski <luto@amacapital.net>, Dave Watson <davejwatson@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel <linux-kernel@vger.kernel.org>
 
-Until there is a solution to the dma-to-dax vs truncate problem it is
-not safe to allow RDMA to create long standing memory registrations
-against filesytem-dax vmas.
+On Tue, 7 Nov 2017 00:47:17 +0000 (UTC)
+Mathieu Desnoyers <mathieu.desnoyers@efficios.com> wrote:
 
-Cc: Sean Hefty <sean.hefty@intel.com>
-Cc: Doug Ledford <dledford@redhat.com>
-Cc: Hal Rosenstock <hal.rosenstock@gmail.com>
-Cc: Jeff Moyer <jmoyer@redhat.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Jason Gunthorpe <jgunthorpe@obsidianresearch.com>
-Cc: <linux-rdma@vger.kernel.org>
-Cc: <stable@vger.kernel.org>
-Reported-by: Christoph Hellwig <hch@lst.de>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/infiniband/core/umem.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> ----- On Nov 6, 2017, at 7:37 PM, Nicholas Piggin npiggin@gmail.com wrote:
+> 
+> > On Mon,  6 Nov 2017 15:56:40 -0500
+> > Mathieu Desnoyers <mathieu.desnoyers@efficios.com> wrote:
+> >   
+> >> diff --git a/arch/powerpc/include/uapi/asm/unistd.h
+> >> b/arch/powerpc/include/uapi/asm/unistd.h
+> >> index b1980fcd56d5..972a7d68c143 100644
+> >> --- a/arch/powerpc/include/uapi/asm/unistd.h
+> >> +++ b/arch/powerpc/include/uapi/asm/unistd.h
+> >> @@ -396,5 +396,6 @@
+> >>  #define __NR_kexec_file_load	382
+> >>  #define __NR_statx		383
+> >>  #define __NR_rseq		384
+> >> +#define __NR_cpu_opv		385  
+> > 
+> > Sorry for bike shedding, but could we invest a few more keystrokes to
+> > make these names a bit more readable?  
+> 
+> Whenever I try to make variables or function names more explicit, I can
+> literally feel my consciousness (taking the form of an angry Peter Zijlstra)
+> breathing down my neck asking me to make them shorter. So I guess this is
+> where it becomes a question of taste.
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index 21e60b1e2ff4..130606c3b07c 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -191,7 +191,7 @@ struct ib_umem *ib_umem_get(struct ib_ucontext *context, unsigned long addr,
- 	sg_list_start = umem->sg_head.sgl;
- 
- 	while (npages) {
--		ret = get_user_pages(cur_base,
-+		ret = get_user_pages_longterm(cur_base,
- 				     min_t(unsigned long, npages,
- 					   PAGE_SIZE / sizeof (struct page *)),
- 				     gup_flags, page_list, vma_list);
+Specialist syscall is a bit different than a common function or variable
+though.
+
+> 
+> I think the "rseq" syscall name is short, to the point, and should be mostly
+> fine.
+
+I'm not sure if it's really "to the point". I think kexec_file_load
+is better than kfload, for example :)
+
+> For "cpu_opv", it was just a short name that fit the bill until a
+> better idea would come.
+> 
+> I'm open to suggestions. Any color preference ? ;-)
+
+What can you do within 16 characters?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
