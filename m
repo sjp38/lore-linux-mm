@@ -1,125 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D7B016B02D0
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:26:40 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id b189so1077727wmd.9
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:26:40 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j90si1540767edc.331.2017.11.07.07.26.37
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E7BD1280264
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 10:34:29 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id a188so2485583itc.2
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 07:34:29 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0009.hostedemail.com. [216.40.44.9])
+        by mx.google.com with ESMTPS id n67si1269472ion.184.2017.11.07.07.34.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 07 Nov 2017 07:26:37 -0800 (PST)
-Date: Tue, 7 Nov 2017 16:26:29 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: kernel BUG at fs/xfs/xfs_aops.c:853! in kernel 4.13 rc6
-Message-ID: <20171107152629.GF11391@quack2.suse.cz>
-References: <20171009183129.GE11645@wotan.suse.de>
- <87wp442lgm.fsf@xmission.com>
- <8729041d-05e5-6bea-98db-7f265edde193@suse.de>
- <20171015130625.o5k6tk5uflm3rx65@thunk.org>
- <87efq4qcry.fsf@xmission.com>
- <20171016011301.dcam44qylno7rm6a@thunk.org>
- <c5bb6c1b-90c9-f50e-7283-af7e0de67caa@suse.de>
- <20171017092017.GN9762@quack2.suse.cz>
- <20171017141233.l3avshagrv7fr7xt@thunk.org>
- <CAB=NE6UK3463JfiZQFHUiMj=v6HDG0k+uEE-2OvRMsW7i1EMhA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAB=NE6UK3463JfiZQFHUiMj=v6HDG0k+uEE-2OvRMsW7i1EMhA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 07:34:28 -0800 (PST)
+Message-ID: <1510068865.1000.19.camel@perches.com>
+Subject: Re: [PATCH] mm/page_alloc: Avoid KERN_CONT uses in warn_alloc
+From: Joe Perches <joe@perches.com>
+Date: Tue, 07 Nov 2017 07:34:25 -0800
+In-Reply-To: <20171107125055.cl5pyp2zwon44x5l@dhcp22.suse.cz>
+References: 
+	<b31236dfe3fc924054fd7842bde678e71d193638.1509991345.git.joe@perches.com>
+	 <20171107125055.cl5pyp2zwon44x5l@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Luis R. Rodriguez" <mcgrof@kernel.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, colyli@suse.com, Jan Kara <jack@suse.cz>, Aleksa Sarai <asarai@suse.de>, "Eric W. Biederman" <ebiederm@xmission.com>, Dave Chinner <david@fromorbit.com>, =?utf-8?B?0JzQuNGF0LDQuNC7INCT0LDQstGA0LjQu9C+0LI=?= <mikhail.v.gavrilov@gmail.com>, Christoph Hellwig <hch@infradead.org>, Jan Blunck <jblunck@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Oscar Salvador <osalvador@suse.com>, Hannes Reinecke <hare@suse.de>, xfs <linux-xfs@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon 06-11-17 11:25:34, Luis R. Rodriguez wrote:
-> On Tue, Oct 17, 2017 at 7:12 AM, Theodore Ts'o <tytso@mit.edu> wrote:
-> > On Tue, Oct 17, 2017 at 11:20:17AM +0200, Jan Kara wrote:
-> >> The operation we are speaking about here is different. It is more along the
-> >> lines of "release this device".  And in the current world of containers,
-> >> mount namespaces, etc. it is not trivial for userspace to implement this
-> >> using umount(2) as Ted points out. I believe we could do that by walking
-> >> through all mount points of a superblock and unmounting them (and I don't
-> >> want to get into a discussion how to efficiently implement that now but in
-> >> principle the kernel has all the necessary information).
-> >
-> > Yes, this is what I want.  And regardless of how efficiently or not
-> > the kernel can implement such an operatoin, by definition it will be
-> > more efficient than if we have to do it in userspace.
+On Tue, 2017-11-07 at 13:50 +0100, Michal Hocko wrote:
+> On Mon 06-11-17 10:02:56, Joe Perches wrote:
+> > KERN_CONT/pr_cont uses should be avoided where possible.
+> > Use single pr_warn calls instead.
+[]
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+[]
+> > @@ -3275,19 +3275,17 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+> >  	if ((gfp_mask & __GFP_NOWARN) || !__ratelimit(&nopage_rs))
+> >  		return;
+> >  
+> > -	pr_warn("%s: ", current->comm);
+> > -
+> >  	va_start(args, fmt);
+> >  	vaf.fmt = fmt;
+> >  	vaf.va = &args;
+> > -	pr_cont("%pV", &vaf);
+> > -	va_end(args);
+> > -
+> > -	pr_cont(", mode:%#x(%pGg), nodemask=", gfp_mask, &gfp_mask);
+> >  	if (nodemask)
+> > -		pr_cont("%*pbl\n", nodemask_pr_args(nodemask));
+> > +		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=%*pbl\n",
+> > +			current->comm, &vaf, gfp_mask, &gfp_mask,
+> > +			nodemask_pr_args(nodemask));
+> >  	else
+> > -		pr_cont("(null)\n");
+> > +		pr_warn("%s: %pV, mode:%#x(%pGg), nodemask=(null)\n",
+> > +			current->comm, &vaf, gfp_mask, &gfp_mask);
+> > +	va_end(args);
+> >  
+> >  	cpuset_print_current_mems_allowed();
 > 
-> It seems most folks agree we could all benefit from this, to help
-> userspace with a sane implementation.
+> I do not like the duplication. It just calls for inconsistencies over
+> time. Can we instead make %*pbl consume NULL nodemask instead?
+> Something like the following pseudo patch + the if/else removed.
+> If this would be possible we could simplify other code as well I think
+> (at least oom code has to special case NULL nodemask).
 > 
-> >> What I'm a bit concerned about is the "release device reference" part - for
-> >> a block device to stop looking busy we have to do that however then the
-> >> block device can go away and the filesystem isn't prepared to that - we
-> >> reference sb->s_bdev in lots of places, we have buffer heads which are part
-> >> of bdev page cache, and probably other indirect assumptions I forgot about
-> >> now.
-> 
-> Is this new operation really the only place where such type of work
-> could be useful for, or are there existing uses cases this sort of
-> functionality could also be used for?
+> What do you think?
 
-The functionality of being able to "invalidate" open file descriptor so
-that it no longer points to the object it used to is useful also for other
-cases I guess...
+I think it would be fine to have a single pr_warn.
 
-> For instance I don't think we do something similar to revokefs(2) (as
-> described below) when a devices has been removed from a system, you
-> seem to suggest we remove the dev from gendisk leaving it dangling and
-> invisible. But other than this, it would seem its up to the filesystem
-> to get anything else implemented correctly?
+> ---
+> diff --git a/include/linux/nodemask.h b/include/linux/nodemask.h
+[]
+> @@ -104,7 +104,7 @@ extern nodemask_t _unused_nodemask_arg_;
+>   *
+>   * Can be used to provide arguments for '%*pb[l]' when printing a nodemask.
+>   */
+> -#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp)->bits
+> +#define nodemask_pr_args(maskp)		MAX_NUMNODES, (maskp) ? (maskp)->bits : NULL
+>  
+>  /*
+>   * The inline keyword gives the compiler room to decide to inline, or
+> diff --git a/lib/vsprintf.c b/lib/vsprintf.c
+[]
+> @@ -902,6 +902,9 @@ char *bitmap_list_string(char *buf, char *end, unsigned long *bitmap,
+>  	int cur, rbot, rtop;
+>  	bool first = true;
+>  
+> +	if (!bitmap)
+> +		return buf;
 
-Yes, that's the current situation. When the device is yanked from under a
-filesystem the current implementation makes it relatively straightforward
-from fs POV - for all fs cares about the underlying device still exists. It
-just returns errors for any IO done to it. It is upto fs implementation to
-deal with it and be able to shutdown itself correctly in such case.
+I believe this is not necessary as any NULL pointer argument
+passed to lib/vsprintf.c:pointer() (any %p<foo>) emits
+"[2 or 10 spaces](null)" on 32bit or 64 bit systems.
 
-> > This all doesn't have to be a single system call.  Perhaps it would
-> > make sense for first and second step to be one system call --- call it
-> > revokefs(2), perhaps.  And then the last step could be another system
-> > call --- maybe umountall(2).
-> 
-> Wouldn't *some* part of this also help *enhance* filesystem suspend /
-> thaw be used on system suspend / resume as well?
->
-> If I may, if we split these up, into two, say revokefs(2) and
-> umountall(2), how about:
-> 
-> a) revokefs(2): ensures all file descriptors for the fs are closed
->    - blocks access attempts high up in VFS
->    - point any file descriptor to a revoked null struct file
->    - redirect any task struct CWD's so as if the directory had rmmdir'd
->    - munmap any mapped regions
-> 
-> Of these only the first one seems useful for fs suspend?
+I believe, but have not tested, that using a specific width
+as an argument to %*pb[l] will constrain the number of
+spaces before the '(null)' output in any NULL pointer use.
 
-If you reference "blocks access attempts high up in VFS" that already
-happens for writes when you freeze the filesystem. Also suspend is
-different in that userspace is already frozen when you get to freezing
-filesystems so you care only about in-kernel users and there you do not
-have standard set of entry points anyway... So I don't see much crossection
-with system suspend here.
+So how about a #define like
 
-> 
-> b) umountall(2): properly unmounts filesystem from all namespaces
->    - May need to verify if revokefs(2) was called, if so, now that all
-> file descriptors should
->      be closed, do syncfs() to force out any dirty pages
-
-IMHO it doesn't need to verify this. The unmount will just fail if someone
-is still using some fs.
-
->    - unmount() in all namespaces, this takes care of any buffer or page
->      cache reference once the ref count of the struct super block goes to
->      to zero
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+/*
+ * nodemask_pr_args is only used with a "%*pb[l]" format for a nodemask.
+ * A NULL nodemask uses 6 to emit "(null)" without leading spaces.
+ */
+#define nodemask_pr_args(maskp)			\
+	(maskp) ? MAX_NUMNODES : 6,		\
+	(maskp) ? (maskp)->bits : NULL
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
