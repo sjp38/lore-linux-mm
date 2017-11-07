@@ -1,104 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E0DA680F85
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 15:40:03 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id i196so524247pgd.2
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 12:40:03 -0800 (PST)
-Received: from osg.samsung.com (osg.samsung.com. [64.30.133.232])
-        by mx.google.com with ESMTP id f14si1939746pgn.367.2017.11.07.12.40.02
-        for <linux-mm@kvack.org>;
-        Tue, 07 Nov 2017 12:40:02 -0800 (PST)
-Date: Tue, 7 Nov 2017 18:39:50 -0200
-From: Mauro Carvalho Chehab <mchehab@s-opensource.com>
-Subject: Re: [PATCH 3/3] [media] v4l2: disable filesystem-dax mapping
- support
-Message-ID: <20171107183950.46f238fd@vento.lan>
-In-Reply-To: <CAPcyv4hNSV=c4KY8omKEdRth2w4YEr8EQJQfOoxXS8XELGFVcA@mail.gmail.com>
-References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<151001624873.16354.2551756846133945335.stgit@dwillia2-desk3.amr.corp.intel.com>
-	<20171107063345.22626a5d@vento.lan>
-	<CAPcyv4hNSV=c4KY8omKEdRth2w4YEr8EQJQfOoxXS8XELGFVcA@mail.gmail.com>
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F33C280264
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 16:35:23 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id p138so3438666itp.9
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 13:35:23 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id k12si1815053iok.66.2017.11.07.13.35.21
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 13:35:21 -0800 (PST)
+Subject: Re: [PATCH v3 9/9] memfd-test: run fuse test on hugetlb backend
+ memory
+References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+ <20171107122800.25517-10-marcandre.lureau@redhat.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <10b8d8e7-faf7-eebe-7312-8637dae16d87@oracle.com>
+Date: Tue, 7 Nov 2017 13:35:08 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171107122800.25517-10-marcandre.lureau@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
+To: =?UTF-8?Q?Marc-Andr=c3=a9_Lureau?= <marcandre.lureau@redhat.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com
 
-Em Tue, 7 Nov 2017 09:43:41 -0800
-Dan Williams <dan.j.williams@intel.com> escreveu:
+On 11/07/2017 04:28 AM, Marc-AndrA(C) Lureau wrote:
+> Suggested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
 
-> On Tue, Nov 7, 2017 at 12:33 AM, Mauro Carvalho Chehab
-> <mchehab@s-opensource.com> wrote:
-> > Em Mon, 06 Nov 2017 16:57:28 -0800
-> > Dan Williams <dan.j.williams@intel.com> escreveu:
-> >  
-> >> V4L2 memory registrations are incompatible with filesystem-dax that
-> >> needs the ability to revoke dma access to a mapping at will, or
-> >> otherwise allow the kernel to wait for completion of DMA. The
-> >> filesystem-dax implementation breaks the traditional solution of
-> >> truncate of active file backed mappings since there is no page-cache
-> >> page we can orphan to sustain ongoing DMA.
-> >>
-> >> If v4l2 wants to support long lived DMA mappings it needs to arrange to
-> >> hold a file lease or use some other mechanism so that the kernel can
-> >> coordinate revoking DMA access when the filesystem needs to truncate
-> >> mappings.  
-> >
-> >
-> > Not sure if I understand this your comment here... what happens
-> > if FS_DAX is enabled? The new err = get_user_pages_longterm()
-> > would cause DMA allocation to fail?  
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+
+-- 
+Mike Kravetz
+
+> ---
+>  tools/testing/selftests/memfd/fuse_test.c      | 38 ++++++++++++++++++++------
+>  tools/testing/selftests/memfd/run_fuse_test.sh |  2 +-
+>  tools/testing/selftests/memfd/run_tests.sh     |  1 +
+>  3 files changed, 32 insertions(+), 9 deletions(-)
 > 
-> Correct, any attempt to specify a filesystem-dax mapping range to
-> get_user_pages_longterm will fail with EOPNOTSUPP. In the future we
-> want to add something like a 'struct file_lock *' argument to
-> get_user_pages_longterm so that the kernel has a handle to revoke
-> access to the returned pages. Once we have a safe way for the kernel
-> to undo elevated page counts we can stop failing the longterm vs
-> filesystem-dax case.
-
-Argh! Perhaps we should make it depend on BROKEN while not fixed :-/
-
-> Here is more background on why _longterm gup is a problem for filesystem-dax:
+> diff --git a/tools/testing/selftests/memfd/fuse_test.c b/tools/testing/selftests/memfd/fuse_test.c
+> index 795a25ba8521..b018e835737d 100644
+> --- a/tools/testing/selftests/memfd/fuse_test.c
+> +++ b/tools/testing/selftests/memfd/fuse_test.c
+> @@ -38,6 +38,8 @@
+>  #define MFD_DEF_SIZE 8192
+>  #define STACK_SIZE 65536
+>  
+> +static size_t mfd_def_size = MFD_DEF_SIZE;
+> +
+>  static int mfd_assert_new(const char *name, loff_t sz, unsigned int flags)
+>  {
+>  	int r, fd;
+> @@ -123,7 +125,7 @@ static void *mfd_assert_mmap_shared(int fd)
+>  	void *p;
+>  
+>  	p = mmap(NULL,
+> -		 MFD_DEF_SIZE,
+> +		 mfd_def_size,
+>  		 PROT_READ | PROT_WRITE,
+>  		 MAP_SHARED,
+>  		 fd,
+> @@ -141,7 +143,7 @@ static void *mfd_assert_mmap_private(int fd)
+>  	void *p;
+>  
+>  	p = mmap(NULL,
+> -		 MFD_DEF_SIZE,
+> +		 mfd_def_size,
+>  		 PROT_READ | PROT_WRITE,
+>  		 MAP_PRIVATE,
+>  		 fd,
+> @@ -174,7 +176,7 @@ static int sealing_thread_fn(void *arg)
+>  	usleep(200000);
+>  
+>  	/* unmount mapping before sealing to avoid i_mmap_writable failures */
+> -	munmap(global_p, MFD_DEF_SIZE);
+> +	munmap(global_p, mfd_def_size);
+>  
+>  	/* Try sealing the global file; expect EBUSY or success. Current
+>  	 * kernels will never succeed, but in the future, kernels might
+> @@ -224,7 +226,7 @@ static void join_sealing_thread(pid_t pid)
+>  
+>  int main(int argc, char **argv)
+>  {
+> -	static const char zero[MFD_DEF_SIZE];
+> +	char *zero;
+>  	int fd, mfd, r;
+>  	void *p;
+>  	int was_sealed;
+> @@ -235,6 +237,25 @@ int main(int argc, char **argv)
+>  		abort();
+>  	}
+>  
+> +	if (argc >= 3) {
+> +		if (!strcmp(argv[2], "hugetlbfs")) {
+> +			unsigned long hpage_size = default_huge_page_size();
+> +
+> +			if (!hpage_size) {
+> +				printf("Unable to determine huge page size\n");
+> +				abort();
+> +			}
+> +
+> +			hugetlbfs_test = 1;
+> +			mfd_def_size = hpage_size * 2;
+> +		} else {
+> +			printf("Unknown option: %s\n", argv[2]);
+> +			abort();
+> +		}
+> +	}
+> +
+> +	zero = calloc(sizeof(*zero), mfd_def_size);
+> +
+>  	/* open FUSE memfd file for GUP testing */
+>  	printf("opening: %s\n", argv[1]);
+>  	fd = open(argv[1], O_RDONLY | O_CLOEXEC);
+> @@ -245,7 +266,7 @@ int main(int argc, char **argv)
+>  
+>  	/* create new memfd-object */
+>  	mfd = mfd_assert_new("kern_memfd_fuse",
+> -			     MFD_DEF_SIZE,
+> +			     mfd_def_size,
+>  			     MFD_CLOEXEC | MFD_ALLOW_SEALING);
+>  
+>  	/* mmap memfd-object for writing */
+> @@ -264,7 +285,7 @@ int main(int argc, char **argv)
+>  	 * This guarantees that the receive-buffer is pinned for 1s until the
+>  	 * data is written into it. The racing ADD_SEALS should thus fail as
+>  	 * the pages are still pinned. */
+> -	r = read(fd, p, MFD_DEF_SIZE);
+> +	r = read(fd, p, mfd_def_size);
+>  	if (r < 0) {
+>  		printf("read() failed: %m\n");
+>  		abort();
+> @@ -291,10 +312,10 @@ int main(int argc, char **argv)
+>  	 * enough to avoid any in-flight writes. */
+>  
+>  	p = mfd_assert_mmap_private(mfd);
+> -	if (was_sealed && memcmp(p, zero, MFD_DEF_SIZE)) {
+> +	if (was_sealed && memcmp(p, zero, mfd_def_size)) {
+>  		printf("memfd sealed during read() but data not discarded\n");
+>  		abort();
+> -	} else if (!was_sealed && !memcmp(p, zero, MFD_DEF_SIZE)) {
+> +	} else if (!was_sealed && !memcmp(p, zero, mfd_def_size)) {
+>  		printf("memfd sealed after read() but data discarded\n");
+>  		abort();
+>  	}
+> @@ -303,6 +324,7 @@ int main(int argc, char **argv)
+>  	close(fd);
+>  
+>  	printf("fuse: DONE\n");
+> +	free(zero);
+>  
+>  	return 0;
+>  }
+> diff --git a/tools/testing/selftests/memfd/run_fuse_test.sh b/tools/testing/selftests/memfd/run_fuse_test.sh
+> index 407df68dfe27..22e572e2d66a 100755
+> --- a/tools/testing/selftests/memfd/run_fuse_test.sh
+> +++ b/tools/testing/selftests/memfd/run_fuse_test.sh
+> @@ -10,6 +10,6 @@ set -e
+>  
+>  mkdir mnt
+>  ./fuse_mnt ./mnt
+> -./fuse_test ./mnt/memfd
+> +./fuse_test ./mnt/memfd $@
+>  fusermount -u ./mnt
+>  rmdir ./mnt
+> diff --git a/tools/testing/selftests/memfd/run_tests.sh b/tools/testing/selftests/memfd/run_tests.sh
+> index daabb350697c..c2d41ed81b24 100755
+> --- a/tools/testing/selftests/memfd/run_tests.sh
+> +++ b/tools/testing/selftests/memfd/run_tests.sh
+> @@ -60,6 +60,7 @@ fi
+>  # Run the hugetlbfs test
+>  #
+>  ./memfd_test hugetlbfs
+> +./run_fuse_test.sh hugetlbfs
+>  
+>  #
+>  # Give back any huge pages allocated for the test
 > 
->     https://lwn.net/Articles/737273/
-> 
-> > If so, that doesn't sound
-> > right. Instead, mm should somehow mark this mapping to be out
-> > of FS_DAX control range.  
-> 
-> DAX is currently global setting for the entire backing device of the
-> filesystem, so any mapping of any file when the "-o dax" mount option
-> is set is in the "FS_DAX control range". In other words there's
-> currently no way to prevent FS_DAX mappings from being exposed to V4L2
-> outside of CONFIG_FS_DAX=n.
-
-Grrr...
-
-> > Also, it is not only videobuf-dma-sg.c that does long lived
-> > DMA mappings. VB2 also does that (and videobuf-vmalloc).  
-> 
-> Without finding the code videobuf-vmalloc sounds like it should be ok
-> if the kernel is allocating memory separate from a file-backed DAX
-> mapping.
-
-videobuf-vmalloc do DMA mapping for pages allocated via vmalloc(),
-via vmalloc_user()/remap_vmalloc_range().
-
-There aren't much drivers using VB1 anymore, but a change at VB2
-will likely break support for almost all webcams if fs DAX is
-in usage.
-
-> Where is the VB2 get_user_pages call?
-
-Before changeset 3336c24f25ec, the logic for get_user_pages() were
-at drivers/media/v4l2-core/videobuf2-dma-sg.c. Now, the logic
-it uses is inside mm/frame_vector.c.
-
-Thanks,
-Mauro
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
