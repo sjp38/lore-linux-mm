@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B4B37280245
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:07 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id 14so12857801oii.2
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:07 -0800 (PST)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FFCA280245
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 07:28:09 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id j83so12729435oif.7
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 04:28:09 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 11si530401oid.410.2017.11.07.04.28.06
+        by mx.google.com with ESMTPS id n63si467272oih.432.2017.11.07.04.28.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 04:28:06 -0800 (PST)
+        Tue, 07 Nov 2017 04:28:08 -0800 (PST)
 From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
-Subject: [PATCH v3 0/9] memfd: add sealing to hugetlb-backed memory
-Date: Tue,  7 Nov 2017 13:27:51 +0100
-Message-Id: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+Subject: [PATCH v3 1/9] shmem: unexport shmem_add_seals()/shmem_get_seals()
+Date: Tue,  7 Nov 2017 13:27:52 +0100
+Message-Id: <20171107122800.25517-2-marcandre.lureau@redhat.com>
+In-Reply-To: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -21,63 +23,61 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aarcange@redhat.com, hughd@google.com, nyc@holomorphy.com, mike.kravetz@oracle.com, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
 
-Hi,
+The functions are called through shmem_fcntl() only.  And no danger in
+removing the EXPORTs as the routines only work with shmem file
+structs.
 
-Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
-didn't add sealing support. One of the reasons to use memfd is to have
-shared memory sealing when doing IPC or sharing memory with another
-process with some extra safety. qemu uses shared memory & hugetables
-with vhost-user (used by dpdk), so it is reasonable to use memfd
-now instead for convenience and security reasons.
+Signed-off-by: Marc-AndrA(C) Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+---
+ include/linux/shmem_fs.h | 2 --
+ mm/shmem.c               | 6 ++----
+ 2 files changed, 2 insertions(+), 6 deletions(-)
 
-Thanks!
-
-v3:
-- do remaining MFD_DEF_SIZE/mfd_def_size substitutions
-- fix missing unistd.h include in common.c
-- tweaked a bit commit message prefixes
-- added reviewed-by tags
-
-v2:
-- add "memfd-hugetlb:" prefix in memfd-test
-- run fuse test on hugetlb backend memory
-- rename function memfd_file_get_seals() -> memfd_file_seals_ptr()
-- update commit messages
-- added reviewed-by tags
-
-RFC->v1:
-- split rfc patch, after early review feedback
-- added patch for memfd-test changes
-- fix build with hugetlbfs disabled
-- small code and commit messages improvements
-
-Marc-AndrA(C) Lureau (9):
-  shmem: unexport shmem_add_seals()/shmem_get_seals()
-  shmem: rename functions that are memfd-related
-  hugetlb: expose hugetlbfs_inode_info in header
-  hugetlb: implement memfd sealing
-  shmem: add sealing support to hugetlb-backed memfd
-  memfd-test: test hugetlbfs sealing
-  memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
-  memfd-test: move common code to a shared unit
-  memfd-test: run fuse test on hugetlb backend memory
-
- fs/fcntl.c                                     |   2 +-
- fs/hugetlbfs/inode.c                           |  39 +++--
- include/linux/hugetlb.h                        |  11 ++
- include/linux/shmem_fs.h                       |   6 +-
- mm/shmem.c                                     |  59 ++++---
- tools/testing/selftests/memfd/Makefile         |   5 +
- tools/testing/selftests/memfd/common.c         |  46 ++++++
- tools/testing/selftests/memfd/common.h         |   9 ++
- tools/testing/selftests/memfd/fuse_test.c      |  44 +++--
- tools/testing/selftests/memfd/memfd_test.c     | 212 ++++---------------------
- tools/testing/selftests/memfd/run_fuse_test.sh |   2 +-
- tools/testing/selftests/memfd/run_tests.sh     |   1 +
- 12 files changed, 200 insertions(+), 236 deletions(-)
- create mode 100644 tools/testing/selftests/memfd/common.c
- create mode 100644 tools/testing/selftests/memfd/common.h
-
+diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
+index ed91ce57c428..1f5bf07cb8be 100644
+--- a/include/linux/shmem_fs.h
++++ b/include/linux/shmem_fs.h
+@@ -110,8 +110,6 @@ extern void shmem_uncharge(struct inode *inode, long pages);
+ 
+ #ifdef CONFIG_TMPFS
+ 
+-extern int shmem_add_seals(struct file *file, unsigned int seals);
+-extern int shmem_get_seals(struct file *file);
+ extern long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
+ 
+ #else
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 07a1d22807be..37260c5e12fa 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -2722,7 +2722,7 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+ 		     F_SEAL_GROW | \
+ 		     F_SEAL_WRITE)
+ 
+-int shmem_add_seals(struct file *file, unsigned int seals)
++static int shmem_add_seals(struct file *file, unsigned int seals)
+ {
+ 	struct inode *inode = file_inode(file);
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+@@ -2791,16 +2791,14 @@ int shmem_add_seals(struct file *file, unsigned int seals)
+ 	inode_unlock(inode);
+ 	return error;
+ }
+-EXPORT_SYMBOL_GPL(shmem_add_seals);
+ 
+-int shmem_get_seals(struct file *file)
++static int shmem_get_seals(struct file *file)
+ {
+ 	if (file->f_op != &shmem_file_operations)
+ 		return -EINVAL;
+ 
+ 	return SHMEM_I(file_inode(file))->seals;
+ }
+-EXPORT_SYMBOL_GPL(shmem_get_seals);
+ 
+ long shmem_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+ {
 -- 
 2.15.0.125.g8f49766d64
 
