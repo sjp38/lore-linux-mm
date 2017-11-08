@@ -1,195 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B76B4403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 06:02:52 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id m16so5122964iod.11
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 03:02:52 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id h39si3110763ioi.12.2017.11.08.03.02.50
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Nov 2017 03:02:50 -0800 (PST)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 2/5] mm,oom: Move last second allocation to inside the OOM killer.
-Date: Wed,  8 Nov 2017 20:01:45 +0900
-Message-Id: <1510138908-6265-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1510138908-6265-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1510138908-6265-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 379B24403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 06:12:52 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id t139so2173911wmt.7
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 03:12:52 -0800 (PST)
+Received: from techadventures.net ([62.201.165.239])
+        by mx.google.com with ESMTP id 64si3330595wrk.548.2017.11.08.03.12.50
+        for <linux-mm@kvack.org>;
+        Wed, 08 Nov 2017 03:12:51 -0800 (PST)
+Date: Wed, 8 Nov 2017 12:12:50 +0100
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH] mm: move alloc_node_mem_map within CONFIG_FLAT_NODE_MEM_MAP
+ block
+Message-ID: <20171108111250.GA5401@techadventures.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+To: linux-mm@kvack.org
 
-When out_of_memory() is called consecutively, sometimes doing last second
-allocation attempt after selecting an OOM victim can succeed because
-somebody (presumably previously killed OOM victims) might have managed to
-free memory while we were selecting an OOM victim which can take quite
-some time, for setting MMF_OOM_SKIP by exiting OOM victims is not
-serialized by oom_lock. Therefore, this patch moves last second
-allocation attempt to after selecting an OOM victim. This patch is
-expected to reduce the time window for potentially pre-mature OOM
-killing considerably.
+I was checking free_area_init_node() and I saw that it calls
+alloc_node_mem_map(), but this function does nothing unless
+we have CONFIG_FLAT_NODE_MEM_MAP, so we might want to:
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Suggested-by: Michal Hocko <mhocko@suse.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
+a) move the call within the #ifdef CONFIG_FLAT_NODE_MEM_MAP block
+that follows afterwards.
+b) now, alloc_node_mem_map() has the bulk of its code within #ifdef CONFIG_FLAT_NODE_MEM_MAP,
+so I guess we can put the whole function within an #ifdef CONFIG_FLAT_NODE_MEM_MAP block.
+
+Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
 ---
- include/linux/oom.h | 13 +++++++++++++
- mm/oom_kill.c       | 14 ++++++++++++++
- mm/page_alloc.c     | 40 ++++++++++++++++++++++++----------------
- 3 files changed, 51 insertions(+), 16 deletions(-)
+ mm/page_alloc.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 01c91d8..27cd36b 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -14,6 +14,8 @@
- struct notifier_block;
- struct mem_cgroup;
- struct task_struct;
-+struct alloc_context;
-+struct page;
- 
- /*
-  * Details of the page allocation that triggered the oom killer that are used to
-@@ -38,6 +40,15 @@ struct oom_control {
- 	 */
- 	const int order;
- 
-+	/* Context for really last second allocation attempt. */
-+	const struct alloc_context *ac;
-+	/*
-+	 * Set by the OOM killer if ac != NULL and last second allocation
-+	 * attempt succeeded. If ac != NULL, the caller must check for
-+	 * page != NULL.
-+	 */
-+	struct page *page;
-+
- 	/* Used by oom implementation, do not set */
- 	unsigned long totalpages;
- 	struct task_struct *chosen;
-@@ -102,6 +113,8 @@ extern unsigned long oom_badness(struct task_struct *p,
- 
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
-+extern struct page *alloc_pages_before_oomkill(const struct oom_control *oc);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 85eced9..cf6f19b 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1065,6 +1065,9 @@ bool out_of_memory(struct oom_control *oc)
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
- 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
- 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-+		oc->page = alloc_pages_before_oomkill(oc);
-+		if (oc->page)
-+			return true;
- 		get_task_struct(current);
- 		oc->chosen = current;
- 		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
-@@ -1072,6 +1075,17 @@ bool out_of_memory(struct oom_control *oc)
- 	}
- 
- 	select_bad_process(oc);
-+	/*
-+	 * Try really last second allocation attempt after we selected an OOM
-+	 * victim, for somebody might have managed to free memory while we were
-+	 * selecting an OOM victim which can take quite some time.
-+	 */
-+	oc->page = alloc_pages_before_oomkill(oc);
-+	if (oc->page) {
-+		if (oc->chosen && oc->chosen != (void *)-1UL)
-+			put_task_struct(oc->chosen);
-+		return true;
-+	}
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
- 		dump_header(oc, NULL);
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 613814c..764f24c 100644
+index 77e4d3c5c57b..36c501971b28 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -3325,6 +3325,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		.memcg = NULL,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
-+		.ac = ac,
- 	};
- 	struct page *page;
- 
-@@ -3340,18 +3341,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		return NULL;
+@@ -6126,6 +6126,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
  	}
- 
--	/*
--	 * This allocation attempt must not depend on __GFP_DIRECT_RECLAIM &&
--	 * !__GFP_NORETRY allocation which will never fail due to oom_lock
--	 * already held. And since this allocation attempt does not sleep,
--	 * there is no reason we must use high watermark here.
--	 */
--	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
--				      ~__GFP_DIRECT_RECLAIM, order,
--				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
--	if (page)
--		goto out;
--
- 	/* Coredumps can quickly deplete all memory reserves */
- 	if (current->flags & PF_DUMPCORE)
- 		goto out;
-@@ -3386,16 +3375,18 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		goto out;
- 
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if (out_of_memory(&oc)) {
-+		*did_some_progress = 1;
-+		page = oc.page;
-+	} else if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
- 
- 		/*
- 		 * Help non-failing allocations by giving them access to memory
- 		 * reserves
- 		 */
--		if (gfp_mask & __GFP_NOFAIL)
--			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
--					ALLOC_NO_WATERMARKS, ac);
-+		page = __alloc_pages_cpuset_fallback(gfp_mask, order,
-+						     ALLOC_NO_WATERMARKS, ac);
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -4155,6 +4146,23 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return page;
  }
  
-+struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
-+{
-+	/*
-+	 * This allocation attempt must not depend on __GFP_DIRECT_RECLAIM &&
-+	 * !__GFP_NORETRY allocation which will never fail due to oom_lock
-+	 * already held. And since this allocation attempt does not sleep,
-+	 * there is no reason we must use high watermark here.
-+	 */
-+	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
-+	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
-+
-+	if (!oc->ac)
-+		return NULL;
-+	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-+	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, oc->ac);
-+}
-+
- static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
++#ifdef CONFIG_FLAT_NODE_MEM_MAP
+ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ {
+ 	unsigned long __maybe_unused start = 0;
+@@ -6135,7 +6136,6 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ 	if (!pgdat->node_spanned_pages)
+ 		return;
+ 
+-#ifdef CONFIG_FLAT_NODE_MEM_MAP
+ 	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
+ 	offset = pgdat->node_start_pfn - start;
+ 	/* ia64 gets its own node_mem_map, before this, without bootmem */
+@@ -6169,8 +6169,8 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
+ #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
+ 	}
+ #endif
+-#endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ }
++#endif /* CONFIG_FLAT_NODE_MEM_MAP */
+ 
+ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 		unsigned long node_start_pfn, unsigned long *zholes_size)
+@@ -6196,8 +6196,8 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
+ 	calculate_node_totalpages(pgdat, start_pfn, end_pfn,
+ 				  zones_size, zholes_size);
+ 
+-	alloc_node_mem_map(pgdat);
+ #ifdef CONFIG_FLAT_NODE_MEM_MAP
++	alloc_node_mem_map(pgdat);
+ 	printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
+ 		nid, (unsigned long)pgdat,
+ 		(unsigned long)pgdat->node_mem_map);
 -- 
-1.8.3.1
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
