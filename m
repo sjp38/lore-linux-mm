@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 42A776B0304
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:44 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g6so3553804pgn.11
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:44 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id o3si4359313pld.135.2017.11.08.11.47.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 29CF86B0305
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:46 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id a8so3013288pfc.6
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:46 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id x8si4371417plv.620.2017.11.08.11.47.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:43 -0800 (PST)
-Subject: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
+        Wed, 08 Nov 2017 11:47:44 -0800 (PST)
+Subject: [PATCH 25/30] x86, kaiser: add debugfs file to turn KAISER on/off at runtime
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:31 -0800
+Date: Wed, 08 Nov 2017 11:47:33 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194731.AB5BDA01@viggo.jf.intel.com>
+Message-Id: <20171108194733.A1246470@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,12 +23,8 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The VSYSCALL page is mapped by kernel page tables at a kernel address.
-It is troublesome to support with KAISER in place, so disable the
-native case.
-
-Also add some help text about how KAISER might affect the emulation
-case as well.
+We will use this in a few patches.  Right now, it's not wired up
+to do anything useful.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -40,37 +36,73 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Kees Cook <keescook@google.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
-
 ---
 
- b/arch/x86/Kconfig |    8 ++++++++
- 1 file changed, 8 insertions(+)
+ b/arch/x86/mm/kaiser.c |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 48 insertions(+)
 
-diff -puN arch/x86/Kconfig~kaiser-no-vsyscall arch/x86/Kconfig
---- a/arch/x86/Kconfig~kaiser-no-vsyscall	2017-11-08 10:45:39.157681370 -0800
-+++ b/arch/x86/Kconfig	2017-11-08 10:45:39.162681370 -0800
-@@ -2231,6 +2231,9 @@ choice
- 
- 	config LEGACY_VSYSCALL_NATIVE
- 		bool "Native"
-+		# The VSYSCALL page comes from the kernel page tables
-+		# and is not available when KAISER is enabled.
-+		depends on ! KAISER
- 		help
- 		  Actual executable code is located in the fixed vsyscall
- 		  address mapping, implementing time() efficiently. Since
-@@ -2248,6 +2251,11 @@ choice
- 		  exploits. This configuration is recommended when userspace
- 		  still uses the vsyscall area.
- 
-+		  When KAISER is enabled, the vsyscall area will become
-+		  unreadable.  This emulation option still works, but KAISER
-+		  will make it harder to do things like trace code using the
-+		  emulation.
+diff -puN arch/x86/mm/kaiser.c~kaiser-dynamic-debugfs arch/x86/mm/kaiser.c
+--- a/arch/x86/mm/kaiser.c~kaiser-dynamic-debugfs	2017-11-08 10:45:39.690681369 -0800
++++ b/arch/x86/mm/kaiser.c	2017-11-08 10:45:39.693681369 -0800
+@@ -18,6 +18,7 @@
+ #include <linux/string.h>
+ #include <linux/types.h>
+ #include <linux/bug.h>
++#include <linux/debugfs.h>
+ #include <linux/init.h>
+ #include <linux/interrupt.h>
+ #include <linux/spinlock.h>
+@@ -446,3 +447,50 @@ void kaiser_remove_mapping(unsigned long
+ 	 */
+ 	__native_flush_tlb_global();
+ }
 +
- 	config LEGACY_VSYSCALL_NONE
- 		bool "None"
- 		help
++int kaiser_enabled = 1;
++static ssize_t kaiser_enabled_read_file(struct file *file, char __user *user_buf,
++			     size_t count, loff_t *ppos)
++{
++	char buf[32];
++	unsigned int len;
++
++	len = sprintf(buf, "%d\n", kaiser_enabled);
++	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
++}
++
++static ssize_t kaiser_enabled_write_file(struct file *file,
++		 const char __user *user_buf, size_t count, loff_t *ppos)
++{
++	char buf[32];
++	ssize_t len;
++	unsigned int enable;
++
++	len = min(count, sizeof(buf) - 1);
++	if (copy_from_user(buf, user_buf, len))
++		return -EFAULT;
++
++	buf[len] = '\0';
++	if (kstrtoint(buf, 0, &enable))
++		return -EINVAL;
++
++	if (enable > 1)
++		return -EINVAL;
++
++	WRITE_ONCE(kaiser_enabled, enable);
++	return count;
++}
++
++static const struct file_operations fops_kaiser_enabled = {
++	.read = kaiser_enabled_read_file,
++	.write = kaiser_enabled_write_file,
++	.llseek = default_llseek,
++};
++
++static int __init create_kaiser_enabled(void)
++{
++	debugfs_create_file("kaiser-enabled", S_IRUSR | S_IWUSR,
++			    arch_debugfs_dir, NULL, &fops_kaiser_enabled);
++	return 0;
++}
++late_initcall(create_kaiser_enabled);
 _
 
 --
