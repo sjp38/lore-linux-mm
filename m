@@ -1,245 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 74F914403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:24:50 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id o126so1268700oif.21
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:24:50 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f34si1387134otb.416.2017.11.07.21.24.48
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7022E4403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:32:24 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 184so1602351pga.3
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:32:24 -0800 (PST)
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTPS id l3si2880864pgs.468.2017.11.07.21.32.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 21:24:49 -0800 (PST)
-Date: Wed, 8 Nov 2017 07:24:46 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: [PATCH v2] virtio_balloon: fix deadlock on OOM
-Message-ID: <1510118632-18412-1-git-send-email-mst@redhat.com>
+        Tue, 07 Nov 2017 21:32:23 -0800 (PST)
+Message-ID: <1510119138.17435.19.camel@mtkswgap22>
+Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
+ slub_debug=O
+From: Miles Chen <miles.chen@mediatek.com>
+Date: Wed, 8 Nov 2017 13:32:18 +0800
+In-Reply-To: <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
+References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
+	 <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Wei Wang <wei.w.wang@intel.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
+To: Christopher Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
 
-fill_balloon doing memory allocations under balloon_lock
-can cause a deadlock when leak_balloon is called from
-virtballoon_oom_notify and tries to take same lock.
+On Tue, 2017-11-07 at 09:22 -0600, Christopher Lameter wrote:
+> On Tue, 7 Nov 2017, miles.chen@mediatek.com wrote:
+> 
+> > When slub_debug=O is set. It is possible to clear debug flags
+> > for an "unmergeable" slab cache in kmem_cache_open().
+> > It makes the "unmergeable" cache became "mergeable" in sysfs_slab_add().
+> 
+> Right but that is only if disable_higher_order_debug is set.
 
-To fix, split page allocation and enqueue and do allocations outside the lock.
+yes
 
-Here's a detailed analysis of the deadlock by Tetsuo Handa:
+> 
+> > These caches will generate their "unique IDs" by create_unique_id(),
+> > but it is possible to create identical unique IDs. In my experiment,
+> > sgpool-128, names_cache, biovec-256 generate the same ID ":Ft-0004096"
+> > and the kernel reports "sysfs: cannot create duplicate filename
+> > '/kernel/slab/:Ft-0004096'".
+> 
+> Ok then the aliasing failed for some reason. The creation of the unique id
+> and the alias detection needs to be in sync otherwise duplicate filenames
+> are created. What is the difference there?
 
-In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
-serialize against fill_balloon(). But in fill_balloon(),
-alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
-called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
-implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
-is specified, this allocation attempt might indirectly depend on somebody
-else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
-__GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
-virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
-out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
-mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
-will cause OOM lockup.
+The aliasing failed because find_mergeable() returns if (flags &
+SLAB_NEVER_MERGE) is true. So we do not go to search for alias caches.
 
-  Thread1                                       Thread2
-    fill_balloon()
-      takes a balloon_lock
-      balloon_page_enqueue()
-        alloc_page(GFP_HIGHUSER_MOVABLE)
-          direct reclaim (__GFP_FS context)       takes a fs lock
-            waits for that fs lock                  alloc_page(GFP_NOFS)
-                                                      __alloc_pages_may_oom()
-                                                        takes the oom_lock
-                                                        out_of_memory()
-                                                          blocking_notifier_call_chain()
-                                                            leak_balloon()
-                                                              tries to take that balloon_lock and deadlocks
+__kmem_cache_alias()
+  find_mergeable()
+    kmem_cache_flags()  --> setup flag by the slub_debug
+    if (flags & SLAB_NEVER_MERGE) return NULL;
+    ...
+    search alias logic...
+    
 
-Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Wei Wang <wei.w.wang@intel.com>
-Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
----
+The flags maybe changed if disable_higher_order_debug=1. So the
+unmergeable cache becomes mergeable later.
 
-Fixed a build warning.
-Fixed buffer overflow when num > array size.
+> 
+> The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
+> should do the same right?
+> 
+Yes, I think clearing DEBUG_METADATA flags in kmem_cache_alias is
+another solution for this issue.
 
- drivers/virtio/virtio_balloon.c    | 24 +++++++++++++++++++-----
- include/linux/balloon_compaction.h | 38 +++++++++++++++++++++++++++++++++++++-
- mm/balloon_compaction.c            | 28 +++++++++++++++++++++-------
- 3 files changed, 77 insertions(+), 13 deletions(-)
-
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f0b3a0b..7960746 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -143,16 +143,17 @@ static void set_page_pfns(struct virtio_balloon *vb,
- 
- static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- {
--	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
- 	unsigned num_allocated_pages;
-+	unsigned num_pfns;
-+	struct page *page;
-+	LIST_HEAD(pages);
- 
- 	/* We can only do one array worth at a time. */
- 	num = min(num, ARRAY_SIZE(vb->pfns));
- 
--	mutex_lock(&vb->balloon_lock);
--	for (vb->num_pfns = 0; vb->num_pfns < num;
--	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
--		struct page *page = balloon_page_enqueue(vb_dev_info);
-+	for (num_pfns = 0; num_pfns < num;
-+	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-+		struct page *page = balloon_page_alloc();
- 
- 		if (!page) {
- 			dev_info_ratelimited(&vb->vdev->dev,
-@@ -162,6 +163,19 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 			msleep(200);
- 			break;
- 		}
-+
-+		balloon_page_push(&pages, page);
-+	}
-+
-+	mutex_lock(&vb->balloon_lock);
-+
-+	vb->num_pfns = 0;
-+
-+	while ((page = balloon_page_pop(&pages))) {
-+		balloon_page_enqueue(&vb->vb_dev_info, page);
-+
-+		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
-+
- 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
- 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
- 		if (!virtio_has_feature(vb->vdev,
-diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
-index fbbe6da..36734ff 100644
---- a/include/linux/balloon_compaction.h
-+++ b/include/linux/balloon_compaction.h
-@@ -50,6 +50,7 @@
- #include <linux/gfp.h>
- #include <linux/err.h>
- #include <linux/fs.h>
-+#include <linux/list.h>
- 
- /*
-  * Balloon device information descriptor.
-@@ -67,9 +68,14 @@ struct balloon_dev_info {
- 	struct inode *inode;
- };
- 
--extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
-+extern struct page *balloon_page_alloc(void);
-+extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-+				 struct page *page);
- extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
- 
-+extern void balloon_devinfo_splice(struct balloon_dev_info *to_add,
-+				   struct balloon_dev_info *b_dev_info);
-+
- static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
- {
- 	balloon->isolated_pages = 0;
-@@ -89,6 +95,36 @@ extern int balloon_page_migrate(struct address_space *mapping,
- 				struct page *page, enum migrate_mode mode);
- 
- /*
-+ * balloon_page_push - insert a page into a page list.
-+ * @head : pointer to list
-+ * @page : page to be added
-+ *
-+ * Caller must ensure the page is private and protect the list.
-+ */
-+static inline void balloon_page_push(struct list_head *pages, struct page *page)
-+{
-+	list_add(&page->lru, pages);
-+}
-+
-+/*
-+ * balloon_page_pop - remove a page from a page list.
-+ * @head : pointer to list
-+ * @page : page to be added
-+ *
-+ * Caller must ensure the page is private and protect the list.
-+ */
-+static inline struct page *balloon_page_pop(struct list_head *pages)
-+{
-+	struct page *page = list_first_entry_or_null(pages, struct page, lru);
-+
-+	if (!page)
-+		return NULL;
-+
-+	list_del(&page->lru);
-+	return page;
-+}
-+
-+/*
-  * balloon_page_insert - insert a page into the balloon's page list and make
-  *			 the page->private assignment accordingly.
-  * @balloon : pointer to balloon device
-diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
-index 68d2892..ef858d5 100644
---- a/mm/balloon_compaction.c
-+++ b/mm/balloon_compaction.c
-@@ -11,22 +11,37 @@
- #include <linux/balloon_compaction.h>
- 
- /*
-+ * balloon_page_alloc - allocates a new page for insertion into the balloon
-+ *			  page list.
-+ *
-+ * Driver must call it to properly allocate a new enlisted balloon page.
-+ * Driver must call balloon_page_enqueue before definitively removing it from
-+ * the guest system.  This function returns the page address for the recently
-+ * allocated page or NULL in the case we fail to allocate a new page this turn.
-+ */
-+struct page *balloon_page_alloc(void)
-+{
-+	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
-+				       __GFP_NOMEMALLOC | __GFP_NORETRY);
-+	return page;
-+}
-+EXPORT_SYMBOL_GPL(balloon_page_alloc);
-+
-+/*
-  * balloon_page_enqueue - allocates a new page and inserts it into the balloon
-  *			  page list.
-  * @b_dev_info: balloon device descriptor where we will insert a new page to
-+ * @page: new page to enqueue - allocated using balloon_page_alloc.
-  *
-- * Driver must call it to properly allocate a new enlisted balloon page
-+ * Driver must call it to properly enqueue a new allocated balloon page
-  * before definitively removing it from the guest system.
-  * This function returns the page address for the recently enqueued page or
-  * NULL in the case we fail to allocate a new page this turn.
-  */
--struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
-+void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
-+			  struct page *page)
- {
- 	unsigned long flags;
--	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
--				       __GFP_NOMEMALLOC | __GFP_NORETRY);
--	if (!page)
--		return NULL;
- 
- 	/*
- 	 * Block others from accessing the 'page' when we get around to
-@@ -39,7 +54,6 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
- 	__count_vm_event(BALLOON_INFLATE);
- 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
- 	unlock_page(page);
--	return page;
- }
- EXPORT_SYMBOL_GPL(balloon_page_enqueue);
- 
--- 
-MST
+We will need to do calculate_sizes() by using original flags and compare
+the order of s->size and s->object_size when
+disable_higher_order_debug=1.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
