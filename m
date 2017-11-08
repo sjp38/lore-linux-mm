@@ -1,184 +1,317 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 252674403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 04:18:49 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id s19so573636lfi.19
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 01:18:49 -0800 (PST)
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBD44403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 04:18:51 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id f31so583178lfi.3
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 01:18:51 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k24sor590538ljb.44.2017.11.08.01.18.47
+        by mx.google.com with SMTPS id o84sor609055lff.82.2017.11.08.01.18.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 08 Nov 2017 01:18:47 -0800 (PST)
+        Wed, 08 Nov 2017 01:18:49 -0800 (PST)
 From: Dmitry Monakhov <dmonakhov@openvz.org>
-Subject: [PATCH 1/2] mm: add sysctl to control global OOM logging behaviour
-Date: Wed,  8 Nov 2017 09:18:42 +0000
-Message-Id: <20171108091843.29349-1-dmonakhov@openvz.org>
+Subject: [PATCH 2/2] mm: memcg control oom logging behavior
+Date: Wed,  8 Nov 2017 09:18:43 +0000
+Message-Id: <20171108091843.29349-2-dmonakhov@openvz.org>
+In-Reply-To: <20171108091843.29349-1-dmonakhov@openvz.org>
+References: <20171108091843.29349-1-dmonakhov@openvz.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: cgroups@vger.kernel.org, vdavydov.dev@gmail.com, Dmitry Monakhov <dmonakhov@openvz.org>
 
-Our systems becomes bigger and bigger, but OOM still happens.
-This becomes serious problem for systems where OOM happens
-frequently(containers, VM) because each OOM generate pressure
-on dmesg log infrastructure. Let's allow system administrator
-ability to tune OOM dump behaviour
+OOM is not uncommon in mem cgroup. Especially in case of tightly memory
+bounded containers workflow (for example kubernetes jobs). This result
+in massive spam in dmesg, which makes whole system less responsive.
 
-Disable oom log dump globaly:
-# echo 0 > /proc/sys/vm/oom_dump_log
-Enable oom log dump globaly:
-# echo 1 > /proc/sys/vm/oom_dump_log
+Let's allow memcg admin to configure OOM logging behavior
+
+Unfortunately oom_reaper worker has no access to original oom_control
+context so we have somehow to pass cgroups's dump behavior to it.
+Let's pass it via lower (always empty) bit in oom_reaper_list pointer
+
+#Testcase (continuous OOMs inside container)
+#docker run -m 64M lorel/docker-stress-ng stress-ng \
+	           --vm 1 --vm-bytes 64M -t 60s
 
 Signed-off-by: Dmitry Monakhov <dmonakhov@openvz.org>
 ---
- Documentation/sysctl/vm.txt | 13 +++++++++++++
- include/linux/oom.h         |  1 +
- kernel/sysctl.c             |  7 +++++++
- mm/oom_kill.c               | 40 ++++++++++++++++++++++------------------
- 4 files changed, 43 insertions(+), 18 deletions(-)
+ Documentation/cgroup-v1/memory.txt |  1 +
+ include/linux/memcontrol.h         | 16 +++++++++++++
+ mm/memcontrol.c                    | 27 ++++++++++++++++++++++
+ mm/oom_kill.c                      | 47 +++++++++++++++++++++++++++-----------
+ 4 files changed, 78 insertions(+), 13 deletions(-)
 
-diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-index 9baf66a..09d69a0 100644
---- a/Documentation/sysctl/vm.txt
-+++ b/Documentation/sysctl/vm.txt
-@@ -617,7 +617,20 @@ Default order is recommended unless this is causing problems for your
- system/application.
+diff --git a/Documentation/cgroup-v1/memory.txt b/Documentation/cgroup-v1/memory.txt
+index cefb636..4759de9 100644
+--- a/Documentation/cgroup-v1/memory.txt
++++ b/Documentation/cgroup-v1/memory.txt
+@@ -76,6 +76,7 @@ Brief summary of control files.
+ 				 (See sysctl's vm.swappiness)
+  memory.move_charge_at_immigrate # set/show controls of moving charges
+  memory.oom_control		 # set/show oom controls.
++ memory.oom_dump		 # set/show dump log on oom
+  memory.numa_stat		 # show the number of memory usage per numa node
  
- ==============================================================
-+oom_dump_log
+  memory.kmem.limit_in_bytes      # set/show hard limit for kernel memory
+diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+index 69966c4..20c7a5a 100644
+--- a/include/linux/memcontrol.h
++++ b/include/linux/memcontrol.h
+@@ -27,6 +27,7 @@
+ #include <linux/vmpressure.h>
+ #include <linux/eventfd.h>
+ #include <linux/mm.h>
++#include <linux/oom.h>
+ #include <linux/vmstat.h>
+ #include <linux/writeback.h>
+ #include <linux/page-flags.h>
+@@ -198,6 +199,7 @@ struct mem_cgroup {
+ 	int	swappiness;
+ 	/* OOM-Killer disable */
+ 	int		oom_kill_disable;
++	int		oom_dump;
  
-+Enables a system-wide dump to be produced when the kernel performs an
-+OOM-killing. This sysctl control dump about  general information of OOM state
+ 	/* handle for "memory.events" */
+ 	struct cgroup_file events_file;
+@@ -1085,6 +1087,15 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+ 	} while ((memcg = parent_mem_cgroup(memcg)));
+ 	return false;
+ }
++static inline int mem_cgroup_oom_dump(struct mem_cgroup *memcg)
++{
++	/* root ? */
++	if (mem_cgroup_disabled() || !memcg->css.parent)
++		return sysctl_oom_dump_log;
 +
-+If this is set to zero, this information is suppressed.  On very
-+large systems with thousands of tasks it may not be feasible to dump
-+the memory state information for each OOM event.  Such systems should
-+not be forced to incur a performance penalty in OOM conditions when the
-+information may not be desired.
++	return memcg->oom_dump;
++}
 +
-+The default value is 1 (enabled).
+ #else
+ #define mem_cgroup_sockets_enabled 0
+ static inline void mem_cgroup_sk_alloc(struct sock *sk) { };
+@@ -1093,6 +1104,11 @@ static inline bool mem_cgroup_under_socket_pressure(struct mem_cgroup *memcg)
+ {
+ 	return false;
+ }
++static inline int mem_cgroup_oom_dump(struct mem_cgroup *memcg)
++{
++	return sysctl_oom_dump_log;
++}
 +
-+==============================================================
- oom_dump_tasks
+ #endif
  
- Enables a system-wide task dump (excluding kernel threads) to be produced
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 01c91d8..8ff56d3 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -104,6 +104,7 @@ extern unsigned long oom_badness(struct task_struct *p,
+ struct kmem_cache *memcg_kmem_get_cache(struct kmem_cache *cachep);
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 661f046..0a9f6d2 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -3639,6 +3639,27 @@ static int mem_cgroup_oom_control_write(struct cgroup_subsys_state *css,
+ 	return 0;
+ }
  
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
-+extern int sysctl_oom_dump_log;
- extern int sysctl_oom_kill_allocating_task;
- extern int sysctl_panic_on_oom;
- #endif /* _INCLUDE_LINUX_OOM_H */
-diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-index d9c31bc..87163c1 100644
---- a/kernel/sysctl.c
-+++ b/kernel/sysctl.c
-@@ -1263,6 +1263,13 @@ static int sysrq_sysctl_handler(struct ctl_table *table, int write,
- 		.proc_handler	= proc_dointvec,
++static u64 mem_cgroup_oom_dump_read(struct cgroup_subsys_state *css,
++				      struct cftype *cft)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++
++	return mem_cgroup_oom_dump(memcg);
++}
++
++static int mem_cgroup_oom_dump_write(struct cgroup_subsys_state *css,
++				       struct cftype *cft, u64 val)
++{
++	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
++
++	if (css->parent)
++		memcg->oom_dump = (bool)val;
++	else
++		sysctl_oom_dump_log = (bool)val;
++
++	return 0;
++}
++
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 
+ struct list_head *mem_cgroup_cgwb_list(struct mem_cgroup *memcg)
+@@ -4018,6 +4039,11 @@ static ssize_t memcg_write_event_control(struct kernfs_open_file *of,
+ 		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
  	},
  	{
-+		.procname	= "oom_dump_log",
-+		.data		= &sysctl_oom_dump_log,
-+		.maxlen		= sizeof(sysctl_oom_dump_log),
-+		.mode		= 0644,
-+		.proc_handler	= proc_dointvec,
++		.name = "oom_dump",
++		.read_u64 = mem_cgroup_oom_dump_read,
++		.write_u64 = mem_cgroup_oom_dump_write,
 +	},
 +	{
- 		.procname	= "overcommit_ratio",
- 		.data		= &sysctl_overcommit_ratio,
- 		.maxlen		= sizeof(sysctl_overcommit_ratio),
+ 		.name = "pressure_level",
+ 	},
+ #ifdef CONFIG_NUMA
+@@ -4277,6 +4303,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
+ 	if (parent) {
+ 		memcg->swappiness = mem_cgroup_swappiness(parent);
+ 		memcg->oom_kill_disable = parent->oom_kill_disable;
++		memcg->oom_dump = mem_cgroup_oom_dump(parent);
+ 	}
+ 	if (parent && parent->use_hierarchy) {
+ 		memcg->use_hierarchy = true;
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index dee0f75..02c8f5d6 100644
+index 02c8f5d6..3e27777 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -51,6 +51,7 @@
- int sysctl_panic_on_oom;
- int sysctl_oom_kill_allocating_task;
- int sysctl_oom_dump_tasks = 1;
-+int sysctl_oom_dump_log = 1;
+@@ -406,6 +406,14 @@ static void dump_tasks(struct mem_cgroup *memcg, const nodemask_t *nodemask)
+ 	rcu_read_unlock();
+ }
  
- DEFINE_MUTEX(oom_lock);
++static int oom_dump_enabled(struct oom_control *oc)
++{
++	if (is_memcg_oom(oc) && sysctl_oom_dump_log)
++		return mem_cgroup_oom_dump(oc->memcg);
++	else
++		return sysctl_oom_dump_log;
++}
++
+ static void dump_header(struct oom_control *oc, struct task_struct *p)
+ {
+ 	pr_warn("%s invoked oom-killer: gfp_mask=%#x(%pGg), nodemask=",
+@@ -467,8 +475,10 @@ bool process_shares_mm(struct task_struct *p, struct mm_struct *mm)
+ static DECLARE_WAIT_QUEUE_HEAD(oom_reaper_wait);
+ static struct task_struct *oom_reaper_list;
+ static DEFINE_SPINLOCK(oom_reaper_lock);
++#define OOM_REAPER_DUMP_MASK 1UL
  
-@@ -552,7 +553,8 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+-static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
++static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm,
++	bool dump_log)
+ {
+ 	struct mmu_gather tlb;
+ 	struct vm_area_struct *vma;
+@@ -553,7 +563,7 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
  					 NULL);
  	}
  	tlb_finish_mmu(&tlb, 0, -1);
--	pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-+	if (sysctl_oom_dump_log)
-+		pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+-	if (sysctl_oom_dump_log)
++	if (dump_log)
+ 		pr_info("oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
  			task_pid_nr(tsk), tsk->comm,
  			K(get_mm_counter(mm, MM_ANONPAGES)),
- 			K(get_mm_counter(mm, MM_FILEPAGES)),
-@@ -578,11 +580,11 @@ static void oom_reap_task(struct task_struct *tsk)
+@@ -568,19 +578,20 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ }
+ 
+ #define MAX_OOM_REAP_RETRIES 10
+-static void oom_reap_task(struct task_struct *tsk)
++static void oom_reap_task(struct task_struct *tsk, bool dump_log)
+ {
+ 	int attempts = 0;
+ 	struct mm_struct *mm = tsk->signal->oom_mm;
+ 
+ 	/* Retry the down_read_trylock(mmap_sem) a few times */
+-	while (attempts++ < MAX_OOM_REAP_RETRIES && !__oom_reap_task_mm(tsk, mm))
++	while (attempts++ < MAX_OOM_REAP_RETRIES &&
++	       !__oom_reap_task_mm(tsk, mm, dump_log))
+ 		schedule_timeout_idle(HZ/10);
+ 
  	if (attempts <= MAX_OOM_REAP_RETRIES)
  		goto done;
  
--
--	pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
--		task_pid_nr(tsk), tsk->comm);
--	debug_show_all_locks();
--
-+	if (sysctl_oom_dump_log) {
-+		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
-+			task_pid_nr(tsk), tsk->comm);
-+		debug_show_all_locks();
-+	}
- done:
- 	tsk->oom_reaper_list = NULL;
- 
-@@ -647,7 +649,7 @@ static int __init oom_init(void)
- }
- subsys_initcall(oom_init)
- #else
--static inline void wake_oom_reaper(struct task_struct *tsk)
-+static inline void wake_oom_reaper(struct task_struct *tsk, bool verbose)
+-	if (sysctl_oom_dump_log) {
++	if (dump_log) {
+ 		pr_info("oom_reaper: unable to reap pid:%d (%s)\n",
+ 			task_pid_nr(tsk), tsk->comm);
+ 		debug_show_all_locks();
+@@ -602,23 +613,29 @@ static int oom_reaper(void *unused)
  {
+ 	while (true) {
+ 		struct task_struct *tsk = NULL;
++		bool dump_log = 1;
+ 
+ 		wait_event_freezable(oom_reaper_wait, oom_reaper_list != NULL);
+ 		spin_lock(&oom_reaper_lock);
+ 		if (oom_reaper_list != NULL) {
+-			tsk = oom_reaper_list;
++			tsk = (struct task_struct *)
++				((unsigned long) oom_reaper_list
++				 & ~OOM_REAPER_DUMP_MASK);
++			dump_log = (unsigned long)oom_reaper_list
++				& OOM_REAPER_DUMP_MASK;
++
+ 			oom_reaper_list = tsk->oom_reaper_list;
+ 		}
+ 		spin_unlock(&oom_reaper_lock);
+ 
+ 		if (tsk)
+-			oom_reap_task(tsk);
++			oom_reap_task(tsk, dump_log);
+ 	}
+ 
+ 	return 0;
  }
- #endif /* CONFIG_MMU */
-@@ -847,13 +849,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 
+-static void wake_oom_reaper(struct task_struct *tsk)
++static void wake_oom_reaper(struct task_struct *tsk, bool dump_log)
+ {
+ 	if (!oom_reaper_th)
+ 		return;
+@@ -632,6 +649,9 @@ static void wake_oom_reaper(struct task_struct *tsk)
+ 	spin_lock(&oom_reaper_lock);
+ 	tsk->oom_reaper_list = oom_reaper_list;
+ 	oom_reaper_list = tsk;
++	if (dump_log)
++		oom_reaper_list = (struct task_struct *)
++			((unsigned long)oom_reaper_list | OOM_REAPER_DUMP_MASK);
+ 	spin_unlock(&oom_reaper_lock);
+ 	trace_wake_reaper(tsk->pid);
+ 	wake_up(&oom_reaper_wait);
+@@ -834,7 +854,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+ 	bool can_oom_reap = true;
+-
++	bool dump_log = oom_dump_enabled(oc);
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+ 	 * its children or threads, just give it access to memory reserves
+@@ -843,13 +863,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	task_lock(p);
+ 	if (task_will_free_mem(p)) {
+ 		mark_oom_victim(p);
+-		wake_oom_reaper(p);
++		wake_oom_reaper(p, dump_log);
+ 		task_unlock(p);
+ 		put_task_struct(p);
  		return;
  	}
  	task_unlock(p);
-+	if (sysctl_oom_dump_log) {
-+		if (__ratelimit(&oom_rs))
-+			dump_header(oc, p);
+-	if (sysctl_oom_dump_log) {
++	if (dump_log) {
+ 		if (__ratelimit(&oom_rs))
+ 			dump_header(oc, p);
  
--	if (__ratelimit(&oom_rs))
--		dump_header(oc, p);
--
--	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
--		message, task_pid_nr(p), p->comm, points);
--
-+		pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
-+		       message, task_pid_nr(p), p->comm, points);
-+	}
- 	/*
- 	 * If any of p's children has a different mm and is eligible for kill,
- 	 * the one with the highest oom_badness() score is sacrificed for its
-@@ -907,11 +909,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+@@ -952,7 +972,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	rcu_read_unlock();
+ 
+ 	if (can_oom_reap)
+-		wake_oom_reaper(victim);
++		wake_oom_reaper(victim, dump_log);
+ 
+ 	mmdrop(mm);
+ 	put_task_struct(victim);
+@@ -1011,6 +1031,7 @@ bool out_of_memory(struct oom_control *oc)
+ {
+ 	unsigned long freed = 0;
+ 	enum oom_constraint constraint = CONSTRAINT_NONE;
++	bool dump_log = oom_dump_enabled(oc);
+ 
+ 	if (oom_killer_disabled)
+ 		return false;
+@@ -1029,7 +1050,7 @@ bool out_of_memory(struct oom_control *oc)
  	 */
- 	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
- 	mark_oom_victim(victim);
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
--		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
--		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
--		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
--		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-+	if (sysctl_oom_dump_log)
-+		pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-+		       task_pid_nr(victim), victim->comm,
-+		       K(victim->mm->total_vm),
-+		       K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-+		       K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-+		       K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
- 	task_unlock(victim);
+ 	if (task_will_free_mem(current)) {
+ 		mark_oom_victim(current);
+-		wake_oom_reaper(current);
++		wake_oom_reaper(current, dump_log);
+ 		return true;
+ 	}
  
- 	/*
 -- 
 1.8.3.1
 
