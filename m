@@ -1,87 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 429114403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 02:55:09 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id f85so1567877pfe.7
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 23:55:09 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id 1si3177337plz.262.2017.11.07.23.55.07
-        for <linux-mm@kvack.org>;
-        Tue, 07 Nov 2017 23:55:08 -0800 (PST)
-Date: Wed, 8 Nov 2017 16:59:56 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH] mm: page_ext: check if page_ext is not prepared
-Message-ID: <20171108075956.GC18747@js1304-P5Q-DELUXE>
-References: <CGME20171107093947epcas2p3d449dd14d11907cd29df7be7984d90f0@epcas2p3.samsung.com>
- <20171107094131.14621-1-jaewon31.kim@samsung.com>
- <20171107094730.5732nqqltx2miszq@dhcp22.suse.cz>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F1F796B02AC
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 03:24:15 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 189so4917029iow.14
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 00:24:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 94sor1662672iom.183.2017.11.08.00.24.14
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 08 Nov 2017 00:24:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171107094730.5732nqqltx2miszq@dhcp22.suse.cz>
+In-Reply-To: <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
+References: <001a114096fec09301055d68d784@google.com> <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 8 Nov 2017 09:23:53 +0100
+Message-ID: <CACT4Y+bkTWRcrun95FbfiJseJjzt9z7JXONVJ9N2Hqo1-8yVuA@mail.gmail.com>
+Subject: Re: WARNING in __check_heap_object
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jaewon Kim <jaewon31.kim@samsung.com>, akpm@linux-foundation.org, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Kees Cook <keescook@chromium.org>
+Cc: syzbot <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, David Windsor <dave@nullcore.net>
 
-On Tue, Nov 07, 2017 at 10:47:30AM +0100, Michal Hocko wrote:
-> [CC Joonsoo]
-> 
-> On Tue 07-11-17 18:41:31, Jaewon Kim wrote:
-> > online_page_ext and page_ext_init allocate page_ext for each section, but
-> > they do not allocate if the first PFN is !pfn_present(pfn) or
-> > !pfn_valid(pfn). Then section->page_ext remains as NULL. lookup_page_ext
-> > checks NULL only if CONFIG_DEBUG_VM is enabled. For a valid PFN,
-> > __set_page_owner will try to get page_ext through lookup_page_ext.
-> > Without CONFIG_DEBUG_VM lookup_page_ext will misuse NULL pointer as value
-> > 0. This incurrs invalid address access.
-> > 
-> > This is the panic example when PFN 0x100000 is not valid but PFN 0x13FC00
-> > is being used for page_ext. section->page_ext is NULL, get_entry returned
-> > invalid page_ext address as 0x1DFA000 for a PFN 0x13FC00.
-> > 
-> > To avoid this panic, CONFIG_DEBUG_VM should be removed so that page_ext
-> > will be checked at all times.
-> > 
-> > <1>[   11.618085] Unable to handle kernel paging request at virtual address 01dfa014
-> > <1>[   11.618140] pgd = ffffffc0c6dc9000
-> > <1>[   11.618174] [01dfa014] *pgd=0000000000000000, *pud=0000000000000000
-> > <4>[   11.618240] ------------[ cut here ]------------
-> > <2>[   11.618278] Kernel BUG at ffffff80082371e0 [verbose debug info unavailable]
-> > <0>[   11.618338] Internal error: Oops: 96000045 [#1] PREEMPT SMP
-> > <4>[   11.618381] Modules linked in:
-> > <4>[   11.618524] task: ffffffc0c6ec9180 task.stack: ffffffc0c6f40000
-> > <4>[   11.618569] PC is at __set_page_owner+0x48/0x78
-> > <4>[   11.618607] LR is at __set_page_owner+0x44/0x78
-> > <4>[   11.626025] [<ffffff80082371e0>] __set_page_owner+0x48/0x78
-> > <4>[   11.626071] [<ffffff80081df9f0>] get_page_from_freelist+0x880/0x8e8
-> > <4>[   11.626118] [<ffffff80081e00a4>] __alloc_pages_nodemask+0x14c/0xc48
-> > <4>[   11.626165] [<ffffff80081e610c>] __do_page_cache_readahead+0xdc/0x264
-> > <4>[   11.626214] [<ffffff80081d8824>] filemap_fault+0x2ac/0x550
-> > <4>[   11.626259] [<ffffff80082e5cf8>] ext4_filemap_fault+0x3c/0x58
-> > <4>[   11.626305] [<ffffff800820a2f8>] __do_fault+0x80/0x120
-> > <4>[   11.626347] [<ffffff800820eb4c>] handle_mm_fault+0x704/0xbb0
-> > <4>[   11.626393] [<ffffff800809ba70>] do_page_fault+0x2e8/0x394
-> > <4>[   11.626437] [<ffffff8008080be4>] do_mem_abort+0x88/0x124
-> > 
-> 
-> I suspec this goes all the way down to when page_ext has been
-> resurrected.  It is quite interesting that nobody has noticed this in 3
-> years but maybe the feature is not used all that much and the HW has to
-> be quite special to trigger. Anyway the following should be added
-> 
->  Fixes: eefa864b701d ("mm/page_ext: resurrect struct page extending code for debugging")
->  Cc: stable
+On Tue, Nov 7, 2017 at 9:35 PM, Kees Cook <keescook@chromium.org> wrote:
+> On Tue, Nov 7, 2017 at 10:36 AM, syzbot
+> <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
+> wrote:
+>> Hello,
+>>
+>> syzkaller hit the following crash on
+>> 5a3517e009e979f21977d362212b7729c5165d92
+>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+>> compiler: gcc (GCC) 7.1.1 20170620
+>> .config is attached
+>> Raw console output is attached.
+>> C reproducer is attached
+>> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+>> for information about syzkaller reproducers
+>>
+>>
+>
+> Please include the line _before_ the "cut here" (dumb, I know, but
+> that's where warnings show up...)
+>
+> Found in the raw.log:
+>
+> [   44.227177] unexpected usercopy without slab whitelist from SCTPv6
+> offset 1648 size 11
+>
+> This means some part of the SCTPv6 slab was being poked into userspace
+> without a usercopy whitelist.
+>
+>>  check_heap_object mm/usercopy.c:222 [inline]
+>>  __check_object_size+0x22c/0x4f0 mm/usercopy.c:248
+>>  check_object_size include/linux/thread_info.h:112 [inline]
+>>  check_copy_size include/linux/thread_info.h:143 [inline]
+>>  copy_to_user include/linux/uaccess.h:154 [inline]
+>>  sctp_getsockopt_events net/sctp/socket.c:4972 [inline]
+>>  sctp_getsockopt+0x2b90/0x70b0 net/sctp/socket.c:7012
+>>  sock_common_getsockopt+0x95/0xd0 net/core/sock.c:2924
+>>  SYSC_getsockopt net/socket.c:1882 [inline]
+>>  SyS_getsockopt+0x178/0x340 net/socket.c:1864
+>>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+>
+> Looking at the SCTPv6 slab declaration, it seems David and I missed
+> the usercopy whitelist for the sctpv6_sock struct. I'll update the
+> usercopy whitelist patch with:
+>
+> #syz fix: sctp: Define usercopy region in SCTP proto slab cache
+>
+> diff --git a/net/sctp/socket.c b/net/sctp/socket.c
+> index 5fd83974c5cc..8ac85877c0e4 100644
+> --- a/net/sctp/socket.c
+> +++ b/net/sctp/socket.c
+> @@ -8492,6 +8492,10 @@ struct proto sctpv6_prot = {
+>         .unhash         = sctp_unhash,
+>         .get_port       = sctp_get_port,
+>         .obj_size       = sizeof(struct sctp6_sock),
+> +       .useroffset     = offsetof(struct sctp_sock, subscribe),
+> +       .usersize       = offsetof(struct sctp_sock, initmsg) -
+> +                               offsetof(struct sctp_sock, subscribe) +
+> +                               sizeof_field(struct sctp_sock, initmsg),
+>         .sysctl_mem     = sysctl_sctp_mem,
+>         .sysctl_rmem    = sysctl_sctp_rmem,
+>         .sysctl_wmem    = sysctl_sctp_wmem,
+>
+> Thanks!
 
-IIRC, caller of lookup_page_ext() doesn't check 'NULL' until
-f86e427197 ("mm: check the return value of lookup_page_ext for all
-call sites"). So, this problem would happen old kernel even if this
-patch is applied to old kernel.
 
-IMO, proper fix is to check all the pfn in the section. It is sent
-from Jaewon in other mail.
+Kees, please also follow this part once the commit reaches any of
+trees (title is settled):
 
-Thanks.
+> syzbot will keep track of this bug report.
+> Once a fix for this bug is committed, please reply to this email with:
+> #syz fix: exact-commit-title
+> Note: all commands must start from beginning of the line.
+
+This will greatly help to keep the whole process running and report
+new bugs in future.
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
