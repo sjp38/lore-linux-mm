@@ -1,262 +1,242 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 79FB6440417
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:13:50 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v78so2412299pfk.8
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:13:50 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n23si4184011plp.371.2017.11.08.07.13.48
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 58D7B440417
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:17:34 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id y206so2275670oiy.8
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:17:34 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s9si1983144oif.252.2017.11.08.07.17.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 07:13:49 -0800 (PST)
-Date: Wed, 8 Nov 2017 10:13:45 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH v4] printk: Add console owner and waiter logic to load  
- balance console writes
-Message-ID: <20171108101345.181b7723@gandalf.local.home>
+        Wed, 08 Nov 2017 07:17:32 -0800 (PST)
+Date: Wed, 8 Nov 2017 17:17:29 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCH v3] virtio_balloon: fix deadlock on OOM
+Message-ID: <1510154064-9709-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang\"   <yuwang.yuwang@alibaba-inc.com>, Peter Zijlstra  <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan  Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>,  Tetsuo Handa  <penguin-kernel@I-love.SAKURA.ne.jp>,  rostedt@home.goodmis.org"@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Wei Wang <wei.w.wang@intel.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-[ Sending again, because claws-mail screwed up some of the addresses
-  when I did a cut-and-paste causing several bounces. ]
+fill_balloon doing memory allocations under balloon_lock
+can cause a deadlock when leak_balloon is called from
+virtballoon_oom_notify and tries to take same lock.
 
-From: Steven Rostedt (VMware) <rostedt@goodmis.org>
+To fix, split page allocation and enqueue and do allocations outside the lock.
 
-This patch implements what I discussed in Kernel Summit. I added
-lockdep annotation (hopefully correctly), and it hasn't had any splats
-(since I fixed some bugs in the first iterations). It did catch
-problems when I had the owner covering too much. But now that the owner
-is only set when actively calling the consoles, lockdep has stayed
-quiet.
- 
-Here's the design again:
+Here's a detailed analysis of the deadlock by Tetsuo Handa:
 
-I added a "console_owner" which is set to a task that is actively
-writing to the consoles. It is *not* the same an the owner of the
-console_lock. It is only set when doing the calls to the console
-functions. It is protected by a console_owner_lock which is a raw spin
-lock.
+In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+serialize against fill_balloon(). But in fill_balloon(),
+alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+is specified, this allocation attempt might indirectly depend on somebody
+else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
+__GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
+virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
+out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
+mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
+will cause OOM lockup.
 
-There is a console_waiter. This is set when there is an active console
-owner that is not current, and waiter is not set. This too is protected
-by console_owner_lock.
+  Thread1                                       Thread2
+    fill_balloon()
+      takes a balloon_lock
+      balloon_page_enqueue()
+        alloc_page(GFP_HIGHUSER_MOVABLE)
+          direct reclaim (__GFP_FS context)       takes a fs lock
+            waits for that fs lock                  alloc_page(GFP_NOFS)
+                                                      __alloc_pages_may_oom()
+                                                        takes the oom_lock
+                                                        out_of_memory()
+                                                          blocking_notifier_call_chain()
+                                                            leak_balloon()
+                                                              tries to take that balloon_lock and deadlocks
 
-In printk() when it tries to write to the consoles, we have:
-
-	if (console_trylock())
-		console_unlock();
-
-Now I added an else, which will check if there is an active owner, and
-no current waiter. If that is the case, then console_waiter is set, and
-the task goes into a spin until it is no longer set.
-
-When the active console owner finishes writing the current message to
-the consoles, it grabs the console_owner_lock and sees if there is a
-waiter, and clears console_owner.
-
-If there is a waiter, then it breaks out of the loop, clears the waiter
-flag (because that will release the waiter from its spin), and exits.
-Note, it does *not* release the console semaphore. Because it is a
-semaphore, there is no owner. Another task may release it. This means
-that the waiter is guaranteed to be the new console owner! Which it
-becomes.
-
-Then the waiter calls console_unlock() and continues to write to the
-consoles.
-
-If another task comes along and does a printk() it too can become the
-new waiter, and we wash rinse and repeat!
-
-Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Wei Wang <wei.w.wang@intel.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
 ---
-Changes from v3:
 
-	Fixed while loop on console_waiter (Thanks Vlastimil!)
+Changes since v2:
+	drop an unused declaration, reported by Tetsuo Hocko
+Changes from v1:
+	fix a build warning
 
-	Moved console_owner out of logbuf_lock taking (reported by
-	Tetsuo Handa)
+ drivers/virtio/virtio_balloon.c    | 24 +++++++++++++++++++-----
+ include/linux/balloon_compaction.h | 35 ++++++++++++++++++++++++++++++++++-
+ mm/balloon_compaction.c            | 28 +++++++++++++++++++++-------
+ 3 files changed, 74 insertions(+), 13 deletions(-)
 
-Changes from v2:
-
-  - Added back some READ/WRITE_ONCE() just to be on the safe side
-
-Index: linux-trace.git/kernel/printk/printk.c
-===================================================================
---- linux-trace.git.orig/kernel/printk/printk.c
-+++ linux-trace.git/kernel/printk/printk.c
-@@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
- static struct lockdep_map console_lock_dep_map = {
- 	.name = "console_lock"
- };
-+static struct lockdep_map console_owner_dep_map = {
-+	.name = "console_owner"
-+};
- #endif
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index f0b3a0b..7960746 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -143,16 +143,17 @@ static void set_page_pfns(struct virtio_balloon *vb,
  
-+static DEFINE_RAW_SPINLOCK(console_owner_lock);
-+static struct task_struct *console_owner;
-+static bool console_waiter;
-+
- enum devkmsg_log_bits {
- 	__DEVKMSG_LOG_BIT_ON = 0,
- 	__DEVKMSG_LOG_BIT_OFF,
-@@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
- 		 * semaphore.  The release will print out buffers and
-wake up
- 		 * /dev/kmsg and syslog() users.
- 		 */
--		if (console_trylock())
-+		if (console_trylock()) {
- 			console_unlock();
-+		} else {
-+			struct task_struct *owner = NULL;
-+			bool waiter;
-+			bool spin = false;
-+
-+			printk_safe_enter_irqsave(flags);
-+
-+			raw_spin_lock(&console_owner_lock);
-+			owner = READ_ONCE(console_owner);
-+			waiter = READ_ONCE(console_waiter);
-+			if (!waiter && owner && owner != current) {
-+				WRITE_ONCE(console_waiter, true);
-+				spin = true;
-+			}
-+			raw_spin_unlock(&console_owner_lock);
-+
-+			/*
-+			 * If there is an active printk() writing to
-the
-+			 * consoles, instead of having it write our
-data too,
-+			 * see if we can offload that load from the
-active
-+			 * printer, and do some printing ourselves.
-+			 * Go into a spin only if there isn't already
-a waiter
-+			 * spinning, and there is an active printer,
-and
-+			 * that active printer isn't us (recursive
-printk?).
-+			 */
-+			if (spin) {
-+				/* We spin waiting for the owner to
-release us */
-+				spin_acquire(&console_owner_dep_map,
-0, 0, _THIS_IP_);
-+				/* Owner will clear console_waiter on
-hand off */
-+				while (READ_ONCE(console_waiter))
-+					cpu_relax();
-+
-+				spin_release(&console_owner_dep_map,
-1, _THIS_IP_);
-+				printk_safe_exit_irqrestore(flags);
-+
-+				/*
-+				 * The owner passed the console lock
-to us.
-+				 * Since we did not spin on console
-lock, annotate
-+				 * this as a trylock. Otherwise
-lockdep will
-+				 * complain.
-+				 */
-+				mutex_acquire(&console_lock_dep_map,
-0, 1, _THIS_IP_);
-+				console_unlock();
-+				printk_safe_enter_irqsave(flags);
-+			}
-+			printk_safe_exit_irqrestore(flags);
-+
-+		}
- 	}
+ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ {
+-	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+ 	unsigned num_allocated_pages;
++	unsigned num_pfns;
++	struct page *page;
++	LIST_HEAD(pages);
  
- 	return printed_len;
-@@ -2141,6 +2196,7 @@ void console_unlock(void)
- 	static u64 seen_seq;
- 	unsigned long flags;
- 	bool wake_klogd = false;
-+	bool waiter = false;
- 	bool do_cond_resched, retry;
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
  
- 	if (console_suspended) {
-@@ -2229,14 +2285,64 @@ skip:
- 		console_seq++;
- 		raw_spin_unlock(&logbuf_lock);
+-	mutex_lock(&vb->balloon_lock);
+-	for (vb->num_pfns = 0; vb->num_pfns < num;
+-	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		struct page *page = balloon_page_enqueue(vb_dev_info);
++	for (num_pfns = 0; num_pfns < num;
++	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
++		struct page *page = balloon_page_alloc();
  
-+		/*
-+		 * While actively printing out messages, if another
-printk()
-+		 * were to occur on another CPU, it may wait for this
-one to
-+		 * finish. This task can not be preempted if there is a
-+		 * waiter waiting to take over.
-+		 */
-+		raw_spin_lock(&console_owner_lock);
-+		console_owner = current;
-+		raw_spin_unlock(&console_owner_lock);
+ 		if (!page) {
+ 			dev_info_ratelimited(&vb->vdev->dev,
+@@ -162,6 +163,19 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 			msleep(200);
+ 			break;
+ 		}
 +
-+		/* The waiter may spin on us after setting
-console_owner */
-+		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-+
- 		stop_critical_timings();	/* don't trace print
-latency */ call_console_drivers(ext_text, ext_len, text, len);
- 		start_critical_timings();
-+
-+		raw_spin_lock(&console_owner_lock);
-+		waiter = READ_ONCE(console_waiter);
-+		console_owner = NULL;
-+		raw_spin_unlock(&console_owner_lock);
-+
-+		/*
-+		 * If there is a waiter waiting for us, then pass the
-+		 * rest of the work load over to that waiter.
-+		 */
-+		if (waiter)
-+			break;
-+
-+		/* There was no waiter, and nothing will spin on us
-here */
-+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-+
- 		printk_safe_exit_irqrestore(flags);
- 
- 		if (do_cond_resched)
- 			cond_resched();
- 	}
-+
-+	/*
-+	 * If there is an active waiter waiting on the console_lock.
-+	 * Pass off the printing to the waiter, and the waiter
-+	 * will continue printing on its CPU, and when all writing
-+	 * has finished, the last printer will wake up klogd.
-+	 */
-+	if (waiter) {
-+		WRITE_ONCE(console_waiter, false);
-+		/* The waiter is now free to continue */
-+		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-+		/*
-+		 * Hand off console_lock to waiter. The waiter will
-perform
-+		 * the up(). After this, the waiter is the
-console_lock owner.
-+		 */
-+		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
-+		printk_safe_exit_irqrestore(flags);
-+		/* Note, if waiter is set, logbuf_lock is not held */
-+		return;
++		balloon_page_push(&pages, page);
 +	}
 +
- 	console_locked = 0;
++	mutex_lock(&vb->balloon_lock);
++
++	vb->num_pfns = 0;
++
++	while ((page = balloon_page_pop(&pages))) {
++		balloon_page_enqueue(&vb->vb_dev_info, page);
++
++		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
++
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 		if (!virtio_has_feature(vb->vdev,
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index fbbe6da..c4c8df9 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -50,6 +50,7 @@
+ #include <linux/gfp.h>
+ #include <linux/err.h>
+ #include <linux/fs.h>
++#include <linux/list.h>
  
- 	/* Release the exclusive_console once it is used */
+ /*
+  * Balloon device information descriptor.
+@@ -67,7 +68,9 @@ struct balloon_dev_info {
+ 	struct inode *inode;
+ };
+ 
+-extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
++extern struct page *balloon_page_alloc(void);
++extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
++				 struct page *page);
+ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
+ 
+ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+@@ -89,6 +92,36 @@ extern int balloon_page_migrate(struct address_space *mapping,
+ 				struct page *page, enum migrate_mode mode);
+ 
+ /*
++ * balloon_page_push - insert a page into a page list.
++ * @head : pointer to list
++ * @page : page to be added
++ *
++ * Caller must ensure the page is private and protect the list.
++ */
++static inline void balloon_page_push(struct list_head *pages, struct page *page)
++{
++	list_add(&page->lru, pages);
++}
++
++/*
++ * balloon_page_pop - remove a page from a page list.
++ * @head : pointer to list
++ * @page : page to be added
++ *
++ * Caller must ensure the page is private and protect the list.
++ */
++static inline struct page *balloon_page_pop(struct list_head *pages)
++{
++	struct page *page = list_first_entry_or_null(pages, struct page, lru);
++
++	if (!page)
++		return NULL;
++
++	list_del(&page->lru);
++	return page;
++}
++
++/*
+  * balloon_page_insert - insert a page into the balloon's page list and make
+  *			 the page->private assignment accordingly.
+  * @balloon : pointer to balloon device
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 68d2892..ef858d5 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -11,22 +11,37 @@
+ #include <linux/balloon_compaction.h>
+ 
+ /*
++ * balloon_page_alloc - allocates a new page for insertion into the balloon
++ *			  page list.
++ *
++ * Driver must call it to properly allocate a new enlisted balloon page.
++ * Driver must call balloon_page_enqueue before definitively removing it from
++ * the guest system.  This function returns the page address for the recently
++ * allocated page or NULL in the case we fail to allocate a new page this turn.
++ */
++struct page *balloon_page_alloc(void)
++{
++	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
++				       __GFP_NOMEMALLOC | __GFP_NORETRY);
++	return page;
++}
++EXPORT_SYMBOL_GPL(balloon_page_alloc);
++
++/*
+  * balloon_page_enqueue - allocates a new page and inserts it into the balloon
+  *			  page list.
+  * @b_dev_info: balloon device descriptor where we will insert a new page to
++ * @page: new page to enqueue - allocated using balloon_page_alloc.
+  *
+- * Driver must call it to properly allocate a new enlisted balloon page
++ * Driver must call it to properly enqueue a new allocated balloon page
+  * before definitively removing it from the guest system.
+  * This function returns the page address for the recently enqueued page or
+  * NULL in the case we fail to allocate a new page this turn.
+  */
+-struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
++void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
++			  struct page *page)
+ {
+ 	unsigned long flags;
+-	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+-	if (!page)
+-		return NULL;
+ 
+ 	/*
+ 	 * Block others from accessing the 'page' when we get around to
+@@ -39,7 +54,6 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
+ 	__count_vm_event(BALLOON_INFLATE);
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+ 	unlock_page(page);
+-	return page;
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+ 
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
