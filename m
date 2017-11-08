@@ -1,77 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D2B72680F85
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 18:45:25 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id m189so707955qke.21
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 15:45:25 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id c26si2331258qtd.163.2017.11.07.15.45.24
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C47C6B02B6
+	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 19:13:42 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id a132so275431oih.22
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 16:13:42 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q184sor894421oib.140.2017.11.07.16.13.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 15:45:24 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA7NjKuc137849
-	for <linux-mm@kvack.org>; Tue, 7 Nov 2017 18:45:24 -0500
-Received: from e33.co.us.ibm.com (e33.co.us.ibm.com [32.97.110.151])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2e3h6vy9ea-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 07 Nov 2017 18:45:18 -0500
-Received: from localhost
-	by e33.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Tue, 7 Nov 2017 16:44:39 -0700
-Date: Tue, 7 Nov 2017 15:44:27 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v9 00/51] powerpc, mm: Memory Protection Keys
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
- <87efpbm706.fsf@mid.deneb.enyo.de>
- <20171107012218.GA5546@ram.oc3035372033.ibm.com>
- <87h8u6lf27.fsf@mid.deneb.enyo.de>
- <20171107223953.GB5546@ram.oc3035372033.ibm.com>
- <8b970e5b-50e6-bcc1-e8d3-6e3aa8523f55@intel.com>
+        (Google Transport Security);
+        Tue, 07 Nov 2017 16:13:41 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8b970e5b-50e6-bcc1-e8d3-6e3aa8523f55@intel.com>
-Message-Id: <20171107234427.GA5659@ram.oc3035372033.ibm.com>
+In-Reply-To: <20171107183950.46f238fd@vento.lan>
+References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151001624873.16354.2551756846133945335.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171107063345.22626a5d@vento.lan> <CAPcyv4hNSV=c4KY8omKEdRth2w4YEr8EQJQfOoxXS8XELGFVcA@mail.gmail.com>
+ <20171107183950.46f238fd@vento.lan>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 7 Nov 2017 16:13:40 -0800
+Message-ID: <CAPcyv4gvE8ovWA8DQoHJYoGqaOk1HxQLBJdwPPu3OXAb=MbfKw@mail.gmail.com>
+Subject: Re: [PATCH 3/3] [media] v4l2: disable filesystem-dax mapping support
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Florian Weimer <fw@deneb.enyo.de>, linux-arch@vger.kernel.org, x86@kernel.org, arnd@arndb.de, corbet@lwn.net, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, mingo@redhat.com, paulus@samba.org, ebiederm@xmission.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, akpm@linux-foundation.org, khandual@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, aneesh.kumar@linux.vnet.ibm.com
+To: Mauro Carvalho Chehab <mchehab@s-opensource.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "stable@vger.kernel.org" <stable@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Mauro Carvalho Chehab <mchehab@kernel.org>, "Linux-media@vger.kernel.org" <linux-media@vger.kernel.org>
 
-On Tue, Nov 07, 2017 at 02:47:10PM -0800, Dave Hansen wrote:
-> On 11/07/2017 02:39 PM, Ram Pai wrote:
-> > 
-> > As per the current semantics of sys_pkey_free(); the way I understand it,
-> > the calling thread is saying disassociate me from this key.
-> 
-> No.  It is saying: "this *process* no longer has any uses of this key,
-> it can be reused".
+On Tue, Nov 7, 2017 at 12:39 PM, Mauro Carvalho Chehab
+<mchehab@s-opensource.com> wrote:
+> Em Tue, 7 Nov 2017 09:43:41 -0800
+> Dan Williams <dan.j.williams@intel.com> escreveu:
+>
+>> On Tue, Nov 7, 2017 at 12:33 AM, Mauro Carvalho Chehab
+>> <mchehab@s-opensource.com> wrote:
+>> > Em Mon, 06 Nov 2017 16:57:28 -0800
+>> > Dan Williams <dan.j.williams@intel.com> escreveu:
+>> >
+>> >> V4L2 memory registrations are incompatible with filesystem-dax that
+>> >> needs the ability to revoke dma access to a mapping at will, or
+>> >> otherwise allow the kernel to wait for completion of DMA. The
+>> >> filesystem-dax implementation breaks the traditional solution of
+>> >> truncate of active file backed mappings since there is no page-cache
+>> >> page we can orphan to sustain ongoing DMA.
+>> >>
+>> >> If v4l2 wants to support long lived DMA mappings it needs to arrange to
+>> >> hold a file lease or use some other mechanism so that the kernel can
+>> >> coordinate revoking DMA access when the filesystem needs to truncate
+>> >> mappings.
+>> >
+>> >
+>> > Not sure if I understand this your comment here... what happens
+>> > if FS_DAX is enabled? The new err = get_user_pages_longterm()
+>> > would cause DMA allocation to fail?
+>>
+>> Correct, any attempt to specify a filesystem-dax mapping range to
+>> get_user_pages_longterm will fail with EOPNOTSUPP. In the future we
+>> want to add something like a 'struct file_lock *' argument to
+>> get_user_pages_longterm so that the kernel has a handle to revoke
+>> access to the returned pages. Once we have a safe way for the kernel
+>> to undo elevated page counts we can stop failing the longterm vs
+>> filesystem-dax case.
+>
+> Argh! Perhaps we should make it depend on BROKEN while not fixed :-/
 
-ok, in light of the corrected semantics, I see no bug in the implimentation.
+Small consolation, but we do warn that filesystem-dax is still
+considered experimental when mounting a filesystem with "-o dax"
 
-> On Mon, Nov 06, 2017 at 10:28:41PM +0100, Florian Weimer wrote:
-...
-> The problem is a pkey_alloc/pthread_create/pkey_free/pkey_alloc
-> sequence.  The pthread_create call makes the new thread inherit the
-> access rights of the current thread, but then the key is deallocated.
-> Reallocation of the same key will have that thread retain its access
-> rights, which is IMHO not correct.
+>> Here is more background on why _longterm gup is a problem for filesystem-dax:
+>>
+>>     https://lwn.net/Articles/737273/
+>>
+>> > If so, that doesn't sound
+>> > right. Instead, mm should somehow mark this mapping to be out
+>> > of FS_DAX control range.
+>>
+>> DAX is currently global setting for the entire backing device of the
+>> filesystem, so any mapping of any file when the "-o dax" mount option
+>> is set is in the "FS_DAX control range". In other words there's
+>> currently no way to prevent FS_DAX mappings from being exposed to V4L2
+>> outside of CONFIG_FS_DAX=n.
+>
+> Grrr...
+>
+>> > Also, it is not only videobuf-dma-sg.c that does long lived
+>> > DMA mappings. VB2 also does that (and videobuf-vmalloc).
+>>
+>> Without finding the code videobuf-vmalloc sounds like it should be ok
+>> if the kernel is allocating memory separate from a file-backed DAX
+>> mapping.
+>
+> videobuf-vmalloc do DMA mapping for pages allocated via vmalloc(),
+> via vmalloc_user()/remap_vmalloc_range().
 
-Again.. in light of the corrected semantics --
- the child thread or any thread should not free
-a key without cleaning up. 
-(a) disassociate the key from its address space
-(b) reset the permission on the key across all the threads of the
-process.
+Ok, that's completely safe since filesystem-dax mappings are not
+involved in a vmalloc backed virtual address range.
 
-Because any such uncleaned bits can cause unexpected behavior if the 
-same key gets reallocated on sys_pkey_alloc().
+> There aren't much drivers using VB1 anymore, but a change at VB2
+> will likely break support for almost all webcams if fs DAX is
+> in usage.
 
+Yes, unless / until we can switch userspace to using a new memory
+registration api that includes a way for the kernel to revoke access
+to a dax mapping. Another mitigation is following through on support
+for moving dax support from a global mount flag to a per-inode flag to
+at least prevent dax from leaking to use cases that need explicit
+coordination.
 
--- 
-Ram Pai
+>> Where is the VB2 get_user_pages call?
+>
+> Before changeset 3336c24f25ec, the logic for get_user_pages() were
+> at drivers/media/v4l2-core/videobuf2-dma-sg.c. Now, the logic
+> it uses is inside mm/frame_vector.c.
+
+Ok, I'll take a look.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
