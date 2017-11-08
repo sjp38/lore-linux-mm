@@ -1,188 +1,397 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 56FE3440439
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 12:58:06 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id 186so6217732itu.9
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 09:58:06 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FC66440439
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:01:07 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id c16so2528263qke.17
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:01:07 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c70sor2557949ith.18.2017.11.08.09.58.05
+        by mx.google.com with SMTPS id f38sor90381qtf.151.2017.11.08.11.01.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 08 Nov 2017 09:58:05 -0800 (PST)
-From: Greg Thelen <gthelen@google.com>
-Subject: Re: [PATCH v2] mm, shrinker: make shrinker_list lockless
-In-Reply-To: <20171108173740.115166-1-shakeelb@google.com>
-References: <20171108173740.115166-1-shakeelb@google.com>
-Date: Wed, 08 Nov 2017 09:58:02 -0800
-Message-ID: <xr93inekac0l.fsf@gthelen.svl.corp.google.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Wed, 08 Nov 2017 11:01:05 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 2/4] writeback: allow for dirty metadata accounting
+Date: Wed,  8 Nov 2017 14:00:58 -0500
+Message-Id: <1510167660-26196-2-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
+References: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org
+Cc: Josef Bacik <jbacik@fb.com>
 
-(off list)
+From: Josef Bacik <jbacik@fb.com>
 
-Shakeel Butt <shakeelb@google.com> wrote:
+Provide a mechanism for file systems to indicate how much dirty metadata they
+are holding.  This introduces a few things
 
-> In our production, we have observed that the job loader gets stuck for
-> 10s of seconds while doing mount operation. It turns out that it was
-> stuck in register_shrinker() and some unrelated job was under memory
-> pressure and spending time in shrink_slab(). Our machines have a lot
-> of shrinkers registered and jobs under memory pressure has to traverse
-> all of those memcg-aware shrinkers and do affect unrelated jobs which
-> want to register their own shrinkers.
->
-> This patch has made the shrinker_list traversal lockless and shrinker
-> register remain fast. For the shrinker unregister, atomic counter
-> has been introduced to avoid synchronize_rcu() call. The fields of
-> struct shrinker has been rearraged to make sure that the size does
-> not increase for x86_64.
->
-> The shrinker functions are allowed to reschedule() and thus can not
-> be called with rcu read lock. One way to resolve that is to use
-> srcu read lock but then ifdefs has to be used as SRCU is behind
-> CONFIG_SRCU. Another way is to just release the rcu read lock before
-> calling the shrinker and reacquire on the return. The atomic counter
-> will make sure that the shrinker entry will not be freed under us.
->
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> ---
-> Changelog since v1:
-> - release and reacquire rcu lock across shrinker call.
->
->  include/linux/shrinker.h |  4 +++-
->  mm/vmscan.c              | 54 ++++++++++++++++++++++++++++++------------------
->  2 files changed, 37 insertions(+), 21 deletions(-)
->
-> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-> index 388ff2936a87..434b76ef9367 100644
-> --- a/include/linux/shrinker.h
-> +++ b/include/linux/shrinker.h
-> @@ -60,14 +60,16 @@ struct shrinker {
->  	unsigned long (*scan_objects)(struct shrinker *,
->  				      struct shrink_control *sc);
->  
-> +	unsigned int flags;
->  	int seeks;	/* seeks to recreate an obj */
->  	long batch;	/* reclaim batch size, 0 = default */
-> -	unsigned long flags;
->  
->  	/* These are for internal use */
->  	struct list_head list;
->  	/* objs pending delete, per node */
->  	atomic_long_t *nr_deferred;
-> +	/* Number of active do_shrink_slab calls to this shrinker */
-> +	atomic_t nr_active;
->  };
->  #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
->  
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index eb2f0315b8c0..6cec46ac6d95 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -157,7 +157,7 @@ int vm_swappiness = 60;
->  unsigned long vm_total_pages;
->  
->  static LIST_HEAD(shrinker_list);
-> -static DECLARE_RWSEM(shrinker_rwsem);
-> +static DEFINE_SPINLOCK(shrinker_lock);
->  
->  #ifdef CONFIG_MEMCG
->  static bool global_reclaim(struct scan_control *sc)
-> @@ -285,21 +285,42 @@ int register_shrinker(struct shrinker *shrinker)
->  	if (!shrinker->nr_deferred)
->  		return -ENOMEM;
->  
-> -	down_write(&shrinker_rwsem);
-> -	list_add_tail(&shrinker->list, &shrinker_list);
-> -	up_write(&shrinker_rwsem);
-> +	atomic_set(&shrinker->nr_active, 0);
-> +	spin_lock(&shrinker_lock);
-> +	list_add_tail_rcu(&shrinker->list, &shrinker_list);
-> +	spin_unlock(&shrinker_lock);
->  	return 0;
->  }
->  EXPORT_SYMBOL(register_shrinker);
->  
-> +static void get_shrinker(struct shrinker *shrinker)
-> +{
-> +	atomic_inc(&shrinker->nr_active);
-> +	rcu_read_unlock();
-> +}
-> +
-> +static void put_shrinker(struct shrinker *shrinker)
-> +{
-> +	rcu_read_lock();
-> +	if (!atomic_dec_return(&shrinker->nr_active))
-> +		wake_up_atomic_t(&shrinker->nr_active);
-> +}
-> +
-> +static int shrinker_wait_atomic_t(atomic_t *p)
-> +{
-> +	schedule();
-> +	return 0;
-> +}
->  /*
->   * Remove one
->   */
->  void unregister_shrinker(struct shrinker *shrinker)
->  {
-> -	down_write(&shrinker_rwsem);
-> -	list_del(&shrinker->list);
-> -	up_write(&shrinker_rwsem);
-> +	spin_lock(&shrinker_lock);
-> +	list_del_rcu(&shrinker->list);
-> +	spin_unlock(&shrinker_lock);
-> +	wait_on_atomic_t(&shrinker->nr_active, shrinker_wait_atomic_t,
-> +			 TASK_UNINTERRUPTIBLE);
+1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
+2) WB stat for dirty metadata.  This way we know if we need to try and call into
+the file system to write out metadata.  This could potentially be used in the
+future to make balancing of dirty pages smarter.
 
-What keeps us from returning to the caller which could kfree the
-shrinker before shrink_slab() uses it for list iteration?
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+---
+ drivers/base/node.c              |   2 +
+ fs/fs-writeback.c                |   1 +
+ fs/proc/meminfo.c                |   2 +
+ include/linux/backing-dev-defs.h |   1 +
+ include/linux/mm.h               |   7 +++
+ include/linux/mmzone.h           |   1 +
+ include/trace/events/writeback.h |   7 ++-
+ mm/backing-dev.c                 |   2 +
+ mm/page-writeback.c              | 100 +++++++++++++++++++++++++++++++++++++--
+ mm/page_alloc.c                  |   7 ++-
+ mm/vmscan.c                      |   3 +-
+ 11 files changed, 125 insertions(+), 8 deletions(-)
 
->  	kfree(shrinker->nr_deferred);
->  }
->  EXPORT_SYMBOL(unregister_shrinker);
-> @@ -468,18 +489,9 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  	if (nr_scanned == 0)
->  		nr_scanned = SWAP_CLUSTER_MAX;
->  
-> -	if (!down_read_trylock(&shrinker_rwsem)) {
-> -		/*
-> -		 * If we would return 0, our callers would understand that we
-> -		 * have nothing else to shrink and give up trying. By returning
-> -		 * 1 we keep it going and assume we'll be able to shrink next
-> -		 * time.
-> -		 */
-> -		freed = 1;
-> -		goto out;
-> -	}
-> +	rcu_read_lock();
->  
-> -	list_for_each_entry(shrinker, &shrinker_list, list) {
-> +	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
->  		struct shrink_control sc = {
->  			.gfp_mask = gfp_mask,
->  			.nid = nid,
-> @@ -498,11 +510,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
->  			sc.nid = 0;
->  
-> +		get_shrinker(shrinker);
->  		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
-> +		put_shrinker(shrinker);
->  	}
->  
-> -	up_read(&shrinker_rwsem);
-> -out:
-> +	rcu_read_unlock();
-> +
->  	cond_resched();
->  	return freed;
->  }
-> -- 
-> 2.15.0.403.gc27cc4dac6-goog
+diff --git a/drivers/base/node.c b/drivers/base/node.c
+index 3855902f2c5b..39c031f44d4b 100644
+--- a/drivers/base/node.c
++++ b/drivers/base/node.c
+@@ -99,6 +99,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ #endif
+ 	n += sprintf(buf + n,
+ 		       "Node %d Dirty:          %8lu kB\n"
++		       "Node %d MetadataDirty:	%8lu kB\n"
+ 		       "Node %d Writeback:      %8lu kB\n"
+ 		       "Node %d FilePages:      %8lu kB\n"
+ 		       "Node %d Mapped:         %8lu kB\n"
+@@ -119,6 +120,7 @@ static ssize_t node_read_meminfo(struct device *dev,
+ #endif
+ 			,
+ 		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
++		       nid, K(node_page_state(pgdat, NR_METADATA_DIRTY)),
+ 		       nid, K(node_page_state(pgdat, NR_WRITEBACK)),
+ 		       nid, K(node_page_state(pgdat, NR_FILE_PAGES)),
+ 		       nid, K(node_page_state(pgdat, NR_FILE_MAPPED)),
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 245c430a2e41..c5374a4fb982 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -1822,6 +1822,7 @@ static unsigned long get_nr_dirty_pages(void)
+ {
+ 	return global_node_page_state(NR_FILE_DIRTY) +
+ 		global_node_page_state(NR_UNSTABLE_NFS) +
++		global_node_page_state(NR_METADATA_DIRTY) +
+ 		get_nr_dirty_inodes();
+ }
+ 
+diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
+index cdd979724c74..f1cafc2aaade 100644
+--- a/fs/proc/meminfo.c
++++ b/fs/proc/meminfo.c
+@@ -98,6 +98,8 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
+ 	show_val_kb(m, "SwapFree:       ", i.freeswap);
+ 	show_val_kb(m, "Dirty:          ",
+ 		    global_node_page_state(NR_FILE_DIRTY));
++	seq_printf(m, "MetadataDirty:  %8lu kB\n",
++		   global_node_page_state(NR_METADATA_DIRTY));
+ 	show_val_kb(m, "Writeback:      ",
+ 		    global_node_page_state(NR_WRITEBACK));
+ 	show_val_kb(m, "AnonPages:      ",
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 866c433e7d32..013e764d4b30 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -36,6 +36,7 @@ typedef int (congested_fn)(void *, int);
+ enum wb_stat_item {
+ 	WB_RECLAIMABLE,
+ 	WB_WRITEBACK,
++	WB_METADATA_DIRTY,
+ 	WB_DIRTIED,
+ 	WB_WRITTEN,
+ 	NR_WB_STAT_ITEMS
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index f8c10d336e42..c6b4a6a62cc2 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -32,6 +32,7 @@ struct file_ra_state;
+ struct user_struct;
+ struct writeback_control;
+ struct bdi_writeback;
++struct backing_dev_info;
+ 
+ void init_mm_internals(void);
+ 
+@@ -1428,6 +1429,12 @@ int redirty_page_for_writepage(struct writeback_control *wbc,
+ void account_page_dirtied(struct page *page, struct address_space *mapping);
+ void account_page_cleaned(struct page *page, struct address_space *mapping,
+ 			  struct bdi_writeback *wb);
++void account_metadata_dirtied(struct page *page, struct backing_dev_info *bdi);
++void account_metadata_cleaned(struct page *page, struct backing_dev_info *bdi);
++void account_metadata_writeback(struct page *page,
++				struct backing_dev_info *bdi);
++void account_metadata_end_writeback(struct page *page,
++				    struct backing_dev_info *bdi);
+ int set_page_dirty(struct page *page);
+ int set_page_dirty_lock(struct page *page);
+ void cancel_dirty_page(struct page *page);
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index 356a814e7c8e..090fce6b1195 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -179,6 +179,7 @@ enum node_stat_item {
+ 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
+ 	NR_DIRTIED,		/* page dirtyings since bootup */
+ 	NR_WRITTEN,		/* page writings since bootup */
++	NR_METADATA_DIRTY,	/* Metadata dirty pages */
+ 	NR_VM_NODE_STAT_ITEMS
+ };
+ 
+diff --git a/include/trace/events/writeback.h b/include/trace/events/writeback.h
+index 9b57f014d79d..dd1564b5eab3 100644
+--- a/include/trace/events/writeback.h
++++ b/include/trace/events/writeback.h
+@@ -402,6 +402,7 @@ TRACE_EVENT(global_dirty_state,
+ 
+ 	TP_STRUCT__entry(
+ 		__field(unsigned long,	nr_dirty)
++		__field(unsigned long,	nr_metadata_dirty)
+ 		__field(unsigned long,	nr_writeback)
+ 		__field(unsigned long,	nr_unstable)
+ 		__field(unsigned long,	background_thresh)
+@@ -413,6 +414,7 @@ TRACE_EVENT(global_dirty_state,
+ 
+ 	TP_fast_assign(
+ 		__entry->nr_dirty	= global_node_page_state(NR_FILE_DIRTY);
++		__entry->nr_metadata_dirty = global_node_page_state(NR_METADATA_DIRTY);
+ 		__entry->nr_writeback	= global_node_page_state(NR_WRITEBACK);
+ 		__entry->nr_unstable	= global_node_page_state(NR_UNSTABLE_NFS);
+ 		__entry->nr_dirtied	= global_node_page_state(NR_DIRTIED);
+@@ -424,7 +426,7 @@ TRACE_EVENT(global_dirty_state,
+ 
+ 	TP_printk("dirty=%lu writeback=%lu unstable=%lu "
+ 		  "bg_thresh=%lu thresh=%lu limit=%lu "
+-		  "dirtied=%lu written=%lu",
++		  "dirtied=%lu written=%lu metadata_dirty=%lu",
+ 		  __entry->nr_dirty,
+ 		  __entry->nr_writeback,
+ 		  __entry->nr_unstable,
+@@ -432,7 +434,8 @@ TRACE_EVENT(global_dirty_state,
+ 		  __entry->dirty_thresh,
+ 		  __entry->dirty_limit,
+ 		  __entry->nr_dirtied,
+-		  __entry->nr_written
++		  __entry->nr_written,
++		  __entry->nr_metadata_dirty
+ 	)
+ );
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index e19606bb41a0..57f1dbc41f7e 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -76,6 +76,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   "BackgroundThresh:   %10lu kB\n"
+ 		   "BdiDirtied:         %10lu kB\n"
+ 		   "BdiWritten:         %10lu kB\n"
++		   "BdiMetadataDirty:   %10lu kB\n"
+ 		   "BdiWriteBandwidth:  %10lu kBps\n"
+ 		   "b_dirty:            %10lu\n"
+ 		   "b_io:               %10lu\n"
+@@ -90,6 +91,7 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   K(background_thresh),
+ 		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
+ 		   (unsigned long) K(wb_stat(wb, WB_WRITTEN)),
++		   (unsigned long) K(wb_stat(wb, WB_METADATA_DIRTY)),
+ 		   (unsigned long) K(wb->write_bandwidth),
+ 		   nr_dirty,
+ 		   nr_io,
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 1a47d4296750..9539eae4f088 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -507,6 +507,7 @@ bool node_dirty_ok(struct pglist_data *pgdat)
+ 	nr_pages += node_page_state(pgdat, NR_FILE_DIRTY);
+ 	nr_pages += node_page_state(pgdat, NR_UNSTABLE_NFS);
+ 	nr_pages += node_page_state(pgdat, NR_WRITEBACK);
++	nr_pages += node_page_state(pgdat, NR_METADATA_DIRTY);
+ 
+ 	return nr_pages <= limit;
+ }
+@@ -1595,7 +1596,8 @@ static void balance_dirty_pages(struct bdi_writeback *wb,
+ 		 * been flushed to permanent storage.
+ 		 */
+ 		nr_reclaimable = global_node_page_state(NR_FILE_DIRTY) +
+-					global_node_page_state(NR_UNSTABLE_NFS);
++				global_node_page_state(NR_UNSTABLE_NFS) +
++				global_node_page_state(NR_METADATA_DIRTY);
+ 		gdtc->avail = global_dirtyable_memory();
+ 		gdtc->dirty = nr_reclaimable + global_node_page_state(NR_WRITEBACK);
+ 
+@@ -1936,7 +1938,8 @@ bool wb_over_bg_thresh(struct bdi_writeback *wb)
+ 	 */
+ 	gdtc->avail = global_dirtyable_memory();
+ 	gdtc->dirty = global_node_page_state(NR_FILE_DIRTY) +
+-		      global_node_page_state(NR_UNSTABLE_NFS);
++		      global_node_page_state(NR_UNSTABLE_NFS) +
++		      global_node_page_state(NR_METADATA_DIRTY);
+ 	domain_dirty_limits(gdtc);
+ 
+ 	if (gdtc->dirty > gdtc->bg_thresh)
+@@ -1980,7 +1983,8 @@ void laptop_mode_timer_fn(unsigned long data)
+ {
+ 	struct request_queue *q = (struct request_queue *)data;
+ 	int nr_pages = global_node_page_state(NR_FILE_DIRTY) +
+-		global_node_page_state(NR_UNSTABLE_NFS);
++		global_node_page_state(NR_UNSTABLE_NFS) +
++		global_node_page_state(NR_METADATA_DIRTY);
+ 	struct bdi_writeback *wb;
+ 
+ 	/*
+@@ -2444,6 +2448,96 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ EXPORT_SYMBOL(account_page_dirtied);
+ 
+ /*
++ * account_metadata_dirtied
++ * @page - the page being dirited
++ * @bdi - the bdi that owns this page
++ *
++ * Do the dirty page accounting for metadata pages that aren't backed by an
++ * address_space.
++ */
++void account_metadata_dirtied(struct page *page, struct backing_dev_info *bdi)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__inc_node_page_state(page, NR_METADATA_DIRTY);
++	__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
++	__inc_node_page_state(page, NR_DIRTIED);
++	inc_wb_stat(&bdi->wb, WB_RECLAIMABLE);
++	inc_wb_stat(&bdi->wb, WB_DIRTIED);
++	inc_wb_stat(&bdi->wb, WB_METADATA_DIRTY);
++	current->nr_dirtied++;
++	task_io_account_write(PAGE_SIZE);
++	this_cpu_inc(bdp_ratelimits);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(account_metadata_dirtied);
++
++/*
++ * account_metadata_cleaned
++ * @page - the page being cleaned
++ * @bdi - the bdi that owns this page
++ *
++ * Called on a no longer dirty metadata page.
++ */
++void account_metadata_cleaned(struct page *page, struct backing_dev_info *bdi)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	__dec_node_page_state(page, NR_METADATA_DIRTY);
++	__dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
++	dec_wb_stat(&bdi->wb, WB_RECLAIMABLE);
++	dec_wb_stat(&bdi->wb, WB_METADATA_DIRTY);
++	task_io_account_cancelled_write(PAGE_SIZE);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(account_metadata_cleaned);
++
++/*
++ * account_metadata_writeback
++ * @page - the page being marked as writeback
++ * @bdi - the bdi that owns this page
++ *
++ * Called on a metadata page that has been marked writeback.
++ */
++void account_metadata_writeback(struct page *page,
++				struct backing_dev_info *bdi)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	inc_wb_stat(&bdi->wb, WB_WRITEBACK);
++	__inc_node_page_state(page, NR_WRITEBACK);
++	__dec_node_page_state(page, NR_METADATA_DIRTY);
++	dec_wb_stat(&bdi->wb, WB_METADATA_DIRTY);
++	dec_wb_stat(&bdi->wb, WB_RECLAIMABLE);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(account_metadata_writeback);
++
++/*
++ * account_metadata_end_writeback
++ * @page - the page we are ending writeback on
++ * @bdi - the bdi that owns this page
++ *
++ * Called on a metadata page that has completed writeback.
++ */
++void account_metadata_end_writeback(struct page *page,
++				    struct backing_dev_info *bdi)
++{
++	unsigned long flags;
++
++	local_irq_save(flags);
++	dec_wb_stat(&bdi->wb, WB_WRITEBACK);
++	__dec_node_page_state(page, NR_WRITEBACK);
++	__dec_zone_page_state(page, NR_ZONE_WRITE_PENDING);
++	__inc_node_page_state(page, NR_WRITTEN);
++	local_irq_restore(flags);
++}
++EXPORT_SYMBOL(account_metadata_end_writeback);
++
++/*
+  * Helper function for deaccounting dirty page without writeback.
+  *
+  * Caller must hold lock_page_memcg().
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index c841af88836a..7f8eb1f861e5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4694,8 +4694,8 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 
+ 	printk("active_anon:%lu inactive_anon:%lu isolated_anon:%lu\n"
+ 		" active_file:%lu inactive_file:%lu isolated_file:%lu\n"
+-		" unevictable:%lu dirty:%lu writeback:%lu unstable:%lu\n"
+-		" slab_reclaimable:%lu slab_unreclaimable:%lu\n"
++		" unevictable:%lu dirty:%lu metadata_dirty:%lu writeback:%lu\n"
++	        " unstable:%lu slab_reclaimable:%lu slab_unreclaimable:%lu\n"
+ 		" mapped:%lu shmem:%lu pagetables:%lu bounce:%lu\n"
+ 		" free:%lu free_pcp:%lu free_cma:%lu\n",
+ 		global_node_page_state(NR_ACTIVE_ANON),
+@@ -4706,6 +4706,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 		global_node_page_state(NR_ISOLATED_FILE),
+ 		global_node_page_state(NR_UNEVICTABLE),
+ 		global_node_page_state(NR_FILE_DIRTY),
++		global_node_page_state(NR_METADATA_DIRTY),
+ 		global_node_page_state(NR_WRITEBACK),
+ 		global_node_page_state(NR_UNSTABLE_NFS),
+ 		global_node_page_state(NR_SLAB_RECLAIMABLE),
+@@ -4732,6 +4733,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 			" isolated(file):%lukB"
+ 			" mapped:%lukB"
+ 			" dirty:%lukB"
++			" metadata_dirty:%lukB"
+ 			" writeback:%lukB"
+ 			" shmem:%lukB"
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+@@ -4753,6 +4755,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
+ 			K(node_page_state(pgdat, NR_ISOLATED_FILE)),
+ 			K(node_page_state(pgdat, NR_FILE_MAPPED)),
+ 			K(node_page_state(pgdat, NR_FILE_DIRTY)),
++			K(node_page_state(pgdat, NR_METADATA_DIRTY)),
+ 			K(node_page_state(pgdat, NR_WRITEBACK)),
+ 			K(node_page_state(pgdat, NR_SHMEM)),
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 13d711dd8776..0281abd62e87 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -3827,7 +3827,8 @@ static unsigned long node_pagecache_reclaimable(struct pglist_data *pgdat)
+ 
+ 	/* If we can't clean pages, remove dirty pages from consideration */
+ 	if (!(node_reclaim_mode & RECLAIM_WRITE))
+-		delta += node_page_state(pgdat, NR_FILE_DIRTY);
++		delta += node_page_state(pgdat, NR_FILE_DIRTY) +
++			node_page_state(pgdat, NR_METADATA_DIRTY);
+ 
+ 	/* Watch for any possible underflows due to delta */
+ 	if (unlikely(delta > nr_pagecache_reclaimable))
+-- 
+2.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
