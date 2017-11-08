@@ -1,48 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C9E816B0309
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:50 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u70so3019998pfa.2
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:50 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id r4si4560214pgq.332.2017.11.08.11.47.49
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 84ADF6B030C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:55 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id z184so3556629pgd.0
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:55 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id x11si4453547plv.4.2017.11.08.11.47.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:49 -0800 (PST)
-Subject: [PATCH 28/30] x86, kaiser: allow KAISER to be enabled/disabled at runtime
+        Wed, 08 Nov 2017 11:47:54 -0800 (PST)
+Subject: [PATCH 30/30] x86, kaiser, xen: Dynamically disable KAISER when running under Xen PV
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:38 -0800
+Date: Wed, 08 Nov 2017 11:47:42 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194738.CD2F1F09@viggo.jf.intel.com>
+Message-Id: <20171108194742.8CD79E09@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org, jgross@suse.com
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The KAISER CR3 switches are expensive for many reasons.  Not all systems
-benefit from the protection provided by KAISER.  Some of them can not
-pay the high performance cost.
+If you paravirtualize the MMU, you can not use KAISER.  This boils down
+to the fact that KAISER needs to do CR3 writes in places that it is not
+feasible to do real hypercalls.
 
-This patch adds a debugfs file.  To disable KAISER, you do:
+If we detect that Xen PV is in use, do not do the KAISER CR3 switches.
 
-	echo 0 > /sys/kernel/debug/x86/kaiser-enabled
+I don't think this too bug of a deal for Xen.  I was under the
+impression that the Xen guest kernel and Xen guest userspace didn't
+share an address space *anyway* so Xen PV is not normally even exposed
+to the kinds of things that KAISER protects against.
 
-and to reenable it, you can:
-
-	echo 1 > /sys/kernel/debug/x86/kaiser-enabled
-
-This is a *minimal* implementation.  There are certainly plenty of
-optimizations that we can do on top of this by using ALTERNATIVES
-among other things.
-
-This does, however, completely remove all the KAISER-based CR3 writes.
-So, a paravirtualized system that can not tolerate CR3 writes can
-theretically survive with CONFIG_KAISER=y, but with
-/sys/kernel/debug/x86/kaiser-enabled=0.
+This allows KAISER=y kernels to deployed in environments that also
+require PARAVIRT=y.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -54,168 +47,74 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Kees Cook <keescook@google.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
+Cc: Juergen Gross <jgross@suse.com>
 ---
 
- b/arch/x86/entry/calling.h |   12 +++++++
- b/arch/x86/mm/kaiser.c     |   70 ++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 78 insertions(+), 4 deletions(-)
+ b/arch/x86/mm/kaiser.c |   24 ++++++++++++++++++++++--
+ b/security/Kconfig     |    2 +-
+ 2 files changed, 23 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/entry/calling.h~kaiser-dynamic-asm arch/x86/entry/calling.h
---- a/arch/x86/entry/calling.h~kaiser-dynamic-asm	2017-11-08 10:45:41.361681365 -0800
-+++ b/arch/x86/entry/calling.h	2017-11-08 10:45:41.366681365 -0800
-@@ -208,19 +208,29 @@ For 32-bit we have the following convent
- 	orq     $(KAISER_SWITCH_MASK), \reg
- .endm
- 
-+.macro JUMP_IF_KAISER_OFF	label
-+	testq   $1, kaiser_asm_do_switch
-+	jz      \label
-+.endm
-+
- .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
-+	JUMP_IF_KAISER_OFF	.Lswitch_done_\@
- 	mov	%cr3, \scratch_reg
- 	ADJUST_KERNEL_CR3 \scratch_reg
- 	mov	\scratch_reg, %cr3
-+.Lswitch_done_\@:
- .endm
- 
- .macro SWITCH_TO_USER_CR3 scratch_reg:req
-+	JUMP_IF_KAISER_OFF	.Lswitch_done_\@
- 	mov	%cr3, \scratch_reg
- 	ADJUST_USER_CR3 \scratch_reg
- 	mov	\scratch_reg, %cr3
-+.Lswitch_done_\@:
- .endm
- 
- .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
-+	JUMP_IF_KAISER_OFF	.Ldone_\@
- 	movq	%cr3, %r\scratch_reg
- 	movq	%r\scratch_reg, \save_reg
- 	/*
-@@ -243,11 +253,13 @@ For 32-bit we have the following convent
- .endm
- 
- .macro RESTORE_CR3 save_reg:req
-+	JUMP_IF_KAISER_OFF	.Ldone_\@
- 	/*
- 	 * We could avoid the CR3 write if not changing its value,
- 	 * but that requires a CR3 read *and* a scratch register.
- 	 */
- 	movq	\save_reg, %cr3
-+.Ldone_\@:
- .endm
- 
- #else /* CONFIG_KAISER=n: */
-diff -puN arch/x86/mm/kaiser.c~kaiser-dynamic-asm arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-dynamic-asm	2017-11-08 10:45:41.363681365 -0800
-+++ b/arch/x86/mm/kaiser.c	2017-11-08 10:45:41.367681365 -0800
-@@ -31,6 +31,9 @@
+diff -puN arch/x86/mm/kaiser.c~kaiser-disable-for-xen-pv arch/x86/mm/kaiser.c
+--- a/arch/x86/mm/kaiser.c~kaiser-disable-for-xen-pv	2017-11-08 10:46:16.913681276 -0800
++++ b/arch/x86/mm/kaiser.c	2017-11-08 10:46:16.918681276 -0800
+@@ -31,8 +31,20 @@
  #include <asm/tlbflush.h>
  #include <asm/desc.h>
  
-+__aligned(PAGE_SIZE)
-+unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)] = { 1 };
++/*
++ * We need a two-stage enable/disable.  One (kaiser_enabled) to stop
++ * the ongoing work that keeps KAISER from being disabled (like PGD
++ * poisoning) and another (kaiser_asm_do_switch) that we set when it
++ * is completely safe to run without doing KAISER switches.
++ */
++int kaiser_enabled;
 +
++/*
++ * Sized and aligned so that we can easily map it out to userspace
++ * for use before we have done the assembly CR3 switching.
++ */
+ __aligned(PAGE_SIZE)
+-unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)] = { 1 };
++unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)];
+ 
  /*
   * At runtime, the only things we map are some things for CPU
-  * hotplug, and stacks for new processes.  No two CPUs will ever
-@@ -355,6 +358,9 @@ void __init kaiser_init(void)
- 
- 	kaiser_init_all_pgds();
- 
-+	kaiser_add_user_map_early(&kaiser_asm_do_switch, PAGE_SIZE,
-+				  __PAGE_KERNEL | _PAGE_GLOBAL);
+@@ -404,6 +416,15 @@ void __init kaiser_init(void)
+ 	kaiser_add_user_map_ptrs_early(__irqentry_text_start,
+ 				       __irqentry_text_end,
+ 				       __PAGE_KERNEL_RX | _PAGE_GLOBAL);
 +
- 	for_each_possible_cpu(cpu) {
- 		void *percpu_vaddr = __per_cpu_user_mapped_start +
- 				     per_cpu_offset(cpu);
-@@ -459,6 +465,56 @@ static ssize_t kaiser_enabled_read_file(
- 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
++	if (cpu_feature_enabled(X86_FEATURE_XENPV)) {
++		pr_info("x86/kaiser: Xen PV detected, disabling "
++			"KAISER protection\n");
++	} else {
++		pr_info("x86/kaiser: Unmapping kernel while in userspace\n");
++		kaiser_asm_do_switch[0] = 1;
++		kaiser_enabled = 1;
++	}
  }
  
-+enum poison {
-+	KAISER_POISON,
-+	KAISER_UNPOISON
-+};
-+void kaiser_poison_pgds(enum poison do_poison);
-+
-+void kaiser_do_disable(void)
-+{
-+	/* Make sure the kernel PGDs are usable by userspace: */
-+	kaiser_poison_pgds(KAISER_UNPOISON);
-+
-+	/*
-+	 * Make sure all the CPUs have the poison clear in their TLBs.
-+	 * This also functions as a barrier to ensure that everyone
-+	 * sees the unpoisoned PGDs.
-+	 */
-+	flush_tlb_all();
-+
-+	/* Tell the assembly code to stop switching CR3. */
-+	kaiser_asm_do_switch[0] = 0;
-+
-+	/*
-+	 * Make sure everybody does an interrupt.  This means that
-+	 * they have gone through a SWITCH_TO_KERNEL_CR3 amd are no
-+	 * longer running on the userspace CR3.  If we did not do
-+	 * this, we might have CPUs running on the shadow page tables
-+	 * that then enter the kernel and think they do *not* need to
-+	 * switch.
-+	 */
-+	flush_tlb_all();
-+}
-+
-+void kaiser_do_enable(void)
-+{
-+	/* Tell the assembly code to start switching CR3: */
-+	kaiser_asm_do_switch[0] = 1;
-+
-+	/* Make sure everyone can see the kaiser_asm_do_switch update: */
-+	synchronize_rcu();
-+
-+	/*
-+	 * Now that userspace is no longer using the kernel copy of
-+	 * the page tables, we can poison it:
-+	 */
-+	kaiser_poison_pgds(KAISER_POISON);
-+
-+	/* Make sure all the CPUs see the poison: */
-+	flush_tlb_all();
-+}
-+
- static ssize_t kaiser_enabled_write_file(struct file *file,
- 		 const char __user *user_buf, size_t count, loff_t *ppos)
+ int kaiser_add_mapping(unsigned long addr, unsigned long size,
+@@ -454,7 +475,6 @@ void kaiser_remove_mapping(unsigned long
+ 	__native_flush_tlb_global();
+ }
+ 
+-int kaiser_enabled = 1;
+ static ssize_t kaiser_enabled_read_file(struct file *file, char __user *user_buf,
+ 			     size_t count, loff_t *ppos)
  {
-@@ -480,7 +536,17 @@ static ssize_t kaiser_enabled_write_file
- 	if (kaiser_enabled == enable)
- 		return count;
+diff -puN security/Kconfig~kaiser-disable-for-xen-pv security/Kconfig
+--- a/security/Kconfig~kaiser-disable-for-xen-pv	2017-11-08 10:46:16.914681276 -0800
++++ b/security/Kconfig	2017-11-08 10:46:16.918681276 -0800
+@@ -56,7 +56,7 @@ config SECURITY_NETWORK
  
-+	/*
-+	 * This tells the page table code to stop poisoning PGDs
-+	 */
- 	WRITE_ONCE(kaiser_enabled, enable);
-+	synchronize_rcu();
-+
-+	if (enable)
-+		kaiser_do_enable();
-+	else
-+		kaiser_do_disable();
-+
- 	return count;
- }
- 
-@@ -498,10 +564,6 @@ static int __init create_kaiser_enabled(
- }
- late_initcall(create_kaiser_enabled);
- 
--enum poison {
--	KAISER_POISON,
--	KAISER_UNPOISON
--};
- void kaiser_poison_pgd_page(pgd_t *pgd_page, enum poison do_poison)
- {
- 	int i = 0;
+ config KAISER
+ 	bool "Remove the kernel mapping in user mode"
+-	depends on X86_64 && SMP && !PARAVIRT
++	depends on X86_64 && SMP
+ 	help
+ 	  This feature reduces the number of hardware side channels by
+ 	  ensuring that the majority of kernel addresses are not mapped
 _
 
 --
