@@ -1,92 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D96CD6B030F
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:59 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id b85so2988200pfj.22
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:59 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id 62si4413047pgh.81.2017.11.08.11.47.58
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5955544043C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:52:14 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id f187so6520375itb.6
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:52:14 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e1sor2692908ith.134.2017.11.08.11.52.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:58 -0800 (PST)
-Subject: [PATCH 29/30] x86, kaiser: add Kconfig
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:40 -0800
-References: <20171108194646.907A1942@viggo.jf.intel.com>
-In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194740.D1DAB7E2@viggo.jf.intel.com>
+        (Google Transport Security);
+        Wed, 08 Nov 2017 11:52:13 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171108194647.ABC9BC79@viggo.jf.intel.com>
+References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194647.ABC9BC79@viggo.jf.intel.com>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Wed, 8 Nov 2017 11:52:12 -0800
+Message-ID: <CA+55aFwuFT48RS=Bn9qvgjr+2r+jNroQHw1F+G_GxtU12nJmaw@mail.gmail.com>
+Subject: Re: [PATCH 01/30] x86, mm: do not set _PAGE_USER for init_mm page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, the arch/x86 maintainers <x86@kernel.org>
 
+On Wed, Nov 8, 2017 at 11:46 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> +
+>  static inline void pmd_populate_kernel(struct mm_struct *mm,
+>                                        pmd_t *pmd, pte_t *pte)
+>  {
+> +       pteval_t pgtable_flags = mm_pgtable_flags(mm);
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Why is "pmd_populate_kernel()" using mm_pgtable_flags(mm)?
 
-PARAVIRT generally requires that the kernel not manage its own page
-tables.  It also means that the hypervisor and kernel must agree
-wholeheartedly about what format the page tables are in and what
-they contain.  KAISER, unfortunately, changes the rules and they
-can not be used together.
+It should just use _KERNPG_TABLE unconditionally, shouldn't it?
+Nothing to do with init_mm, it's populating a _kernel_ page table
+regardless, no?
 
-I've seen conflicting feedback from maintainers lately about whether
-they want the Kconfig magic to go first or last in a patch series.
-It's going last here because the partially-applied series leads to
-kernels that can not boot in a bunch of cases.  I did a run through
-the entire series with CONFIG_KAISER=y to look for build errors,
-though.
-
-Note from Hugh Dickins on why it depends on SMP:
-
-	It is absurd that KAISER should depend on SMP, but
-	apparently nobody has tried a UP build before: which
-	breaks on implicit declaration of function
-	'per_cpu_offset' in arch/x86/mm/kaiser.c.
-
-	Now, you would expect that to be trivially fixed up; but
-	looking at the System.map when that block is #ifdef'ed
-	out of kaiser_init(), I see that in a UP build
-	__per_cpu_user_mapped_end is precisely at
-	__per_cpu_user_mapped_start, and the items carefully
-	gathered into that section for user-mapping on SMP,
-	dispersed elsewhere on UP.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: x86@kernel.org
----
-
- b/security/Kconfig |   10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff -puN security/Kconfig~kaiser-kconfig security/Kconfig
---- a/security/Kconfig~kaiser-kconfig	2017-11-08 10:45:41.921681364 -0800
-+++ b/security/Kconfig	2017-11-08 10:45:41.925681364 -0800
-@@ -54,6 +54,16 @@ config SECURITY_NETWORK
- 	  implement socket and networking access controls.
- 	  If you are unsure how to answer this question, answer N.
- 
-+config KAISER
-+	bool "Remove the kernel mapping in user mode"
-+	depends on X86_64 && SMP && !PARAVIRT
-+	help
-+	  This feature reduces the number of hardware side channels by
-+	  ensuring that the majority of kernel addresses are not mapped
-+	  into userspace.
-+
-+	  See Documentation/x86/kaiser.txt for more details.
-+
- config SECURITY_INFINIBAND
- 	bool "Infiniband Security Hooks"
- 	depends on SECURITY && INFINIBAND
-_
+            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
