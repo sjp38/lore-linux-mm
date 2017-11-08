@@ -1,48 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D1A744043C
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:01:09 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id k31so2613426qta.22
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:01:09 -0800 (PST)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B922B44043C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:02:27 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id e195so6176562itc.7
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:02:27 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m20sor3369343qtb.5.2017.11.08.11.01.08
+        by mx.google.com with SMTPS id n184sor2613304ite.16.2017.11.08.11.02.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 08 Nov 2017 11:01:08 -0800 (PST)
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH 4/4] export radix_tree_iter_tag_set
-Date: Wed,  8 Nov 2017 14:01:00 -0500
-Message-Id: <1510167660-26196-4-git-send-email-josef@toxicpanda.com>
-In-Reply-To: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
-References: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
+        Wed, 08 Nov 2017 11:02:26 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+bkTWRcrun95FbfiJseJjzt9z7JXONVJ9N2Hqo1-8yVuA@mail.gmail.com>
+References: <001a114096fec09301055d68d784@google.com> <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
+ <CACT4Y+bkTWRcrun95FbfiJseJjzt9z7JXONVJ9N2Hqo1-8yVuA@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 8 Nov 2017 11:02:25 -0800
+Message-ID: <CAGXu5jLj2NZEhwR_kpuAnJdChmE3V5fMS3Ry9FnncL5XdxVJkA@mail.gmail.com>
+Subject: Re: WARNING in __check_heap_object
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org
-Cc: Josef Bacik <jbacik@fb.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, David Windsor <dave@nullcore.net>
 
-From: Josef Bacik <jbacik@fb.com>
+On Wed, Nov 8, 2017 at 12:23 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Tue, Nov 7, 2017 at 9:35 PM, Kees Cook <keescook@chromium.org> wrote:
+>> On Tue, Nov 7, 2017 at 10:36 AM, syzbot
+>> <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
+>> wrote:
+>>> Hello,
+>>>
+>>> syzkaller hit the following crash on
+>>> 5a3517e009e979f21977d362212b7729c5165d92
+>>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+>>> compiler: gcc (GCC) 7.1.1 20170620
+>>> .config is attached
+>>> Raw console output is attached.
+>>> C reproducer is attached
+>>> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+>>> for information about syzkaller reproducers
+>>>
+>>>
+>>
+>> Please include the line _before_ the "cut here" (dumb, I know, but
+>> that's where warnings show up...)
+>>
+>> Found in the raw.log:
+>>
+>> [   44.227177] unexpected usercopy without slab whitelist from SCTPv6
+>> offset 1648 size 11
+>>
+>> This means some part of the SCTPv6 slab was being poked into userspace
+>> without a usercopy whitelist.
+>>
+>>>  check_heap_object mm/usercopy.c:222 [inline]
+>>>  __check_object_size+0x22c/0x4f0 mm/usercopy.c:248
+>>>  check_object_size include/linux/thread_info.h:112 [inline]
+>>>  check_copy_size include/linux/thread_info.h:143 [inline]
+>>>  copy_to_user include/linux/uaccess.h:154 [inline]
+>>>  sctp_getsockopt_events net/sctp/socket.c:4972 [inline]
+>>>  sctp_getsockopt+0x2b90/0x70b0 net/sctp/socket.c:7012
+>>>  sock_common_getsockopt+0x95/0xd0 net/core/sock.c:2924
+>>>  SYSC_getsockopt net/socket.c:1882 [inline]
+>>>  SyS_getsockopt+0x178/0x340 net/socket.c:1864
+>>>  entry_SYSCALL_64_fastpath+0x1f/0xbe
+>>
+>> Looking at the SCTPv6 slab declaration, it seems David and I missed
+>> the usercopy whitelist for the sctpv6_sock struct. I'll update the
+>> usercopy whitelist patch with:
+>>
+>> #syz fix: sctp: Define usercopy region in SCTP proto slab cache
+>>
+>> diff --git a/net/sctp/socket.c b/net/sctp/socket.c
+>> index 5fd83974c5cc..8ac85877c0e4 100644
+>> --- a/net/sctp/socket.c
+>> +++ b/net/sctp/socket.c
+>> @@ -8492,6 +8492,10 @@ struct proto sctpv6_prot = {
+>>         .unhash         = sctp_unhash,
+>>         .get_port       = sctp_get_port,
+>>         .obj_size       = sizeof(struct sctp6_sock),
+>> +       .useroffset     = offsetof(struct sctp_sock, subscribe),
+>> +       .usersize       = offsetof(struct sctp_sock, initmsg) -
+>> +                               offsetof(struct sctp_sock, subscribe) +
+>> +                               sizeof_field(struct sctp_sock, initmsg),
+>>         .sysctl_mem     = sysctl_sctp_mem,
+>>         .sysctl_rmem    = sysctl_sctp_rmem,
+>>         .sysctl_wmem    = sysctl_sctp_wmem,
+>>
+>> Thanks!
+>
+>
+> Kees, please also follow this part once the commit reaches any of
+> trees (title is settled):
+>
+>> syzbot will keep track of this bug report.
+>> Once a fix for this bug is committed, please reply to this email with:
+>> #syz fix: exact-commit-title
+>> Note: all commands must start from beginning of the line.
+>
+> This will greatly help to keep the whole process running and report
+> new bugs in future.
 
-We use this in btrfs for metadata writeback.
+I included that in my email reply already, and the commit will be in
+-next shortly. (Do you prefer something else?)
 
-Signed-off-by: Josef Bacik <jbacik@fb.com>
----
- lib/radix-tree.c | 1 +
- 1 file changed, 1 insertion(+)
+-Kees
 
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index 8b1feca1230a..0c1cde9fcb69 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -1459,6 +1459,7 @@ void radix_tree_iter_tag_set(struct radix_tree_root *root,
- {
- 	node_tag_set(root, iter->node, tag, iter_offset(iter));
- }
-+EXPORT_SYMBOL(radix_tree_iter_tag_set);
- 
- static void node_tag_clear(struct radix_tree_root *root,
- 				struct radix_tree_node *node,
 -- 
-2.7.5
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
