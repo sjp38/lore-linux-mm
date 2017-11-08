@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CD0A44043C
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:18:22 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v105so1952404wrc.11
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:18:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o93si1494858edd.219.2017.11.08.12.18.21
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CEA7C44043C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:25:51 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id n74so971102ota.18
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:25:51 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g1sor1393824otb.254.2017.11.08.12.25.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Nov 2017 12:18:21 -0800 (PST)
-Date: Wed, 8 Nov 2017 21:18:18 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: [PATCH] x86/mm: Unbreak modules that rely on external PAGE_KERNEL
- availability
-Message-ID: <nycvar.YFH.7.76.1711082103320.6470@cbobk.fhfr.pm>
+        (Google Transport Security);
+        Wed, 08 Nov 2017 12:25:50 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.LRH.2.02.1711081514320.29922@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
+ <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
+ <20171108150447.GA10374@infradead.org> <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com>
+ <20171108153522.GB24548@infradead.org> <CAPcyv4jw5CDJYo-uhxq1hWJo90R87m0qju-k8WKgyd34QKnz0Q@mail.gmail.com>
+ <alpine.LRH.2.02.1711081514320.29922@file01.intranet.prod.int.rdu2.redhat.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 8 Nov 2017 12:25:49 -0800
+Message-ID: <CAPcyv4imHXhcd8WgW5ygrKKNiVr0cDZLi2Ue5WDy=_RmqECnvw@mail.gmail.com>
+Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent memory
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Tom Lendacky <thomas.lendacky@amd.com>, Borislav Petkov <bp@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org
+To: Mikulas Patocka <mpatocka@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-From: Jiri Kosina <jkosina@suse.cz>
+On Wed, Nov 8, 2017 at 12:15 PM, Mikulas Patocka <mpatocka@redhat.com> wrote:
+>
+>
+> On Wed, 8 Nov 2017, Dan Williams wrote:
+>
+>> On Wed, Nov 8, 2017 at 7:35 AM, Christoph Hellwig <hch@infradead.org> wrote:
+>> > On Wed, Nov 08, 2017 at 10:21:38AM -0500, Mikulas Patocka wrote:
+>> >> > And what do you do for an architecture with virtuall indexed caches?
+>> >>
+>> >> Persistent memory is not supported on such architectures - it is only
+>> >> supported on x86-64 and arm64.
+>> >
+>> > For now.  But once support is added your driver will just corrupt data
+>> > unless you have the right API in place.
+>>
+>> I'm also in the process of ripping out page-less dax support. With
+>> pages we can potentially leverage the VIVT-cache support in some
+>> architectures, likely with more supporting infrastructure for
+>> dax_flush().
+>
+> Should I remove all the code for page-less persistent memory from my
+> driver?
+>
 
-Commit
+Yes, that would be my recommendation. You can see that filesystem-dax
+is on its way to dropping page-less support in this series:
 
-  7744ccdbc16f0 ("x86/mm: Add Secure Memory Encryption (SME) support")
-
-as a side-effect made PAGE_KERNEL all of a sudden unavailable to modules 
-which can't make use of EXPORT_SYMBOL_GPL() symbols.
-
-This is because once SME is enabled, sme_me_mask (which is introduced as 
-EXPORT_SYMBOL_GPL) makes its way to PAGE_KERNEL through _PAGE_ENC, causing 
-imminent build failure for all the modules which make use of all the 
-EXPORT-SYMBOL()-exported API (such as vmap(), __vmalloc(), 
-remap_pfn_range(), ...).
-
-Exporting (as EXPORT_SYMBOL()) interfaces (and having done so for ages) 
-that take pgprot_t argument, while making it impossible to -- all of a 
-sudden -- pass PAGE_KERNEL to it, feels rather incosistent.
-
-Restore the original behavior and make it possible to pass PAGE_KERNEL to 
-all its EXPORT_SYMBOL() consumers.
-
-Cc: Tom Lendacky <thomas.lendacky@amd.com>
-Signed-off-by: Jiri Kosina <jkosina@suse.cz>
----
- arch/x86/mm/mem_encrypt.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index 16c5f37933a2..0286327e65fa 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -40,7 +40,7 @@ static char sme_cmdline_off[] __initdata = "off";
-  * section is later cleared.
-  */
- u64 sme_me_mask __section(.data) = 0;
--EXPORT_SYMBOL_GPL(sme_me_mask);
-+EXPORT_SYMBOL(sme_me_mask);
- 
- /* Buffer used for early in-place encryption by BSP, no locking needed */
- static char sme_early_buffer[PAGE_SIZE] __aligned(PAGE_SIZE);
-
--- 
-Jiri Kosina
-SUSE Labs
+   https://lists.01.org/pipermail/linux-nvdimm/2017-October/013125.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
