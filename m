@@ -1,44 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD95440417
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:41:26 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id o126so2298287oif.21
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:41:26 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id i58sor222283ote.70.2017.11.08.07.41.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 84410440417
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:57:50 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id v78so2495300pfk.8
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:57:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r1si3926013plb.531.2017.11.08.07.57.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Nov 2017 07:41:24 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Nov 2017 07:57:49 -0800 (PST)
+Date: Wed, 8 Nov 2017 16:57:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC] mm/memory_hotplug: make it possible to offline
+ blocks with reserved pages
+Message-ID: <20171108155740.z7fwptk3jg6rc7mv@dhcp22.suse.cz>
+References: <20171108130155.25499-1-vkuznets@redhat.com>
+ <20171108142528.vsrkkqw6fihxdjio@dhcp22.suse.cz>
+ <87y3nglqyi.fsf@vitty.brq.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171108153522.GB24548@infradead.org>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108150447.GA10374@infradead.org> <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108153522.GB24548@infradead.org>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 8 Nov 2017 07:41:23 -0800
-Message-ID: <CAPcyv4jw5CDJYo-uhxq1hWJo90R87m0qju-k8WKgyd34QKnz0Q@mail.gmail.com>
-Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87y3nglqyi.fsf@vitty.brq.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Mikulas Patocka <mpatocka@redhat.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Vitaly Kuznetsov <vkuznets@redhat.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Alex Ng <alexng@microsoft.com>
 
-On Wed, Nov 8, 2017 at 7:35 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> On Wed, Nov 08, 2017 at 10:21:38AM -0500, Mikulas Patocka wrote:
->> > And what do you do for an architecture with virtuall indexed caches?
->>
->> Persistent memory is not supported on such architectures - it is only
->> supported on x86-64 and arm64.
->
-> For now.  But once support is added your driver will just corrupt data
-> unless you have the right API in place.
+On Wed 08-11-17 16:39:49, Vitaly Kuznetsov wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> 
+> > On Wed 08-11-17 14:01:55, Vitaly Kuznetsov wrote:
+> >> Hyper-V balloon driver needs to hotplug memory in smaller chunks and to
+> >> workaround Linux's 128Mb allignment requirement so it does a trick: partly
+> >> populated 128Mb blocks are added and then a custom online_page_callback
+> >> hook checks if the particular page is 'backed' during onlining, in case it
+> >> is not backed it is left in Reserved state. When the host adds more pages
+> >> to the block we bring them online from the driver (see
+> >> hv_bring_pgs_online()/hv_page_online_one() in drivers/hv/hv_balloon.c).
+> >> Eventually the whole block becomes fully populated and we hotplug the next
+> >> 128Mb. This all works for quite some time already.
+> >
+> > Why does HyperV needs to workaround the section size limit in the first
+> > place? We are allocation memmap for the whole section anyway so it won't
+> > save any memory. So the whole thing sounds rather dubious to me.
+> >
+> 
+> Memory hotplug requirements in Windows are different, they have 2Mb
+> granularity, not 128Mb like we have in Linux x86.
+> 
+> Imagine there's a request to add 32Mb of memory comming from the
+> Hyper-V host. What can we do? Don't add anything at all and wait till
+> we're suggested to add > 128Mb and then add a section or the current
+> approach.
 
-I'm also in the process of ripping out page-less dax support. With
-pages we can potentially leverage the VIVT-cache support in some
-architectures, likely with more supporting infrastructure for
-dax_flush().
+Use a different approach than memory hotplug. E.g. memory balloning.
+
+> >> What is not working is offlining of such partly populated blocks:
+> >> check_pages_isolated_cb() callback will not pass with a sinle Reserved page
+> >> and we end up with -EBUSY. However, there's no reason to fail offlining in
+> >> this case: these pages are already offline, we may just skip them. Add the
+> >> appropriate workaround to test_pages_isolated().
+> >
+> > How do you recognize pages reserved by other users. You cannot simply
+> > remove them, it would just blow up.
+> >
+> 
+> I exepcted sumothing like that, thus RFC. Is there a way to detect pages
+> which were never onlined? E.g. it is Reserved and count == 0?
+
+That would be quite tricky. But I am not convinced that the whole thing
+makes any sense at all. We are in fact always creating the full section
+so onlining only a part of it sounds really dubious to me.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
