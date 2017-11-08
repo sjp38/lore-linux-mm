@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5190B6B02E1
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:05 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id h10so2725610pfe.20
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:05 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id p3si4532990pgd.651.2017.11.08.11.47.03
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 01E656B02E5
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:10 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m18so3543830pgd.13
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:09 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f31si4391138plf.339.2017.11.08.11.47.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:04 -0800 (PST)
-Subject: [PATCH 04/30] x86, kaiser: disable global pages by default with KAISER
+        Wed, 08 Nov 2017 11:47:08 -0800 (PST)
+Subject: [PATCH 05/30] x86, kaiser: prepare assembly for entry/exit CR3 switching
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:46:53 -0800
+Date: Wed, 08 Nov 2017 11:46:54 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194653.D6C7EFF4@viggo.jf.intel.com>
+Message-Id: <20171108194654.B960A09E@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,26 +23,42 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Global pages stay in the TLB across context switches.  Since all
-contexts share the same kernel mapping, we use global pages to
-allow kernel entries in the TLB to survive when we context
-switch.
+This is largely code from Andy Lutomirski.  I fixed a few bugs
+in it, and added a few SWITCH_TO_* spots.
 
-But, even having these entries in the TLB opens up something that
-an attacker can use [1].
+KAISER needs to switch to a different CR3 value when it enters
+the kernel and switch back when it exits.  This essentially
+needs to be done before we leave assembly code.
 
-Disable global pages so that kernel TLB entries are flushed when
-we run userspace.  This way, all accesses to kernel memory result
-in a TLB miss whether there is good data there or not.  Without
-this, even when KAISER switches pages tables, the kernel entries
-might remain in the TLB.
+This is extra challenging because the context in which we have to
+make this switch is tricky: the registers we are allowed to
+clobber can vary.  It's also hard to store things on the stack
+because there are already things on it with an established ABI
+(ptregs) or the stack is unsafe to use at all.
 
-We keep _PAGE_GLOBAL available so that we can use it for things
-that are global even with KAISER like the entry/exit code and
-data.
+This patch establishes a set of macros that allow changing to
+the user and kernel CR3 values.
 
-1. The double-page-fault attack:
-   http://www.ieee-security.org/TC/SP2013/papers/4977a191.pdf
+Interactions with SWAPGS: previous versions of the KAISER code
+relied on having per-cpu scratch space so we have a register
+to clobber for our CR3 MOV.  The %GS register is what we use
+to index into our per-cpu sapce, so SWAPGS *had* to be done
+before the CR3 switch.  That scratch space is gone now, but we
+still keep the semantic that SWAPGS must be done before the
+CR3 MOV.  This is good to keep because it is not that hard to
+do and it allows us to do things like add per-cpu debugging
+information to help us figure out what goes wrong sometimes.
+
+What this does in the NMI code is worth pointing out.  NMIs
+can interrupt *any* context and they can also be nested with
+NMIs interrupting other NMIs.  The comments below
+".Lnmi_from_kernel" explain the format of the stack that we
+have to deal with this situation.  Changing the format of
+this stack is not a fun exercise: I tried.  Instead of
+storing the old CR3 value on the stack, we depend on the
+*regular* register save/restore mechanism and then use %r14
+to keep CR3 during the NMI.  It will not be clobbered by the
+C NMI handlers that get called.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -56,86 +72,235 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/include/asm/pgtable_types.h |   14 +++++++++++++-
- b/arch/x86/mm/pageattr.c               |   16 ++++++++--------
- 2 files changed, 21 insertions(+), 9 deletions(-)
+ b/arch/x86/entry/calling.h         |   65 +++++++++++++++++++++++++++++++++++++
+ b/arch/x86/entry/entry_64.S        |   30 ++++++++++++++---
+ b/arch/x86/entry/entry_64_compat.S |    8 ++++
+ 3 files changed, 98 insertions(+), 5 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages arch/x86/include/asm/pgtable_types.h
---- a/arch/x86/include/asm/pgtable_types.h~kaiser-prep-disable-global-pages	2017-11-08 10:45:27.525681399 -0800
-+++ b/arch/x86/include/asm/pgtable_types.h	2017-11-08 10:45:27.530681399 -0800
-@@ -179,8 +179,20 @@ enum page_cache_mode {
- #define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT | _PAGE_USER |	\
- 					 _PAGE_ACCESSED)
+diff -puN arch/x86/entry/calling.h~kaiser-luto-base-cr3-work arch/x86/entry/calling.h
+--- a/arch/x86/entry/calling.h~kaiser-luto-base-cr3-work	2017-11-08 10:45:28.091681398 -0800
++++ b/arch/x86/entry/calling.h	2017-11-08 10:45:28.098681398 -0800
+@@ -1,5 +1,6 @@
+ #include <linux/jump_label.h>
+ #include <asm/unwind_hints.h>
++#include <asm/cpufeatures.h>
  
-+/*
-+ * Disable global pages for anything using the default
-+ * __PAGE_KERNEL* macros.  PGE will still be enabled
-+ * and _PAGE_GLOBAL may still be used carefully.
-+ */
+ /*
+ 
+@@ -186,6 +187,70 @@ For 32-bit we have the following convent
+ #endif
+ .endm
+ 
 +#ifdef CONFIG_KAISER
-+#define __PAGE_KERNEL_GLOBAL	0
-+#else
-+#define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
++
++/* KAISER PGDs are 8k.  We flip bit 12 to switch between the two halves: */
++#define KAISER_SWITCH_MASK (1<<PAGE_SHIFT)
++
++.macro ADJUST_KERNEL_CR3 reg:req
++	/* Clear "KAISER bit", point CR3 at kernel pagetables: */
++	andq	$(~KAISER_SWITCH_MASK), \reg
++.endm
++
++.macro ADJUST_USER_CR3 reg:req
++	/* Move CR3 up a page to the user page tables: */
++	orq	$(KAISER_SWITCH_MASK), \reg
++.endm
++
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++	mov	%cr3, \scratch_reg
++	ADJUST_KERNEL_CR3 \scratch_reg
++	mov	\scratch_reg, %cr3
++.endm
++
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++	mov	%cr3, \scratch_reg
++	ADJUST_USER_CR3 \scratch_reg
++	mov	\scratch_reg, %cr3
++.endm
++
++.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
++	movq	%cr3, %r\scratch_reg
++	movq	%r\scratch_reg, \save_reg
++	/*
++	 * Is the switch bit zero?  This means the address is
++	 * up in real KAISER patches in a moment.
++	 */
++	testq	$(KAISER_SWITCH_MASK), %r\scratch_reg
++	jz	.Ldone_\@
++
++	ADJUST_KERNEL_CR3 %r\scratch_reg
++	movq	%r\scratch_reg, %cr3
++
++.Ldone_\@:
++.endm
++
++.macro RESTORE_CR3 save_reg:req
++	/*
++	 * We could avoid the CR3 write if not changing its value,
++	 * but that requires a CR3 read *and* a scratch register.
++	 */
++	movq	\save_reg, %cr3
++.endm
++
++#else /* CONFIG_KAISER=n: */
++
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++.endm
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++.endm
++.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
++.endm
++.macro RESTORE_CR3 save_reg:req
++.endm
++
 +#endif
 +
- #define __PAGE_KERNEL_EXEC						\
--	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_GLOBAL)
-+	(_PAGE_PRESENT | _PAGE_RW | _PAGE_DIRTY | _PAGE_ACCESSED |	\
-+	 __PAGE_KERNEL_GLOBAL)
- #define __PAGE_KERNEL		(__PAGE_KERNEL_EXEC | _PAGE_NX)
+ #endif /* CONFIG_X86_64 */
  
- #define __PAGE_KERNEL_RO		(__PAGE_KERNEL & ~_PAGE_RW)
-diff -puN arch/x86/mm/pageattr.c~kaiser-prep-disable-global-pages arch/x86/mm/pageattr.c
---- a/arch/x86/mm/pageattr.c~kaiser-prep-disable-global-pages	2017-11-08 10:45:27.527681399 -0800
-+++ b/arch/x86/mm/pageattr.c	2017-11-08 10:45:27.531681399 -0800
-@@ -585,9 +585,9 @@ try_preserve_large_page(pte_t *kpte, uns
- 	 * for the ancient hardware that doesn't support it.
+ /*
+diff -puN arch/x86/entry/entry_64_compat.S~kaiser-luto-base-cr3-work arch/x86/entry/entry_64_compat.S
+--- a/arch/x86/entry/entry_64_compat.S~kaiser-luto-base-cr3-work	2017-11-08 10:45:28.092681398 -0800
++++ b/arch/x86/entry/entry_64_compat.S	2017-11-08 10:45:28.098681398 -0800
+@@ -91,6 +91,9 @@ ENTRY(entry_SYSENTER_compat)
+ 	pushq   $0			/* pt_regs->r15 = 0 */
+ 	cld
+ 
++	/* We just saved all the registers, so safe to clobber %rdi */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
++
+ 	/*
+ 	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
+ 	 * ourselves.  To save a few cycles, we can check whether
+@@ -214,6 +217,8 @@ GLOBAL(entry_SYSCALL_compat_after_hwfram
+ 	pushq   $0			/* pt_regs->r14 = 0 */
+ 	pushq   $0			/* pt_regs->r15 = 0 */
+ 
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
++
+ 	/*
+ 	 * User mode is traced as though IRQs are on, and SYSENTER
+ 	 * turned them off.
+@@ -240,6 +245,7 @@ sysret32_from_system_call:
+ 	popq	%rsi			/* pt_regs->si */
+ 	popq	%rdi			/* pt_regs->di */
+ 
++	SWITCH_TO_USER_CR3 scratch_reg=%r8
+         /*
+          * USERGS_SYSRET32 does:
+          *  GSBASE = user's GS base
+@@ -324,6 +330,8 @@ ENTRY(entry_INT80_compat)
+ 	pushq   %r15                    /* pt_regs->r15 */
+ 	cld
+ 
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%r11
++
+ 	movq	%rsp, %rdi			/* pt_regs pointer */
+ 	call	sync_regs
+ 	movq	%rax, %rsp			/* switch stack */
+diff -puN arch/x86/entry/entry_64.S~kaiser-luto-base-cr3-work arch/x86/entry/entry_64.S
+--- a/arch/x86/entry/entry_64.S~kaiser-luto-base-cr3-work	2017-11-08 10:45:28.094681398 -0800
++++ b/arch/x86/entry/entry_64.S	2017-11-08 10:45:28.099681398 -0800
+@@ -147,8 +147,6 @@ ENTRY(entry_SYSCALL_64)
+ 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
+ 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+ 
+-	TRACE_IRQS_OFF
+-
+ 	/* Construct struct pt_regs on stack */
+ 	pushq	$__USER_DS			/* pt_regs->ss */
+ 	pushq	PER_CPU_VAR(rsp_scratch)	/* pt_regs->sp */
+@@ -169,6 +167,13 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
+ 	sub	$(6*8), %rsp			/* pt_regs->bp, bx, r12-15 not saved */
+ 	UNWIND_HINT_REGS extra=0
+ 
++	/* NB: right here, all regs except r11 are live. */
++
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%r11
++
++	/* Must wait until we have the kernel CR3 to call C functions: */
++	TRACE_IRQS_OFF
++
+ 	/*
+ 	 * If we need to do entry work or if we guess we'll need to do
+ 	 * exit work, go straight to the slow path.
+@@ -340,6 +345,7 @@ syscall_return_via_sysret:
+ 	 * We are on the trampoline stack.  All regs except RDI are live.
+ 	 * We can do future final exit work right here.
  	 */
- 	if (pgprot_val(req_prot) & _PAGE_PRESENT)
--		pgprot_val(req_prot) |= _PAGE_PSE | _PAGE_GLOBAL;
-+		pgprot_val(req_prot) |= _PAGE_PSE | __PAGE_KERNEL_GLOBAL;
- 	else
--		pgprot_val(req_prot) &= ~(_PAGE_PSE | _PAGE_GLOBAL);
-+		pgprot_val(req_prot) &= ~(_PAGE_PSE | __PAGE_KERNEL_GLOBAL);
++	SWITCH_TO_USER_CR3 scratch_reg=%rdi
  
- 	req_prot = canon_pgprot(req_prot);
- 
-@@ -705,9 +705,9 @@ __split_large_page(struct cpa_data *cpa,
- 	 * for the ancient hardware that doesn't support it.
+ 	popq	%rdi
+ 	popq	%rsp
+@@ -679,6 +685,8 @@ GLOBAL(swapgs_restore_regs_and_return_to
+ 	 * We can do future final exit work right here.
  	 */
- 	if (pgprot_val(ref_prot) & _PAGE_PRESENT)
--		pgprot_val(ref_prot) |= _PAGE_GLOBAL;
-+		pgprot_val(ref_prot) |= __PAGE_KERNEL_GLOBAL;
- 	else
--		pgprot_val(ref_prot) &= ~_PAGE_GLOBAL;
-+		pgprot_val(ref_prot) &= ~__PAGE_KERNEL_GLOBAL;
+ 
++	SWITCH_TO_USER_CR3 scratch_reg=%rdi
++
+ 	/* Restore RDI. */
+ 	popq	%rdi
+ 	SWAPGS
+@@ -1167,7 +1175,11 @@ ENTRY(paranoid_entry)
+ 	js	1f				/* negative -> in kernel */
+ 	SWAPGS
+ 	xorl	%ebx, %ebx
+-1:	ret
++
++1:
++	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=ax save_reg=%r14
++
++	ret
+ END(paranoid_entry)
+ 
+ /*
+@@ -1189,6 +1201,7 @@ ENTRY(paranoid_exit)
+ 	testl	%ebx, %ebx			/* swapgs needed? */
+ 	jnz	.Lparanoid_exit_no_swapgs
+ 	TRACE_IRQS_IRETQ
++	RESTORE_CR3	%r14
+ 	SWAPGS_UNSAFE_STACK
+ 	jmp	.Lparanoid_exit_restore
+ .Lparanoid_exit_no_swapgs:
+@@ -1217,6 +1230,9 @@ ENTRY(error_entry)
+ 	 */
+ 	SWAPGS
+ 
++	/* We have user CR3.  Change to kernel CR3. */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
++
+ .Lerror_entry_from_usermode_after_swapgs:
+ 	/*
+ 	 * We need to tell lockdep that IRQs are off.  We can't do this until
+@@ -1263,9 +1279,10 @@ ENTRY(error_entry)
+ 
+ .Lerror_bad_iret:
+ 	/*
+-	 * We came from an IRET to user mode, so we have user gsbase.
+-	 * Switch to kernel gsbase:
++	 * We came from an IRET to user mode, so we have user
++	 * gsbase and CR3.  Switch to kernel gsbase and CR3:
+ 	 */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
+ 	SWAPGS
  
  	/*
- 	 * Get the target pfn from the original entry:
-@@ -938,9 +938,9 @@ static void populate_pte(struct cpa_data
- 	 * support it.
- 	 */
- 	if (pgprot_val(pgprot) & _PAGE_PRESENT)
--		pgprot_val(pgprot) |= _PAGE_GLOBAL;
-+		pgprot_val(pgprot) |= __PAGE_KERNEL_GLOBAL;
- 	else
--		pgprot_val(pgprot) &= ~_PAGE_GLOBAL;
-+		pgprot_val(pgprot) &= ~__PAGE_KERNEL_GLOBAL;
+@@ -1389,6 +1406,7 @@ ENTRY(nmi)
+ 	UNWIND_HINT_REGS
+ 	ENCODE_FRAME_POINTER
  
- 	pgprot = canon_pgprot(pgprot);
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+ 	/*
+ 	 * At this point we no longer need to worry about stack damage
+ 	 * due to nesting -- we're on the normal thread stack and we're
+@@ -1613,6 +1631,8 @@ end_repeat_nmi:
+ 	movq	$-1, %rsi
+ 	call	do_nmi
  
-@@ -1242,9 +1242,9 @@ repeat:
- 		 * support it.
- 		 */
- 		if (pgprot_val(new_prot) & _PAGE_PRESENT)
--			pgprot_val(new_prot) |= _PAGE_GLOBAL;
-+			pgprot_val(new_prot) |= __PAGE_KERNEL_GLOBAL;
- 		else
--			pgprot_val(new_prot) &= ~_PAGE_GLOBAL;
-+			pgprot_val(new_prot) &= ~__PAGE_KERNEL_GLOBAL;
- 
- 		/*
- 		 * We need to keep the pfn from the existing PTE,
++	RESTORE_CR3 save_reg=%r14
++
+ 	testl	%ebx, %ebx			/* swapgs needed? */
+ 	jnz	nmi_restore
+ nmi_swapgs:
 _
 
 --
