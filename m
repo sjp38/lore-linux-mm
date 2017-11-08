@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D8C346B02F4
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:27 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v78so3007482pfk.8
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:27 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id y79si4823280pfb.41.2017.11.08.11.47.26
+	by kanga.kvack.org (Postfix) with ESMTP id AF2916B02F5
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id g75so3033335pfg.4
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:28 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id i15si4807427pgv.60.2017.11.08.11.47.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:26 -0800 (PST)
-Subject: [PATCH 15/30] x86, kaiser: map entry stack variables
+        Wed, 08 Nov 2017 11:47:27 -0800 (PST)
+Subject: [PATCH 14/30] x86, kaiser: map espfix structures
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:15 -0800
+Date: Wed, 08 Nov 2017 11:47:11 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194715.3292DBFB@viggo.jf.intel.com>
+Message-Id: <20171108194711.7939CA37@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,16 +23,25 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-There are times that we enter the kernel and do not have a safe
-stack, like at SYSCALL entry.  We use the per-cpu vairables
-'rsp_scratch' and 'cpu_current_top_of_stack' to save off the old
-%rsp and find a safe place to have a stack.
+We have some rather arcane code to help when we IRET to 16-bit
+segments: the "espfix" code.  This consists of a few per-cpu
+variables:
 
-You can not directly manipulate the CR3 register.  You can only
-'MOV' to it from another register, which means we need to clobber
-a register in order to do any CR3 manipulation.  User-mapping these
-variables allows us to obtain a safe stack *before* we switch the
-CR3 value.
+	espfix_stack: tells us where we allocated the stack
+	  	      (the bottom)
+	espfix_waddr: tells us where we can actually point %rsp
+
+and the stack itself.  We need all three things mapped for this
+to work.
+
+Note: the espfix code runs with a kernel GSBASE, but user
+(shadow) page tables.  We could switch to the kernel page tables
+here and then not have to map any of this, but just
+user-pagetable-mapping is simpler.  To switch over to the kernel
+copy, we would need some temporary storage which is in short
+supply at this point.
+
+The original KAISER patch missed this case.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -46,34 +55,50 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/kernel/cpu/common.c |    2 +-
- b/arch/x86/kernel/process_64.c |    2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
+ b/arch/x86/kernel/espfix_64.c |   12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/cpu/common.c
---- a/arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars	2017-11-08 10:45:34.001681383 -0800
-+++ b/arch/x86/kernel/cpu/common.c	2017-11-08 10:45:34.007681383 -0800
-@@ -1447,7 +1447,7 @@ DEFINE_PER_CPU_ALIGNED(struct stack_cana
-  * trampoline, not the thread stack.  Use an extra percpu variable to track
-  * the top of the kernel stack directly.
-  */
--DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
-+DEFINE_PER_CPU_USER_MAPPED(unsigned long, cpu_current_top_of_stack) =
- 	(unsigned long)&init_thread_union + THREAD_SIZE;
- EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
+diff -puN arch/x86/kernel/espfix_64.c~kaiser-user-map-espfix arch/x86/kernel/espfix_64.c
+--- a/arch/x86/kernel/espfix_64.c~kaiser-user-map-espfix	2017-11-08 10:45:33.465681385 -0800
++++ b/arch/x86/kernel/espfix_64.c	2017-11-08 10:45:33.469681385 -0800
+@@ -33,6 +33,7 @@
  
-diff -puN arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/process_64.c
---- a/arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars	2017-11-08 10:45:34.003681383 -0800
-+++ b/arch/x86/kernel/process_64.c	2017-11-08 10:45:34.007681383 -0800
-@@ -59,7 +59,7 @@
- #include <asm/unistd_32_ia32.h>
- #endif
+ #include <linux/init.h>
+ #include <linux/init_task.h>
++#include <linux/kaiser.h>
+ #include <linux/kernel.h>
+ #include <linux/percpu.h>
+ #include <linux/gfp.h>
+@@ -41,7 +42,6 @@
+ #include <asm/pgalloc.h>
+ #include <asm/setup.h>
+ #include <asm/espfix.h>
+-#include <asm/kaiser.h>
  
--__visible DEFINE_PER_CPU(unsigned long, rsp_scratch);
-+__visible DEFINE_PER_CPU_USER_MAPPED(unsigned long, rsp_scratch);
+ /*
+  * Note: we only need 6*8 = 48 bytes for the espfix stack, but round
+@@ -61,8 +61,8 @@
+ #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
  
- /* Prints also some state that isn't saved in the pt_regs */
- void __show_regs(struct pt_regs *regs, int all)
+ /* This contains the *bottom* address of the espfix stack */
+-DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_stack);
+-DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_waddr);
++DEFINE_PER_CPU_USER_MAPPED(unsigned long, espfix_stack);
++DEFINE_PER_CPU_USER_MAPPED(unsigned long, espfix_waddr);
+ 
+ /* Initialization mutex - should this be a spinlock? */
+ static DEFINE_MUTEX(espfix_init_mutex);
+@@ -225,4 +225,10 @@ done:
+ 	per_cpu(espfix_stack, cpu) = addr;
+ 	per_cpu(espfix_waddr, cpu) = (unsigned long)stack_page
+ 				      + (addr & ~PAGE_MASK);
++	/*
++	 * _PAGE_GLOBAL is not really required.  This is not a hot
++	 * path, but we do it here for consistency.
++	 */
++	kaiser_add_mapping((unsigned long)stack_page, PAGE_SIZE,
++			__PAGE_KERNEL | _PAGE_GLOBAL);
+ }
 _
 
 --
