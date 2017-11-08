@@ -1,61 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B7726B02B1
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 07:15:01 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id j204so690875lfe.8
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 04:15:01 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h39sor646918lji.79.2017.11.08.04.14.59
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EC164403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 07:33:18 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id s144so1985859oih.5
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 04:33:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b79si1954195oii.90.2017.11.08.04.33.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Nov 2017 04:14:59 -0800 (PST)
-From: Dmitry Monakhov <dmonakhov@openvz.org>
-Subject: Re: [PATCH 1/2] mm: add sysctl to control global OOM logging behaviour
-In-Reply-To: <24fb6865-6cc5-2af0-3a99-ea9495791f66@I-love.SAKURA.ne.jp>
-References: <20171108091843.29349-1-dmonakhov@openvz.org> <24fb6865-6cc5-2af0-3a99-ea9495791f66@I-love.SAKURA.ne.jp>
-Date: Wed, 08 Nov 2017 15:19:50 +0300
-Message-ID: <87inelklnd.fsf@openvz.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Nov 2017 04:33:17 -0800 (PST)
+Date: Wed, 8 Nov 2017 07:33:09 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [PATCH] vmalloc: introduce vmap_pfn for persistent memory
+In-Reply-To: <20171108095909.GA7390@infradead.org>
+Message-ID: <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com> <20171108095909.GA7390@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-mm@kvack.org
-Cc: cgroups@vger.kernel.org, vdavydov.dev@gmail.com
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, dm-devel@redhat.com, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@lst.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> writes:
 
-> On 2017/11/08 18:18, Dmitry Monakhov wrote:
->> Our systems becomes bigger and bigger, but OOM still happens.
->> This becomes serious problem for systems where OOM happens
->> frequently(containers, VM) because each OOM generate pressure
->> on dmesg log infrastructure. Let's allow system administrator
->> ability to tune OOM dump behaviour
->
-> Majority of OOM killer related messages are from dump_header().
-> Thus, allow tuning __ratelimit(&oom_rs) might make sense.
->
-> But other lines
->
->   "%s: Kill process %d (%s) score %u or sacrifice child\n"
->   "Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n"
->   "oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n"
-This still may result in hundreds of messages per second.
-So it would be nice to have option to disable OOM logging.
-> should not cause problems, for it is easy to exclude such lines from
-> your dmesg log infrastructure using fgrep match.
-In fact I've considered an abbility to use even more
-fine grained log level control:
-0: no oom log at all
-1: dump only single line logs ( from oom_kill_process and reaper_task)
-2: 1+ dump headers
-3: 2+ task_stack (which previously controlled by sysctl_oom_dump_task)
-What do you think?
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+
+On Wed, 8 Nov 2017, Christoph Hellwig wrote:
+
+> On Tue, Nov 07, 2017 at 05:03:11PM -0500, Mikulas Patocka wrote:
+> > Hi
+> > 
+> > I am developing a driver that uses persistent memory for caching. A 
+> > persistent memory device can be mapped in several discontiguous ranges.
+> > 
+> > The kernel has a function vmap that takes an array of pointers to pages 
+> > and maps these pages to contiguous linear address space. However, it can't 
+> > be used on persistent memory because persistent memory may not be backed 
+> > by page structures.
+> > 
+> > This patch introduces a new function vmap_pfn, it works like vmap, but 
+> > takes an array of pfn_t - so it can be used on persistent memory.
+> 
+> How is cache flushing going to work for this interface assuming
+> that your write to/from the virtual address and expect it to be
+> persisted on pmem?
+
+We could use the function clwb() (or arch-independent wrapper dax_flush()) 
+- that uses the clflushopt instruction on Broadwell or clwb on Skylake - 
+but it is very slow, write performance on Broadwell is only 350MB/s.
+
+So in practice I use the movnti instruction that bypasses cache. The 
+write-combining buffer is flushed with sfence.
+
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
