@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 03E8344043C
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:26:21 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id q99so979084ota.6
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:26:21 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e1si2256203oib.203.2017.11.08.12.26.20
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DD00B44043C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:41:32 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 15so3679302pgc.16
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:41:32 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id x23si4557561pgc.683.2017.11.08.12.41.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 12:26:20 -0800 (PST)
-Date: Wed, 8 Nov 2017 15:26:16 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent
- memory
-In-Reply-To: <20171108174747.GA12199@infradead.org>
-Message-ID: <alpine.LRH.2.02.1711081516010.29922@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com> <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com> <20171108150447.GA10374@infradead.org>
- <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com> <20171108153522.GB24548@infradead.org> <alpine.LRH.2.02.1711081236570.1168@file01.intranet.prod.int.rdu2.redhat.com> <20171108174747.GA12199@infradead.org>
+        Wed, 08 Nov 2017 12:41:31 -0800 (PST)
+Subject: Re: MPK: pkey_free and key reuse
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
+Date: Wed, 8 Nov 2017 12:41:30 -0800
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: linux-nvdimm@lists.01.org, Christoph Hellwig <hch@lst.de>, linux-mm@kvack.org, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, Dan Williams <dan.j.williams@intel.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
+On 11/05/2017 02:35 AM, Florian Weimer wrote:
+> I don't think pkey_free, as it is implemented today, is very safe due to
+> key reuse by a subsequent pkey_alloc.A  I see two problems:
+> 
+> (A) pkey_free allows reuse for they key while there are still mappings
+> that use it.
 
+I don't agree with this assessment.  Is malloc() unsafe?  If someone
+free()s memory that is still in use, a subsequent malloc() would hand
+the address out again for reuse.
 
-On Wed, 8 Nov 2017, Christoph Hellwig wrote:
+> (B) If a key is reused, existing threads retain their access rights,
+> while there is an expectation that pkey_alloc denies access for the
+> threads except the current one.
+Where does this expectation come from?  Using the malloc() analogy, we
+don't expect that free() in one thread actively takes away references to
+the memory held by other threads.
 
-> Can you start by explaining what you actually need the vmap for?
-
-It is possible to use lvm on persistent memory. You can create linear or 
-striped logical volumes on persistent memory and these volumes still have 
-the direct_access method, so they can be mapped with the function 
-dax_direct_access().
-
-If we create logical volumes on persistent memory, the method 
-dax_direct_access() won't return the whole device, it will return only a 
-part. When dax_direct_access() returns the whole device, my driver just 
-uses it without vmap. When dax_direct_access() return only a part of the 
-device, my driver calls it repeatedly to get all the parts and then 
-assembles the parts into a linear address space with vmap.
-
-See the function persistent_memory_claim() here: 
-https://www.redhat.com/archives/dm-devel/2017-November/msg00026.html
-
-> Going through a vmap for every I/O is certainly not going to be nice
-> on NVDIMM-N or similar modules :)
-
-It's just a call to vmalloc_to_page.
-
-Though, if persistent memory is not page-backed, I have to copy the data 
-before writing them.
-
-Mikulas
+We define free() as only being called on resources to which there are no
+active references.  If you free() things in use, bad things happen.
+pkey_free() is only to be called when there is nothing actively using
+the key.  If you pkey_free() an in-use key, bad things happen.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
