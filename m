@@ -1,76 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7022E4403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:32:24 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 184so1602351pga.3
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:32:24 -0800 (PST)
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id l3si2880864pgs.468.2017.11.07.21.32.22
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3484403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:42:27 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 76so1381524pfr.3
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:42:27 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00050.outbound.protection.outlook.com. [40.107.0.50])
+        by mx.google.com with ESMTPS id w19si3135997pfa.59.2017.11.07.21.42.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 21:32:23 -0800 (PST)
-Message-ID: <1510119138.17435.19.camel@mtkswgap22>
-Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
- slub_debug=O
-From: Miles Chen <miles.chen@mediatek.com>
-Date: Wed, 8 Nov 2017 13:32:18 +0800
-In-Reply-To: <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
-References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
-	 <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 07 Nov 2017 21:42:21 -0800 (PST)
+Subject: Re: Page allocator bottleneck
+References: <cef85936-10b2-5d76-9f97-cb03b418fd94@mellanox.com>
+ <20170915102320.zqceocmvvkyybekj@techsingularity.net>
+ <d8cfaf8b-7601-2712-f9f2-8327c720db5a@mellanox.com>
+ <1c218381-067e-7757-ccc2-4e5befd2bfc3@mellanox.com>
+ <20171103134020.3hwquerifnc6k6qw@techsingularity.net>
+From: Tariq Toukan <tariqt@mellanox.com>
+Message-ID: <b249f79a-a92e-f2ef-fdd5-3a9b8b6c3f48@mellanox.com>
+Date: Wed, 8 Nov 2017 14:42:04 +0900
 MIME-Version: 1.0
+In-Reply-To: <20171103134020.3hwquerifnc6k6qw@techsingularity.net>
+Content-Type: text/plain; charset=iso-8859-15; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
+To: Mel Gorman <mgorman@techsingularity.net>, Tariq Toukan <tariqt@mellanox.com>
+Cc: Linux Kernel Network Developers <netdev@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, David Miller <davem@davemloft.net>, Jesper Dangaard Brouer <brouer@redhat.com>, Eric Dumazet <eric.dumazet@gmail.com>, Alexei Starovoitov <ast@fb.com>, Saeed Mahameed <saeedm@mellanox.com>, Eran Ben Elisha <eranbe@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, 2017-11-07 at 09:22 -0600, Christopher Lameter wrote:
-> On Tue, 7 Nov 2017, miles.chen@mediatek.com wrote:
+
+
+On 03/11/2017 10:40 PM, Mel Gorman wrote:
+> On Thu, Nov 02, 2017 at 07:21:09PM +0200, Tariq Toukan wrote:
+>>
+>>
+>> On 18/09/2017 12:16 PM, Tariq Toukan wrote:
+>>>
+>>>
+>>> On 15/09/2017 1:23 PM, Mel Gorman wrote:
+>>>> On Thu, Sep 14, 2017 at 07:49:31PM +0300, Tariq Toukan wrote:
+>>>>> Insights: Major degradation between #1 and #2, not getting any
+>>>>> close to linerate! Degradation is fixed between #2 and #3. This is
+>>>>> because page allocator cannot stand the higher allocation rate. In
+>>>>> #2, we also see that the addition of rings (cores) reduces BW (!!),
+>>>>> as result of increasing congestion over shared resources.
+>>>>>
+>>>>
+>>>> Unfortunately, no surprises there.
+>>>>
+>>>>> Congestion in this case is very clear. When monitored in perf
+>>>>> top: 85.58% [kernel] [k] queued_spin_lock_slowpath
+>>>>>
+>>>>
+>>>> While it's not proven, the most likely candidate is the zone lock
+>>>> and that should be confirmed using a call-graph profile. If so, then
+>>>> the suggestion to tune to the size of the per-cpu allocator would
+>>>> mitigate the problem.
+>>>>
+>>> Indeed, I tuned the per-cpu allocator and bottleneck is released.
+>>>
+>>
+>> Hi all,
+>>
+>> After leaving this task for a while doing other tasks, I got back to it now
+>> and see that the good behavior I observed earlier was not stable.
+>>
+>> Recall: I work with a modified driver that allocates a page (4K) per packet
+>> (MTU=1500), in order to simulate the stress on page-allocator in 200Gbps
+>> NICs.
+>>
 > 
-> > When slub_debug=O is set. It is possible to clear debug flags
-> > for an "unmergeable" slab cache in kmem_cache_open().
-> > It makes the "unmergeable" cache became "mergeable" in sysfs_slab_add().
+> There is almost new in the data that hasn't been discussed before. The
+> suggestion to free on a remote per-cpu list would be expensive as it would
+> require per-cpu lists to have a lock for safe remote access.
+That's right, but each such lock will be significantly less congested 
+than the buddy allocator lock. In the flow in subject two cores need to 
+synchronize (one allocates, one frees).
+We also need to evaluate the cost of acquiring and releasing the lock in 
+the case of no congestion at all.
+
+>  However,
+> I'd be curious if you could test the mm-pagealloc-irqpvec-v1r4 branch
+> ttps://git.kernel.org/pub/scm/linux/kernel/git/mel/linux.git .  It's an
+> unfinished prototype I worked on a few weeks ago. I was going to revisit
+> in about a months time when 4.15-rc1 was out. I'd be interested in seeing
+> if it has a postive gain in normal page allocations without destroying
+> the performance of interrupt and softirq allocation contexts. The
+> interrupt/softirq context testing is crucial as that is something that
+> hurt us before when trying to improve page allocator performance.
 > 
-> Right but that is only if disable_higher_order_debug is set.
-
-yes
-
-> 
-> > These caches will generate their "unique IDs" by create_unique_id(),
-> > but it is possible to create identical unique IDs. In my experiment,
-> > sgpool-128, names_cache, biovec-256 generate the same ID ":Ft-0004096"
-> > and the kernel reports "sysfs: cannot create duplicate filename
-> > '/kernel/slab/:Ft-0004096'".
-> 
-> Ok then the aliasing failed for some reason. The creation of the unique id
-> and the alias detection needs to be in sync otherwise duplicate filenames
-> are created. What is the difference there?
-
-The aliasing failed because find_mergeable() returns if (flags &
-SLAB_NEVER_MERGE) is true. So we do not go to search for alias caches.
-
-__kmem_cache_alias()
-  find_mergeable()
-    kmem_cache_flags()  --> setup flag by the slub_debug
-    if (flags & SLAB_NEVER_MERGE) return NULL;
-    ...
-    search alias logic...
-    
-
-The flags maybe changed if disable_higher_order_debug=1. So the
-unmergeable cache becomes mergeable later.
-
-> 
-> The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
-> should do the same right?
-> 
-Yes, I think clearing DEBUG_METADATA flags in kmem_cache_alias is
-another solution for this issue.
-
-We will need to do calculate_sizes() by using original flags and compare
-the order of s->size and s->object_size when
-disable_higher_order_debug=1.
+Yes, I will test that once I get back in office (after netdev conference 
+and vacation).
+Can you please elaborate in a few words about the idea behind the prototype?
+Does it address page-allocator scalability issues, or only the rate of 
+single core page allocations?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
