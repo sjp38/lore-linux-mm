@@ -1,45 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id AEC854403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 04:59:11 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 184so2047470pga.3
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 01:59:11 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g1si3664000pln.619.2017.11.08.01.59.10
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 85C114403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 05:22:59 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id l24so2063492pgu.17
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 02:22:59 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id y4si3603396plb.122.2017.11.08.02.22.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 01:59:10 -0800 (PST)
-Date: Wed, 8 Nov 2017 01:59:09 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-Message-ID: <20171108095909.GA7390@infradead.org>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
+        Wed, 08 Nov 2017 02:22:57 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86/selftests: Add test for mapping placement for 5-level paging
+Date: Wed,  8 Nov 2017 13:22:50 +0300
+Message-Id: <20171108102250.38609-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, dm-devel@redhat.com, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@lst.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Nov 07, 2017 at 05:03:11PM -0500, Mikulas Patocka wrote:
-> Hi
-> 
-> I am developing a driver that uses persistent memory for caching. A 
-> persistent memory device can be mapped in several discontiguous ranges.
-> 
-> The kernel has a function vmap that takes an array of pointers to pages 
-> and maps these pages to contiguous linear address space. However, it can't 
-> be used on persistent memory because persistent memory may not be backed 
-> by page structures.
-> 
-> This patch introduces a new function vmap_pfn, it works like vmap, but 
-> takes an array of pfn_t - so it can be used on persistent memory.
+With 5-level paging, we have 56-bit virtual address space available for
+userspace. But we don't want to expose userspace to addresses above
+47-bits, unless it asked specifically for it.
 
-How is cache flushing going to work for this interface assuming
-that your write to/from the virtual address and expect it to be
-persisted on pmem?
+We use mmap(2) hint address as a way for kernel to know if it's okay to
+allocate virtual memory above 47-bit.
+
+Let's add a self-test that covers few corner cases of the interface.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ tools/testing/selftests/x86/5lvl.c   | 53 ++++++++++++++++++++++++++++++++++++
+ tools/testing/selftests/x86/Makefile |  2 +-
+ 2 files changed, 54 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/selftests/x86/5lvl.c
+
+diff --git a/tools/testing/selftests/x86/5lvl.c b/tools/testing/selftests/x86/5lvl.c
+new file mode 100644
+index 000000000000..94610fd13ba2
+--- /dev/null
++++ b/tools/testing/selftests/x86/5lvl.c
+@@ -0,0 +1,53 @@
++#include <stdio.h>
++#include <sys/mman.h>
++
++#define PAGE_SIZE	4096
++#define SIZE		(2 * PAGE_SIZE)
++#define LOW_ADDR	((void *) (1UL << 30))
++#define HIGH_ADDR	((void *) (1UL << 50))
++#define TASK_SIZE	((void *) (1UL << 47))
++
++int main(int argc, char **argv)
++{
++	void *p;
++
++	p = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(NULL): %p %s\n", p, p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(LOW_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p): %p %s\n", LOW_ADDR, p,
++			p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p): %p\n", HIGH_ADDR, p);
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p) again: %p\n", HIGH_ADDR, p);
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++	printf("mmap(%p, MAP_FIXED): %p\n", HIGH_ADDR, p);
++
++	p = mmap((void *)-1, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(-1): %p\n", p);
++
++	p = mmap((void *)-1, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(-1) again: %p\n", p);
++
++	p = mmap(TASK_SIZE - PAGE_SIZE, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p, %d): %p %s\n", TASK_SIZE - PAGE_SIZE, SIZE, p,
++			p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(TASK_SIZE - PAGE_SIZE, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++	printf("mmap(TASK_SIZE - PAGE_SIZE, MAP_FIXED): %p\n", p);
++
++	return 0;
++}
+diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
+index 0a74a20ca32b..1f5d6565fbef 100644
+--- a/tools/testing/selftests/x86/Makefile
++++ b/tools/testing/selftests/x86/Makefile
+@@ -10,7 +10,7 @@ TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_sysc
+ TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
+ 			test_FCMOV test_FCOMI test_FISTTP \
+ 			vdso_restorer
+-TARGETS_C_64BIT_ONLY := fsgsbase sysret_rip
++TARGETS_C_64BIT_ONLY := fsgsbase sysret_rip 5lvl
+ 
+ TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
+ TARGETS_C_64BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_64BIT_ONLY)
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
