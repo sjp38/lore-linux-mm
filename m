@@ -1,53 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 29D1044043C
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:11:04 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id o7so3578675pgc.23
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:11:04 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id u3si80371pfl.4.2017.11.08.12.11.03
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 76A7344043C
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 15:16:01 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id p56so810759ote.8
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 12:16:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id c138si2170929oig.14.2017.11.08.12.16.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 12:11:03 -0800 (PST)
-Subject: Re: [PATCH 01/30] x86, mm: do not set _PAGE_USER for init_mm page
- tables
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194647.ABC9BC79@viggo.jf.intel.com>
- <CA+55aFwuFT48RS=Bn9qvgjr+2r+jNroQHw1F+G_GxtU12nJmaw@mail.gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <d30dd5bc-ca45-6bd9-5671-12980e1b3d8c@linux.intel.com>
-Date: Wed, 8 Nov 2017 12:11:01 -0800
+        Wed, 08 Nov 2017 12:16:00 -0800 (PST)
+Date: Wed, 8 Nov 2017 15:15:56 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent
+ memory
+In-Reply-To: <CAPcyv4jw5CDJYo-uhxq1hWJo90R87m0qju-k8WKgyd34QKnz0Q@mail.gmail.com>
+Message-ID: <alpine.LRH.2.02.1711081514320.29922@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com> <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com> <20171108150447.GA10374@infradead.org>
+ <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com> <20171108153522.GB24548@infradead.org> <CAPcyv4jw5CDJYo-uhxq1hWJo90R87m0qju-k8WKgyd34QKnz0Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFwuFT48RS=Bn9qvgjr+2r+jNroQHw1F+G_GxtU12nJmaw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Thomas Gleixner <tglx@linutronix.de>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, the arch/x86 maintainers <x86@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 11/08/2017 11:52 AM, Linus Torvalds wrote:
-> On Wed, Nov 8, 2017 at 11:46 AM, Dave Hansen
-> <dave.hansen@linux.intel.com> wrote:
->>
->> +
->>  static inline void pmd_populate_kernel(struct mm_struct *mm,
->>                                        pmd_t *pmd, pte_t *pte)
->>  {
->> +       pteval_t pgtable_flags = mm_pgtable_flags(mm);
+
+
+On Wed, 8 Nov 2017, Dan Williams wrote:
+
+> On Wed, Nov 8, 2017 at 7:35 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> > On Wed, Nov 08, 2017 at 10:21:38AM -0500, Mikulas Patocka wrote:
+> >> > And what do you do for an architecture with virtuall indexed caches?
+> >>
+> >> Persistent memory is not supported on such architectures - it is only
+> >> supported on x86-64 and arm64.
+> >
+> > For now.  But once support is added your driver will just corrupt data
+> > unless you have the right API in place.
 > 
-> Why is "pmd_populate_kernel()" using mm_pgtable_flags(mm)?
-> 
-> It should just use _KERNPG_TABLE unconditionally, shouldn't it?
-> Nothing to do with init_mm, it's populating a _kernel_ page table
-> regardless, no?
+> I'm also in the process of ripping out page-less dax support. With
+> pages we can potentially leverage the VIVT-cache support in some
+> architectures, likely with more supporting infrastructure for
+> dax_flush().
 
-The end result is probably the same since a quick grep shows it only
-ever getting called with init_mm or NULL.  But, yeah, it should probably
-just be _PAGE_KERNEL directly.
+Should I remove all the code for page-less persistent memory from my 
+driver?
 
-I'll update it.
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
