@@ -1,153 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D8CCB4403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 08:02:29 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id j126so2030032oib.9
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 05:02:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o3si1889328oih.293.2017.11.08.05.02.27
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F013C4403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 08:33:53 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id q99so604901ota.6
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 05:33:53 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 36sor1422654ots.149.2017.11.08.05.33.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 05:02:27 -0800 (PST)
-From: Vitaly Kuznetsov <vkuznets@redhat.com>
-Subject: [PATCH RFC] mm/memory_hotplug: make it possible to offline blocks with reserved pages
-Date: Wed,  8 Nov 2017 14:01:55 +0100
-Message-Id: <20171108130155.25499-1-vkuznets@redhat.com>
+        (Google Transport Security);
+        Wed, 08 Nov 2017 05:33:52 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171108075242.GB18747@js1304-P5Q-DELUXE>
+References: <CGME20171107094311epcas1p4a5dd975d6e9f3618a26a0a5d68c68b55@epcas1p4.samsung.com>
+ <20171107094447.14763-1-jaewon31.kim@samsung.com> <20171108075242.GB18747@js1304-P5Q-DELUXE>
+From: Jaewon Kim <jaewon31.kim@gmail.com>
+Date: Wed, 8 Nov 2017 22:33:51 +0900
+Message-ID: <CAJrd-UtqWQiqgtfZQDxt18BnqYFgOZOw9pqNJY6UUp71POLOpQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: page_ext: allocate page extension though first PFN is invalid
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Alex Ng <alexng@microsoft.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Jaewon Kim <jaewon31.kim@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hyper-V balloon driver needs to hotplug memory in smaller chunks and to
-workaround Linux's 128Mb allignment requirement so it does a trick: partly
-populated 128Mb blocks are added and then a custom online_page_callback
-hook checks if the particular page is 'backed' during onlining, in case it
-is not backed it is left in Reserved state. When the host adds more pages
-to the block we bring them online from the driver (see
-hv_bring_pgs_online()/hv_page_online_one() in drivers/hv/hv_balloon.c).
-Eventually the whole block becomes fully populated and we hotplug the next
-128Mb. This all works for quite some time already.
+2017-11-08 16:52 GMT+09:00 Joonsoo Kim <iamjoonsoo.kim@lge.com>:
+> On Tue, Nov 07, 2017 at 06:44:47PM +0900, Jaewon Kim wrote:
+>> online_page_ext and page_ext_init allocate page_ext for each section, but
+>> they do not allocate if the first PFN is !pfn_present(pfn) or
+>> !pfn_valid(pfn).
+>>
+>> Though the first page is not valid, page_ext could be useful for other
+>> pages in the section. But checking all PFNs in a section may be time
+>> consuming job. Let's check each (section count / 16) PFN, then prepare
+>> page_ext if any PFN is present or valid.
+>
+> I guess that this kind of section is not so many. And, this is for
+> debugging so completeness would be important. It's better to check
+> all pfn in the section.
+Thank you for your comment.
 
-What is not working is offlining of such partly populated blocks:
-check_pages_isolated_cb() callback will not pass with a sinle Reserved page
-and we end up with -EBUSY. However, there's no reason to fail offlining in
-this case: these pages are already offline, we may just skip them. Add the
-appropriate workaround to test_pages_isolated().
+AFAIK physical memory address depends on HW SoC.
+Sometimes a SoC remains few GB address region hole between few GB DRAM
+and other few GB DRAM
+such as 2GB under 4GB address and 2GB beyond 4GB address and holes between them.
+If SoC designs so big hole between actual mapping, I thought too much
+time will be spent on just checking all the PFNs.
 
-Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
----
-RFC part:
-- Other usages of Reserved pages making offlining blocks with them a no-go
-  may exist.
-- I'm not exactly sure that adding another parameter to
-  test_pages_isolated() is a good idea, we may go with a single flag for
-  both Reserved and HwPoisoned pages: we have just two call sites and they
-  have opposite needs (true, true in one case and false, false in the
-  other).
----
- include/linux/page-isolation.h |  2 +-
- mm/memory_hotplug.c            |  2 +-
- mm/page_alloc.c                |  8 +++++++-
- mm/page_isolation.c            | 11 ++++++++---
- 4 files changed, 17 insertions(+), 6 deletions(-)
+Anyway if we decide to check all PFNs, I can change patch to t_pfn++ like below.
+Please give me comment again.
 
-diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-index 05a04e603686..daba12a59574 100644
---- a/include/linux/page-isolation.h
-+++ b/include/linux/page-isolation.h
-@@ -61,7 +61,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-  * Test all pages in [start_pfn, end_pfn) are isolated or not.
-  */
- int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
--			bool skip_hwpoisoned_pages);
-+			bool skip_hwpoisoned_pages, bool skip_reserved_pages);
- 
- struct page *alloc_migrate_target(struct page *page, unsigned long private,
- 				int **resultp);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index d4b5f29906b9..5b7d1482804f 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1467,7 +1467,7 @@ check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
- {
- 	int ret;
- 	long offlined = *(long *)data;
--	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
-+	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true, true);
- 	offlined = nr_pages;
- 	if (!ret)
- 		*(long *)data += offlined;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 77e4d3c5c57b..b475928c476c 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7632,7 +7632,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 	}
- 
- 	/* Make sure the range is really isolated. */
--	if (test_pages_isolated(outer_start, end, false)) {
-+	if (test_pages_isolated(outer_start, end, false, false)) {
- 		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
- 			__func__, outer_start, end);
- 		ret = -EBUSY;
-@@ -7746,6 +7746,12 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 
-+		/* Some pages might never be online, skip them */
-+		if (unlikely(PageReserved(page))) {
-+			pfn++;
-+			continue;
-+		}
-+
- 		BUG_ON(page_count(page));
- 		BUG_ON(!PageBuddy(page));
- 		order = page_order(page);
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 44f213935bf6..fd9c18e00b92 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -233,7 +233,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
-  */
- static unsigned long
- __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
--				  bool skip_hwpoisoned_pages)
-+				  bool skip_hwpoisoned_pages,
-+				  bool skip_reserved_pages)
- {
- 	struct page *page;
- 
-@@ -253,6 +254,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 		else if (skip_hwpoisoned_pages && PageHWPoison(page))
- 			/* A HWPoisoned page cannot be also PageBuddy */
- 			pfn++;
-+		else if (skip_reserved_pages && PageReserved(page))
-+			/* Skipping Reserved pages */
-+			pfn++;
- 		else
- 			break;
- 	}
-@@ -262,7 +266,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 
- /* Caller should ensure that requested range is in a single zone */
- int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
--			bool skip_hwpoisoned_pages)
-+			bool skip_hwpoisoned_pages, bool skip_reserved_pages)
- {
- 	unsigned long pfn, flags;
- 	struct page *page;
-@@ -285,7 +289,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
- 	zone = page_zone(page);
- 	spin_lock_irqsave(&zone->lock, flags);
- 	pfn = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
--						skip_hwpoisoned_pages);
-+						skip_hwpoisoned_pages,
-+						skip_reserved_pages);
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 
- 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
--- 
-2.13.6
+
+while (t_pfn <  ALIGN(pfn + 1, PAGES_PER_SECTION)) {
+        if (pfn_valid(t_pfn)) {
+                valid = true;
+                break;
+        }
+-        t_pfn = ALIGN(pfn + 1, PAGES_PER_SECTION >> 4);
++        t_pfn++;
+
+
+Thank you
+Jaewon Kim
+
+>
+> Thanks.
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
