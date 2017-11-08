@@ -1,172 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D80546B02F7
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 09:25:31 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 11so1467918wrb.10
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 06:25:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h27si3605353ede.369.2017.11.08.06.25.30
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 375936B02F8
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 09:29:56 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id a192so2744371pge.1
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 06:29:56 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t18si4148492plo.255.2017.11.08.06.29.54
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Nov 2017 06:25:30 -0800 (PST)
-Date: Wed, 8 Nov 2017 15:25:28 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC] mm/memory_hotplug: make it possible to offline
- blocks with reserved pages
-Message-ID: <20171108142528.vsrkkqw6fihxdjio@dhcp22.suse.cz>
-References: <20171108130155.25499-1-vkuznets@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Nov 2017 06:29:55 -0800 (PST)
+Date: Wed, 8 Nov 2017 09:29:51 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171108092951.4d677bca@gandalf.local.home>
+In-Reply-To: <20171108051955.GA468@jagdpanzerIV>
+References: <20171102134515.6eef16de@gandalf.local.home>
+	<201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
+	<20171107014015.GA1822@jagdpanzerIV>
+	<20171108051955.GA468@jagdpanzerIV>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171108130155.25499-1-vkuznets@redhat.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Alex Ng <alexng@microsoft.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
 
-On Wed 08-11-17 14:01:55, Vitaly Kuznetsov wrote:
-> Hyper-V balloon driver needs to hotplug memory in smaller chunks and to
-> workaround Linux's 128Mb allignment requirement so it does a trick: partly
-> populated 128Mb blocks are added and then a custom online_page_callback
-> hook checks if the particular page is 'backed' during onlining, in case it
-> is not backed it is left in Reserved state. When the host adds more pages
-> to the block we bring them online from the driver (see
-> hv_bring_pgs_online()/hv_page_online_one() in drivers/hv/hv_balloon.c).
-> Eventually the whole block becomes fully populated and we hotplug the next
-> 128Mb. This all works for quite some time already.
+On Wed, 8 Nov 2017 14:19:55 +0900
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
 
-Why does HyperV needs to workaround the section size limit in the first
-place? We are allocation memmap for the whole section anyway so it won't
-save any memory. So the whole thing sounds rather dubious to me.
-
-> What is not working is offlining of such partly populated blocks:
-> check_pages_isolated_cb() callback will not pass with a sinle Reserved page
-> and we end up with -EBUSY. However, there's no reason to fail offlining in
-> this case: these pages are already offline, we may just skip them. Add the
-> appropriate workaround to test_pages_isolated().
-
-How do you recognize pages reserved by other users. You cannot simply
-remove them, it would just blow up.
-
-> Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
-> ---
-> RFC part:
-> - Other usages of Reserved pages making offlining blocks with them a no-go
->   may exist.
-> - I'm not exactly sure that adding another parameter to
->   test_pages_isolated() is a good idea, we may go with a single flag for
->   both Reserved and HwPoisoned pages: we have just two call sites and they
->   have opposite needs (true, true in one case and false, false in the
->   other).
-> ---
->  include/linux/page-isolation.h |  2 +-
->  mm/memory_hotplug.c            |  2 +-
->  mm/page_alloc.c                |  8 +++++++-
->  mm/page_isolation.c            | 11 ++++++++---
->  4 files changed, 17 insertions(+), 6 deletions(-)
+> the change goes further. I did express some of my concerns during the KS,
+> I'll just bring them to the list.
 > 
-> diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
-> index 05a04e603686..daba12a59574 100644
-> --- a/include/linux/page-isolation.h
-> +++ b/include/linux/page-isolation.h
-> @@ -61,7 +61,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->   * Test all pages in [start_pfn, end_pfn) are isolated or not.
->   */
->  int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-> -			bool skip_hwpoisoned_pages);
-> +			bool skip_hwpoisoned_pages, bool skip_reserved_pages);
->  
->  struct page *alloc_migrate_target(struct page *page, unsigned long private,
->  				int **resultp);
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index d4b5f29906b9..5b7d1482804f 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -1467,7 +1467,7 @@ check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
->  {
->  	int ret;
->  	long offlined = *(long *)data;
-> -	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
-> +	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true, true);
->  	offlined = nr_pages;
->  	if (!ret)
->  		*(long *)data += offlined;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 77e4d3c5c57b..b475928c476c 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7632,7 +7632,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  	}
->  
->  	/* Make sure the range is really isolated. */
-> -	if (test_pages_isolated(outer_start, end, false)) {
-> +	if (test_pages_isolated(outer_start, end, false, false)) {
->  		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
->  			__func__, outer_start, end);
->  		ret = -EBUSY;
-> @@ -7746,6 +7746,12 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
->  			continue;
->  		}
->  
-> +		/* Some pages might never be online, skip them */
-> +		if (unlikely(PageReserved(page))) {
-> +			pfn++;
-> +			continue;
-> +		}
-> +
->  		BUG_ON(page_count(page));
->  		BUG_ON(!PageBuddy(page));
->  		order = page_order(page);
-> diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-> index 44f213935bf6..fd9c18e00b92 100644
-> --- a/mm/page_isolation.c
-> +++ b/mm/page_isolation.c
-> @@ -233,7 +233,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
->   */
->  static unsigned long
->  __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
-> -				  bool skip_hwpoisoned_pages)
-> +				  bool skip_hwpoisoned_pages,
-> +				  bool skip_reserved_pages)
->  {
->  	struct page *page;
->  
-> @@ -253,6 +254,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  		else if (skip_hwpoisoned_pages && PageHWPoison(page))
->  			/* A HWPoisoned page cannot be also PageBuddy */
->  			pfn++;
-> +		else if (skip_reserved_pages && PageReserved(page))
-> +			/* Skipping Reserved pages */
-> +			pfn++;
->  		else
->  			break;
->  	}
-> @@ -262,7 +266,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
->  
->  /* Caller should ensure that requested range is in a single zone */
->  int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
-> -			bool skip_hwpoisoned_pages)
-> +			bool skip_hwpoisoned_pages, bool skip_reserved_pages)
->  {
->  	unsigned long pfn, flags;
->  	struct page *page;
-> @@ -285,7 +289,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
->  	zone = page_zone(page);
->  	spin_lock_irqsave(&zone->lock, flags);
->  	pfn = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
-> -						skip_hwpoisoned_pages);
-> +						skip_hwpoisoned_pages,
-> +						skip_reserved_pages);
->  	spin_unlock_irqrestore(&zone->lock, flags);
->  
->  	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
-> -- 
-> 2.13.6
 > 
+> we now always shift printing from a save - scheduleable - context to
+> a potentially unsafe one - atomic. by example:
 
--- 
-Michal Hocko
-SUSE Labs
+And vice versa. We are now likely to go from a unscheduleable context
+to a schedule one, where before, that didn't exist.
+
+And my approach, makes it more likely that the task doing the printk
+prints its own message, and less likely to print someone else's.
+
+> 
+> CPU0			CPU1~CPU10	CPU11
+> 
+> console_lock()
+> 
+> 			printk();
+> 
+> console_unlock()			IRQ
+>  set console_owner			printk()
+> 					 sees console_owner
+> 					 set console_waiter
+>  sees console_waiter
+>  break
+> 					 console_unlock()
+> 					 ^^^^ lockup [?]
+
+How?
+
+> 
+> 
+> so we are forcibly moving console_unlock() from safe CPU0 to unsafe CPU11.
+> previously we would continue printing from a schedulable context.
+
+And previously, we could be in unsafe CPU11 printing, and keep adding
+to the buffer from safe CPUs, keeping CPU11 from ever stopping.
+
+If anything, the patch makes the situation better, not worse.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
