@@ -1,70 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F013C4403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 08:33:53 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id q99so604901ota.6
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 05:33:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 36sor1422654ots.149.2017.11.08.05.33.51
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C0866B02A4
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 08:45:08 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id v78so2581608pgb.18
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 05:45:08 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t128si3892477pgc.68.2017.11.08.05.45.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Nov 2017 05:33:52 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171108075242.GB18747@js1304-P5Q-DELUXE>
-References: <CGME20171107094311epcas1p4a5dd975d6e9f3618a26a0a5d68c68b55@epcas1p4.samsung.com>
- <20171107094447.14763-1-jaewon31.kim@samsung.com> <20171108075242.GB18747@js1304-P5Q-DELUXE>
-From: Jaewon Kim <jaewon31.kim@gmail.com>
-Date: Wed, 8 Nov 2017 22:33:51 +0900
-Message-ID: <CAJrd-UtqWQiqgtfZQDxt18BnqYFgOZOw9pqNJY6UUp71POLOpQ@mail.gmail.com>
-Subject: Re: [PATCH] mm: page_ext: allocate page extension though first PFN is invalid
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Nov 2017 05:45:07 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: add sysctl to control global OOM logging behaviour
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171108091843.29349-1-dmonakhov@openvz.org>
+	<24fb6865-6cc5-2af0-3a99-ea9495791f66@I-love.SAKURA.ne.jp>
+	<87inelklnd.fsf@openvz.org>
+In-Reply-To: <87inelklnd.fsf@openvz.org>
+Message-Id: <201711082245.BGF12900.VFFOLJHOOMtSFQ@I-love.SAKURA.ne.jp>
+Date: Wed, 8 Nov 2017 22:45:00 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Jaewon Kim <jaewon31.kim@samsung.com>, Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: dmonakhov@openvz.org, linux-mm@kvack.org
+Cc: cgroups@vger.kernel.org, vdavydov.dev@gmail.com
 
-2017-11-08 16:52 GMT+09:00 Joonsoo Kim <iamjoonsoo.kim@lge.com>:
-> On Tue, Nov 07, 2017 at 06:44:47PM +0900, Jaewon Kim wrote:
->> online_page_ext and page_ext_init allocate page_ext for each section, but
->> they do not allocate if the first PFN is !pfn_present(pfn) or
->> !pfn_valid(pfn).
->>
->> Though the first page is not valid, page_ext could be useful for other
->> pages in the section. But checking all PFNs in a section may be time
->> consuming job. Let's check each (section count / 16) PFN, then prepare
->> page_ext if any PFN is present or valid.
->
-> I guess that this kind of section is not so many. And, this is for
-> debugging so completeness would be important. It's better to check
-> all pfn in the section.
-Thank you for your comment.
+Dmitry Monakhov wrote:
+> Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> writes:
+> 
+> > On 2017/11/08 18:18, Dmitry Monakhov wrote:
+> >> Our systems becomes bigger and bigger, but OOM still happens.
+> >> This becomes serious problem for systems where OOM happens
+> >> frequently(containers, VM) because each OOM generate pressure
+> >> on dmesg log infrastructure. Let's allow system administrator
+> >> ability to tune OOM dump behaviour
+> >
+> > Majority of OOM killer related messages are from dump_header().
+> > Thus, allow tuning __ratelimit(&oom_rs) might make sense.
+> >
+> > But other lines
+> >
+> >   "%s: Kill process %d (%s) score %u or sacrifice child\n"
+> >   "Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n"
+> >   "oom_reaper: reaped process %d (%s), now anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n"
+> This still may result in hundreds of messages per second.
 
-AFAIK physical memory address depends on HW SoC.
-Sometimes a SoC remains few GB address region hole between few GB DRAM
-and other few GB DRAM
-such as 2GB under 4GB address and 2GB beyond 4GB address and holes between them.
-If SoC designs so big hole between actual mapping, I thought too much
-time will be spent on just checking all the PFNs.
-
-Anyway if we decide to check all PFNs, I can change patch to t_pfn++ like below.
-Please give me comment again.
-
-
-while (t_pfn <  ALIGN(pfn + 1, PAGES_PER_SECTION)) {
-        if (pfn_valid(t_pfn)) {
-                valid = true;
-                break;
-        }
--        t_pfn = ALIGN(pfn + 1, PAGES_PER_SECTION >> 4);
-+        t_pfn++;
-
-
-Thank you
-Jaewon Kim
-
->
-> Thanks.
->
+Then, it means that your system is invoking the OOM killer one hundred times
+per second (every 10 milliseconds). I think that such system is far from properly
+configured.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
