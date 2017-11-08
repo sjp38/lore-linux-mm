@@ -1,47 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D07CE6B02FA
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:32 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id d28so3032406pfe.1
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:32 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id g3si4471138plb.276.2017.11.08.11.47.31
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FCA36B02FD
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:36 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id q126so3393014pgq.7
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:36 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id e22si1497139pgv.360.2017.11.08.11.47.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:31 -0800 (PST)
-Subject: [PATCH 18/30] x86, kaiser: map virtually-addressed performance monitoring buffers
+        Wed, 08 Nov 2017 11:47:35 -0800 (PST)
+Subject: [PATCH 19/30] x86, mm: Move CR3 construction functions
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:20 -0800
+Date: Wed, 08 Nov 2017 11:47:22 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194720.0ADD17E2@viggo.jf.intel.com>
+Message-Id: <20171108194722.C6A09337@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, hughd@google.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, x86@kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 
-From: Hugh Dickins <hughd@google.com>
-[Dave] Add explicit _PAGE_GLOBAL
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The BTS and PEBS buffers both have their virtual addresses programmed
-into the hardware.  This means that we have to access them via the page
-tables.  The times that the hardware accesses these are entirely
-dependent on how the performance monitoring hardware events are set up.
-In other words, we have no idea when we might need to access these
-buffers.
+For flushing the TLB, we need to know which ASID has been programmed
+into the hardware.  Since that differs from what is in 'cpu_tlbstate',
+we need to be able to transform the ASID in cpu_tlbstate to the one
+programmed into the hardware.
 
-Avoid perf crashes: place debug_store in the user-mapped per-cpu area
-instead of allocating, and use page allocator plus kaiser_add_mapping()
-to keep the BTS and PEBS buffers user-mapped (that is, present in the
-user mapping, though visible only to kernel and hardware).  The PEBS
-fixup buffer does not need this treatment.
+It's not easy to include mmu_context.h into tlbflush.h, so just move
+the CR3 building over to tlbflush.h.
 
-The need for a user-mapped struct debug_store showed up before doing
-any conscious perf testing: in a couple of kernel paging oopses on
-Westmere, implicating the debug_store offset of the per-cpu area.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
 Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
@@ -54,136 +43,130 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/events/intel/ds.c |   57 +++++++++++++++++++++++++++++++++----------
- 1 file changed, 45 insertions(+), 12 deletions(-)
+ b/arch/x86/include/asm/mmu_context.h |   29 +----------------------------
+ b/arch/x86/include/asm/tlbflush.h    |   27 +++++++++++++++++++++++++++
+ b/arch/x86/mm/tlb.c                  |    8 ++++----
+ 3 files changed, 32 insertions(+), 32 deletions(-)
 
-diff -puN arch/x86/events/intel/ds.c~kaiser-user-map-virtually-addressed-performance-monitoring-buffers arch/x86/events/intel/ds.c
---- a/arch/x86/events/intel/ds.c~kaiser-user-map-virtually-addressed-performance-monitoring-buffers	2017-11-08 10:45:35.659681379 -0800
-+++ b/arch/x86/events/intel/ds.c	2017-11-08 10:45:35.662681379 -0800
-@@ -2,11 +2,15 @@
- #include <linux/types.h>
- #include <linux/slab.h>
- 
-+#include <asm/kaiser.h>
- #include <asm/perf_event.h>
- #include <asm/insn.h>
- 
- #include "../perf_event.h"
- 
-+static
-+DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store, cpu_debug_store);
-+
- /* The size of a BTS record in bytes: */
- #define BTS_RECORD_SIZE		24
- 
-@@ -278,6 +282,39 @@ void fini_debug_store_on_cpu(int cpu)
- 
- static DEFINE_PER_CPU(void *, insn_buffer);
- 
-+static void *dsalloc(size_t size, gfp_t flags, int node)
-+{
-+#ifdef CONFIG_KAISER
-+	unsigned int order = get_order(size);
-+	struct page *page;
-+	unsigned long addr;
-+
-+	page = __alloc_pages_node(node, flags | __GFP_ZERO, order);
-+	if (!page)
-+		return NULL;
-+	addr = (unsigned long)page_address(page);
-+	if (kaiser_add_mapping(addr, size, __PAGE_KERNEL | _PAGE_GLOBAL) < 0) {
-+		__free_pages(page, order);
-+		addr = 0;
-+	}
-+	return (void *)addr;
-+#else
-+	return kmalloc_node(size, flags | __GFP_ZERO, node);
-+#endif
-+}
-+
-+static void dsfree(const void *buffer, size_t size)
-+{
-+#ifdef CONFIG_KAISER
-+	if (!buffer)
-+		return;
-+	kaiser_remove_mapping((unsigned long)buffer, size);
-+	free_pages((unsigned long)buffer, get_order(size));
-+#else
-+	kfree(buffer);
-+#endif
-+}
-+
- static int alloc_pebs_buffer(int cpu)
- {
- 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-@@ -288,7 +325,7 @@ static int alloc_pebs_buffer(int cpu)
- 	if (!x86_pmu.pebs)
- 		return 0;
- 
--	buffer = kzalloc_node(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
-+	buffer = dsalloc(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
- 	if (unlikely(!buffer))
- 		return -ENOMEM;
- 
-@@ -299,7 +336,7 @@ static int alloc_pebs_buffer(int cpu)
- 	if (x86_pmu.intel_cap.pebs_format < 2) {
- 		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
- 		if (!ibuffer) {
--			kfree(buffer);
-+			dsfree(buffer, x86_pmu.pebs_buffer_size);
- 			return -ENOMEM;
- 		}
- 		per_cpu(insn_buffer, cpu) = ibuffer;
-@@ -325,7 +362,8 @@ static void release_pebs_buffer(int cpu)
- 	kfree(per_cpu(insn_buffer, cpu));
- 	per_cpu(insn_buffer, cpu) = NULL;
- 
--	kfree((void *)(unsigned long)ds->pebs_buffer_base);
-+	dsfree((void *)(unsigned long)ds->pebs_buffer_base,
-+			x86_pmu.pebs_buffer_size);
- 	ds->pebs_buffer_base = 0;
+diff -puN arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move	2017-11-08 10:45:36.197681378 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2017-11-08 10:45:36.205681378 -0800
+@@ -281,33 +281,6 @@ static inline bool arch_vma_access_permi
  }
  
-@@ -339,7 +377,7 @@ static int alloc_bts_buffer(int cpu)
- 	if (!x86_pmu.bts)
- 		return 0;
- 
--	buffer = kzalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
-+	buffer = dsalloc(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
- 	if (unlikely(!buffer)) {
- 		WARN_ONCE(1, "%s: BTS buffer allocation failure\n", __func__);
- 		return -ENOMEM;
-@@ -365,19 +403,15 @@ static void release_bts_buffer(int cpu)
- 	if (!ds || !x86_pmu.bts)
- 		return;
- 
--	kfree((void *)(unsigned long)ds->bts_buffer_base);
-+	dsfree((void *)(unsigned long)ds->bts_buffer_base, BTS_BUFFER_SIZE);
- 	ds->bts_buffer_base = 0;
- }
- 
- static int alloc_ds_buffer(int cpu)
- {
--	int node = cpu_to_node(cpu);
--	struct debug_store *ds;
+ /*
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+- * bits.  This serves two purposes.  It prevents a nasty situation in
+- * which PCID-unaware code saves CR3, loads some other value (with PCID
+- * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+- * the saved ASID was nonzero.  It also means that any bugs involving
+- * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+- * deterministically.
+- */
 -
--	ds = kzalloc_node(sizeof(*ds), GFP_KERNEL, node);
--	if (unlikely(!ds))
--		return -ENOMEM;
-+	struct debug_store *ds = per_cpu_ptr(&cpu_debug_store, cpu);
+-static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+-{
+-	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
+-		return __sme_pa(mm->pgd) | (asid + 1);
+-	} else {
+-		VM_WARN_ON_ONCE(asid != 0);
+-		return __sme_pa(mm->pgd);
+-	}
+-}
+-
+-static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+-{
+-	VM_WARN_ON_ONCE(asid > 4094);
+-	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
+-}
+-
+-/*
+  * This can be used from process context to figure out what the value of
+  * CR3 is without needing to do a (slow) __read_cr3().
+  *
+@@ -316,7 +289,7 @@ static inline unsigned long build_cr3_no
+  */
+ static inline unsigned long __get_current_cr3_fast(void)
+ {
+-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
++	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
+ 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
  
-+	memset(ds, 0, sizeof(*ds));
- 	per_cpu(cpu_hw_events, cpu).ds = ds;
- 
- 	return 0;
-@@ -391,7 +425,6 @@ static void release_ds_buffer(int cpu)
- 		return;
- 
- 	per_cpu(cpu_hw_events, cpu).ds = NULL;
--	kfree(ds);
+ 	/* For now, be very restrictive about when this can be called. */
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move	2017-11-08 10:45:36.199681378 -0800
++++ b/arch/x86/include/asm/tlbflush.h	2017-11-08 10:45:36.205681378 -0800
+@@ -74,6 +74,33 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return new_tlb_gen;
  }
  
- void release_ds_buffers(void)
++/*
++ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
++ * bits.  This serves two purposes.  It prevents a nasty situation in
++ * which PCID-unaware code saves CR3, loads some other value (with PCID
++ * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
++ * the saved ASID was nonzero.  It also means that any bugs involving
++ * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
++ * deterministically.
++ */
++struct pgd_t;
++static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
++{
++	if (static_cpu_has(X86_FEATURE_PCID)) {
++		VM_WARN_ON_ONCE(asid > 4094);
++		return __sme_pa(pgd) | (asid + 1);
++	} else {
++		VM_WARN_ON_ONCE(asid != 0);
++		return __sme_pa(pgd);
++	}
++}
++
++static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
++{
++	VM_WARN_ON_ONCE(asid > 4094);
++	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++}
++
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #else
+diff -puN arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move	2017-11-08 10:45:36.201681378 -0800
++++ b/arch/x86/mm/tlb.c	2017-11-08 10:45:36.206681378 -0800
+@@ -127,7 +127,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 	 * isn't free.
+ 	 */
+ #ifdef CONFIG_DEBUG_VM
+-	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
++	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev->pgd, prev_asid))) {
+ 		/*
+ 		 * If we were to BUG here, we'd be very likely to kill
+ 		 * the system so hard that we don't see the call trace.
+@@ -194,12 +194,12 @@ void switch_mm_irqs_off(struct mm_struct
+ 		if (need_flush) {
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+-			write_cr3(build_cr3(next, new_asid));
++			write_cr3(build_cr3(next->pgd, new_asid));
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+ 					TLB_FLUSH_ALL);
+ 		} else {
+ 			/* The new ASID is already up to date. */
+-			write_cr3(build_cr3_noflush(next, new_asid));
++			write_cr3(build_cr3_noflush(next->pgd, new_asid));
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
+ 		}
+ 
+@@ -277,7 +277,7 @@ void initialize_tlbstate_and_flush(void)
+ 		!(cr4_read_shadow() & X86_CR4_PCIDE));
+ 
+ 	/* Force ASID 0 and force a TLB flush. */
+-	write_cr3(build_cr3(mm, 0));
++	write_cr3(build_cr3(mm->pgd, 0));
+ 
+ 	/* Reinitialize tlbstate. */
+ 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
 _
 
 --
