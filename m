@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DFE3B6B0300
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:42 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a8so3013209pfc.6
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 012A96B0301
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:43 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e64so3018373pfk.0
         for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:42 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id m12si4431403plt.65.2017.11.08.11.47.41
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id d2si4434908pgp.817.2017.11.08.11.47.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 08 Nov 2017 11:47:41 -0800 (PST)
-Subject: [PATCH 22/30] x86, pcid, kaiser: allow flushing for future ASID switches
+Subject: [PATCH 21/30] x86, mm: put mmu-to-h/w ASID translation in one place
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:28 -0800
+Date: Wed, 08 Nov 2017 11:47:26 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194728.4D8F87B6@viggo.jf.intel.com>
+Message-Id: <20171108194726.B78C0669@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,25 +23,14 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-If we change the page tables in such a way that we need an
-invalidation of all contexts (aka. PCIDs / ASIDs) we can
-actively invalidate them by:
- 1. INVPCID for each PCID (works for single pages too).
- 2. Load CR3 with each PCID without the NOFLUSH bit set
- 3. Load CR3 with the NOFLUSH bit set for each and do
-    INVLPG for each address.
+We effectively have two ASID types:
+1. The one stored in the mmu_context that goes from 0->5
+2. The one we program into the hardware that goes from 1->6
 
-But, none of these are really feasible since we have ~6 ASIDs (12 with
-KAISER) at the time that we need to do an invalidation.  So, we just
-invalidate the *current* context and then mark the cpu_tlbstate
-_quickly_.
-
-Then, at the next context-switch, we notice that we had
-'all_other_ctxs_invalid' marked, and go invalidate all of the
-cpu_tlbstate.ctxs[] entries.
-
-This ensures that any future context switches will do a full flush
-of the TLB so they pick up the changes.
+Let's just put the +1 in a single place which gives us a
+nice place to comment.  KAISER will also need to, given an
+ASID, know which hardware ASID to flush for the userspace
+mapping.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -55,148 +44,60 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/include/asm/tlbflush.h |   47 +++++++++++++++++++++++++++++---------
- b/arch/x86/mm/tlb.c               |   35 ++++++++++++++++++++++++++++
- 2 files changed, 72 insertions(+), 10 deletions(-)
+ b/arch/x86/include/asm/tlbflush.h |   30 ++++++++++++++++++------------
+ 1 file changed, 18 insertions(+), 12 deletions(-)
 
-diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-clear-pcid-cache arch/x86/include/asm/tlbflush.h
---- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-clear-pcid-cache	2017-11-08 10:45:37.846681374 -0800
-+++ b/arch/x86/include/asm/tlbflush.h	2017-11-08 10:45:37.852681374 -0800
-@@ -183,6 +183,17 @@ struct tlb_state {
- 	bool is_lazy;
- 
- 	/*
-+	 * If set we changed the page tables in such a way that we
-+	 * needed an invalidation of all contexts (aka. PCIDs / ASIDs).
-+	 * This tells us to go invalidate all the non-loaded ctxs[]
-+	 * on the next context switch.
-+	 *
-+	 * The current ctx was kept up-to-date as it ran and does not
-+	 * need to be invalidated.
-+	 */
-+	bool all_other_ctxs_invalid;
-+
-+	/*
- 	 * Access to this CR4 shadow and to H/W CR4 is protected by
- 	 * disabling interrupts when modifying either one.
- 	 */
-@@ -259,6 +270,19 @@ static inline unsigned long cr4_read_sha
- 	return this_cpu_read(cpu_tlbstate.cr4);
- }
- 
-+static inline void tlb_flush_shared_nonglobals(void)
-+{
-+	/*
-+	 * With global pages, all of the shared kenel page tables
-+	 * are set as _PAGE_GLOBAL.  We have no shared nonglobals
-+	 * and nothing to do here.
-+	 */
-+	if (IS_ENABLED(CONFIG_X86_GLOBAL_PAGES))
-+		return;
-+
-+	this_cpu_write(cpu_tlbstate.all_other_ctxs_invalid, true);
-+}
-+
- /*
-  * Save some of cr4 feature set we're using (e.g.  Pentium 4MB
-  * enable and PPro Global page enable), so that any CPU's that boot
-@@ -288,6 +312,10 @@ static inline void __native_flush_tlb(vo
- 	preempt_disable();
- 	native_write_cr3(__native_read_cr3());
- 	preempt_enable();
-+	/*
-+	 * Does not need tlb_flush_shared_nonglobals() since the CR3 write
-+	 * without PCIDs flushes all non-globals.
-+	 */
- }
- 
- static inline void __native_flush_tlb_global_irq_disabled(void)
-@@ -346,24 +374,23 @@ static inline void __native_flush_tlb_si
- 
- static inline void __flush_tlb_all(void)
- {
--	if (boot_cpu_has(X86_FEATURE_PGE))
-+	if (boot_cpu_has(X86_FEATURE_PGE)) {
- 		__flush_tlb_global();
--	else
-+	} else {
- 		__flush_tlb();
--
--	/*
--	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
--	 * we'd end up flushing kernel translations for the current ASID but
--	 * we might fail to flush kernel translations for other cached ASIDs.
--	 *
--	 * To avoid this issue, we force PCID off if PGE is off.
--	 */
-+		tlb_flush_shared_nonglobals();
-+	}
- }
- 
- static inline void __flush_tlb_one(unsigned long addr)
- {
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
- 	__flush_tlb_single(addr);
-+	/*
-+	 * Invalidate other address spaces inaccessible to single-page
-+	 * invalidation:
-+	 */
-+	tlb_flush_shared_nonglobals();
- }
- 
- #define TLB_FLUSH_ALL	-1UL
-diff -puN arch/x86/mm/tlb.c~kaiser-pcid-pre-clear-pcid-cache arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~kaiser-pcid-pre-clear-pcid-cache	2017-11-08 10:45:37.848681374 -0800
-+++ b/arch/x86/mm/tlb.c	2017-11-08 10:45:37.852681374 -0800
-@@ -28,6 +28,38 @@
-  *	Implement flush IPI by CALL_FUNCTION_VECTOR, Alex Shi
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern	2017-11-08 10:45:37.314681375 -0800
++++ b/arch/x86/include/asm/tlbflush.h	2017-11-08 10:45:37.317681375 -0800
+@@ -86,21 +86,26 @@ static inline u64 inc_mm_tlb_gen(struct
   */
+ #define NR_AVAIL_ASIDS ((1<<CR3_AVAIL_ASID_BITS) - 1)
  
-+/*
-+ * We get here when we do something requiring a TLB invalidation
-+ * but could not go invalidate all of the contexts.  We do the
-+ * necessary invalidation by clearing out the 'ctx_id' which
-+ * forces a TLB flush when the context is loaded.
-+ */
-+void clear_non_loaded_ctxs(void)
+-/*
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+- * bits.  This serves two purposes.  It prevents a nasty situation in
+- * which PCID-unaware code saves CR3, loads some other value (with PCID
+- * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+- * the saved ASID was nonzero.  It also means that any bugs involving
+- * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+- * deterministically.
+- */
++static inline u16 kern_asid(u16 asid)
 +{
-+	u16 asid;
-+
++	VM_WARN_ON_ONCE(asid >= NR_AVAIL_ASIDS);
 +	/*
-+	 * This is only expected to be set if we have disabled
-+	 * kernel _PAGE_GLOBAL pages.
++	 * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
++	 * bits.  This serves two purposes.  It prevents a nasty situation in
++	 * which PCID-unaware code saves CR3, loads some other value (with PCID
++	 * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
++	 * the saved ASID was nonzero.  It also means that any bugs involving
++	 * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
++	 * deterministically.
 +	 */
-+        if (IS_ENABLED(CONFIG_X86_GLOBAL_PAGES)) {
-+		WARN_ON_ONCE(1);
-+                return;
-+	}
-+
-+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-+		/* Do not need to flush the current asid */
-+		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
-+			continue;
-+		/*
-+		 * Make sure the next time we go to switch to
-+		 * this asid, we do a flush:
-+		 */
-+		this_cpu_write(cpu_tlbstate.ctxs[asid].ctx_id, 0);
-+	}
-+	this_cpu_write(cpu_tlbstate.all_other_ctxs_invalid, false);
++	return asid + 1;
 +}
 +
- atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
+ struct pgd_t;
+ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+ {
+ 	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > NR_AVAIL_ASIDS);
+-		return __sme_pa(pgd) | (asid + 1);
++		return __sme_pa(pgd) | kern_asid(asid);
+ 	} else {
+ 		VM_WARN_ON_ONCE(asid != 0);
+ 		return __sme_pa(pgd);
+@@ -110,7 +115,8 @@ static inline unsigned long build_cr3(pg
+ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+ {
+ 	VM_WARN_ON_ONCE(asid > NR_AVAIL_ASIDS);
+-	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
++	return __sme_pa(pgd) | kern_asid(asid) | CR3_NOFLUSH;
+ }
  
- 
-@@ -42,6 +74,9 @@ static void choose_new_asid(struct mm_st
- 		return;
- 	}
- 
-+	if (this_cpu_read(cpu_tlbstate.all_other_ctxs_invalid))
-+		clear_non_loaded_ctxs();
-+
- 	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
- 		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
- 		    next->context.ctx_id)
+ #ifdef CONFIG_PARAVIRT
 _
 
 --
