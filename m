@@ -1,62 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C2A974403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 01:54:19 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id 78so1333173qkz.13
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 22:54:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t30si410359qtg.264.2017.11.07.22.54.18
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 07 Nov 2017 22:54:18 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA86qwBP127692
-	for <linux-mm@kvack.org>; Wed, 8 Nov 2017 01:54:17 -0500
-Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2e3ptnh96b-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 08 Nov 2017 01:54:17 -0500
-Received: from localhost
-	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 8 Nov 2017 06:54:15 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] userfaultfd.2: document spurious UFFD_EVENT_FORK
-Date: Wed,  8 Nov 2017 08:54:08 +0200
-Message-Id: <1510124048-7991-1-git-send-email-rppt@linux.vnet.ibm.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CCFF64403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 02:47:55 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id s75so1804902pgs.12
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 23:47:55 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f2si3226211plk.121.2017.11.07.23.47.54
+        for <linux-mm@kvack.org>;
+        Tue, 07 Nov 2017 23:47:54 -0800 (PST)
+Date: Wed, 8 Nov 2017 16:52:42 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm: page_ext: allocate page extension though first PFN
+ is invalid
+Message-ID: <20171108075242.GB18747@js1304-P5Q-DELUXE>
+References: <CGME20171107094311epcas1p4a5dd975d6e9f3618a26a0a5d68c68b55@epcas1p4.samsung.com>
+ <20171107094447.14763-1-jaewon31.kim@samsung.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171107094447.14763-1-jaewon31.kim@samsung.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, linux-man@vger.kernel.org, linux-mm <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Jaewon Kim <jaewon31.kim@samsung.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- man2/userfaultfd.2 | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+On Tue, Nov 07, 2017 at 06:44:47PM +0900, Jaewon Kim wrote:
+> online_page_ext and page_ext_init allocate page_ext for each section, but
+> they do not allocate if the first PFN is !pfn_present(pfn) or
+> !pfn_valid(pfn).
+> 
+> Though the first page is not valid, page_ext could be useful for other
+> pages in the section. But checking all PFNs in a section may be time
+> consuming job. Let's check each (section count / 16) PFN, then prepare
+> page_ext if any PFN is present or valid.
 
-diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-index 1c9e64b..08c41e1 100644
---- a/man2/userfaultfd.2
-+++ b/man2/userfaultfd.2
-@@ -465,6 +465,16 @@ for checkpoint/restore mechanisms,
- as well as post-copy migration to allow (nearly) uninterrupted execution
- when transferring virtual machines and Linux containers
- from one host to another.
-+.SH BUGS
-+If the
-+.B UFFD_FEATURE_EVENT_FORK
-+is enabled and a system call from the
-+.BR fork (2)
-+family is interrupted by a signal or failed,q a stale userfaultfd descriptor
-+might be created.
-+In this case a spurious
-+.B UFFD_EVENT_FORK
-+will be delivered to the userfaultfd monitor.
- .SH EXAMPLE
- The program below demonstrates the use of the userfaultfd mechanism.
- The program creates two threads, one of which acts as the
--- 
-2.7.4
+I guess that this kind of section is not so many. And, this is for
+debugging so completeness would be important. It's better to check
+all pfn in the section.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
