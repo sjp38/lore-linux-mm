@@ -1,39 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C71B440417
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:04:49 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id i67so2324614pfi.23
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:04:49 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h13si3932092pgs.399.2017.11.08.07.04.48
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D456B440417
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 10:05:14 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id i38so5767575iod.10
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 07:05:14 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id 91si3743368ioq.86.2017.11.08.07.05.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 07:04:48 -0800 (PST)
-Date: Wed, 8 Nov 2017 07:04:47 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-Message-ID: <20171108150447.GA10374@infradead.org>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108095909.GA7390@infradead.org>
- <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
+        Wed, 08 Nov 2017 07:05:13 -0800 (PST)
+Date: Wed, 8 Nov 2017 09:05:12 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
+ slub_debug=O
+In-Reply-To: <1510119138.17435.19.camel@mtkswgap22>
+Message-ID: <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake>
+References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com> <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake> <1510119138.17435.19.camel@mtkswgap22>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, dm-devel@redhat.com, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@lst.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
 
-On Wed, Nov 08, 2017 at 07:33:09AM -0500, Mikulas Patocka wrote:
-> We could use the function clwb() (or arch-independent wrapper dax_flush()) 
-> - that uses the clflushopt instruction on Broadwell or clwb on Skylake - 
-> but it is very slow, write performance on Broadwell is only 350MB/s.
-> 
-> So in practice I use the movnti instruction that bypasses cache. The 
-> write-combining buffer is flushed with sfence.
+On Wed, 8 Nov 2017, Miles Chen wrote:
 
-And what do you do for an architecture with virtuall indexed caches?
+> > Ok then the aliasing failed for some reason. The creation of the unique id
+> > and the alias detection needs to be in sync otherwise duplicate filenames
+> > are created. What is the difference there?
+>
+> The aliasing failed because find_mergeable() returns if (flags &
+> SLAB_NEVER_MERGE) is true. So we do not go to search for alias caches.
+>
+> __kmem_cache_alias()
+>   find_mergeable()
+>     kmem_cache_flags()  --> setup flag by the slub_debug
+>     if (flags & SLAB_NEVER_MERGE) return NULL;
+>     ...
+>     search alias logic...
+>
+>
+> The flags maybe changed if disable_higher_order_debug=1. So the
+> unmergeable cache becomes mergeable later.
+
+Ok so make sure taht the aliasing logic also clears those flags before
+checking for SLAB_NEVER_MERGE.
+
+> > The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
+> > should do the same right?
+> >
+> Yes, I think clearing DEBUG_METADATA flags in kmem_cache_alias is
+> another solution for this issue.
+>
+> We will need to do calculate_sizes() by using original flags and compare
+> the order of s->size and s->object_size when
+> disable_higher_order_debug=1.
+
+Hmmm... Or move the aliasing check to a point where we know the size of
+the slab objects?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
