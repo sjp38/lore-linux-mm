@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 41D8A6B02F2
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:22 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id k190so1987236pga.10
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:22 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D8C346B02F4
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 14:47:27 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id v78so3007482pfk.8
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 11:47:27 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id 34si4336508plz.777.2017.11.08.11.47.20
+        by mx.google.com with ESMTPS id y79si4823280pfb.41.2017.11.08.11.47.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 11:47:21 -0800 (PST)
-Subject: [PATCH 13/30] x86, kaiser: map dynamically-allocated LDTs
+        Wed, 08 Nov 2017 11:47:26 -0800 (PST)
+Subject: [PATCH 15/30] x86, kaiser: map entry stack variables
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 08 Nov 2017 11:47:10 -0800
+Date: Wed, 08 Nov 2017 11:47:15 -0800
 References: <20171108194646.907A1942@viggo.jf.intel.com>
 In-Reply-To: <20171108194646.907A1942@viggo.jf.intel.com>
-Message-Id: <20171108194710.D47CC460@viggo.jf.intel.com>
+Message-Id: <20171108194715.3292DBFB@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,11 +23,16 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Normally, a process just has a NULL mm->context.ldt.  But, we
-have a syscall for a process to set a new one.  If a process does
-that, we need to map the new LDT.
+There are times that we enter the kernel and do not have a safe
+stack, like at SYSCALL entry.  We use the per-cpu vairables
+'rsp_scratch' and 'cpu_current_top_of_stack' to save off the old
+%rsp and find a safe place to have a stack.
 
-The original KAISER patch missed this case.
+You can not directly manipulate the CR3 register.  You can only
+'MOV' to it from another register, which means we need to clobber
+a register in order to do any CR3 manipulation.  User-mapping these
+variables allows us to obtain a safe stack *before* we switch the
+CR3 value.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -41,71 +46,34 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/kernel/ldt.c |   25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ b/arch/x86/kernel/cpu/common.c |    2 +-
+ b/arch/x86/kernel/process_64.c |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts arch/x86/kernel/ldt.c
---- a/arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts	2017-11-08 10:45:32.935681386 -0800
-+++ b/arch/x86/kernel/ldt.c	2017-11-08 10:45:32.938681386 -0800
-@@ -10,6 +10,7 @@
- #include <linux/gfp.h>
- #include <linux/sched.h>
- #include <linux/string.h>
-+#include <linux/kaiser.h>
- #include <linux/mm.h>
- #include <linux/smp.h>
- #include <linux/syscalls.h>
-@@ -56,11 +57,21 @@ static void flush_ldt(void *__mm)
- 	refresh_ldt_segments();
- }
+diff -puN arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/cpu/common.c
+--- a/arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars	2017-11-08 10:45:34.001681383 -0800
++++ b/arch/x86/kernel/cpu/common.c	2017-11-08 10:45:34.007681383 -0800
+@@ -1447,7 +1447,7 @@ DEFINE_PER_CPU_ALIGNED(struct stack_cana
+  * trampoline, not the thread stack.  Use an extra percpu variable to track
+  * the top of the kernel stack directly.
+  */
+-DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
++DEFINE_PER_CPU_USER_MAPPED(unsigned long, cpu_current_top_of_stack) =
+ 	(unsigned long)&init_thread_union + THREAD_SIZE;
+ EXPORT_PER_CPU_SYMBOL(cpu_current_top_of_stack);
  
-+static void __free_ldt_struct(struct ldt_struct *ldt)
-+{
-+	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
-+		vfree_atomic(ldt->entries);
-+	else
-+		free_page((unsigned long)ldt->entries);
-+	kfree(ldt);
-+}
-+
- /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
- static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- {
- 	struct ldt_struct *new_ldt;
- 	unsigned int alloc_size;
-+	int ret;
+diff -puN arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/process_64.c
+--- a/arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars	2017-11-08 10:45:34.003681383 -0800
++++ b/arch/x86/kernel/process_64.c	2017-11-08 10:45:34.007681383 -0800
+@@ -59,7 +59,7 @@
+ #include <asm/unistd_32_ia32.h>
+ #endif
  
- 	if (num_entries > LDT_ENTRIES)
- 		return NULL;
-@@ -88,6 +99,12 @@ static struct ldt_struct *alloc_ldt_stru
- 		return NULL;
- 	}
+-__visible DEFINE_PER_CPU(unsigned long, rsp_scratch);
++__visible DEFINE_PER_CPU_USER_MAPPED(unsigned long, rsp_scratch);
  
-+	ret = kaiser_add_mapping((unsigned long)new_ldt->entries, alloc_size,
-+				 __PAGE_KERNEL | _PAGE_GLOBAL);
-+	if (ret) {
-+		__free_ldt_struct(new_ldt);
-+		return NULL;
-+	}
- 	new_ldt->nr_entries = num_entries;
- 	return new_ldt;
- }
-@@ -114,12 +131,10 @@ static void free_ldt_struct(struct ldt_s
- 	if (likely(!ldt))
- 		return;
- 
-+	kaiser_remove_mapping((unsigned long)ldt->entries,
-+			      ldt->nr_entries * LDT_ENTRY_SIZE);
- 	paravirt_free_ldt(ldt->entries, ldt->nr_entries);
--	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
--		vfree_atomic(ldt->entries);
--	else
--		free_page((unsigned long)ldt->entries);
--	kfree(ldt);
-+	__free_ldt_struct(ldt);
- }
- 
- /*
+ /* Prints also some state that isn't saved in the pt_regs */
+ void __show_regs(struct pt_regs *regs, int all)
 _
 
 --
