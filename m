@@ -1,105 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1F796B02AC
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 03:24:15 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 189so4917029iow.14
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 00:24:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 94sor1662672iom.183.2017.11.08.00.24.14
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ECEA44403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 03:30:41 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id w95so976485wrc.20
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 00:30:41 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id o30sor2205374eda.56.2017.11.08.00.30.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 08 Nov 2017 00:24:14 -0800 (PST)
+        Wed, 08 Nov 2017 00:30:40 -0800 (PST)
+Date: Wed, 8 Nov 2017 11:30:38 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171108083038.djj3qdhhnrazkk7b@node.shutemov.name>
+References: <20171106192524.12ea3187@roar.ozlabs.ibm.com>
+ <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
+ <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+ <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
+ <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
+ <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
+ <20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
+ <20171108002448.6799462e@roar.ozlabs.ibm.com>
+ <2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
+ <87y3nh2wt5.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
-References: <001a114096fec09301055d68d784@google.com> <CAGXu5jJFwPYre6P2vf1v0XFBFfk-uqJEYEPP8WsjPspZoYDHCg@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 8 Nov 2017 09:23:53 +0100
-Message-ID: <CACT4Y+bkTWRcrun95FbfiJseJjzt9z7JXONVJ9N2Hqo1-8yVuA@mail.gmail.com>
-Subject: Re: WARNING in __check_heap_object
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87y3nh2wt5.fsf@concordia.ellerman.id.au>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: syzbot <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, David Windsor <dave@nullcore.net>
+To: Michael Ellerman <mpe@ellerman.id.au>
+Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nicholas Piggin <npiggin@gmail.com>, Florian Weimer <fweimer@redhat.com>, linux-arch@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, Nov 7, 2017 at 9:35 PM, Kees Cook <keescook@chromium.org> wrote:
-> On Tue, Nov 7, 2017 at 10:36 AM, syzbot
-> <bot+2357afb48acb76780f3c18867ccfb7aa6fd6c4c9@syzkaller.appspotmail.com>
-> wrote:
->> Hello,
->>
->> syzkaller hit the following crash on
->> 5a3517e009e979f21977d362212b7729c5165d92
->> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
->> compiler: gcc (GCC) 7.1.1 20170620
->> .config is attached
->> Raw console output is attached.
->> C reproducer is attached
->> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
->> for information about syzkaller reproducers
->>
->>
->
-> Please include the line _before_ the "cut here" (dumb, I know, but
-> that's where warnings show up...)
->
-> Found in the raw.log:
->
-> [   44.227177] unexpected usercopy without slab whitelist from SCTPv6
-> offset 1648 size 11
->
-> This means some part of the SCTPv6 slab was being poked into userspace
-> without a usercopy whitelist.
->
->>  check_heap_object mm/usercopy.c:222 [inline]
->>  __check_object_size+0x22c/0x4f0 mm/usercopy.c:248
->>  check_object_size include/linux/thread_info.h:112 [inline]
->>  check_copy_size include/linux/thread_info.h:143 [inline]
->>  copy_to_user include/linux/uaccess.h:154 [inline]
->>  sctp_getsockopt_events net/sctp/socket.c:4972 [inline]
->>  sctp_getsockopt+0x2b90/0x70b0 net/sctp/socket.c:7012
->>  sock_common_getsockopt+0x95/0xd0 net/core/sock.c:2924
->>  SYSC_getsockopt net/socket.c:1882 [inline]
->>  SyS_getsockopt+0x178/0x340 net/socket.c:1864
->>  entry_SYSCALL_64_fastpath+0x1f/0xbe
->
-> Looking at the SCTPv6 slab declaration, it seems David and I missed
-> the usercopy whitelist for the sctpv6_sock struct. I'll update the
-> usercopy whitelist patch with:
->
-> #syz fix: sctp: Define usercopy region in SCTP proto slab cache
->
-> diff --git a/net/sctp/socket.c b/net/sctp/socket.c
-> index 5fd83974c5cc..8ac85877c0e4 100644
-> --- a/net/sctp/socket.c
-> +++ b/net/sctp/socket.c
-> @@ -8492,6 +8492,10 @@ struct proto sctpv6_prot = {
->         .unhash         = sctp_unhash,
->         .get_port       = sctp_get_port,
->         .obj_size       = sizeof(struct sctp6_sock),
-> +       .useroffset     = offsetof(struct sctp_sock, subscribe),
-> +       .usersize       = offsetof(struct sctp_sock, initmsg) -
-> +                               offsetof(struct sctp_sock, subscribe) +
-> +                               sizeof_field(struct sctp_sock, initmsg),
->         .sysctl_mem     = sysctl_sctp_mem,
->         .sysctl_rmem    = sysctl_sctp_rmem,
->         .sysctl_wmem    = sysctl_sctp_wmem,
->
-> Thanks!
+On Wed, Nov 08, 2017 at 03:56:06PM +1100, Michael Ellerman wrote:
+> "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+> 
+> >> 
+> >> If it is decided to keep these kind of heuristics, can we get just a
+> >> small but reasonably precise description of each change to the
+> >> interface and ways for using the new functionality, such that would be
+> >> suitable for the man page? I couldn't fix powerpc because nothing
+> >> matches and even Aneesh and you differ on some details (MAP_FIXED
+> >> behaviour).
+> >
+> >
+> > I would consider MAP_FIXED as my mistake. We never discussed this 
+> > explicitly and I kind of assumed it to behave the same way. ie, we 
+> > search in lower address space (128TB) if the hint addr is below 128TB.
+> >
+> > IIUC we agree on the below.
+> >
+> > 1) MAP_FIXED allow the addr to be used, even if hint addr is below 128TB 
+> > but hint_addr + len is > 128TB.
+> 
+> So:
+>   mmap(0x7ffffffff000, 0x2000, ..., MAP_FIXED ...) = 0x7ffffffff000
+> 
+> > 2) For everything else we search in < 128TB space if hint addr is below 
+> > 128TB
+> 
+>   mmap((x < 128T), 0x1000, ...) = (y < 128T)
+>   ...
+>   mmap(0x7ffffffff000, 0x1000, ...) = 0x7ffffffff000
+>   mmap(0x800000000000, 0x1000, ...) = 0x800000000000
+>   ...
+>   mmap((x >= 128T), 0x1000, ...) = (y >= 128T)
+> 
+> > 3) We don't switch to large address space if hint_addr + len > 128TB. 
+> > The decision to switch to large address space is primarily based on hint 
+> > addr
+> 
+> But does the mmap succeed in that case or not?
+> 
+> ie:  mmap(0x7ffffffff000, 0x2000, ...) = ?
 
+It does, but resulting address doesn't match the hint. It's somewhere
+below 47-bit border.
 
-Kees, please also follow this part once the commit reaches any of
-trees (title is settled):
-
-> syzbot will keep track of this bug report.
-> Once a fix for this bug is committed, please reply to this email with:
-> #syz fix: exact-commit-title
-> Note: all commands must start from beginning of the line.
-
-This will greatly help to keep the whole process running and report
-new bugs in future.
-
-Thanks
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
