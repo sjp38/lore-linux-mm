@@ -1,217 +1,245 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E2C16B02D8
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:20:02 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v2so1342814pfa.10
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:20:02 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a7sor877160pfh.111.2017.11.07.21.20.00
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 74F914403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:24:50 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id o126so1268700oif.21
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:24:50 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f34si1387134otb.416.2017.11.07.21.24.48
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 07 Nov 2017 21:20:01 -0800 (PST)
-Date: Wed, 8 Nov 2017 14:19:55 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171108051955.GA468@jagdpanzerIV>
-References: <20171102134515.6eef16de@gandalf.local.home>
- <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
- <20171107014015.GA1822@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 07 Nov 2017 21:24:49 -0800 (PST)
+Date: Wed, 8 Nov 2017 07:24:46 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: [PATCH v2] virtio_balloon: fix deadlock on OOM
+Message-ID: <1510118632-18412-1-git-send-email-mst@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171107014015.GA1822@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rostedt@goodmis.org
-Cc: Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
+To: linux-kernel@vger.kernel.org
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>, Wei Wang <wei.w.wang@intel.com>, Jason Wang <jasowang@redhat.com>, virtualization@lists.linux-foundation.org, linux-mm@kvack.org
 
-(Ccing Tejun)
+fill_balloon doing memory allocations under balloon_lock
+can cause a deadlock when leak_balloon is called from
+virtballoon_oom_notify and tries to take same lock.
 
-On (11/07/17 10:40), Sergey Senozhatsky wrote:
-> On (11/06/17 21:06), Tetsuo Handa wrote:
-> > I tried your patch with warn_alloc() torture. It did not cause lockups.
-> > But I felt that possibility of failing to flush last second messages (such
-> > as SysRq-c or SysRq-b) to consoles has increased. Is this psychological?
-> 
-> do I understand it correctly that there are "lost messages"?
-> 
-> sysrq-b does an immediate emergency reboot. "normally" it's not expected
-> to flush any pending logbuf messages because it's an emergency-reboot...
-> but in fact it does. and this is why sysrq-b is not 100% reliable:
-> 
-> 	__handle_sysrq()
-> 	{
-> 	  pr_info("SysRq : ");
-> 
-> 	  op_p = __sysrq_get_key_op(key);
-> 	  pr_cont("%s\n", op_p->action_msg);
-> 
-> 	    op_p->handler(key);
-> 
-> 	  pr_cont("\n");
-> 	}
-> 
-> those pr_info()/pr_cont() calls can spoil sysrq-b, depending on how
-> badly the system is screwed. if pr_info() deadlocks, then we never
-> go to op_p->handler(key)->emergency_restart(). even if you suppress
-> printing of info loglevel messages, pr_info() still goes to
-> console_unlock() and prints [console_seq, log_next_seq] messages,
-> if there any.
-> 
-> there is, however, a subtle behaviour change, I think.
-> 
-> previously, in some cases [?], pr_info("SysRq : ") from __handle_sysrq()
-> would flush logbuf messages. now we have that "break out of console_unlock()
-> loop even though there are pending messages, there is another CPU doing
-> printk()". so sysrb-b instead of looping in console_unlock() goes directly
-> to emergency_restart(). without the change it would have continued looping
-> in console_unlock() and would have called emergency_restart() only when
-> "console_seq == log_next_seq".
-> 
-> now... the "subtle" part here is that we had that thing:
-> 	- *IF* __handle_sysrq() grabs the console_sem then it will not
-> 	  return from console_unlock() until logbuf is empty. so
-> 	  concurrent printk() messages won't get lost.
-> 
-> what we have now is:
-> 	- if there are concurrent printk() then __handle_sysrq() does not
-> 	  fully flush the logbuf *even* if it grabbed the console_sem.
+To fix, split page allocation and enqueue and do allocations outside the lock.
 
-the change goes further. I did express some of my concerns during the KS,
-I'll just bring them to the list.
+Here's a detailed analysis of the deadlock by Tetsuo Handa:
 
+In leak_balloon(), mutex_lock(&vb->balloon_lock) is called in order to
+serialize against fill_balloon(). But in fill_balloon(),
+alloc_page(GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY) is
+called with vb->balloon_lock mutex held. Since GFP_HIGHUSER[_MOVABLE]
+implies __GFP_DIRECT_RECLAIM | __GFP_IO | __GFP_FS, despite __GFP_NORETRY
+is specified, this allocation attempt might indirectly depend on somebody
+else's __GFP_DIRECT_RECLAIM memory allocation. And such indirect
+__GFP_DIRECT_RECLAIM memory allocation might call leak_balloon() via
+virtballoon_oom_notify() via blocking_notifier_call_chain() callback via
+out_of_memory() when it reached __alloc_pages_may_oom() and held oom_lock
+mutex. Since vb->balloon_lock mutex is already held by fill_balloon(), it
+will cause OOM lockup.
 
-we now always shift printing from a save - scheduleable - context to
-a potentially unsafe one - atomic. by example:
+  Thread1                                       Thread2
+    fill_balloon()
+      takes a balloon_lock
+      balloon_page_enqueue()
+        alloc_page(GFP_HIGHUSER_MOVABLE)
+          direct reclaim (__GFP_FS context)       takes a fs lock
+            waits for that fs lock                  alloc_page(GFP_NOFS)
+                                                      __alloc_pages_may_oom()
+                                                        takes the oom_lock
+                                                        out_of_memory()
+                                                          blocking_notifier_call_chain()
+                                                            leak_balloon()
+                                                              tries to take that balloon_lock and deadlocks
 
-CPU0			CPU1~CPU10	CPU11
+Reported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Wei Wang <wei.w.wang@intel.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+---
 
-console_lock()
+Fixed a build warning.
+Fixed buffer overflow when num > array size.
 
-			printk();
+ drivers/virtio/virtio_balloon.c    | 24 +++++++++++++++++++-----
+ include/linux/balloon_compaction.h | 38 +++++++++++++++++++++++++++++++++++++-
+ mm/balloon_compaction.c            | 28 +++++++++++++++++++++-------
+ 3 files changed, 77 insertions(+), 13 deletions(-)
 
-console_unlock()			IRQ
- set console_owner			printk()
-					 sees console_owner
-					 set console_waiter
- sees console_waiter
- break
-					 console_unlock()
-					 ^^^^ lockup [?]
-
-
-so we are forcibly moving console_unlock() from safe CPU0 to unsafe CPU11.
-previously we would continue printing from a schedulable context.
-
-
-another case. bare with me.
-
-suppose that call_console_drivers() is slower than printk() -> log_store(),
-which is often the case.
-
-now assume the following:
-
-CPU0				CPU1
-
-IRQ				IRQ
-
-printk()			printk()
-printk()			printk()
-printk()			printk()
-
-
-which probably could have been handled something like this:
-
-CPU0				CPU1
-
-IRQ				IRQ
-
-printk()			printk()
- log_store()
-				 log_store()
- console_unlock()
-  call_console_drivers()
-				printk()
-				 log_store()
- goto again;
-  call_console_drivers()
-				printk()
-				 log_store()
- goto again;
-  call_console_drivers()
-printk()
- log_store()
-  console_unlock()
-   call_console_drivers()
-printk()
- log_store()
-  console_unlock()
-   call_console_drivers()
-
-
-so CPU0 printed all the messages.
-CPU1 simply did 3 * log_store()
-	// + spent some cycles on logbuf_lock spin_lock
-	// + console_sem trylock
-
-
-but now every CPU will do call_console_drivers() + busy loop.
-
-
-CPU0				CPU1
-
-IRQ				IRQ
-
-printk()			printk()
- log_store()
-				 log_store()
- console_unlock()
-  set console_owner
-				 sees console_owner
-				 sets console_waiter
-				 spin
-  call_console_drivers()
-  sees console_waiter
-   break
-
-printk()
- log_store()
-				 console_unlock()
-				  set console_owner
- sees console_owner
- sets console_waiter
- spin
-				 call_console_drivers()
-				 sees console_waiter
-				  break
-
-				printk()
-				 log_store()
- console_unlock()
-  set console_owner
-				 sees console_owner
-				 sets console_waiter
-				 spin
-  call_console_drivers()
-  sees console_waiter
-  break
-
-printk()
- log_store()
-				 console_unlock()
-				  set console_owner
- sees console_owner
- sets console_waiter
- spin
-
-				.... and so on
-
-which not only brings the cost of call_console_drivers() from
-CPU's own printk(), but it also brings the cost [busy spin] of
-call_console_drivers() happening on _another_ CPU. am I wrong?
-
-	-ss
+diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+index f0b3a0b..7960746 100644
+--- a/drivers/virtio/virtio_balloon.c
++++ b/drivers/virtio/virtio_balloon.c
+@@ -143,16 +143,17 @@ static void set_page_pfns(struct virtio_balloon *vb,
+ 
+ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ {
+-	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
+ 	unsigned num_allocated_pages;
++	unsigned num_pfns;
++	struct page *page;
++	LIST_HEAD(pages);
+ 
+ 	/* We can only do one array worth at a time. */
+ 	num = min(num, ARRAY_SIZE(vb->pfns));
+ 
+-	mutex_lock(&vb->balloon_lock);
+-	for (vb->num_pfns = 0; vb->num_pfns < num;
+-	     vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
+-		struct page *page = balloon_page_enqueue(vb_dev_info);
++	for (num_pfns = 0; num_pfns < num;
++	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
++		struct page *page = balloon_page_alloc();
+ 
+ 		if (!page) {
+ 			dev_info_ratelimited(&vb->vdev->dev,
+@@ -162,6 +163,19 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+ 			msleep(200);
+ 			break;
+ 		}
++
++		balloon_page_push(&pages, page);
++	}
++
++	mutex_lock(&vb->balloon_lock);
++
++	vb->num_pfns = 0;
++
++	while ((page = balloon_page_pop(&pages))) {
++		balloon_page_enqueue(&vb->vb_dev_info, page);
++
++		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
++
+ 		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+ 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
+ 		if (!virtio_has_feature(vb->vdev,
+diff --git a/include/linux/balloon_compaction.h b/include/linux/balloon_compaction.h
+index fbbe6da..36734ff 100644
+--- a/include/linux/balloon_compaction.h
++++ b/include/linux/balloon_compaction.h
+@@ -50,6 +50,7 @@
+ #include <linux/gfp.h>
+ #include <linux/err.h>
+ #include <linux/fs.h>
++#include <linux/list.h>
+ 
+ /*
+  * Balloon device information descriptor.
+@@ -67,9 +68,14 @@ struct balloon_dev_info {
+ 	struct inode *inode;
+ };
+ 
+-extern struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info);
++extern struct page *balloon_page_alloc(void);
++extern void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
++				 struct page *page);
+ extern struct page *balloon_page_dequeue(struct balloon_dev_info *b_dev_info);
+ 
++extern void balloon_devinfo_splice(struct balloon_dev_info *to_add,
++				   struct balloon_dev_info *b_dev_info);
++
+ static inline void balloon_devinfo_init(struct balloon_dev_info *balloon)
+ {
+ 	balloon->isolated_pages = 0;
+@@ -89,6 +95,36 @@ extern int balloon_page_migrate(struct address_space *mapping,
+ 				struct page *page, enum migrate_mode mode);
+ 
+ /*
++ * balloon_page_push - insert a page into a page list.
++ * @head : pointer to list
++ * @page : page to be added
++ *
++ * Caller must ensure the page is private and protect the list.
++ */
++static inline void balloon_page_push(struct list_head *pages, struct page *page)
++{
++	list_add(&page->lru, pages);
++}
++
++/*
++ * balloon_page_pop - remove a page from a page list.
++ * @head : pointer to list
++ * @page : page to be added
++ *
++ * Caller must ensure the page is private and protect the list.
++ */
++static inline struct page *balloon_page_pop(struct list_head *pages)
++{
++	struct page *page = list_first_entry_or_null(pages, struct page, lru);
++
++	if (!page)
++		return NULL;
++
++	list_del(&page->lru);
++	return page;
++}
++
++/*
+  * balloon_page_insert - insert a page into the balloon's page list and make
+  *			 the page->private assignment accordingly.
+  * @balloon : pointer to balloon device
+diff --git a/mm/balloon_compaction.c b/mm/balloon_compaction.c
+index 68d2892..ef858d5 100644
+--- a/mm/balloon_compaction.c
++++ b/mm/balloon_compaction.c
+@@ -11,22 +11,37 @@
+ #include <linux/balloon_compaction.h>
+ 
+ /*
++ * balloon_page_alloc - allocates a new page for insertion into the balloon
++ *			  page list.
++ *
++ * Driver must call it to properly allocate a new enlisted balloon page.
++ * Driver must call balloon_page_enqueue before definitively removing it from
++ * the guest system.  This function returns the page address for the recently
++ * allocated page or NULL in the case we fail to allocate a new page this turn.
++ */
++struct page *balloon_page_alloc(void)
++{
++	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
++				       __GFP_NOMEMALLOC | __GFP_NORETRY);
++	return page;
++}
++EXPORT_SYMBOL_GPL(balloon_page_alloc);
++
++/*
+  * balloon_page_enqueue - allocates a new page and inserts it into the balloon
+  *			  page list.
+  * @b_dev_info: balloon device descriptor where we will insert a new page to
++ * @page: new page to enqueue - allocated using balloon_page_alloc.
+  *
+- * Driver must call it to properly allocate a new enlisted balloon page
++ * Driver must call it to properly enqueue a new allocated balloon page
+  * before definitively removing it from the guest system.
+  * This function returns the page address for the recently enqueued page or
+  * NULL in the case we fail to allocate a new page this turn.
+  */
+-struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
++void balloon_page_enqueue(struct balloon_dev_info *b_dev_info,
++			  struct page *page)
+ {
+ 	unsigned long flags;
+-	struct page *page = alloc_page(balloon_mapping_gfp_mask() |
+-				       __GFP_NOMEMALLOC | __GFP_NORETRY);
+-	if (!page)
+-		return NULL;
+ 
+ 	/*
+ 	 * Block others from accessing the 'page' when we get around to
+@@ -39,7 +54,6 @@ struct page *balloon_page_enqueue(struct balloon_dev_info *b_dev_info)
+ 	__count_vm_event(BALLOON_INFLATE);
+ 	spin_unlock_irqrestore(&b_dev_info->pages_lock, flags);
+ 	unlock_page(page);
+-	return page;
+ }
+ EXPORT_SYMBOL_GPL(balloon_page_enqueue);
+ 
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
