@@ -1,69 +1,217 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 415A66B02B4
-	for <linux-mm@kvack.org>; Tue,  7 Nov 2017 23:56:13 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id f6so703611pln.9
-        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 20:56:13 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id u69si876459pgb.489.2017.11.07.20.56.11
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E2C16B02D8
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 00:20:02 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v2so1342814pfa.10
+        for <linux-mm@kvack.org>; Tue, 07 Nov 2017 21:20:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a7sor877160pfh.111.2017.11.07.21.20.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 07 Nov 2017 20:56:11 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-In-Reply-To: <2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
-References: <20171105231850.5e313e46@roar.ozlabs.ibm.com> <871slcszfl.fsf@linux.vnet.ibm.com> <20171106174707.19f6c495@roar.ozlabs.ibm.com> <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com> <20171106192524.12ea3187@roar.ozlabs.ibm.com> <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com> <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com> <20171107160705.059e0c2b@roar.ozlabs.ibm.com> <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name> <20171107222228.0c8a50ff@roar.ozlabs.ibm.com> <20171107122825.posamr2dmzlzvs2p@node.shutemov.name> <20171108002448.6799462e@roar.ozlabs.ibm.com> <2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
-Date: Wed, 08 Nov 2017 15:56:06 +1100
-Message-ID: <87y3nh2wt5.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Tue, 07 Nov 2017 21:20:01 -0800 (PST)
+Date: Wed, 8 Nov 2017 14:19:55 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171108051955.GA468@jagdpanzerIV>
+References: <20171102134515.6eef16de@gandalf.local.home>
+ <201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
+ <20171107014015.GA1822@jagdpanzerIV>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171107014015.GA1822@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Nicholas Piggin <npiggin@gmail.com>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Florian Weimer <fweimer@redhat.com>, linux-arch@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, linuxppc-dev@lists.ozlabs.org, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: rostedt@goodmis.org
+Cc: Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
 
-"Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com> writes:
+(Ccing Tejun)
 
->> 
->> If it is decided to keep these kind of heuristics, can we get just a
->> small but reasonably precise description of each change to the
->> interface and ways for using the new functionality, such that would be
->> suitable for the man page? I couldn't fix powerpc because nothing
->> matches and even Aneesh and you differ on some details (MAP_FIXED
->> behaviour).
->
->
-> I would consider MAP_FIXED as my mistake. We never discussed this 
-> explicitly and I kind of assumed it to behave the same way. ie, we 
-> search in lower address space (128TB) if the hint addr is below 128TB.
->
-> IIUC we agree on the below.
->
-> 1) MAP_FIXED allow the addr to be used, even if hint addr is below 128TB 
-> but hint_addr + len is > 128TB.
+On (11/07/17 10:40), Sergey Senozhatsky wrote:
+> On (11/06/17 21:06), Tetsuo Handa wrote:
+> > I tried your patch with warn_alloc() torture. It did not cause lockups.
+> > But I felt that possibility of failing to flush last second messages (such
+> > as SysRq-c or SysRq-b) to consoles has increased. Is this psychological?
+> 
+> do I understand it correctly that there are "lost messages"?
+> 
+> sysrq-b does an immediate emergency reboot. "normally" it's not expected
+> to flush any pending logbuf messages because it's an emergency-reboot...
+> but in fact it does. and this is why sysrq-b is not 100% reliable:
+> 
+> 	__handle_sysrq()
+> 	{
+> 	  pr_info("SysRq : ");
+> 
+> 	  op_p = __sysrq_get_key_op(key);
+> 	  pr_cont("%s\n", op_p->action_msg);
+> 
+> 	    op_p->handler(key);
+> 
+> 	  pr_cont("\n");
+> 	}
+> 
+> those pr_info()/pr_cont() calls can spoil sysrq-b, depending on how
+> badly the system is screwed. if pr_info() deadlocks, then we never
+> go to op_p->handler(key)->emergency_restart(). even if you suppress
+> printing of info loglevel messages, pr_info() still goes to
+> console_unlock() and prints [console_seq, log_next_seq] messages,
+> if there any.
+> 
+> there is, however, a subtle behaviour change, I think.
+> 
+> previously, in some cases [?], pr_info("SysRq : ") from __handle_sysrq()
+> would flush logbuf messages. now we have that "break out of console_unlock()
+> loop even though there are pending messages, there is another CPU doing
+> printk()". so sysrb-b instead of looping in console_unlock() goes directly
+> to emergency_restart(). without the change it would have continued looping
+> in console_unlock() and would have called emergency_restart() only when
+> "console_seq == log_next_seq".
+> 
+> now... the "subtle" part here is that we had that thing:
+> 	- *IF* __handle_sysrq() grabs the console_sem then it will not
+> 	  return from console_unlock() until logbuf is empty. so
+> 	  concurrent printk() messages won't get lost.
+> 
+> what we have now is:
+> 	- if there are concurrent printk() then __handle_sysrq() does not
+> 	  fully flush the logbuf *even* if it grabbed the console_sem.
 
-So:
-  mmap(0x7ffffffff000, 0x2000, ..., MAP_FIXED ...) = 0x7ffffffff000
+the change goes further. I did express some of my concerns during the KS,
+I'll just bring them to the list.
 
-> 2) For everything else we search in < 128TB space if hint addr is below 
-> 128TB
 
-  mmap((x < 128T), 0x1000, ...) = (y < 128T)
-  ...
-  mmap(0x7ffffffff000, 0x1000, ...) = 0x7ffffffff000
-  mmap(0x800000000000, 0x1000, ...) = 0x800000000000
-  ...
-  mmap((x >= 128T), 0x1000, ...) = (y >= 128T)
+we now always shift printing from a save - scheduleable - context to
+a potentially unsafe one - atomic. by example:
 
-> 3) We don't switch to large address space if hint_addr + len > 128TB. 
-> The decision to switch to large address space is primarily based on hint 
-> addr
+CPU0			CPU1~CPU10	CPU11
 
-But does the mmap succeed in that case or not?
+console_lock()
 
-ie:  mmap(0x7ffffffff000, 0x2000, ...) = ?
+			printk();
 
-cheers
+console_unlock()			IRQ
+ set console_owner			printk()
+					 sees console_owner
+					 set console_waiter
+ sees console_waiter
+ break
+					 console_unlock()
+					 ^^^^ lockup [?]
+
+
+so we are forcibly moving console_unlock() from safe CPU0 to unsafe CPU11.
+previously we would continue printing from a schedulable context.
+
+
+another case. bare with me.
+
+suppose that call_console_drivers() is slower than printk() -> log_store(),
+which is often the case.
+
+now assume the following:
+
+CPU0				CPU1
+
+IRQ				IRQ
+
+printk()			printk()
+printk()			printk()
+printk()			printk()
+
+
+which probably could have been handled something like this:
+
+CPU0				CPU1
+
+IRQ				IRQ
+
+printk()			printk()
+ log_store()
+				 log_store()
+ console_unlock()
+  call_console_drivers()
+				printk()
+				 log_store()
+ goto again;
+  call_console_drivers()
+				printk()
+				 log_store()
+ goto again;
+  call_console_drivers()
+printk()
+ log_store()
+  console_unlock()
+   call_console_drivers()
+printk()
+ log_store()
+  console_unlock()
+   call_console_drivers()
+
+
+so CPU0 printed all the messages.
+CPU1 simply did 3 * log_store()
+	// + spent some cycles on logbuf_lock spin_lock
+	// + console_sem trylock
+
+
+but now every CPU will do call_console_drivers() + busy loop.
+
+
+CPU0				CPU1
+
+IRQ				IRQ
+
+printk()			printk()
+ log_store()
+				 log_store()
+ console_unlock()
+  set console_owner
+				 sees console_owner
+				 sets console_waiter
+				 spin
+  call_console_drivers()
+  sees console_waiter
+   break
+
+printk()
+ log_store()
+				 console_unlock()
+				  set console_owner
+ sees console_owner
+ sets console_waiter
+ spin
+				 call_console_drivers()
+				 sees console_waiter
+				  break
+
+				printk()
+				 log_store()
+ console_unlock()
+  set console_owner
+				 sees console_owner
+				 sets console_waiter
+				 spin
+  call_console_drivers()
+  sees console_waiter
+  break
+
+printk()
+ log_store()
+				 console_unlock()
+				  set console_owner
+ sees console_owner
+ sets console_waiter
+ spin
+
+				.... and so on
+
+which not only brings the cost of call_console_drivers() from
+CPU's own printk(), but it also brings the cost [busy spin] of
+call_console_drivers() happening on _another_ CPU. am I wrong?
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
