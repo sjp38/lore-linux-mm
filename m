@@ -1,57 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EC164403E0
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 07:33:18 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id s144so1985859oih.5
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 04:33:18 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D8CCB4403E0
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 08:02:29 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id j126so2030032oib.9
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 05:02:29 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id b79si1954195oii.90.2017.11.08.04.33.16
+        by mx.google.com with ESMTPS id o3si1889328oih.293.2017.11.08.05.02.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 04:33:17 -0800 (PST)
-Date: Wed, 8 Nov 2017 07:33:09 -0500 (EST)
-From: Mikulas Patocka <mpatocka@redhat.com>
-Subject: Re: [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-In-Reply-To: <20171108095909.GA7390@infradead.org>
-Message-ID: <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com> <20171108095909.GA7390@infradead.org>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Wed, 08 Nov 2017 05:02:27 -0800 (PST)
+From: Vitaly Kuznetsov <vkuznets@redhat.com>
+Subject: [PATCH RFC] mm/memory_hotplug: make it possible to offline blocks with reserved pages
+Date: Wed,  8 Nov 2017 14:01:55 +0100
+Message-Id: <20171108130155.25499-1-vkuznets@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org, Dan Williams <dan.j.williams@intel.com>, dm-devel@redhat.com, Laura Abbott <labbott@redhat.com>, Christoph Hellwig <hch@lst.de>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Alex Ng <alexng@microsoft.com>
 
+Hyper-V balloon driver needs to hotplug memory in smaller chunks and to
+workaround Linux's 128Mb allignment requirement so it does a trick: partly
+populated 128Mb blocks are added and then a custom online_page_callback
+hook checks if the particular page is 'backed' during onlining, in case it
+is not backed it is left in Reserved state. When the host adds more pages
+to the block we bring them online from the driver (see
+hv_bring_pgs_online()/hv_page_online_one() in drivers/hv/hv_balloon.c).
+Eventually the whole block becomes fully populated and we hotplug the next
+128Mb. This all works for quite some time already.
 
+What is not working is offlining of such partly populated blocks:
+check_pages_isolated_cb() callback will not pass with a sinle Reserved page
+and we end up with -EBUSY. However, there's no reason to fail offlining in
+this case: these pages are already offline, we may just skip them. Add the
+appropriate workaround to test_pages_isolated().
 
-On Wed, 8 Nov 2017, Christoph Hellwig wrote:
+Signed-off-by: Vitaly Kuznetsov <vkuznets@redhat.com>
+---
+RFC part:
+- Other usages of Reserved pages making offlining blocks with them a no-go
+  may exist.
+- I'm not exactly sure that adding another parameter to
+  test_pages_isolated() is a good idea, we may go with a single flag for
+  both Reserved and HwPoisoned pages: we have just two call sites and they
+  have opposite needs (true, true in one case and false, false in the
+  other).
+---
+ include/linux/page-isolation.h |  2 +-
+ mm/memory_hotplug.c            |  2 +-
+ mm/page_alloc.c                |  8 +++++++-
+ mm/page_isolation.c            | 11 ++++++++---
+ 4 files changed, 17 insertions(+), 6 deletions(-)
 
-> On Tue, Nov 07, 2017 at 05:03:11PM -0500, Mikulas Patocka wrote:
-> > Hi
-> > 
-> > I am developing a driver that uses persistent memory for caching. A 
-> > persistent memory device can be mapped in several discontiguous ranges.
-> > 
-> > The kernel has a function vmap that takes an array of pointers to pages 
-> > and maps these pages to contiguous linear address space. However, it can't 
-> > be used on persistent memory because persistent memory may not be backed 
-> > by page structures.
-> > 
-> > This patch introduces a new function vmap_pfn, it works like vmap, but 
-> > takes an array of pfn_t - so it can be used on persistent memory.
-> 
-> How is cache flushing going to work for this interface assuming
-> that your write to/from the virtual address and expect it to be
-> persisted on pmem?
-
-We could use the function clwb() (or arch-independent wrapper dax_flush()) 
-- that uses the clflushopt instruction on Broadwell or clwb on Skylake - 
-but it is very slow, write performance on Broadwell is only 350MB/s.
-
-So in practice I use the movnti instruction that bypasses cache. The 
-write-combining buffer is flushed with sfence.
-
-Mikulas
+diff --git a/include/linux/page-isolation.h b/include/linux/page-isolation.h
+index 05a04e603686..daba12a59574 100644
+--- a/include/linux/page-isolation.h
++++ b/include/linux/page-isolation.h
+@@ -61,7 +61,7 @@ undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+  * Test all pages in [start_pfn, end_pfn) are isolated or not.
+  */
+ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+-			bool skip_hwpoisoned_pages);
++			bool skip_hwpoisoned_pages, bool skip_reserved_pages);
+ 
+ struct page *alloc_migrate_target(struct page *page, unsigned long private,
+ 				int **resultp);
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d4b5f29906b9..5b7d1482804f 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1467,7 +1467,7 @@ check_pages_isolated_cb(unsigned long start_pfn, unsigned long nr_pages,
+ {
+ 	int ret;
+ 	long offlined = *(long *)data;
+-	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true);
++	ret = test_pages_isolated(start_pfn, start_pfn + nr_pages, true, true);
+ 	offlined = nr_pages;
+ 	if (!ret)
+ 		*(long *)data += offlined;
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 77e4d3c5c57b..b475928c476c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -7632,7 +7632,7 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+ 	}
+ 
+ 	/* Make sure the range is really isolated. */
+-	if (test_pages_isolated(outer_start, end, false)) {
++	if (test_pages_isolated(outer_start, end, false, false)) {
+ 		pr_info_ratelimited("%s: [%lx, %lx) PFNs busy\n",
+ 			__func__, outer_start, end);
+ 		ret = -EBUSY;
+@@ -7746,6 +7746,12 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 			continue;
+ 		}
+ 
++		/* Some pages might never be online, skip them */
++		if (unlikely(PageReserved(page))) {
++			pfn++;
++			continue;
++		}
++
+ 		BUG_ON(page_count(page));
+ 		BUG_ON(!PageBuddy(page));
+ 		order = page_order(page);
+diff --git a/mm/page_isolation.c b/mm/page_isolation.c
+index 44f213935bf6..fd9c18e00b92 100644
+--- a/mm/page_isolation.c
++++ b/mm/page_isolation.c
+@@ -233,7 +233,8 @@ int undo_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
+  */
+ static unsigned long
+ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+-				  bool skip_hwpoisoned_pages)
++				  bool skip_hwpoisoned_pages,
++				  bool skip_reserved_pages)
+ {
+ 	struct page *page;
+ 
+@@ -253,6 +254,9 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+ 		else if (skip_hwpoisoned_pages && PageHWPoison(page))
+ 			/* A HWPoisoned page cannot be also PageBuddy */
+ 			pfn++;
++		else if (skip_reserved_pages && PageReserved(page))
++			/* Skipping Reserved pages */
++			pfn++;
+ 		else
+ 			break;
+ 	}
+@@ -262,7 +266,7 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
+ 
+ /* Caller should ensure that requested range is in a single zone */
+ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+-			bool skip_hwpoisoned_pages)
++			bool skip_hwpoisoned_pages, bool skip_reserved_pages)
+ {
+ 	unsigned long pfn, flags;
+ 	struct page *page;
+@@ -285,7 +289,8 @@ int test_pages_isolated(unsigned long start_pfn, unsigned long end_pfn,
+ 	zone = page_zone(page);
+ 	spin_lock_irqsave(&zone->lock, flags);
+ 	pfn = __test_page_isolated_in_pageblock(start_pfn, end_pfn,
+-						skip_hwpoisoned_pages);
++						skip_hwpoisoned_pages,
++						skip_reserved_pages);
+ 	spin_unlock_irqrestore(&zone->lock, flags);
+ 
+ 	trace_test_pages_isolated(start_pfn, end_pfn, pfn);
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
