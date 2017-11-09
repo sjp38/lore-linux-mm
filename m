@@ -1,85 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 777F9440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 17:23:43 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id q33so2846251qta.18
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 14:23:43 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id t126si2109405qkc.467.2017.11.09.14.23.42
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CB9F6440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 17:59:15 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id b6so5802380pff.18
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 14:59:15 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id w4si6420851plp.452.2017.11.09.14.59.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 14:23:42 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA9MNMsG124055
-	for <linux-mm@kvack.org>; Thu, 9 Nov 2017 17:23:41 -0500
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2e4y3h9u8u-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 09 Nov 2017 17:23:40 -0500
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Thu, 9 Nov 2017 17:23:39 -0500
-Date: Thu, 9 Nov 2017 14:23:29 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v9 00/51] powerpc, mm: Memory Protection Keys
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
- <87efpbm706.fsf@mid.deneb.enyo.de>
- <20171107012218.GA5546@ram.oc3035372033.ibm.com>
+        Thu, 09 Nov 2017 14:59:14 -0800 (PST)
+From: Krishna Reddy <vdumpa@nvidia.com>
+Subject: [PATCH] arm64: mm: Set MAX_PHYSMEM_BITS based on ARM64_VA_BITS
+Date: Thu, 9 Nov 2017 14:58:59 -0800
+Message-ID: <1510268339-21989-1-git-send-email-vdumpa@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171107012218.GA5546@ram.oc3035372033.ibm.com>
-Message-Id: <20171109222329.GB5656@ram.oc3035372033.ibm.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fw@deneb.enyo.de>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linux-arch@vger.kernel.org, ebiederm@xmission.com, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: catalin.marinas@arm.com, will.deacon@arm.com, vdumpa@nvidia.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, linux-tegra@vger.kernel.org
 
-On Mon, Nov 06, 2017 at 05:22:18PM -0800, Ram Pai wrote:
-> On Mon, Nov 06, 2017 at 10:28:41PM +0100, Florian Weimer wrote:
-> > * Ram Pai:
-> > 
-> > > Testing:
-> > > -------
-> > > This patch series has passed all the protection key
-> > > tests available in the selftest directory.The
-> > > tests are updated to work on both x86 and powerpc.
-> > > The selftests have passed on x86 and powerpc hardware.
-> > 
-....snip....
+MAX_PHYSMEM_BITS greater than ARM64_VA_BITS is causing memory
+access fault, when HMM_DMIRROR test is enabled.
+In the failing case, ARM64_VA_BITS=39 and MAX_PHYSMEM_BITS=48.
+HMM_DMIRROR test selects phys memory range from end based on
+MAX_PHYSMEM_BITS and gets mapped into VA space linearly.
+As VA space is 39-bit and phys space is 48-bit, this has caused
+incorrect mapping and leads to memory access fault.
 
-> > What about siglongjmp from a signal handler?
-> 
-> On powerpc there is some relief.  the permissions on a key can be
-> modified from anywhere, including from the signal handler, and the
-> effect will be immediate.  You dont have to wait till the
-> signal handler returns for the key permissions to be restore.
-> 
-> also after return from the sigsetjmp();
-> possibly caused by siglongjmp(), the program can restore the permission
-> on any key.
-> 
-> Atleast that is my theory. Can you give me a testcase; if you have one
-> handy.
-> 
-> > 
-> >   <https://sourceware.org/bugzilla/show_bug.cgi?id=22396>
-> > 
+Limiting the MAX_PHYSMEM_BITS to ARM64_VA_BITS fixes the issue and is
+the right thing instead of hard coding it as 48-bit always.
 
-reading through the bug report, you mention that the following
-"The application may not be able to save and restore the protection bits
-for all keys because the kernel API does not actually specify that the
-set of keys is a small, fixed set."
+[    3.378655] Unable to handle kernel paging request at virtual address 3befd000000
+[    3.378662] pgd = ffffff800a04b000
+[    3.378900] [3befd000000] *pgd=0000000081fa3003, *pud=0000000081fa3003, *pmd=0060000268200711
+[    3.378933] Internal error: Oops: 96000044 [#1] PREEMPT SMP
+[    3.378938] Modules linked in:
+[    3.378948] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.9.52-tegra-g91402fdc013b-dirty #51
+[    3.378950] Hardware name: quill (DT)
+[    3.378954] task: ffffffc1ebac0000 task.stack: ffffffc1eba64000
+[    3.378967] PC is at __memset+0x1ac/0x1d0
+[    3.378976] LR is at sparse_add_one_section+0xf8/0x174
+[    3.378981] pc : [<ffffff80084c212c>] lr : [<ffffff8008eda17c>] pstate: 404000c5
+[    3.378983] sp : ffffffc1eba67a40
+[    3.378993] x29: ffffffc1eba67a40 x28: 0000000000000000
+[    3.378999] x27: 000000000003ffff x26: 0000000000000040
+[    3.379005] x25: 00000000000003ff x24: ffffffc1e9f6cf80
+[    3.379010] x23: ffffff8009ecb2d4 x22: 000003befd000000
+[    3.379015] x21: ffffffc1e9923ff0 x20: 000000000003ffff
+[    3.379020] x19: 00000000ffffffef x18: ffffffffffffffff
+[    3.379025] x17: 00000000000024d7 x16: 0000000000000000
+[    3.379030] x15: ffffff8009cd8690 x14: ffffffc1e9f6c70c
+[    3.379035] x13: ffffffc1e9f6c70b x12: 0000000000000030
+[    3.379039] x11: 0000000000000040 x10: 0101010101010101
+[    3.379044] x9 : 0000000000000000 x8 : 000003befd000000
+[    3.379049] x7 : 0000000000000000 x6 : 000000000000003f
+[    3.379053] x5 : 0000000000000040 x4 : 0000000000000000
+[    3.379058] x3 : 0000000000000004 x2 : 0000000000ffffc0
+[    3.379063] x1 : 0000000000000000 x0 : 000003befd000000
+[    3.379064]
+[    3.379069] Process swapper/0 (pid: 1, stack limit = 0xffffffc1eba64028)
+[    3.379071] Call trace:
+[    3.379079] [<ffffff80084c212c>] __memset+0x1ac/0x1d0
+[    3.379085] [<ffffff8008ed5100>] __add_pages+0x130/0x2e0
+[    3.379093] [<ffffff8008211cf4>] hmm_devmem_pages_create+0x20c/0x310
+[    3.379100] [<ffffff8008211fcc>] hmm_devmem_add+0x1d4/0x270
+[    3.379128] [<ffffff80087111c8>] dmirror_probe+0x50/0x158
+[    3.379137] [<ffffff8008732590>] platform_drv_probe+0x60/0xc8
+[    3.379143] [<ffffff800872fbf4>] driver_probe_device+0x26c/0x420
+[    3.379149] [<ffffff800872fecc>] __driver_attach+0x124/0x128
+[    3.379155] [<ffffff800872d388>] bus_for_each_dev+0x88/0xe8
+[    3.379166] [<ffffff800872f248>] driver_attach+0x30/0x40
+[    3.379171] [<ffffff800872ec18>] bus_add_driver+0x1f8/0x2b0
+[    3.379177] [<ffffff8008730e38>] driver_register+0x68/0x100
+[    3.379183] [<ffffff80087324d4>] __platform_driver_register+0x5c/0x68
+[    3.379192] [<ffffff800951f918>] hmm_dmirror_init+0x88/0xc4
+[    3.379200] [<ffffff800808359c>] do_one_initcall+0x5c/0x170
+[    3.379208] [<ffffff80094e0dd0>] kernel_init_freeable+0x1b8/0x258
+[    3.379231] [<ffffff8008ed44f0>] kernel_init+0x18/0x108
+[    3.379236] [<ffffff80080832d0>] ret_from_fork+0x10/0x40
+[    3.379246] ---[ end trace 578db63bb139b8b8 ]---
 
-What exact kernel API do you need? This patch set exposes the total
-number of keys and  max keys,  through sysfs.
-https://marc.info/?l=linux-kernel&m=150995950219669&w=2
+Signed-off-by: Krishna Reddy <vdumpa@nvidia.com>
+---
+ arch/arm64/include/asm/sparsemem.h | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-Is this sufficient? or do you need something else?
-
-RP
+diff --git a/arch/arm64/include/asm/sparsemem.h b/arch/arm64/include/asm/sparsemem.h
+index 74a9d301819f..19ecd0b0f3a3 100644
+--- a/arch/arm64/include/asm/sparsemem.h
++++ b/arch/arm64/include/asm/sparsemem.h
+@@ -17,7 +17,13 @@
+ #define __ASM_SPARSEMEM_H
+ 
+ #ifdef CONFIG_SPARSEMEM
++
++#ifdef CONFIG_ARM64_VA_BITS
++#define MAX_PHYSMEM_BITS	CONFIG_ARM64_VA_BITS
++#else
+ #define MAX_PHYSMEM_BITS	48
++#endif
++
+ #define SECTION_SIZE_BITS	30
+ #endif
+ 
+-- 
+2.1.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
