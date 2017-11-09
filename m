@@ -1,48 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DF6D440460
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 04:34:50 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id b16so1437666lfb.21
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 01:34:50 -0800 (PST)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id r144si2447027lff.288.2017.11.09.01.34.48
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9248F440460
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:05:35 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id n37so2855108wrb.17
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:05:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l9si569503edf.545.2017.11.09.02.05.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 01:34:48 -0800 (PST)
-Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
-References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171026114100.tfb3xemvumg2a7su@dhcp22.suse.cz>
- <91bdbdea-3f33-b7c0-8345-d0fa8c7f1cf1@sonymobile.com>
- <20171109085249.guihvx5tzm77u3qk@dhcp22.suse.cz>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <ef81333e-0e19-c6f6-a960-093dc60fb75c@sony.com>
-Date: Thu, 9 Nov 2017 10:34:46 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 02:05:33 -0800 (PST)
+Date: Thu, 9 Nov 2017 11:05:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/page_alloc: Avoid KERN_CONT uses in warn_alloc
+Message-ID: <20171109100531.3cn2hcqnuj7mjaju@dhcp22.suse.cz>
+References: <b31236dfe3fc924054fd7842bde678e71d193638.1509991345.git.joe@perches.com>
+ <20171107125055.cl5pyp2zwon44x5l@dhcp22.suse.cz>
+ <1510068865.1000.19.camel@perches.com>
+ <20171107154351.ebtitvjyo5v3bt26@dhcp22.suse.cz>
+ <1510070607.1000.23.camel@perches.com>
 MIME-Version: 1.0
-In-Reply-To: <20171109085249.guihvx5tzm77u3qk@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1510070607.1000.23.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, peter enderborg <peter.enderborg@sonymobile.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 11/09/2017 09:52 AM, Michal Hocko wrote:
-> I am not sure. I would rather see a tracepoint to mark the allocator
-> entry. This would allow both 1) measuring the allocation latency (to
-> compare it to the trace_mm_page_alloc and 2) check for stalls with
-> arbitrary user defined timeout (just print all allocations which haven't
-> passed trace_mm_page_alloc for the given amount of time).
+On Tue 07-11-17 08:03:27, Joe Perches wrote:
+> On Tue, 2017-11-07 at 16:43 +0100, Michal Hocko wrote:
+> > On Tue 07-11-17 07:34:25, Joe Perches wrote:
+> []
+> > > I believe, but have not tested, that using a specific width
+> > > as an argument to %*pb[l] will constrain the number of
+> > > spaces before the '(null)' output in any NULL pointer use.
+> > > 
+> > > So how about a #define like
+> > > 
+> > > /*
+> > >  * nodemask_pr_args is only used with a "%*pb[l]" format for a nodemask.
+> > >  * A NULL nodemask uses 6 to emit "(null)" without leading spaces.
+> > >  */
+> > > #define nodemask_pr_args(maskp)			\
+> > > 	(maskp) ? MAX_NUMNODES : 6,		\
+> > > 	(maskp) ? (maskp)->bits : NULL
+> > 
+> > Why not -1 then?
+> 
+> I believe it's the field width and not the precision that
+> needs to be set.
 
-Traces are not that expensive, but there are more than few in calls in this path. And Im trying to
-keep it as small that it can used for maintenance versions too.
+But the first of the two arguments is the field with specifier, not the
+precision. /me confused...
 
-This is suggestion is a quick way of keeping the current solution for the ones that are interested
-the slow allocations. If we are going for a solution with a time-out parameter from the user what
-interface do you suggest to do this configuration. A filter parameter for the event?
+Anyway, the following works as expected when printing the OOM report:
+[   47.005321] mem_eater invoked oom-killer: gfp_mask=0x14280ca(GFP_HIGHUSER_MOVABLE|__GFP_ZERO), nodemask=(null), order=0, oom_score_adj=0
+[   47.007183] mem_eater cpuset=/ mems_allowed=0-1
+[   47.007829] CPU: 3 PID: 3223 Comm: mem_eater Tainted: G        W       4.13.0-pr1-dirty #11
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I hope I haven't overlooked anything
+---
