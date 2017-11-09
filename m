@@ -1,58 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F6E440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 08:54:47 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 107so3184195wra.7
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 05:54:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b18si5468140edh.47.2017.11.09.05.54.45
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 01B40440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 09:28:53 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id n66so4274108qki.10
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 06:28:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v78sor4745963qka.164.2017.11.09.06.28.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 05:54:46 -0800 (PST)
-Date: Thu, 9 Nov 2017 14:54:44 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
-References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
- <20171030124358.GF23278@quack2.suse.cz>
- <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
- <20171031101238.GD8989@quack2.suse.cz>
+        (Google Transport Security);
+        Thu, 09 Nov 2017 06:28:51 -0800 (PST)
+Date: Thu, 9 Nov 2017 09:28:50 -0500
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH 2/4] writeback: allow for dirty metadata accounting
+Message-ID: <20171109142848.uikyp7w25chg42u7@destiny>
+References: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
+ <1510167660-26196-2-git-send-email-josef@toxicpanda.com>
+ <20171109103246.GB9263@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171031101238.GD8989@quack2.suse.cz>
+In-Reply-To: <20171109103246.GB9263@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jan Kara <jack@suse.cz>
-Cc: Yang Shi <yang.s@alibaba-inc.com>, amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-[Sorry for the late reply]
-
-On Tue 31-10-17 11:12:38, Jan Kara wrote:
-> On Tue 31-10-17 00:39:58, Yang Shi wrote:
-[...]
-> > I do agree it is not fair and not neat to account to producer rather than
-> > misbehaving consumer, but current memcg design looks not support such use
-> > case. And, the other question is do we know who is the listener if it
-> > doesn't read the events?
+On Thu, Nov 09, 2017 at 11:32:46AM +0100, Jan Kara wrote:
+> On Wed 08-11-17 14:00:58, Josef Bacik wrote:
+> > From: Josef Bacik <jbacik@fb.com>
+> > 
+> > Provide a mechanism for file systems to indicate how much dirty metadata they
+> > are holding.  This introduces a few things
+> > 
+> > 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
+> > 2) WB stat for dirty metadata.  This way we know if we need to try and call into
+> > the file system to write out metadata.  This could potentially be used in the
+> > future to make balancing of dirty pages smarter.
+> > 
+> > Signed-off-by: Josef Bacik <jbacik@fb.com>
+> ...
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 13d711dd8776..0281abd62e87 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -3827,7 +3827,8 @@ static unsigned long node_pagecache_reclaimable(struct pglist_data *pgdat)
+> >  
+> >  	/* If we can't clean pages, remove dirty pages from consideration */
+> >  	if (!(node_reclaim_mode & RECLAIM_WRITE))
+> > -		delta += node_page_state(pgdat, NR_FILE_DIRTY);
+> > +		delta += node_page_state(pgdat, NR_FILE_DIRTY) +
+> > +			node_page_state(pgdat, NR_METADATA_DIRTY);
+> >  
+> >  	/* Watch for any possible underflows due to delta */
+> >  	if (unlikely(delta > nr_pagecache_reclaimable))
 > 
-> So you never know who will read from the notification file descriptor but
-> you can simply account that to the process that created the notification
-> group and that is IMO the right process to account to.
+> Do you expect your metadata pages to be accounted in NR_FILE_PAGES?
+> Otherwise this doesn't make sense. And even if they would, this function is
+> about kswapd / direct page reclaim and I don't think you've added smarts
+> there to writeout metadata. So if your metadata pages are going to show up
+> in NR_FILE_PAGES, you need to subtract NR_METADATA_DIRTY from reclaimable
+> pages always. It would be good to see btrfs counterpart to these patches so
+> that we can answer questions like this easily...
+> 
 
-Yes, if the creator is de-facto owner which defines the lifetime of
-those objects then this should be a target of the charge.
+Ah good point, this accounting doesn't belong here, I'll fix it up.  I haven't
+been sending the btrfs patch because it's fucking huge, since untangling the
+btree inode usage requires a lot of reworking all at once so it's actually
+buildable, so it didn't seem useful for the larger non-btrfs audience.  You can
+see it in my git tree here
 
-> I agree that current SLAB memcg accounting does not allow to account to a
-> different memcg than the one of the running process. However I *think* it
-> should be possible to add such interface. Michal?
+https://git.kernel.org/pub/scm/linux/kernel/git/josef/btrfs-next.git/commit/?h=new-kill-btree-inode&id=5dfd4a0012c1253260da07bee3fa3d4c13aac616
 
-We do have memcg_kmem_charge_memcg but that would require some plumbing
-to hook it into the specific allocation path. I suspect it uses kmalloc,
-right?
--- 
-Michal Hocko
-SUSE Labs
+I'll fix this up.  Thanks,
+
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
