@@ -1,442 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C14E440460
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 20:41:40 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id l8so3237879wmg.7
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 17:41:40 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 64si3604386edl.473.2017.11.08.17.41.37
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D3AC440460
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 22:29:11 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id u132so443083ita.1
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 19:29:11 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0092.hostedemail.com. [216.40.44.92])
+        by mx.google.com with ESMTPS id t68si1360197itf.13.2017.11.08.19.29.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 08 Nov 2017 17:41:38 -0800 (PST)
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [RFC PATCH 3/3] mm: memfd: remove memfd code from shmem files and use new memfd files
-Date: Wed,  8 Nov 2017 17:41:09 -0800
-Message-Id: <20171109014109.21077-4-mike.kravetz@oracle.com>
-In-Reply-To: <20171109014109.21077-1-mike.kravetz@oracle.com>
-References: <20171109014109.21077-1-mike.kravetz@oracle.com>
+        Wed, 08 Nov 2017 19:29:10 -0800 (PST)
+Date: Wed, 8 Nov 2017 22:29:05 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v3] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171108222905.426fc73a@vmware.local.home>
+In-Reply-To: <20171109005635.GA775@jagdpanzerIV>
+References: <20171102134515.6eef16de@gandalf.local.home>
+	<201711062106.ADI34320.JFtOFFHOOQVLSM@I-love.SAKURA.ne.jp>
+	<20171107014015.GA1822@jagdpanzerIV>
+	<20171108051955.GA468@jagdpanzerIV>
+	<20171108092951.4d677bca@gandalf.local.home>
+	<20171109005635.GA775@jagdpanzerIV>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, David Herrmann <dh.herrmann@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Tejun Heo <tj@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, mhocko@kernel.org, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz
 
-Remove memfd and file sealing routines from shmem.c and enable the
-use of the new files (memfd.c and memfd.h).  A new config option
-MEMFD_CREATE is defined that is enabled if TMPFS -or- HUGETLBFS is
-defined.
+On Thu, 9 Nov 2017 09:56:35 +0900
+Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
 
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- fs/Kconfig               |   3 +
- fs/fcntl.c               |   2 +-
- include/linux/shmem_fs.h |  13 --
- mm/Makefile              |   1 +
- mm/shmem.c               | 323 -----------------------------------------------
- 5 files changed, 5 insertions(+), 337 deletions(-)
+> Hello Steven,
+> 
+> On (11/08/17 09:29), Steven Rostedt wrote:
+> > On Wed, 8 Nov 2017 14:19:55 +0900
+> > Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
+> >   
+> > > the change goes further. I did express some of my concerns during the KS,
+> > > I'll just bring them to the list.
+> > > 
+> > > 
+> > > we now always shift printing from a save - scheduleable - context to
+> > > a potentially unsafe one - atomic. by example:  
+> > 
+> > And vice versa. We are now likely to go from a unscheduleable context
+> > to a schedule one, where before, that didn't exist.  
+> 
+> the existence of "and vice versa" is kinda alarming, isn't it? it's sort
+> of "yes, we can break some things, but we also can improve some things."
 
-diff --git a/fs/Kconfig b/fs/Kconfig
-index 7aee6d699fd6..a480ea0c7a44 100644
---- a/fs/Kconfig
-+++ b/fs/Kconfig
-@@ -200,6 +200,9 @@ config HUGETLBFS
- config HUGETLB_PAGE
- 	def_bool HUGETLBFS
- 
-+config MEMFD_CREATE
-+	def_bool TMPFS || HUGETLBFS
-+
- config ARCH_HAS_GIGANTIC_PAGE
- 	bool
- 
-diff --git a/fs/fcntl.c b/fs/fcntl.c
-index 752c23743616..eedb898abe06 100644
---- a/fs/fcntl.c
-+++ b/fs/fcntl.c
-@@ -22,7 +22,7 @@
- #include <linux/rcupdate.h>
- #include <linux/pid_namespace.h>
- #include <linux/user_namespace.h>
--#include <linux/shmem_fs.h>
-+#include <linux/memfd.h>
- #include <linux/compat.h>
- 
- #include <asm/poll.h>
-diff --git a/include/linux/shmem_fs.h b/include/linux/shmem_fs.h
-index 0dac8c0f4aa4..098f8882e83b 100644
---- a/include/linux/shmem_fs.h
-+++ b/include/linux/shmem_fs.h
-@@ -107,19 +107,6 @@ static inline bool shmem_file(struct file *file)
- extern bool shmem_charge(struct inode *inode, long pages);
- extern void shmem_uncharge(struct inode *inode, long pages);
- 
--#ifdef CONFIG_TMPFS
--
--extern long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
--
--#else
--
--static inline long memfd_fcntl(struct file *f, unsigned int c, unsigned long a)
--{
--	return -EINVAL;
--}
--
--#endif
--
- #ifdef CONFIG_TRANSPARENT_HUGE_PAGECACHE
- extern bool shmem_huge_enabled(struct vm_area_struct *vma);
- #else
-diff --git a/mm/Makefile b/mm/Makefile
-index e3ac3aeb533b..b3ff66e29d5b 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -105,3 +105,4 @@ obj-$(CONFIG_DEBUG_PAGE_REF) += debug_page_ref.o
- obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
- obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
- obj-$(CONFIG_HMM) += hmm.o
-+obj-$(CONFIG_MEMFD_CREATE) += memfd.o
-diff --git a/mm/shmem.c b/mm/shmem.c
-index b08ba5d84d84..99262a963f8f 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2604,241 +2604,6 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
- 	return offset;
- }
- 
--/*
-- * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
-- * so reuse a tag which we firmly believe is never set or cleared on shmem.
-- */
--#define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
--#define LAST_SCAN               4       /* about 150ms max */
--
--static void shmem_tag_pins(struct address_space *mapping)
--{
--	struct radix_tree_iter iter;
--	void **slot;
--	pgoff_t start;
--	struct page *page;
--
--	lru_add_drain();
--	start = 0;
--	rcu_read_lock();
--
--	radix_tree_for_each_slot(slot, &mapping->page_tree, &iter, start) {
--		page = radix_tree_deref_slot(slot);
--		if (!page || radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				slot = radix_tree_iter_retry(&iter);
--				continue;
--			}
--		} else if (page_count(page) - page_mapcount(page) > 1) {
--			spin_lock_irq(&mapping->tree_lock);
--			radix_tree_tag_set(&mapping->page_tree, iter.index,
--					   SHMEM_TAG_PINNED);
--			spin_unlock_irq(&mapping->tree_lock);
--		}
--
--		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
--			cond_resched_rcu();
--		}
--	}
--	rcu_read_unlock();
--}
--
--/*
-- * Setting SEAL_WRITE requires us to verify there's no pending writer. However,
-- * via get_user_pages(), drivers might have some pending I/O without any active
-- * user-space mappings (eg., direct-IO, AIO). Therefore, we look at all pages
-- * and see whether it has an elevated ref-count. If so, we tag them and wait for
-- * them to be dropped.
-- * The caller must guarantee that no new user will acquire writable references
-- * to those pages to avoid races.
-- */
--static int shmem_wait_for_pins(struct address_space *mapping)
--{
--	struct radix_tree_iter iter;
--	void **slot;
--	pgoff_t start;
--	struct page *page;
--	int error, scan;
--
--	shmem_tag_pins(mapping);
--
--	error = 0;
--	for (scan = 0; scan <= LAST_SCAN; scan++) {
--		if (!radix_tree_tagged(&mapping->page_tree, SHMEM_TAG_PINNED))
--			break;
--
--		if (!scan)
--			lru_add_drain_all();
--		else if (schedule_timeout_killable((HZ << scan) / 200))
--			scan = LAST_SCAN;
--
--		start = 0;
--		rcu_read_lock();
--		radix_tree_for_each_tagged(slot, &mapping->page_tree, &iter,
--					   start, SHMEM_TAG_PINNED) {
--
--			page = radix_tree_deref_slot(slot);
--			if (radix_tree_exception(page)) {
--				if (radix_tree_deref_retry(page)) {
--					slot = radix_tree_iter_retry(&iter);
--					continue;
--				}
--
--				page = NULL;
--			}
--
--			if (page &&
--			    page_count(page) - page_mapcount(page) != 1) {
--				if (scan < LAST_SCAN)
--					goto continue_resched;
--
--				/*
--				 * On the last scan, we clean up all those tags
--				 * we inserted; but make a note that we still
--				 * found pages pinned.
--				 */
--				error = -EBUSY;
--			}
--
--			spin_lock_irq(&mapping->tree_lock);
--			radix_tree_tag_clear(&mapping->page_tree,
--					     iter.index, SHMEM_TAG_PINNED);
--			spin_unlock_irq(&mapping->tree_lock);
--continue_resched:
--			if (need_resched()) {
--				slot = radix_tree_iter_resume(slot, &iter);
--				cond_resched_rcu();
--			}
--		}
--		rcu_read_unlock();
--	}
--
--	return error;
--}
--
--static unsigned int *memfd_file_seals_ptr(struct file *file)
--{
--	if (file->f_op == &shmem_file_operations)
--		return &SHMEM_I(file_inode(file))->seals;
--
--#ifdef CONFIG_HUGETLBFS
--	if (file->f_op == &hugetlbfs_file_operations)
--		return &HUGETLBFS_I(file_inode(file))->seals;
--#endif
--
--	return NULL;
--}
--
--#define F_ALL_SEALS (F_SEAL_SEAL | \
--		     F_SEAL_SHRINK | \
--		     F_SEAL_GROW | \
--		     F_SEAL_WRITE)
--
--static int memfd_add_seals(struct file *file, unsigned int seals)
--{
--	struct inode *inode = file_inode(file);
--	unsigned int *file_seals;
--	int error;
--
--	/*
--	 * SEALING
--	 * Sealing allows multiple parties to share a shmem-file but restrict
--	 * access to a specific subset of file operations. Seals can only be
--	 * added, but never removed. This way, mutually untrusted parties can
--	 * share common memory regions with a well-defined policy. A malicious
--	 * peer can thus never perform unwanted operations on a shared object.
--	 *
--	 * Seals are only supported on special shmem-files and always affect
--	 * the whole underlying inode. Once a seal is set, it may prevent some
--	 * kinds of access to the file. Currently, the following seals are
--	 * defined:
--	 *   SEAL_SEAL: Prevent further seals from being set on this file
--	 *   SEAL_SHRINK: Prevent the file from shrinking
--	 *   SEAL_GROW: Prevent the file from growing
--	 *   SEAL_WRITE: Prevent write access to the file
--	 *
--	 * As we don't require any trust relationship between two parties, we
--	 * must prevent seals from being removed. Therefore, sealing a file
--	 * only adds a given set of seals to the file, it never touches
--	 * existing seals. Furthermore, the "setting seals"-operation can be
--	 * sealed itself, which basically prevents any further seal from being
--	 * added.
--	 *
--	 * Semantics of sealing are only defined on volatile files. Only
--	 * anonymous shmem files support sealing. More importantly, seals are
--	 * never written to disk. Therefore, there's no plan to support it on
--	 * other file types.
--	 */
--
--	if (!(file->f_mode & FMODE_WRITE))
--		return -EPERM;
--	if (seals & ~(unsigned int)F_ALL_SEALS)
--		return -EINVAL;
--
--	inode_lock(inode);
--
--	file_seals = memfd_file_seals_ptr(file);
--	if (!file_seals) {
--		error = -EINVAL;
--		goto unlock;
--	}
--
--	if (*file_seals & F_SEAL_SEAL) {
--		error = -EPERM;
--		goto unlock;
--	}
--
--	if ((seals & F_SEAL_WRITE) && !(*file_seals & F_SEAL_WRITE)) {
--		error = mapping_deny_writable(file->f_mapping);
--		if (error)
--			goto unlock;
--
--		error = shmem_wait_for_pins(file->f_mapping);
--		if (error) {
--			mapping_allow_writable(file->f_mapping);
--			goto unlock;
--		}
--	}
--
--	*file_seals |= seals;
--	error = 0;
--
--unlock:
--	inode_unlock(inode);
--	return error;
--}
--
--static int memfd_get_seals(struct file *file)
--{
--	unsigned int *seals = memfd_file_seals_ptr(file);
--
--	return seals ? *seals : -EINVAL;
--}
--
--long memfd_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
--{
--	long error;
--
--	switch (cmd) {
--	case F_ADD_SEALS:
--		/* disallow upper 32bit */
--		if (arg > UINT_MAX)
--			return -EINVAL;
--
--		error = memfd_add_seals(file, arg);
--		break;
--	case F_GET_SEALS:
--		error = memfd_get_seals(file);
--		break;
--	default:
--		error = -EINVAL;
--		break;
--	}
--
--	return error;
--}
--
- static long shmem_fallocate(struct file *file, int mode, loff_t offset,
- 							 loff_t len)
- {
-@@ -3662,94 +3427,6 @@ static int shmem_show_options(struct seq_file *seq, struct dentry *root)
- 	shmem_show_mpol(seq, sbinfo->mpol);
- 	return 0;
- }
--
--#define MFD_NAME_PREFIX "memfd:"
--#define MFD_NAME_PREFIX_LEN (sizeof(MFD_NAME_PREFIX) - 1)
--#define MFD_NAME_MAX_LEN (NAME_MAX - MFD_NAME_PREFIX_LEN)
--
--#define MFD_ALL_FLAGS (MFD_CLOEXEC | MFD_ALLOW_SEALING | MFD_HUGETLB)
--
--SYSCALL_DEFINE2(memfd_create,
--		const char __user *, uname,
--		unsigned int, flags)
--{
--	unsigned int *file_seals;
--	struct file *file;
--	int fd, error;
--	char *name;
--	long len;
--
--	if (!(flags & MFD_HUGETLB)) {
--		if (flags & ~(unsigned int)MFD_ALL_FLAGS)
--			return -EINVAL;
--	} else {
--		/* Allow huge page size encoding in flags. */
--		if (flags & ~(unsigned int)(MFD_ALL_FLAGS |
--				(MFD_HUGE_MASK << MFD_HUGE_SHIFT)))
--			return -EINVAL;
--	}
--
--	/* length includes terminating zero */
--	len = strnlen_user(uname, MFD_NAME_MAX_LEN + 1);
--	if (len <= 0)
--		return -EFAULT;
--	if (len > MFD_NAME_MAX_LEN + 1)
--		return -EINVAL;
--
--	name = kmalloc(len + MFD_NAME_PREFIX_LEN, GFP_KERNEL);
--	if (!name)
--		return -ENOMEM;
--
--	strcpy(name, MFD_NAME_PREFIX);
--	if (copy_from_user(&name[MFD_NAME_PREFIX_LEN], uname, len)) {
--		error = -EFAULT;
--		goto err_name;
--	}
--
--	/* terminating-zero may have changed after strnlen_user() returned */
--	if (name[len + MFD_NAME_PREFIX_LEN - 1]) {
--		error = -EFAULT;
--		goto err_name;
--	}
--
--	fd = get_unused_fd_flags((flags & MFD_CLOEXEC) ? O_CLOEXEC : 0);
--	if (fd < 0) {
--		error = fd;
--		goto err_name;
--	}
--
--	if (flags & MFD_HUGETLB) {
--		struct user_struct *user = NULL;
--
--		file = hugetlb_file_setup(name, 0, VM_NORESERVE, &user,
--					HUGETLB_ANONHUGE_INODE,
--					(flags >> MFD_HUGE_SHIFT) &
--					MFD_HUGE_MASK);
--	} else
--		file = shmem_file_setup(name, 0, VM_NORESERVE);
--	if (IS_ERR(file)) {
--		error = PTR_ERR(file);
--		goto err_fd;
--	}
--	file->f_mode |= FMODE_LSEEK | FMODE_PREAD | FMODE_PWRITE;
--	file->f_flags |= O_RDWR | O_LARGEFILE;
--
--	if (flags & MFD_ALLOW_SEALING) {
--		file_seals = memfd_file_seals_ptr(file);
--		*file_seals &= ~F_SEAL_SEAL;
--	}
--
--	fd_install(fd, file);
--	kfree(name);
--	return fd;
--
--err_fd:
--	put_unused_fd(fd);
--err_name:
--	kfree(name);
--	return error;
--}
--
- #endif /* CONFIG_TMPFS */
- 
- static void shmem_put_super(struct super_block *sb)
--- 
-2.13.6
+Not really. Because the heuristic is that what calls printk will do the
+printk.
+
+> 
+> > And my approach, makes it more likely that the task doing the printk
+> > prints its own message, and less likely to print someone else's.
+> >   
+> > > 
+> > > CPU0			CPU1~CPU10	CPU11
+> > > 
+> > > console_lock()
+> > > 
+> > > 			printk();
+> > > 
+> > > console_unlock()			IRQ
+> > >  set console_owner			printk()
+> > > 					 sees console_owner
+> > > 					 set console_waiter
+> > >  sees console_waiter
+> > >  break
+> > > 					 console_unlock()
+> > > 					 ^^^^ lockup [?]  
+> > 
+> > How?  
+> 
+> oh, yes, the missing part - assume CPU1~CPU10 did 5000 printk() calls,
+> while console_sem was locked on CPU0. then we console_unlock() from CPU0
+> and shortly after IRQ->printk() from CPU11 forcibly takes over, so now
+> we are in console_unlock() from atomic, printing some 5000 messages.
+
+I'd say remove those 5000 printks ;-)
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
