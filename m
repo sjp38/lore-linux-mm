@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D660440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 08:42:46 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id 5so915709wmk.0
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 05:42:46 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 64F6E440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 08:54:47 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 107so3184195wra.7
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 05:54:47 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r13si1390123edk.420.2017.11.09.05.42.43
+        by mx.google.com with ESMTPS id b18si5468140edh.47.2017.11.09.05.54.45
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 05:42:44 -0800 (PST)
-Date: Thu, 9 Nov 2017 14:42:41 +0100
+        Thu, 09 Nov 2017 05:54:46 -0800 (PST)
+Date: Thu, 9 Nov 2017 14:54:44 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC] mm/memory_hotplug: make it possible to offline
- blocks with reserved pages
-Message-ID: <20171109134241.4dz6wchxzx27dgsr@dhcp22.suse.cz>
-References: <20171108130155.25499-1-vkuznets@redhat.com>
- <20171108142528.vsrkkqw6fihxdjio@dhcp22.suse.cz>
- <87y3nglqyi.fsf@vitty.brq.redhat.com>
- <20171108155740.z7fwptk3jg6rc7mv@dhcp22.suse.cz>
- <87po8slp9o.fsf@vitty.brq.redhat.com>
- <20171109131612.wjjwwvnxo2yxgswx@dhcp22.suse.cz>
- <8760ajlgut.fsf@vitty.brq.redhat.com>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171030124358.GF23278@quack2.suse.cz>
+ <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
+ <20171031101238.GD8989@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8760ajlgut.fsf@vitty.brq.redhat.com>
+In-Reply-To: <20171031101238.GD8989@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Hillf Danton <hillf.zj@alibaba-inc.com>, Johannes Weiner <hannes@cmpxchg.org>, "K. Y. Srinivasan" <kys@microsoft.com>, Stephen Hemminger <sthemmin@microsoft.com>, Alex Ng <alexng@microsoft.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Yang Shi <yang.s@alibaba-inc.com>, amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 09-11-17 14:30:18, Vitaly Kuznetsov wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
+[Sorry for the late reply]
+
+On Tue 31-10-17 11:12:38, Jan Kara wrote:
+> On Tue 31-10-17 00:39:58, Yang Shi wrote:
 [...]
-> > How realistic is that the host gives only such a small amount of memory
-> > btw?
+> > I do agree it is not fair and not neat to account to producer rather than
+> > misbehaving consumer, but current memcg design looks not support such use
+> > case. And, the other question is do we know who is the listener if it
+> > doesn't read the events?
 > 
-> It happens all the time, Hyper-V host will gradually increase guest's
-> memory when Dynamic Memory is enabled. Moreover, there's a manual
-> interface when host's admin can hotplug memory to guests (starting
-> WS2016) with 2M granularity.
+> So you never know who will read from the notification file descriptor but
+> you can simply account that to the process that created the notification
+> group and that is IMO the right process to account to.
 
-Sigh, this sounds quite insane but whatever. I am not sure we want to
-make the generic hotplug code more complicated for this single usecase.
-So I suspect you might be better off by implementing this feature on top
-of hotplug. Just keep track of the partial sections and make the memory
-which is not onlined yet reserved and unusable by the kernel. It sucks,
-I know, but as long as there is not a wider demand for sub section
-memory hotplug I would be rather reluctant to make the fragile code even
-more complicated. Mem section granularity is hardcoded in way too many
-places I am afraid.
+Yes, if the creator is de-facto owner which defines the lifetime of
+those objects then this should be a target of the charge.
+
+> I agree that current SLAB memcg accounting does not allow to account to a
+> different memcg than the one of the running process. However I *think* it
+> should be possible to add such interface. Michal?
+
+We do have memcg_kmem_charge_memcg but that would require some plumbing
+to hook it into the specific allocation path. I suspect it uses kmalloc,
+right?
 -- 
 Michal Hocko
 SUSE Labs
