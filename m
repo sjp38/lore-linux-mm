@@ -1,55 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 52D1D440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 13:58:45 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id b189so5075880oia.10
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 10:58:45 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e44sor774564otd.331.2017.11.09.10.58.44
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 67F46440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 14:04:25 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 76so5397584pfr.3
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 11:04:25 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v13si227266plk.576.2017.11.09.11.04.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 Nov 2017 10:58:44 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 11:04:24 -0800 (PST)
+Received: from mail-io0-f176.google.com (mail-io0-f176.google.com [209.85.223.176])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id C5917214EE
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 19:04:23 +0000 (UTC)
+Received: by mail-io0-f176.google.com with SMTP id p186so10954043ioe.12
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 11:04:23 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1711091340140.5328@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108150447.GA10374@infradead.org> <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108153522.GB24548@infradead.org> <alpine.LRH.2.02.1711081236570.1168@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108174747.GA12199@infradead.org> <alpine.LRH.2.02.1711081516010.29922@file01.intranet.prod.int.rdu2.redhat.com>
- <CAPcyv4hR7DQ98ZCqqeyD2ihO0jWpQqPv_+s4v6iVaiNWrv96vw@mail.gmail.com>
- <alpine.LRH.2.02.1711091130070.9079@file01.intranet.prod.int.rdu2.redhat.com>
- <CAPcyv4jb4UW_qjzenyKCbbufSL0rHGBU4OHDQo9BH212Kjtppg@mail.gmail.com>
- <alpine.LRH.2.02.1711091231240.28067@file01.intranet.prod.int.rdu2.redhat.com>
- <CAPcyv4jsUuROY9Bk8xXupuJq22xRUDoiiTSqegv-njUR6MxeYw@mail.gmail.com> <alpine.LRH.2.02.1711091340140.5328@file01.intranet.prod.int.rdu2.redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 9 Nov 2017 10:58:43 -0800
-Message-ID: <CAPcyv4j6K13wjn+BQJ-_S1iuuxuU6_XsfhwKRc9ZkxxGH9xc-Q@mail.gmail.com>
-Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent memory
+In-Reply-To: <20171108194731.AB5BDA01@viggo.jf.intel.com>
+References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194731.AB5BDA01@viggo.jf.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Thu, 9 Nov 2017 11:04:02 -0800
+Message-ID: <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
+Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, "Luck, Tony" <tony.luck@intel.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Thu, Nov 9, 2017 at 10:51 AM, Mikulas Patocka <mpatocka@redhat.com> wrote:
-[..]
->> The drivers don't need to react, once the pages are pinned for dma the
->> hot-unplug will not progress until all those page references are
->> dropped.
+On Wed, Nov 8, 2017 at 11:47 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
 >
-> I am not talking about moving pages here, I'm talking about possible
-> hardware errors in persistent memory. In this situation, the storage
-> controller receives an error on the bus - and the question is, how will it
-> react. Ideally, it should abort just this transfer and return an error
-> that the driver will propagate up. But I'm skeptical that someone is
-> really testing the controllers and drivers for this possiblity.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> The VSYSCALL page is mapped by kernel page tables at a kernel address.
+> It is troublesome to support with KAISER in place, so disable the
+> native case.
+>
+> Also add some help text about how KAISER might affect the emulation
+> case as well.
 
-This is something that drive controllers already need to deal with
-today on DRAM, but I suspect you are right because in general
-error-path testing in drivers is rare to non-existent in Linux. We can
-endeavor to do better with persistent memory where we have some
-explicit error injection facilities defined in ACPI that might enjoy
-wider support than the existing EINJ facility.
+Can you re-explain why this is helpful?
+
+Also, I'm about to send patches that may cause a rethinking of how
+KAISER handles the fixmap.
+
+--Andy
+
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
+> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
+> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: x86@kernel.org
+>
+> ---
+>
+>  b/arch/x86/Kconfig |    8 ++++++++
+>  1 file changed, 8 insertions(+)
+>
+> diff -puN arch/x86/Kconfig~kaiser-no-vsyscall arch/x86/Kconfig
+> --- a/arch/x86/Kconfig~kaiser-no-vsyscall       2017-11-08 10:45:39.157681370 -0800
+> +++ b/arch/x86/Kconfig  2017-11-08 10:45:39.162681370 -0800
+> @@ -2231,6 +2231,9 @@ choice
+>
+>         config LEGACY_VSYSCALL_NATIVE
+>                 bool "Native"
+> +               # The VSYSCALL page comes from the kernel page tables
+> +               # and is not available when KAISER is enabled.
+> +               depends on ! KAISER
+>                 help
+>                   Actual executable code is located in the fixed vsyscall
+>                   address mapping, implementing time() efficiently. Since
+> @@ -2248,6 +2251,11 @@ choice
+>                   exploits. This configuration is recommended when userspace
+>                   still uses the vsyscall area.
+>
+> +                 When KAISER is enabled, the vsyscall area will become
+> +                 unreadable.  This emulation option still works, but KAISER
+> +                 will make it harder to do things like trace code using the
+> +                 emulation.
+> +
+>         config LEGACY_VSYSCALL_NONE
+>                 bool "None"
+>                 help
+> _
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
