@@ -1,209 +1,253 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 82BA6440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:11:02 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id n19so1354505ote.23
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:11:02 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id w108si3067926otb.83.2017.11.09.02.11.01
-        for <linux-mm@kvack.org>;
-        Thu, 09 Nov 2017 02:11:01 -0800 (PST)
-Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
- <20171011082227.20546-2-liuwenliang@huawei.com>
- <227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Message-ID: <8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
-Date: Thu, 9 Nov 2017 10:10:53 +0000
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA409440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:12:29 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 11so2903900wrb.10
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:12:29 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w34si243399edc.96.2017.11.09.02.12.27
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 02:12:27 -0800 (PST)
+Date: Thu, 9 Nov 2017 11:12:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171109101138.qmy3366myzjafexr@dhcp22.suse.cz>
+References: <20171108102723.602216b1@gandalf.local.home>
 MIME-Version: 1.0
-In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171108102723.602216b1@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>
-Cc: "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org
 
-On 09/11/17 07:46, Liuwenliang (Abbott Liu) wrote:
-> On 12/10/17 15:59, Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
->> On 11/10/17 09:22, Abbott Liu wrote:
->>> diff --git a/arch/arm/include/asm/proc-fns.h b/arch/arm/include/asm/proc-fns.h
->>> index f2e1af4..6e26714 100644
->>> --- a/arch/arm/include/asm/proc-fns.h
->>> +++ b/arch/arm/include/asm/proc-fns.h
->>> @@ -131,6 +131,15 @@ extern void cpu_resume(void);
->>>  		pg &= ~(PTRS_PER_PGD*sizeof(pgd_t)-1);	\
->>>  		(pgd_t *)phys_to_virt(pg);		\
->>>  	})
->>> +
->>> +#define cpu_set_ttbr0(val)					\
->>> +	do {							\
->>> +		u64 ttbr = val;					\
->>> +		__asm__("mcrr	p15, 0, %Q0, %R0, c2"		\
->>> +			: : "r" (ttbr));	\
->>> +	} while (0)
->>> +
->>> +
->>>  #else
->>>  #define cpu_get_pgd()	\
->>>  	({						\
->>> @@ -140,6 +149,30 @@ extern void cpu_resume(void);
->>>  		pg &= ~0x3fff;				\
->>>  		(pgd_t *)phys_to_virt(pg);		\
->>>  	})
->>> +
->>> +#define cpu_set_ttbr(nr, val)					\
->>> +	do {							\
->>> +		u64 ttbr = val;					\
->>> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
->>> +			: : "r" (ttbr));			\
->>> +	} while (0)
->>> +
->>> +#define cpu_get_ttbr(nr)					\
->>> +	({							\
->>> +		unsigned long ttbr;				\
->>> +		__asm__("mrc	p15, 0, %0, c2, c0, 0"		\
->>> +			: "=r" (ttbr));				\
->>> +		ttbr;						\
->>> +	})
->>> +
->>> +#define cpu_set_ttbr0(val)					\
->>> +	do {							\
->>> +		u64 ttbr = val;					\
->>> +		__asm__("mcr	p15, 0, %0, c2, c0, 0"		\
->>> +			: : "r" (ttbr));			\
->>> +	} while (0)
->>> +
->>> +
->>
->> You could instead lift and extend the definitions provided in kvm_hyp.h,
->> and use the read_sysreg/write_sysreg helpers defined in cp15.h.
-> 
-> Thanks for your review. 
-> I extend definitions of TTBR0/TTBR1/PAR in kvm_hyp.h when the CONFIG_ARM_LPAE is 
-> not defined. 
-> Because cortex A9 don't support virtualization, so use CONFIG_ARM_LPAE to exclude
-> some functions and macros which are only used in virtualization.
-> 
-> Here is the code which I tested on vexpress_a15 and vexpress_a9:
-> 
-> diff --git a/arch/arm/include/asm/kvm_hyp.h b/arch/arm/include/asm/kvm_hyp.h
-> index 14b5903..2592608 100644
-> --- a/arch/arm/include/asm/kvm_hyp.h
-> +++ b/arch/arm/include/asm/kvm_hyp.h
-> @@ -19,12 +19,14 @@
->  #define __ARM_KVM_HYP_H__
-> 
->  #include <linux/compiler.h>
-> -#include <linux/kvm_host.h>
->  #include <asm/cp15.h>
-> +
-> +#ifdef CONFIG_ARM_LPAE
-> +#include <linux/kvm_host.h>
->  #include <asm/kvm_mmu.h>
->  #include <asm/vfp.h>
-> -
->  #define __hyp_text __section(.hyp.text) notrace
-> +#endif
-> 
->  #define __ACCESS_VFP(CRn)                      \
->         "mrc", "mcr", __stringify(p10, 7, %0, CRn, cr0, 0), u32
-> @@ -37,12 +39,18 @@
->         __val;                                                  \
->  })
-> 
-> +#ifdef CONFIG_ARM_LPAE
->  #define TTBR0          __ACCESS_CP15_64(0, c2)
->  #define TTBR1          __ACCESS_CP15_64(1, c2)
->  #define VTTBR          __ACCESS_CP15_64(6, c2)
->  #define PAR            __ACCESS_CP15_64(0, c7)
->  #define CNTV_CVAL      __ACCESS_CP15_64(3, c14)
->  #define CNTVOFF                __ACCESS_CP15_64(4, c14)
-> +#else
-> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define PAR          __ACCESS_CP15(c7, 0, c4, 0)
-> +#endif
+Hi,
+assuming that this passes warn stall torturing by Tetsuo, do you think
+we can drop http://lkml.kernel.org/r/1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+from the mmotm tree?
 
-There is no reason for this LPAE vs non LPAE dichotomy. Both registers
-do exist if your system supports LPAE. So you can either suffix the
-64bit version with an _64 (and change the KVM code), or suffix the bit
-version with _32.
-
+On Wed 08-11-17 10:27:23, Steven Rostedt wrote:
+> [ claws-mail is really pissing me off. It did it again, after I
+>   manually fixed all the addresses. This time, I'm going to do things
+>   slightly different. Sorry for all the spam :-( ]
 > 
->  #define MIDR           __ACCESS_CP15(c0, 0, c0, 0)
->  #define CSSELR         __ACCESS_CP15(c0, 2, c0, 0)
-> @@ -98,6 +106,7 @@
->  #define cntvoff_el2                    CNTVOFF
->  #define cnthctl_el2                    CNTHCTL
+> From: Steven Rostedt (VMware) <rostedt@goodmis.org>
 > 
-> +#ifdef CONFIG_ARM_LPAE
->  void __timer_save_state(struct kvm_vcpu *vcpu);
->  void __timer_restore_state(struct kvm_vcpu *vcpu);
+> This patch implements what I discussed in Kernel Summit. I added
+> lockdep annotation (hopefully correctly), and it hasn't had any splats
+> (since I fixed some bugs in the first iterations). It did catch
+> problems when I had the owner covering too much. But now that the owner
+> is only set when actively calling the consoles, lockdep has stayed
+> quiet.
+>  
+> Here's the design again:
 > 
-> @@ -123,5 +132,6 @@ void __hyp_text __banked_restore_state(struct kvm_cpu_context *ctxt);
->  asmlinkage int __guest_enter(struct kvm_vcpu *vcpu,
->                              struct kvm_cpu_context *host);
->  asmlinkage int __hyp_do_panic(const char *, int, u32);
-> +#endif
+> I added a "console_owner" which is set to a task that is actively
+> writing to the consoles. It is *not* the same an the owner of the
+> console_lock. It is only set when doing the calls to the console
+> functions. It is protected by a console_owner_lock which is a raw spin
+> lock.
 > 
->  #endif /* __ARM_KVM_HYP_H__ */
-> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
-> index 049ee0a..359a782 100644
-> --- a/arch/arm/mm/kasan_init.c
-> +++ b/arch/arm/mm/kasan_init.c
-> @@ -15,6 +15,7 @@
->  #include <asm/proc-fns.h>
->  #include <asm/tlbflush.h>
->  #include <asm/cp15.h>
-> +#include <asm/kvm_hyp.h>
-
-No, please don't do that. You shouldn't have to include KVM stuff in
-unrelated code. Instead of adding stuff to kvm_hyp.h, move all the
-__ACCESS_CP15* to cp15.h, and it will be obvious to everyone that this
-is where new definition should be added.
-
->  #include <linux/sched/task.h>
+> There is a console_waiter. This is set when there is an active console
+> owner that is not current, and waiter is not set. This too is protected
+> by console_owner_lock.
 > 
->  #include "mm.h"
-> @@ -203,16 +204,16 @@ void __init kasan_init(void)
->         u64 orig_ttbr0;
->         int i;
+> In printk() when it tries to write to the consoles, we have:
 > 
-> -   orig_ttbr0 = cpu_get_ttbr(0);
-> + orig_ttbr0 = read_sysreg(TTBR0);
+> 	if (console_trylock())
+> 		console_unlock();
 > 
->  #ifdef CONFIG_ARM_LPAE
->         memcpy(tmp_pmd_table, pgd_page_vaddr(*pgd_offset_k(KASAN_SHADOW_START)), sizeof(tmp_pmd_table));
->         memcpy(tmp_page_table, swapper_pg_dir, sizeof(tmp_page_table));
->         set_pgd(&tmp_page_table[pgd_index(KASAN_SHADOW_START)], __pgd(__pa(tmp_pmd_table) | PMD_TYPE_TABLE | L_PGD_SWAPPER));
-> -   cpu_set_ttbr0(__pa(tmp_page_table));
-> + write_sysreg(__pa(tmp_page_table), TTBR0);
->  #else
->         memcpy(tmp_page_table, swapper_pg_dir, sizeof(tmp_page_table));
-> -   cpu_set_ttbr0(__pa(tmp_page_table));
-> + write_sysreg(__pa(tmp_page_table),TTBR0);
+> Now I added an else, which will check if there is an active owner, and
+> no current waiter. If that is the case, then console_waiter is set, and
+> the task goes into a spin until it is no longer set.
+> 
+> When the active console owner finishes writing the current message to
+> the consoles, it grabs the console_owner_lock and sees if there is a
+> waiter, and clears console_owner.
+> 
+> If there is a waiter, then it breaks out of the loop, clears the waiter
+> flag (because that will release the waiter from its spin), and exits.
+> Note, it does *not* release the console semaphore. Because it is a
+> semaphore, there is no owner. Another task may release it. This means
+> that the waiter is guaranteed to be the new console owner! Which it
+> becomes.
+> 
+> Then the waiter calls console_unlock() and continues to write to the
+> consoles.
+> 
+> If another task comes along and does a printk() it too can become the
+> new waiter, and we wash rinse and repeat!
+> 
+> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> ---
+> Changes from v3:
+> 
+> 	Fixed while loop on console_waiter (Thanks Vlastimil!)
+> 
+> 	Moved console_owner out of logbuf_lock taking (reported by
+> 	Tetsuo Handa)
+> 
+> Changes from v2:
+> 
+>   - Added back some READ/WRITE_ONCE() just to be on the safe side
+> Index: linux-trace.git/kernel/printk/printk.c
+> ===================================================================
+> --- linux-trace.git.orig/kernel/printk/printk.c
+> +++ linux-trace.git/kernel/printk/printk.c
+> @@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
+>  static struct lockdep_map console_lock_dep_map = {
+>  	.name = "console_lock"
+>  };
+> +static struct lockdep_map console_owner_dep_map = {
+> +	.name = "console_owner"
+> +};
 >  #endif
->         flush_cache_all();
->         local_flush_bp_all();
-> @@ -257,7 +258,7 @@ void __init kasan_init(void)
->                                  /*__pgprot(_L_PTE_DEFAULT | L_PTE_DIRTY | L_PTE_XN | L_PTE_RDONLY))*/
->                                 __pgprot(pgprot_val(PAGE_KERNEL) | L_PTE_RDONLY)));
->         memset(kasan_zero_page, 0, PAGE_SIZE);
-> -   cpu_set_ttbr0(orig_ttbr0);
-> + write_sysreg(orig_ttbr0 ,TTBR0);
->         flush_cache_all();
->         local_flush_bp_all();
->         local_flush_tlb_all();
-> 
+>  
+> +static DEFINE_RAW_SPINLOCK(console_owner_lock);
+> +static struct task_struct *console_owner;
+> +static bool console_waiter;
+> +
+>  enum devkmsg_log_bits {
+>  	__DEVKMSG_LOG_BIT_ON = 0,
+>  	__DEVKMSG_LOG_BIT_OFF,
+> @@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
+>  		 * semaphore.  The release will print out buffers and wake up
+>  		 * /dev/kmsg and syslog() users.
+>  		 */
+> -		if (console_trylock())
+> +		if (console_trylock()) {
+>  			console_unlock();
+> +		} else {
+> +			struct task_struct *owner = NULL;
+> +			bool waiter;
+> +			bool spin = false;
+> +
+> +			printk_safe_enter_irqsave(flags);
+> +
+> +			raw_spin_lock(&console_owner_lock);
+> +			owner = READ_ONCE(console_owner);
+> +			waiter = READ_ONCE(console_waiter);
+> +			if (!waiter && owner && owner != current) {
+> +				WRITE_ONCE(console_waiter, true);
+> +				spin = true;
+> +			}
+> +			raw_spin_unlock(&console_owner_lock);
+> +
+> +			/*
+> +			 * If there is an active printk() writing to the
+> +			 * consoles, instead of having it write our data too,
+> +			 * see if we can offload that load from the active
+> +			 * printer, and do some printing ourselves.
+> +			 * Go into a spin only if there isn't already a waiter
+> +			 * spinning, and there is an active printer, and
+> +			 * that active printer isn't us (recursive printk?).
+> +			 */
+> +			if (spin) {
+> +				/* We spin waiting for the owner to release us */
+> +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +				/* Owner will clear console_waiter on hand off */
+> +				while (READ_ONCE(console_waiter))
+> +					cpu_relax();
+> +
+> +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +				printk_safe_exit_irqrestore(flags);
+> +
+> +				/*
+> +				 * The owner passed the console lock to us.
+> +				 * Since we did not spin on console lock, annotate
+> +				 * this as a trylock. Otherwise lockdep will
+> +				 * complain.
+> +				 */
+> +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
+> +				console_unlock();
+> +				printk_safe_enter_irqsave(flags);
+> +			}
+> +			printk_safe_exit_irqrestore(flags);
+> +
+> +		}
+>  	}
+>  
+>  	return printed_len;
+> @@ -2141,6 +2196,7 @@ void console_unlock(void)
+>  	static u64 seen_seq;
+>  	unsigned long flags;
+>  	bool wake_klogd = false;
+> +	bool waiter = false;
+>  	bool do_cond_resched, retry;
+>  
+>  	if (console_suspended) {
+> @@ -2229,14 +2285,64 @@ skip:
+>  		console_seq++;
+>  		raw_spin_unlock(&logbuf_lock);
+>  
+> +		/*
+> +		 * While actively printing out messages, if another printk()
+> +		 * were to occur on another CPU, it may wait for this one to
+> +		 * finish. This task can not be preempted if there is a
+> +		 * waiter waiting to take over.
+> +		 */
+> +		raw_spin_lock(&console_owner_lock);
+> +		console_owner = current;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/* The waiter may spin on us after setting console_owner */
+> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +
+>  		stop_critical_timings();	/* don't trace print latency */
+>  		call_console_drivers(ext_text, ext_len, text, len);
+>  		start_critical_timings();
+> +
+> +		raw_spin_lock(&console_owner_lock);
+> +		waiter = READ_ONCE(console_waiter);
+> +		console_owner = NULL;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/*
+> +		 * If there is a waiter waiting for us, then pass the
+> +		 * rest of the work load over to that waiter.
+> +		 */
+> +		if (waiter)
+> +			break;
+> +
+> +		/* There was no waiter, and nothing will spin on us here */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +
+>  		printk_safe_exit_irqrestore(flags);
+>  
+>  		if (do_cond_resched)
+>  			cond_resched();
+>  	}
+> +
+> +	/*
+> +	 * If there is an active waiter waiting on the console_lock.
+> +	 * Pass off the printing to the waiter, and the waiter
+> +	 * will continue printing on its CPU, and when all writing
+> +	 * has finished, the last printer will wake up klogd.
+> +	 */
+> +	if (waiter) {
+> +		WRITE_ONCE(console_waiter, false);
+> +		/* The waiter is now free to continue */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +		/*
+> +		 * Hand off console_lock to waiter. The waiter will perform
+> +		 * the up(). After this, the waiter is the console_lock owner.
+> +		 */
+> +		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
+> +		printk_safe_exit_irqrestore(flags);
+> +		/* Note, if waiter is set, logbuf_lock is not held */
+> +		return;
+> +	}
+> +
+>  	console_locked = 0;
+>  
+>  	/* Release the exclusive_console once it is used */
 
-Thanks,
-
-	M.
 -- 
-Jazz is not dead. It just smells funny...
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
