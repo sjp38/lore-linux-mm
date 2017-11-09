@@ -1,92 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BEAA6B02D4
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 09:48:38 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id f27so1555902ote.16
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 06:48:38 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j64si1293831otj.411.2017.11.09.06.48.34
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1F2440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 10:01:50 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id j15so3341805wre.15
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 07:01:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r17si416054eda.270.2017.11.09.07.01.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 06:48:34 -0800 (PST)
-Subject: Re: MPK: pkey_free and key reuse
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
-Date: Thu, 9 Nov 2017 15:48:26 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 07:01:48 -0800 (PST)
+Subject: Re: [PATCH 30/30] x86, kaiser, xen: Dynamically disable KAISER when
+ running under Xen PV
+References: <20171108194646.907A1942@viggo.jf.intel.com>
+ <20171108194742.8CD79E09@viggo.jf.intel.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <7e70274c-6ad0-9f9c-0ad3-8d3306d8174a@suse.com>
+Date: Thu, 9 Nov 2017 16:01:42 +0100
 MIME-Version: 1.0
-In-Reply-To: <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171108194742.8CD79E09@viggo.jf.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On 11/08/2017 09:41 PM, Dave Hansen wrote:
-> On 11/05/2017 02:35 AM, Florian Weimer wrote:
->> I don't think pkey_free, as it is implemented today, is very safe due to
->> key reuse by a subsequent pkey_alloc.A  I see two problems:
->>
->> (A) pkey_free allows reuse for they key while there are still mappings
->> that use it.
+On 08/11/17 20:47, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> I don't agree with this assessment.  Is malloc() unsafe?  If someone
-> free()s memory that is still in use, a subsequent malloc() would hand
-> the address out again for reuse.
+> If you paravirtualize the MMU, you can not use KAISER.  This boils down
+> to the fact that KAISER needs to do CR3 writes in places that it is not
+> feasible to do real hypercalls.
+> 
+> If we detect that Xen PV is in use, do not do the KAISER CR3 switches.
+> 
+> I don't think this too bug of a deal for Xen.  I was under the
+> impression that the Xen guest kernel and Xen guest userspace didn't
+> share an address space *anyway* so Xen PV is not normally even exposed
+> to the kinds of things that KAISER protects against.
+> 
+> This allows KAISER=y kernels to deployed in environments that also
+> require PARAVIRT=y.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 
-I think the disagreement is not about what is considered acceptable 
-behavior as such, but what constitutes a??usea??.
+Acked-by: Juergen Gross <jgross@suse.com>
 
-And even if with concurrent use, the behavior can be well-defined.  We 
-make sure that if munmap is called, we do not return before all threads 
-have observed in principle that the page is gone (at considerable cost, 
-of course, and in most cases, that is total overkill).
 
-I'm pretty sure there is another key reuse scenario which does not even 
-involve pkey_free, but I need to write a test first.
-
->> (B) If a key is reused, existing threads retain their access rights,
->> while there is an expectation that pkey_alloc denies access for the
->> threads except the current one.
-> Where does this expectation come from?
-
-For me, it was the access_rights argument to pkey_alloc.  What else 
-would it do?  For the current thread, I can already set the rights with 
-a PKRU write, so the existence of the syscall argument is puzzling.
-
-> Using the malloc() analogy, we
-> don't expect that free() in one thread actively takes away references to
-> the memory held by other threads.
-
-But malloc/free isn't expected to be a partial antidote to random 
-pointer scribbling.
-
-> We define free() as only being called on resources to which there are no
-> active references.  If you free() things in use, bad things happen.
-> pkey_free() is only to be called when there is nothing actively using
-> the key.  If you pkey_free() an in-use key, bad things happen.
-
-My impression was that MPK was intended as a fallback in case you did 
-that, and unrelated code suddenly writes through a dangling pointer and 
-accidentally hits the DAX-mapped persistent memory of the database.  To 
-prevent that, the those pages are mapped write-disabled on all threads 
-almost all the time, and only if the database needs to write something, 
-it temporarily tweaks PKRU so that it gains access.  All that assumes 
-that you can actually restrict all threads in the process, but with the 
-current implementation, that's not true even if threads never touch keys 
-they don't know.
-
-I think we should either implement revoke on pkey_alloc, with a 
-broadcast to all threads (the pkey_set race can be closed by having a 
-vDSO for that an the revocation code can check %rip to see if the old 
-PKRU value needs to be fixed up).  Or we add the two pkey_alloc flags I 
-mentioned earlier.
-
-Thanks,
-Florian
+Juergen
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
