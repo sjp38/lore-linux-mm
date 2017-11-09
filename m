@@ -1,79 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9F0440460
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 03:52:41 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id a125so8375774ita.8
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 00:52:41 -0800 (PST)
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTPS id k6si5621402pgq.102.2017.11.09.00.52.39
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 94310440460
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 03:52:56 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id m16so8232245iod.11
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 00:52:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c3si5750963pld.233.2017.11.09.00.52.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 00:52:39 -0800 (PST)
-Message-ID: <1510217554.32371.17.camel@mtkswgap22>
-Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
- slub_debug=O
-From: Miles Chen <miles.chen@mediatek.com>
-Date: Thu, 9 Nov 2017 16:52:34 +0800
-In-Reply-To: <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake>
-References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
-	 <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
-	 <1510119138.17435.19.camel@mtkswgap22>
-	 <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 00:52:55 -0800 (PST)
+Date: Thu, 9 Nov 2017 09:52:49 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
+Message-ID: <20171109085249.guihvx5tzm77u3qk@dhcp22.suse.cz>
+References: <1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171026114100.tfb3xemvumg2a7su@dhcp22.suse.cz>
+ <91bdbdea-3f33-b7c0-8345-d0fa8c7f1cf1@sonymobile.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <91bdbdea-3f33-b7c0-8345-d0fa8c7f1cf1@sonymobile.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
+To: peter enderborg <peter.enderborg@sonymobile.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, "yuwang.yuwang" <yuwang.yuwang@alibaba-inc.com>
 
-On Wed, 2017-11-08 at 09:05 -0600, Christopher Lameter wrote:
-> On Wed, 8 Nov 2017, Miles Chen wrote:
-> 
-> > > Ok then the aliasing failed for some reason. The creation of the unique id
-> > > and the alias detection needs to be in sync otherwise duplicate filenames
-> > > are created. What is the difference there?
-> >
-> > The aliasing failed because find_mergeable() returns if (flags &
-> > SLAB_NEVER_MERGE) is true. So we do not go to search for alias caches.
-> >
-> > __kmem_cache_alias()
-> >   find_mergeable()
-> >     kmem_cache_flags()  --> setup flag by the slub_debug
-> >     if (flags & SLAB_NEVER_MERGE) return NULL;
-> >     ...
-> >     search alias logic...
-> >
-> >
-> > The flags maybe changed if disable_higher_order_debug=1. So the
-> > unmergeable cache becomes mergeable later.
-> 
-> Ok so make sure taht the aliasing logic also clears those flags before
-> checking for SLAB_NEVER_MERGE.
-> 
-> > > The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
-> > > should do the same right?
-> > >
-> > Yes, I think clearing DEBUG_METADATA flags in kmem_cache_alias is
-> > another solution for this issue.
-> >
-> > We will need to do calculate_sizes() by using original flags and compare
-> > the order of s->size and s->object_size when
-> > disable_higher_order_debug=1.
-> 
-> Hmmm... Or move the aliasing check to a point where we know the size of
-> the slab objects?
+[Please try to trim the context you are replying to]
 
-The biggest concern is that we may have some merged caches even if we
-enable CONFIG_SLUB_DEBUG_ON and slub_debug=O. So a developer cannot say
-"I set CONFIG_SLUB_DEBUG_ON=y to stop all slab merging". 
-(https://www.spinics.net/lists/linux-mm/msg77919.html)
+On Wed 08-11-17 11:30:23, peter enderborg wrote:
+[...]
+> What about the idea to keep the function, but instead of printing only do a trace event.
 
-In this fix patch, it disables slab merging if SLUB_DEBUG=O and
-CONFIG_SLUB_DEBUG_ON=y but the debug features are disabled by the
-disable_higher_order_debug logic and it holds the "slab merging is off
-if any debug features are enabled" behavior.
-
+I am not sure. I would rather see a tracepoint to mark the allocator
+entry. This would allow both 1) measuring the allocation latency (to
+compare it to the trace_mm_page_alloc and 2) check for stalls with
+arbitrary user defined timeout (just print all allocations which haven't
+passed trace_mm_page_alloc for the given amount of time).
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
