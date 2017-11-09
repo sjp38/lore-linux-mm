@@ -1,91 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4210F440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 12:15:43 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id y128so5168932pfg.5
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 09:15:43 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m74sor1721044pga.66.2017.11.09.09.15.42
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE881440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 12:30:44 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id x6so1749260otd.14
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 09:30:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id g125si3489969oif.237.2017.11.09.09.30.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 Nov 2017 09:15:42 -0800 (PST)
-Date: Fri, 10 Nov 2017 04:15:26 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171110041526.6137bc9a@roar.ozlabs.ibm.com>
-In-Reply-To: <20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
-References: <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
-	<20171106192524.12ea3187@roar.ozlabs.ibm.com>
-	<d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
-	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
-	<20171107160705.059e0c2b@roar.ozlabs.ibm.com>
-	<20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
-	<20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
-	<20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
-	<20171108002448.6799462e@roar.ozlabs.ibm.com>
-	<2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
-	<20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 09:30:43 -0800 (PST)
+Date: Thu, 9 Nov 2017 12:30:37 -0500 (EST)
+From: Mikulas Patocka <mpatocka@redhat.com>
+Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent
+ memory
+In-Reply-To: <CAPcyv4h48ciK7TBHm_pZ=ayUcGtDXhH-9wMV3ZAVooNs+bb0BQ@mail.gmail.com>
+Message-ID: <alpine.LRH.2.02.1711091227150.27041@file01.intranet.prod.int.rdu2.redhat.com>
+References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com> <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com> <20171108150447.GA10374@infradead.org>
+ <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com> <20171108153522.GB24548@infradead.org> <CAPcyv4jw5CDJYo-uhxq1hWJo90R87m0qju-k8WKgyd34QKnz0Q@mail.gmail.com> <alpine.LRH.2.02.1711081514320.29922@file01.intranet.prod.int.rdu2.redhat.com>
+ <CAPcyv4imHXhcd8WgW5ygrKKNiVr0cDZLi2Ue5WDy=_RmqECnvw@mail.gmail.com> <alpine.LRH.2.02.1711091138450.9079@file01.intranet.prod.int.rdu2.redhat.com> <CAPcyv4h48ciK7TBHm_pZ=ayUcGtDXhH-9wMV3ZAVooNs+bb0BQ@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Florian Weimer <fweimer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@infradead.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Tue, 7 Nov 2017 17:01:58 +0300
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
-> On Tue, Nov 07, 2017 at 07:15:58PM +0530, Aneesh Kumar K.V wrote:
-> >   
-> > > 
-> > > If it is decided to keep these kind of heuristics, can we get just a
-> > > small but reasonably precise description of each change to the
-> > > interface and ways for using the new functionality, such that would be
-> > > suitable for the man page? I couldn't fix powerpc because nothing
-> > > matches and even Aneesh and you differ on some details (MAP_FIXED
-> > > behaviour).  
-> > 
-> > 
-> > I would consider MAP_FIXED as my mistake. We never discussed this explicitly
-> > and I kind of assumed it to behave the same way. ie, we search in lower
-> > address space (128TB) if the hint addr is below 128TB.
-> > 
-> > IIUC we agree on the below.
-> > 
-> > 1) MAP_FIXED allow the addr to be used, even if hint addr is below 128TB but
-> > hint_addr + len is > 128TB.
-> > 
-> > 2) For everything else we search in < 128TB space if hint addr is below
-> > 128TB
-> > 
-> > 3) We don't switch to large address space if hint_addr + len > 128TB. The
-> > decision to switch to large address space is primarily based on hint addr
-> > 
-> > Is there any other rule we need to outline? Or is any of the above not
-> > correct?  
+
+On Thu, 9 Nov 2017, Dan Williams wrote:
+
+> On Thu, Nov 9, 2017 at 8:40 AM, Mikulas Patocka <mpatocka@redhat.com> wrote:
+> >
+> >
+> > On Wed, 8 Nov 2017, Dan Williams wrote:
+> >
+> >> On Wed, Nov 8, 2017 at 12:15 PM, Mikulas Patocka <mpatocka@redhat.com> wrote:
+> >> >
+> >> >
+> >> > On Wed, 8 Nov 2017, Dan Williams wrote:
+> >> >
+> >> >> On Wed, Nov 8, 2017 at 7:35 AM, Christoph Hellwig <hch@infradead.org> wrote:
+> >> >> > On Wed, Nov 08, 2017 at 10:21:38AM -0500, Mikulas Patocka wrote:
+> >> >> >> > And what do you do for an architecture with virtuall indexed caches?
+> >> >> >>
+> >> >> >> Persistent memory is not supported on such architectures - it is only
+> >> >> >> supported on x86-64 and arm64.
+> >> >> >
+> >> >> > For now.  But once support is added your driver will just corrupt data
+> >> >> > unless you have the right API in place.
+> >> >>
+> >> >> I'm also in the process of ripping out page-less dax support. With
+> >> >> pages we can potentially leverage the VIVT-cache support in some
+> >> >> architectures, likely with more supporting infrastructure for
+> >> >> dax_flush().
+> >> >
+> >> > Should I remove all the code for page-less persistent memory from my
+> >> > driver?
+> >> >
+> >>
+> >> Yes, that would be my recommendation. You can see that filesystem-dax
+> >> is on its way to dropping page-less support in this series:
+> >>
+> >>    https://lists.01.org/pipermail/linux-nvdimm/2017-October/013125.html
+> >
+> > Why do you indend to drop dax for ramdisk? It's perfect for testing.
+> >
+> > On x86, persistent memory can be tested with the memmap kernel parameters,
+> > but on other architectures, ramdisk is the only option for tests.
+> >
 > 
-> That's correct.
-> 
+> Because it's not "perfect for testing", it does not support the
+> get_user_pages() model that we need to safely handle DAX dma. ARM64
+> and PowerPC PMEM support is in the works, so I expect the architecture
+> support landscape for major architectures to improve such that the
+> pmem driver can always be used for DAX testing.
 
-Thanks guys, I'll send out some powerpc patches to match -- it deviates in
-its MAP_FIXED handling (treats it the same as !MAP_FIXED).
+Yes - but if I want to test the persistent memory driver on big-endian 
+machine, I could use an old Sparc or PA-RISC machine with ramdisk.
 
-So these semantics are what we're going with? Anything that does mmap() is
-guaranteed of getting a 47-bit pointer and it can use the top 17 bits for
-itself? Is intended to be cross-platform or just x86 and power specific?
+New PowerPC machines may support native persistent memory, but they are 
+extremely expensive.
 
-Also, this may follow from deduction from 1-3, but for explicit
-specification in man page:
-
-4) To get an unspecified allocation with the largest possible address range,
-we pass in -1 for mmap hint.
-
-Are we allowing 8 bits bits of unused address in this case, or must the
-app not assume anything about number of bits used?
-
-Thanks,
-Nick
+Mikulas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
