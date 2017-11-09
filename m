@@ -1,57 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A5D0440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 14:44:28 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 192so75194pgd.18
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 11:44:28 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a28si6968291pgd.464.2017.11.09.11.44.26
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 80B9B440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 16:46:38 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id r190so2365395oie.14
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 13:46:38 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id o187si3580577oif.447.2017.11.09.13.46.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 11:44:26 -0800 (PST)
-Date: Thu, 9 Nov 2017 11:44:21 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171109194421.GA12789@bombadil.infradead.org>
-References: <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
- <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
- <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
- <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
- <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
- <20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
- <20171108002448.6799462e@roar.ozlabs.ibm.com>
- <2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
- <20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
- <20171110041526.6137bc9a@roar.ozlabs.ibm.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 13:46:36 -0800 (PST)
+Subject: Re: [PATCH v2] mm, shrinker: make shrinker_list lockless
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171108173740.115166-1-shakeelb@google.com>
+	<2940c150-577a-30a8-fac3-cf59a49b84b4@I-love.SAKURA.ne.jp>
+	<CALvZod5NVQO+dWKD0y4pK-JYXdehLLgKm0bfc7ExPzyRLDeqzw@mail.gmail.com>
+In-Reply-To: <CALvZod5NVQO+dWKD0y4pK-JYXdehLLgKm0bfc7ExPzyRLDeqzw@mail.gmail.com>
+Message-Id: <201711100646.IJH39597.HOtMLJVSFOQFOF@I-love.SAKURA.ne.jp>
+Date: Fri, 10 Nov 2017 06:46:19 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171110041526.6137bc9a@roar.ozlabs.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicholas Piggin <npiggin@gmail.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Florian Weimer <fweimer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: shakeelb@google.com
+Cc: minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, mhocko@kernel.org, gthelen@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 10, 2017 at 04:15:26AM +1100, Nicholas Piggin wrote:
-> So these semantics are what we're going with? Anything that does mmap() is
-> guaranteed of getting a 47-bit pointer and it can use the top 17 bits for
-> itself? Is intended to be cross-platform or just x86 and power specific?
-
-It is x86 and powerpc specific.  The arm64 people have apparently stumbled
-across apps that expect to be able to use bit 48 for their own purposes.
-And their address space is 48 bit by default.  Oops.
-
-> Also, this may follow from deduction from 1-3, but for explicit
-> specification in man page:
+Shakeel Butt wrote:
+> > If you can accept serialized register_shrinker()/unregister_shrinker(),
+> > I think that something like shown below can do it.
 > 
-> 4) To get an unspecified allocation with the largest possible address range,
-> we pass in -1 for mmap hint.
-> 
-> Are we allowing 8 bits bits of unused address in this case, or must the
-> app not assume anything about number of bits used?
+> If we assume that we will never do register_shrinker and
+> unregister_shrinker on the same object in parallel then do we still
+> need to do msleep & synchronize_rcu() within mutex?
 
-Maybe document it as: "If the app wants to use the top N bits of addresses
-for its own purposes, pass in (~0UL >> N) as the mmap hint."  ?
+Doing register_shrinker() and unregister_shrinker() on the same object
+in parallel is wrong. This mutex is to ensure that we do not need to
+worry about ->list.next field. synchronize_rcu() should not be slow.
+If you want to avoid msleep() with mutex held, you can also apply
+
+> > If you want parallel register_shrinker()/unregister_shrinker(), something like
+> > shown below on top of shown above will do it.
+
+change.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
