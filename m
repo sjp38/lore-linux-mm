@@ -1,46 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 80B9B440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 16:46:38 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id r190so2365395oie.14
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 13:46:38 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id o187si3580577oif.447.2017.11.09.13.46.35
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EFC416B0335
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 17:19:38 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b9so4351162wmh.5
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 14:19:38 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id y16si6311997wmc.264.2017.11.09.14.19.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 13:46:36 -0800 (PST)
-Subject: Re: [PATCH v2] mm, shrinker: make shrinker_list lockless
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171108173740.115166-1-shakeelb@google.com>
-	<2940c150-577a-30a8-fac3-cf59a49b84b4@I-love.SAKURA.ne.jp>
-	<CALvZod5NVQO+dWKD0y4pK-JYXdehLLgKm0bfc7ExPzyRLDeqzw@mail.gmail.com>
-In-Reply-To: <CALvZod5NVQO+dWKD0y4pK-JYXdehLLgKm0bfc7ExPzyRLDeqzw@mail.gmail.com>
-Message-Id: <201711100646.IJH39597.HOtMLJVSFOQFOF@I-love.SAKURA.ne.jp>
-Date: Fri, 10 Nov 2017 06:46:19 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 14:19:37 -0800 (PST)
+Date: Thu, 9 Nov 2017 23:19:31 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
+ KAISER
+In-Reply-To: <20171108194653.D6C7EFF4@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.20.1711092250280.2690@nanos>
+References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194653.D6C7EFF4@viggo.jf.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: shakeelb@google.com
-Cc: minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, mhocko@kernel.org, gthelen@google.com, hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-Shakeel Butt wrote:
-> > If you can accept serialized register_shrinker()/unregister_shrinker(),
-> > I think that something like shown below can do it.
+On Wed, 8 Nov 2017, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> If we assume that we will never do register_shrinker and
-> unregister_shrinker on the same object in parallel then do we still
-> need to do msleep & synchronize_rcu() within mutex?
+> Global pages stay in the TLB across context switches.  Since all
+> contexts share the same kernel mapping, we use global pages to
+> allow kernel entries in the TLB to survive when we context
+> switch.
+> 
+> But, even having these entries in the TLB opens up something that
+> an attacker can use [1].
+> 
+> Disable global pages so that kernel TLB entries are flushed when
+> we run userspace. This way, all accesses to kernel memory result
+> in a TLB miss whether there is good data there or not.  Without
+> this, even when KAISER switches pages tables, the kernel entries
+> might remain in the TLB.
+> 
+> We keep _PAGE_GLOBAL available so that we can use it for things
+> that are global even with KAISER like the entry/exit code and
+> data.
 
-Doing register_shrinker() and unregister_shrinker() on the same object
-in parallel is wrong. This mutex is to ensure that we do not need to
-worry about ->list.next field. synchronize_rcu() should not be slow.
-If you want to avoid msleep() with mutex held, you can also apply
+Just a nitpick which applies to a lot of the changelogs in this
+series. Describing ourself (we) running/doing something is (understandable)
+but not a really technical way to describe things. Aside of that some of
+the descriptions are slightly convoluted. Let me rephrase the above
+paragraphs:
 
-> > If you want parallel register_shrinker()/unregister_shrinker(), something like
-> > shown below on top of shown above will do it.
+ Global pages stay in the TLB across context switches.  Since all contexts
+ share the same kernel mapping, these mappings are marked as global pages
+ so kernel entries in the TLB are not flushed out on a context switch.
+ 
+ But, even having these entries in the TLB opens up something that an
+ attacker can use [1].
 
-change.
+ That means that even when KAISER switches page tables on return to user
+ space the global pages would stay in the TLB cache.
+
+ Disable global pages so that kernel TLB entries can be flushed before
+ returning to user space. This way, all accesses to kernel addresses from
+ userspace result in a TLB miss independent of the existance of a kernel
+ mapping.
+
+ Replace _PAGE_GLOBAL by __PAGE_KERNEL_GLOBAL and keep _PAGE_GLOBAL
+ available so that it can still be used for a few selected kernel mappings
+ which must be visible to userspace, when KAISER is enabled, like the
+ entry/exit code and data.
+
+I admit it's a pet pieve, but having very precise changelogs for this kind
+of changes makes review a lot easier and is really usefulwhen you have to
+stare at a commit 3 month later.
+
+Other than that:
+
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
