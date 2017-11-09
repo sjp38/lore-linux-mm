@@ -1,66 +1,104 @@
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Date: Mon, 6 Nov 2017 14:00:01 +0530
-Message-ID: <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
-References: <f251fc3e-c657-ebe8-acc8-f55ab4caa667@redhat.com>
- <20171105231850.5e313e46@roar.ozlabs.ibm.com>
- <871slcszfl.fsf@linux.vnet.ibm.com>
- <20171106174707.19f6c495@roar.ozlabs.ibm.com>
- <24b93038-76f7-33df-d02e-facb0ce61cd2@redhat.com>
- <20171106192524.12ea3187@roar.ozlabs.ibm.com>
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 02/30] x86, tlb: make CR4-based TLB flushes more robust
+Date: Thu, 9 Nov 2017 11:48:13 +0100
+Message-ID: <20171109104813.h67cts3mmr5zh4kd@pd.tnic>
+References: <20171108194646.907A1942@viggo.jf.intel.com>
+ <20171108194649.61C7A485@viggo.jf.intel.com>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-In-Reply-To: <20171106192524.12ea3187@roar.ozlabs.ibm.com>
-Content-Language: en-US
-List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
-List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
-List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
-List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
-List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
- <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
-Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
-Sender: "Linuxppc-dev"
- <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
-To: Nicholas Piggin <npiggin@gmail.com>, Florian Weimer <fweimer@redhat.com>
-Cc: linux-mm <linux-mm@kvack.org>, linuxppc-dev@lists.ozlabs.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline
+In-Reply-To: <20171108194649.61C7A485@viggo.jf.intel.com>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>, luto@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 List-Id: linux-mm.kvack.org
 
+On Wed, Nov 08, 2017 at 11:46:49AM -0800, Dave Hansen wrote:
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+> 
+> Our CR4-based TLB flush currently requries global pages to be
+> supported *and* enabled.  But, the hardware only needs for them to
+> be supported.
+> 
+> Make the code more robust by alllowing the initial state of
+> X86_CR4_PGE to be on *or* off.  In addition, if we get called in
+> an unepected state (X86_CR4_PGE=0), issue a warning.  Having
+> X86_CR4_PGE=0 is certainly unexpected and we should not ignore
+> it if encountered.
+> 
+> This essentially gives us the best of both worlds: we get a TLB
+> flush no matter what, and we get a warning if we got called in
+> an unexpected way (X86_CR4_PGE=0).
+
+Commit message could use a spell checker.
+
+> The XOR change was suggested by Kirill Shutemov.
+> 
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
+> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
+> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: x86@kernel.org
+> ---
+> 
+>  b/arch/x86/include/asm/tlbflush.h |   17 ++++++++++++++---
+>  1 file changed, 14 insertions(+), 3 deletions(-)
+> 
+> diff -puN arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge arch/x86/include/asm/tlbflush.h
+> --- a/arch/x86/include/asm/tlbflush.h~kaiser-prep-make-cr4-writes-tolerate-clear-pge	2017-11-08 10:45:26.461681402 -0800
+> +++ b/arch/x86/include/asm/tlbflush.h	2017-11-08 10:45:26.464681402 -0800
+> @@ -250,9 +250,20 @@ static inline void __native_flush_tlb_gl
+>  	unsigned long cr4;
+>  
+>  	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+> -	/* clear PGE */
+> -	native_write_cr4(cr4 & ~X86_CR4_PGE);
+> -	/* write old PGE again and flush TLBs */
+
+<---- newline here.
+
+> +	/*
+> +	 * This function is only called on systems that support X86_CR4_PGE
+> +	 * and where always set X86_CR4_PGE.  Warn if we are called without
+
+"... and where X86_CR4_PGE is normally always set."
+
+> +	 * PGE set.
+> +	 */
+> +	WARN_ON_ONCE(!(cr4 & X86_CR4_PGE));
+
+<---- newline here.
+
+> +	/*
+> +	 * Architecturally, any _change_ to X86_CR4_PGE will fully flush the
+> +	 * TLB of all entries including all entries in all PCIDs and all
+> +	 * global pages.  Make sure that we _change_ the bit, regardless of
+> +	 * whether we had X86_CR4_PGE set in the first place.
+
+							    ... or not."
+
+> +	 */
+> +	native_write_cr4(cr4 ^ X86_CR4_PGE);
 
 
-On 11/06/2017 01:55 PM, Nicholas Piggin wrote:
-> On Mon, 6 Nov 2017 09:11:37 +0100
-> Florian Weimer <fweimer@redhat.com> wrote:
-> 
->> On 11/06/2017 07:47 AM, Nicholas Piggin wrote:
->>> "You get < 128TB unless explicitly requested."
->>>
->>> Simple, reasonable, obvious rule. Avoids breaking apps that store
->>> some bits in the top of pointers (provided that memory allocator
->>> userspace libraries also do the right thing).
->>
->> So brk would simplify fail instead of crossing the 128 TiB threshold?
-> 
-> Yes, that was the intention and that's what x86 seems to do.
-> 
->>
->> glibc malloc should cope with that and switch to malloc, but this code
->> path is obviously less well-tested than the regular way.
-> 
-> Switch to mmap() I guess you meant?
-> 
-> powerpc has a couple of bugs in corner cases, so those should be fixed
-> according to intended policy for stable kernels I think.
-> 
-> But I question the policy. Just seems like an ugly and ineffective wart.
-> Exactly for such cases as this -- behaviour would change from run to run
-> depending on your address space randomization for example! In case your
-> brk happens to land nicely on 128TB then the next one would succeed.
+<---- newline here.
 
-Why ? It should not change between run to run. We limit the free
-area search range based on hint address. So we should get consistent 
-results across run. even if we changed the context.addr_limit.
+> +	/* Put original CR4 value back: */
+>  	native_write_cr4(cr4);
+>  }
 
--aneesh
+Btw, Andy, we read the CR4 shadow in that function but we don't update
+it. Why?
+
+-- 
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
