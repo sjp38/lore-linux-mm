@@ -1,63 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B04D440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:59:16 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id r127so9006839itb.4
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:59:16 -0800 (PST)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id y14si6216448pfe.180.2017.11.09.02.59.11
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F1FD3440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 06:01:09 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id z52so2995069wrc.5
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 03:01:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c34si600180edb.86.2017.11.09.03.01.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 02:59:11 -0800 (PST)
-Subject: Re: [PATCH RFC v2 4/4] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1509099265-30868-1-git-send-email-xieyisheng1@huawei.com>
- <1509099265-30868-5-git-send-email-xieyisheng1@huawei.com>
- <dccbeccc-4155-94a8-0e67-b7c28238896d@suse.cz>
- <bc57f574-92f2-0b69-4717-a1ec7170387c@huawei.com>
- <d774ecf6-5e7b-e185-85a0-27bf2bcacfb4@suse.cz>
- <alpine.DEB.2.20.1711060926001.9015@nuc-kabylake>
- <a4f1212f-3903-abbc-772a-1ddee6f7f98b@huawei.com>
- <alpine.DEB.2.20.1711070851560.18776@nuc-kabylake>
- <04e4cb50-8cba-58af-1a5e-61e818cffa70@suse.cz>
- <alpine.DEB.2.20.1711070948410.19176@nuc-kabylake>
- <4b08f1e9-5449-6ea2-e7da-65fe5f678683@huawei.com>
- <alpine.DEB.2.20.1711080900050.6161@nuc-kabylake>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <9991dd10-8883-7c82-bb4e-8145ea2b7299@huawei.com>
-Date: Thu, 9 Nov 2017 18:54:57 +0800
+        Thu, 09 Nov 2017 03:01:08 -0800 (PST)
+Date: Thu, 9 Nov 2017 12:01:02 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 3/4] writeback: introduce super_operations->write_metadata
+Message-ID: <20171109110102.GC9263@quack2.suse.cz>
+References: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
+ <1510167660-26196-3-git-send-email-josef@toxicpanda.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711080900050.6161@nuc-kabylake>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1510167660-26196-3-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, linux-mm@kvack.org, linux-kernel@vger.kernel.org, tanxiaojun@huawei.com, linux-api@vger.kernel.org, Andi Kleen <ak@linux.intel.com>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-Hi Christopher,
+On Wed 08-11-17 14:00:59, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
+> 
+> Now that we have metadata counters in the VM, we need to provide a way to kick
+> writeback on dirty metadata.  Introduce super_operations->write_metadata.  This
+> allows file systems to deal with writing back any dirty metadata we need based
+> on the writeback needs of the system.  Since there is no inode to key off of we
+> need a list in the bdi for dirty super blocks to be added.  From there we can
+> find any dirty sb's on the bdi we are currently doing writeback on and call into
+> their ->write_metadata callback.
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
-On 2017/11/8 23:02, Christopher Lameter wrote:
-> On Wed, 8 Nov 2017, Yisheng Xie wrote:
-> 
->> Another case is current process is *not* the same as target process, and
->> when current process try to migrate pages of target process from old_nodes
->> to new_nodes, the new_nodes should be a subset of target process cpuset.
-> 
-> The caller of migrate_pages should be able to migrate the target process
-> pages anywhere the caller can allocate memory. If that is outside the
-> target processes cpuset then that is fine. Pagecache pages that are not
-> allocated by the target process already are not subject to the target
-> processes restriction. So this is not that unusual.
+This generally looks fine. Just two comments below.
 
-So there is no need to check the restriction of target process cpuset, right?
-I hope that I do not miss anything :)
+> @@ -1654,11 +1679,38 @@ static long __writeback_inodes_wb(struct bdi_writeback *wb,
+>  
+>  		/* refer to the same tests at the end of writeback_sb_inodes */
+>  		if (wrote) {
+> -			if (time_is_before_jiffies(start_time + HZ / 10UL))
+> -				break;
+> -			if (work->nr_pages <= 0)
+> +			if (time_is_before_jiffies(start_time + HZ / 10UL) ||
+> +			    work->nr_pages <= 0) {
+> +				done = true;
+>  				break;
+> +			}
+> +		}
+> +	}
+> +
+> +	if (!done && wb_stat(wb, WB_METADATA_DIRTY)) {
+> +		LIST_HEAD(list);
+> +
+> +		spin_unlock(&wb->list_lock);
+> +		spin_lock(&wb->bdi->sb_list_lock);
+> +		list_splice_init(&wb->bdi->dirty_sb_list, &list);
+> +		while (!list_empty(&list)) {
+> +			struct super_block *sb;
+> +
+> +			sb = list_first_entry(&list, struct super_block,
+> +					      s_bdi_list);
+> +			list_move_tail(&sb->s_bdi_list,
+> +				       &wb->bdi->dirty_sb_list);
 
-Thanks
-Yisheng Xie
-> 
-> .
-> 
+It seems superblock never gets out of dirty list this way? Also this series
+misses where a superblock is added to the dirty list which is confusing.
+
+
+> +			if (!sb->s_op->write_metadata)
+> +				continue;
+> +			if (!trylock_super(sb))
+> +				continue;
+> +			spin_unlock(&wb->bdi->sb_list_lock);
+> +			wrote += writeback_sb_metadata(sb, wb, work);
+> +			spin_lock(&wb->bdi->sb_list_lock);
+> +			up_read(&sb->s_umount);
+>  		}
+> +		spin_unlock(&wb->bdi->sb_list_lock);
+> +		spin_lock(&wb->list_lock);
+>  	}
+>  	/* Leave any unwritten inodes on b_io */
+>  	return wrote;
+> diff --git a/fs/super.c b/fs/super.c
+> index 166c4ee0d0ed..c170a799d3aa 100644
+> --- a/fs/super.c
+> +++ b/fs/super.c
+> @@ -214,6 +214,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
+>  	spin_lock_init(&s->s_inode_list_lock);
+>  	INIT_LIST_HEAD(&s->s_inodes_wb);
+>  	spin_lock_init(&s->s_inode_wblist_lock);
+> +	INIT_LIST_HEAD(&s->s_bdi_list);
+>  
+>  	if (list_lru_init_memcg(&s->s_dentry_lru))
+>  		goto fail;
+> @@ -446,6 +447,9 @@ void generic_shutdown_super(struct super_block *sb)
+>  	spin_unlock(&sb_lock);
+>  	up_write(&sb->s_umount);
+>  	if (sb->s_bdi != &noop_backing_dev_info) {
+> +		spin_lock(&sb->s_bdi->sb_list_lock);
+> +		list_del_init(&sb->s_bdi_list);
+> +		spin_unlock(&sb->s_bdi->sb_list_lock);
+
+Verify that the superblock isn't in the dirty list here?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
