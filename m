@@ -1,102 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6B9440460
-	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 20:40:45 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v78so3805822pfk.8
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 17:40:45 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id k66si4965144pgk.665.2017.11.08.17.40.43
-        for <linux-mm@kvack.org>;
-        Wed, 08 Nov 2017 17:40:44 -0800 (PST)
-Date: Thu, 9 Nov 2017 10:40:41 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH v2] mm, shrinker: make shrinker_list lockless
-Message-ID: <20171109014041.GA10143@bbox>
-References: <20171108173740.115166-1-shakeelb@google.com>
- <20171109000735.GA9883@bbox>
- <CALvZod4ercfnebabcMEfxmwcRwdpu7xsPhjX4oyRHh2+5U8h1A@mail.gmail.com>
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F2839440460
+	for <linux-mm@kvack.org>; Wed,  8 Nov 2017 20:41:29 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id b40so3257790qkb.1
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 17:41:29 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id u4si4651736qkb.485.2017.11.08.17.41.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 08 Nov 2017 17:41:29 -0800 (PST)
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Subject: [RFC PATCH 0/3] restructure memfd code
+Date: Wed,  8 Nov 2017 17:41:06 -0800
+Message-Id: <20171109014109.21077-1-mike.kravetz@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod4ercfnebabcMEfxmwcRwdpu7xsPhjX4oyRHh2+5U8h1A@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>, David Herrmann <dh.herrmann@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>
 
-On Wed, Nov 08, 2017 at 05:07:08PM -0800, Shakeel Butt wrote:
-> On Wed, Nov 8, 2017 at 4:07 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > Hi,
-> >
-> > On Wed, Nov 08, 2017 at 09:37:40AM -0800, Shakeel Butt wrote:
-> >> In our production, we have observed that the job loader gets stuck for
-> >> 10s of seconds while doing mount operation. It turns out that it was
-> >> stuck in register_shrinker() and some unrelated job was under memory
-> >> pressure and spending time in shrink_slab(). Our machines have a lot
-> >> of shrinkers registered and jobs under memory pressure has to traverse
-> >> all of those memcg-aware shrinkers and do affect unrelated jobs which
-> >> want to register their own shrinkers.
-> >>
-> >> This patch has made the shrinker_list traversal lockless and shrinker
-> >> register remain fast. For the shrinker unregister, atomic counter
-> >> has been introduced to avoid synchronize_rcu() call. The fields of
-> >
-> > So, do you want to enhance unregister shrinker path as well as registering?
-> >
-> 
-> Yes, I don't want to add delay to unregister_shrinker for the normal
-> case where there isn't any readers (i.e. unconditional
-> synchronize_rcu).
+With the addition of memfd hugetlbfs support, we now have the situation
+where memfd depends on TMPFS -or- HUGETLBFS.  Previously, memfd was only
+supported on tmpfs, so it made sense that the code resides in shmem.c.
 
-Not sure how it makes bad.
-It would be better to add opinion in description about why unregister path is
-important and how synchronize_rcu might makeA slow for usual cases.
+This patch series moves the memfd code to separate files (memfd.c and
+memfd.h).  It creates a new config option MEMFD_CREATE that is defined
+if either TMPFS or HUGETLBFS is defined.
 
-> 
-> >> struct shrinker has been rearraged to make sure that the size does
-> >> not increase for x86_64.
-> >>
-> >> The shrinker functions are allowed to reschedule() and thus can not
-> >> be called with rcu read lock. One way to resolve that is to use
-> >> srcu read lock but then ifdefs has to be used as SRCU is behind
-> >> CONFIG_SRCU. Another way is to just release the rcu read lock before
-> >> calling the shrinker and reacquire on the return. The atomic counter
-> >> will make sure that the shrinker entry will not be freed under us.
-> >
-> > Instead of adding new lock, could we simply release shrinker_rwsem read-side
-> > lock in list traveral periodically to give a chance to hold a write-side
-> > lock?
-> >
-> 
-> Greg has already pointed out that this patch is still not right/safe
-> and now I am getting to the opinion that without changing the shrinker
-> API, it might not be possible to do lockless shrinker traversal and
-> unregister shrinker without synchronize_rcu().
-> 
-> Regarding your suggestion, do you mean to add periodic release lock
-> and reacquire using down_read_trylock() or down_read()?
+In the current code, memfd is only functional if TMPFS is defined.  If
+HUGETLFS is defined and TMPFS is not defined, then memfd functionality
+will not be available for hugetlbfs.  This does not cause BUGs, just a
+potential lack of desired functionality.
 
-Yub with down_read. Actually, I do not see point of down_read_trylock
-when considering write-lock path in reigster_shinker is too short.
+Another way to approach this issue would be to simply make HUGETLBFS
+depend on TMPFS.
 
-The problem in suggested approach is we should traverse list from the
-beginning again after reacquiring, which breaks fairness of each
-shrinker.
+This patch series is built on top of the Marc-AndrA(C) Lureau v3 series
+"memfd: add sealing to hugetlb-backed memory":
+http://lkml.kernel.org/r/20171107122800.25517-1-marcandre.lureau@redhat.com
 
-Maybe, we can introduce rwlock_is_contended which checks wait_list
-and returns true if wait_list is not empty.
+Mike Kravetz (3):
+  mm: hugetlbfs: move HUGETLBFS_I outside #ifdef CONFIG_HUGETLBFS
+  mm: memfd: split out memfd for use by multiple filesystems
+  mm: memfd: remove memfd code from shmem files and use new memfd files
 
-Thanks.
+ fs/Kconfig               |   3 +
+ fs/fcntl.c               |   2 +-
+ include/linux/hugetlb.h  |  27 ++--
+ include/linux/memfd.h    |  16 +++
+ include/linux/shmem_fs.h |  13 --
+ mm/Makefile              |   1 +
+ mm/memfd.c               | 341 +++++++++++++++++++++++++++++++++++++++++++++++
+ mm/shmem.c               | 323 --------------------------------------------
+ 8 files changed, 378 insertions(+), 348 deletions(-)
+ create mode 100644 include/linux/memfd.h
+ create mode 100644 mm/memfd.c
 
-
-
-
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
