@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AADA6B033D
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 11:49:39 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id d65so896497oig.9
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 08:49:39 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q29sor2373419otc.241.2017.11.09.08.49.38
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B151440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 11:59:59 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g6so6028991pgn.11
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 08:59:59 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id f19si6766953plr.246.2017.11.09.08.59.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 09 Nov 2017 08:49:38 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 08:59:58 -0800 (PST)
+Subject: Re: MPK: pkey_free and key reuse
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+ <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
+ <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <633b5b03-3481-0da2-9d6c-f5298902e36a@linux.intel.com>
+Date: Thu, 9 Nov 2017 08:59:56 -0800
 MIME-Version: 1.0
-In-Reply-To: <alpine.LRH.2.02.1711091130070.9079@file01.intranet.prod.int.rdu2.redhat.com>
-References: <alpine.LRH.2.02.1711071645240.1339@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108095909.GA7390@infradead.org> <alpine.LRH.2.02.1711080725490.12294@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108150447.GA10374@infradead.org> <alpine.LRH.2.02.1711081007570.8618@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108153522.GB24548@infradead.org> <alpine.LRH.2.02.1711081236570.1168@file01.intranet.prod.int.rdu2.redhat.com>
- <20171108174747.GA12199@infradead.org> <alpine.LRH.2.02.1711081516010.29922@file01.intranet.prod.int.rdu2.redhat.com>
- <CAPcyv4hR7DQ98ZCqqeyD2ihO0jWpQqPv_+s4v6iVaiNWrv96vw@mail.gmail.com> <alpine.LRH.2.02.1711091130070.9079@file01.intranet.prod.int.rdu2.redhat.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 9 Nov 2017 08:49:37 -0800
-Message-ID: <CAPcyv4jb4UW_qjzenyKCbbufSL0rHGBU4OHDQo9BH212Kjtppg@mail.gmail.com>
-Subject: Re: [dm-devel] [PATCH] vmalloc: introduce vmap_pfn for persistent memory
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mikulas Patocka <mpatocka@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Christoph Hellwig <hch@lst.de>, Linux MM <linux-mm@kvack.org>, dm-devel@redhat.com, Ross Zwisler <ross.zwisler@linux.intel.com>, Laura Abbott <labbott@redhat.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+To: Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Nov 9, 2017 at 8:37 AM, Mikulas Patocka <mpatocka@redhat.com> wrote:
->
->
-> On Wed, 8 Nov 2017, Dan Williams wrote:
->
->> On Wed, Nov 8, 2017 at 12:26 PM, Mikulas Patocka <mpatocka@redhat.com> wrote:
->> > On Wed, 8 Nov 2017, Christoph Hellwig wrote:
->> >
->> >> Can you start by explaining what you actually need the vmap for?
->> >
->> > It is possible to use lvm on persistent memory. You can create linear or
->> > striped logical volumes on persistent memory and these volumes still have
->> > the direct_access method, so they can be mapped with the function
->> > dax_direct_access().
->> >
->> > If we create logical volumes on persistent memory, the method
->> > dax_direct_access() won't return the whole device, it will return only a
->> > part. When dax_direct_access() returns the whole device, my driver just
->> > uses it without vmap. When dax_direct_access() return only a part of the
->> > device, my driver calls it repeatedly to get all the parts and then
->> > assembles the parts into a linear address space with vmap.
->>
->> I know I proposed "call dax_direct_access() once" as a strawman for an
->> in-kernel driver user, but it's better to call it per access so you
->> can better stay in sync with base driver events like new media errors
->> and unplug / driver-unload. Either that, or at least have a plan how
->> to handle those events.
->
-> Calling it on every access would be inacceptable performance overkill. How
-> is it supposed to work anyway? - if something intends to move data on
-> persistent memory while some driver accesse it, then we need two functions
-> - dax_direct_access() and dax_relinquish_direct_access(). The current
-> kernel lacks a function dax_relinquish_direct_access() that would mark a
-> region of data as moveable, so we can't move the data anyway.
+On 11/09/2017 06:48 AM, Florian Weimer wrote:
+> On 11/08/2017 09:41 PM, Dave Hansen wrote:
+>>> (B) If a key is reused, existing threads retain their access rights,
+>>> while there is an expectation that pkey_alloc denies access for the
+>>> threads except the current one.
+>> Where does this expectation come from?
+> 
+> For me, it was the access_rights argument to pkey_alloc.A  What else
+> would it do?A  For the current thread, I can already set the rights with
+> a PKRU write, so the existence of the syscall argument is puzzling.
 
-We take a global reference on the hosting device while pages are
-registered, see the percpu_ref usage in kernel/memremap.c, and we hold
-the dax_read_lock() over calls to dax_direct_access() to temporarily
-hold the device alive for the duration of the call.
+The manpage is pretty bare here.  But the thought was that, in most
+cases, you will want to allocate a key and start using it immediately.
+This was in response to some feedback on one of the earlier reviews of
+the patch set.
 
-> BTW. what happens if we create a write bio that has its pages pointing to
-> persistent memory and there is error when the storage controller attempts
-> to do DMA from persistent memory? Will the storage controller react to the
-> error in a sensible way and will the block layer report the error?
+>> Using the malloc() analogy, we
+>> don't expect that free() in one thread actively takes away references to
+>> the memory held by other threads.
+> 
+> But malloc/free isn't expected to be a partial antidote to random
+> pointer scribbling.
 
-While pages are pinned for DMA the devm_memremap_pages() mapping is
-pinned. Otherwise, an error reading persistent memory is identical to
-an error reading DRAM.
+Nor is protection keys intended to be an antidote for use-after-free.
+
+> I think we should either implement revoke on pkey_alloc, with a
+> broadcast to all threads (the pkey_set race can be closed by having a
+> vDSO for that an the revocation code can check %rip to see if the old
+> PKRU value needs to be fixed up).A  Or we add the two pkey_alloc flags I
+> mentioned earlier.
+
+That sounds awfully complicated to put in-kernel.  I'd be happy to
+review the patches after you put them together once we see how it looks.
+
+You basically want threads to broadcast their PKRU values at pkey_free()
+time.  That's totally doable... in userspace.  You just need a mechanism
+for each thread to periodically check if they need an update.  I don't
+think we need kernel intervention and vDSO magic for that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
