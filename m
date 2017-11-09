@@ -1,25 +1,34 @@
 From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 02/30] x86, tlb: make CR4-based TLB flushes more robust
-Date: Thu, 9 Nov 2017 12:02:13 +0100
-Message-ID: <20171109110213.fwa42ooxpcrkcbeq@pd.tnic>
+Subject: Re: [PATCH 03/30] x86, mm: document X86_CR4_PGE toggling behavior
+Date: Thu, 9 Nov 2017 13:21:30 +0100
+Message-ID: <20171109122130.ugnj6vyhmhvpzskh@pd.tnic>
 References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194649.61C7A485@viggo.jf.intel.com>
- <20171109104813.h67cts3mmr5zh4kd@pd.tnic>
- <alpine.DEB.2.20.1711091149500.1839@nanos>
+ <20171108194651.47745F42@viggo.jf.intel.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=utf-8
 Return-path: <linux-kernel-owner@vger.kernel.org>
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1711091149500.1839@nanos>
+In-Reply-To: <20171108194651.47745F42@viggo.jf.intel.com>
 Sender: linux-kernel-owner@vger.kernel.org
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, luto@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 List-Id: linux-mm.kvack.org
 
-On Thu, Nov 09, 2017 at 11:51:08AM +0100, Thomas Gleixner wrote:
-> Because its the same as before.
+On Wed, Nov 08, 2017 at 11:46:51AM -0800, Dave Hansen wrote:
+> 
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Doh, of course.
+ Subject: Re: [PATCH 03/30] x86, mm: document X86_CR4_PGE toggling behavior
+
+Btw, note the new-ish tip subject format:
+
+<path>: Sentence with a capital letter
+
+i.e.,
+
+x86/mm: Document X86_CR4_PGE toggling behavior
+
+in this case.
 
 Thx.
 
