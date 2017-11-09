@@ -1,253 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA409440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:12:29 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 11so2903900wrb.10
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:12:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w34si243399edc.96.2017.11.09.02.12.27
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C1E29440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:20:06 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id x6so1378163otd.14
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:20:06 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 125si1154826oih.436.2017.11.09.02.20.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 02:12:27 -0800 (PST)
-Date: Thu, 9 Nov 2017 11:12:25 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171109101138.qmy3366myzjafexr@dhcp22.suse.cz>
-References: <20171108102723.602216b1@gandalf.local.home>
-MIME-Version: 1.0
+        Thu, 09 Nov 2017 02:20:05 -0800 (PST)
+Subject: Re: [PATCH] mm: don't warn about allocations which stall for too long
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171026114100.tfb3xemvumg2a7su@dhcp22.suse.cz>
+	<91bdbdea-3f33-b7c0-8345-d0fa8c7f1cf1@sonymobile.com>
+	<20171109085249.guihvx5tzm77u3qk@dhcp22.suse.cz>
+	<ef81333e-0e19-c6f6-a960-093dc60fb75c@sony.com>
+	<20171109100920.f7ox4nc63dr44gva@dhcp22.suse.cz>
+In-Reply-To: <20171109100920.f7ox4nc63dr44gva@dhcp22.suse.cz>
+Message-Id: <201711091919.IDD04628.FSQOJFVLOOtFMH@I-love.SAKURA.ne.jp>
+Date: Thu, 9 Nov 2017 19:19:42 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171108102723.602216b1@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org
+To: mhocko@kernel.org, peter.enderborg@sony.com
+Cc: peter.enderborg@sonymobile.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz, yuwang.yuwang@alibaba-inc.com
 
-Hi,
-assuming that this passes warn stall torturing by Tetsuo, do you think
-we can drop http://lkml.kernel.org/r/1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-from the mmotm tree?
+Michal Hocko wrote:
+> On Thu 09-11-17 10:34:46, peter enderborg wrote:
+> > On 11/09/2017 09:52 AM, Michal Hocko wrote:
+> > > I am not sure. I would rather see a tracepoint to mark the allocator
+> > > entry. This would allow both 1) measuring the allocation latency (to
+> > > compare it to the trace_mm_page_alloc and 2) check for stalls with
+> > > arbitrary user defined timeout (just print all allocations which haven't
+> > > passed trace_mm_page_alloc for the given amount of time).
+> > 
+> > Traces are not that expensive, but there are more than few in calls
+> > in this path. And Im trying to keep it as small that it can used for
+> > maintenance versions too.
+> >
+> > This is suggestion is a quick way of keeping the current solution for
+> > the ones that are interested the slow allocations. If we are going
+> > for a solution with a time-out parameter from the user what interface
+> > do you suggest to do this configuration. A filter parameter for the
+> > event?
+> 
+> I meant to do all that in postprocessing. So no specific API is needed,
+> just parse the output. Anyway, it seems that the printk will be put in
+> shape in a forseeable future so we might preserve the stall warning
+> after all. It is the show_mem part which is interesting during that
+> warning.
 
-On Wed 08-11-17 10:27:23, Steven Rostedt wrote:
-> [ claws-mail is really pissing me off. It did it again, after I
->   manually fixed all the addresses. This time, I'm going to do things
->   slightly different. Sorry for all the spam :-( ]
-> 
-> From: Steven Rostedt (VMware) <rostedt@goodmis.org>
-> 
-> This patch implements what I discussed in Kernel Summit. I added
-> lockdep annotation (hopefully correctly), and it hasn't had any splats
-> (since I fixed some bugs in the first iterations). It did catch
-> problems when I had the owner covering too much. But now that the owner
-> is only set when actively calling the consoles, lockdep has stayed
-> quiet.
->  
-> Here's the design again:
-> 
-> I added a "console_owner" which is set to a task that is actively
-> writing to the consoles. It is *not* the same an the owner of the
-> console_lock. It is only set when doing the calls to the console
-> functions. It is protected by a console_owner_lock which is a raw spin
-> lock.
-> 
-> There is a console_waiter. This is set when there is an active console
-> owner that is not current, and waiter is not set. This too is protected
-> by console_owner_lock.
-> 
-> In printk() when it tries to write to the consoles, we have:
-> 
-> 	if (console_trylock())
-> 		console_unlock();
-> 
-> Now I added an else, which will check if there is an active owner, and
-> no current waiter. If that is the case, then console_waiter is set, and
-> the task goes into a spin until it is no longer set.
-> 
-> When the active console owner finishes writing the current message to
-> the consoles, it grabs the console_owner_lock and sees if there is a
-> waiter, and clears console_owner.
-> 
-> If there is a waiter, then it breaks out of the loop, clears the waiter
-> flag (because that will release the waiter from its spin), and exits.
-> Note, it does *not* release the console semaphore. Because it is a
-> semaphore, there is no owner. Another task may release it. This means
-> that the waiter is guaranteed to be the new console owner! Which it
-> becomes.
-> 
-> Then the waiter calls console_unlock() and continues to write to the
-> consoles.
-> 
-> If another task comes along and does a printk() it too can become the
-> new waiter, and we wash rinse and repeat!
-> 
-> Signed-off-by: Steven Rostedt (VMware) <rostedt@goodmis.org>
-> ---
-> Changes from v3:
-> 
-> 	Fixed while loop on console_waiter (Thanks Vlastimil!)
-> 
-> 	Moved console_owner out of logbuf_lock taking (reported by
-> 	Tetsuo Handa)
-> 
-> Changes from v2:
-> 
->   - Added back some READ/WRITE_ONCE() just to be on the safe side
-> Index: linux-trace.git/kernel/printk/printk.c
-> ===================================================================
-> --- linux-trace.git.orig/kernel/printk/printk.c
-> +++ linux-trace.git/kernel/printk/printk.c
-> @@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
->  static struct lockdep_map console_lock_dep_map = {
->  	.name = "console_lock"
->  };
-> +static struct lockdep_map console_owner_dep_map = {
-> +	.name = "console_owner"
-> +};
->  #endif
->  
-> +static DEFINE_RAW_SPINLOCK(console_owner_lock);
-> +static struct task_struct *console_owner;
-> +static bool console_waiter;
-> +
->  enum devkmsg_log_bits {
->  	__DEVKMSG_LOG_BIT_ON = 0,
->  	__DEVKMSG_LOG_BIT_OFF,
-> @@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
->  		 * semaphore.  The release will print out buffers and wake up
->  		 * /dev/kmsg and syslog() users.
->  		 */
-> -		if (console_trylock())
-> +		if (console_trylock()) {
->  			console_unlock();
-> +		} else {
-> +			struct task_struct *owner = NULL;
-> +			bool waiter;
-> +			bool spin = false;
-> +
-> +			printk_safe_enter_irqsave(flags);
-> +
-> +			raw_spin_lock(&console_owner_lock);
-> +			owner = READ_ONCE(console_owner);
-> +			waiter = READ_ONCE(console_waiter);
-> +			if (!waiter && owner && owner != current) {
-> +				WRITE_ONCE(console_waiter, true);
-> +				spin = true;
-> +			}
-> +			raw_spin_unlock(&console_owner_lock);
-> +
-> +			/*
-> +			 * If there is an active printk() writing to the
-> +			 * consoles, instead of having it write our data too,
-> +			 * see if we can offload that load from the active
-> +			 * printer, and do some printing ourselves.
-> +			 * Go into a spin only if there isn't already a waiter
-> +			 * spinning, and there is an active printer, and
-> +			 * that active printer isn't us (recursive printk?).
-> +			 */
-> +			if (spin) {
-> +				/* We spin waiting for the owner to release us */
-> +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-> +				/* Owner will clear console_waiter on hand off */
-> +				while (READ_ONCE(console_waiter))
-> +					cpu_relax();
-> +
-> +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +				printk_safe_exit_irqrestore(flags);
-> +
-> +				/*
-> +				 * The owner passed the console lock to us.
-> +				 * Since we did not spin on console lock, annotate
-> +				 * this as a trylock. Otherwise lockdep will
-> +				 * complain.
-> +				 */
-> +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
-> +				console_unlock();
-> +				printk_safe_enter_irqsave(flags);
-> +			}
-> +			printk_safe_exit_irqrestore(flags);
-> +
-> +		}
->  	}
->  
->  	return printed_len;
-> @@ -2141,6 +2196,7 @@ void console_unlock(void)
->  	static u64 seen_seq;
->  	unsigned long flags;
->  	bool wake_klogd = false;
-> +	bool waiter = false;
->  	bool do_cond_resched, retry;
->  
->  	if (console_suspended) {
-> @@ -2229,14 +2285,64 @@ skip:
->  		console_seq++;
->  		raw_spin_unlock(&logbuf_lock);
->  
-> +		/*
-> +		 * While actively printing out messages, if another printk()
-> +		 * were to occur on another CPU, it may wait for this one to
-> +		 * finish. This task can not be preempted if there is a
-> +		 * waiter waiting to take over.
-> +		 */
-> +		raw_spin_lock(&console_owner_lock);
-> +		console_owner = current;
-> +		raw_spin_unlock(&console_owner_lock);
-> +
-> +		/* The waiter may spin on us after setting console_owner */
-> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-> +
->  		stop_critical_timings();	/* don't trace print latency */
->  		call_console_drivers(ext_text, ext_len, text, len);
->  		start_critical_timings();
-> +
-> +		raw_spin_lock(&console_owner_lock);
-> +		waiter = READ_ONCE(console_waiter);
-> +		console_owner = NULL;
-> +		raw_spin_unlock(&console_owner_lock);
-> +
-> +		/*
-> +		 * If there is a waiter waiting for us, then pass the
-> +		 * rest of the work load over to that waiter.
-> +		 */
-> +		if (waiter)
-> +			break;
-> +
-> +		/* There was no waiter, and nothing will spin on us here */
-> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +
->  		printk_safe_exit_irqrestore(flags);
->  
->  		if (do_cond_resched)
->  			cond_resched();
->  	}
-> +
-> +	/*
-> +	 * If there is an active waiter waiting on the console_lock.
-> +	 * Pass off the printing to the waiter, and the waiter
-> +	 * will continue printing on its CPU, and when all writing
-> +	 * has finished, the last printer will wake up klogd.
-> +	 */
-> +	if (waiter) {
-> +		WRITE_ONCE(console_waiter, false);
-> +		/* The waiter is now free to continue */
-> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> +		/*
-> +		 * Hand off console_lock to waiter. The waiter will perform
-> +		 * the up(). After this, the waiter is the console_lock owner.
-> +		 */
-> +		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
-> +		printk_safe_exit_irqrestore(flags);
-> +		/* Note, if waiter is set, logbuf_lock is not held */
-> +		return;
-> +	}
-> +
->  	console_locked = 0;
->  
->  	/* Release the exclusive_console once it is used */
-
--- 
-Michal Hocko
-SUSE Labs
+I don't know whether printk() will be put in shape in a foreseeable future.
+The rule that "do not try to printk() faster than the kernel can write to
+consoles" will remain no matter how printk() changes. Unless asynchronous
+approach like https://lwn.net/Articles/723447/ is used, I think we can't
+obtain useful information.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
