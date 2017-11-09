@@ -1,69 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B151440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 11:59:59 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g6so6028991pgn.11
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 08:59:59 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id f19si6766953plr.246.2017.11.09.08.59.58
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 907CE440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 12:12:57 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id k100so3559493wrc.9
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 09:12:57 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id c127si5681034wme.156.2017.11.09.09.12.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 08:59:58 -0800 (PST)
-Subject: Re: MPK: pkey_free and key reuse
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
- <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <633b5b03-3481-0da2-9d6c-f5298902e36a@linux.intel.com>
-Date: Thu, 9 Nov 2017 08:59:56 -0800
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 09:12:56 -0800 (PST)
+Date: Thu, 9 Nov 2017 18:12:47 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] x86/mm: Fix ELF_ET_DYN_BASE for 5-level paging
+In-Reply-To: <20171107103804.47341-1-kirill.shutemov@linux.intel.com>
+Message-ID: <alpine.DEB.2.20.1711091812210.1839@nanos>
+References: <20171107103804.47341-1-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Kees Cook <keescook@chromium.org>, Ingo Molnar <mingo@elte.hu>, "H. Peter Anvin" <hpa@zytor.com>, Nicholas Piggin <npiggin@gmail.com>
 
-On 11/09/2017 06:48 AM, Florian Weimer wrote:
-> On 11/08/2017 09:41 PM, Dave Hansen wrote:
->>> (B) If a key is reused, existing threads retain their access rights,
->>> while there is an expectation that pkey_alloc denies access for the
->>> threads except the current one.
->> Where does this expectation come from?
+On Tue, 7 Nov 2017, Kirill A. Shutemov wrote:
+
+> On machines with 5-level paging we don't want to allocate mapping above
+> 47-bit unless user explicitly asked for it. See b569bab78d8d ("x86/mm:
+> Prepare to expose larger address space to userspace") for details.
 > 
-> For me, it was the access_rights argument to pkey_alloc.A  What else
-> would it do?A  For the current thread, I can already set the rights with
-> a PKRU write, so the existence of the syscall argument is puzzling.
-
-The manpage is pretty bare here.  But the thought was that, in most
-cases, you will want to allocate a key and start using it immediately.
-This was in response to some feedback on one of the earlier reviews of
-the patch set.
-
->> Using the malloc() analogy, we
->> don't expect that free() in one thread actively takes away references to
->> the memory held by other threads.
+> c715b72c1ba4 ("mm: revert x86_64 and arm64 ELF_ET_DYN_BASE base
+> changes") broke the behaviour. After the commit elf binary and heap got
+> mapped above 47-bits.
 > 
-> But malloc/free isn't expected to be a partial antidote to random
-> pointer scribbling.
+> Let's fix this.
 
-Nor is protection keys intended to be an antidote for use-after-free.
+That's a really useless sentence.....
 
-> I think we should either implement revoke on pkey_alloc, with a
-> broadcast to all threads (the pkey_set race can be closed by having a
-> vDSO for that an the revocation code can check %rip to see if the old
-> PKRU value needs to be fixed up).A  Or we add the two pkey_alloc flags I
-> mentioned earlier.
-
-That sounds awfully complicated to put in-kernel.  I'd be happy to
-review the patches after you put them together once we see how it looks.
-
-You basically want threads to broadcast their PKRU values at pkey_free()
-time.  That's totally doable... in userspace.  You just need a mechanism
-for each thread to periodically check if they need an update.  I don't
-think we need kernel intervention and vDSO magic for that.
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: c715b72c1ba4 ("mm: revert x86_64 and arm64 ELF_ET_DYN_BASE base changes")
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Ingo Molnar <mingo@elte.hu>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Nicholas Piggin <npiggin@gmail.com>
+> ---
+>  arch/x86/include/asm/elf.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/arch/x86/include/asm/elf.h b/arch/x86/include/asm/elf.h
+> index c1a125e47ff3..3a091cea36c5 100644
+> --- a/arch/x86/include/asm/elf.h
+> +++ b/arch/x86/include/asm/elf.h
+> @@ -253,7 +253,7 @@ extern int force_personality32;
+>   * space open for things that want to use the area for 32-bit pointers.
+>   */
+>  #define ELF_ET_DYN_BASE		(mmap_is_ia32() ? 0x000400000UL : \
+> -						  (TASK_SIZE / 3 * 2))
+> +						  (DEFAULT_MAP_WINDOW / 3 * 2))
+>  
+>  /* This yields a mask that user programs can use to figure out what
+>     instruction set this CPU supports.  This could be done in user space,
+> -- 
+> 2.14.2
+> 
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
