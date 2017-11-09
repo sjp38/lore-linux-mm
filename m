@@ -1,74 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 231CA440460
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 02:57:14 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id 72so8145857itl.1
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 23:57:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h71si4131294pge.146.2017.11.08.23.57.12
+	by kanga.kvack.org (Postfix) with ESMTP id 2D9F0440460
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 03:52:41 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id a125so8375774ita.8
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 00:52:41 -0800 (PST)
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTPS id k6si5621402pgq.102.2017.11.09.00.52.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 08 Nov 2017 23:57:13 -0800 (PST)
-Date: Thu, 9 Nov 2017 08:57:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: page_ext: check if page_ext is not prepared
-Message-ID: <20171109075709.b4umhipfg3n33qs7@dhcp22.suse.cz>
-References: <CGME20171107093947epcas2p3d449dd14d11907cd29df7be7984d90f0@epcas2p3.samsung.com>
- <20171107094131.14621-1-jaewon31.kim@samsung.com>
- <20171107094730.5732nqqltx2miszq@dhcp22.suse.cz>
- <20171108075956.GC18747@js1304-P5Q-DELUXE>
- <20171108142106.v76ictdykeqjzhhh@dhcp22.suse.cz>
- <20171109043552.GC24383@js1304-P5Q-DELUXE>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 00:52:39 -0800 (PST)
+Message-ID: <1510217554.32371.17.camel@mtkswgap22>
+Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
+ slub_debug=O
+From: Miles Chen <miles.chen@mediatek.com>
+Date: Thu, 9 Nov 2017 16:52:34 +0800
+In-Reply-To: <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake>
+References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com>
+	 <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake>
+	 <1510119138.17435.19.camel@mtkswgap22>
+	 <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171109043552.GC24383@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Jaewon Kim <jaewon31.kim@samsung.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, vbabka@suse.cz, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: Christopher Lameter <cl@linux.com>
+Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
 
-Andrew,
-
-On Thu 09-11-17 13:35:53, Joonsoo Kim wrote:
-> On Wed, Nov 08, 2017 at 03:21:06PM +0100, Michal Hocko wrote:
-> > On Wed 08-11-17 16:59:56, Joonsoo Kim wrote:
-> > > On Tue, Nov 07, 2017 at 10:47:30AM +0100, Michal Hocko wrote:
-[...]
-> > > > I suspec this goes all the way down to when page_ext has been
-> > > > resurrected.  It is quite interesting that nobody has noticed this in 3
-> > > > years but maybe the feature is not used all that much and the HW has to
-> > > > be quite special to trigger. Anyway the following should be added
-> > > > 
-> > > >  Fixes: eefa864b701d ("mm/page_ext: resurrect struct page extending code for debugging")
-> > > >  Cc: stable
-> > > 
-> > > IIRC, caller of lookup_page_ext() doesn't check 'NULL' until
-> > > f86e427197 ("mm: check the return value of lookup_page_ext for all
-> > > call sites"). So, this problem would happen old kernel even if this
-> > > patch is applied to old kernel.
-> > 
-> > OK, then the changelog should mention dependency on that check so that
-> > anybody who backports this patch to pre 4.7 kernels knows to pull that
-> > one as well.
-> > 
-> > > IMO, proper fix is to check all the pfn in the section. It is sent
-> > > from Jaewon in other mail.
-> > 
-> > I believe that this patch is valuable on its own and the other one
-> > should build on top of it.
+On Wed, 2017-11-08 at 09:05 -0600, Christopher Lameter wrote:
+> On Wed, 8 Nov 2017, Miles Chen wrote:
 > 
-> Okay, agreed.
+> > > Ok then the aliasing failed for some reason. The creation of the unique id
+> > > and the alias detection needs to be in sync otherwise duplicate filenames
+> > > are created. What is the difference there?
+> >
+> > The aliasing failed because find_mergeable() returns if (flags &
+> > SLAB_NEVER_MERGE) is true. So we do not go to search for alias caches.
+> >
+> > __kmem_cache_alias()
+> >   find_mergeable()
+> >     kmem_cache_flags()  --> setup flag by the slub_debug
+> >     if (flags & SLAB_NEVER_MERGE) return NULL;
+> >     ...
+> >     search alias logic...
+> >
+> >
+> > The flags maybe changed if disable_higher_order_debug=1. So the
+> > unmergeable cache becomes mergeable later.
+> 
+> Ok so make sure taht the aliasing logic also clears those flags before
+> checking for SLAB_NEVER_MERGE.
+> 
+> > > The clearing of the DEBUG_METADATA_FLAGS looks ok to me. kmem_cache_alias
+> > > should do the same right?
+> > >
+> > Yes, I think clearing DEBUG_METADATA flags in kmem_cache_alias is
+> > another solution for this issue.
+> >
+> > We will need to do calculate_sizes() by using original flags and compare
+> > the order of s->size and s->object_size when
+> > disable_higher_order_debug=1.
+> 
+> Hmmm... Or move the aliasing check to a point where we know the size of
+> the slab objects?
 
-could you add a note that stable backporters need to consider
-f86e427197. Something like
+The biggest concern is that we may have some merged caches even if we
+enable CONFIG_SLUB_DEBUG_ON and slub_debug=O. So a developer cannot say
+"I set CONFIG_SLUB_DEBUG_ON=y to stop all slab merging". 
+(https://www.spinics.net/lists/linux-mm/msg77919.html)
 
- Cc: stable # depends on f86e427197
+In this fix patch, it disables slab merging if SLUB_DEBUG=O and
+CONFIG_SLUB_DEBUG_ON=y but the debug features are disabled by the
+disable_higher_order_debug logic and it holds the "slab merging is off
+if any debug features are enabled" behavior.
 
-Thanks
--- 
-Michal Hocko
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
