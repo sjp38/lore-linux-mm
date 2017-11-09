@@ -1,125 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 57DFA440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 06:30:43 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id 198so3625029wmg.6
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 03:30:43 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BF437440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 06:31:58 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id v8so3009328wrd.21
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 03:31:58 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 33si1808442edg.409.2017.11.09.03.30.41
+        by mx.google.com with ESMTPS id m59si5561168ede.524.2017.11.09.03.31.57
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 03:30:41 -0800 (PST)
-Date: Thu, 9 Nov 2017 12:30:40 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 1/5] mm,page_alloc: Update comment for last second
- allocation attempt.
-Message-ID: <20171109113040.77gapoevxszejyfm@dhcp22.suse.cz>
-References: <1510138908-6265-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171108145039.tdueguedqos4rpk5@dhcp22.suse.cz>
- <201711091945.IAD64050.MtLFFQOOSOFJHV@I-love.SAKURA.ne.jp>
+        Thu, 09 Nov 2017 03:31:57 -0800 (PST)
+Date: Thu, 9 Nov 2017 12:31:56 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to
+ loadbalance console writes
+Message-ID: <20171109113156.i36uazn4esxm2vzw@dhcp22.suse.cz>
+References: <20171108102723.602216b1@gandalf.local.home>
+ <20171109101138.qmy3366myzjafexr@dhcp22.suse.cz>
+ <201711091922.IHJ81787.OVQFFJOSOLtHMF@I-love.SAKURA.ne.jp>
+ <20171109102613.hp6waybyxbkb3crz@dhcp22.suse.cz>
+ <201711092003.ACJ86411.FOFtFMVOJOSLHQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201711091945.IAD64050.MtLFFQOOSOFJHV@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711092003.ACJ86411.FOFtFMVOJOSLHQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, hannes@cmpxchg.org
+Cc: rostedt@goodmis.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org, linux-mm@kvack.org, xiyou.wangcong@gmail.com, dave.hansen@intel.com, hannes@cmpxchg.org, mgorman@suse.de, pmladek@suse.com, sergey.senozhatsky@gmail.com, vbabka@suse.cz, peterz@infradead.org, torvalds@linux-foundation.org, jack@suse.cz, mathieu.desnoyers@efficios.com, rostedt@home.goodmis.org
 
-On Thu 09-11-17 19:45:04, Tetsuo Handa wrote:
+On Thu 09-11-17 20:03:30, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > On Wed 08-11-17 20:01:44, Tetsuo Handa wrote:
-> > > __alloc_pages_may_oom() is doing last second allocation attempt using
-> > > ALLOC_WMARK_HIGH before calling out_of_memory(). This had two reasons.
+> > On Thu 09-11-17 19:22:58, Tetsuo Handa wrote:
+> > > Michal Hocko wrote:
+> > > > Hi,
+> > > > assuming that this passes warn stall torturing by Tetsuo, do you think
+> > > > we can drop http://lkml.kernel.org/r/1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+> > > > from the mmotm tree?
 > > > 
-> > > The first reason is explained in the comment that it aims to catch
-> > > potential parallel OOM killing. But there is no longer parallel OOM
-> > > killing (in the sense that out_of_memory() is called "concurrently")
-> > > because we serialize out_of_memory() calls using oom_lock.
+> > > I don't think so.
 > > > 
-> > > The second reason is explained by Andrea Arcangeli (who added that code)
-> > > that it aims to reduce the likelihood of OOM livelocks and be sure to
-> > > invoke the OOM killer. There was a risk of livelock or anyway of delayed
-> > > OOM killer invocation if ALLOC_WMARK_MIN is used, for relying on last
-> > > few pages which are constantly allocated and freed in the meantime will
-> > > not improve the situation.
-> 
-> Above part is OK, isn't it?
-> 
+> > > The rule that "do not try to printk() faster than the kernel can write to
+> > > consoles" will remain no matter how printk() changes. Unless asynchronous
+> > > approach like https://lwn.net/Articles/723447/ is used, I think we can't
+> > > obtain useful information.
 > > 
-> > > But there is no longer possibility of OOM
-> > > livelocks or failing to invoke the OOM killer because we need to mask
-> > > __GFP_DIRECT_RECLAIM for last second allocation attempt because oom_lock
-> > > prevents __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations which last
-> > > second allocation attempt indirectly involve from failing.
+> > Does that mean that the patch doesn't pass your test?
 > > 
-> > This is an unfounded, misleading and actually even wrong statement that
-> > has nothing to do with what Andrea had in mind. __GFP_DIRECT_RECLAIM
-> > doesn't have anything to do with the livelock as I've already mentioned
-> > several times already.
 > 
-> I know that this part is not what Andrea had in mind when he added this comment.
-> What I'm saying is that "precondition has changed after Andrea added this comment"
-> and "these reasons which Andrea had in mind when he added this comment no longer
-> holds". I'm posting "for the record" purpose in order to describe reasons for
-> current code.
+> Test is irrelevant. See the changelog.
 > 
-> When we introduced oom_lock (or formerly the per-zone oom lock) for serializing invocation
-> of the OOM killer, we introduced two bugs at the same time. One bug is that since doing
-> __GFP_DIRECT_RECLAIM with oom_lock held can make __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> allocations (which __GFP_DIRECT_RECLAIM indirectly involved) lockup, we need to avoid
-> __GFP_DIRECT_RECLAIM allocations with oom_lock held. This is why commit e746bf730a76fe53
-> ("mm,page_alloc: don't call __node_reclaim() with oom_lock held.") was made. This in turn
-> forbids using __GFP_DIRECT_RECLAIM for last second allocation attempt which was not
-> forbidden when Andrea added this comment.
+>   Synchronous approach is prone to unexpected results (e.g. too late [1], too
+>   frequent [2], overlooked [3]). As far as I know, warn_alloc() never helped
+>   with providing information other than "something is going wrong".
+>   I want to consider asynchronous approach which can obtain information
+>   during stalls with possibly relevant threads (e.g. the owner of oom_lock
+>   and kswapd-like threads) and serve as a trigger for actions (e.g. turn
+>   on/off tracepoints, ask libvirt daemon to take a memory dump of stalling
+>   KVM guest for diagnostic purpose).
+> 
+>   [1] https://bugzilla.kernel.org/show_bug.cgi?id=192981
+>   [2] http://lkml.kernel.org/r/CAM_iQpWuPVGc2ky8M-9yukECtS+zKjiDasNymX7rMcBjBFyM_A@mail.gmail.com
+>   [3] commit db73ee0d46379922 ("mm, vmscan: do not loop on too_many_isolated for ever")
 
-But this has anything to do with the original motivation for the high
-watermark allocation.
- 
-> ( The other bug is that we assumed that somebody is making progress for us when
-> mutex_trylock(&oom_lock) in __alloc_pages_may_oom() failed, for we did not take
-> scheduling priority into account when we introduced oom_lock. But the other bug
-> is not what I'm writing in this patch. You can forget about the other bug
-> regarding this patch. )
-> 
-> > 
-> > > Since the OOM killer does not always kill a process consuming significant
-> > > amount of memory (the OOM killer kills a process with highest OOM score
-> > > (or instead one of its children if any)), there will be cases where
-> > > ALLOC_WMARK_HIGH fails and ALLOC_WMARK_MIN succeeds.
-> > 
-> > This is possible but not really interesting case as already explained.
-> > 
-> > > Since the gap between ALLOC_WMARK_HIGH and ALLOC_WMARK_MIN can be changed
-> > > by /proc/sys/vm/min_free_kbytes parameter, using ALLOC_WMARK_MIN for last
-> > > second allocation attempt might be better for minimizing number of OOM
-> > > victims. But that change should be done in a separate patch. This patch
-> > > just clarifies that ALLOC_WMARK_HIGH is an arbitrary choice.
-> > 
-> > Again unfounded claim.
-> 
-> Since use of __GFP_DIRECT_RECLAIM for last second allocation attempt is now
-> forbidden due to oom_lock already held, possibility of failing last allocation
-> attempt has increased compared to when Andrea added this comment. Andrea said
-> 
->   The high wmark is used to be sure the failure of reclaim isn't going to be
->   ignored. If using the min wmark like you propose there's risk of livelock or
->   anyway of delayed OOM killer invocation.
-
-Wrong. It just takes an unrelated single page alloc/free loop to prevent
-from the oom killer invocation.
- 
-[...]
-> So, I believe that the changelog is not wrong, and I don't want to preserve
-> 
->   keep very high watermark here, this is only to catch a parallel oom killing,
->   we must fail if we're still under heavy pressure
-> 
-> part which lost strong background.
-
-I do not see how. You simply do not address the original concern Andrea
-had and keep repeating unrelated stuff.
-
+So you want to keep the warning out of the kernel even though the
+problems you are seeing are gone just to allow for an async approach
+nobody is very fond of? That is a very dubious approach.
 -- 
 Michal Hocko
 SUSE Labs
