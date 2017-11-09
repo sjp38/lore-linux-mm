@@ -1,92 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5633440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 06:27:26 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id n37so2965985wrb.17
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 03:27:26 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DFA440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 06:30:43 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id 198so3625029wmg.6
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 03:30:43 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r6si5392389edi.539.2017.11.09.03.27.24
+        by mx.google.com with ESMTPS id 33si1808442edg.409.2017.11.09.03.30.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 03:27:25 -0800 (PST)
-Date: Thu, 9 Nov 2017 12:27:23 +0100
+        Thu, 09 Nov 2017 03:30:41 -0800 (PST)
+Date: Thu, 9 Nov 2017 12:30:40 +0100
 From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH 5/5] nommu,oom: Set MMF_OOM_SKIP without waiting for
- termination.
-Message-ID: <20171109112723.b4jg3naw7enb6g5w@dhcp22.suse.cz>
+Subject: Re: [PATCH 1/5] mm,page_alloc: Update comment for last second
+ allocation attempt.
+Message-ID: <20171109113040.77gapoevxszejyfm@dhcp22.suse.cz>
 References: <1510138908-6265-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <1510138908-6265-5-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171108162427.3hstwbagywwjrh44@dhcp22.suse.cz>
- <201711091949.BDB73475.OSHFOMQtLFOFVJ@I-love.SAKURA.ne.jp>
+ <20171108145039.tdueguedqos4rpk5@dhcp22.suse.cz>
+ <201711091945.IAD64050.MtLFFQOOSOFJHV@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201711091949.BDB73475.OSHFOMQtLFOFVJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711091945.IAD64050.MtLFFQOOSOFJHV@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, mgorman@techsingularity.net
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, hannes@cmpxchg.org
 
-On Thu 09-11-17 19:49:16, Tetsuo Handa wrote:
+On Thu 09-11-17 19:45:04, Tetsuo Handa wrote:
 > Michal Hocko wrote:
-> > On Wed 08-11-17 20:01:48, Tetsuo Handa wrote:
-> > > Commit 212925802454672e ("mm: oom: let oom_reap_task and exit_mmap run
-> > > concurrently") moved the location of setting MMF_OOM_SKIP from __mmput()
-> > > in kernel/fork.c (which is used by both MMU and !MMU) to exit_mm() in
-> > > mm/mmap.c (which is used by MMU only). As a result, that commit required
-> > > OOM victims in !MMU kernels to disappear from the task list in order to
-> > > reenable the OOM killer, for !MMU kernels can no longer set MMF_OOM_SKIP
-> > > (unless the OOM victim's mm is shared with global init process).
-> > 
-> > nack withtout demonstrating that the problem is real. It is true it
-> > removes some lines but this is mostly this...
+> > On Wed 08-11-17 20:01:44, Tetsuo Handa wrote:
+> > > __alloc_pages_may_oom() is doing last second allocation attempt using
+> > > ALLOC_WMARK_HIGH before calling out_of_memory(). This had two reasons.
+> > > 
+> > > The first reason is explained in the comment that it aims to catch
+> > > potential parallel OOM killing. But there is no longer parallel OOM
+> > > killing (in the sense that out_of_memory() is called "concurrently")
+> > > because we serialize out_of_memory() calls using oom_lock.
+> > > 
+> > > The second reason is explained by Andrea Arcangeli (who added that code)
+> > > that it aims to reduce the likelihood of OOM livelocks and be sure to
+> > > invoke the OOM killer. There was a risk of livelock or anyway of delayed
+> > > OOM killer invocation if ALLOC_WMARK_MIN is used, for relying on last
+> > > few pages which are constantly allocated and freed in the meantime will
+> > > not improve the situation.
 > 
-> Then, it is impossible unless somebody volunteers proving it.
-> I'm not a nommu kernel user.
+> Above part is OK, isn't it?
+> 
+> > 
+> > > But there is no longer possibility of OOM
+> > > livelocks or failing to invoke the OOM killer because we need to mask
+> > > __GFP_DIRECT_RECLAIM for last second allocation attempt because oom_lock
+> > > prevents __GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations which last
+> > > second allocation attempt indirectly involve from failing.
+> > 
+> > This is an unfounded, misleading and actually even wrong statement that
+> > has nothing to do with what Andrea had in mind. __GFP_DIRECT_RECLAIM
+> > doesn't have anything to do with the livelock as I've already mentioned
+> > several times already.
+> 
+> I know that this part is not what Andrea had in mind when he added this comment.
+> What I'm saying is that "precondition has changed after Andrea added this comment"
+> and "these reasons which Andrea had in mind when he added this comment no longer
+> holds". I'm posting "for the record" purpose in order to describe reasons for
+> current code.
+> 
+> When we introduced oom_lock (or formerly the per-zone oom lock) for serializing invocation
+> of the OOM killer, we introduced two bugs at the same time. One bug is that since doing
+> __GFP_DIRECT_RECLAIM with oom_lock held can make __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> allocations (which __GFP_DIRECT_RECLAIM indirectly involved) lockup, we need to avoid
+> __GFP_DIRECT_RECLAIM allocations with oom_lock held. This is why commit e746bf730a76fe53
+> ("mm,page_alloc: don't call __node_reclaim() with oom_lock held.") was made. This in turn
+> forbids using __GFP_DIRECT_RECLAIM for last second allocation attempt which was not
+> forbidden when Andrea added this comment.
 
-Do not convolute the code for a non-existent problem. Full stop.
+But this has anything to do with the original motivation for the high
+watermark allocation.
+ 
+> ( The other bug is that we assumed that somebody is making progress for us when
+> mutex_trylock(&oom_lock) in __alloc_pages_may_oom() failed, for we did not take
+> scheduling priority into account when we introduced oom_lock. But the other bug
+> is not what I'm writing in this patch. You can forget about the other bug
+> regarding this patch. )
+> 
+> > 
+> > > Since the OOM killer does not always kill a process consuming significant
+> > > amount of memory (the OOM killer kills a process with highest OOM score
+> > > (or instead one of its children if any)), there will be cases where
+> > > ALLOC_WMARK_HIGH fails and ALLOC_WMARK_MIN succeeds.
+> > 
+> > This is possible but not really interesting case as already explained.
+> > 
+> > > Since the gap between ALLOC_WMARK_HIGH and ALLOC_WMARK_MIN can be changed
+> > > by /proc/sys/vm/min_free_kbytes parameter, using ALLOC_WMARK_MIN for last
+> > > second allocation attempt might be better for minimizing number of OOM
+> > > victims. But that change should be done in a separate patch. This patch
+> > > just clarifies that ALLOC_WMARK_HIGH is an arbitrary choice.
+> > 
+> > Again unfounded claim.
+> 
+> Since use of __GFP_DIRECT_RECLAIM for last second allocation attempt is now
+> forbidden due to oom_lock already held, possibility of failing last allocation
+> attempt has increased compared to when Andrea added this comment. Andrea said
+> 
+>   The high wmark is used to be sure the failure of reclaim isn't going to be
+>   ignored. If using the min wmark like you propose there's risk of livelock or
+>   anyway of delayed OOM killer invocation.
+
+Wrong. It just takes an unrelated single page alloc/free loop to prevent
+from the oom killer invocation.
  
 [...]
-> > On Wed 08-11-17 20:01:48, Tetsuo Handa wrote:
-> > [...]
-> > > @@ -829,7 +831,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> > >  	unsigned int victim_points = 0;
-> > >  	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
-> > >  					      DEFAULT_RATELIMIT_BURST);
-> > > -	bool can_oom_reap = true;
-> > > +	bool can_oom_reap = IS_ENABLED(CONFIG_MMU);
-> > >  
-> > >  	/*
-> > >  	 * If the task is already exiting, don't alarm the sysadmin or kill
-> > > @@ -929,7 +931,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> > >  			continue;
-> > >  		if (is_global_init(p)) {
-> > >  			can_oom_reap = false;
-> > > -			set_bit(MMF_OOM_SKIP, &mm->flags);
-> > >  			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
-> > >  					task_pid_nr(victim), victim->comm,
-> > >  					task_pid_nr(p), p->comm);
-> > > @@ -947,6 +948,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
-> > >  
-> > >  	if (can_oom_reap)
-> > >  		wake_oom_reaper(victim);
-> > > +	else
-> > > +		set_bit(MMF_OOM_SKIP, &mm->flags);
-> > >  
-> > >  	mmdrop(mm);
-> > >  	put_task_struct(victim);
-> > 
-> > Also this looks completely broken. nommu kernels lose the premature oom
-> > killing protection almost completely (they simply rely on the sleep
-> > before dropping the oom_lock).
-> > 
+> So, I believe that the changelog is not wrong, and I don't want to preserve
 > 
-> If you are worrying that setting MMF_OOM_SKIP immediately might cause
-> premature OOM killing), what we would afford is timeout-based approach
-> shown below, for it will be a waste of resource to add the OOM reaper kernel
-> thread which does nothing but setting MMF_OOM_SKIP.
+>   keep very high watermark here, this is only to catch a parallel oom killing,
+>   we must fail if we're still under heavy pressure
+> 
+> part which lost strong background.
 
-No! See above
+I do not see how. You simply do not address the original concern Andrea
+had and keep repeating unrelated stuff.
+
 -- 
 Michal Hocko
 SUSE Labs
