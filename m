@@ -1,70 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 42603440CD7
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:29:31 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id q127so3566757wmd.1
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:29:31 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id l10si5410244wrf.26.2017.11.09.02.29.30
-        for <linux-mm@kvack.org>;
-        Thu, 09 Nov 2017 02:29:30 -0800 (PST)
-Date: Thu, 9 Nov 2017 11:29:25 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 01/30] x86, mm: do not set _PAGE_USER for init_mm page
- tables
-Message-ID: <20171109102925.xrk4yfq642zw4yls@pd.tnic>
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194647.ABC9BC79@viggo.jf.intel.com>
+	by kanga.kvack.org (Postfix) with ESMTP id A8324440CD7
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 05:32:54 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b9so3570169wmh.5
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 02:32:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p6si1181918edk.106.2017.11.09.02.32.53
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 09 Nov 2017 02:32:53 -0800 (PST)
+Date: Thu, 9 Nov 2017 11:32:46 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 2/4] writeback: allow for dirty metadata accounting
+Message-ID: <20171109103246.GB9263@quack2.suse.cz>
+References: <1510167660-26196-1-git-send-email-josef@toxicpanda.com>
+ <1510167660-26196-2-git-send-email-josef@toxicpanda.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171108194647.ABC9BC79@viggo.jf.intel.com>
+In-Reply-To: <1510167660-26196-2-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-On Wed, Nov 08, 2017 at 11:46:47AM -0800, Dave Hansen wrote:
+On Wed 08-11-17 14:00:58, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
 > 
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+> Provide a mechanism for file systems to indicate how much dirty metadata they
+> are holding.  This introduces a few things
 > 
-> init_mm is for kernel-exclusive use.  If someone is allocating page
-> tables for it, do not set _PAGE_USER on them.
+> 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
+> 2) WB stat for dirty metadata.  This way we know if we need to try and call into
+> the file system to write out metadata.  This could potentially be used in the
+> future to make balancing of dirty pages smarter.
 > 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Kees Cook <keescook@google.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: x86@kernel.org
-> ---
-> 
->  b/arch/x86/include/asm/pgalloc.h |   33 ++++++++++++++++++++++++++++-----
->  1 file changed, 28 insertions(+), 5 deletions(-)
-> 
-> diff -puN arch/x86/include/asm/pgalloc.h~kaiser-prep-clear-_PAGE_USER-for-init_mm arch/x86/include/asm/pgalloc.h
-> --- a/arch/x86/include/asm/pgalloc.h~kaiser-prep-clear-_PAGE_USER-for-init_mm	2017-11-08 10:45:25.928681403 -0800
-> +++ b/arch/x86/include/asm/pgalloc.h	2017-11-08 10:45:25.931681403 -0800
-> @@ -61,20 +61,37 @@ static inline void __pte_free_tlb(struct
->  	___pte_free_tlb(tlb, pte);
->  }
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
+...
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 13d711dd8776..0281abd62e87 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -3827,7 +3827,8 @@ static unsigned long node_pagecache_reclaimable(struct pglist_data *pgdat)
 >  
-> +/*
-> + * init_mm is for kernel-exclusive use.  Any page tables that
-> + * are seteup for it should not be usable by userspace.
+>  	/* If we can't clean pages, remove dirty pages from consideration */
+>  	if (!(node_reclaim_mode & RECLAIM_WRITE))
+> -		delta += node_page_state(pgdat, NR_FILE_DIRTY);
+> +		delta += node_page_state(pgdat, NR_FILE_DIRTY) +
+> +			node_page_state(pgdat, NR_METADATA_DIRTY);
+>  
+>  	/* Watch for any possible underflows due to delta */
+>  	if (unlikely(delta > nr_pagecache_reclaimable))
 
-s/seteup/setup/
+Do you expect your metadata pages to be accounted in NR_FILE_PAGES?
+Otherwise this doesn't make sense. And even if they would, this function is
+about kswapd / direct page reclaim and I don't think you've added smarts
+there to writeout metadata. So if your metadata pages are going to show up
+in NR_FILE_PAGES, you need to subtract NR_METADATA_DIRTY from reclaimable
+pages always. It would be good to see btrfs counterpart to these patches so
+that we can answer questions like this easily...
 
+								Honza
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
