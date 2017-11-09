@@ -1,71 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E452440460
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 02:44:50 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id b189so3358493wmd.9
-        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 23:44:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v10sor3812080edf.47.2017.11.08.23.44.48
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A84F440460
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 02:50:01 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id n79so7933347ion.17
+        for <linux-mm@kvack.org>; Wed, 08 Nov 2017 23:50:01 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id i3si5690699pli.199.2017.11.08.23.49.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 08 Nov 2017 23:44:49 -0800 (PST)
-Subject: Re: [PATCH] userfaultfd.2: document spurious UFFD_EVENT_FORK
-References: <1510124048-7991-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Message-ID: <1b812837-b368-5e6e-ff9d-7d570354437a@gmail.com>
-Date: Thu, 9 Nov 2017 08:44:47 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 08 Nov 2017 23:49:59 -0800 (PST)
+From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+Date: Thu, 9 Nov 2017 07:46:39 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <20171011082227.20546-2-liuwenliang@huawei.com>
+ <227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
+In-Reply-To: <227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <1510124048-7991-1-git-send-email-rppt@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: mtk.manpages@gmail.com, Andrea Arcangeli <aarcange@redhat.com>, linux-man@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+To: Marc Zyngier <marc.zyngier@arm.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>
+Cc: "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-On 11/08/2017 07:54 AM, Mike Rapoport wrote:
-> Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
-
-Thanks, Mike. Applied.
-
-Cheers,
-
-Michael
-
-
-> ---
->  man2/userfaultfd.2 | 10 ++++++++++
->  1 file changed, 10 insertions(+)
-> 
-> diff --git a/man2/userfaultfd.2 b/man2/userfaultfd.2
-> index 1c9e64b..08c41e1 100644
-> --- a/man2/userfaultfd.2
-> +++ b/man2/userfaultfd.2
-> @@ -465,6 +465,16 @@ for checkpoint/restore mechanisms,
->  as well as post-copy migration to allow (nearly) uninterrupted execution
->  when transferring virtual machines and Linux containers
->  from one host to another.
-> +.SH BUGS
-> +If the
-> +.B UFFD_FEATURE_EVENT_FORK
-> +is enabled and a system call from the
-> +.BR fork (2)
-> +family is interrupted by a signal or failed,q a stale userfaultfd descriptor
-> +might be created.
-> +In this case a spurious
-> +.B UFFD_EVENT_FORK
-> +will be delivered to the userfaultfd monitor.
->  .SH EXAMPLE
->  The program below demonstrates the use of the userfaultfd mechanism.
->  The program creates two threads, one of which acts as the
-> 
-
-
--- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+T24gMTIvMTAvMTcgMTU6NTksIE1hcmMgWnluZ2llciBbbWFpbHRvOm1hcmMuenluZ2llckBhcm0u
+Y29tXSB3cm90ZToNCj4gT24gMTEvMTAvMTcgMDk6MjIsIEFiYm90dCBMaXUgd3JvdGU6DQo+PiBk
+aWZmIC0tZ2l0IGEvYXJjaC9hcm0vaW5jbHVkZS9hc20vcHJvYy1mbnMuaCBiL2FyY2gvYXJtL2lu
+Y2x1ZGUvYXNtL3Byb2MtZm5zLmgNCj4+IGluZGV4IGYyZTFhZjQuLjZlMjY3MTQgMTAwNjQ0DQo+
+PiAtLS0gYS9hcmNoL2FybS9pbmNsdWRlL2FzbS9wcm9jLWZucy5oDQo+PiArKysgYi9hcmNoL2Fy
+bS9pbmNsdWRlL2FzbS9wcm9jLWZucy5oDQo+PiBAQCAtMTMxLDYgKzEzMSwxNSBAQCBleHRlcm4g
+dm9pZCBjcHVfcmVzdW1lKHZvaWQpOw0KPj4gIAkJcGcgJj0gfihQVFJTX1BFUl9QR0Qqc2l6ZW9m
+KHBnZF90KS0xKTsJXA0KPj4gIAkJKHBnZF90ICopcGh5c190b192aXJ0KHBnKTsJCVwNCj4+ICAJ
+fSkNCj4+ICsNCj4+ICsjZGVmaW5lIGNwdV9zZXRfdHRicjAodmFsKQkJCQkJXA0KPj4gKwlkbyB7
+CQkJCQkJCVwNCj4+ICsJCXU2NCB0dGJyID0gdmFsOwkJCQkJXA0KPj4gKwkJX19hc21fXygibWNy
+cglwMTUsIDAsICVRMCwgJVIwLCBjMiIJCVwNCj4+ICsJCQk6IDogInIiICh0dGJyKSk7CVwNCj4+
+ICsJfSB3aGlsZSAoMCkNCj4+ICsNCj4+ICsNCj4+ICAjZWxzZQ0KPj4gICNkZWZpbmUgY3B1X2dl
+dF9wZ2QoKQlcDQo+PiAgCSh7CQkJCQkJXA0KPj4gQEAgLTE0MCw2ICsxNDksMzAgQEAgZXh0ZXJu
+IHZvaWQgY3B1X3Jlc3VtZSh2b2lkKTsNCj4+ICAJCXBnICY9IH4weDNmZmY7CQkJCVwNCj4+ICAJ
+CShwZ2RfdCAqKXBoeXNfdG9fdmlydChwZyk7CQlcDQo+PiAgCX0pDQo+PiArDQo+PiArI2RlZmlu
+ZSBjcHVfc2V0X3R0YnIobnIsIHZhbCkJCQkJCVwNCj4+ICsJZG8gewkJCQkJCQlcDQo+PiArCQl1
+NjQgdHRiciA9IHZhbDsJCQkJCVwNCj4+ICsJCV9fYXNtX18oIm1jcglwMTUsIDAsICUwLCBjMiwg
+YzAsIDAiCQlcDQo+PiArCQkJOiA6ICJyIiAodHRicikpOwkJCVwNCj4+ICsJfSB3aGlsZSAoMCkN
+Cj4+ICsNCj4+ICsjZGVmaW5lIGNwdV9nZXRfdHRicihucikJCQkJCVwNCj4+ICsJKHsJCQkJCQkJ
+XA0KPj4gKwkJdW5zaWduZWQgbG9uZyB0dGJyOwkJCQlcDQo+PiArCQlfX2FzbV9fKCJtcmMJcDE1
+LCAwLCAlMCwgYzIsIGMwLCAwIgkJXA0KPj4gKwkJCTogIj1yIiAodHRicikpOwkJCQlcDQo+PiAr
+CQl0dGJyOwkJCQkJCVwNCj4+ICsJfSkNCj4+ICsNCj4+ICsjZGVmaW5lIGNwdV9zZXRfdHRicjAo
+dmFsKQkJCQkJXA0KPj4gKwlkbyB7CQkJCQkJCVwNCj4+ICsJCXU2NCB0dGJyID0gdmFsOwkJCQkJ
+XA0KPj4gKwkJX19hc21fXygibWNyCXAxNSwgMCwgJTAsIGMyLCBjMCwgMCIJCVwNCj4+ICsJCQk6
+IDogInIiICh0dGJyKSk7CQkJXA0KPj4gKwl9IHdoaWxlICgwKQ0KPj4gKw0KPj4gKw0KPg0KPllv
+dSBjb3VsZCBpbnN0ZWFkIGxpZnQgYW5kIGV4dGVuZCB0aGUgZGVmaW5pdGlvbnMgcHJvdmlkZWQg
+aW4ga3ZtX2h5cC5oLA0KPmFuZCB1c2UgdGhlIHJlYWRfc3lzcmVnL3dyaXRlX3N5c3JlZyBoZWxw
+ZXJzIGRlZmluZWQgaW4gY3AxNS5oLg0KDQpUaGFua3MgZm9yIHlvdXIgcmV2aWV3LiANCkkgZXh0
+ZW5kIGRlZmluaXRpb25zIG9mIFRUQlIwL1RUQlIxL1BBUiBpbiBrdm1faHlwLmggd2hlbiB0aGUg
+Q09ORklHX0FSTV9MUEFFIGlzIA0Kbm90IGRlZmluZWQuIA0KQmVjYXVzZSBjb3J0ZXggQTkgZG9u
+J3Qgc3VwcG9ydCB2aXJ0dWFsaXphdGlvbiwgc28gdXNlIENPTkZJR19BUk1fTFBBRSB0byBleGNs
+dWRlDQpzb21lIGZ1bmN0aW9ucyBhbmQgbWFjcm9zIHdoaWNoIGFyZSBvbmx5IHVzZWQgaW4gdmly
+dHVhbGl6YXRpb24uDQoNCkhlcmUgaXMgdGhlIGNvZGUgd2hpY2ggSSB0ZXN0ZWQgb24gdmV4cHJl
+c3NfYTE1IGFuZCB2ZXhwcmVzc19hOToNCg0KZGlmZiAtLWdpdCBhL2FyY2gvYXJtL2luY2x1ZGUv
+YXNtL2t2bV9oeXAuaCBiL2FyY2gvYXJtL2luY2x1ZGUvYXNtL2t2bV9oeXAuaA0KaW5kZXggMTRi
+NTkwMy4uMjU5MjYwOCAxMDA2NDQNCi0tLSBhL2FyY2gvYXJtL2luY2x1ZGUvYXNtL2t2bV9oeXAu
+aA0KKysrIGIvYXJjaC9hcm0vaW5jbHVkZS9hc20va3ZtX2h5cC5oDQpAQCAtMTksMTIgKzE5LDE0
+IEBADQogI2RlZmluZSBfX0FSTV9LVk1fSFlQX0hfXw0KDQogI2luY2x1ZGUgPGxpbnV4L2NvbXBp
+bGVyLmg+DQotI2luY2x1ZGUgPGxpbnV4L2t2bV9ob3N0Lmg+DQogI2luY2x1ZGUgPGFzbS9jcDE1
+Lmg+DQorDQorI2lmZGVmIENPTkZJR19BUk1fTFBBRQ0KKyNpbmNsdWRlIDxsaW51eC9rdm1faG9z
+dC5oPg0KICNpbmNsdWRlIDxhc20va3ZtX21tdS5oPg0KICNpbmNsdWRlIDxhc20vdmZwLmg+DQot
+DQogI2RlZmluZSBfX2h5cF90ZXh0IF9fc2VjdGlvbiguaHlwLnRleHQpIG5vdHJhY2UNCisjZW5k
+aWYNCg0KICNkZWZpbmUgX19BQ0NFU1NfVkZQKENSbikgICAgICAgICAgICAgICAgICAgICAgXA0K
+ICAgICAgICAibXJjIiwgIm1jciIsIF9fc3RyaW5naWZ5KHAxMCwgNywgJTAsIENSbiwgY3IwLCAw
+KSwgdTMyDQpAQCAtMzcsMTIgKzM5LDE4IEBADQogICAgICAgIF9fdmFsOyAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXA0KIH0pDQoNCisjaWZkZWYgQ09O
+RklHX0FSTV9MUEFFDQogI2RlZmluZSBUVEJSMCAgICAgICAgICBfX0FDQ0VTU19DUDE1XzY0KDAs
+IGMyKQ0KICNkZWZpbmUgVFRCUjEgICAgICAgICAgX19BQ0NFU1NfQ1AxNV82NCgxLCBjMikNCiAj
+ZGVmaW5lIFZUVEJSICAgICAgICAgIF9fQUNDRVNTX0NQMTVfNjQoNiwgYzIpDQogI2RlZmluZSBQ
+QVIgICAgICAgICAgICBfX0FDQ0VTU19DUDE1XzY0KDAsIGM3KQ0KICNkZWZpbmUgQ05UVl9DVkFM
+ICAgICAgX19BQ0NFU1NfQ1AxNV82NCgzLCBjMTQpDQogI2RlZmluZSBDTlRWT0ZGICAgICAgICAg
+ICAgICAgIF9fQUNDRVNTX0NQMTVfNjQoNCwgYzE0KQ0KKyNlbHNlDQorI2RlZmluZSBUVEJSMCAg
+ICAgICAgICAgX19BQ0NFU1NfQ1AxNShjMiwgMCwgYzAsIDApDQorI2RlZmluZSBUVEJSMSAgICAg
+ICAgICAgX19BQ0NFU1NfQ1AxNShjMiwgMCwgYzAsIDEpDQorI2RlZmluZSBQQVIgICAgICAgICAg
+X19BQ0NFU1NfQ1AxNShjNywgMCwgYzQsIDApDQorI2VuZGlmDQoNCiAjZGVmaW5lIE1JRFIgICAg
+ICAgICAgIF9fQUNDRVNTX0NQMTUoYzAsIDAsIGMwLCAwKQ0KICNkZWZpbmUgQ1NTRUxSICAgICAg
+ICAgX19BQ0NFU1NfQ1AxNShjMCwgMiwgYzAsIDApDQpAQCAtOTgsNiArMTA2LDcgQEANCiAjZGVm
+aW5lIGNudHZvZmZfZWwyICAgICAgICAgICAgICAgICAgICBDTlRWT0ZGDQogI2RlZmluZSBjbnRo
+Y3RsX2VsMiAgICAgICAgICAgICAgICAgICAgQ05USENUTA0KDQorI2lmZGVmIENPTkZJR19BUk1f
+TFBBRQ0KIHZvaWQgX190aW1lcl9zYXZlX3N0YXRlKHN0cnVjdCBrdm1fdmNwdSAqdmNwdSk7DQog
+dm9pZCBfX3RpbWVyX3Jlc3RvcmVfc3RhdGUoc3RydWN0IGt2bV92Y3B1ICp2Y3B1KTsNCg0KQEAg
+LTEyMyw1ICsxMzIsNiBAQCB2b2lkIF9faHlwX3RleHQgX19iYW5rZWRfcmVzdG9yZV9zdGF0ZShz
+dHJ1Y3Qga3ZtX2NwdV9jb250ZXh0ICpjdHh0KTsNCiBhc21saW5rYWdlIGludCBfX2d1ZXN0X2Vu
+dGVyKHN0cnVjdCBrdm1fdmNwdSAqdmNwdSwNCiAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+c3RydWN0IGt2bV9jcHVfY29udGV4dCAqaG9zdCk7DQogYXNtbGlua2FnZSBpbnQgX19oeXBfZG9f
+cGFuaWMoY29uc3QgY2hhciAqLCBpbnQsIHUzMik7DQorI2VuZGlmDQoNCiAjZW5kaWYgLyogX19B
+Uk1fS1ZNX0hZUF9IX18gKi8NCmRpZmYgLS1naXQgYS9hcmNoL2FybS9tbS9rYXNhbl9pbml0LmMg
+Yi9hcmNoL2FybS9tbS9rYXNhbl9pbml0LmMNCmluZGV4IDA0OWVlMGEuLjM1OWE3ODIgMTAwNjQ0
+DQotLS0gYS9hcmNoL2FybS9tbS9rYXNhbl9pbml0LmMNCisrKyBiL2FyY2gvYXJtL21tL2thc2Fu
+X2luaXQuYw0KQEAgLTE1LDYgKzE1LDcgQEANCiAjaW5jbHVkZSA8YXNtL3Byb2MtZm5zLmg+DQog
+I2luY2x1ZGUgPGFzbS90bGJmbHVzaC5oPg0KICNpbmNsdWRlIDxhc20vY3AxNS5oPg0KKyNpbmNs
+dWRlIDxhc20va3ZtX2h5cC5oPg0KICNpbmNsdWRlIDxsaW51eC9zY2hlZC90YXNrLmg+DQoNCiAj
+aW5jbHVkZSAibW0uaCINCkBAIC0yMDMsMTYgKzIwNCwxNiBAQCB2b2lkIF9faW5pdCBrYXNhbl9p
+bml0KHZvaWQpDQogICAgICAgIHU2NCBvcmlnX3R0YnIwOw0KICAgICAgICBpbnQgaTsNCg0KLSAg
+IG9yaWdfdHRicjAgPSBjcHVfZ2V0X3R0YnIoMCk7DQorIG9yaWdfdHRicjAgPSByZWFkX3N5c3Jl
+ZyhUVEJSMCk7DQoNCiAjaWZkZWYgQ09ORklHX0FSTV9MUEFFDQogICAgICAgIG1lbWNweSh0bXBf
+cG1kX3RhYmxlLCBwZ2RfcGFnZV92YWRkcigqcGdkX29mZnNldF9rKEtBU0FOX1NIQURPV19TVEFS
+VCkpLCBzaXplb2YodG1wX3BtZF90YWJsZSkpOw0KICAgICAgICBtZW1jcHkodG1wX3BhZ2VfdGFi
+bGUsIHN3YXBwZXJfcGdfZGlyLCBzaXplb2YodG1wX3BhZ2VfdGFibGUpKTsNCiAgICAgICAgc2V0
+X3BnZCgmdG1wX3BhZ2VfdGFibGVbcGdkX2luZGV4KEtBU0FOX1NIQURPV19TVEFSVCldLCBfX3Bn
+ZChfX3BhKHRtcF9wbWRfdGFibGUpIHwgUE1EX1RZUEVfVEFCTEUgfCBMX1BHRF9TV0FQUEVSKSk7
+DQotICAgY3B1X3NldF90dGJyMChfX3BhKHRtcF9wYWdlX3RhYmxlKSk7DQorIHdyaXRlX3N5c3Jl
+ZyhfX3BhKHRtcF9wYWdlX3RhYmxlKSwgVFRCUjApOw0KICNlbHNlDQogICAgICAgIG1lbWNweSh0
+bXBfcGFnZV90YWJsZSwgc3dhcHBlcl9wZ19kaXIsIHNpemVvZih0bXBfcGFnZV90YWJsZSkpOw0K
+LSAgIGNwdV9zZXRfdHRicjAoX19wYSh0bXBfcGFnZV90YWJsZSkpOw0KKyB3cml0ZV9zeXNyZWco
+X19wYSh0bXBfcGFnZV90YWJsZSksVFRCUjApOw0KICNlbmRpZg0KICAgICAgICBmbHVzaF9jYWNo
+ZV9hbGwoKTsNCiAgICAgICAgbG9jYWxfZmx1c2hfYnBfYWxsKCk7DQpAQCAtMjU3LDcgKzI1OCw3
+IEBAIHZvaWQgX19pbml0IGthc2FuX2luaXQodm9pZCkNCiAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgIC8qX19wZ3Byb3QoX0xfUFRFX0RFRkFVTFQgfCBMX1BURV9ESVJUWSB8IExfUFRF
+X1hOIHwgTF9QVEVfUkRPTkxZKSkqLw0KICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBf
+X3BncHJvdChwZ3Byb3RfdmFsKFBBR0VfS0VSTkVMKSB8IExfUFRFX1JET05MWSkpKTsNCiAgICAg
+ICAgbWVtc2V0KGthc2FuX3plcm9fcGFnZSwgMCwgUEFHRV9TSVpFKTsNCi0gICBjcHVfc2V0X3R0
+YnIwKG9yaWdfdHRicjApOw0KKyB3cml0ZV9zeXNyZWcob3JpZ190dGJyMCAsVFRCUjApOw0KICAg
+ICAgICBmbHVzaF9jYWNoZV9hbGwoKTsNCiAgICAgICAgbG9jYWxfZmx1c2hfYnBfYWxsKCk7DQog
+ICAgICAgIGxvY2FsX2ZsdXNoX3RsYl9hbGwoKTsNCg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
