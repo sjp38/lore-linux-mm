@@ -1,82 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC416B0335
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 17:19:38 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b9so4351162wmh.5
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 14:19:38 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id y16si6311997wmc.264.2017.11.09.14.19.37
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 777F9440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 17:23:43 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id q33so2846251qta.18
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 14:23:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id t126si2109405qkc.467.2017.11.09.14.23.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 09 Nov 2017 14:19:37 -0800 (PST)
-Date: Thu, 9 Nov 2017 23:19:31 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
- KAISER
-In-Reply-To: <20171108194653.D6C7EFF4@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1711092250280.2690@nanos>
-References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194653.D6C7EFF4@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 14:23:42 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vA9MNMsG124055
+	for <linux-mm@kvack.org>; Thu, 9 Nov 2017 17:23:41 -0500
+Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2e4y3h9u8u-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 09 Nov 2017 17:23:40 -0500
+Received: from localhost
+	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Thu, 9 Nov 2017 17:23:39 -0500
+Date: Thu, 9 Nov 2017 14:23:29 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v9 00/51] powerpc, mm: Memory Protection Keys
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+ <87efpbm706.fsf@mid.deneb.enyo.de>
+ <20171107012218.GA5546@ram.oc3035372033.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171107012218.GA5546@ram.oc3035372033.ibm.com>
+Message-Id: <20171109222329.GB5656@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Florian Weimer <fw@deneb.enyo.de>
+Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linux-arch@vger.kernel.org, ebiederm@xmission.com, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
 
-On Wed, 8 Nov 2017, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On Mon, Nov 06, 2017 at 05:22:18PM -0800, Ram Pai wrote:
+> On Mon, Nov 06, 2017 at 10:28:41PM +0100, Florian Weimer wrote:
+> > * Ram Pai:
+> > 
+> > > Testing:
+> > > -------
+> > > This patch series has passed all the protection key
+> > > tests available in the selftest directory.The
+> > > tests are updated to work on both x86 and powerpc.
+> > > The selftests have passed on x86 and powerpc hardware.
+> > 
+....snip....
+
+> > What about siglongjmp from a signal handler?
 > 
-> Global pages stay in the TLB across context switches.  Since all
-> contexts share the same kernel mapping, we use global pages to
-> allow kernel entries in the TLB to survive when we context
-> switch.
+> On powerpc there is some relief.  the permissions on a key can be
+> modified from anywhere, including from the signal handler, and the
+> effect will be immediate.  You dont have to wait till the
+> signal handler returns for the key permissions to be restore.
 > 
-> But, even having these entries in the TLB opens up something that
-> an attacker can use [1].
+> also after return from the sigsetjmp();
+> possibly caused by siglongjmp(), the program can restore the permission
+> on any key.
 > 
-> Disable global pages so that kernel TLB entries are flushed when
-> we run userspace. This way, all accesses to kernel memory result
-> in a TLB miss whether there is good data there or not.  Without
-> this, even when KAISER switches pages tables, the kernel entries
-> might remain in the TLB.
+> Atleast that is my theory. Can you give me a testcase; if you have one
+> handy.
 > 
-> We keep _PAGE_GLOBAL available so that we can use it for things
-> that are global even with KAISER like the entry/exit code and
-> data.
+> > 
+> >   <https://sourceware.org/bugzilla/show_bug.cgi?id=22396>
+> > 
 
-Just a nitpick which applies to a lot of the changelogs in this
-series. Describing ourself (we) running/doing something is (understandable)
-but not a really technical way to describe things. Aside of that some of
-the descriptions are slightly convoluted. Let me rephrase the above
-paragraphs:
+reading through the bug report, you mention that the following
+"The application may not be able to save and restore the protection bits
+for all keys because the kernel API does not actually specify that the
+set of keys is a small, fixed set."
 
- Global pages stay in the TLB across context switches.  Since all contexts
- share the same kernel mapping, these mappings are marked as global pages
- so kernel entries in the TLB are not flushed out on a context switch.
- 
- But, even having these entries in the TLB opens up something that an
- attacker can use [1].
+What exact kernel API do you need? This patch set exposes the total
+number of keys and  max keys,  through sysfs.
+https://marc.info/?l=linux-kernel&m=150995950219669&w=2
 
- That means that even when KAISER switches page tables on return to user
- space the global pages would stay in the TLB cache.
+Is this sufficient? or do you need something else?
 
- Disable global pages so that kernel TLB entries can be flushed before
- returning to user space. This way, all accesses to kernel addresses from
- userspace result in a TLB miss independent of the existance of a kernel
- mapping.
-
- Replace _PAGE_GLOBAL by __PAGE_KERNEL_GLOBAL and keep _PAGE_GLOBAL
- available so that it can still be used for a few selected kernel mappings
- which must be visible to userspace, when KAISER is enabled, like the
- entry/exit code and data.
-
-I admit it's a pet pieve, but having very precise changelogs for this kind
-of changes makes review a lot easier and is really usefulwhen you have to
-stare at a commit 3 month later.
-
-Other than that:
-
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
