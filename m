@@ -1,61 +1,37 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B984440D03
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:01:02 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 4so4541189wrt.8
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:01:02 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 91F59440D03
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:01:20 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id v88so4567238wrb.22
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:01:20 -0800 (PST)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id b9si7526343wrh.303.2017.11.10.01.01.00
+        by mx.google.com with ESMTPS id d83si768899wmc.72.2017.11.10.01.01.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 01:01:00 -0800 (PST)
-Date: Fri, 10 Nov 2017 10:01:00 +0100
+        Fri, 10 Nov 2017 01:01:19 -0800 (PST)
+Date: Fri, 10 Nov 2017 10:01:19 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 1/3] mm: introduce get_user_pages_longterm
-Message-ID: <20171110090100.GA4895@lst.de>
-References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com> <151001623591.16354.4902423177617232098.stgit@dwillia2-desk3.amr.corp.intel.com>
+Subject: Re: [PATCH 2/3] IB/core: disable memory registration of
+	fileystem-dax vmas
+Message-ID: <20171110090119.GB4895@lst.de>
+References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com> <151001624138.16354.16836728315400060928.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <151001623591.16354.4902423177617232098.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151001624138.16354.16836728315400060928.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, stable@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, linux-mm@kvack.org, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>
 
-> +long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
-> +		unsigned int gup_flags, struct page **pages,
-> +		struct vm_area_struct **vmas)
-> +{
-> +	struct vm_area_struct **__vmas = vmas;
+On Mon, Nov 06, 2017 at 04:57:21PM -0800, Dan Williams wrote:
+> Until there is a solution to the dma-to-dax vs truncate problem it is
+> not safe to allow RDMA to create long standing memory registrations
+> against filesytem-dax vmas.
 
-How about calling the vma argument vma_arg, and the one used vma to
-make thigns a little more readable?
+Looks good:
 
-> +	struct vm_area_struct *vma_prev = NULL;
-> +	long rc, i;
-> +
-> +	if (!pages)
-> +		return -EINVAL;
-> +
-> +	if (!vmas && IS_ENABLED(CONFIG_FS_DAX)) {
-> +		__vmas = kzalloc(sizeof(struct vm_area_struct *) * nr_pages,
-> +				GFP_KERNEL);
-> +		if (!__vmas)
-> +			return -ENOMEM;
-> +	}
-> +
-> +	rc = get_user_pages(start, nr_pages, gup_flags, pages, __vmas);
-> +
-> +	/* skip scan for fs-dax vmas if they are compile time disabled */
-> +	if (!IS_ENABLED(CONFIG_FS_DAX))
-> +		goto out;
-
-Instead of all this IS_ENABLED magic I'd recomment to just conditionally
-compile this function and define it to get_user_pages in the header
-if FS_DAX is disabled.
-
-Else this looks fine to me.
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
