@@ -1,65 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EE6EC440D03
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 02:41:23 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id l24so8277120pgu.17
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 23:41:23 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id b89si807617pfc.304.2017.11.09.23.41.22
-        for <linux-mm@kvack.org>;
-        Thu, 09 Nov 2017 23:41:22 -0800 (PST)
-Subject: Re: [PATCH v2] locking/lockdep: Revise
- Documentation/locking/crossrelease.txt
-References: <1510212036-22008-1-git-send-email-byungchul.park@lge.com>
- <20171110073053.qh4nhpl26i47gbiv@gmail.com>
-From: Byungchul Park <byungchul.park@lge.com>
-Message-ID: <2f2de6c8-ef4b-070d-a81d-eed677bcce35@lge.com>
-Date: Fri, 10 Nov 2017 16:41:18 +0900
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B984440D03
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:01:02 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 4so4541189wrt.8
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:01:02 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id b9si7526343wrh.303.2017.11.10.01.01.00
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Nov 2017 01:01:00 -0800 (PST)
+Date: Fri, 10 Nov 2017 10:01:00 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 1/3] mm: introduce get_user_pages_longterm
+Message-ID: <20171110090100.GA4895@lst.de>
+References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com> <151001623591.16354.4902423177617232098.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171110073053.qh4nhpl26i47gbiv@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <151001623591.16354.4902423177617232098.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Christoph Hellwig <hch@lst.de>, stable@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On 11/10/2017 4:30 PM, Ingo Molnar wrote:
-> 
-> * Byungchul Park <byungchul.park@lge.com> wrote:
-> 
->>      Event C depends on event A.
->>      Event A depends on event B.
->>      Event B depends on event C.
->>   
->> -   NOTE: Precisely speaking, a dependency is one between whether a
->> -   waiter for an event can be woken up and whether another waiter for
->> -   another event can be woken up. However from now on, we will describe
->> -   a dependency as if it's one between an event and another event for
->> -   simplicity.
-> 
-> Why was this explanation removed?
-> 
->> -Lockdep tries to detect a deadlock by checking dependencies created by
->> -lock operations, acquire and release. Waiting for a lock corresponds to
->> -waiting for an event, and releasing a lock corresponds to triggering an
->> -event in the previous section.
->> +Lockdep tries to detect a deadlock by checking circular dependencies
->> +created by lock operations, acquire and release, which are wait and
->> +event respectively.
-> 
-> What? You changed a readable paragraph into an unreadable one.
-> 
-> Sorry, this text needs to be acked by someone with good English skills, and I
-> don't have the time right now to fix it all up. Please send minimal, obvious
-> typo/grammar fixes only.
+> +long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
+> +		unsigned int gup_flags, struct page **pages,
+> +		struct vm_area_struct **vmas)
+> +{
+> +	struct vm_area_struct **__vmas = vmas;
 
-I will send one including minimal fixes at the next spin.
+How about calling the vma argument vma_arg, and the one used vma to
+make thigns a little more readable?
 
--- 
-Thanks,
-Byungchul
+> +	struct vm_area_struct *vma_prev = NULL;
+> +	long rc, i;
+> +
+> +	if (!pages)
+> +		return -EINVAL;
+> +
+> +	if (!vmas && IS_ENABLED(CONFIG_FS_DAX)) {
+> +		__vmas = kzalloc(sizeof(struct vm_area_struct *) * nr_pages,
+> +				GFP_KERNEL);
+> +		if (!__vmas)
+> +			return -ENOMEM;
+> +	}
+> +
+> +	rc = get_user_pages(start, nr_pages, gup_flags, pages, __vmas);
+> +
+> +	/* skip scan for fs-dax vmas if they are compile time disabled */
+> +	if (!IS_ENABLED(CONFIG_FS_DAX))
+> +		goto out;
+
+Instead of all this IS_ENABLED magic I'd recomment to just conditionally
+compile this function and define it to get_user_pages in the header
+if FS_DAX is disabled.
+
+Else this looks fine to me.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
