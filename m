@@ -1,44 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2306A440D41
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:22 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id c123so120363pga.17
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:22 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id d21si9859566pll.191.2017.11.10.11.32.20
+	by kanga.kvack.org (Postfix) with ESMTP id 8D739440D41
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:26 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id l19so10041492pgo.4
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:26 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id h71si9021441pgc.321.2017.11.10.11.32.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:32:21 -0800 (PST)
-Subject: [PATCH 30/30] x86, kaiser, xen: Dynamically disable KAISER when running under Xen PV
+        Fri, 10 Nov 2017 11:32:25 -0800 (PST)
+Subject: [PATCH 16/30] x86, kaiser: map trace interrupt entry
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:32:01 -0800
+Date: Fri, 10 Nov 2017 11:31:36 -0800
 References: <20171110193058.BECA7D88@viggo.jf.intel.com>
 In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
-Message-Id: <20171110193201.CBE345BD@viggo.jf.intel.com>
+Message-Id: <20171110193136.5761F91A@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, jgross@suse.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-If you paravirtualize the MMU, you can not use KAISER.  This boils down
-to the fact that KAISER needs to do CR3 writes in places that it is not
-feasible to do real hypercalls.
+All of the interrupt entry/exit code is in a special section
+(.irqentry.text).  This enables the ftrace code to figure out
+when the kernel is executing in the "grey area" of interrupt
+handling before the C code has taken over and marked the data
+structures indicating that an interrupt is in progress.
 
-If Xen PV is detected to be in use, do not do the KAISER CR3 switches.
+KAISER needs to map this section into the user page tables
+because it contains the assembly that helps us enter interrupt
+routines.  In addition to the assembly which KAISER *needs*, the
+section also contains the first C function that handles an
+interrupt.  This is unfortunate, but it doesn't really hurt
+anything.
 
-I don't think this too bug of a deal for Xen.  I was under the
-impression that the Xen guest kernel and Xen guest userspace didn't
-share an address space *anyway* so Xen PV is not normally even exposed
-to the kinds of things that KAISER protects against.
+This patch also aligns the .entry.text and .irqentry.text.  This
+ensures that only the _required_ text is mapped.
 
-This allows KAISER=y kernels to deployed in environments that also
-require PARAVIRT=y.
+Without this alignment, code might be mapped inadvertently as a
+result of sharing a page with code that is intentionally mapped.
+This does not hurt anything, but it makes debugging hard because
+random build alignment changes can cause things to fail.
+
+This was missed in the original KAISER patch.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Acked-by: Juergen Gross <jgross@suse.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
 Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
 Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
@@ -50,71 +58,77 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/mm/kaiser.c |   24 ++++++++++++++++++++++--
- b/security/Kconfig     |    2 +-
- 2 files changed, 23 insertions(+), 3 deletions(-)
+ b/arch/x86/mm/kaiser.c              |   14 ++++++++++++++
+ b/include/asm-generic/vmlinux.lds.h |   10 ++++++++++
+ 2 files changed, 24 insertions(+)
 
-diff -puN arch/x86/mm/kaiser.c~kaiser-disable-for-xen-pv arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-disable-for-xen-pv	2017-11-10 11:22:21.668244918 -0800
-+++ b/arch/x86/mm/kaiser.c	2017-11-10 11:22:21.673244918 -0800
-@@ -42,8 +42,20 @@
- #include <asm/tlbflush.h>
- #include <asm/desc.h>
- 
-+/*
-+ * We need a two-stage enable/disable.  One (kaiser_enabled) to stop
-+ * the ongoing work that keeps KAISER from being disabled (like PGD
-+ * poisoning) and another (kaiser_asm_do_switch) that we set when it
-+ * is completely safe to run without doing KAISER switches.
-+ */
-+int kaiser_enabled;
+diff -puN arch/x86/mm/kaiser.c~kaiser-user-map-trace-irqentry_text arch/x86/mm/kaiser.c
+--- a/arch/x86/mm/kaiser.c~kaiser-user-map-trace-irqentry_text	2017-11-10 11:22:13.763244938 -0800
++++ b/arch/x86/mm/kaiser.c	2017-11-10 11:22:13.768244938 -0800
+@@ -30,6 +30,7 @@
+ #include <linux/types.h>
+ #include <linux/bug.h>
+ #include <linux/init.h>
++#include <linux/interrupt.h>
+ #include <linux/spinlock.h>
+ #include <linux/mm.h>
+ #include <linux/uaccess.h>
+@@ -382,6 +383,19 @@ void __init kaiser_init(void)
+ 	 */
+ 	kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
+ 				  __PAGE_KERNEL_RO | _PAGE_GLOBAL);
 +
-+/*
-+ * Sized and aligned so that we can easily map it out to userspace
-+ * for use before we have done the assembly CR3 switching.
-+ */
- __aligned(PAGE_SIZE)
--unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)] = { 1 };
-+unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)];
- 
- /*
-  * At runtime, the only things we map are some things for CPU
-@@ -415,6 +427,15 @@ void __init kaiser_init(void)
- 	kaiser_add_user_map_ptrs_early(__irqentry_text_start,
- 				       __irqentry_text_end,
- 				       __PAGE_KERNEL_RX | _PAGE_GLOBAL);
-+
-+	if (cpu_feature_enabled(X86_FEATURE_XENPV)) {
-+		pr_info("x86/kaiser: Xen PV detected, disabling "
-+			"KAISER protection\n");
-+	} else {
-+		pr_info("x86/kaiser: Unmapping kernel while in userspace\n");
-+		kaiser_asm_do_switch[0] = 1;
-+		kaiser_enabled = 1;
-+	}
++	/*
++	 * .irqentry.text helps us identify code that runs before
++	 * we get a chance to call entering_irq().  This includes
++	 * the interrupt entry assembly plus the first C function
++	 * that gets called.  KAISER does not need the C code
++	 * mapped.  We just use the .irqentry.text section as-is
++	 * to avoid having to carve out a new section for the
++	 * assembly only.
++	 */
++	kaiser_add_user_map_ptrs_early(__irqentry_text_start,
++				       __irqentry_text_end,
++				       __PAGE_KERNEL_RX | _PAGE_GLOBAL);
  }
  
  int kaiser_add_mapping(unsigned long addr, unsigned long size,
-@@ -465,7 +486,6 @@ void kaiser_remove_mapping(unsigned long
- 	__native_flush_tlb_global();
- }
+diff -puN include/asm-generic/vmlinux.lds.h~kaiser-user-map-trace-irqentry_text include/asm-generic/vmlinux.lds.h
+--- a/include/asm-generic/vmlinux.lds.h~kaiser-user-map-trace-irqentry_text	2017-11-10 11:22:13.765244938 -0800
++++ b/include/asm-generic/vmlinux.lds.h	2017-11-10 11:22:13.769244938 -0800
+@@ -59,6 +59,12 @@
+ /* Align . to a 8 byte boundary equals to maximum function alignment. */
+ #define ALIGN_FUNCTION()  . = ALIGN(8)
  
--int kaiser_enabled = 1;
- static ssize_t kaiser_enabled_read_file(struct file *file, char __user *user_buf,
- 			     size_t count, loff_t *ppos)
- {
-diff -puN security/Kconfig~kaiser-disable-for-xen-pv security/Kconfig
---- a/security/Kconfig~kaiser-disable-for-xen-pv	2017-11-10 11:22:21.670244918 -0800
-+++ b/security/Kconfig	2017-11-10 11:22:21.673244918 -0800
-@@ -56,7 +56,7 @@ config SECURITY_NETWORK
++#ifdef CONFIG_KAISER
++#define ALIGN_KAISER()	. = ALIGN(PAGE_SIZE);
++#else
++#define ALIGN_KAISER()
++#endif
++
+ /*
+  * LD_DEAD_CODE_DATA_ELIMINATION option enables -fdata-sections, which
+  * generates .data.identifier sections, which need to be pulled in with
+@@ -493,15 +499,19 @@
+ 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
  
- config KAISER
- 	bool "Remove the kernel mapping in user mode"
--	depends on X86_64 && SMP && !PARAVIRT
-+	depends on X86_64 && SMP
- 	help
- 	  This feature reduces the number of hardware side channels by
- 	  ensuring that the majority of kernel addresses are not mapped
+ #define ENTRY_TEXT							\
++		ALIGN_KAISER();						\
+ 		ALIGN_FUNCTION();					\
+ 		VMLINUX_SYMBOL(__entry_text_start) = .;			\
+ 		*(.entry.text)						\
++		ALIGN_KAISER();						\
+ 		VMLINUX_SYMBOL(__entry_text_end) = .;
+ 
+ #define IRQENTRY_TEXT							\
++		ALIGN_KAISER();						\
+ 		ALIGN_FUNCTION();					\
+ 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
+ 		*(.irqentry.text)					\
++		ALIGN_KAISER();						\
+ 		VMLINUX_SYMBOL(__irqentry_text_end) = .;
+ 
+ #define SOFTIRQENTRY_TEXT						\
 _
 
 --
