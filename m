@@ -1,90 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D231B440D41
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:37 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id c123so120908pga.17
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:37 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id a61si9345050plc.406.2017.11.10.11.32.36
+	by kanga.kvack.org (Postfix) with ESMTP id 90F4A440D41
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:04:09 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id m188so476812pga.22
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:04:09 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id g17si8545305plo.542.2017.11.10.14.04.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:32:36 -0800 (PST)
-Subject: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:31:52 -0800
-References: <20171110193058.BECA7D88@viggo.jf.intel.com>
-In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
-Message-Id: <20171110193152.3F73EABA@viggo.jf.intel.com>
+        Fri, 10 Nov 2017 14:04:08 -0800 (PST)
+Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id A8A3C218E3
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 22:04:07 +0000 (UTC)
+Received: by mail-io0-f175.google.com with SMTP id f20so15031479ioj.9
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:04:07 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171110193146.5908BE13@viggo.jf.intel.com>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193146.5908BE13@viggo.jf.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Fri, 10 Nov 2017 14:03:46 -0800
+Message-ID: <CALCETrXrXpTZE2sceBh=eW5kEP79hWc5iY36QKjfy=U4nTirDw@mail.gmail.com>
+Subject: Re: [PATCH 21/30] x86, mm: put mmu-to-h/w ASID translation in one place
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
+On Fri, Nov 10, 2017 at 11:31 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> There are effectively two ASID types:
+> 1. The one stored in the mmu_context that goes from 0->5
+> 2. The one programmed into the hardware that goes from 1->6
+>
+> This consolidates the locations where converting beween the two
+> (by doing +1) to a single place which gives us a nice place to
+> comment.  KAISER will also need to, given an ASID, know which
+> hardware ASID to flush for the userspace mapping.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
+> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
+> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: x86@kernel.org
+> ---
+>
+>  b/arch/x86/include/asm/tlbflush.h |   30 ++++++++++++++++++------------
+>  1 file changed, 18 insertions(+), 12 deletions(-)
+>
+> diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern arch/x86/include/asm/tlbflush.h
+> --- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern        2017-11-10 11:22:16.521244931 -0800
+> +++ b/arch/x86/include/asm/tlbflush.h   2017-11-10 11:22:16.525244931 -0800
+> @@ -87,21 +87,26 @@ static inline u64 inc_mm_tlb_gen(struct
+>   */
+>  #define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
+>
+> -/*
+> - * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+> - * bits.  This serves two purposes.  It prevents a nasty situation in
+> - * which PCID-unaware code saves CR3, loads some other value (with PCID
+> - * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+> - * the saved ASID was nonzero.  It also means that any bugs involving
+> - * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+> - * deterministically.
+> - */
+> +static inline u16 kern_asid(u16 asid)
+> +{
+> +       VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+> +       /*
+> +        * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+> +        * bits.  This serves two purposes.  It prevents a nasty situation in
+> +        * which PCID-unaware code saves CR3, loads some other value (with PCID
+> +        * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+> +        * the saved ASID was nonzero.  It also means that any bugs involving
+> +        * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+> +        * deterministically.
+> +        */
+> +       return asid + 1;
+> +}
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+This seems really error-prone.  Maybe we should have a pcid_t type and
+make all the interfaces that want a h/w PCID take pcid_t.
 
-The KAISER code attempts to "poison" the user portion of the kernel page
-tables.  It detects entries that it wants that it wants to poison in two
-ways:
- * Looking for addresses >= PAGE_OFFSET
- * Looking for entries without _PAGE_USER set
-
-But, to allow the _PAGE_USER check to work, it must never be set on
-init_mm entries, and an earlier patch in this series ensured that it
-will never be set.
-
-The VDSO is at a address >= PAGE_OFFSET and it is also mapped by init_mm.
-Because of the earlier, KAISER-enforced restriction, _PAGE_USER is never
-set which makes the VDSO unreadable to userspace.
-
-This makes the "NATIVE" case totally unusable since userspace can not
-even see the memory any more.  Disable it whenever KAISER is enabled.
-
-Also add some help text about how KAISER might affect the emulation
-case as well.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: x86@kernel.org
-
----
-
- b/arch/x86/Kconfig |    8 ++++++++
- 1 file changed, 8 insertions(+)
-
-diff -puN arch/x86/Kconfig~kaiser-no-vsyscall arch/x86/Kconfig
---- a/arch/x86/Kconfig~kaiser-no-vsyscall	2017-11-10 11:22:18.366244926 -0800
-+++ b/arch/x86/Kconfig	2017-11-10 11:22:18.370244926 -0800
-@@ -2231,6 +2231,9 @@ choice
- 
- 	config LEGACY_VSYSCALL_NATIVE
- 		bool "Native"
-+		# The VSYSCALL page comes from the kernel page tables
-+		# and is not available when KAISER is enabled.
-+		depends on ! KAISER
- 		help
- 		  Actual executable code is located in the fixed vsyscall
- 		  address mapping, implementing time() efficiently. Since
-@@ -2248,6 +2251,11 @@ choice
- 		  exploits. This configuration is recommended when userspace
- 		  still uses the vsyscall area.
- 
-+		  When KAISER is enabled, the vsyscall area will become
-+		  unreadable.  This emulation option still works, but KAISER
-+		  will make it harder to do things like trace code using the
-+		  emulation.
-+
- 	config LEGACY_VSYSCALL_NONE
- 		bool "None"
- 		help
-_
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
