@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D739440D41
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:26 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id l19so10041492pgo.4
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:26 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B103440D41
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:32 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id f85so8428769pfe.7
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:32 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h71si9021441pgc.321.2017.11.10.11.32.25
+        by mx.google.com with ESMTPS id h71si9021441pgc.321.2017.11.10.11.32.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:32:25 -0800 (PST)
-Subject: [PATCH 16/30] x86, kaiser: map trace interrupt entry
+        Fri, 10 Nov 2017 11:32:31 -0800 (PST)
+Subject: [PATCH 19/30] x86, mm: Move CR3 construction functions
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:31:36 -0800
+Date: Fri, 10 Nov 2017 11:31:42 -0800
 References: <20171110193058.BECA7D88@viggo.jf.intel.com>
 In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
-Message-Id: <20171110193136.5761F91A@viggo.jf.intel.com>
+Message-Id: <20171110193142.E72EBD7D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,28 +23,14 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-All of the interrupt entry/exit code is in a special section
-(.irqentry.text).  This enables the ftrace code to figure out
-when the kernel is executing in the "grey area" of interrupt
-handling before the C code has taken over and marked the data
-structures indicating that an interrupt is in progress.
+For flushing the TLB, the ASID which has been programmed into the
+hardware must be known.  That differs from what is in 'cpu_tlbstate'.
 
-KAISER needs to map this section into the user page tables
-because it contains the assembly that helps us enter interrupt
-routines.  In addition to the assembly which KAISER *needs*, the
-section also contains the first C function that handles an
-interrupt.  This is unfortunate, but it doesn't really hurt
-anything.
+Add functions to transform the 'cpu_tlbstate' values into to the one
+programmed into the hardware (CR3).
 
-This patch also aligns the .entry.text and .irqentry.text.  This
-ensures that only the _required_ text is mapped.
-
-Without this alignment, code might be mapped inadvertently as a
-result of sharing a page with code that is intentionally mapped.
-This does not hurt anything, but it makes debugging hard because
-random build alignment changes can cause things to fail.
-
-This was missed in the original KAISER patch.
+It's not easy to include mmu_context.h into tlbflush.h, so just move
+the CR3 building over to tlbflush.h.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -58,77 +44,130 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/mm/kaiser.c              |   14 ++++++++++++++
- b/include/asm-generic/vmlinux.lds.h |   10 ++++++++++
- 2 files changed, 24 insertions(+)
+ b/arch/x86/include/asm/mmu_context.h |   29 +----------------------------
+ b/arch/x86/include/asm/tlbflush.h    |   27 +++++++++++++++++++++++++++
+ b/arch/x86/mm/tlb.c                  |    8 ++++----
+ 3 files changed, 32 insertions(+), 32 deletions(-)
 
-diff -puN arch/x86/mm/kaiser.c~kaiser-user-map-trace-irqentry_text arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-user-map-trace-irqentry_text	2017-11-10 11:22:13.763244938 -0800
-+++ b/arch/x86/mm/kaiser.c	2017-11-10 11:22:13.768244938 -0800
-@@ -30,6 +30,7 @@
- #include <linux/types.h>
- #include <linux/bug.h>
- #include <linux/init.h>
-+#include <linux/interrupt.h>
- #include <linux/spinlock.h>
- #include <linux/mm.h>
- #include <linux/uaccess.h>
-@@ -382,6 +383,19 @@ void __init kaiser_init(void)
- 	 */
- 	kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
- 				  __PAGE_KERNEL_RO | _PAGE_GLOBAL);
-+
-+	/*
-+	 * .irqentry.text helps us identify code that runs before
-+	 * we get a chance to call entering_irq().  This includes
-+	 * the interrupt entry assembly plus the first C function
-+	 * that gets called.  KAISER does not need the C code
-+	 * mapped.  We just use the .irqentry.text section as-is
-+	 * to avoid having to carve out a new section for the
-+	 * assembly only.
-+	 */
-+	kaiser_add_user_map_ptrs_early(__irqentry_text_start,
-+				       __irqentry_text_end,
-+				       __PAGE_KERNEL_RX | _PAGE_GLOBAL);
+diff -puN arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move	2017-11-10 11:22:15.405244934 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2017-11-10 11:22:15.412244934 -0800
+@@ -281,33 +281,6 @@ static inline bool arch_vma_access_permi
  }
  
- int kaiser_add_mapping(unsigned long addr, unsigned long size,
-diff -puN include/asm-generic/vmlinux.lds.h~kaiser-user-map-trace-irqentry_text include/asm-generic/vmlinux.lds.h
---- a/include/asm-generic/vmlinux.lds.h~kaiser-user-map-trace-irqentry_text	2017-11-10 11:22:13.765244938 -0800
-+++ b/include/asm-generic/vmlinux.lds.h	2017-11-10 11:22:13.769244938 -0800
-@@ -59,6 +59,12 @@
- /* Align . to a 8 byte boundary equals to maximum function alignment. */
- #define ALIGN_FUNCTION()  . = ALIGN(8)
- 
-+#ifdef CONFIG_KAISER
-+#define ALIGN_KAISER()	. = ALIGN(PAGE_SIZE);
-+#else
-+#define ALIGN_KAISER()
-+#endif
-+
  /*
-  * LD_DEAD_CODE_DATA_ELIMINATION option enables -fdata-sections, which
-  * generates .data.identifier sections, which need to be pulled in with
-@@ -493,15 +499,19 @@
- 		VMLINUX_SYMBOL(__kprobes_text_end) = .;
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+- * bits.  This serves two purposes.  It prevents a nasty situation in
+- * which PCID-unaware code saves CR3, loads some other value (with PCID
+- * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+- * the saved ASID was nonzero.  It also means that any bugs involving
+- * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+- * deterministically.
+- */
+-
+-static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+-{
+-	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
+-		return __sme_pa(mm->pgd) | (asid + 1);
+-	} else {
+-		VM_WARN_ON_ONCE(asid != 0);
+-		return __sme_pa(mm->pgd);
+-	}
+-}
+-
+-static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+-{
+-	VM_WARN_ON_ONCE(asid > 4094);
+-	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
+-}
+-
+-/*
+  * This can be used from process context to figure out what the value of
+  * CR3 is without needing to do a (slow) __read_cr3().
+  *
+@@ -316,7 +289,7 @@ static inline unsigned long build_cr3_no
+  */
+ static inline unsigned long __get_current_cr3_fast(void)
+ {
+-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
++	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
+ 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
  
- #define ENTRY_TEXT							\
-+		ALIGN_KAISER();						\
- 		ALIGN_FUNCTION();					\
- 		VMLINUX_SYMBOL(__entry_text_start) = .;			\
- 		*(.entry.text)						\
-+		ALIGN_KAISER();						\
- 		VMLINUX_SYMBOL(__entry_text_end) = .;
+ 	/* For now, be very restrictive about when this can be called. */
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move	2017-11-10 11:22:15.407244934 -0800
++++ b/arch/x86/include/asm/tlbflush.h	2017-11-10 11:22:15.412244934 -0800
+@@ -74,6 +74,33 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return new_tlb_gen;
+ }
  
- #define IRQENTRY_TEXT							\
-+		ALIGN_KAISER();						\
- 		ALIGN_FUNCTION();					\
- 		VMLINUX_SYMBOL(__irqentry_text_start) = .;		\
- 		*(.irqentry.text)					\
-+		ALIGN_KAISER();						\
- 		VMLINUX_SYMBOL(__irqentry_text_end) = .;
++/*
++ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
++ * bits.  This serves two purposes.  It prevents a nasty situation in
++ * which PCID-unaware code saves CR3, loads some other value (with PCID
++ * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
++ * the saved ASID was nonzero.  It also means that any bugs involving
++ * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
++ * deterministically.
++ */
++struct pgd_t;
++static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
++{
++	if (static_cpu_has(X86_FEATURE_PCID)) {
++		VM_WARN_ON_ONCE(asid > 4094);
++		return __sme_pa(pgd) | (asid + 1);
++	} else {
++		VM_WARN_ON_ONCE(asid != 0);
++		return __sme_pa(pgd);
++	}
++}
++
++static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
++{
++	VM_WARN_ON_ONCE(asid > 4094);
++	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++}
++
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #else
+diff -puN arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move	2017-11-10 11:22:15.408244934 -0800
++++ b/arch/x86/mm/tlb.c	2017-11-10 11:22:15.412244934 -0800
+@@ -127,7 +127,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 	 * isn't free.
+ 	 */
+ #ifdef CONFIG_DEBUG_VM
+-	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
++	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev->pgd, prev_asid))) {
+ 		/*
+ 		 * If we were to BUG here, we'd be very likely to kill
+ 		 * the system so hard that we don't see the call trace.
+@@ -194,12 +194,12 @@ void switch_mm_irqs_off(struct mm_struct
+ 		if (need_flush) {
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+-			write_cr3(build_cr3(next, new_asid));
++			write_cr3(build_cr3(next->pgd, new_asid));
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+ 					TLB_FLUSH_ALL);
+ 		} else {
+ 			/* The new ASID is already up to date. */
+-			write_cr3(build_cr3_noflush(next, new_asid));
++			write_cr3(build_cr3_noflush(next->pgd, new_asid));
+ 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
+ 		}
  
- #define SOFTIRQENTRY_TEXT						\
+@@ -277,7 +277,7 @@ void initialize_tlbstate_and_flush(void)
+ 		!(cr4_read_shadow() & X86_CR4_PCIDE));
+ 
+ 	/* Force ASID 0 and force a TLB flush. */
+-	write_cr3(build_cr3(mm, 0));
++	write_cr3(build_cr3(mm->pgd, 0));
+ 
+ 	/* Reinitialize tlbstate. */
+ 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
 _
 
 --
