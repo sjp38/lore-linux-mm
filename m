@@ -1,37 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 91F59440D03
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:01:20 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v88so4567238wrb.22
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:01:20 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 24C98280275
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:04:55 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id v8so4628942wrd.21
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:04:55 -0800 (PST)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id d83si768899wmc.72.2017.11.10.01.01.19
+        by mx.google.com with ESMTPS id 81si822403wmj.84.2017.11.10.01.04.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 01:01:19 -0800 (PST)
-Date: Fri, 10 Nov 2017 10:01:19 +0100
+        Fri, 10 Nov 2017 01:04:54 -0800 (PST)
+Date: Fri, 10 Nov 2017 10:04:53 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 2/3] IB/core: disable memory registration of
-	fileystem-dax vmas
-Message-ID: <20171110090119.GB4895@lst.de>
-References: <151001623063.16354.14661493921524115663.stgit@dwillia2-desk3.amr.corp.intel.com> <151001624138.16354.16836728315400060928.stgit@dwillia2-desk3.amr.corp.intel.com>
+Subject: Re: [PATCH 12/15] mm, dax: enable filesystems to trigger page-idle
+	callbacks
+Message-ID: <20171110090453.GC4895@lst.de>
+References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com> <150949216078.24061.1875240167277688258.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <151001624138.16354.16836728315400060928.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <150949216078.24061.1875240167277688258.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, linux-mm@kvack.org, Doug Ledford <dledford@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Sean Hefty <sean.hefty@intel.com>, Hal Rosenstock <hal.rosenstock@gmail.com>
+Cc: linux-nvdimm@lists.01.org, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
 
-On Mon, Nov 06, 2017 at 04:57:21PM -0800, Dan Williams wrote:
-> Until there is a solution to the dma-to-dax vs truncate problem it is
-> not safe to allow RDMA to create long standing memory registrations
-> against filesytem-dax vmas.
+> +DEFINE_MUTEX(devmap_lock);
 
-Looks good:
+static?
 
-Reviewed-by: Christoph Hellwig <hch@lst.de>
+> +#if IS_ENABLED(CONFIG_FS_DAX)
+> +static void generic_dax_pagefree(struct page *page, void *data)
+> +{
+> +}
+> +
+> +struct dax_device *fs_dax_claim_bdev(struct block_device *bdev, void *owner)
+> +{
+> +	struct dax_device *dax_dev;
+> +	struct dev_pagemap *pgmap;
+> +
+> +	if (!blk_queue_dax(bdev->bd_queue))
+> +		return NULL;
+> +	dax_dev = fs_dax_get_by_host(bdev->bd_disk->disk_name);
+> +	if (!dax_dev->pgmap)
+> +		return dax_dev;
+> +	pgmap = dax_dev->pgmap;
+
+> +	mutex_lock(&devmap_lock);
+> +	if ((pgmap->data && pgmap->data != owner) || pgmap->page_free
+> +			|| pgmap->page_fault
+> +			|| pgmap->type != MEMORY_DEVICE_HOST) {
+> +		put_dax(dax_dev);
+> +		mutex_unlock(&devmap_lock);
+> +		return NULL;
+> +	}
+> +
+> +	pgmap->type = MEMORY_DEVICE_FS_DAX;
+> +	pgmap->page_free = generic_dax_pagefree;
+> +	pgmap->data = owner;
+> +	mutex_unlock(&devmap_lock);
+
+All this deep magic will need some explanation.  So far I don't understand
+it at all, but maybe the later patches will help..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
