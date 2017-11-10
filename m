@@ -1,60 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0A228029F
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:06:41 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id d15so414373pfl.0
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:06:41 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n15si7936448pfg.37.2017.11.10.14.06.40
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BF21428029F
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:06:59 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p2so8717418pfk.13
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:06:59 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id z20si10179462pfe.221.2017.11.10.14.06.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 14:06:40 -0800 (PST)
-Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 92BA221984
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 22:06:40 +0000 (UTC)
-Received: by mail-io0-f180.google.com with SMTP id b186so15043962iof.8
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:06:40 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
-References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194731.AB5BDA01@viggo.jf.intel.com>
- <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
- <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com> <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
- <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com> <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
- <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com> <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
- <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 10 Nov 2017 14:06:19 -0800
-Message-ID: <CALCETrVoud2iVxAky5UGQkyiDgNiN7Zc-LfahG_1P-x3JQzopg@mail.gmail.com>
-Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
-Content-Type: text/plain; charset="UTF-8"
+        Fri, 10 Nov 2017 14:06:58 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 3/4] x86/boot/compressed/64: Introduce place_trampoline()
+Date: Sat, 11 Nov 2017 01:06:44 +0300
+Message-Id: <20171110220645.59944-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
+References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Thu, Nov 9, 2017 at 10:31 PM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
-> On 11/09/2017 06:25 PM, Andy Lutomirski wrote:
->> Here are two proposals to address this without breaking vsyscalls.
->>
->> 1. Set NX on low mappings that are _PAGE_USER.  Don't set NX on high
->> mappings but, optionally, warn if you see _PAGE_USER on any address
->> that isn't the vsyscall page.
->>
->> 2. Ignore _PAGE_USER entirely and just mark the EFI mm as special so
->> KAISER doesn't muck with it.
->
-> These are totally doable.  But, what's the big deal with breaking native
-> vsyscall?  We can still do the emulation so nothing breaks: it is just slow.
+If bootloader enables 64-bit mode with 4-level paging, we might need to
+switch over to 5-level paging. The switching requires disabling paging.
+It works fine if kernel itself is loaded below 4G.
 
-I have nothing against disabling native.  I object to breaking the
-weird binary tracing behavior in the emulation mode, especially if
-it's tangled up with KAISER.  I got all kinds of flak in an earlier
-version of the vsyscall emulation patches when I broke that use case.
-KAISER may get very widely backported -- let's not make changes that
-are already known to break things.
+If bootloader put the kernel above 4G (not sure if anybody does this),
+we would loose control as soon as paging is disabled as code becomes
+unreachable.
+
+To handle the situation, we need a trampoline in lower memory that would
+take care about switching on 5-level paging.
+
+Apart from trampoline itself we also need place to store top level page
+table in lower memory as we don't have a way to load 64-bit value into
+CR3 from 32-bit mode. We only really need 8-bytes there as we only use
+the very first entry of the page table. But we allocate whole page
+anyway. We cannot have the code in the same because, there's hazard that
+a CPU would read page table speculatively and get confused seeing
+garbage.
+
+This patch introduces paging_prepare() that check if we need to enable
+5-level paging and then finds right spot in lower memory for trampoline,
+copies trampoline code there and setups new top level page table for
+5-level paging.
+
+At this point we do all the preparation, but not yet use trampoline.
+It will be done in following patch.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/head_64.S    | 54 ++++++++++++++++-------------
+ arch/x86/boot/compressed/pgtable.h    | 18 ++++++++++
+ arch/x86/boot/compressed/pgtable_64.c | 65 +++++++++++++++++++++++++++++------
+ 3 files changed, 103 insertions(+), 34 deletions(-)
+ create mode 100644 arch/x86/boot/compressed/pgtable.h
+
+diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+index fc313e29fe2c..33a47d5c6445 100644
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -304,33 +304,45 @@ ENTRY(startup_64)
+ 	/* Set up the stack */
+ 	leaq	boot_stack_end(%rbx), %rsp
+ 
+-#ifdef CONFIG_X86_5LEVEL
+-	/*
+-	 * Check if we need to enable 5-level paging.
+-	 * RSI holds real mode data and need to be preserved across
+-	 * a function call.
+-	 */
+-	pushq	%rsi
+-	call	l5_paging_required
+-	popq	%rsi
+-
+-	/* If l5_paging_required() returned zero, we're done here. */
+-	cmpq	$0, %rax
+-	je	lvl5
+-
+ 	/*
+ 	 * At this point we are in long mode with 4-level paging enabled,
+-	 * but we want to enable 5-level paging.
++	 * but we might want to enable 5-level paging.
+ 	 *
+ 	 * The problem is that we cannot do it directly. Setting LA57 in
+ 	 * long mode would trigger #GP. So we need to switch off long mode
+ 	 * first.
+ 	 *
+-	 * NOTE: This is not going to work if bootloader put us above 4G
+-	 * limit.
++	 * We also need trampoline in lower memory to switch from 4- to 5-level
++	 * paging for cases when bootloader put kernel above 4G, but didn't
++	 * enable 5-level paging for us.
++	 *
++	 * For trampoline, we have to have top page table in lower memory as we
++	 * don't have a way to load 64-bit value into CR3 from 32-bit mode.
++	 *
++	 * We go though trampoline even if we don't have to: if we're already
++	 * in 5-level paging mode or if we don't need to switch to it. This way
++	 * the trampoline code gets tested not only in special rare case, but
++	 * on every boot.
++	 */
++
++	/*
++	 * paging_prepare() would setup trampoline and check if we need to
++	 * enable 5-level paging.
++	 *
++	 * Address of trampoline is rerurned in RAX. The bit 0 is used to
++	 * encode if we need to enabled 5-level paging.
+ 	 *
+-	 * The first step is go into compatibility mode.
++	 * RSI holds real mode data and need to be preserved across
++	 * a function call.
+ 	 */
++	pushq	%rsi
++	call	paging_prepare
++	popq	%rsi
++	movq	%rax, %rcx
++	andq	$(~1UL), %rcx
++
++	testq	$1, %rax
++	jz	lvl5
+ 
+ 	/* Clear additional page table */
+ 	leaq	lvl5_pgtable(%rbx), %rdi
+@@ -352,7 +364,6 @@ ENTRY(startup_64)
+ 	pushq	%rax
+ 	lretq
+ lvl5:
+-#endif
+ 
+ 	/* Zero EFLAGS */
+ 	pushq	$0
+@@ -490,7 +501,7 @@ relocated:
+ 	jmp	*%rax
+ 
+ 	.code32
+-#ifdef CONFIG_X86_5LEVEL
++ENTRY(trampoline_32bit_src)
+ compatible_mode:
+ 	/* Setup data and stack segments */
+ 	movl	$__KERNEL_DS, %eax
+@@ -526,7 +537,6 @@ compatible_mode:
+ 	movl	%eax, %cr0
+ 
+ 	lret
+-#endif
+ 
+ no_longmode:
+ 	/* This isn't an x86-64 CPU so hang */
+@@ -585,7 +595,5 @@ boot_stack_end:
+ 	.balign 4096
+ pgtable:
+ 	.fill BOOT_PGT_SIZE, 1, 0
+-#ifdef CONFIG_X86_5LEVEL
+ lvl5_pgtable:
+ 	.fill PAGE_SIZE, 1, 0
+-#endif
+diff --git a/arch/x86/boot/compressed/pgtable.h b/arch/x86/boot/compressed/pgtable.h
+new file mode 100644
+index 000000000000..0261d4ab62e6
+--- /dev/null
++++ b/arch/x86/boot/compressed/pgtable.h
+@@ -0,0 +1,18 @@
++#ifndef BOOT_COMPRESSED_PAGETABLE_H
++#define BOOT_COMPRESSED_PAGETABLE_H
++
++#define TRAMPOLINE_32BIT_SIZE		(2 * PAGE_SIZE)
++
++#define TRAMPOLINE_32BIT_PGTABLE_OFF	0
++
++#define TRAMPOLINE_32BIT_CODE_OFF	PAGE_SIZE
++#define TRAMPOLINE_32BIT_CODE_SIZE	0x50
++
++#define TRAMPOLINE_32BIT_STACK_END	TRAMPOLINE_32BIT_SIZE
++
++#ifndef __ASSEMBLER__
++
++extern void (*trampoline_32bit_src)(void *return_ptr);
++
++#endif /* __ASSEMBLER__ */
++#endif /* BOOT_COMPRESSED_PAGETABLE_H */
+diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
+index eed3a2c3b577..a2ab6b9cf258 100644
+--- a/arch/x86/boot/compressed/pgtable_64.c
++++ b/arch/x86/boot/compressed/pgtable_64.c
+@@ -1,18 +1,61 @@
+ #include <asm/processor.h>
++#include "pgtable.h"
++#include "../string.h"
+ 
+-int l5_paging_required(void)
++#define BIOS_START_MIN		0x20000U	/* 128K, less than this is insane */
++#define BIOS_START_MAX		0x9f000U	/* 640K, absolute maximum */
++
++unsigned long paging_prepare(void)
+ {
+-	/* Check i leaf 7 is supported. */
+-	if (native_cpuid_eax(0) < 7)
+-		return 0;
++	unsigned long bios_start, ebda_start, trampoline_start, *trampoline;
++	int l5_required = 0;
++
++	/* Check if la57 is desired and supported */
++	if (IS_ENABLED(CONFIG_X86_5LEVEL) && native_cpuid_eax(0) >= 7 &&
++			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
++		l5_required = 1;
++
++	/*
++	 * Find suitable spot for trampoline.
++	 * Based on reserve_bios_regions().
++	 */
++
++	ebda_start = *(unsigned short *)0x40e << 4;
++	bios_start = *(unsigned short *)0x413 << 10;
++
++	if (bios_start < BIOS_START_MIN || bios_start > BIOS_START_MAX)
++		bios_start = BIOS_START_MAX;
++
++	if (ebda_start > BIOS_START_MIN && ebda_start < bios_start)
++		bios_start = ebda_start;
++
++	/* Place trampoline below end of low memory, aligned to 4k */
++	trampoline_start = bios_start - TRAMPOLINE_32BIT_SIZE;
++	trampoline_start = round_down(trampoline_start, PAGE_SIZE);
++
++	trampoline = (unsigned long *)trampoline_start;
++
++	/* Clear trampoline memory first */
++	memset(trampoline, 0, TRAMPOLINE_32BIT_SIZE);
+ 
+-	/* Check if la57 is supported. */
+-	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+-		return 0;
++	/* Copy trampoline code in place */
++	memcpy(trampoline + TRAMPOLINE_32BIT_CODE_OFF / sizeof(unsigned long),
++			&trampoline_32bit_src, TRAMPOLINE_32BIT_CODE_SIZE);
+ 
+-	/* Check if 5-level paging has already been enabled. */
+-	if (native_read_cr4() & X86_CR4_LA57)
+-		return 0;
++	if (l5_required) {
++		/*
++		 * For 5-level paging setup current CR3 as the first and the
++		 * only entry in a new top level page table.
++		 */
++		trampoline[0] = __read_cr3() + _PAGE_TABLE_NOENC;
++	} else {
++		/*
++		 * For 4-level paging, copy current top-level page table.
++		 * It might be above 4G and be unaccessible from 32-bit mode.
++		 */
++		memcpy(trampoline, (void *)__read_cr3(), PAGE_SIZE);
++	}
+ 
+-	return 1;
++	/* Bit 0 is used to encode if 5-level paging is required */
++	return trampoline_start | l5_required;
+ }
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
