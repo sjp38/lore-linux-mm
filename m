@@ -1,66 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24C98280275
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:04:55 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id v8so4628942wrd.21
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:04:55 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4929C280275
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:07:00 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e8so304656wmc.2
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:07:00 -0800 (PST)
 Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 81si822403wmj.84.2017.11.10.01.04.53
+        by mx.google.com with ESMTPS id b24si8631915wrg.487.2017.11.10.01.06.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 01:04:54 -0800 (PST)
-Date: Fri, 10 Nov 2017 10:04:53 +0100
+        Fri, 10 Nov 2017 01:06:59 -0800 (PST)
+Date: Fri, 10 Nov 2017 10:06:58 +0100
 From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH 12/15] mm, dax: enable filesystems to trigger page-idle
-	callbacks
-Message-ID: <20171110090453.GC4895@lst.de>
-References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com> <150949216078.24061.1875240167277688258.stgit@dwillia2-desk3.amr.corp.intel.com>
+Subject: Re: [PATCH 13/15] mm, devmap: introduce CONFIG_DEVMAP_MANAGED_PAGES
+Message-ID: <20171110090658.GD4895@lst.de>
+References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com> <150949216597.24061.3943310722702629588.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <150949216078.24061.1875240167277688258.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <150949216597.24061.3943310722702629588.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: linux-nvdimm@lists.01.org, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-mm@kvack.org, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linux-fsdevel@vger.kernel.org, akpm@linux-foundation.org, hch@lst.de
 
-> +DEFINE_MUTEX(devmap_lock);
+On Tue, Oct 31, 2017 at 04:22:46PM -0700, Dan Williams wrote:
+> Combine the now three use cases of page-idle callbacks for ZONE_DEVICE
+> memory into a common selectable symbol.
 
-static?
-
-> +#if IS_ENABLED(CONFIG_FS_DAX)
-> +static void generic_dax_pagefree(struct page *page, void *data)
-> +{
-> +}
-> +
-> +struct dax_device *fs_dax_claim_bdev(struct block_device *bdev, void *owner)
-> +{
-> +	struct dax_device *dax_dev;
-> +	struct dev_pagemap *pgmap;
-> +
-> +	if (!blk_queue_dax(bdev->bd_queue))
-> +		return NULL;
-> +	dax_dev = fs_dax_get_by_host(bdev->bd_disk->disk_name);
-> +	if (!dax_dev->pgmap)
-> +		return dax_dev;
-> +	pgmap = dax_dev->pgmap;
-
-> +	mutex_lock(&devmap_lock);
-> +	if ((pgmap->data && pgmap->data != owner) || pgmap->page_free
-> +			|| pgmap->page_fault
-> +			|| pgmap->type != MEMORY_DEVICE_HOST) {
-> +		put_dax(dax_dev);
-> +		mutex_unlock(&devmap_lock);
-> +		return NULL;
-> +	}
-> +
-> +	pgmap->type = MEMORY_DEVICE_FS_DAX;
-> +	pgmap->page_free = generic_dax_pagefree;
-> +	pgmap->data = owner;
-> +	mutex_unlock(&devmap_lock);
-
-All this deep magic will need some explanation.  So far I don't understand
-it at all, but maybe the later patches will help..
+Very sparse changelog.  I understand the Kconfig bit, but it also seems to
+introduce new static key functionality that isn't explained at all.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
