@@ -1,73 +1,60 @@
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 05/30] x86, kaiser: prepare assembly for entry/exit CR3
- switching
-Date: Thu, 9 Nov 2017 14:20:16 +0100
-Message-ID: <20171109132016.ntku742dgppt7k4v@pd.tnic>
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194654.B960A09E@viggo.jf.intel.com>
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: POWER: Unexpected fault when writing to brk-allocated memory
+Date: Fri, 10 Nov 2017 12:08:35 +0000
+Message-ID: <063D6719AE5E284EB5DD2968C1650D6DD00B84EF@AcuExch.aculab.com>
+References: <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
+ <546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+ <20171107160705.059e0c2b@roar.ozlabs.ibm.com>
+ <20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
+ <20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
+ <20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
+ <20171108002448.6799462e@roar.ozlabs.ibm.com>
+ <2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
+ <20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
+ <20171110041526.6137bc9a@roar.ozlabs.ibm.com>
+ <20171109194421.GA12789@bombadil.infradead.org>
 Mime-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Return-path: <linux-kernel-owner@vger.kernel.org>
-Content-Disposition: inline
-In-Reply-To: <20171108194654.B960A09E@viggo.jf.intel.com>
-Sender: linux-kernel-owner@vger.kernel.org
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+Content-Type: text/plain; charset="Windows-1252"
+Content-Transfer-Encoding: quoted-printable
+Return-path: <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
+In-Reply-To: <20171109194421.GA12789@bombadil.infradead.org>
+Content-Language: en-US
+List-Unsubscribe: <https://lists.ozlabs.org/options/linuxppc-dev>,
+ <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=unsubscribe>
+List-Archive: <http://lists.ozlabs.org/pipermail/linuxppc-dev/>
+List-Post: <mailto:linuxppc-dev@lists.ozlabs.org>
+List-Help: <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=help>
+List-Subscribe: <https://lists.ozlabs.org/listinfo/linuxppc-dev>,
+ <mailto:linuxppc-dev-request@lists.ozlabs.org?subject=subscribe>
+Errors-To: linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org
+Sender: "Linuxppc-dev"
+ <linuxppc-dev-bounces+glppe-linuxppc-embedded-2=m.gmane.org@lists.ozlabs.org>
+To: 'Matthew Wilcox' <willy@infradead.org>, Nicholas Piggin <npiggin@gmail.com>
+Cc: Florian Weimer <fweimer@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, Peter Zijlstra <peterz@infradead.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Thomas Gleixner <tglx@linutronix.de>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 List-Id: linux-mm.kvack.org
 
-On Wed, Nov 08, 2017 at 11:46:54AM -0800, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
-> 
-> This is largely code from Andy Lutomirski.  I fixed a few bugs
-> in it, and added a few SWITCH_TO_* spots.
+From: Matthew Wilcox
+> Sent: 09 November 2017 19:44
+>=20
+> On Fri, Nov 10, 2017 at 04:15:26AM +1100, Nicholas Piggin wrote:
+> > So these semantics are what we're going with? Anything that does mmap()=
+ is
+> > guaranteed of getting a 47-bit pointer and it can use the top 17 bits f=
+or
+> > itself? Is intended to be cross-platform or just x86 and power specific=
+?
+>=20
+> It is x86 and powerpc specific.  The arm64 people have apparently stumble=
+d
+> across apps that expect to be able to use bit 48 for their own purposes.
+> And their address space is 48 bit by default.  Oops.
 
-...
+(Do you mean 49bit?)
 
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Kees Cook <keescook@google.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: x86@kernel.org
-> ---
-> 
->  b/arch/x86/entry/calling.h         |   65 +++++++++++++++++++++++++++++++++++++
->  b/arch/x86/entry/entry_64.S        |   30 ++++++++++++++---
->  b/arch/x86/entry/entry_64_compat.S |    8 ++++
->  3 files changed, 98 insertions(+), 5 deletions(-)
+Aren't such apps just doomed to be broken?
 
-What branch is that one against?
+ISTR there is something on (IIRC) sparc64 that does a 'match'
+on the high address bits to make it much harder to overrun
+one area into another.
 
-It doesn't apply cleanly against tip:x86/asm from today:
-
-patching file arch/x86/entry/calling.h
-Hunk #1 succeeded at 2 with fuzz 1 (offset 1 line).
-Hunk #2 succeeded at 188 (offset 1 line).
-patching file arch/x86/entry/entry_64_compat.S
-Hunk #1 succeeded at 92 (offset 1 line).
-Hunk #2 succeeded at 218 (offset 1 line).
-Hunk #3 succeeded at 246 (offset 1 line).
-Hunk #4 FAILED at 330.
-1 out of 4 hunks FAILED -- saving rejects to file arch/x86/entry/entry_64_compat.S.rej
-patching file arch/x86/entry/entry_64.S
-Hunk #1 succeeded at 148 (offset 1 line).
-Hunk #2 succeeded at 168 (offset 1 line).
-Hunk #3 succeeded at 508 with fuzz 2 (offset 163 lines).
-Hunk #4 FAILED at 685.
-Hunk #5 succeeded at 1119 (offset -54 lines).
-Hunk #6 succeeded at 1145 (offset -54 lines).
-Hunk #7 succeeded at 1174 (offset -54 lines).
-Hunk #8 succeeded at 1223 (offset -54 lines).
-Hunk #9 succeeded at 1350 (offset -54 lines).
-Hunk #10 succeeded at 1575 (offset -54 lines).
-1 out of 10 hunks FAILED -- saving rejects to file arch/x86/entry/entry_64.S.rej
-
--- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+	David
