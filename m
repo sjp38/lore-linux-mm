@@ -1,205 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 08900440D29
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:31:27 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id b79so8406993pfk.9
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:31:27 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AAE91440D2B
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:31:28 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id r6so8422680pfj.14
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:31:28 -0800 (PST)
 Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id c4si9090045pgt.539.2017.11.10.11.31.25
+        by mx.google.com with ESMTPS id c4si9090045pgt.539.2017.11.10.11.31.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:31:25 -0800 (PST)
-Subject: [PATCH 00/30] [v3] KAISER: unmap most of the kernel from userspace page tables
+        Fri, 10 Nov 2017 11:31:27 -0800 (PST)
+Subject: [PATCH 06/30] x86, kaiser: introduce user-mapped per-cpu areas
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:30:58 -0800
-Message-Id: <20171110193058.BECA7D88@viggo.jf.intel.com>
+Date: Fri, 10 Nov 2017 11:31:08 -0800
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
+Message-Id: <20171110193108.64CF4EF1@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org, jgross@suse.com
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-Thanks, everyone for all the reviews thus far.  I hope I managed to
-address all the feedback given so far, except for the TODOs of
-course.  This is a pretty minor update compared to v1->v2.
 
-These patches are all on top of Andy's entry changes here:
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-	https://git.kernel.org/pub/scm/linux/kernel/git/luto/linux.git/log/?h=x86/entry_consolidation
+These patches are based on work from a team at Graz University of
+Technology posted here: https://github.com/IAIK/KAISER
 
-Changes from v2:
- * Reword documentation removing "we"
- * Fix some whitespace damage
- * Fix up MAX ASID values off-by-one noted by Peter Z
- * Change CodingStyle stuff from Borislav comments
- * Always use _KERNPG_TABLE for pmd_populate_kernel().
+The KAISER approach keeps two copies of the page tables: one for running
+in the kernel and one for running userspace.  But, there are a few
+structures that are needed for switching in and out of the kernel and
+a good subset of *those* are per-cpu data.
 
-Changes from v1:
- * Updated to be on top of Andy L's new entry code
- * Allow global pages again, and use them for pages mapped into
-   userspace page tables.
- * Use trampoline stack instead of process stack at entry so no
-   longer need to map process stack (big win in fork() speed)
- * Made the page table walking less generic by restricting it
-   to kernel addresses and !_PAGE_USER pages.
- * Added a debugfs file to enable/disable CR3 switching at
-   runtime.  This does not remove all the KAISER overhead, but
-   it removes the largest source.
- * Use runtime disable with Xen to permit Xen-PV guests with
-   KAISER=y.
- * Moved assembly code from "core" to "prepare assembly" patch
- * Pass full register name to asm macros
- * Remove double stack switch in entry_SYSENTER_compat
- * Disable vsyscall native case when KAISER=y
- * Separate PER_CPU_USER_MAPPED generic definitions from use
-   by arch/x86/.
+This patch creates a new kind of per-cpu data that is mapped and
+can be used no matter which copy of the page tables is active.
+Users of this new section will be forthcoming.
 
-TODO:
- * Allow dumping the shadow page tables with the ptdump code
- * Put LDT at top of userspace
- * Create separate tlb flushing functions for user and kernel
- * Chase down the source of the new !CR4.PGE warning that 0day
-   found with i386
+Thanks to Hugh Dickins for cleanups to this code.
 
----
-
-tl;dr:
-
-KAISER makes it harder to defeat KASLR, but makes syscalls and
-interrupts slower.  These patches are based on work from a team at
-Graz University of Technology posted here[1].  The major addition is
-support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
-work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
-for a wide variety of use cases.
-
-Full Description:
-
-KAISER is a countermeasure against attacks on kernel address
-information.  There are at least three existing, published,
-approaches using the shared user/kernel mapping and hardware features
-to defeat KASLR.  One approach referenced in the paper locates the
-kernel by observing differences in page fault timing between
-present-but-inaccessable kernel pages and non-present pages.
-
-KAISER addresses this by unmapping (most of) the kernel when
-userspace runs.  It leaves the existing page tables largely alone and
-refers to them as "kernel page tables".  For running userspace, a new
-"shadow" copy of the page tables is allocated for each process.  The
-shadow page tables map all the same user memory as the "kernel" copy,
-but only maps a minimal set of kernel memory.
-
-When we enter the kernel via syscalls, interrupts or exceptions,
-page tables are switched to the full "kernel" copy.  When the system
-switches back to user mode, the "shadow" copy is used.  Process
-Context IDentifiers (PCIDs) are used to to ensure that the TLB is not
-flushed when switching between page tables, which makes syscalls
-roughly 2x faster than without it.  PCIDs are usable on Haswell and
-newer CPUs (the ones with "v4", or called fourth-generation Core).
-
-The minimal kernel page tables try to map only what is needed to
-enter/exit the kernel such as the entry/exit functions, interrupt
-descriptors (IDT) and the kernel trampoline stacks.  This minimal set
-of data can still reveal the kernel's ASLR base address.  But, this
-minimal kernel data is all trusted, which makes it harder to exploit
-than data in the kernel direct map which contains loads of
-user-controlled data.
-
-KAISER will affect performance for anything that does system calls or
-interrupts: everything.  Just the new instructions (CR3 manipulation)
-add a few hundred cycles to a syscall or interrupt.  Most workloads
-that we have run show single-digit regressions.  5% is a good round
-number for what is typical.  The worst we have seen is a roughly 30%
-regression on a loopback networking test that did a ton of syscalls
-and context switches.  More details about possible performance
-impacts are in the new Documentation/ file.
-
-This code is based on a version I downloaded from
-(https://github.com/IAIK/KAISER).  It has been heavily modified.
-
-The approach is described in detail in a paper[2].  However, there is
-some incorrect and information in the paper, both on how Linux and
-the hardware works.  For instance, I do not share the opinion that
-KAISER has "runtime overhead of only 0.28%".  Please rely on this
-patch series as the canonical source of information about this
-submission.
-
-Here is one example of how the kernel image grow with CONFIG_KAISER
-on and off.  Most of the size increase is presumably from additional
-alignment requirements for mapping entry/exit code and structures.
-
-    text    data     bss      dec filename
-11786064 7356724 2928640 22071428 vmlinux-nokaiser
-11798203 7371704 2928640 22098547 vmlinux-kaiser
-  +12139  +14980       0   +27119
-
-To give folks an idea what the performance impact is like, I took
-the following test and ran it single-threaded:
-
-	https://github.com/antonblanchard/will-it-scale/blob/master/tests/lseek1.c
-
-It's a pretty quick syscall so this shows how much KAISER slows
-down syscalls (and how much PCIDs help).  The units here are
-lseeks/second:
-
-        no kaiser: 5.2M
-    kaiser+  pcid: 3.0M
-    kaiser+nopcid: 2.2M
-
-"nopcid" is literally with the "nopcid" command-line option which
-turns PCIDs off entirely.
-
-Thanks to:
-The original KAISER team at Graz University of Technology.
-Andy Lutomirski for all the help with the entry code.
-Kirill Shutemov for a helpful review of the code.
-
-1. https://github.com/IAIK/KAISER
-2. https://gruss.cc/files/kaiser.pdf
-
---
-
-The code is available here:
-
-	https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/
-
- Documentation/x86/kaiser.txt                | 160 +++++
- arch/x86/Kconfig                            |   8 +
- arch/x86/entry/calling.h                    |  89 +++
- arch/x86/entry/entry_64.S                   |  44 +-
- arch/x86/entry/entry_64_compat.S            |   8 +
- arch/x86/events/intel/ds.c                  |  49 +-
- arch/x86/include/asm/cpufeatures.h          |   1 +
- arch/x86/include/asm/desc.h                 |   2 +-
- arch/x86/include/asm/kaiser.h               |  62 ++
- arch/x86/include/asm/mmu_context.h          |  29 +-
- arch/x86/include/asm/pgalloc.h              |  37 +-
- arch/x86/include/asm/pgtable.h              |  20 +-
- arch/x86/include/asm/pgtable_64.h           | 135 +++++
- arch/x86/include/asm/pgtable_types.h        |  25 +-
- arch/x86/include/asm/processor.h            |   2 +-
- arch/x86/include/asm/tlbflush.h             | 232 +++++++-
- arch/x86/include/uapi/asm/processor-flags.h |   3 +-
- arch/x86/kernel/cpu/common.c                |  21 +-
- arch/x86/kernel/espfix_64.c                 |  27 +-
- arch/x86/kernel/head_64.S                   |  30 +-
- arch/x86/kernel/ldt.c                       |  25 +-
- arch/x86/kernel/process.c                   |   2 +-
- arch/x86/kernel/process_64.c                |   2 +-
- arch/x86/kernel/traps.c                     |  46 +-
- arch/x86/kvm/x86.c                          |   3 +-
- arch/x86/mm/Makefile                        |   1 +
- arch/x86/mm/init.c                          |  75 ++-
- arch/x86/mm/kaiser.c                        | 627 ++++++++++++++++++++
- arch/x86/mm/pageattr.c                      |  18 +-
- arch/x86/mm/pgtable.c                       |  16 +-
- arch/x86/mm/tlb.c                           | 105 +++-
- include/asm-generic/vmlinux.lds.h           |  17 +
- include/linux/kaiser.h                      |  34 ++
- include/linux/percpu-defs.h                 |  30 +
- init/main.c                                 |   3 +
- kernel/fork.c                               |   1 +
- security/Kconfig                            |  10 +
- 37 files changed, 1851 insertions(+), 148 deletions(-)
-
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
 Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
 Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
@@ -209,7 +47,92 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Kees Cook <keescook@google.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
-Cc: Juergen Gross <jgross@suse.com>
+---
+
+ b/include/asm-generic/vmlinux.lds.h |    7 +++++++
+ b/include/linux/percpu-defs.h       |   30 ++++++++++++++++++++++++++++++
+ 2 files changed, 37 insertions(+)
+
+diff -puN include/asm-generic/vmlinux.lds.h~kaiser-prep-user-mapped-percpu include/asm-generic/vmlinux.lds.h
+--- a/include/asm-generic/vmlinux.lds.h~kaiser-prep-user-mapped-percpu	2017-11-10 11:22:07.802244953 -0800
++++ b/include/asm-generic/vmlinux.lds.h	2017-11-10 11:22:07.807244953 -0800
+@@ -807,7 +807,14 @@
+  */
+ #define PERCPU_INPUT(cacheline)						\
+ 	VMLINUX_SYMBOL(__per_cpu_start) = .;				\
++	VMLINUX_SYMBOL(__per_cpu_user_mapped_start) = .;		\
+ 	*(.data..percpu..first)						\
++	. = ALIGN(cacheline);						\
++	*(.data..percpu..user_mapped)					\
++	*(.data..percpu..user_mapped..shared_aligned)			\
++	. = ALIGN(PAGE_SIZE);						\
++	*(.data..percpu..user_mapped..page_aligned)			\
++	VMLINUX_SYMBOL(__per_cpu_user_mapped_end) = .;			\
+ 	. = ALIGN(PAGE_SIZE);						\
+ 	*(.data..percpu..page_aligned)					\
+ 	. = ALIGN(cacheline);						\
+diff -puN include/linux/percpu-defs.h~kaiser-prep-user-mapped-percpu include/linux/percpu-defs.h
+--- a/include/linux/percpu-defs.h~kaiser-prep-user-mapped-percpu	2017-11-10 11:22:07.804244953 -0800
++++ b/include/linux/percpu-defs.h	2017-11-10 11:22:07.807244953 -0800
+@@ -35,6 +35,12 @@
+ 
+ #endif
+ 
++#ifdef CONFIG_KAISER
++#define USER_MAPPED_SECTION "..user_mapped"
++#else
++#define USER_MAPPED_SECTION ""
++#endif
++
+ /*
+  * Base implementations of per-CPU variable declarations and definitions, where
+  * the section in which the variable is to be placed is provided by the
+@@ -115,6 +121,12 @@
+ #define DEFINE_PER_CPU(type, name)					\
+ 	DEFINE_PER_CPU_SECTION(type, name, "")
+ 
++#define DECLARE_PER_CPU_USER_MAPPED(type, name)				\
++	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION)
++
++#define DEFINE_PER_CPU_USER_MAPPED(type, name)				\
++	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION)
++
+ /*
+  * Declaration/definition used for per-CPU variables that must come first in
+  * the set of variables.
+@@ -144,6 +156,14 @@
+ 	DEFINE_PER_CPU_SECTION(type, name, PER_CPU_SHARED_ALIGNED_SECTION) \
+ 	____cacheline_aligned_in_smp
+ 
++#define DECLARE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)		\
++	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION PER_CPU_SHARED_ALIGNED_SECTION) \
++	____cacheline_aligned_in_smp
++
++#define DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(type, name)		\
++	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION PER_CPU_SHARED_ALIGNED_SECTION) \
++	____cacheline_aligned_in_smp
++
+ #define DECLARE_PER_CPU_ALIGNED(type, name)				\
+ 	DECLARE_PER_CPU_SECTION(type, name, PER_CPU_ALIGNED_SECTION)	\
+ 	____cacheline_aligned
+@@ -162,6 +182,16 @@
+ #define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)				\
+ 	DEFINE_PER_CPU_SECTION(type, name, "..page_aligned")		\
+ 	__aligned(PAGE_SIZE)
++/*
++ * Declaration/definition used for per-CPU variables that must be page aligned and need to be mapped in user mode.
++ */
++#define DECLARE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)		\
++	DECLARE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned") \
++	__aligned(PAGE_SIZE)
++
++#define DEFINE_PER_CPU_PAGE_ALIGNED_USER_MAPPED(type, name)		\
++	DEFINE_PER_CPU_SECTION(type, name, USER_MAPPED_SECTION"..page_aligned") \
++	__aligned(PAGE_SIZE)
+ 
+ /*
+  * Declaration/definition used for per-CPU variables that must be read mostly.
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
