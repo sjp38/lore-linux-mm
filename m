@@ -1,98 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 90F4A440D41
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:04:09 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m188so476812pga.22
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:04:09 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id DE0A228029F
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:06:41 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d15so414373pfl.0
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:06:41 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g17si8545305plo.542.2017.11.10.14.04.08
+        by mx.google.com with ESMTPS id n15si7936448pfg.37.2017.11.10.14.06.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 14:04:08 -0800 (PST)
-Received: from mail-io0-f175.google.com (mail-io0-f175.google.com [209.85.223.175])
+        Fri, 10 Nov 2017 14:06:40 -0800 (PST)
+Received: from mail-io0-f180.google.com (mail-io0-f180.google.com [209.85.223.180])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id A8A3C218E3
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 22:04:07 +0000 (UTC)
-Received: by mail-io0-f175.google.com with SMTP id f20so15031479ioj.9
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:04:07 -0800 (PST)
+	by mail.kernel.org (Postfix) with ESMTPSA id 92BA221984
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 22:06:40 +0000 (UTC)
+Received: by mail-io0-f180.google.com with SMTP id b186so15043962iof.8
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:06:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171110193146.5908BE13@viggo.jf.intel.com>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193146.5908BE13@viggo.jf.intel.com>
+In-Reply-To: <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
+References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194731.AB5BDA01@viggo.jf.intel.com>
+ <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
+ <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com> <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
+ <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com> <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
+ <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com> <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
+ <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Fri, 10 Nov 2017 14:03:46 -0800
-Message-ID: <CALCETrXrXpTZE2sceBh=eW5kEP79hWc5iY36QKjfy=U4nTirDw@mail.gmail.com>
-Subject: Re: [PATCH 21/30] x86, mm: put mmu-to-h/w ASID translation in one place
+Date: Fri, 10 Nov 2017 14:06:19 -0800
+Message-ID: <CALCETrVoud2iVxAky5UGQkyiDgNiN7Zc-LfahG_1P-x3JQzopg@mail.gmail.com>
+Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Fri, Nov 10, 2017 at 11:31 AM, Dave Hansen
+On Thu, Nov 9, 2017 at 10:31 PM, Dave Hansen
 <dave.hansen@linux.intel.com> wrote:
+> On 11/09/2017 06:25 PM, Andy Lutomirski wrote:
+>> Here are two proposals to address this without breaking vsyscalls.
+>>
+>> 1. Set NX on low mappings that are _PAGE_USER.  Don't set NX on high
+>> mappings but, optionally, warn if you see _PAGE_USER on any address
+>> that isn't the vsyscall page.
+>>
+>> 2. Ignore _PAGE_USER entirely and just mark the EFI mm as special so
+>> KAISER doesn't muck with it.
 >
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> There are effectively two ASID types:
-> 1. The one stored in the mmu_context that goes from 0->5
-> 2. The one programmed into the hardware that goes from 1->6
->
-> This consolidates the locations where converting beween the two
-> (by doing +1) to a single place which gives us a nice place to
-> comment.  KAISER will also need to, given an ASID, know which
-> hardware ASID to flush for the userspace mapping.
->
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Kees Cook <keescook@google.com>
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: x86@kernel.org
-> ---
->
->  b/arch/x86/include/asm/tlbflush.h |   30 ++++++++++++++++++------------
->  1 file changed, 18 insertions(+), 12 deletions(-)
->
-> diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern arch/x86/include/asm/tlbflush.h
-> --- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern        2017-11-10 11:22:16.521244931 -0800
-> +++ b/arch/x86/include/asm/tlbflush.h   2017-11-10 11:22:16.525244931 -0800
-> @@ -87,21 +87,26 @@ static inline u64 inc_mm_tlb_gen(struct
->   */
->  #define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
->
-> -/*
-> - * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
-> - * bits.  This serves two purposes.  It prevents a nasty situation in
-> - * which PCID-unaware code saves CR3, loads some other value (with PCID
-> - * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
-> - * the saved ASID was nonzero.  It also means that any bugs involving
-> - * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
-> - * deterministically.
-> - */
-> +static inline u16 kern_asid(u16 asid)
-> +{
-> +       VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-> +       /*
-> +        * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
-> +        * bits.  This serves two purposes.  It prevents a nasty situation in
-> +        * which PCID-unaware code saves CR3, loads some other value (with PCID
-> +        * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
-> +        * the saved ASID was nonzero.  It also means that any bugs involving
-> +        * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
-> +        * deterministically.
-> +        */
-> +       return asid + 1;
-> +}
+> These are totally doable.  But, what's the big deal with breaking native
+> vsyscall?  We can still do the emulation so nothing breaks: it is just slow.
 
-This seems really error-prone.  Maybe we should have a pcid_t type and
-make all the interfaces that want a h/w PCID take pcid_t.
-
---Andy
+I have nothing against disabling native.  I object to breaking the
+weird binary tracing behavior in the emulation mode, especially if
+it's tangled up with KAISER.  I got all kinds of flak in an earlier
+version of the vsyscall emulation patches when I broke that use case.
+KAISER may get very widely backported -- let's not make changes that
+are already known to break things.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
