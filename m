@@ -1,94 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 66B2A280298
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 07:57:57 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id w95so4974824wrc.20
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:57:57 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n23sor3884940wra.41.2017.11.10.04.57.55
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 10 Nov 2017 04:57:56 -0800 (PST)
-Date: Fri, 10 Nov 2017 13:57:53 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 08/30] x86, kaiser: unmap kernel from userspace page
- tables (core patch)
-Message-ID: <20171110125752.qd2ui2fwwc5c35ea@gmail.com>
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194701.7632448F@viggo.jf.intel.com>
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6104D280298
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 10:11:21 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 14so6997863oii.2
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 07:11:21 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id d19si5828631oti.370.2017.11.10.07.11.19
+        for <linux-mm@kvack.org>;
+        Fri, 10 Nov 2017 07:11:19 -0800 (PST)
+Subject: Re: [PATCH] arm64: mm: Set MAX_PHYSMEM_BITS based on ARM64_VA_BITS
+References: <1510268339-21989-1-git-send-email-vdumpa@nvidia.com>
+From: Robin Murphy <robin.murphy@arm.com>
+Message-ID: <9ff1d720-7137-4a9a-7934-1d01ea2ef208@arm.com>
+Date: Fri, 10 Nov 2017 15:11:15 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171108194701.7632448F@viggo.jf.intel.com>
+In-Reply-To: <1510268339-21989-1-git-send-email-vdumpa@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Krishna Reddy <vdumpa@nvidia.com>, catalin.marinas@arm.com, will.deacon@arm.com, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, jglisse@redhat.com, linux-tegra@vger.kernel.org
 
-
-* Dave Hansen <dave.hansen@linux.intel.com> wrote:
-
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On 09/11/17 22:58, Krishna Reddy wrote:
+> MAX_PHYSMEM_BITS greater than ARM64_VA_BITS is causing memory
+> access fault, when HMM_DMIRROR test is enabled.
+> In the failing case, ARM64_VA_BITS=39 and MAX_PHYSMEM_BITS=48.
+> HMM_DMIRROR test selects phys memory range from end based on
+> MAX_PHYSMEM_BITS and gets mapped into VA space linearly.
+> As VA space is 39-bit and phys space is 48-bit, this has caused
+> incorrect mapping and leads to memory access fault.
 > 
-> These patches are based on work from a team at Graz University of
-> Technology: https://github.com/IAIK/KAISER .  This work would not have
-> been possible without their work as a starting point.
-
-> Note: The original KAISER authors signed-off on their patch.  Some of
-> their code has been broken out into other patches in this series, but
-> their SoB was only retained here.
+> Limiting the MAX_PHYSMEM_BITS to ARM64_VA_BITS fixes the issue and is
+> the right thing instead of hard coding it as 48-bit always.
 > 
-> Signed-off-by: Richard Fellner <richard.fellner@student.tugraz.at>
-> Signed-off-by: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-> Signed-off-by: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-> Signed-off-by: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> [    3.378655] Unable to handle kernel paging request at virtual address 3befd000000
+> [    3.378662] pgd = ffffff800a04b000
+> [    3.378900] [3befd000000] *pgd=0000000081fa3003, *pud=0000000081fa3003, *pmd=0060000268200711
+> [    3.378933] Internal error: Oops: 96000044 [#1] PREEMPT SMP
+> [    3.378938] Modules linked in:
+> [    3.378948] CPU: 1 PID: 1 Comm: swapper/0 Not tainted 4.9.52-tegra-g91402fdc013b-dirty #51
+> [    3.378950] Hardware name: quill (DT)
+> [    3.378954] task: ffffffc1ebac0000 task.stack: ffffffc1eba64000
+> [    3.378967] PC is at __memset+0x1ac/0x1d0
+> [    3.378976] LR is at sparse_add_one_section+0xf8/0x174
+> [    3.378981] pc : [<ffffff80084c212c>] lr : [<ffffff8008eda17c>] pstate: 404000c5
+> [    3.378983] sp : ffffffc1eba67a40
+> [    3.378993] x29: ffffffc1eba67a40 x28: 0000000000000000
+> [    3.378999] x27: 000000000003ffff x26: 0000000000000040
+> [    3.379005] x25: 00000000000003ff x24: ffffffc1e9f6cf80
+> [    3.379010] x23: ffffff8009ecb2d4 x22: 000003befd000000
+> [    3.379015] x21: ffffffc1e9923ff0 x20: 000000000003ffff
+> [    3.379020] x19: 00000000ffffffef x18: ffffffffffffffff
+> [    3.379025] x17: 00000000000024d7 x16: 0000000000000000
+> [    3.379030] x15: ffffff8009cd8690 x14: ffffffc1e9f6c70c
+> [    3.379035] x13: ffffffc1e9f6c70b x12: 0000000000000030
+> [    3.379039] x11: 0000000000000040 x10: 0101010101010101
+> [    3.379044] x9 : 0000000000000000 x8 : 000003befd000000
+> [    3.379049] x7 : 0000000000000000 x6 : 000000000000003f
+> [    3.379053] x5 : 0000000000000040 x4 : 0000000000000000
+> [    3.379058] x3 : 0000000000000004 x2 : 0000000000ffffc0
+> [    3.379063] x1 : 0000000000000000 x0 : 000003befd000000
+> [    3.379064]
+> [    3.379069] Process swapper/0 (pid: 1, stack limit = 0xffffffc1eba64028)
+> [    3.379071] Call trace:
+> [    3.379079] [<ffffff80084c212c>] __memset+0x1ac/0x1d0
 
-That's not how SOB chains should be used normally - nor does the current code have 
-much resemblance to the original code.
+What's the deal with this memset? AFAICS we're in __add_pages() from 
+hmm_devmem_pages_create() calling add_pages() for private memory which 
+it does not expect to be in the linear map anyway :/
 
-So you credit them in the file:
+There appears to be a more fundamental problem being papered over here.
 
-> --- /dev/null	2017-11-06 07:51:38.702108459 -0800
-> +++ b/arch/x86/mm/kaiser.c	2017-11-08 10:45:29.893681394 -0800
-> @@ -0,0 +1,412 @@
-> +/*
-> + * Copyright(c) 2017 Intel Corporation. All rights reserved.
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of version 2 of the GNU General Public License as
-> + * published by the Free Software Foundation.
-> + *
-> + * This program is distributed in the hope that it will be useful, but
-> + * WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-> + * General Public License for more details.
-> + *
-> + * Based on work published here: https://github.com/IAIK/KAISER
-> + * Modified by Dave Hansen <dave.hansen@intel.com to actually work.
+Robin.
 
-You could credit the original authors via something like:
-
-	/*
-	 * The original KAISER patch, on which this code is based in part, was 
-	 * written by and signed off by for the Linux kernel by:
-	 *
-	 *   Signed-off-by: Richard Fellner <richard.fellner@student.tugraz.at>
-	 *   Signed-off-by: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-         *   Signed-off-by: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-	 *   Signed-off-by: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-	 *
-	 * At:
-	 *
-	 *   https://github.com/IAIK/KAISER
-	 */
-
-Or something like that - but the original SOBs should not be carried over as-is 
-into the commit log entry.
-
-Thanks,
-
-	Ingo
+> [    3.379085] [<ffffff8008ed5100>] __add_pages+0x130/0x2e0
+> [    3.379093] [<ffffff8008211cf4>] hmm_devmem_pages_create+0x20c/0x310
+> [    3.379100] [<ffffff8008211fcc>] hmm_devmem_add+0x1d4/0x270
+> [    3.379128] [<ffffff80087111c8>] dmirror_probe+0x50/0x158
+> [    3.379137] [<ffffff8008732590>] platform_drv_probe+0x60/0xc8
+> [    3.379143] [<ffffff800872fbf4>] driver_probe_device+0x26c/0x420
+> [    3.379149] [<ffffff800872fecc>] __driver_attach+0x124/0x128
+> [    3.379155] [<ffffff800872d388>] bus_for_each_dev+0x88/0xe8
+> [    3.379166] [<ffffff800872f248>] driver_attach+0x30/0x40
+> [    3.379171] [<ffffff800872ec18>] bus_add_driver+0x1f8/0x2b0
+> [    3.379177] [<ffffff8008730e38>] driver_register+0x68/0x100
+> [    3.379183] [<ffffff80087324d4>] __platform_driver_register+0x5c/0x68
+> [    3.379192] [<ffffff800951f918>] hmm_dmirror_init+0x88/0xc4
+> [    3.379200] [<ffffff800808359c>] do_one_initcall+0x5c/0x170
+> [    3.379208] [<ffffff80094e0dd0>] kernel_init_freeable+0x1b8/0x258
+> [    3.379231] [<ffffff8008ed44f0>] kernel_init+0x18/0x108
+> [    3.379236] [<ffffff80080832d0>] ret_from_fork+0x10/0x40
+> [    3.379246] ---[ end trace 578db63bb139b8b8 ]---
+> 
+> Signed-off-by: Krishna Reddy <vdumpa@nvidia.com>
+> ---
+>   arch/arm64/include/asm/sparsemem.h | 6 ++++++
+>   1 file changed, 6 insertions(+)
+> 
+> diff --git a/arch/arm64/include/asm/sparsemem.h b/arch/arm64/include/asm/sparsemem.h
+> index 74a9d301819f..19ecd0b0f3a3 100644
+> --- a/arch/arm64/include/asm/sparsemem.h
+> +++ b/arch/arm64/include/asm/sparsemem.h
+> @@ -17,7 +17,13 @@
+>   #define __ASM_SPARSEMEM_H
+>   
+>   #ifdef CONFIG_SPARSEMEM
+> +
+> +#ifdef CONFIG_ARM64_VA_BITS
+> +#define MAX_PHYSMEM_BITS	CONFIG_ARM64_VA_BITS
+> +#else
+>   #define MAX_PHYSMEM_BITS	48
+> +#endif
+> +
+>   #define SECTION_SIZE_BITS	30
+>   #endif
+>   
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
