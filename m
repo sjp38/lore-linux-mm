@@ -1,68 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E081128028E
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 07:25:10 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g128so1026110itb.5
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:25:10 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 206si742037itj.150.2017.11.10.04.25.09
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4672728028E
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 07:26:40 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id b6so7531440pff.18
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:26:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q4si8918633plb.719.2017.11.10.04.26.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 04:25:09 -0800 (PST)
-Date: Fri, 10 Nov 2017 13:25:02 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 22/30] x86, pcid, kaiser: allow flushing for future ASID
- switches
-Message-ID: <20171110122502.s2i6od7lx4uooyyu@hirez.programming.kicks-ass.net>
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194728.4D8F87B6@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 10 Nov 2017 04:26:39 -0800 (PST)
+Date: Fri, 10 Nov 2017 13:26:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy (was: Re:
+ [RESEND PATCH] mm, oom_reaper: gather each vma to prevent) leaking TLB entry
+Message-ID: <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
+References: <20171107095453.179940-1-wangnan0@huawei.com>
+ <20171110001933.GA12421@bbox>
+ <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171108194728.4D8F87B6@viggo.jf.intel.com>
+In-Reply-To: <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Minchan Kim <minchan@kernel.org>
+Cc: Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Wed, Nov 08, 2017 at 11:47:28AM -0800, Dave Hansen wrote:
-> +/*
-> + * We get here when we do something requiring a TLB invalidation
-> + * but could not go invalidate all of the contexts.  We do the
-> + * necessary invalidation by clearing out the 'ctx_id' which
-> + * forces a TLB flush when the context is loaded.
-> + */
-> +void clear_non_loaded_ctxs(void)
-> +{
-> +	u16 asid;
-> +
-> +	/*
-> +	 * This is only expected to be set if we have disabled
-> +	 * kernel _PAGE_GLOBAL pages.
-> +	 */
-> +        if (IS_ENABLED(CONFIG_X86_GLOBAL_PAGES)) {
-> +		WARN_ON_ONCE(1);
-> +                return;
-> +	}
+On Fri 10-11-17 11:15:29, Michal Hocko wrote:
+> On Fri 10-11-17 09:19:33, Minchan Kim wrote:
+> > On Tue, Nov 07, 2017 at 09:54:53AM +0000, Wang Nan wrote:
+> > > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering the whole virtual memory
+> > > space. In this case, tlb->fullmm is true. Some archs like arm64 doesn't
+> > > flush TLB when tlb->fullmm is true:
+> > > 
+> > >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
+> > > 
+> > > Which makes leaking of tlb entries.
+> > 
+> > That means soft-dirty which has used tlb_gather_mmu with fullmm could be
+> > broken via losing write-protection bit once it supports arm64 in future?
+> > 
+> > If so, it would be better to use TASK_SIZE rather than -1 in tlb_gather_mmu.
+> > Of course, it's a off-topic.
+> 
+> I wouldn't play tricks like that. And maybe the API itself could be more
+> explicit. E.g. add a lazy parameter which would allow arch specific code
+> to not flush if it is sure that nobody can actually stumble over missed
+> flush. E.g. the following?
 
-Whitespace damage..
-
-> +
-> +	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
-> +		/* Do not need to flush the current asid */
-> +		if (asid == this_cpu_read(cpu_tlbstate.loaded_mm_asid))
-> +			continue;
-> +		/*
-> +		 * Make sure the next time we go to switch to
-> +		 * this asid, we do a flush:
-> +		 */
-> +		this_cpu_write(cpu_tlbstate.ctxs[asid].ctx_id, 0);
-> +	}
-> +	this_cpu_write(cpu_tlbstate.all_other_ctxs_invalid, false);
-> +}
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+This one has a changelog and even compiles on my crosscompile test
+---
