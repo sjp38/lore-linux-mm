@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B7FB3280278
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:12:40 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y42so4544019wrd.23
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:12:40 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 31E68280278
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:13:43 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id o14so4648933wrf.6
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:13:43 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w79sor3511103wrb.38.2017.11.10.01.12.39
+        by mx.google.com with SMTPS id 124sor265519wmv.23.2017.11.10.01.13.42
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 10 Nov 2017 01:12:39 -0800 (PST)
-Date: Fri, 10 Nov 2017 10:12:36 +0100
+        Fri, 10 Nov 2017 01:13:42 -0800 (PST)
+Date: Fri, 10 Nov 2017 10:13:39 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCH 1/4] x86/boot/compressed/64: Compile pagetable.c
- unconditionally
-Message-ID: <20171110091236.7o2vvmrty7eahziu@gmail.com>
+Subject: Re: [PATCH 2/4] x86/boot/compressed/64: Detect and handle 5-level
+ paging at boot-time
+Message-ID: <20171110091339.rvqhdce55pil5c6k@gmail.com>
 References: <20171101115503.18358-1-kirill.shutemov@linux.intel.com>
- <20171101115503.18358-2-kirill.shutemov@linux.intel.com>
+ <20171101115503.18358-3-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171101115503.18358-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171101115503.18358-3-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -28,64 +28,72 @@ Cc: Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.or
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
 
-> We are going to put few helpers into pagetable.c that are not specific
-> to KASLR.
-> 
-> Let's make compilation of the file independent of KASLR and wrap
-> KASLR-depended code into ifdef.
+> This patch prepare decompression code to boot-time switching between 4-
+> and 5-level paging.
 > 
 > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 > ---
->  arch/x86/boot/compressed/Makefile    | 2 +-
->  arch/x86/boot/compressed/pagetable.c | 5 +++++
->  2 files changed, 6 insertions(+), 1 deletion(-)
+>  arch/x86/boot/compressed/head_64.S   | 16 ++++++++++++----
+>  arch/x86/boot/compressed/pagetable.c | 19 +++++++++++++++++++
+>  2 files changed, 31 insertions(+), 4 deletions(-)
 > 
-> diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
-> index 65a150a7f15c..f7b64ecd09b3 100644
-> --- a/arch/x86/boot/compressed/Makefile
-> +++ b/arch/x86/boot/compressed/Makefile
-> @@ -77,7 +77,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
->  vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
->  vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
->  ifdef CONFIG_X86_64
-> -	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
-> +	vmlinux-objs-y += $(obj)/pagetable.o
->  endif
+> diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+> index b4a5d284391c..6ac8239af2b6 100644
+> --- a/arch/x86/boot/compressed/head_64.S
+> +++ b/arch/x86/boot/compressed/head_64.S
+> @@ -288,10 +288,18 @@ ENTRY(startup_64)
+>  	leaq	boot_stack_end(%rbx), %rsp
 >  
->  $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
+>  #ifdef CONFIG_X86_5LEVEL
+> -	/* Check if 5-level paging has already enabled */
+> -	movq	%cr4, %rax
+> -	testl	$X86_CR4_LA57, %eax
+> -	jnz	lvl5
+> +	/*
+> +	 * Check if we need to enable 5-level paging.
+> +	 * RSI holds real mode data and need to be preserved across
+> +	 * a function call.
+> +	 */
+> +	pushq	%rsi
+> +	call	need_to_enabled_l5
+> +	popq	%rsi
+> +
+> +	/* If need_to_enabled_l5() returned zero, we're done here. */
+> +	cmpq	$0, %rax
+> +	je	lvl5
+>  
+>  	/*
+>  	 * At this point we are in long mode with 4-level paging enabled,
 > diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/pagetable.c
-> index f1aa43854bed..a15bbfcb3413 100644
+> index a15bbfcb3413..cd2dd49333cc 100644
 > --- a/arch/x86/boot/compressed/pagetable.c
 > +++ b/arch/x86/boot/compressed/pagetable.c
-> @@ -27,6 +27,9 @@
->  /* These actually do the work of building the kernel identity maps. */
->  #include <asm/init.h>
->  #include <asm/pgtable.h>
-> +
-> +#ifdef CONFIG_RANDOMIZE_BASE
-> +
->  /* Use the static base for this part of the boot process */
->  #undef __PAGE_OFFSET
->  #define __PAGE_OFFSET __PAGE_OFFSET_BASE
-> @@ -149,3 +152,5 @@ void finalize_identity_maps(void)
->  {
->  	write_cr3(top_level_pgt);
+> @@ -154,3 +154,22 @@ void finalize_identity_maps(void)
 >  }
+>  
+>  #endif /* CONFIG_RANDOMIZE_BASE */
 > +
-> +#endif /* CONFIG_RANDOMIZE_BASE */
+> +#ifdef CONFIG_X86_5LEVEL
+> +int need_to_enabled_l5(void)
+> +{
+> +	/* Check i leaf 7 is supported. */
+> +	if (native_cpuid_eax(0) < 7)
+> +		return 0;
+> +
+> +	/* Check if la57 is supported. */
+> +	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
+> +		return 0;
+> +
+> +	/* Check if 5-level paging has already been enabled. */
+> +	if (native_read_cr4() & X86_CR4_LA57)
+> +		return 0;
+> +
+> +	return 1;
+> +}
+> +#endif
 
-The #ifdeffery becomes really ugly in this file. I think we should split these 
-into separate .c files:
-
-  arch/x86/boot/compressed/kaslr.c
-  arch/x86/boot/compressed/5-level-paging.c
-
-With core data structures and code and a well defined interface:
-
-  arch/x86/boot/compressed/pagetable.c
-  arch/x86/boot/compressed/pagetable.h
-
-or so.
+Ok, I like this a lot better than doing this at the assembly level - and this 
+could provide a model for how to further reduce assembly code.
 
 Thanks,
 
