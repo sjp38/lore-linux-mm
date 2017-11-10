@@ -1,56 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B36CD28028E
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 06:37:08 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id j202so292408qke.2
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 03:37:08 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l64sor5199171qte.92.2017.11.10.03.37.07
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DFB2A28028E
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 07:18:11 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id m81so12266681ioi.15
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 04:18:11 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 90si1189681ioh.306.2017.11.10.04.18.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 10 Nov 2017 03:37:07 -0800 (PST)
-Date: Fri, 10 Nov 2017 09:36:56 -0200
-From: Breno Leitao <leitao@debian.org>
-Subject: Re: [PATCH v9 44/51] selftest/vm: powerpc implementation for generic
- abstraction
-Message-ID: <20171110113655.hizq4xes5oy2fzim@gmail.com>
-References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
- <1509958663-18737-45-git-send-email-linuxram@us.ibm.com>
- <20171109184714.xs523k4cvmqghew3@gmail.com>
- <20171109233745.GD5546@ram.oc3035372033.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Nov 2017 04:18:10 -0800 (PST)
+Date: Fri, 10 Nov 2017 13:17:56 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH 18/30] x86, kaiser: map virtually-addressed performance
+ monitoring buffers
+Message-ID: <20171110121756.t7mn7bb4gy3rnw2w@hirez.programming.kicks-ass.net>
+References: <20171108194646.907A1942@viggo.jf.intel.com>
+ <20171108194720.0ADD17E2@viggo.jf.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171109233745.GD5546@ram.oc3035372033.ibm.com>
+In-Reply-To: <20171108194720.0ADD17E2@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linux-arch@vger.kernel.org, ebiederm@xmission.com, linux-doc@vger.kernel.org, x86@kernel.org, dave.hansen@intel.com, linux-kernel@vger.kernel.org, mhocko@kernel.org, linux-mm@kvack.org, paulus@samba.org, aneesh.kumar@linux.vnet.ibm.com, linux-kselftest@vger.kernel.org, bauerman@linux.vnet.ibm.com, linuxppc-dev@lists.ozlabs.org, khandual@linux.vnet.ibm.com
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, x86@kernel.org
 
-Hi Ram,
+On Wed, Nov 08, 2017 at 11:47:20AM -0800, Dave Hansen wrote:
+> +static
+> +DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store, cpu_debug_store);
+> +
+>  /* The size of a BTS record in bytes: */
+>  #define BTS_RECORD_SIZE		24
+>  
+> @@ -278,6 +282,39 @@ void fini_debug_store_on_cpu(int cpu)
+>  
+>  static DEFINE_PER_CPU(void *, insn_buffer);
+>  
+> +static void *dsalloc(size_t size, gfp_t flags, int node)
+> +{
+> +#ifdef CONFIG_KAISER
+> +	unsigned int order = get_order(size);
+> +	struct page *page;
+> +	unsigned long addr;
+> +
+> +	page = __alloc_pages_node(node, flags | __GFP_ZERO, order);
+> +	if (!page)
+> +		return NULL;
+> +	addr = (unsigned long)page_address(page);
+> +	if (kaiser_add_mapping(addr, size, __PAGE_KERNEL | _PAGE_GLOBAL) < 0) {
+> +		__free_pages(page, order);
+> +		addr = 0;
+> +	}
+> +	return (void *)addr;
+> +#else
+> +	return kmalloc_node(size, flags | __GFP_ZERO, node);
+> +#endif
+> +}
+> +
+> +static void dsfree(const void *buffer, size_t size)
+> +{
+> +#ifdef CONFIG_KAISER
+> +	if (!buffer)
+> +		return;
+> +	kaiser_remove_mapping((unsigned long)buffer, size);
+> +	free_pages((unsigned long)buffer, get_order(size));
+> +#else
+> +	kfree(buffer);
+> +#endif
+> +}
 
-On Thu, Nov 09, 2017 at 03:37:46PM -0800, Ram Pai wrote:
-> On Thu, Nov 09, 2017 at 04:47:15PM -0200, Breno Leitao wrote:
-> > On Mon, Nov 06, 2017 at 12:57:36AM -0800, Ram Pai wrote:
-> > > @@ -206,12 +209,14 @@ void signal_handler(int signum, siginfo_t *si, void *vucontext)
-> > >  
-> > >  	trapno = uctxt->uc_mcontext.gregs[REG_TRAPNO];
-> > >  	ip = uctxt->uc_mcontext.gregs[REG_IP_IDX];
-> > > -	fpregset = uctxt->uc_mcontext.fpregs;
-> > > -	fpregs = (void *)fpregset;
-> > 
-> > Since you removed all references for fpregset now, you probably want to
-> > remove the declaration of the variable above.
-> 
-> fpregs is still needed.
+You might as well use __alloc_pages_node() / free_pages()
+unconditionally. Those buffers are at least one page in size.
 
-Right, fpregs is still needed, but not fpregset. Every reference for this
-variable was removed with your patch.
+That should also get rid of the #ifdef muck.
 
-Grepping this variable identifier on a tree with your patches, I see:
+>  static int alloc_ds_buffer(int cpu)
+>  {
+> -	int node = cpu_to_node(cpu);
+> -	struct debug_store *ds;
+> -
+> -	ds = kzalloc_node(sizeof(*ds), GFP_KERNEL, node);
+> -	if (unlikely(!ds))
+> -		return -ENOMEM;
+> +	struct debug_store *ds = per_cpu_ptr(&cpu_debug_store, cpu);
+>  
+> +	memset(ds, 0, sizeof(*ds));
 
- $ grep fpregset protection_keys.c 
- fpregset_t fpregset;
+Why the memset() ? isn't static per-cpu memory 0 initialized
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
