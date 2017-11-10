@@ -1,56 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CF7922802A5
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:07:27 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id i196so10416440pgd.2
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:07:27 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y7si9951591plk.655.2017.11.10.14.07.26
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D1BB92802A5
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 17:09:07 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id k190so8813211pga.10
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:09:07 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id 100si9894202pld.634.2017.11.10.14.09.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 14:07:26 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/4] x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
-Date: Sat, 11 Nov 2017 01:06:42 +0300
-Message-Id: <20171110220645.59944-2-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
-References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
+        Fri, 10 Nov 2017 14:09:06 -0800 (PST)
+Subject: Re: [PATCH 21/30] x86, mm: put mmu-to-h/w ASID translation in one
+ place
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+ <20171110193146.5908BE13@viggo.jf.intel.com>
+ <CALCETrXrXpTZE2sceBh=eW5kEP79hWc5iY36QKjfy=U4nTirDw@mail.gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <101307eb-b924-69ef-13dd-05e63fbaf587@linux.intel.com>
+Date: Fri, 10 Nov 2017 14:09:06 -0800
+MIME-Version: 1.0
+In-Reply-To: <CALCETrXrXpTZE2sceBh=eW5kEP79hWc5iY36QKjfy=U4nTirDw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-The name of the file -- pagetable.c -- is misleading: it only contains
-helpers used for KASLR in 64-bin mode.
+On 11/10/2017 02:03 PM, Andy Lutomirski wrote:
+>> +static inline u16 kern_asid(u16 asid)
+>> +{
+>> +       VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+>> +       /*
+>> +        * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+>> +        * bits.  This serves two purposes.  It prevents a nasty situation in
+>> +        * which PCID-unaware code saves CR3, loads some other value (with PCID
+>> +        * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+>> +        * the saved ASID was nonzero.  It also means that any bugs involving
+>> +        * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+>> +        * deterministically.
+>> +        */
+>> +       return asid + 1;
+>> +}
+> This seems really error-prone.  Maybe we should have a pcid_t type and
+> make all the interfaces that want a h/w PCID take pcid_t.
 
-Let's rename the file to reflect its content.
+Yeah, totally agree.  I actually had a nasty bug or two around this area
+because of this.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/Makefile                    | 2 +-
- arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} | 0
- 2 files changed, 1 insertion(+), 1 deletion(-)
- rename arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} (100%)
+I divided them among hw_asid_t and sw_asid_t.  You can turn a sw_asid_t
+into a kernel hw_asid_t or a user hw_asid_t.  But, it cause too much
+churn across the TLB flushing code so I shelved it for now.
 
-diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
-index 1e9c322e973a..ae0be0b923e1 100644
---- a/arch/x86/boot/compressed/Makefile
-+++ b/arch/x86/boot/compressed/Makefile
-@@ -78,7 +78,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
- vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
- vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
- ifdef CONFIG_X86_64
--	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
-+	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr_64.o
- 	vmlinux-objs-y += $(obj)/mem_encrypt.o
- endif
- 
-diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/kaslr_64.c
-similarity index 100%
-rename from arch/x86/boot/compressed/pagetable.c
-rename to arch/x86/boot/compressed/kaslr_64.c
--- 
-2.14.2
+I'd love to come back nd fix this up properly though.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
