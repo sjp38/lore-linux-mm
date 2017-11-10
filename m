@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 91075440D41
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:33 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id z80so8434014pff.11
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:33 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D231B440D41
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:37 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id c123so120908pga.17
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:37 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h71si9021441pgc.321.2017.11.10.11.32.32
+        by mx.google.com with ESMTPS id a61si9345050plc.406.2017.11.10.11.32.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:32:32 -0800 (PST)
-Subject: [PATCH 20/30] x86, mm: remove hard-coded ASID limit checks
+        Fri, 10 Nov 2017 11:32:36 -0800 (PST)
+Subject: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:31:44 -0800
+Date: Fri, 10 Nov 2017 11:31:52 -0800
 References: <20171110193058.BECA7D88@viggo.jf.intel.com>
 In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
-Message-Id: <20171110193144.0376C2CC@viggo.jf.intel.com>
+Message-Id: <20171110193152.3F73EABA@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,11 +23,25 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-First, it's nice to remove the magic numbers.
+The KAISER code attempts to "poison" the user portion of the kernel page
+tables.  It detects entries that it wants that it wants to poison in two
+ways:
+ * Looking for addresses >= PAGE_OFFSET
+ * Looking for entries without _PAGE_USER set
 
-Second, KAISER is going to consume half of the available ASID
-space.  The space is currently unused, but add a comment to spell
-out this new restriction.
+But, to allow the _PAGE_USER check to work, it must never be set on
+init_mm entries, and an earlier patch in this series ensured that it
+will never be set.
+
+The VDSO is at a address >= PAGE_OFFSET and it is also mapped by init_mm.
+Because of the earlier, KAISER-enforced restriction, _PAGE_USER is never
+set which makes the VDSO unreadable to userspace.
+
+This makes the "NATIVE" case totally unusable since userspace can not
+even see the memory any more.  Disable it whenever KAISER is enabled.
+
+Also add some help text about how KAISER might affect the emulation
+case as well.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -39,52 +53,37 @@ Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Kees Cook <keescook@google.com>
 Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
+
 ---
 
- b/arch/x86/include/asm/tlbflush.h |   17 +++++++++++++++--
- 1 file changed, 15 insertions(+), 2 deletions(-)
+ b/arch/x86/Kconfig |    8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-asids-macros arch/x86/include/asm/tlbflush.h
---- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-asids-macros	2017-11-10 11:22:15.990244932 -0800
-+++ b/arch/x86/include/asm/tlbflush.h	2017-11-10 11:22:15.994244932 -0800
-@@ -74,6 +74,19 @@ static inline u64 inc_mm_tlb_gen(struct
- 	return new_tlb_gen;
- }
+diff -puN arch/x86/Kconfig~kaiser-no-vsyscall arch/x86/Kconfig
+--- a/arch/x86/Kconfig~kaiser-no-vsyscall	2017-11-10 11:22:18.366244926 -0800
++++ b/arch/x86/Kconfig	2017-11-10 11:22:18.370244926 -0800
+@@ -2231,6 +2231,9 @@ choice
  
-+/* There are 12 bits of space for ASIDS in CR3 */
-+#define CR3_HW_ASID_BITS 12
-+/* When enabled, KAISER consumes a single bit for user/kernel switches */
-+#define KAISER_CONSUMED_ASID_BITS 0
+ 	config LEGACY_VSYSCALL_NATIVE
+ 		bool "Native"
++		# The VSYSCALL page comes from the kernel page tables
++		# and is not available when KAISER is enabled.
++		depends on ! KAISER
+ 		help
+ 		  Actual executable code is located in the fixed vsyscall
+ 		  address mapping, implementing time() efficiently. Since
+@@ -2248,6 +2251,11 @@ choice
+ 		  exploits. This configuration is recommended when userspace
+ 		  still uses the vsyscall area.
+ 
++		  When KAISER is enabled, the vsyscall area will become
++		  unreadable.  This emulation option still works, but KAISER
++		  will make it harder to do things like trace code using the
++		  emulation.
 +
-+#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS-KAISER_CONSUMED_ASID_BITS)
-+/*
-+ * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below
-+ * to account for them being zero-absed.  Another -1 is because ASID 0
-+ * is reserved for use by non-PCID-aware users.
-+ */
-+#define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
-+
- /*
-  * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
-  * bits.  This serves two purposes.  It prevents a nasty situation in
-@@ -87,7 +100,7 @@ struct pgd_t;
- static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
- {
- 	if (static_cpu_has(X86_FEATURE_PCID)) {
--		VM_WARN_ON_ONCE(asid > 4094);
-+		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
- 		return __sme_pa(pgd) | (asid + 1);
- 	} else {
- 		VM_WARN_ON_ONCE(asid != 0);
-@@ -97,7 +110,7 @@ static inline unsigned long build_cr3(pg
- 
- static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
- {
--	VM_WARN_ON_ONCE(asid > 4094);
-+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
- 	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
- }
- 
+ 	config LEGACY_VSYSCALL_NONE
+ 		bool "None"
+ 		help
 _
 
 --
