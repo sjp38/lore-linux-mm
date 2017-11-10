@@ -1,52 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B557228028D
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 13:16:17 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id o88so5290960wrb.18
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 10:16:17 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r140sor547672wmg.59.2017.11.10.10.16.16
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F6AF28028D
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 13:41:28 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z184so9930206pgd.0
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 10:41:28 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id f9si9914344pfc.10.2017.11.10.10.41.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 10 Nov 2017 10:16:16 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 10 Nov 2017 10:41:27 -0800 (PST)
+Subject: Re: [PATCH 20/30] x86, mm: remove hard-coded ASID limit checks
+References: <20171108194646.907A1942@viggo.jf.intel.com>
+ <20171108194724.C0167D83@viggo.jf.intel.com>
+ <20171110122030.5zyplbb3tnwpa2vu@hirez.programming.kicks-ass.net>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <52465ada-a7e9-ccb3-e946-5a7c8a0476c5@linux.intel.com>
+Date: Fri, 10 Nov 2017 10:41:26 -0800
 MIME-Version: 1.0
-In-Reply-To: <201711100646.IJH39597.HOtMLJVSFOQFOF@I-love.SAKURA.ne.jp>
-References: <20171108173740.115166-1-shakeelb@google.com> <2940c150-577a-30a8-fac3-cf59a49b84b4@I-love.SAKURA.ne.jp>
- <CALvZod5NVQO+dWKD0y4pK-JYXdehLLgKm0bfc7ExPzyRLDeqzw@mail.gmail.com> <201711100646.IJH39597.HOtMLJVSFOQFOF@I-love.SAKURA.ne.jp>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Fri, 10 Nov 2017 10:16:14 -0800
-Message-ID: <CALvZod4HAVpmPyE7k_Brme=mzic8SDO8gyAFtDhW9r0oBurN4w@mail.gmail.com>
-Subject: Re: [PATCH v2] mm, shrinker: make shrinker_list lockless
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171110122030.5zyplbb3tnwpa2vu@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Thu, Nov 9, 2017 at 1:46 PM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
-> Shakeel Butt wrote:
->> > If you can accept serialized register_shrinker()/unregister_shrinker(),
->> > I think that something like shown below can do it.
->>
->> If we assume that we will never do register_shrinker and
->> unregister_shrinker on the same object in parallel then do we still
->> need to do msleep & synchronize_rcu() within mutex?
->
-> Doing register_shrinker() and unregister_shrinker() on the same object
-> in parallel is wrong. This mutex is to ensure that we do not need to
-> worry about ->list.next field. synchronize_rcu() should not be slow.
-> If you want to avoid msleep() with mutex held, you can also apply
->
->> > If you want parallel register_shrinker()/unregister_shrinker(), something like
->> > shown below on top of shown above will do it.
->
-> change.
+On 11/10/2017 04:20 AM, Peter Zijlstra wrote:
+> On Wed, Nov 08, 2017 at 11:47:24AM -0800, Dave Hansen wrote:
+>> +#define CR3_HW_ASID_BITS 12
+>> +#define NR_AVAIL_ASIDS ((1<<CR3_AVAIL_ASID_BITS) - 1)
+> That evaluates to 4095
+> 
+>> -		VM_WARN_ON_ONCE(asid > 4094);
+>> +		VM_WARN_ON_ONCE(asid > NR_AVAIL_ASIDS);
+> Not the same number
 
-Thanks for the explanation. Can you post the patch for others to
-review without parallel register/unregister and SHRINKER_PERMANENT (we
-can add when we need them)? You can use the motivation for the patch I
-mentioned in my patch instead.
+I think this got fixed up in the next patch (the check becomes a >=),
+but I'll fix this to make it more clean and fix the intermediate breakage.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
