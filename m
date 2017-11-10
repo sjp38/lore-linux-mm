@@ -1,37 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D22D280298
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:02:50 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id z69so1511542ita.8
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 08:02:50 -0800 (PST)
-Received: from resqmta-ch2-07v.sys.comcast.net (resqmta-ch2-07v.sys.comcast.net. [2001:558:fe21:29:69:252:207:39])
-        by mx.google.com with ESMTPS id u68si7809755ioe.266.2017.11.10.08.02.49
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BD59F280298
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 12:11:16 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id p7so6803381qkd.8
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 09:11:16 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y124sor6932945qke.55.2017.11.10.09.11.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 08:02:49 -0800 (PST)
-Date: Fri, 10 Nov 2017 10:02:47 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH] slub: Fix sysfs duplicate filename creation when
- slub_debug=O
-In-Reply-To: <1510271512.11555.3.camel@mtkswgap22>
-Message-ID: <alpine.DEB.2.20.1711100941030.29707@nuc-kabylake>
-References: <1510023934-17517-1-git-send-email-miles.chen@mediatek.com> <alpine.DEB.2.20.1711070916480.18776@nuc-kabylake> <1510119138.17435.19.camel@mtkswgap22> <alpine.DEB.2.20.1711080903460.6161@nuc-kabylake> <1510217554.32371.17.camel@mtkswgap22>
- <alpine.DEB.2.20.1711090949250.12587@nuc-kabylake> <1510271512.11555.3.camel@mtkswgap22>
+        (Google Transport Security);
+        Fri, 10 Nov 2017 09:11:15 -0800 (PST)
+Date: Fri, 10 Nov 2017 12:11:12 -0500
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH 2/6] writeback: allow for dirty metadata accounting
+Message-ID: <20171110171111.idzazbjs26vh7nnb@destiny>
+References: <1510255861-8020-1-git-send-email-josef@toxicpanda.com>
+ <1510255861-8020-2-git-send-email-josef@toxicpanda.com>
+ <20171110042533.GT4094@dastard>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171110042533.GT4094@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miles Chen <miles.chen@mediatek.com>
-Cc: Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-On Fri, 10 Nov 2017, Miles Chen wrote:
+On Fri, Nov 10, 2017 at 03:25:33PM +1100, Dave Chinner wrote:
+> On Thu, Nov 09, 2017 at 02:30:57PM -0500, Josef Bacik wrote:
+> > From: Josef Bacik <jbacik@fb.com>
+> > 
+> > Provide a mechanism for file systems to indicate how much dirty metadata they
+> > are holding.  This introduces a few things
+> > 
+> > 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
+> > 2) WB stat for dirty metadata.  This way we know if we need to try and call into
+> > the file system to write out metadata.  This could potentially be used in the
+> > future to make balancing of dirty pages smarter.
+> 
+> Ok, so when you have 64k page size and 4k metadata block size and
+> you're using kmalloc() to allocate the storage for the metadata,
+> how do we make use of all this page-based metadata accounting
+> stuff?
 
-> By checking disable_higher_order_debug & (slub_debug &
-> SLAB_NEVER_MERGE), we can detect if a cache is unmergeable but become
-> mergeable because the disable_higher_order_debug=1 logic. Those kind of
-> caches should be keep unmergeable.
+Sigh, I completely fucked this up.  I just found whatever my most recent local
+branch was, forward ported it, and have been testing it for a few weeks to make
+sure it was rock solid and sent it out.  I completely forgot I had redone all of
+this stuff to count with bytes instead of pages specifically for this use case.
+I have no idea where those patches went in my local tree but I've pulled down
+the most recent versions of the patches from the mailinglist and will start
+hammering on those again.  Sorry,
 
-Acked-by: Christoph Lameter <cl@linux.com>
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
