@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D584D440D3D
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:16 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a19so3972415pfa.23
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:16 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id d21si9859566pll.191.2017.11.10.11.32.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 16E78440D40
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 14:32:19 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p87so8404147pfj.21
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 11:32:19 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id e191si8976961pgc.788.2017.11.10.11.32.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 11:32:15 -0800 (PST)
-Subject: [PATCH 27/30] x86, kaiser: un-poison PGDs at runtime
+        Fri, 10 Nov 2017 11:32:17 -0800 (PST)
+Subject: [PATCH 28/30] x86, kaiser: allow KAISER to be enabled/disabled at runtime
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 11:31:57 -0800
+Date: Fri, 10 Nov 2017 11:31:58 -0800
 References: <20171110193058.BECA7D88@viggo.jf.intel.com>
 In-Reply-To: <20171110193058.BECA7D88@viggo.jf.intel.com>
-Message-Id: <20171110193157.1B082BA6@viggo.jf.intel.com>
+Message-Id: <20171110193158.7F37D741@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,16 +23,26 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-With KAISER Kernel PGDs that map userspace are "poisoned" with
-the NX bit.  This ensures that if a kernel->user CR3 switch is
-missed, userspace crashes instead of running in an unhardened
-state.
+The KAISER CR3 switches are expensive for many reasons.  Not all systems
+benefit from the protection provided by KAISER.  Some of them can not
+pay the high performance cost.
 
-This code will be needed in a moment when KAISER is turned
-on and off at runtime.
+This patch adds a debugfs file.  To disable KAISER, you do:
 
-Note that an __ASSEMBLY__ #ifdef is now required since kaiser.h
-is indirectly included into assembly.
+	echo 0 > /sys/kernel/debug/x86/kaiser-enabled
+
+and to re-enable it, you can:
+
+	echo 1 > /sys/kernel/debug/x86/kaiser-enabled
+
+This is a *minimal* implementation.  There are certainly plenty of
+optimizations that can be done on top of this by using ALTERNATIVES
+among other things.
+
+This does, however, completely remove all the KAISER-based CR3 writes.
+This permits a paravirtualized system that can not tolerate CR3
+writes to theoretically survive with CONFIG_KAISER=y, albeit with
+/sys/kernel/debug/x86/kaiser-enabled=0.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -46,122 +56,166 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/include/asm/pgtable_64.h |   16 ++++++++++++++-
- b/arch/x86/mm/kaiser.c              |   38 ++++++++++++++++++++++++++++++++++++
- b/include/linux/kaiser.h            |    3 +-
- 3 files changed, 55 insertions(+), 2 deletions(-)
+ b/arch/x86/entry/calling.h |   12 +++++++
+ b/arch/x86/mm/kaiser.c     |   70 ++++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 78 insertions(+), 4 deletions(-)
 
-diff -puN arch/x86/include/asm/pgtable_64.h~kaiser-dynamic-unpoison-pgd arch/x86/include/asm/pgtable_64.h
---- a/arch/x86/include/asm/pgtable_64.h~kaiser-dynamic-unpoison-pgd	2017-11-10 11:22:19.992244922 -0800
-+++ b/arch/x86/include/asm/pgtable_64.h	2017-11-10 11:22:19.998244922 -0800
-@@ -2,6 +2,7 @@
- #define _ASM_X86_PGTABLE_64_H
+diff -puN arch/x86/entry/calling.h~kaiser-dynamic-asm arch/x86/entry/calling.h
+--- a/arch/x86/entry/calling.h~kaiser-dynamic-asm	2017-11-10 11:22:20.575244921 -0800
++++ b/arch/x86/entry/calling.h	2017-11-10 11:22:20.580244921 -0800
+@@ -208,19 +208,29 @@ For 32-bit we have the following convent
+ 	orq     $(KAISER_SWITCH_MASK), \reg
+ .endm
  
- #include <linux/const.h>
-+#include <linux/kaiser.h>
- #include <asm/pgtable_64_types.h>
- 
- #ifndef __ASSEMBLY__
-@@ -196,6 +197,18 @@ static inline bool pgd_userspace_access(
- 	return (pgd.pgd & _PAGE_USER);
- }
- 
-+static inline void kaiser_poison_pgd(pgd_t *pgd)
-+{
-+	if (pgd->pgd & _PAGE_PRESENT)
-+		pgd->pgd |= _PAGE_NX;
-+}
++.macro JUMP_IF_KAISER_OFF	label
++	testq   $1, kaiser_asm_do_switch
++	jz      \label
++.endm
 +
-+static inline void kaiser_unpoison_pgd(pgd_t *pgd)
-+{
-+	if (pgd->pgd & _PAGE_PRESENT)
-+		pgd->pgd &= ~_PAGE_NX;
-+}
+ .macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++	JUMP_IF_KAISER_OFF	.Lswitch_done_\@
+ 	mov	%cr3, \scratch_reg
+ 	ADJUST_KERNEL_CR3 \scratch_reg
+ 	mov	\scratch_reg, %cr3
++.Lswitch_done_\@:
+ .endm
+ 
+ .macro SWITCH_TO_USER_CR3 scratch_reg:req
++	JUMP_IF_KAISER_OFF	.Lswitch_done_\@
+ 	mov	%cr3, \scratch_reg
+ 	ADJUST_USER_CR3 \scratch_reg
+ 	mov	\scratch_reg, %cr3
++.Lswitch_done_\@:
+ .endm
+ 
+ .macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
++	JUMP_IF_KAISER_OFF	.Ldone_\@
+ 	movq	%cr3, %r\scratch_reg
+ 	movq	%r\scratch_reg, \save_reg
+ 	/*
+@@ -243,11 +253,13 @@ For 32-bit we have the following convent
+ .endm
+ 
+ .macro RESTORE_CR3 save_reg:req
++	JUMP_IF_KAISER_OFF	.Ldone_\@
+ 	/*
+ 	 * We could avoid the CR3 write if not changing its value,
+ 	 * but that requires a CR3 read *and* a scratch register.
+ 	 */
+ 	movq	\save_reg, %cr3
++.Ldone_\@:
+ .endm
+ 
+ #else /* CONFIG_KAISER=n: */
+diff -puN arch/x86/mm/kaiser.c~kaiser-dynamic-asm arch/x86/mm/kaiser.c
+--- a/arch/x86/mm/kaiser.c~kaiser-dynamic-asm	2017-11-10 11:22:20.577244921 -0800
++++ b/arch/x86/mm/kaiser.c	2017-11-10 11:22:20.581244921 -0800
+@@ -42,6 +42,9 @@
+ #include <asm/tlbflush.h>
+ #include <asm/desc.h>
+ 
++__aligned(PAGE_SIZE)
++unsigned long kaiser_asm_do_switch[PAGE_SIZE/sizeof(unsigned long)] = { 1 };
 +
  /*
-  * Returns the pgd_t that the kernel should use in its page tables.
-  */
-@@ -216,7 +229,8 @@ static inline pgd_t kaiser_set_shadow_pg
- 			 * wrong CR3 value, userspace will crash
- 			 * instead of running.
- 			 */
--			pgd.pgd |= _PAGE_NX;
-+			if (kaiser_active())
-+				kaiser_poison_pgd(&pgd);
- 		}
- 	} else if (!pgd.pgd) {
- 		/*
-diff -puN arch/x86/mm/kaiser.c~kaiser-dynamic-unpoison-pgd arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-dynamic-unpoison-pgd	2017-11-10 11:22:19.993244922 -0800
-+++ b/arch/x86/mm/kaiser.c	2017-11-10 11:22:19.999244922 -0800
-@@ -488,6 +488,9 @@ static ssize_t kaiser_enabled_write_file
- 	if (enable > 1)
- 		return -EINVAL;
+  * At runtime, the only things we map are some things for CPU
+  * hotplug, and stacks for new processes.  No two CPUs will ever
+@@ -366,6 +369,9 @@ void __init kaiser_init(void)
  
-+	if (kaiser_enabled == enable)
-+		return count;
+ 	kaiser_init_all_pgds();
+ 
++	kaiser_add_user_map_early(&kaiser_asm_do_switch, PAGE_SIZE,
++				  __PAGE_KERNEL | _PAGE_GLOBAL);
 +
- 	WRITE_ONCE(kaiser_enabled, enable);
- 	return count;
+ 	for_each_possible_cpu(cpu) {
+ 		void *percpu_vaddr = __per_cpu_user_mapped_start +
+ 				     per_cpu_offset(cpu);
+@@ -470,6 +476,56 @@ static ssize_t kaiser_enabled_read_file(
+ 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
  }
-@@ -505,3 +508,38 @@ static int __init create_kaiser_enabled(
- 	return 0;
- }
- late_initcall(create_kaiser_enabled);
-+
+ 
 +enum poison {
 +	KAISER_POISON,
 +	KAISER_UNPOISON
 +};
-+void kaiser_poison_pgd_page(pgd_t *pgd_page, enum poison do_poison)
++void kaiser_poison_pgds(enum poison do_poison);
++
++void kaiser_do_disable(void)
 +{
-+	int i = 0;
++	/* Make sure the kernel PGDs are usable by userspace: */
++	kaiser_poison_pgds(KAISER_UNPOISON);
 +
-+	for (i = 0; i < PTRS_PER_PGD; i++) {
-+		pgd_t *pgd = &pgd_page[i];
++	/*
++	 * Make sure all the CPUs have the poison clear in their TLBs.
++	 * This also functions as a barrier to ensure that everyone
++	 * sees the unpoisoned PGDs.
++	 */
++	flush_tlb_all();
 +
-+		/* Stop once we hit kernel addresses: */
-+		if (!pgdp_maps_userspace(pgd))
-+			break;
++	/* Tell the assembly code to stop switching CR3. */
++	kaiser_asm_do_switch[0] = 0;
 +
-+		if (do_poison == KAISER_POISON)
-+			kaiser_poison_pgd(pgd);
-+		else
-+			kaiser_unpoison_pgd(pgd);
-+	}
-+
++	/*
++	 * Make sure everybody does an interrupt.  This means that
++	 * they have gone through a SWITCH_TO_KERNEL_CR3 amd are no
++	 * longer running on the userspace CR3.  If we did not do
++	 * this, we might have CPUs running on the shadow page tables
++	 * that then enter the kernel and think they do *not* need to
++	 * switch.
++	 */
++	flush_tlb_all();
 +}
 +
-+void kaiser_poison_pgds(enum poison do_poison)
++void kaiser_do_enable(void)
 +{
-+	struct page *page;
++	/* Tell the assembly code to start switching CR3: */
++	kaiser_asm_do_switch[0] = 1;
 +
-+	spin_lock(&pgd_lock);
-+	list_for_each_entry(page, &pgd_list, lru) {
-+		pgd_t *pgd = (pgd_t *)page_address(page);
-+		kaiser_poison_pgd_page(pgd, do_poison);
-+	}
-+	spin_unlock(&pgd_lock);
++	/* Make sure everyone can see the kaiser_asm_do_switch update: */
++	synchronize_rcu();
++
++	/*
++	 * Now that userspace is no longer using the kernel copy of
++	 * the page tables, we can poison it:
++	 */
++	kaiser_poison_pgds(KAISER_POISON);
++
++	/* Make sure all the CPUs see the poison: */
++	flush_tlb_all();
 +}
-diff -puN include/linux/kaiser.h~kaiser-dynamic-unpoison-pgd include/linux/kaiser.h
---- a/include/linux/kaiser.h~kaiser-dynamic-unpoison-pgd	2017-11-10 11:22:19.995244922 -0800
-+++ b/include/linux/kaiser.h	2017-11-10 11:22:19.999244922 -0800
-@@ -4,7 +4,7 @@
- #ifdef CONFIG_KAISER
- #include <asm/kaiser.h>
- #else
--
-+#ifndef __ASSEMBLY__
- /*
-  * These stubs are used whenever CONFIG_KAISER is off, which
-  * includes architectures that support KAISER, but have it
-@@ -29,5 +29,6 @@ static inline bool kaiser_active(void)
++
+ static ssize_t kaiser_enabled_write_file(struct file *file,
+ 		 const char __user *user_buf, size_t count, loff_t *ppos)
  {
- 	return 0;
+@@ -491,7 +547,17 @@ static ssize_t kaiser_enabled_write_file
+ 	if (kaiser_enabled == enable)
+ 		return count;
+ 
++	/*
++	 * This tells the page table code to stop poisoning PGDs
++	 */
+ 	WRITE_ONCE(kaiser_enabled, enable);
++	synchronize_rcu();
++
++	if (enable)
++		kaiser_do_enable();
++	else
++		kaiser_do_disable();
++
+ 	return count;
  }
-+#endif /* __ASSEMBLY__ */
- #endif /* !CONFIG_KAISER */
- #endif /* _INCLUDE_KAISER_H */
+ 
+@@ -509,10 +575,6 @@ static int __init create_kaiser_enabled(
+ }
+ late_initcall(create_kaiser_enabled);
+ 
+-enum poison {
+-	KAISER_POISON,
+-	KAISER_UNPOISON
+-};
+ void kaiser_poison_pgd_page(pgd_t *pgd_page, enum poison do_poison)
+ {
+ 	int i = 0;
 _
 
 --
