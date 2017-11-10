@@ -1,62 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EBBD5440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 20:22:35 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v78so6169180pfk.8
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 17:22:35 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w16si7593904plp.765.2017.11.09.17.22.34
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E458E440D03
+	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 20:26:44 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 4so5852252pge.8
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 17:26:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y24sor663584pll.125.2017.11.09.17.26.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 09 Nov 2017 17:22:34 -0800 (PST)
-Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194731.AB5BDA01@viggo.jf.intel.com>
- <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
- <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com>
- <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
- <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com>
- <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com>
-Date: Thu, 9 Nov 2017 17:22:33 -0800
+        (Google Transport Security);
+        Thu, 09 Nov 2017 17:26:43 -0800 (PST)
+Date: Fri, 10 Nov 2017 12:26:25 +1100
+From: Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
+Message-ID: <20171110122625.4ea3c897@roar.ozlabs.ibm.com>
+In-Reply-To: <20171109194421.GA12789@bombadil.infradead.org>
+References: <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
+	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
+	<20171107160705.059e0c2b@roar.ozlabs.ibm.com>
+	<20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
+	<20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
+	<20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
+	<20171108002448.6799462e@roar.ozlabs.ibm.com>
+	<2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
+	<20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
+	<20171110041526.6137bc9a@roar.ozlabs.ibm.com>
+	<20171109194421.GA12789@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Florian Weimer <fweimer@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-arch@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
 
-On 11/09/2017 05:04 PM, Andy Lutomirski wrote:
-> On Thu, Nov 9, 2017 at 4:57 PM, Dave Hansen <dave.hansen@linux.intel.com> wrote:
->> On 11/09/2017 04:53 PM, Andy Lutomirski wrote:
->>>> The KAISER code attempts to "poison" the user portion of the kernel page
->>>> tables.  It detects the entries pages that it wants that it wants to
->>>> poison in two ways:
->>>>  * Looking for addresses >= PAGE_OFFSET
->>>>  * Looking for entries without _PAGE_USER set
->>> What do you mean "poison"?
->>
->> I meant the _PAGE_NX magic that we do in here:
->>
->> https://git.kernel.org/pub/scm/linux/kernel/git/daveh/x86-kaiser.git/commit/?h=kaiser-414rc7-20171108&id=c4f7d0819170761f092fcf2327b85b082368e73a
->>
->> to ensure that userspace is unable to run on the kernel PGD.
+On Thu, 9 Nov 2017 11:44:21 -0800
+Matthew Wilcox <willy@infradead.org> wrote:
+
+> On Fri, Nov 10, 2017 at 04:15:26AM +1100, Nicholas Piggin wrote:
+> > So these semantics are what we're going with? Anything that does mmap() is
+> > guaranteed of getting a 47-bit pointer and it can use the top 17 bits for
+> > itself? Is intended to be cross-platform or just x86 and power specific?  
 > 
-> Aha, I get it.  Why not just drop the _PAGE_USER check?  You could
-> instead warn if you see a _PAGE_USER page that doesn't have the
-> correct address for the vsyscall.
+> It is x86 and powerpc specific.  The arm64 people have apparently stumbled
+> across apps that expect to be able to use bit 48 for their own purposes.
+> And their address space is 48 bit by default.  Oops.
 
-The _PAGE_USER check helps us with kernel things that want to create
-mappings below PAGE_OFFSET.  The EFI code was the prime user for this.
-Without this, we poison the EFI mappings and the EFI calls die.
+Okay, so it's something we should make into an "official" API?
 
-I think there might have also been a case for the secondary CPU bringup
-that needed hacking if we didn't do this.
+> 
+> > Also, this may follow from deduction from 1-3, but for explicit
+> > specification in man page:
+> > 
+> > 4) To get an unspecified allocation with the largest possible address range,
+> > we pass in -1 for mmap hint.
+> > 
+> > Are we allowing 8 bits bits of unused address in this case, or must the
+> > app not assume anything about number of bits used?  
+> 
+> Maybe document it as: "If the app wants to use the top N bits of addresses
+> for its own purposes, pass in (~0UL >> N) as the mmap hint."  ?
 
+Well we don't have code for that yet, but the problem would also be that
+it succeeds, and actually it probably goes over the limit. So you would
+have to map a dummy page there so subsequent hints to fail and fall back.
+Not sure... it would be nice to be able to specify number of bits, but I
+think this gets a bit hairy. -1 to use all bits seems a bit easier.
+
+Thanks,
+Nick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
