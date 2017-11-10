@@ -1,76 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E7F03440D03
-	for <linux-mm@kvack.org>; Thu,  9 Nov 2017 23:33:11 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id e64so6605176pfk.0
-        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 20:33:11 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id q10si7740521pge.349.2017.11.09.20.33.09
-        for <linux-mm@kvack.org>;
-        Thu, 09 Nov 2017 20:33:10 -0800 (PST)
-Date: Fri, 10 Nov 2017 15:25:33 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH 2/6] writeback: allow for dirty metadata accounting
-Message-ID: <20171110042533.GT4094@dastard>
-References: <1510255861-8020-1-git-send-email-josef@toxicpanda.com>
- <1510255861-8020-2-git-send-email-josef@toxicpanda.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B58440D03
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 01:31:33 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id i196so8137650pgd.2
+        for <linux-mm@kvack.org>; Thu, 09 Nov 2017 22:31:33 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id s16si7836312plp.187.2017.11.09.22.31.32
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 09 Nov 2017 22:31:32 -0800 (PST)
+Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
+References: <20171108194646.907A1942@viggo.jf.intel.com>
+ <20171108194731.AB5BDA01@viggo.jf.intel.com>
+ <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
+ <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com>
+ <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
+ <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com>
+ <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
+ <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com>
+ <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
+Date: Thu, 9 Nov 2017 22:31:30 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1510255861-8020-2-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Thu, Nov 09, 2017 at 02:30:57PM -0500, Josef Bacik wrote:
-> From: Josef Bacik <jbacik@fb.com>
+On 11/09/2017 06:25 PM, Andy Lutomirski wrote:
+> Here are two proposals to address this without breaking vsyscalls.
 > 
-> Provide a mechanism for file systems to indicate how much dirty metadata they
-> are holding.  This introduces a few things
+> 1. Set NX on low mappings that are _PAGE_USER.  Don't set NX on high
+> mappings but, optionally, warn if you see _PAGE_USER on any address
+> that isn't the vsyscall page.
 > 
-> 1) Zone stats for dirty metadata, which is the same as the NR_FILE_DIRTY.
-> 2) WB stat for dirty metadata.  This way we know if we need to try and call into
-> the file system to write out metadata.  This could potentially be used in the
-> future to make balancing of dirty pages smarter.
+> 2. Ignore _PAGE_USER entirely and just mark the EFI mm as special so
+> KAISER doesn't muck with it.
 
-Ok, so when you have 64k page size and 4k metadata block size and
-you're using kmalloc() to allocate the storage for the metadata,
-how do we make use of all this page-based metadata accounting
-stuff?
-
-We could use dirty metadata accounting infrastructure in
-XFS so the mm/ subsystem can push on dirty metadata before we
-get into reclaim situations, but I just can't see how this code
-works when raw pages are not used to back the metadata cache.
-
-That is, XFS can use various different sizes of metadata buffers in
-the same filesystem. For example, we use sector sized buffers for
-static AG metadata, filesystem blocks for per-AG metadata, some
-multiple (1-16) of filesystem blocks for inode buffers, and some
-multiple (1-128) of filesytem blocks for directory blocks.
-
-This means we have a combination of buffers  we need to account for
-that are made up of:
-	heap memory when buffer size < page size,
-	single pages when buffer size == page size, and
-	multiple pages when buffer size > page size.
-
-The default filesystem config on a 4k page machine with 512 byte
-sectors will create buffers in all three categories above which
-tends to indicate we can't use this new generic infrastructure as
-proposeda.
-
-Any thoughts about how we could efficiently support accounting for
-variable sized, non-page based metadata with this generic
-infrastructure?
-
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+These are totally doable.  But, what's the big deal with breaking native
+vsyscall?  We can still do the emulation so nothing breaks: it is just slow.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
