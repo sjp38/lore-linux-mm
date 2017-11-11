@@ -1,81 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 12AFB28027D
-	for <linux-mm@kvack.org>; Sat, 11 Nov 2017 05:31:07 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id r6so9888614pfj.14
-        for <linux-mm@kvack.org>; Sat, 11 Nov 2017 02:31:07 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p1sor3032537pfi.4.2017.11.11.02.31.05
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 11 Nov 2017 02:31:05 -0800 (PST)
-Date: Sat, 11 Nov 2017 21:30:50 +1100
-From: Nicholas Piggin <npiggin@gmail.com>
-Subject: Re: POWER: Unexpected fault when writing to brk-allocated memory
-Message-ID: <20171111213050.34a4f585@roar.ozlabs.ibm.com>
-In-Reply-To: <063D6719AE5E284EB5DD2968C1650D6DD00B84EF@AcuExch.aculab.com>
-References: <d52581f4-8ca4-5421-0862-3098031e29a8@linux.vnet.ibm.com>
-	<546d4155-5b7c-6dba-b642-29c103e336bc@redhat.com>
-	<20171107160705.059e0c2b@roar.ozlabs.ibm.com>
-	<20171107111543.ep57evfxxbwwlhdh@node.shutemov.name>
-	<20171107222228.0c8a50ff@roar.ozlabs.ibm.com>
-	<20171107122825.posamr2dmzlzvs2p@node.shutemov.name>
-	<20171108002448.6799462e@roar.ozlabs.ibm.com>
-	<2ce0a91c-985c-aad8-abfa-e91bc088bb3e@linux.vnet.ibm.com>
-	<20171107140158.iz4b2lchhrt6eobe@node.shutemov.name>
-	<20171110041526.6137bc9a@roar.ozlabs.ibm.com>
-	<20171109194421.GA12789@bombadil.infradead.org>
-	<063D6719AE5E284EB5DD2968C1650D6DD00B84EF@AcuExch.aculab.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 175F92802B4
+	for <linux-mm@kvack.org>; Sat, 11 Nov 2017 08:26:37 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id w2so4845250pfi.20
+        for <linux-mm@kvack.org>; Sat, 11 Nov 2017 05:26:37 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id g4si10759735pgo.87.2017.11.11.05.26.34
+        for <linux-mm@kvack.org>;
+        Sat, 11 Nov 2017 05:26:35 -0800 (PST)
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: [PATCH v3 1/5] locking/Documentation: Remove meaningless examples and a note
+Date: Sat, 11 Nov 2017 22:26:28 +0900
+Message-Id: <1510406792-28676-2-git-send-email-byungchul.park@lge.com>
+In-Reply-To: <1510406792-28676-1-git-send-email-byungchul.park@lge.com>
+References: <1510406792-28676-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: 'Matthew Wilcox' <willy@infradead.org>, Florian Weimer <fweimer@redhat.com>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Dave Hansen <dave.hansen@intel.com>, Peter
- Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Linux
- Kernel Mailing List <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>, linux-mm <linux-mm@kvack.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andrew Morton <akpm@linux-foundation.org>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Thomas
- Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: peterz@infradead.org, mingo@kernel.org
+Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com
 
-On Fri, 10 Nov 2017 12:08:35 +0000
-David Laight <David.Laight@ACULAB.COM> wrote:
+crossrelease.txt is too verbose and includes two meaningless examples
+and an unnecessary note. Remove them.
 
-> From: Matthew Wilcox
-> > Sent: 09 November 2017 19:44
-> > 
-> > On Fri, Nov 10, 2017 at 04:15:26AM +1100, Nicholas Piggin wrote:  
-> > > So these semantics are what we're going with? Anything that does mmap() is
-> > > guaranteed of getting a 47-bit pointer and it can use the top 17 bits for
-> > > itself? Is intended to be cross-platform or just x86 and power specific?  
-> > 
-> > It is x86 and powerpc specific.  The arm64 people have apparently stumbled
-> > across apps that expect to be able to use bit 48 for their own purposes.
-> > And their address space is 48 bit by default.  Oops.  
-> 
-> (Do you mean 49bit?)
+Signed-off-by: Byungchul Park <byungchul.park@lge.com>
+---
+ Documentation/locking/crossrelease.txt | 48 +---------------------------------
+ 1 file changed, 1 insertion(+), 47 deletions(-)
 
-I think he meant bit 47, which makes sense because they were probably
-ported from x86-64 with 47 bit address. That seems to be why x86-64
-5-level and powerpc decided to limit to a 47 bit address space by
-default.
-
-> 
-> Aren't such apps just doomed to be broken?
-
-Well they're not portable but they are not broken if virtual address
-is limited.
-
-> 
-> ISTR there is something on (IIRC) sparc64 that does a 'match'
-> on the high address bits to make it much harder to overrun
-> one area into another.
-
-I'm not sure about that but I think the problem would be the app
-masking out bits from the pointer for its own use before ever
-dereferencing it.
-
-Thanks,
-Nick
+diff --git a/Documentation/locking/crossrelease.txt b/Documentation/locking/crossrelease.txt
+index bdf1423..0f8eb8a 100644
+--- a/Documentation/locking/crossrelease.txt
++++ b/Documentation/locking/crossrelease.txt
+@@ -281,31 +281,7 @@ causes a deadlock. The more lockdep adds dependencies, the more it
+ thoroughly works. Thus Lockdep has to do its best to detect and add as
+ many true dependencies into a graph as possible.
+ 
+-For example, considering only typical locks, lockdep builds a graph like:
+-
+-   A -> B -
+-           \
+-            -> E
+-           /
+-   C -> D -
+-
+-   where A, B,..., E are different lock classes.
+-
+-On the other hand, under the relaxation, additional dependencies might
+-be created and added. Assuming additional 'FX -> C' and 'E -> GX' are
+-added thanks to the relaxation, the graph will be:
+-
+-         A -> B -
+-                 \
+-                  -> E -> GX
+-                 /
+-   FX -> C -> D -
+-
+-   where A, B,..., E, FX and GX are different lock classes, and a suffix
+-   'X' is added on non-typical locks.
+-
+-The latter graph gives us more chances to check circular dependencies
+-than the former. However, it might suffer performance degradation since
++However, it might suffer performance degradation since
+ relaxing the limitation, with which design and implementation of lockdep
+ can be efficient, might introduce inefficiency inevitably. So lockdep
+ should provide two options, strong detection and efficient detection.
+@@ -469,12 +445,6 @@ works without crossrelease for typical locks.
+ 
+    where A, B and C are different lock classes.
+ 
+-   NOTE: This document assumes that readers already understand how
+-   lockdep works without crossrelease thus omits details. But there's
+-   one thing to note. Lockdep pretends to pop a lock from held_locks
+-   when releasing it. But it's subtly different from the original pop
+-   operation because lockdep allows other than the top to be poped.
+-
+ In this case, lockdep adds 'the top of held_locks -> the lock to acquire'
+ dependency every time acquiring a lock.
+ 
+@@ -805,22 +775,6 @@ Remind what a dependency is. A dependency exists if:
+ 
+ For example:
+ 
+-   acquire A
+-   acquire B /* A dependency 'A -> B' exists */
+-   release B
+-   release A
+-
+-   where A and B are different lock classes.
+-
+-A depedency 'A -> B' exists since:
+-
+-   1. A waiter for A and a waiter for B might exist when acquiring B.
+-   2. Only way to wake up each is to release what it waits for.
+-   3. Whether the waiter for A can be woken up depends on whether the
+-      other can. IOW, TASK X cannot release A if it fails to acquire B.
+-
+-For another example:
+-
+    TASK X			   TASK Y
+    ------			   ------
+ 				   acquire AX
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
