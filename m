@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A78CA440D4B
-	for <linux-mm@kvack.org>; Sat, 11 Nov 2017 08:26:42 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id s11so5707294pgc.13
-        for <linux-mm@kvack.org>; Sat, 11 Nov 2017 05:26:42 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E1F440D4B
+	for <linux-mm@kvack.org>; Sat, 11 Nov 2017 08:33:40 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id n89so10149187pfk.17
+        for <linux-mm@kvack.org>; Sat, 11 Nov 2017 05:33:40 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id b3si11677132pff.393.2017.11.11.05.26.35
+        by mx.google.com with ESMTP id a24si11734333pfg.299.2017.11.11.05.33.36
         for <linux-mm@kvack.org>;
-        Sat, 11 Nov 2017 05:26:36 -0800 (PST)
+        Sat, 11 Nov 2017 05:33:37 -0800 (PST)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v3 2/5] locking/Documentation: Fix typos and clear grammar errors
-Date: Sat, 11 Nov 2017 22:26:29 +0900
-Message-Id: <1510406792-28676-3-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH] locking/Documentation: Revise Documentation/locking/crossrelease.txt
+Date: Sat, 11 Nov 2017 22:33:34 +0900
+Message-Id: <1510407214-31452-1-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1510406792-28676-1-git-send-email-byungchul.park@lge.com>
 References: <1510406792-28676-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,18 +19,15 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com
 
-crossrelease.txt includes many typos and grammar errors. Fix them using
-a few spell checkers and grammar checkers.
-
-Clear errors are also fixed by myself.
+Revise Documentation/locking/crossrelease.txt to improve its readability.
 
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- Documentation/locking/crossrelease.txt | 170 ++++++++++++++++-----------------
- 1 file changed, 85 insertions(+), 85 deletions(-)
+ Documentation/locking/crossrelease.txt | 329 ++++++++++++++++-----------------
+ 1 file changed, 155 insertions(+), 174 deletions(-)
 
 diff --git a/Documentation/locking/crossrelease.txt b/Documentation/locking/crossrelease.txt
-index 0f8eb8a..48ef689 100644
+index bdf1423..c6d628b 100644
 --- a/Documentation/locking/crossrelease.txt
 +++ b/Documentation/locking/crossrelease.txt
 @@ -12,10 +12,10 @@ Contents:
@@ -46,9 +43,12 @@ index 0f8eb8a..48ef689 100644
  
   (*) Crossrelease
  
-@@ -32,7 +32,7 @@ Contents:
+@@ -30,9 +30,9 @@ Contents:
+  (*) Optimizations
+ 
       - Avoid duplication
-      - Lockless for hot paths
+-     - Lockless for hot paths
++     - Make hot paths lockless
  
 - (*) APPENDIX A: What lockdep does to work aggresively
 + (*) APPENDIX A: What lockdep does to work aggressively
@@ -69,9 +69,9 @@ index 0f8eb8a..48ef689 100644
 -A dependency might exist between two waiters and a deadlock might happen
 -due to an incorrect releationship between dependencies. Thus, we must
 -define what a dependency is first. A dependency exists between them if:
-+A dependency might exist between two waiters and a deadlock happens
-+due to an incorrect relationship between dependencies. Thus, we must
-+define what a dependency is first. A dependency exists if:
++A dependency might exist between two waiters and a deadlock happens due
++to an incorrect relationship between dependencies. Thus, we must define
++what a dependency is first. A dependency exists if:
  
     1. There are two waiters waiting for each event at a given time.
     2. The only way to wake up each waiter is to trigger its event.
@@ -148,8 +148,20 @@ index 0f8eb8a..48ef689 100644
  
  For example:
  
-@@ -203,8 +203,8 @@ lockdep can avoid racy problems without explicit locks while handling
- the local data.
+@@ -195,22 +195,22 @@ For example:
+ When acquiring lock A, the held_locks of CONTEXT X is empty thus no
+ dependency is added. But when acquiring lock B, lockdep detects and adds
+ a new dependency 'A -> B' between lock A in the held_locks and lock B.
+-They can be simply added whenever acquiring each lock.
++Dependencies can be simply added this way, whenever acquiring each lock.
+ 
+-And data required by lockdep exists in a local structure, held_locks
+-embedded in task_struct. Forcing to access the data within the context,
+-lockdep can avoid racy problems without explicit locks while handling
+-the local data.
++Furthermore, since data required to create a dependency can be kept in
++local task_struct, lockdep can avoid racy problems without explicit
++protection by forcing to access the data within the context.
  
  Lastly, lockdep only needs to keep locks currently being held, to build
 -a dependency graph. However, relaxing the limitation, it needs to keep
@@ -159,6 +171,14 @@ index 0f8eb8a..48ef689 100644
  dependencies might be long-deferred.
  
  To sum up, we can expect several advantages from the limitation:
+ 
+    1. Lockdep can easily identify a dependency when acquiring a lock.
+-   2. Races are avoidable while accessing local locks in a held_locks.
++   2. Races are avoidable without explicit protection while accessing
++      local locks in a held_locks.
+    3. Lockdep only needs to keep locks currently being held.
+ 
+ CONCLUSION
 @@ -265,8 +265,8 @@ Given the limitation, lockdep cannot detect a deadlock or its
  possibility caused by page locks or completions.
  
@@ -170,7 +190,7 @@ index 0f8eb8a..48ef689 100644
  
  Under the limitation, things to create dependencies are limited to
  typical locks. However, synchronization primitives like page locks and
-@@ -278,8 +278,8 @@ these locks to work with lockdep.
+@@ -278,37 +278,36 @@ these locks to work with lockdep.
  Detecting dependencies is very important for lockdep to work because
  adding a dependency means adding an opportunity to check whether it
  causes a deadlock. The more lockdep adds dependencies, the more it
@@ -179,9 +199,59 @@ index 0f8eb8a..48ef689 100644
 +thoroughly works. Thus, lockdep has to do its best to detect and add as
 +many true dependencies to the graph as possible.
  
- However, it might suffer performance degradation since
- relaxing the limitation, with which design and implementation of lockdep
-@@ -312,27 +312,27 @@ Introduce crossrelease
+-For example, considering only typical locks, lockdep builds a graph like:
++For example:
+ 
+-   A -> B -
+-           \
+-            -> E
+-           /
+-   C -> D -
++   CONTEXT X			   CONTEXT Y
++   ---------			   ---------
++				   acquire A
++   acquire B /* A dependency 'A -> B' exists */
++   release B
++   release A held by Y
+ 
+-   where A, B,..., E are different lock classes.
++   where A and B are different lock classes.
+ 
+-On the other hand, under the relaxation, additional dependencies might
+-be created and added. Assuming additional 'FX -> C' and 'E -> GX' are
+-added thanks to the relaxation, the graph will be:
++In this case, a dependency 'A -> B' exists since:
+ 
+-         A -> B -
+-                 \
+-                  -> E -> GX
+-                 /
+-   FX -> C -> D -
++   1. A waiter for A and a waiter for B might exist when acquiring B.
++   2. The only way to wake up each is to release what it waits for.
++   3. Whether the waiter for A can be woken up depends on whether the
++      other can. In other words, CONTEXT X cannot release A if it fails
++      to acquire B.
+ 
+-   where A, B,..., E, FX and GX are different lock classes, and a suffix
+-   'X' is added on non-typical locks.
++Considering only typical locks, lockdep builds nothing. However,
++relaxing the limitation, a dependency 'A -> B' can be added, giving us
++more chances to check circular dependencies.
+ 
+-The latter graph gives us more chances to check circular dependencies
+-than the former. However, it might suffer performance degradation since
+-relaxing the limitation, with which design and implementation of lockdep
+-can be efficient, might introduce inefficiency inevitably. So lockdep
+-should provide two options, strong detection and efficient detection.
++However, it might suffer performance degradation since relaxing the
++limitation, with which design and implementation of lockdep can be
++efficient, might introduce inefficiency inevitably. So lockdep should
++provide two options, strong detection and efficient detection.
+ 
+ Choosing efficient detection:
+ 
+@@ -336,27 +335,27 @@ Introduce crossrelease
  In order to allow lockdep to handle additional dependencies by what
  might be released in any context, namely 'crosslock', we have to be able
  to identify those created by crosslocks. The proposed 'crossrelease'
@@ -215,25 +285,36 @@ index 0f8eb8a..48ef689 100644
  make the decision in the acquire context but has to wait until the
  release context is identified.
  
-@@ -351,7 +351,7 @@ Introduce commit
+@@ -375,10 +374,11 @@ Introduce commit
  ----------------
  
  Since crossrelease defers the work adding true dependencies of
 -crosslocks until they are actually released, crossrelease has to queue
 +crosslocks until they are eventually released, crossrelease has to queue
  all acquisitions which might create dependencies with the crosslocks.
- Then it identifies dependencies using the queued data in batches at a
- proper time. We call it 'commit'.
-@@ -383,7 +383,7 @@ There are four types of dependencies:
-    to wait until the decision can be made. Commit is necessary.
-    But, handling CC type is not implemented yet. It's a future work.
+-Then it identifies dependencies using the queued data in batches at a
+-proper time. We call it 'commit'.
++Then lockdep can identify dependencies using the queued data in batches
++at a proper time. We call the step adding true dependencies to the graph
++in batches, 'commit'.
+ 
+ There are four types of dependencies:
+ 
+@@ -404,10 +404,10 @@ There are four types of dependencies:
+ 
+    When acquiring BX, lockdep cannot identify the dependency because
+    there's no way to know if it's in the AX's release context. It has
+-   to wait until the decision can be made. Commit is necessary.
+-   But, handling CC type is not implemented yet. It's a future work.
++   to wait until the decision can be made. Commit is necessary. But,
++   handling CC type is not implemented yet. It's a future work.
  
 -Lockdep can work without commit for typical locks, but commit step is
 +Lockdep can work without commit for typical locks, but the step is
  necessary once crosslocks are involved. Introducing commit, lockdep
  performs three steps. What lockdep does in each step is:
  
-@@ -392,7 +392,7 @@ performs three steps. What lockdep does in each step is:
+@@ -416,7 +416,7 @@ performs three steps. What lockdep does in each step is:
     it at the commit step. For crosslocks, it saves data which will be
     used at the commit step and increases a reference count for it.
  
@@ -242,19 +323,20 @@ index 0f8eb8a..48ef689 100644
     lockdep adds CT type dependencies using the data saved at the
     acquisition step.
  
-@@ -418,9 +418,9 @@ Crossrelease introduces two main data structures.
+@@ -442,9 +442,9 @@ Crossrelease introduces two main data structures.
  
     This is an array embedded in task_struct, for keeping lock history so
     that dependencies can be added using them at the commit step. Since
 -   it's local data, it can be accessed locklessly in the owner context.
-+   they are local data, they can be accessed locklessly in the owner context.
-    The array is filled at the acquisition step and consumed at the
+-   The array is filled at the acquisition step and consumed at the
 -   commit step. And it's managed in circular manner.
-+   commit step. And it's managed in a circular manner.
++   they are local data, they can be accessed locklessly in the owner
++   context. The array is filled at the acquisition step and consumed at
++   the commit step. And it's managed in a circular manner.
  
  2. cross_lock
  
-@@ -432,23 +432,23 @@ How crossrelease works
+@@ -456,29 +456,24 @@ How crossrelease works
  ----------------------
  
  It's the key of how crossrelease works, to defer necessary works to an
@@ -262,6 +344,7 @@ index 0f8eb8a..48ef689 100644
 -Let's take a look with examples step by step, starting from how lockdep
 -works without crossrelease for typical locks.
 +appropriate point in time and perform the works at the commit step.
++
 +Let's take a look at examples step by step, starting from how lockdep
 +works for typical locks, without crossrelease.
  
@@ -278,25 +361,35 @@ index 0f8eb8a..48ef689 100644
 -   where A, B and C are different lock classes.
 +   where A, B, and C are different lock classes.
  
--In this case, lockdep adds 'the top of held_locks -> the lock to acquire'
-+Lockdep adds 'the top of held_locks -> the lock to acquire'
- dependency every time acquiring a lock.
+-   NOTE: This document assumes that readers already understand how
+-   lockdep works without crossrelease thus omits details. But there's
+-   one thing to note. Lockdep pretends to pop a lock from held_locks
+-   when releasing it. But it's subtly different from the original pop
+-   operation because lockdep allows other than the top to be poped.
++Lockdep adds 'the top of held_locks -> the lock to acquire' dependency
++every time acquiring a lock.
  
+-In this case, lockdep adds 'the top of held_locks -> the lock to acquire'
+-dependency every time acquiring a lock.
+-
 -After adding 'A -> B', a dependency graph will be:
 +After adding 'A -> B', the dependency graph will be:
  
     A -> B
  
-@@ -458,7 +458,7 @@ And after adding 'B -> C', the graph will be:
+@@ -488,15 +483,15 @@ And after adding 'B -> C', the graph will be:
  
     A -> B -> C
  
 -   where A, B and C are different lock classes.
 +   where A, B, and C are different lock classes.
  
- Let's performs commit step even for typical locks to add dependencies.
- Of course, commit step is not necessary for them, however, it would work
-@@ -466,7 +466,7 @@ well because this is a more general way.
+-Let's performs commit step even for typical locks to add dependencies.
+-Of course, commit step is not necessary for them, however, it would work
+-well because this is a more general way.
++Let's build the graph using the commit step with the same example. Of
++course, the step is not necessary for typical locks, however, it would
++also work because this is a more general way.
  
     acquire A
     /*
@@ -305,7 +398,7 @@ index 0f8eb8a..48ef689 100644
      *
      * In hist_locks: A
      * In graph: Empty
-@@ -474,7 +474,7 @@ well because this is a more general way.
+@@ -504,7 +499,7 @@ well because this is a more general way.
  
     acquire B
     /*
@@ -314,7 +407,7 @@ index 0f8eb8a..48ef689 100644
      *
      * In hist_locks: A, B
      * In graph: Empty
-@@ -482,7 +482,7 @@ well because this is a more general way.
+@@ -512,7 +507,7 @@ well because this is a more general way.
  
     acquire C
     /*
@@ -323,16 +416,18 @@ index 0f8eb8a..48ef689 100644
      *
      * In hist_locks: A, B, C
      * In graph: Empty
-@@ -524,7 +524,7 @@ well because this is a more general way.
+@@ -554,34 +549,32 @@ well because this is a more general way.
  
     release A
  
 -   where A, B and C are different lock classes.
+-
+-In this case, dependencies are added at the commit step as described.
 +   where A, B, and C are different lock classes.
  
- In this case, dependencies are added at the commit step as described.
- 
-@@ -532,14 +532,14 @@ After commits for A, B and C, the graph will be:
+-After commits for A, B and C, the graph will be:
++Dependencies are added at the commit step as described. After commits
++for A, B, and C, the graph will be:
  
     A -> B -> C
  
@@ -343,59 +438,77 @@ index 0f8eb8a..48ef689 100644
  
 -We can see the former graph built without commit step is same as the
 -latter graph built using commit steps. Of course the former way leads to
-+We can see the former graph built without the commit step is same as the
-+latter graph built using commit steps. Of course, the former way leads to
- earlier finish for building the graph, which means we can detect a
+-earlier finish for building the graph, which means we can detect a
 -deadlock or its possibility sooner. So the former way would be prefered
-+deadlock or its possibility sooner. So the former way would be preferred
- when possible. But we cannot avoid using the latter way for crosslocks.
+-when possible. But we cannot avoid using the latter way for crosslocks.
++We can see the former graph built without the commit step is same as the
++latter graph. Of course, the former way leads to earlier finish for
++building the graph, which means we can detect a deadlock or its
++possibility sooner. So the former way would be preferred when possible.
++But we cannot avoid using the latter way for crosslocks.
  
- Let's look at how commit steps work for crosslocks. In this case, the
-@@ -550,8 +550,8 @@ that the AX release context is different from the AX acquire context.
+-Let's look at how commit steps work for crosslocks. In this case, the
+-commit step is performed only on crosslock AX as real. And it assumes
+-that the AX release context is different from the AX acquire context.
++Lastly, let's look at how commit works for crosslocks in practice.
+ 
+    BX RELEASE CONTEXT		   BX ACQUIRE CONTEXT
     ------------------		   ------------------
  				   acquire A
  				   /*
 -				    * Push A onto held_locks
 -				    * Queue A into hist_locks
++				    * Add 'the top of held_locks -> A'
 +				    * Push A to held_locks
 +				    * Queue A in hist_locks
  				    *
  				    * In held_locks: A
  				    * In hist_locks: A
-@@ -574,8 +574,8 @@ that the AX release context is different from the AX acquire context.
+@@ -604,8 +597,9 @@ that the AX release context is different from the AX acquire context.
  
     acquire C
     /*
 -    * Push C onto held_locks
 -    * Queue C into hist_locks
++    * Add 'the top of held_locks -> C'
 +    * Push C to held_locks
 +    * Queue C in hist_locks
      *
      * In held_locks: C
      * In hist_locks: C
-@@ -592,8 +592,8 @@ that the AX release context is different from the AX acquire context.
+@@ -622,9 +616,9 @@ that the AX release context is different from the AX acquire context.
      */
  				   acquire D
  				   /*
 -				    * Push D onto held_locks
 -				    * Queue D into hist_locks
+ 				    * Add 'the top of held_locks -> D'
 +				    * Push D to held_locks
 +				    * Queue D in hist_locks
- 				    * Add 'the top of held_locks -> D'
  				    *
  				    * In held_locks: A, D
-@@ -602,8 +602,8 @@ that the AX release context is different from the AX acquire context.
+ 				    * In hist_locks: A, D
+@@ -632,8 +626,9 @@ that the AX release context is different from the AX acquire context.
  				    */
     acquire E
     /*
 -    * Push E onto held_locks
 -    * Queue E into hist_locks
++    * Add 'the top of held_locks -> E'
 +    * Push E to held_locks
 +    * Queue E in hist_locks
      *
      * In held_locks: E
      * In hist_locks: C, E
-@@ -654,10 +654,10 @@ that the AX release context is different from the AX acquire context.
+@@ -659,6 +654,7 @@ that the AX release context is different from the AX acquire context.
+    commit BX
+    /*
+     * Add 'BX -> ?'
++    * Answer the following to decide '?'
+     * What has been queued since acquire BX: C, E
+     *
+     * In held_locks: Empty
+@@ -684,15 +680,15 @@ that the AX release context is different from the AX acquire context.
  				    *           'BX -> C', 'BX -> E'
  				    */
  
@@ -405,11 +518,21 @@ index 0f8eb8a..48ef689 100644
 +   added at crosslocks.
  
 -Crossrelease considers all acquisitions after acqiuring BX are
-+Crossrelease considers all acquisitions after acquiring BX are
- candidates which might create dependencies with BX. True dependencies
- will be determined when identifying the release context of BX. Meanwhile,
- all typical locks are queued so that they can be used at the commit step.
-@@ -674,8 +674,8 @@ The final graph will be, with crossrelease:
+-candidates which might create dependencies with BX. True dependencies
+-will be determined when identifying the release context of BX. Meanwhile,
+-all typical locks are queued so that they can be used at the commit step.
+-And then two dependencies 'BX -> C' and 'BX -> E' are added at the
+-commit step when identifying the release context.
++Crossrelease considers all acquisitions following acquiring BX because
++they can create dependencies with BX. The dependencies will be
++determined in the release context of BX. Meanwhile, all typical locks
++are queued so that they can be used at the commit step. Finally, two
++dependencies 'BX -> C' and 'BX -> E' will be added at the commit step,
++when identifying the release context.
+ 
+ The final graph will be, with crossrelease:
+ 
+@@ -704,8 +700,8 @@ The final graph will be, with crossrelease:
        \
         -> D
  
@@ -420,7 +543,7 @@ index 0f8eb8a..48ef689 100644
  
  However, the final graph will be, without crossrelease:
  
-@@ -702,7 +702,7 @@ Avoid duplication
+@@ -732,39 +728,40 @@ Avoid duplication
  
  Crossrelease feature uses a cache like what lockdep already uses for
  dependency chains, but this time it's for caching CT type dependencies.
@@ -428,17 +551,23 @@ index 0f8eb8a..48ef689 100644
 +Once a dependency is cached, the same will never be added again.
  
  
- Lockless for hot paths
-@@ -711,7 +711,7 @@ Lockless for hot paths
+-Lockless for hot paths
+-----------------------
++Make hot paths lockless
++-----------------------
+ 
  To keep all locks for later use at the commit step, crossrelease adopts
- a local array embedded in task_struct, which makes access to the data
- lockless by forcing it to happen only within the owner context. It's
+-a local array embedded in task_struct, which makes access to the data
+-lockless by forcing it to happen only within the owner context. It's
 -like how lockdep handles held_locks. Lockless implmentation is important
-+like how lockdep handles held_locks. Lockless implementation is important
- since typical locks are very frequently acquired and released.
+-since typical locks are very frequently acquired and released.
++a local array embedded in task_struct, which makes the data locklessly
++accessible by forcing it to happen only within the owner context. It's
++like how lockdep handles held_locks. Lockless implementation is
++important since typical locks are very frequently acquired and released.
  
  
-@@ -719,22 +719,22 @@ since typical locks are very frequently acquired and released.
+ =================================================
  APPENDIX A: What lockdep does to work aggresively
  =================================================
  
@@ -448,13 +577,17 @@ index 0f8eb8a..48ef689 100644
 -deadlock exists if the problematic dependencies exist. Thus it's
 +deadlock exists if the problematic dependencies exist. Thus, it's
  meaningful to detect not only an actual deadlock but also its potential
- possibility. The latter is rather valuable. When a deadlock occurs
- actually, we can identify what happens in the system by some means or
+-possibility. The latter is rather valuable. When a deadlock occurs
+-actually, we can identify what happens in the system by some means or
 -other even without lockdep. However, there's no way to detect possiblity
 -without lockdep unless the whole code is parsed in head. It's terrible.
-+other even without lockdep. However, there's no way to detect possibility
-+without lockdep unless the whole code is parsed in the head. It's terrible.
- Lockdep does the both, and crossrelease only focuses on the latter.
+-Lockdep does the both, and crossrelease only focuses on the latter.
++possibility. The latter is rather valuable. When a deadlock actually
++occurs, we can identify what happens in the system by some means or
++other even without lockdep. However, there's no way to detect a
++possibility without lockdep, unless the whole code is parsed in the head.
++It's terrible. Lockdep does the both, and crossrelease only focuses on
++the latter.
  
  Whether or not a deadlock actually occurs depends on several factors.
  For example, what order contexts are switched in is a factor. Assuming
@@ -468,7 +601,7 @@ index 0f8eb8a..48ef689 100644
  combinations of dependencies, trying to:
  
  1. Use a global dependency graph.
-@@ -746,7 +746,7 @@ combinations of dependencies, trying to:
+@@ -776,7 +773,7 @@ combinations of dependencies, trying to:
  
  2. Check dependencies between classes instead of instances.
  
@@ -477,7 +610,32 @@ index 0f8eb8a..48ef689 100644
     lockdep checks dependencies between classes instead of instances.
     This way lockdep can detect a deadlock which has not happened but
     might happen in future by others but the same class.
-@@ -782,18 +782,18 @@ For example:
+@@ -805,44 +802,28 @@ Remind what a dependency is. A dependency exists if:
+ 
+ For example:
+ 
+-   acquire A
+-   acquire B /* A dependency 'A -> B' exists */
+-   release B
+-   release A
+-
+-   where A and B are different lock classes.
+-
+-A depedency 'A -> B' exists since:
+-
+-   1. A waiter for A and a waiter for B might exist when acquiring B.
+-   2. Only way to wake up each is to release what it waits for.
+-   3. Whether the waiter for A can be woken up depends on whether the
+-      other can. IOW, TASK X cannot release A if it fails to acquire B.
+-
+-For another example:
+-
+-   TASK X			   TASK Y
+-   ------			   ------
++   CONTEXT X			   CONTEXT Y
++   ---------			   ---------
+ 				   acquire AX
+    acquire B /* A dependency 'AX -> B' exists */
     release B
     release AX held by Y
  
@@ -486,22 +644,29 @@ index 0f8eb8a..48ef689 100644
 +   where AX and B are different lock classes and a suffix 'X' is added
 +   at crosslocks.
  
- Even in this case involving crosslocks, the same rule can be applied. A
+-Even in this case involving crosslocks, the same rule can be applied. A
 -depedency 'AX -> B' exists since:
-+dependency 'AX -> B' exists since:
++Here, a dependency 'AX -> B' exists since:
  
     1. A waiter for AX and a waiter for B might exist when acquiring B.
 -   2. Only way to wake up each is to release what it waits for.
 +   2. The only way to wake up each is to release what it waits for.
     3. Whether the waiter for AX can be woken up depends on whether the
-       other can. IOW, TASK X cannot release AX if it fails to acquire B.
+-      other can. IOW, TASK X cannot release AX if it fails to acquire B.
++      other can. In other words, CONTEXT X cannot release AX if it fails
++      to acquire B.
  
 -Let's take a look at more complicated example:
 +Let's take a look at a more complicated example:
  
-    TASK X			   TASK Y
-    ------			   ------
-@@ -805,21 +805,21 @@ Let's take a look at more complicated example:
+-   TASK X			   TASK Y
+-   ------			   ------
++   CONTEXT X			   CONTEXT Y
++   ---------			   ---------
+    acquire B
+    release B
+    fork Y
+@@ -851,22 +832,22 @@ Let's take a look at more complicated example:
     release C
     release AX held by Y
  
@@ -521,12 +686,15 @@ index 0f8eb8a..48ef689 100644
  we can ensure nothing but what actually happened. Relying on what
  actually happens at runtime, we can anyway add only true ones, though
  they might be a subset of true ones. It's similar to how lockdep works
- for typical locks. There might be more true dependencies than what
+-for typical locks. There might be more true dependencies than what
 -lockdep has detected in runtime. Lockdep has no choice but to rely on
-+lockdep has detected at runtime. Lockdep has no choice but to rely on
- what actually happens. Crossrelease also relies on it.
+-what actually happens. Crossrelease also relies on it.
++for typical locks. There might be more true dependencies than lockdep
++has detected. Lockdep has no choice but to rely on what actually happens.
++Crossrelease also relies on it.
  
  CONCLUSION
+ 
 -- 
 1.9.1
 
