@@ -1,108 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C13F52802AA
-	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 19:11:33 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id d15so636695pfl.0
-        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 16:11:33 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id b73si9798461pga.432.2017.11.10.16.11.32
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C6092802A5
+	for <linux-mm@kvack.org>; Fri, 10 Nov 2017 19:52:49 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 190so5848198pgh.16
+        for <linux-mm@kvack.org>; Fri, 10 Nov 2017 16:52:49 -0800 (PST)
+Received: from mga11.intel.com ([192.55.52.93])
+        by mx.google.com with ESMTPS id n61si9934472plb.463.2017.11.10.16.52.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 10 Nov 2017 16:11:32 -0800 (PST)
-Subject: [PATCH] x86, kaiser: fix 32-bit SYSENTER
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Fri, 10 Nov 2017 16:11:13 -0800
-Message-Id: <20171111001113.830CCB86@viggo.jf.intel.com>
+        Fri, 10 Nov 2017 16:52:47 -0800 (PST)
+Subject: [PATCH 1/4] mm: fix device-dax pud write-faults triggered by
+ get_user_pages()
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 10 Nov 2017 16:44:31 -0800
+Message-ID: <151036107109.32713.17139406817769204290.stgit@dwillia2-desk3.amr.corp.intel.com>
+In-Reply-To: <151036106541.32713.16875776773735515483.stgit@dwillia2-desk3.amr.corp.intel.com>
+References: <151036106541.32713.16875776773735515483.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: akpm@linux-foundation.org
+Cc: linux-nvdimm@lists.01.org, linux-kernel@vger.kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
+Currently only get_user_pages_fast() can safely handle the writable gup
+case due to its use of pud_access_permitted() to check whether the pud
+entry is writable. In the gup slow path pud_write() is used instead of
+pud_access_permitted() and to date it has been unimplemented, just calls
+BUG_ON().
 
-This is a fix on top of the KAISER [v3] patches I posted earlier.
-It is a fix for:
+    kernel BUG at ./include/linux/hugetlb.h:244!
+    [..]
+    RIP: 0010:follow_devmap_pud+0x482/0x490
+    [..]
+    Call Trace:
+     follow_page_mask+0x28c/0x6e0
+     __get_user_pages+0xe4/0x6c0
+     get_user_pages_unlocked+0x130/0x1b0
+     get_user_pages_fast+0x89/0xb0
+     iov_iter_get_pages_alloc+0x114/0x4a0
+     nfs_direct_read_schedule_iovec+0xd2/0x350
+     ? nfs_start_io_direct+0x63/0x70
+     nfs_file_direct_read+0x1e0/0x250
+     nfs_file_read+0x90/0xc0
 
-	[PATCH 05/30] x86, kaiser: prepare assembly for entry/exit CR3 switching
+For now this just implements a simple check for the _PAGE_RW bit similar
+to pmd_write. However, this implies that the gup-slow-path check is
+missing the extra checks that the gup-fast-path performs with
+pud_access_permitted. Later patches will align all checks to use the
+'access_permitted' helper if the architecture provides it. Note that the
+generic 'access_permitted' helper fallback is the simple _PAGE_RW check
+on architectures that do not define the 'access_permitted' helper(s).
 
-I made a mistake and stopped running the 32-bit selftests at
-some point.  My changes from one of Borislav's review comments
-ended up breaking the 32-bit SYSENTER path.
-
-The issue was that we switched over to the process stack before
-and wrote to it before we switched CR3.  Since it is now unmapped
-this access faulted.
-
-I can also send a consolidated 05/30 patch that contains this
-fix if that would be easier.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: x86@kernel.org
+Cc: <stable@vger.kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Fixes: a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent hugepages")
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
+ arch/x86/include/asm/pgtable.h |    6 ++++++
+ include/asm-generic/pgtable.h  |    9 +++++++++
+ include/linux/hugetlb.h        |    8 --------
+ 3 files changed, 15 insertions(+), 8 deletions(-)
 
- b/arch/x86/entry/entry_64_compat.S |   18 +++++++++++++-----
- 1 file changed, 13 insertions(+), 5 deletions(-)
-
-diff -puN arch/x86/entry/entry_64_compat.S~kaiser-mpx-32-splat arch/x86/entry/entry_64_compat.S
---- a/arch/x86/entry/entry_64_compat.S~kaiser-mpx-32-splat	2017-11-10 15:44:42.893205660 -0800
-+++ b/arch/x86/entry/entry_64_compat.S	2017-11-10 16:01:14.880203186 -0800
-@@ -48,6 +48,10 @@
- ENTRY(entry_SYSENTER_compat)
- 	/* Interrupts are off on entry. */
- 	SWAPGS
-+
-+	/* We are about to clobber %rsp anyway, clobbering here is OK */
-+	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
-+
- 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
+index f735c3016325..5c396724fd0d 100644
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -1093,6 +1093,12 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+ 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
+ }
  
- 	/*
-@@ -91,9 +95,6 @@ ENTRY(entry_SYSENTER_compat)
- 	pushq   $0			/* pt_regs->r15 = 0 */
- 	cld
++#define __HAVE_ARCH_PUD_WRITE
++static inline int pud_write(pud_t pud)
++{
++	return pud_flags(pud) & _PAGE_RW;
++}
++
+ /*
+  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
+  *
+diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
+index 757dc6ffc7ba..bd738624bd16 100644
+--- a/include/asm-generic/pgtable.h
++++ b/include/asm-generic/pgtable.h
+@@ -812,6 +812,15 @@ static inline int pmd_write(pmd_t pmd)
+ 	return 0;
+ }
+ #endif /* __HAVE_ARCH_PMD_WRITE */
++
++#ifndef __HAVE_ARCH_PUD_WRITE
++static inline int pud_write(pud_t pud)
++{
++	BUG();
++	return 0;
++}
++#endif /* __HAVE_ARCH_PUD_WRITE */
++
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
--	/* We just saved all the registers, so safe to clobber %rdi */
--	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+ #if !defined(CONFIG_TRANSPARENT_HUGEPAGE) || \
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index fbf5b31d47ee..82a25880714a 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -239,14 +239,6 @@ static inline int pgd_write(pgd_t pgd)
+ }
+ #endif
+ 
+-#ifndef pud_write
+-static inline int pud_write(pud_t pud)
+-{
+-	BUG();
+-	return 0;
+-}
+-#endif
 -
- 	/*
- 	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
- 	 * ourselves.  To save a few cycles, we can check whether
-@@ -245,7 +246,6 @@ sysret32_from_system_call:
- 	popq	%rsi			/* pt_regs->si */
- 	popq	%rdi			/* pt_regs->di */
+ #define HUGETLB_ANON_FILE "anon_hugepage"
  
--	SWITCH_TO_USER_CR3 scratch_reg=%r8
-         /*
-          * USERGS_SYSRET32 does:
-          *  GSBASE = user's GS base
-@@ -261,10 +261,18 @@ sysret32_from_system_call:
- 	 * when the system call started, which is already known to user
- 	 * code.  We zero R8-R10 to avoid info leaks.
-          */
-+	movq	RSP-ORIG_RAX(%rsp), %rsp
-+
-+	/*
-+	 * %rsp is not mapped to userspace so the switch to the user
-+	 * CR3 can not be done until after all references to it are
-+	 * complete.
-+	 */
-+	SWITCH_TO_USER_CR3 scratch_reg=%r8
-+
- 	xorq	%r8, %r8
- 	xorq	%r9, %r9
- 	xorq	%r10, %r10
--	movq	RSP-ORIG_RAX(%rsp), %rsp
- 	swapgs
- 	sysretl
- END(entry_SYSCALL_compat)
-_
+ enum {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
