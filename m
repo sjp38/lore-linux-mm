@@ -1,45 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EA736B0069
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 14:31:28 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y5so17835618pgq.15
-        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:31:28 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id w15si5436612pgc.761.2017.11.13.11.31.27
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BF9D06B0033
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 15:00:09 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 11so9828807wrb.10
+        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 12:00:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13sor10022432edc.15.2017.11.13.12.00.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Nov 2017 11:31:27 -0800 (PST)
-Subject: Re: [PATCH] mm: show stats for non-default hugepage sizes in
- /proc/meminfo
-References: <20171113160302.14409-1-guro@fb.com>
- <8aa63aee-cbbb-7516-30cf-15fcf925060b@intel.com>
- <20171113181105.GA27034@castle>
- <c716ac71-f467-dcbe-520f-91b007309a4d@intel.com>
- <2579a26d-81d1-732e-ef57-33bb4c293cd6@oracle.com>
- <20171113184454.GA18531@castle> <20171113191056.GA28749@cmpxchg.org>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <940679cd-b044-707d-a693-e360cf8623b5@intel.com>
-Date: Mon, 13 Nov 2017 11:31:14 -0800
+        (Google Transport Security);
+        Mon, 13 Nov 2017 12:00:08 -0800 (PST)
+Date: Mon, 13 Nov 2017 23:00:05 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171113200005.xzbhenukotzicwd2@node.shutemov.name>
+References: <20171107130539.52676-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711131642370.1851@nanos>
+ <20171113164154.fp5fd2seozbmxcbs@node.shutemov.name>
+ <alpine.DEB.2.20.1711131754590.1851@nanos>
 MIME-Version: 1.0
-In-Reply-To: <20171113191056.GA28749@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1711131754590.1851@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/13/2017 11:10 AM, Johannes Weiner wrote:
-> Maybe a simple summary counter for everything set aside by the hugetlb
-> subsystem - default and non-default page sizes, whether they're used
-> or only reserved etc.?
+On Mon, Nov 13, 2017 at 05:57:03PM +0100, Thomas Gleixner wrote:
+> On Mon, 13 Nov 2017, Kirill A. Shutemov wrote:
+> 
+> > On Mon, Nov 13, 2017 at 04:43:26PM +0100, Thomas Gleixner wrote:
+> > > On Tue, 7 Nov 2017, Kirill A. Shutemov wrote:
+> > > 
+> > > > In case of 5-level paging, we don't put any mapping above 47-bit, unless
+> > > > userspace explicitly asked for it.
+> > > > 
+> > > > Userspace can ask for allocation from full address space by specifying
+> > > > hint address above 47-bit.
+> > > > 
+> > > > Nicholas noticed that current implementation violates this interface:
+> > > > we can get vma partly in high addresses if we ask for a mapping at very
+> > > > end of 47-bit address space.
+> > > > 
+> > > > Let's make sure that, when consider hint address for non-MAP_FIXED
+> > > > mapping, start and end of resulting vma are on the same side of 47-bit
+> > > > border.
+> > > 
+> > > What happens for mappings with MAP_FIXED which cross the border?
+> > 
+> > It will succeed with 5-level paging.
+> 
+> And why is this allowed?
+> 
+> > It should be safe as with 4-level paging such request would fail and it's
+> > reasonable to expect that userspace is not relying on the failure to
+> > function properly.
+> 
+> Huch?
+> 
+> The first rule when looking at user space is that is broken or
+> hostile. Reasonable and user space are mutually exclusive.
 
-Yeah, one line is a lot more sane than 5 lines times all the extra
-sizes.  It'll just be a matter of bikeshedding the name and whether it
-should include the default pages being consumed or not.  I vote for:
+That's basically the same assumption we made to implement current
+interface of allocation memory above 47-bits.
 
-	Hugetlb: "/sysfs FTW!" kB
+The premise is that nobody in right mind would try mmap(addr, MAP_FIXED)
+where addr >= (1UL << 47) as it will always fail. So we can allow this to
+succeed on 5-level paging machine as a way to allocate from larger address
+space.
+
+By the same logic we can allow allocation for cases where addr is below
+(1UL << 47), but addr+size is above the limit.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
