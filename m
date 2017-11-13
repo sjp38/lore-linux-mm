@@ -1,124 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A09280249
-	for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:28:36 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id r12so4088794pgu.9
-        for <linux-mm@kvack.org>; Sun, 12 Nov 2017 16:28:36 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id w71si14317445pfd.262.2017.11.12.16.28.34
-        for <linux-mm@kvack.org>;
-        Sun, 12 Nov 2017 16:28:34 -0800 (PST)
-Date: Mon, 13 Nov 2017 09:28:33 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy (was: Re:
- [RESEND PATCH] mm, oom_reaper: gather each vma to prevent) leaking TLB entry
-Message-ID: <20171113002833.GA18301@bbox>
-References: <20171107095453.179940-1-wangnan0@huawei.com>
- <20171110001933.GA12421@bbox>
- <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
- <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E093D280249
+	for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:55:07 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id z34so8508332wrz.0
+        for <linux-mm@kvack.org>; Sun, 12 Nov 2017 16:55:07 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id g16si6368785edb.218.2017.11.12.16.55.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 12 Nov 2017 16:55:06 -0800 (PST)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAD0s0NT111152
+	for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:55:05 -0500
+Received: from e31.co.us.ibm.com (e31.co.us.ibm.com [32.97.110.149])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2e6fch316g-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:55:04 -0500
+Received: from localhost
+	by e31.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Sun, 12 Nov 2017 17:55:04 -0700
+Date: Sun, 12 Nov 2017 16:54:51 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: [PATCH v9 23/51] powerpc: Enable pkey subsystem
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+ <1509958663-18737-24-git-send-email-linuxram@us.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
+In-Reply-To: <1509958663-18737-24-git-send-email-linuxram@us.ibm.com>
+Message-Id: <20171113005451.GF5546@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
+To: mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, dave.hansen@intel.com, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
 
-On Fri, Nov 10, 2017 at 01:26:35PM +0100, Michal Hocko wrote:
-> On Fri 10-11-17 11:15:29, Michal Hocko wrote:
-> > On Fri 10-11-17 09:19:33, Minchan Kim wrote:
-> > > On Tue, Nov 07, 2017 at 09:54:53AM +0000, Wang Nan wrote:
-> > > > tlb_gather_mmu(&tlb, mm, 0, -1) means gathering the whole virtual memory
-> > > > space. In this case, tlb->fullmm is true. Some archs like arm64 doesn't
-> > > > flush TLB when tlb->fullmm is true:
-> > > > 
-> > > >   commit 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1").
-> > > > 
-> > > > Which makes leaking of tlb entries.
-> > > 
-> > > That means soft-dirty which has used tlb_gather_mmu with fullmm could be
-> > > broken via losing write-protection bit once it supports arm64 in future?
-> > > 
-> > > If so, it would be better to use TASK_SIZE rather than -1 in tlb_gather_mmu.
-> > > Of course, it's a off-topic.
-> > 
-> > I wouldn't play tricks like that. And maybe the API itself could be more
-> > explicit. E.g. add a lazy parameter which would allow arch specific code
-> > to not flush if it is sure that nobody can actually stumble over missed
-> > flush. E.g. the following?
+On Mon, Nov 06, 2017 at 12:57:15AM -0800, Ram Pai wrote:
+> PAPR defines 'ibm,processor-storage-keys' property. It exports two
+> values. The first value holds the number of data-access keys and the
+> second holds the number of instruction-access keys.  Due to a bug in
+> the  firmware, instruction-access  keys is  always  reported  as zero.
+> However any key can be configured to disable data-access and/or disable
+> execution-access. The inavailablity of the second value is not a
+> big handicap, though it could have been used to determine if the
+> platform supported disable-execution-access.
 > 
-> This one has a changelog and even compiles on my crosscompile test
+> Non PAPR platforms do not define this property   in the device tree yet.
+> Here, we   hardcode   CPUs   that   support  pkey by consulting
+> PowerISA3.0
+> 
+> This patch calculates the number of keys supported by the platform.
+> Alsi it determines the platform support for read/write/execution access
+> support for pkeys.
+
+> 
+> Signed-off-by: Ram Pai <linuxram@us.ibm.com>
 > ---
-> From 7f0fcd2cab379ddac5611b2a520cdca8a77a235b Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Fri, 10 Nov 2017 11:27:17 +0100
-> Subject: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy
 > 
-> 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
-> introduced an optimization to not flush tlb when we are tearing the
-> whole address space down. Will goes on to explain
-> 
-> : Basically, we tag each address space with an ASID (PCID on x86) which
-> : is resident in the TLB. This means we can elide TLB invalidation when
-> : pulling down a full mm because we won't ever assign that ASID to
-> : another mm without doing TLB invalidation elsewhere (which actually
-> : just nukes the whole TLB).
-> 
-> This all is nice but tlb_gather users are not aware of that and this can
-> actually cause some real problems. E.g. the oom_reaper tries to reap the
-> whole address space but it might race with threads accessing the memory [1].
-> It is possible that soft-dirty handling might suffer from the same
-> problem [2].
-> 
-> Introduce an explicit lazy variant tlb_gather_mmu_lazy which allows the
-> behavior arm64 implements for the fullmm case and replace it by an
-> explicit lazy flag in the mmu_gather structure. exit_mmap path is then
-> turned into the explicit lazy variant. Other architectures simply ignore
-> the flag.
-> 
-> [1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
-> [2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  arch/arm/include/asm/tlb.h   |  3 ++-
->  arch/arm64/include/asm/tlb.h |  2 +-
->  arch/ia64/include/asm/tlb.h  |  3 ++-
->  arch/s390/include/asm/tlb.h  |  3 ++-
->  arch/sh/include/asm/tlb.h    |  2 +-
->  arch/um/include/asm/tlb.h    |  2 +-
->  include/asm-generic/tlb.h    |  6 ++++--
->  include/linux/mm_types.h     |  2 ++
->  mm/memory.c                  | 17 +++++++++++++++--
->  mm/mmap.c                    |  2 +-
->  10 files changed, 31 insertions(+), 11 deletions(-)
-> 
-> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-> index d5562f9ce600..fe9042aee8e9 100644
-> --- a/arch/arm/include/asm/tlb.h
-> +++ b/arch/arm/include/asm/tlb.h
-> @@ -149,7 +149,8 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
->  
->  static inline void
->  arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
-> -			unsigned long start, unsigned long end)
-> +			unsigned long start, unsigned long end,
-> +			bool lazy)
-> 
+....snip...
 
-Thanks for the patch, Michal.
-However, it would be nice to do it tranparently without asking
-new flags from users.
+> +static inline bool pkey_mmu_enabled(void)
+> +{
+> +	if (firmware_has_feature(FW_FEATURE_LPAR))
+> +		return pkeys_total;
+> +	else
+> +		return cpu_has_feature(CPU_FTR_PKEY);
+> +}
+> +
+>  void __init pkey_initialize(void)
+>  {
+>  	int os_reserved, i;
+> @@ -46,14 +54,9 @@ void __init pkey_initialize(void)
+>  		     __builtin_popcountl(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT)
+>  				!= (sizeof(u64) * BITS_PER_BYTE));
+> 
+> -	/*
+> -	 * Disable the pkey system till everything is in place. A subsequent
+> -	 * patch will enable it.
+> -	 */
+> -	static_branch_enable(&pkey_disabled);
+> -
+> -	/* Lets assume 32 keys */
+> -	pkeys_total = 32;
 
-When I read tlb_gather_mmu's description, fullmm is supposed to
-be used only if there is no users and full address space.
+vvvvvvvvvvvvvvvvvvvv
+> +	/* Let's assume 32 keys if we are not told the number of pkeys. */
+> +	if (!pkeys_total)
+> +		pkeys_total = 32;
+^^^^^^^^^^^^^^^^^^^^
 
-That means we can do it API itself like this?
+There is a small bug here. 
 
-void arch_tlb_gather_mmu(...)
+On a KVM guest or a LPAR, if the device tree
+does not expose pkeys, the pkey-subsystem must be disabled.
 
-        tlb->fullmm = !(start | (end + 1)) && atomic_read(&mm->mm_users) == 0;
+Unfortunately, the code above blindly sets the pkeys_total to 32.
+This confuses pkey_mmu_enabled() into returning true. Because of this
+bug the guest errorneously enables pkey-subsystem. 
+
+The fix is to delete the code marked above.
+
+> 
+>  	/*
+>  	 * Adjust the upper limit, based on the number of bits supported by
+> @@ -62,11 +65,19 @@ void __init pkey_initialize(void)
+>  	pkeys_total = min_t(int, pkeys_total,
+>  			(ARCH_VM_PKEY_FLAGS >> VM_PKEY_SHIFT));
+> 
+> +	if (!pkey_mmu_enabled() || radix_enabled() || !pkeys_total)
+> +		static_branch_enable(&pkey_disabled);
+> +	else
+> +		static_branch_disable(&pkey_disabled);
+> +
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
