@@ -1,63 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 716086B0038
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:39:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i5so12421556pfe.15
-        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 08:39:13 -0800 (PST)
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id v2si4541957plg.615.2017.11.13.08.39.11
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CBBD56B0038
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:42:05 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n74so3635982wmi.3
+        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 08:42:05 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g24sor9261167edj.57.2017.11.13.08.42.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Nov 2017 08:39:12 -0800 (PST)
-Date: Mon, 13 Nov 2017 16:33:05 +0000
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] mm: show stats for non-default hugepage sizes in
- /proc/meminfo
-Message-ID: <20171113163233.GA17016@castle>
-References: <20171113160302.14409-1-guro@fb.com>
- <20171113161102.rieyg55drdqkri6e@dhcp22.suse.cz>
+        (Google Transport Security);
+        Mon, 13 Nov 2017 08:42:03 -0800 (PST)
+Date: Mon, 13 Nov 2017 19:41:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171113164154.fp5fd2seozbmxcbs@node.shutemov.name>
+References: <20171107130539.52676-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711131642370.1851@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171113161102.rieyg55drdqkri6e@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.20.1711131642370.1851@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh
- Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Nov 13, 2017 at 05:11:02PM +0100, Michal Hocko wrote:
-> On Mon 13-11-17 16:03:02, Roman Gushchin wrote:
-> > Currently we display some hugepage statistics (total, free, etc)
-> > in /proc/meminfo, but only for default hugepage size (e.g. 2Mb).
+On Mon, Nov 13, 2017 at 04:43:26PM +0100, Thomas Gleixner wrote:
+> On Tue, 7 Nov 2017, Kirill A. Shutemov wrote:
+> 
+> > In case of 5-level paging, we don't put any mapping above 47-bit, unless
+> > userspace explicitly asked for it.
 > > 
-> > If hugepages of different sizes are used (like 2Mb and 1Gb on x86-64),
-> > /proc/meminfo output can be confusing, as non-default sized hugepages
-> > are not reflected at all, and there are no signs that they are
-> > existing and consuming system memory.
+> > Userspace can ask for allocation from full address space by specifying
+> > hint address above 47-bit.
+> > 
+> > Nicholas noticed that current implementation violates this interface:
+> > we can get vma partly in high addresses if we ask for a mapping at very
+> > end of 47-bit address space.
+> > 
+> > Let's make sure that, when consider hint address for non-MAP_FIXED
+> > mapping, start and end of resulting vma are on the same side of 47-bit
+> > border.
 > 
-> Yes this sucks but we do have per numa node per h-state stats in sysfs
-> already /sys/devices/system/node/node*/hugepages
-> 
-> I know it is another source of the information but is there any reason
-> you cannot use it?
+> What happens for mappings with MAP_FIXED which cross the border?
 
-Hi, Michal!
+It will succeed with 5-level paging.
 
-In my case, I didn't know in advance, that hugetlb pages are preallocated,
-and spent some time trying to find "magically disappeared" several Gb of memory,
-which are not reflected in any /proc/[meminfo,vmstat] counters.
+It should be safe as with 4-level paging such request would fail and it's
+reasonable to expect that userspace is not relying on the failure to
+function properly.
 
-IMO, /proc/meminfo should give a user a high-level overview of memory usage
-in the system, without a need to look into other places. Of course, we always
-have some amount of unaccounted memory, but it shouldn't be measured in Gb,
-as in this case.
-
-If you're worried about adding counters which will be 0 most of the time
-for most users, we can print them conditionally, only if total number of
-corresponding pages is not 0.
-
-Thanks!
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
