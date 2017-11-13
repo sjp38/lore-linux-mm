@@ -1,68 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F0BDA6B0033
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 13:45:32 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id q45so2687776qtq.21
-        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 10:45:32 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id w62si10220852qtd.403.2017.11.13.10.45.31
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B44806B0033
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 14:10:31 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id f85so15597230pfe.7
+        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:10:31 -0800 (PST)
+Received: from out0-237.mail.aliyun.com (out0-237.mail.aliyun.com. [140.205.0.237])
+        by mx.google.com with ESMTPS id o186si14066175pga.260.2017.11.13.11.10.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Nov 2017 10:45:32 -0800 (PST)
-Date: Mon, 13 Nov 2017 18:45:01 +0000
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] mm: show stats for non-default hugepage sizes in
- /proc/meminfo
-Message-ID: <20171113184454.GA18531@castle>
-References: <20171113160302.14409-1-guro@fb.com>
- <8aa63aee-cbbb-7516-30cf-15fcf925060b@intel.com>
- <20171113181105.GA27034@castle>
- <c716ac71-f467-dcbe-520f-91b007309a4d@intel.com>
- <2579a26d-81d1-732e-ef57-33bb4c293cd6@oracle.com>
+        Mon, 13 Nov 2017 11:10:30 -0800 (PST)
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171030124358.GF23278@quack2.suse.cz>
+ <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
+ <20171031101238.GD8989@quack2.suse.cz>
+ <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com>
+Date: Tue, 14 Nov 2017 03:10:22 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-Disposition: inline
-In-Reply-To: <2579a26d-81d1-732e-ef57-33bb4c293cd6@oracle.com>
+In-Reply-To: <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>
+Cc: amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Nov 13, 2017 at 10:30:10AM -0800, Mike Kravetz wrote:
-> On 11/13/2017 10:17 AM, Dave Hansen wrote:
-> > On 11/13/2017 10:11 AM, Roman Gushchin wrote:
-> >> On Mon, Nov 13, 2017 at 09:06:32AM -0800, Dave Hansen wrote:
-> >>> On 11/13/2017 08:03 AM, Roman Gushchin wrote:
-> >>>> To solve this problem, let's display stats for all hugepage sizes.
-> >>>> To provide the backward compatibility let's save the existing format
-> >>>> for the default size, and add a prefix (e.g. 1G_) for non-default sizes.
-> >>>
-> >>> Is there something keeping you from using the sysfs version of this
-> >>> information?
-> >>
-> >> Just answered the same question to Michal.
-> >>
-> >> In two words: it would be nice to have a high-level overview of
-> >> memory usage in the system in /proc/meminfo. 
-> > 
-> > I don't think it's worth cluttering up meminfo for this, imnho.
+
+
+On 11/9/17 5:54 AM, Michal Hocko wrote:
+> [Sorry for the late reply]
 > 
-> I tend to agree that it would be better not to add additional huge page
-> sizes here.  It may not seem too intrusive to (potentially) add one extra
-> set of entries for GB huge pages on x86.  However, other architectures
-> such as powerpc or sparc have several several huge pages sizes that could
-> potentially be added here as well.  Although, in practice one does tend
-> to use a single huge pages size.  If you change the default huge page
-> size, then those entries will be in /proc/meminfo.
+> On Tue 31-10-17 11:12:38, Jan Kara wrote:
+>> On Tue 31-10-17 00:39:58, Yang Shi wrote:
+> [...]
+>>> I do agree it is not fair and not neat to account to producer rather than
+>>> misbehaving consumer, but current memcg design looks not support such use
+>>> case. And, the other question is do we know who is the listener if it
+>>> doesn't read the events?
+>>
+>> So you never know who will read from the notification file descriptor but
+>> you can simply account that to the process that created the notification
+>> group and that is IMO the right process to account to.
+> 
+> Yes, if the creator is de-facto owner which defines the lifetime of
+> those objects then this should be a target of the charge.
+> 
+>> I agree that current SLAB memcg accounting does not allow to account to a
+>> different memcg than the one of the running process. However I *think* it
+>> should be possible to add such interface. Michal?
+> 
+> We do have memcg_kmem_charge_memcg but that would require some plumbing
+> to hook it into the specific allocation path. I suspect it uses kmalloc,
+> right?
 
-I do agree that it might add some unnecessary verbosity if these sizes
-are not used, but if they are, this information is super-useful.
-So, might be a conditional printing will work here?
+Yes.
 
-Or, at least, some total counter, e.g. how much memory is consumed
-by hugetlb pages?
+I took a look at the implementation and the callsites of 
+memcg_kmem_charge_memcg(). It looks it is called by:
 
-Thanks!
+* charge kmem to memcg, but it is charged to the allocator's memcg
+* allocate new slab page, charge to memcg_params.memcg
+
+I think this is the plumbing you mentioned, right?
+
+Thanks,
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
