@@ -1,71 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3688A6B0033
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 16:07:07 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s28so10471603pfg.6
-        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 13:07:07 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id j33si14762315pld.56.2017.11.13.13.07.05
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 46CC96B0253
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 16:14:48 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id k100so9992750wrc.9
+        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 13:14:48 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id l9si13495156wrf.545.2017.11.13.13.14.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Nov 2017 13:07:05 -0800 (PST)
-Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
-References: <20171108194646.907A1942@viggo.jf.intel.com>
- <20171108194731.AB5BDA01@viggo.jf.intel.com>
- <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
- <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com>
- <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
- <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com>
- <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
- <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com>
- <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
- <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com>
- <CALCETrVoud2iVxAky5UGQkyiDgNiN7Zc-LfahG_1P-x3JQzopg@mail.gmail.com>
- <7ec56785-8e18-4ac8-ebe8-ebdd3ac265da@linux.intel.com>
- <CALCETrWyagW0YV_-4xhiCxrxDBXTW7MBfZbSDbMY_mBYtsPRaA@mail.gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <8b23c090-f7c3-5110-011b-07e5131eb996@linux.intel.com>
-Date: Mon, 13 Nov 2017 13:07:03 -0800
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 13 Nov 2017 13:14:47 -0800 (PST)
+Date: Mon, 13 Nov 2017 22:14:36 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+In-Reply-To: <20171113200657.pk56mxofg2t2xbi6@node.shutemov.name>
+Message-ID: <alpine.DEB.2.20.1711132205290.2097@nanos>
+References: <20171107130539.52676-1-kirill.shutemov@linux.intel.com> <alpine.DEB.2.20.1711131642370.1851@nanos> <20171113164154.fp5fd2seozbmxcbs@node.shutemov.name> <alpine.DEB.2.20.1711131754590.1851@nanos> <alpine.DEB.2.20.1711132010470.2097@nanos>
+ <20171113200657.pk56mxofg2t2xbi6@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrWyagW0YV_-4xhiCxrxDBXTW7MBfZbSDbMY_mBYtsPRaA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/12/2017 07:52 PM, Andy Lutomirski wrote:
-> On Fri, Nov 10, 2017 at 3:04 PM, Dave Hansen
-> <dave.hansen@linux.intel.com> wrote:
->> On 11/10/2017 02:06 PM, Andy Lutomirski wrote:
->>> I have nothing against disabling native.  I object to breaking the
->>> weird binary tracing behavior in the emulation mode, especially if
->>> it's tangled up with KAISER.  I got all kinds of flak in an earlier
->>> version of the vsyscall emulation patches when I broke that use case.
->>> KAISER may get very widely backported -- let's not make changes that
->>> are already known to break things.
->>
->> Is the thing that broke a "user mode program that actually looks at the
->> vsyscall page"?  Like Linus is referring to here:
->>
-> Yes.  But I disagree with Linus.  I think it would be perfectly
-> reasonable to enable KAISER and to use a tool like pin on a legacy
-> binary from some enterprise distribution.  I bet there are lots of
-> enterprise distributions that are still supported that use vsyscalls.
+On Mon, 13 Nov 2017, Kirill A. Shutemov wrote:
+> On Mon, Nov 13, 2017 at 08:14:54PM +0100, Thomas Gleixner wrote:
+> > > > It will succeed with 5-level paging.
+> > > 
+> > > And why is this allowed?
+> > > 
+> > > > It should be safe as with 4-level paging such request would fail and it's
+> > > > reasonable to expect that userspace is not relying on the failure to
+> > > > function properly.
+> > > 
+> > > Huch?
+> > > 
+> > > The first rule when looking at user space is that is broken or
+> > > hostile. Reasonable and user space are mutually exclusive.
+> > 
+> > Aside of that in case of get_unmapped_area:
+> > 
+> > If va_unmapped_area() fails, then the address and the len which caused the
+> > overlap check to trigger are handed in to arch_get_unmapped_area(), which
+> > again can create an invalid mapping if I'm not missing something.
+> > 
+> > If mappings which overlap the boundary are invalid then we have to make
+> > sure at all ends that they wont happen.
+> 
+> They are not invalid.
+> 
+> The patch tries to address following theoretical issue:
+> 
+> We have an application that tries, for some reason, to allocate memory
+> with mmap(addr), without MAP_FIXED, where addr is near the borderline of
+> 47-bit address space and addr+len is above the border.
+> 
+> On 4-level paging machine this request would succeed, but the address will
+> always be within 47-bit VA -- cannot allocate by hint address, ignore it.
+> 
+> If the application cannot handle high address this might be an issue on
+> 5-level paging machine as such call would succeed *and* allocate memory by
+> the specified hint address. In this case part of the mapping would be
+> above the border line and may lead to misbehaviour.
+> 
+> I hope this makes any sense :)
 
-All we need to do in the end here is to re-set _PAGE_USER on the user
-page table PGD that is used by the vsyscall page.  We should be able to
-do that with a line or two of code in kaiser_init().  We can do it
-conditionally on when the VDSO is not compile-time disabled.
+I can see where you are heading to. Now the case I was looking at is:
 
-I can do this as a follow-on patch, or as the last one in the KAISER
-series and leave it up to our esteemed maintainers to decide whether
-they want to do it or not.  Sound good?
+arch_get_unmapped_area_topdown()
 
-Are there any userspace tests around that I can use for this, or will I
-have to cook something up?
+	addr0 = addr;
+	
+	....
+	if (addr) {
+		if (cross_border(addr, len))
+			goto get_unmapped_area;
+		...
+	}
+get_unmapped_area:
+	...
+	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+
+	   ^^^ evaluates to false because addr < DEFAULT_MAP_WINDOW
+
+	addr - vm_unmapped_area(&info);
+
+	   ^^^ fails for whatever reason.
+
+bottomup:
+	return arch_get_unmapped_area(.., addr0, len, ....);
+
+
+AFAICT arch_get_unmapped_area() can allocate a mapping which crosses the
+border, i.e. a mapping which you want to prevent for the !MAP_FIXED case.
+
+Thanks,
+
+	tglx
+
+	
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
