@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AF6636B0033
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 14:25:33 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id l75so11964228qkh.7
-        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:25:33 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id v186si2102294qkh.7.2017.11.13.11.25.32
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EA736B0069
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 14:31:28 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y5so17835618pgq.15
+        for <linux-mm@kvack.org>; Mon, 13 Nov 2017 11:31:28 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id w15si5436612pgc.761.2017.11.13.11.31.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 13 Nov 2017 11:25:33 -0800 (PST)
+        Mon, 13 Nov 2017 11:31:27 -0800 (PST)
 Subject: Re: [PATCH] mm: show stats for non-default hugepage sizes in
  /proc/meminfo
 References: <20171113160302.14409-1-guro@fb.com>
@@ -17,9 +17,9 @@ References: <20171113160302.14409-1-guro@fb.com>
  <c716ac71-f467-dcbe-520f-91b007309a4d@intel.com>
  <2579a26d-81d1-732e-ef57-33bb4c293cd6@oracle.com>
  <20171113184454.GA18531@castle> <20171113191056.GA28749@cmpxchg.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <0842738c-1c6f-9a29-b9a6-21e5af898c31@oracle.com>
-Date: Mon, 13 Nov 2017 11:25:21 -0800
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <940679cd-b044-707d-a693-e360cf8623b5@intel.com>
+Date: Mon, 13 Nov 2017 11:31:14 -0800
 MIME-Version: 1.0
 In-Reply-To: <20171113191056.GA28749@cmpxchg.org>
 Content-Type: text/plain; charset=utf-8
@@ -28,34 +28,18 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Johannes Weiner <hannes@cmpxchg.org>, Roman Gushchin <guro@fb.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
 On 11/13/2017 11:10 AM, Johannes Weiner wrote:
-> On Mon, Nov 13, 2017 at 06:45:01PM +0000, Roman Gushchin wrote:
->> Or, at least, some total counter, e.g. how much memory is consumed
->> by hugetlb pages?
-> 
-> I'm not a big fan of the verbose breakdown for every huge page size.
-> As others have pointed out such detail exists elswhere.
-> 
-> But I do think we should have a summary counter for memory consumed by
-> hugetlb that lets you know how much is missing from MemTotal. This can
-> be large parts of overall memory, and right now /proc/meminfo will
-> give the impression we are leaking those pages.
-> 
 > Maybe a simple summary counter for everything set aside by the hugetlb
 > subsystem - default and non-default page sizes, whether they're used
 > or only reserved etc.?
-> 
-> Hugetlb 12345 kB
 
-I would prefer this approach.  The 'trick' is coming up with a name or
-description that is not confusing.  Unfortunately, we have to leave the
-existing entries.  So, this new entry will be greater than or equal to
-HugePages_Total. :(  I guess Hugetlb is as good of a name as any?
+Yeah, one line is a lot more sane than 5 lines times all the extra
+sizes.  It'll just be a matter of bikeshedding the name and whether it
+should include the default pages being consumed or not.  I vote for:
 
--- 
-Mike Kravetz
+	Hugetlb: "/sysfs FTW!" kB
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
