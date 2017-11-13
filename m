@@ -1,73 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 14615280259
-	for <linux-mm@kvack.org>; Sun, 12 Nov 2017 22:52:57 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id d28so13724583pfe.1
-        for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:52:57 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 132si3601711pga.176.2017.11.12.19.52.55
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DB7C6B0331
+	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 02:33:19 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id s11so9936195pgc.13
+        for <linux-mm@kvack.org>; Sun, 12 Nov 2017 23:33:19 -0800 (PST)
+Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-he1eur01on0078.outbound.protection.outlook.com. [104.47.0.78])
+        by mx.google.com with ESMTPS id d6si13306256plo.114.2017.11.12.23.33.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 12 Nov 2017 19:52:55 -0800 (PST)
-Received: from mail-it0-f41.google.com (mail-it0-f41.google.com [209.85.214.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 537A121992
-	for <linux-mm@kvack.org>; Mon, 13 Nov 2017 03:52:55 +0000 (UTC)
-Received: by mail-it0-f41.google.com with SMTP id b5so1468143itc.3
-        for <linux-mm@kvack.org>; Sun, 12 Nov 2017 19:52:55 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Sun, 12 Nov 2017 23:33:17 -0800 (PST)
+From: Ran Wang <ran.wang_1@nxp.com>
+Subject: RE: [PATCH 1/2] mm: drop migrate type checks from has_unmovable_pages
+Date: Mon, 13 Nov 2017 07:33:13 +0000
+Message-ID: <AM3PR04MB14895AE080F9F21E98045D99F12B0@AM3PR04MB1489.eurprd04.prod.outlook.com>
+References: <AM3PR04MB14892A9D6D2FBCE21B8C1F0FF12B0@AM3PR04MB1489.eurprd04.prod.outlook.com>
+In-Reply-To: <AM3PR04MB14892A9D6D2FBCE21B8C1F0FF12B0@AM3PR04MB1489.eurprd04.prod.outlook.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <7ec56785-8e18-4ac8-ebe8-ebdd3ac265da@linux.intel.com>
-References: <20171108194646.907A1942@viggo.jf.intel.com> <20171108194731.AB5BDA01@viggo.jf.intel.com>
- <CALCETrUs-6yWK9uYLFmVNhYz9e1NAUbT6BPJKHge8Zkwghsesg@mail.gmail.com>
- <6871f284-b7e9-f843-608f-5345f9d03396@linux.intel.com> <CALCETrVFDtj5m2eA_fq9n_s4+E2u6GDA-xEfNYPkJceicT4taQ@mail.gmail.com>
- <27b55108-1e72-cb3d-d5d8-ffe0238245aa@linux.intel.com> <CALCETrXy-K5fKzvjF-Dr6gVpJ+ui4c-GjrT6Oruh5ePvPudPpg@mail.gmail.com>
- <4c8c441e-d65c-fcec-7718-6997bd010971@linux.intel.com> <CALCETrXzmtoS-vHF3AHVZtuf0LsDsFLDUMSk0TjT0eOfGHjHkQ@mail.gmail.com>
- <f5483db4-018c-3474-0819-65336cacdb1d@linux.intel.com> <CALCETrVoud2iVxAky5UGQkyiDgNiN7Zc-LfahG_1P-x3JQzopg@mail.gmail.com>
- <7ec56785-8e18-4ac8-ebe8-ebdd3ac265da@linux.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Sun, 12 Nov 2017 19:52:34 -0800
-Message-ID: <CALCETrWyagW0YV_-4xhiCxrxDBXTW7MBfZbSDbMY_mBYtsPRaA@mail.gmail.com>
-Subject: Re: [PATCH 24/30] x86, kaiser: disable native VSYSCALL
-Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: "linux-mm@kvack.org" <linux-mm@kvack.org>, Michal Hocko <mhocko@suse.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>, Reza Arbab <arbab@linux.vnet.ibm.com>, Yasuaki Ishimatsu <yasu.isimatu@gmail.com>, "qiuxishi@huawei.com" <qiuxishi@huawei.com>, Igor Mammedov <imammedo@redhat.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Leo Li <leoyang.li@nxp.com>, Xiaobo Xie <xiaobo.xie@nxp.com>
 
-On Fri, Nov 10, 2017 at 3:04 PM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
-> On 11/10/2017 02:06 PM, Andy Lutomirski wrote:
->> On Thu, Nov 9, 2017 at 10:31 PM, Dave Hansen
->> <dave.hansen@linux.intel.com> wrote:
->>> On 11/09/2017 06:25 PM, Andy Lutomirski wrote:
->>>> Here are two proposals to address this without breaking vsyscalls.
->>>>
->>>> 1. Set NX on low mappings that are _PAGE_USER.  Don't set NX on high
->>>> mappings but, optionally, warn if you see _PAGE_USER on any address
->>>> that isn't the vsyscall page.
->>>>
->>>> 2. Ignore _PAGE_USER entirely and just mark the EFI mm as special so
->>>> KAISER doesn't muck with it.
->>>
->>> These are totally doable.  But, what's the big deal with breaking native
->>> vsyscall?  We can still do the emulation so nothing breaks: it is just slow.
->>
->> I have nothing against disabling native.  I object to breaking the
->> weird binary tracing behavior in the emulation mode, especially if
->> it's tangled up with KAISER.  I got all kinds of flak in an earlier
->> version of the vsyscall emulation patches when I broke that use case.
->> KAISER may get very widely backported -- let's not make changes that
->> are already known to break things.
->
-> Is the thing that broke a "user mode program that actually looks at the
-> vsyscall page"?  Like Linus is referring to here:
->
+Hello Michal,
 
-Yes.  But I disagree with Linus.  I think it would be perfectly
-reasonable to enable KAISER and to use a tool like pin on a legacy
-binary from some enterprise distribution.  I bet there are lots of
-enterprise distributions that are still supported that use vsyscalls.
+<snip>
+
+> Date: Fri, 13 Oct 2017 14:00:12 +0200
+>=20
+> From: Michal Hocko <mhocko@suse.com>
+>=20
+> Michael has noticed that the memory offline tries to migrate kernel code
+> pages when doing  echo 0 > /sys/devices/system/memory/memory0/online
+>=20
+> The current implementation will fail the operation after several failed p=
+age
+> migration attempts but we shouldn't even attempt to migrate that memory
+> and fail right away because this memory is clearly not migrateable. This =
+will
+> become a real problem when we drop the retry loop counter resp. timeout.
+>=20
+> The real problem is in has_unmovable_pages in fact. We should fail if the=
+re
+> are any non migrateable pages in the area. In orther to guarantee that
+> remove the migrate type checks because MIGRATE_MOVABLE is not
+> guaranteed to contain only migrateable pages. It is merely a heuristic.
+> Similarly MIGRATE_CMA does guarantee that the page allocator doesn't
+> allocate any non-migrateable pages from the block but CMA allocations
+> themselves are unlikely to migrateable. Therefore remove both checks.
+>=20
+> Reported-by: Michael Ellerman <mpe@ellerman.id.au>
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> Tested-by: Michael Ellerman <mpe@ellerman.id.au>
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> ---
+>  mm/page_alloc.c | 3 ---
+>  1 file changed, 3 deletions(-)
+>=20
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c index
+> 3badcedf96a7..ad0294ab3e4f 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7355,9 +7355,6 @@ bool has_unmovable_pages(struct zone *zone,
+> struct page *page, int count,
+>  	 */
+>  	if (zone_idx(zone) =3D=3D ZONE_MOVABLE)
+>  		return false;
+> -	mt =3D get_pageblock_migratetype(page);
+> -	if (mt =3D=3D MIGRATE_MOVABLE || is_migrate_cma(mt))
+> -		return false;
+
+This drop cause DWC3 USB controller fail on initialization with Layerscaper=
+ processors
+(such as LS1043A) as below:
+
+[    2.701437] xhci-hcd xhci-hcd.0.auto: new USB bus registered, assigned b=
+us number 1
+[    2.710949] cma: cma_alloc: alloc failed, req-size: 1 pages, ret: -16
+[    2.717411] xhci-hcd xhci-hcd.0.auto: can't setup: -12
+[    2.727940] xhci-hcd xhci-hcd.0.auto: USB bus 1 deregistered
+[    2.733607] xhci-hcd: probe of xhci-hcd.0.auto failed with error -12
+[    2.739978] xhci-hcd xhci-hcd.1.auto: xHCI Host Controller
+
+And I notice that someone also reported to you that DWC2 got affected recen=
+tly,
+so do you have the solution now?
+
+Best regards
+
+Ran
+>=20
+>  	pfn =3D page_to_pfn(page);
+>  	for (found =3D 0, iter =3D 0; iter < pageblock_nr_pages; iter++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
