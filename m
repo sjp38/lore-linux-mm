@@ -1,111 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EFBD6B025E
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 14:38:51 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id a132so13528005oih.22
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:38:51 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t6si8301517ott.234.2017.11.14.11.38.50
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 070FB6B0033
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 15:04:46 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id r88so5975428pfi.23
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 12:04:45 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id g72si18407197pfg.297.2017.11.14.12.04.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 11:38:50 -0800 (PST)
-Message-ID: <1510688325.1080.1.camel@redhat.com>
-Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
- KAISER
-From: Rik van Riel <riel@redhat.com>
-Date: Tue, 14 Nov 2017 14:38:45 -0500
-In-Reply-To: <20171110193105.02A90543@viggo.jf.intel.com>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com>
-	 <20171110193105.02A90543@viggo.jf.intel.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-5Ku5CO9A2Ypi3TwbeLpD"
-Mime-Version: 1.0
+        Tue, 14 Nov 2017 12:04:44 -0800 (PST)
+Subject: [PATCH v2 0/4] introduce get_user_pages_longterm()
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 14 Nov 2017 11:56:29 -0800
+Message-ID: <151068938905.7446.12333914805308312313.stgit@dwillia2-desk3.amr.corp.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, bp@suse.de, tglx@linutronix.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: akpm@linux-foundation.org
+Cc: Inki Dae <inki.dae@samsung.com>, Jan Kara <jack@suse.cz>, Joonyoung Shim <jy0922.shim@samsung.com>, linux-nvdimm@lists.01.org, linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org, Seung-Woo Kim <sw0312.kim@samsung.com>, Jeff Moyer <jmoyer@redhat.com>, stable@vger.kernel.org, Hal Rosenstock <hal.rosenstock@gmail.com>, Jason Gunthorpe <jgunthorpe@obsidianresearch.com>, linux-mm@kvack.org, Doug Ledford <dledford@redhat.com>, Mel Gorman <mgorman@suse.de>, Ross Zwisler <ross.zwisler@linux.intel.com>, Kyungmin Park <kyungmin.park@samsung.com>, Sean Hefty <sean.hefty@intel.com>, Mauro Carvalho Chehab <mchehab@kernel.org>, Christoph Hellwig <hch@lst.de>, Vlastimil Babka <vbabka@suse.cz>, linux-media@vger.kernel.org
+
+Changes since v1 [1]:
+* Cleanup local 'vmas' argument (Christoph)
+* Replace inline IS_ENABLED(CONFIG_FS_DAX) in C code with ifdef
+  versions of get_user_pages_longterm() for the FS_DAX on/off cases
+  (Christoph)
+* Add a new patch for the get_vaddr_frames() case, this impacts users
+  like V4L2, and the Exynos driver.
+* Collect Christoph's reviewed-by for the rdma change
+
+[1]: https://lwn.net/Articles/738323/
+
+---
+
+Andrew,
+
+Here is a new get_user_pages api for cases where a driver intends to
+keep an elevated page count indefinitely. This is distinct from usages
+like iov_iter_get_pages where the elevated page counts are transient.
+The iov_iter_get_pages cases immediately turn around and submit the
+pages to a device driver which will put_page when the i/o operation
+completes (under kernel control).
+
+In the longterm case userspace is responsible for dropping the page
+reference at some undefined point in the future. This is untenable for
+filesystem-dax case where the filesystem is in control of the lifetime
+of the block / page and needs reasonable limits on how long it can wait
+for pages in a mapping to become idle.
+
+Fixing filesystems to actually wait for dax pages to be idle before
+blocks from a truncate/hole-punch operation are repurposed is saved for
+a later patch series.
+
+Also, allowing longterm registration of dax mappings is a future patch
+series that introduces a "map with lease" semantic where the kernel can
+revoke a lease and force userspace to drop its page references.
+
+I have also tagged these for -stable to purposely break cases that might
+assume that longterm memory registrations for filesystem-dax mappings
+were supported by the kernel. The behavior regression this policy change
+implies is one of the reasons we maintain the "dax enabled. Warning:
+EXPERIMENTAL, use at your own risk" notification when mounting a
+filesystem in dax mode.
+
+It is worth noting the device-dax interface does not suffer the same
+constraints since it does not support file space management operations
+like hole-punch.
+
+---
+
+Dan Williams (4):
+      mm: introduce get_user_pages_longterm
+      mm: fail get_vaddr_frames() for filesystem-dax mappings
+      [media] v4l2: disable filesystem-dax mapping support
+      IB/core: disable memory registration of fileystem-dax vmas
 
 
---=-5Ku5CO9A2Ypi3TwbeLpD
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-On Fri, 2017-11-10 at 11:31 -0800, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->=20
-> Global pages stay in the TLB across context switches.=C2=A0=C2=A0Since al=
-l
-> contexts
-> share the same kernel mapping, these mappings are marked as global
-> pages
-> so kernel entries in the TLB are not flushed out on a context switch.
->=20
-> But, even having these entries in the TLB opens up something that an
-> attacker can use [1].
->=20
-> That means that even when KAISER switches page tables on return to
-> user
-> space the global pages would stay in the TLB cache.
->=20
-> Disable global pages so that kernel TLB entries can be flushed before
-> returning to user space. This way, all accesses to kernel addresses
-> from
-> userspace result in a TLB miss independent of the existence of a
-> kernel
-> mapping.
->=20
-> Replace _PAGE_GLOBAL by __PAGE_KERNEL_GLOBAL and keep _PAGE_GLOBAL
-> available so that it can still be used for a few selected kernel
-> mappings
-> which must be visible to userspace, when KAISER is enabled, like the
-> entry/exit code and data.
-
-Nice changelog.
-
-Why am I pointing this out?
-
-> +++ b/arch/x86/include/asm/pgtable_types.h	2017-11-10
-> 11:22:06.626244956 -0800
-> @@ -179,8 +179,20 @@ enum page_cache_mode {
-> =C2=A0#define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT |
-> _PAGE_USER |	\
-> =C2=A0					=C2=A0_PAGE_ACCESSED)
-> =C2=A0
-> +/*
-> + * Disable global pages for anything using the default
-> + * __PAGE_KERNEL* macros.=C2=A0=C2=A0PGE will still be enabled
-> + * and _PAGE_GLOBAL may still be used carefully.
-> + */
-> +#ifdef CONFIG_KAISER
-> +#define __PAGE_KERNEL_GLOBAL	0
-> +#else
-> +#define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
-> +#endif
-> +				=09
-
-The comment above could use a little more info
-on why things are done that way, though :)
-
---=20
-All rights reversed
---=-5Ku5CO9A2Ypi3TwbeLpD
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v2
-
-iQEcBAABCAAGBQJaC0ZFAAoJEM553pKExN6D2d8H/1Njx1gfgFj9TB8cjwfMGYMA
-ZRSexbV1V+UqQT5bJ3MS/Qkceusj8iCI6uvswYOMvdHkUw4j5SWVoYrisSb2L6eI
-DfdTjxD7oU2nGj7rGyCE04u0VpLoZMpPULDNiLahGye2yPsrRo1dduzwL0Qqtxmn
-5OOy7v3FCIwewoV6ApKulTEmueZISdpm62oOpylJ753+vXCn9rozwPOXWsuSR/tC
-VaU+5bD6+8KUi8LCEt+ZlJlUf9hkjt3mdp2dYKCVq1BZFDEGmUO50SvvvZ5lYws/
-faIF5bgGi+LOdVsy+9ZBBv+HEGHt6tXmrsoEGvtm4GOlSbjoU/0WYaXifx9pz04=
-=/HyD
------END PGP SIGNATURE-----
-
---=-5Ku5CO9A2Ypi3TwbeLpD--
+ drivers/infiniband/core/umem.c            |    2 -
+ drivers/media/v4l2-core/videobuf-dma-sg.c |    5 +-
+ include/linux/fs.h                        |   14 ++++++
+ include/linux/mm.h                        |   13 ++++++
+ mm/frame_vector.c                         |    4 ++
+ mm/gup.c                                  |   64 +++++++++++++++++++++++++++++
+ 6 files changed, 99 insertions(+), 3 deletions(-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
