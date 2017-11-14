@@ -1,63 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 291196B0033
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 14:10:34 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 4so19657161pge.8
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:10:34 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A77BF6B0253
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 14:21:16 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 5so4412690wmk.8
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:21:16 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e10sor4721281pgo.244.2017.11.14.11.10.32
+        by mx.google.com with SMTPS id s2sor12065613edk.31.2017.11.14.11.21.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 14 Nov 2017 11:10:32 -0800 (PST)
-Date: Tue, 14 Nov 2017 11:10:23 -0800 (PST)
-From: Hugh Dickins <hughd@google.com>
-Subject: Re: [PATCH 18/30] x86, kaiser: map virtually-addressed performance
- monitoring buffers
-In-Reply-To: <30655167-963f-09e3-f88f-600bb95407e8@linux.intel.com>
-Message-ID: <alpine.LSU.2.11.1711141057510.2433@eggly.anvils>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193139.B039E97B@viggo.jf.intel.com> <20171114182009.jbhobwxlkfjb2t6i@hirez.programming.kicks-ass.net> <30655167-963f-09e3-f88f-600bb95407e8@linux.intel.com>
+        Tue, 14 Nov 2017 11:21:15 -0800 (PST)
+Date: Tue, 14 Nov 2017 22:21:13 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171114192113.t7pq5p2n5emmiw2n@node.shutemov.name>
+References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711141630210.2044@nanos>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1711141630210.2044@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, hughd@google.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, x86@kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, 14 Nov 2017, Dave Hansen wrote:
-> On 11/14/2017 10:20 AM, Peter Zijlstra wrote:
-> > On Fri, Nov 10, 2017 at 11:31:39AM -0800, Dave Hansen wrote:
-> >>  static int alloc_ds_buffer(int cpu)
-> >>  {
-> >> +	struct debug_store *ds = per_cpu_ptr(&cpu_debug_store, cpu);
-> >>  
-> >> +	memset(ds, 0, sizeof(*ds));
-> > Still wondering about that memset...
-
-Sorry, my attention is far away at the moment.
-
+On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
+> On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
+> > --- a/arch/x86/mm/hugetlbpage.c
+> > +++ b/arch/x86/mm/hugetlbpage.c
+> > @@ -166,11 +166,20 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
+> >  
+> >  	if (addr) {
+> >  		addr = ALIGN(addr, huge_page_size(h));
+> > +		if (TASK_SIZE - len >= addr)
+> > +			goto get_unmapped_area;
 > 
-> My guess is that it was done to mirror the zeroing done by the original
-> kzalloc().
+> That's wrong. You got it right in arch_get_unmapped_area_topdown() ...
 
-You guess right.
+Ouch.
 
-> But, I think you're right that it's zero'd already by virtue
-> of being static:
+Please ignore selftest patch. I'll rework it to cover hugetlb.
+
+> > +
+> > +		/* See a comment in arch_get_unmapped_area_topdown */
 > 
-> static
-> DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store,
-> cpu_debug_store);
+> This is lame, really.
 > 
-> I'll queue a cleanup, or update it if I re-post the set.
+> > +		if ((addr > DEFAULT_MAP_WINDOW) !=
+> > +				(addr + len > DEFAULT_MAP_WINDOW))
+> > +			goto get_unmapped_area;
+> 
+> Instead of duplicating that horrible formatted condition and adding this
+> lousy comment why can't you just put all of it (including the TASK_SIZE
+> check) into a proper validation function and put the comment there?
+> 
+> The fixed up variant of your patch below does that.
+> 
+> Aside of that please spend a bit more time on describing things precisely
+> at the technical and factual level next time. I fixed that up (once more)
+> both in the comment and the changelog.
+> 
+> Please double check.
 
-I was about to agree, but now I'm not so sure.  I don't know much
-about these PMC things, but at a glance it looks like what is reserved
-by x86_reserve_hardware() may later be released by x86_release_hardware(),
-and then later reserved again by x86_reserve_hardware().  And although
-the static per-cpu area would be zeroed the first time, the second time
-it will contain data left over from before, so really needs the memset?
+Works fine.
 
-Hugh
+> +bool mmap_address_hint_valid(unsigned long addr, unsigned long len)
+> +{
+> +	if (TASK_SIZE - len < addr)
+> +		return false;
+> +#if CONFIG_PGTABLE_LEVELS >= 5
+> +	return (addr > DEFAULT_MAP_WINDOW) == (addr + len > DEFAULT_MAP_WINDOW);
+
+Is it micro optimization? I don't feel it necessary. It's not that hot
+codepath to care about few cycles. (And one more place to care about for
+boot-time switching.)
+
+If you think it's needed, maybe IS_ENABLED() instead?
+
+> +#else
+> +	return true;
+> +#endif
+> +}
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
