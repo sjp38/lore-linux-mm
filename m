@@ -1,78 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4AD846B0033
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 04:39:14 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id o88so10494505wrb.18
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 01:39:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 7si11113677edo.226.2017.11.14.01.39.12
+	by kanga.kvack.org (Postfix) with ESMTP id 26B0E6B0033
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 04:44:49 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id j15so10798545wre.15
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 01:44:49 -0800 (PST)
+Received: from mout02.posteo.de (mout02.posteo.de. [185.67.36.66])
+        by mx.google.com with ESMTPS id p16si8882911wre.553.2017.11.14.01.44.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Nov 2017 01:39:12 -0800 (PST)
-Date: Tue, 14 Nov 2017 10:39:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
-Message-ID: <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
-References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
- <20171030124358.GF23278@quack2.suse.cz>
- <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
- <20171031101238.GD8989@quack2.suse.cz>
- <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
- <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Nov 2017 01:44:47 -0800 (PST)
+Received: from submission (posteo.de [89.146.220.130])
+	by mout02.posteo.de (Postfix) with ESMTPS id 78DA6209F8
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 10:44:47 +0100 (CET)
+From: Martin Kepplinger <martink@posteo.de>
+Subject: [PATCH] mm: replace FSF address with web source in license notices
+Date: Tue, 14 Nov 2017 10:44:38 +0100
+Message-Id: <20171114094438.28224-1-martink@posteo.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: Jan Kara <jack@suse.cz>, amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: catalin.marinas@arm.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Martin Kepplinger <martink@posteo.de>
 
-On Tue 14-11-17 03:10:22, Yang Shi wrote:
-> 
-> 
-> On 11/9/17 5:54 AM, Michal Hocko wrote:
-> > [Sorry for the late reply]
-> > 
-> > On Tue 31-10-17 11:12:38, Jan Kara wrote:
-> > > On Tue 31-10-17 00:39:58, Yang Shi wrote:
-> > [...]
-> > > > I do agree it is not fair and not neat to account to producer rather than
-> > > > misbehaving consumer, but current memcg design looks not support such use
-> > > > case. And, the other question is do we know who is the listener if it
-> > > > doesn't read the events?
-> > > 
-> > > So you never know who will read from the notification file descriptor but
-> > > you can simply account that to the process that created the notification
-> > > group and that is IMO the right process to account to.
-> > 
-> > Yes, if the creator is de-facto owner which defines the lifetime of
-> > those objects then this should be a target of the charge.
-> > 
-> > > I agree that current SLAB memcg accounting does not allow to account to a
-> > > different memcg than the one of the running process. However I *think* it
-> > > should be possible to add such interface. Michal?
-> > 
-> > We do have memcg_kmem_charge_memcg but that would require some plumbing
-> > to hook it into the specific allocation path. I suspect it uses kmalloc,
-> > right?
-> 
-> Yes.
-> 
-> I took a look at the implementation and the callsites of
-> memcg_kmem_charge_memcg(). It looks it is called by:
-> 
-> * charge kmem to memcg, but it is charged to the allocator's memcg
-> * allocate new slab page, charge to memcg_params.memcg
-> 
-> I think this is the plumbing you mentioned, right?
+A few years ago the FSF moved and "59 Temple Place" is wrong. Having this
+still in our source files feels old and unmaintained.
 
-Maybe I have misunderstood, but you are using slab allocator. So you
-would need to force it to use a different charging context than current.
-I haven't checked deeply but this doesn't look trivial to me.
+Let's take the license statement serious and not confuse users.
+
+As https://www.gnu.org/licenses/gpl-howto.html suggests, we replace the
+postal address with "<http://www.gnu.org/licenses/>" in the mm directory.
+
+Signed-off-by: Martin Kepplinger <martink@posteo.de>
+---
+ mm/kmemleak-test.c | 3 +--
+ mm/kmemleak.c      | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/mm/kmemleak-test.c b/mm/kmemleak-test.c
+index dd3c23a801b1..9a13ad2c0cca 100644
+--- a/mm/kmemleak-test.c
++++ b/mm/kmemleak-test.c
+@@ -14,8 +14,7 @@
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  */
+ 
+ #define pr_fmt(fmt) "kmemleak: " fmt
+diff --git a/mm/kmemleak.c b/mm/kmemleak.c
+index e4738d5e9b8c..e6d6d3c9f543 100644
+--- a/mm/kmemleak.c
++++ b/mm/kmemleak.c
+@@ -14,8 +14,7 @@
+  * GNU General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+- * along with this program; if not, write to the Free Software
+- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
++ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+  *
+  *
+  * For more information on the algorithm and kmemleak usage, please see
 -- 
-Michal Hocko
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
