@@ -1,56 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 285396B0033
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 15:55:07 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id t139so4504583wmt.7
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 12:55:07 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t5si6343595wma.139.2017.11.14.12.55.05
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 735C26B0253
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 16:06:11 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id f8so16906753qta.1
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 13:06:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h2sor13681822qkf.54.2017.11.14.13.06.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Nov 2017 12:55:05 -0800 (PST)
-Date: Tue, 14 Nov 2017 21:54:52 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
- DEFAULT_MAP_WINDOW border
-In-Reply-To: <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name>
-Message-ID: <alpine.DEB.2.20.1711142131010.2221@nanos>
-References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com> <alpine.DEB.2.20.1711141630210.2044@nanos> <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name>
+        (Google Transport Security);
+        Tue, 14 Nov 2017 13:06:10 -0800 (PST)
+Date: Tue, 14 Nov 2017 13:06:07 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH] memcg: hugetlbfs basic usage accounting
+Message-ID: <20171114210607.GT983427@devbig577.frc2.facebook.com>
+References: <20171114172429.8916-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171114172429.8916-1-guro@fb.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
-
-> On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
-> > @@ -198,11 +199,14 @@ arch_get_unmapped_area_topdown(struct fi
-> >  	/* requesting a specific address */
-> >  	if (addr) {
-> >  		addr = PAGE_ALIGN(addr);
-> > +		if (!mmap_address_hint_valid(addr, len))
-> > +			goto get_unmapped_area;
-> > +
+On Tue, Nov 14, 2017 at 05:24:29PM +0000, Roman Gushchin wrote:
+> This patch implements basic accounting of memory consumption
+> by hugetlbfs pages for cgroup v2 memory controller.
 > 
-> Here and in hugetlb_get_unmapped_area(), we should align the addr after
-> the check, not before. Otherwise the alignment itself can bring us over
-> the borderline as we align up.
+> Cgroup v2 memory controller lacks any visibility into the
+> hugetlbfs memory consumption. Cgroup v1 implemented a separate
+> hugetlbfs controller, which provided such stats, and also
+> provided some control abilities. Although porting of the
+> hugetlbfs controller to cgroup v2 is arguable a good idea and
+> is outside of scope of this patch, it's very useful to have
+> basic stats provided by memory.stat.
+> 
+> As hugetlbfs memory can easily represent a big portion of total
+> memory, it's important to understand who (which memcg/container)
+> is using it.
+> 
+> The number is represented in memory.stat as "hugetlb" in bytes and
+> is printed unconditionally. Accounting code doesn't depend on
+> cgroup v1 hugetlb controller.
+> 
+> Example:
+>   $ cat /sys/fs/cgroup/user.slice/user-0.slice/session-1.scope/memory.stat
+>   anon 1634304
+>   file 1163264
+>   kernel_stack 16384
+>   slab 737280
+>   sock 0
+>   shmem 0
+>   file_mapped 32768
+>   file_dirty 4096
+>   file_writeback 0
+>   inactive_anon 0
+>   active_anon 1634304
+>   inactive_file 65536
+>   active_file 1097728
+>   unevictable 0
+>   slab_reclaimable 282624
+>   slab_unreclaimable 454656
+>   hugetlb 1073741824
+>   pgfault 4580
+>   pgmajfault 13
+>   ...
+> 
+> Signed-off-by: Roman Gushchin <guro@fb.com>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: kernel-team@fb.com
+> Cc: cgroups@vger.kernel.org
+> Cc: linux-mm@kvack.org
+> Cc: linux-kernel@vger.kernel.org
 
-Hmm, then I wonder whether the next check against vm_start_gap() which
-checks against the aligned address is correct:
+Acked-by: Tejun Heo <tj@kernel.org>
 
-                addr = PAGE_ALIGN(addr);
-                vma = find_vma(mm, addr);
+Thanks.
 
-                if (end - len >= addr &&
-                    (!vma || addr + len <= vm_start_gap(vma)))
-                        return addr;
-
-Thanks,
-
-	tglx
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
