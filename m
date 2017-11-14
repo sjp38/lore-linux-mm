@@ -1,123 +1,202 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 144336B0253
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 16:21:18 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id z82so4294709oia.4
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 13:21:18 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m60si8197168otc.442.2017.11.14.13.21.16
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AEC6B0069
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 16:57:02 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id w10so11145749qtb.4
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 13:57:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f126sor1216164qkd.101.2017.11.14.13.57.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 13:21:16 -0800 (PST)
-Date: Tue, 14 Nov 2017 23:21:03 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v17 6/6] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Message-ID: <20171114230805-mutt-send-email-mst@kernel.org>
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
- <1509696786-1597-7-git-send-email-wei.w.wang@intel.com>
- <5A097548.8000608@intel.com>
- <20171113192309-mutt-send-email-mst@kernel.org>
- <5A0ADB3B.4070407@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5A0ADB3B.4070407@intel.com>
+        (Google Transport Security);
+        Tue, 14 Nov 2017 13:57:00 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH 02/10] writeback: convert WB_WRITTEN/WB_DIRITED counters to bytes
+Date: Tue, 14 Nov 2017 16:56:48 -0500
+Message-Id: <1510696616-8489-2-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
+References: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, Nitesh Narayan Lal <nilal@redhat.com>, Rik van Riel <riel@redhat.com>
+To: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org
+Cc: Josef Bacik <jbacik@fb.com>
 
-On Tue, Nov 14, 2017 at 08:02:03PM +0800, Wei Wang wrote:
-> On 11/14/2017 01:32 AM, Michael S. Tsirkin wrote:
-> > > - guest2host_cmd: written by the guest to ACK to the host about the
-> > > commands that have been received. The host will clear the corresponding
-> > > bits on the host2guest_cmd register. The guest also uses this register
-> > > to send commands to the host (e.g. when finish free page reporting).
-> > I am not sure what is the role of guest2host_cmd. Reporting of
-> > the correct cmd id seems sufficient indication that guest
-> > received the start command. Not getting any more seems sufficient
-> > to detect stop.
-> > 
-> 
-> I think the issue is when the host is waiting for the guest to report pages,
-> it does not know whether the guest is going to report more or the report is
-> done already. That's why we need a way to let the guest tell the host "the
-> report is done, don't wait for more", then the host continues to the next
-> step - sending the non-free pages to the destination. The following method
-> is a conclusion of other comments, with some new thought. Please have a
-> check if it is good.
+From: Josef Bacik <jbacik@fb.com>
 
-config won't work well for this IMHO.
-Writes to config register are hard to synchronize with the VQ.
-For example, guest sends free pages, host says stop, meanwhile
-guest sends stop for 1st set of pages.
+These are counters that constantly go up in order to do bandwidth calculations.
+It isn't important what the units are in, as long as they are consistent between
+the two of them, so convert them to count bytes written/dirtied, and allow the
+metadata accounting stuff to change the counters as well.
 
-How about adding a buffer with "stop" in the VQ instead?
-Wastes a VQ entry which you will need to reserve for this
-but is it a big deal?
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+Acked-by: Tejun Heo <tj@kernel.org>
+---
+ fs/fuse/file.c                   |  4 ++--
+ include/linux/backing-dev-defs.h |  4 ++--
+ include/linux/backing-dev.h      |  2 +-
+ mm/backing-dev.c                 |  9 +++++----
+ mm/page-writeback.c              | 20 ++++++++++----------
+ 5 files changed, 20 insertions(+), 19 deletions(-)
 
-
-> Two new configuration registers in total:
-> - cmd_reg: the command register, combined from the previous host2guest and
-> guest2host. I think we can use the same register for host requesting and
-> guest ACKing, since the guest writing will trap to QEMU, that is, all the
-> writes to the register are performed in QEMU, and we can keep things work in
-> a correct way there.
-> - cmd_id_reg: the sequence id of the free page report command.
-> 
-> -- free page report:
->     - host requests the guest to start reporting by "cmd_reg |
-> REPORT_START";
->     - guest ACKs to the host about receiving the start reporting request by
-> "cmd_reg | REPORT_START", host will clear the flag bit once receiving the
-> ACK.
->     - host requests the guest to stop reporting by "cmd_reg | REPORT_STOP";
->     - guest ACKs to the host about receiving the stop reporting request by
-> "cmd_reg | REPORT_STOP", host will clear the flag once receiving the ACK.
->     - guest tells the host about the start of the reporting by writing "cmd
-> id" into an outbuf, which is added to the free page vq.
->     - guest tells the host about the end of the reporting by writing "0"
-> into an outbuf, which is added to the free page vq. (we reserve "id=0" as
-> the stop sign)
-> 
-> -- ballooning:
->     - host requests the guest to start ballooning by "cmd_reg | BALLOONING";
->     - guest ACKs to the host about receiving the request by "cmd_reg |
-> BALLOONING", host will clear the flag once receiving the ACK.
-> 
-> 
-> Some more explanations:
-> -- Why not let the host request the guest to start the free page reporting
-> simply by writing a new cmd id to the cmd_id_reg?
-> The configuration interrupt is shared among all the features - ballooning,
-> free page reporting, and future feature extensions which need host-to-guest
-> requests. Some features may need to add other feature specific configuration
-> registers, like free page reporting need the cmd_id_reg, which is not used
-> by ballooning. The rule here is that the feature specific registers are read
-> only when that feature is requested via the cmd_reg. For example, the
-> cmd_id_reg is read only when "cmd_reg | REPORT_START" is true. Otherwise,
-> when the driver receives a configuration interrupt, it has to read both
-> cmd_reg and cmd_id registers to know what are requested by the host - think
-> about the case that ballooning requests are sent frequently while free page
-> reporting isn't requested, the guest has to read the cmd_id register every
-> time a ballooning request is sent by the host, which is not necessary. If
-> future new features follow this style, there will be more unnecessary
-> VMexits to read the unused feature specific registers.
-> So I think it is good to have a central control of the feature request via
-> only one cmd register - reading that one is enough to know what is requested
-> by the host.
-> 
-
-Right now you are increasing the cost of balloon request 3x though.
-
-
-How about we establish a baseline with a simple interface, and
-then add the command register when it's actually benefitial.
-
-
-
-> Best,
-> Wei
+diff --git a/fs/fuse/file.c b/fs/fuse/file.c
+index cb7dff5c45d7..67e7c4fac28d 100644
+--- a/fs/fuse/file.c
++++ b/fs/fuse/file.c
+@@ -1471,7 +1471,7 @@ static void fuse_writepage_finish(struct fuse_conn *fc, struct fuse_req *req)
+ 	for (i = 0; i < req->num_pages; i++) {
+ 		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+ 		dec_node_page_state(req->pages[i], NR_WRITEBACK_TEMP);
+-		wb_writeout_inc(&bdi->wb);
++		wb_writeout_add(&bdi->wb, PAGE_SIZE);
+ 	}
+ 	wake_up(&fi->page_waitq);
+ }
+@@ -1776,7 +1776,7 @@ static bool fuse_writepage_in_flight(struct fuse_req *new_req,
+ 
+ 		dec_wb_stat(&bdi->wb, WB_WRITEBACK);
+ 		dec_node_page_state(page, NR_WRITEBACK_TEMP);
+-		wb_writeout_inc(&bdi->wb);
++		wb_writeout_add(&bdi->wb, PAGE_SIZE);
+ 		fuse_writepage_free(fc, new_req);
+ 		fuse_request_free(new_req);
+ 		goto out;
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index 866c433e7d32..ded45ac2cec7 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -36,8 +36,8 @@ typedef int (congested_fn)(void *, int);
+ enum wb_stat_item {
+ 	WB_RECLAIMABLE,
+ 	WB_WRITEBACK,
+-	WB_DIRTIED,
+-	WB_WRITTEN,
++	WB_DIRTIED_BYTES,
++	WB_WRITTEN_BYTES,
+ 	NR_WB_STAT_ITEMS
+ };
+ 
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index 14e266d12620..39b8dc486ea7 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -89,7 +89,7 @@ static inline s64 wb_stat_sum(struct bdi_writeback *wb, enum wb_stat_item item)
+ 	return percpu_counter_sum_positive(&wb->stat[item]);
+ }
+ 
+-extern void wb_writeout_inc(struct bdi_writeback *wb);
++extern void wb_writeout_add(struct bdi_writeback *wb, long bytes);
+ 
+ /*
+  * maximal error of a stat counter.
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index e19606bb41a0..62a332a91b38 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -68,14 +68,15 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 	wb_thresh = wb_calc_thresh(wb, dirty_thresh);
+ 
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
++#define BtoK(x) ((x) >> 10)
+ 	seq_printf(m,
+ 		   "BdiWriteback:       %10lu kB\n"
+ 		   "BdiReclaimable:     %10lu kB\n"
+ 		   "BdiDirtyThresh:     %10lu kB\n"
+ 		   "DirtyThresh:        %10lu kB\n"
+ 		   "BackgroundThresh:   %10lu kB\n"
+-		   "BdiDirtied:         %10lu kB\n"
+-		   "BdiWritten:         %10lu kB\n"
++		   "BdiDirtiedBytes:    %10lu kB\n"
++		   "BdiWrittenBytes:    %10lu kB\n"
+ 		   "BdiWriteBandwidth:  %10lu kBps\n"
+ 		   "b_dirty:            %10lu\n"
+ 		   "b_io:               %10lu\n"
+@@ -88,8 +89,8 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 		   K(wb_thresh),
+ 		   K(dirty_thresh),
+ 		   K(background_thresh),
+-		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
+-		   (unsigned long) K(wb_stat(wb, WB_WRITTEN)),
++		   (unsigned long) BtoK(wb_stat(wb, WB_DIRTIED_BYTES)),
++		   (unsigned long) BtoK(wb_stat(wb, WB_WRITTEN_BYTES)),
+ 		   (unsigned long) K(wb->write_bandwidth),
+ 		   nr_dirty,
+ 		   nr_io,
+diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+index 1a47d4296750..e4563645749a 100644
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -597,11 +597,11 @@ static void wb_domain_writeout_inc(struct wb_domain *dom,
+  * Increment @wb's writeout completion count and the global writeout
+  * completion count. Called from test_clear_page_writeback().
+  */
+-static inline void __wb_writeout_inc(struct bdi_writeback *wb)
++static inline void __wb_writeout_add(struct bdi_writeback *wb, long bytes)
+ {
+ 	struct wb_domain *cgdom;
+ 
+-	inc_wb_stat(wb, WB_WRITTEN);
++	__add_wb_stat(wb, WB_WRITTEN_BYTES, bytes);
+ 	wb_domain_writeout_inc(&global_wb_domain, &wb->completions,
+ 			       wb->bdi->max_prop_frac);
+ 
+@@ -611,15 +611,15 @@ static inline void __wb_writeout_inc(struct bdi_writeback *wb)
+ 				       wb->bdi->max_prop_frac);
+ }
+ 
+-void wb_writeout_inc(struct bdi_writeback *wb)
++void wb_writeout_add(struct bdi_writeback *wb, long bytes)
+ {
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	__wb_writeout_inc(wb);
++	__wb_writeout_add(wb, bytes);
+ 	local_irq_restore(flags);
+ }
+-EXPORT_SYMBOL_GPL(wb_writeout_inc);
++EXPORT_SYMBOL_GPL(wb_writeout_add);
+ 
+ /*
+  * On idle system, we can be called long after we scheduled because we use
+@@ -1362,8 +1362,8 @@ static void __wb_update_bandwidth(struct dirty_throttle_control *gdtc,
+ 	if (elapsed < BANDWIDTH_INTERVAL)
+ 		return;
+ 
+-	dirtied = percpu_counter_read(&wb->stat[WB_DIRTIED]);
+-	written = percpu_counter_read(&wb->stat[WB_WRITTEN]);
++	dirtied = percpu_counter_read(&wb->stat[WB_DIRTIED_BYTES]) >> PAGE_SHIFT;
++	written = percpu_counter_read(&wb->stat[WB_WRITTEN_BYTES]) >> PAGE_SHIFT;
+ 
+ 	/*
+ 	 * Skip quiet periods when disk bandwidth is under-utilized.
+@@ -2435,7 +2435,7 @@ void account_page_dirtied(struct page *page, struct address_space *mapping)
+ 		__inc_zone_page_state(page, NR_ZONE_WRITE_PENDING);
+ 		__inc_node_page_state(page, NR_DIRTIED);
+ 		inc_wb_stat(wb, WB_RECLAIMABLE);
+-		inc_wb_stat(wb, WB_DIRTIED);
++		__add_wb_stat(wb, WB_DIRTIED_BYTES, PAGE_SIZE);
+ 		task_io_account_write(PAGE_SIZE);
+ 		current->nr_dirtied++;
+ 		this_cpu_inc(bdp_ratelimits);
+@@ -2522,7 +2522,7 @@ void account_page_redirty(struct page *page)
+ 		wb = unlocked_inode_to_wb_begin(inode, &locked);
+ 		current->nr_dirtied--;
+ 		dec_node_page_state(page, NR_DIRTIED);
+-		dec_wb_stat(wb, WB_DIRTIED);
++		__add_wb_stat(wb, WB_DIRTIED_BYTES, -(long)PAGE_SIZE);
+ 		unlocked_inode_to_wb_end(inode, locked);
+ 	}
+ }
+@@ -2744,7 +2744,7 @@ int test_clear_page_writeback(struct page *page)
+ 				struct bdi_writeback *wb = inode_to_wb(inode);
+ 
+ 				dec_wb_stat(wb, WB_WRITEBACK);
+-				__wb_writeout_inc(wb);
++				__wb_writeout_add(wb, PAGE_SIZE);
+ 			}
+ 		}
+ 
+-- 
+2.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
