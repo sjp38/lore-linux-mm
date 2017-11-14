@@ -1,102 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EDD6F6B0253
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 06:59:48 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id c123so10273203pga.17
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 03:59:48 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id a13si15816994pgt.72.2017.11.14.03.59.47
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 007766B0253
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 07:05:24 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id b189so3098809wmd.5
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 04:05:24 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l51sor3354853edc.8.2017.11.14.04.05.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 03:59:47 -0800 (PST)
-Message-ID: <5A0ADB3B.4070407@intel.com>
-Date: Tue, 14 Nov 2017 20:02:03 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 14 Nov 2017 04:05:23 -0800 (PST)
+Date: Tue, 14 Nov 2017 15:05:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171114120520.u3cyxw42wqvvnnf6@node.shutemov.name>
+References: <20171107130539.52676-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711131642370.1851@nanos>
+ <20171113164154.fp5fd2seozbmxcbs@node.shutemov.name>
+ <alpine.DEB.2.20.1711131754590.1851@nanos>
+ <alpine.DEB.2.20.1711132010470.2097@nanos>
+ <20171113200657.pk56mxofg2t2xbi6@node.shutemov.name>
+ <alpine.DEB.2.20.1711132205290.2097@nanos>
 MIME-Version: 1.0
-Subject: Re: [PATCH v17 6/6] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com> <1509696786-1597-7-git-send-email-wei.w.wang@intel.com> <5A097548.8000608@intel.com> <20171113192309-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171113192309-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1711132205290.2097@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, Nitesh Narayan Lal <nilal@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/14/2017 01:32 AM, Michael S. Tsirkin wrote:
->> - guest2host_cmd: written by the guest to ACK to the host about the
->> commands that have been received. The host will clear the corresponding
->> bits on the host2guest_cmd register. The guest also uses this register
->> to send commands to the host (e.g. when finish free page reporting).
-> I am not sure what is the role of guest2host_cmd. Reporting of
-> the correct cmd id seems sufficient indication that guest
-> received the start command. Not getting any more seems sufficient
-> to detect stop.
->
+On Mon, Nov 13, 2017 at 10:14:36PM +0100, Thomas Gleixner wrote:
+> On Mon, 13 Nov 2017, Kirill A. Shutemov wrote:
+> > On Mon, Nov 13, 2017 at 08:14:54PM +0100, Thomas Gleixner wrote:
+> > > > > It will succeed with 5-level paging.
+> > > > 
+> > > > And why is this allowed?
+> > > > 
+> > > > > It should be safe as with 4-level paging such request would fail and it's
+> > > > > reasonable to expect that userspace is not relying on the failure to
+> > > > > function properly.
+> > > > 
+> > > > Huch?
+> > > > 
+> > > > The first rule when looking at user space is that is broken or
+> > > > hostile. Reasonable and user space are mutually exclusive.
+> > > 
+> > > Aside of that in case of get_unmapped_area:
+> > > 
+> > > If va_unmapped_area() fails, then the address and the len which caused the
+> > > overlap check to trigger are handed in to arch_get_unmapped_area(), which
+> > > again can create an invalid mapping if I'm not missing something.
+> > > 
+> > > If mappings which overlap the boundary are invalid then we have to make
+> > > sure at all ends that they wont happen.
+> > 
+> > They are not invalid.
+> > 
+> > The patch tries to address following theoretical issue:
+> > 
+> > We have an application that tries, for some reason, to allocate memory
+> > with mmap(addr), without MAP_FIXED, where addr is near the borderline of
+> > 47-bit address space and addr+len is above the border.
+> > 
+> > On 4-level paging machine this request would succeed, but the address will
+> > always be within 47-bit VA -- cannot allocate by hint address, ignore it.
+> > 
+> > If the application cannot handle high address this might be an issue on
+> > 5-level paging machine as such call would succeed *and* allocate memory by
+> > the specified hint address. In this case part of the mapping would be
+> > above the border line and may lead to misbehaviour.
+> > 
+> > I hope this makes any sense :)
+> 
+> I can see where you are heading to. Now the case I was looking at is:
+> 
+> arch_get_unmapped_area_topdown()
+> 
+> 	addr0 = addr;
+> 	
+> 	....
+> 	if (addr) {
+> 		if (cross_border(addr, len))
+> 			goto get_unmapped_area;
+> 		...
+> 	}
+> get_unmapped_area:
+> 	...
+> 	if (addr > DEFAULT_MAP_WINDOW && !in_compat_syscall())
+> 
+> 	   ^^^ evaluates to false because addr < DEFAULT_MAP_WINDOW
+> 
+> 	addr - vm_unmapped_area(&info);
+> 
+> 	   ^^^ fails for whatever reason.
+> 
+> bottomup:
+> 	return arch_get_unmapped_area(.., addr0, len, ....);
+> 
+> 
+> AFAICT arch_get_unmapped_area() can allocate a mapping which crosses the
+> border, i.e. a mapping which you want to prevent for the !MAP_FIXED case.
 
-I think the issue is when the host is waiting for the guest to report 
-pages, it does not know whether the guest is going to report more or the 
-report is done already. That's why we need a way to let the guest tell 
-the host "the report is done, don't wait for more", then the host 
-continues to the next step - sending the non-free pages to the 
-destination. The following method is a conclusion of other comments, 
-with some new thought. Please have a check if it is good.
+No, it can't as long as addr0 is below DEFAULT_MAP_WINDOW:
 
-Two new configuration registers in total:
-- cmd_reg: the command register, combined from the previous host2guest 
-and guest2host. I think we can use the same register for host requesting 
-and guest ACKing, since the guest writing will trap to QEMU, that is, 
-all the writes to the register are performed in QEMU, and we can keep 
-things work in a correct way there.
-- cmd_id_reg: the sequence id of the free page report command.
+arch_get_unmapped_area()
+{
+	...
+	find_start_end(addr, flags, &begin, &end);
+	// end is DEFAULT_MAP_WINDOW here, since addr is below the border
+	...
+	if (addr) {
+		...
+		// end - len is less than addr, so the condition below is
+		// false.
+		if (end - len >= addr &&
+		    (!vma || addr + len <= vm_start_gap(vma)))
+			return addr;
+	}
+	...
+	info.high_limit = end;
+	...
+	return vm_unmapped_area(&info);
+}
 
--- free page report:
-     - host requests the guest to start reporting by "cmd_reg | 
-REPORT_START";
-     - guest ACKs to the host about receiving the start reporting 
-request by "cmd_reg | REPORT_START", host will clear the flag bit once 
-receiving the ACK.
-     - host requests the guest to stop reporting by "cmd_reg | REPORT_STOP";
-     - guest ACKs to the host about receiving the stop reporting request 
-by "cmd_reg | REPORT_STOP", host will clear the flag once receiving the ACK.
-     - guest tells the host about the start of the reporting by writing 
-"cmd id" into an outbuf, which is added to the free page vq.
-     - guest tells the host about the end of the reporting by writing 
-"0" into an outbuf, which is added to the free page vq. (we reserve 
-"id=0" as the stop sign)
-
--- ballooning:
-     - host requests the guest to start ballooning by "cmd_reg | 
-BALLOONING";
-     - guest ACKs to the host about receiving the request by "cmd_reg | 
-BALLOONING", host will clear the flag once receiving the ACK.
-
-
-Some more explanations:
--- Why not let the host request the guest to start the free page 
-reporting simply by writing a new cmd id to the cmd_id_reg?
-The configuration interrupt is shared among all the features - 
-ballooning, free page reporting, and future feature extensions which 
-need host-to-guest requests. Some features may need to add other feature 
-specific configuration registers, like free page reporting need the 
-cmd_id_reg, which is not used by ballooning. The rule here is that the 
-feature specific registers are read only when that feature is requested 
-via the cmd_reg. For example, the cmd_id_reg is read only when "cmd_reg 
-| REPORT_START" is true. Otherwise, when the driver receives a 
-configuration interrupt, it has to read both cmd_reg and cmd_id 
-registers to know what are requested by the host - think about the case 
-that ballooning requests are sent frequently while free page reporting 
-isn't requested, the guest has to read the cmd_id register every time a 
-ballooning request is sent by the host, which is not necessary. If 
-future new features follow this style, there will be more unnecessary 
-VMexits to read the unused feature specific registers.
-So I think it is good to have a central control of the feature request 
-via only one cmd register - reading that one is enough to know what is 
-requested by the host.
-
-
-Best,
-Wei
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
