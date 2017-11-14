@@ -1,125 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F6D16B0033
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 08:43:33 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v2so17915033pfa.10
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 05:43:33 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c15si17732177pfj.154.2017.11.14.05.43.31
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 978806B0253
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 08:44:03 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id o7so20244834pgc.23
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 05:44:03 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id m3si15464432pgs.471.2017.11.14.05.44.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 05:43:31 -0800 (PST)
+        Tue, 14 Nov 2017 05:44:02 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across DEFAULT_MAP_WINDOW border
-Date: Tue, 14 Nov 2017 16:43:21 +0300
-Message-Id: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 2/2] x86/selftests: Add test for mapping placement for 5-level paging
+Date: Tue, 14 Nov 2017 16:43:22 +0300
+Message-Id: <20171114134322.40321-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
+References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-In case of 5-level paging, we don't put any mapping above 47-bit, unless
-userspace explicitly asked for it.
+With 5-level paging, we have 56-bit virtual address space available for
+userspace. But we don't want to expose userspace to addresses above
+47-bits, unless it asked specifically for it.
 
-Userspace can ask for allocation from full address space by specifying
-hint address above 47-bit.
+We use mmap(2) hint address as a way for kernel to know if it's okay to
+allocate virtual memory above 47-bit.
 
-Nicholas noticed that current implementation violates this interface:
-we can get vma partly in high addresses if we ask for a mapping at very
-end of 47-bit address space.
-
-Let's make sure that, when consider hint address for non-MAP_FIXED
-mapping, start and end of resulting vma are on the same side of 47-bit
-border.
+Let's add a self-test that covers few corner cases of the interface.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Nicholas Piggin <npiggin@gmail.com>
 ---
- v2:
-   - add a comment to explain behaviour;
-   - cover hugetlb case too;
----
- arch/x86/kernel/sys_x86_64.c | 36 ++++++++++++++++++++++++++++++++++--
- arch/x86/mm/hugetlbpage.c    | 13 +++++++++++--
- 2 files changed, 45 insertions(+), 4 deletions(-)
+ tools/testing/selftests/x86/5lvl.c   | 53 ++++++++++++++++++++++++++++++++++++
+ tools/testing/selftests/x86/Makefile |  2 +-
+ 2 files changed, 54 insertions(+), 1 deletion(-)
+ create mode 100644 tools/testing/selftests/x86/5lvl.c
 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index a63fe77b3217..472de4a9f0a6 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -198,11 +198,43 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 	/* requesting a specific address */
- 	if (addr) {
- 		addr = PAGE_ALIGN(addr);
-+		if (TASK_SIZE - len < addr)
-+			goto get_unmapped_area;
+diff --git a/tools/testing/selftests/x86/5lvl.c b/tools/testing/selftests/x86/5lvl.c
+new file mode 100644
+index 000000000000..94610fd13ba2
+--- /dev/null
++++ b/tools/testing/selftests/x86/5lvl.c
+@@ -0,0 +1,53 @@
++#include <stdio.h>
++#include <sys/mman.h>
 +
-+		/*
-+		 * We don't want to put a mapping directly accross 47-bit
-+		 * boundary. It helps to address following theoretical issue:
-+		 *
-+		 * We have an application that tries, for some reason, to
-+		 * allocate memory with mmap(addr), without MAP_FIXED, where addr
-+		 * is near the borderline of 47-bit address space and addr+len is
-+		 * above the border.
-+		 *
-+		 * On 4-level paging machine this request would succeed, but the
-+		 * address will always be within 47-bit VA -- cannot allocate by
-+		 * hint address, ignore it.
-+		 *
-+		 * If the application cannot handle high address this might be an
-+		 * issue on 5-level paging machine as such call would succeed
-+		 * *and* allocate memory by the specified hint address. In this
-+		 * case part of the mapping would be above the border line and
-+		 * may lead to misbehaviour if the application cannot handle
-+		 * addresses above 47-bit.
-+		 *
-+		 * Note, that mmap(addr, MAP_FIXED) would fail on 4-level
-+		 * paging machine if addr+len is above 47-bit. It's reasonable
-+		 * to expect that nobody would rely on such failure and it's
-+		 * safe to allocate such mapping.
-+		 */
-+		if ((addr > DEFAULT_MAP_WINDOW) !=
-+				(addr + len > DEFAULT_MAP_WINDOW))
-+			goto get_unmapped_area;
++#define PAGE_SIZE	4096
++#define SIZE		(2 * PAGE_SIZE)
++#define LOW_ADDR	((void *) (1UL << 30))
++#define HIGH_ADDR	((void *) (1UL << 50))
++#define TASK_SIZE	((void *) (1UL << 47))
 +
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--				(!vma || addr + len <= vm_start_gap(vma)))
-+		if (!vma || addr + len <= vm_start_gap(vma))
- 			return addr;
- 	}
-+get_unmapped_area:
++int main(int argc, char **argv)
++{
++	void *p;
++
++	p = mmap(NULL, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(NULL): %p %s\n", p, p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(LOW_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p): %p %s\n", LOW_ADDR, p,
++			p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p): %p\n", HIGH_ADDR, p);
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p) again: %p\n", HIGH_ADDR, p);
++
++	p = mmap(HIGH_ADDR, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++	printf("mmap(%p, MAP_FIXED): %p\n", HIGH_ADDR, p);
++
++	p = mmap((void *)-1, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(-1): %p\n", p);
++
++	p = mmap((void *)-1, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(-1) again: %p\n", p);
++
++	p = mmap(TASK_SIZE - PAGE_SIZE, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++	printf("mmap(%p, %d): %p %s\n", TASK_SIZE - PAGE_SIZE, SIZE, p,
++			p > TASK_SIZE ? "FAILED!" : "");
++
++	p = mmap(TASK_SIZE - PAGE_SIZE, SIZE, PROT_READ | PROT_WRITE,
++			MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
++	printf("mmap(TASK_SIZE - PAGE_SIZE, MAP_FIXED): %p\n", p);
++
++	return 0;
++}
+diff --git a/tools/testing/selftests/x86/Makefile b/tools/testing/selftests/x86/Makefile
+index 7b1adeee4b0f..939a337128db 100644
+--- a/tools/testing/selftests/x86/Makefile
++++ b/tools/testing/selftests/x86/Makefile
+@@ -11,7 +11,7 @@ TARGETS_C_BOTHBITS := single_step_syscall sysret_ss_attrs syscall_nt ptrace_sysc
+ TARGETS_C_32BIT_ONLY := entry_from_vm86 syscall_arg_fault test_syscall_vdso unwind_vdso \
+ 			test_FCMOV test_FCOMI test_FISTTP \
+ 			vdso_restorer
+-TARGETS_C_64BIT_ONLY := fsgsbase sysret_rip
++TARGETS_C_64BIT_ONLY := fsgsbase sysret_rip 5lvl
  
- 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
- 	info.length = len;
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 8ae0000cbdb3..5cdcb3ee9748 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -166,11 +166,20 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 
- 	if (addr) {
- 		addr = ALIGN(addr, huge_page_size(h));
-+		if (TASK_SIZE - len >= addr)
-+			goto get_unmapped_area;
-+
-+		/* See a comment in arch_get_unmapped_area_topdown */
-+		if ((addr > DEFAULT_MAP_WINDOW) !=
-+				(addr + len > DEFAULT_MAP_WINDOW))
-+			goto get_unmapped_area;
-+
- 		vma = find_vma(mm, addr);
--		if (TASK_SIZE - len >= addr &&
--		    (!vma || addr + len <= vm_start_gap(vma)))
-+		if (!vma || addr + len <= vm_start_gap(vma))
- 			return addr;
- 	}
-+
-+get_unmapped_area:
- 	if (mm->get_unmapped_area == arch_get_unmapped_area)
- 		return hugetlb_get_unmapped_area_bottomup(file, addr, len,
- 				pgoff, flags);
+ TARGETS_C_32BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_32BIT_ONLY)
+ TARGETS_C_64BIT_ALL := $(TARGETS_C_BOTHBITS) $(TARGETS_C_64BIT_ONLY)
 -- 
 2.15.0
 
