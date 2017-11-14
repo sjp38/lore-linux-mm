@@ -1,81 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 467926B025E
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 14:24:39 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i89so2985361pfj.9
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:24:39 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t128si16176349pgc.68.2017.11.14.11.24.38
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4EFBD6B025E
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 14:38:51 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id a132so13528005oih.22
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:38:51 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t6si8301517ott.234.2017.11.14.11.38.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 11:24:38 -0800 (PST)
-Received: from mail-it0-f41.google.com (mail-it0-f41.google.com [209.85.214.41])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C50842190F
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 19:24:37 +0000 (UTC)
-Received: by mail-it0-f41.google.com with SMTP id n134so6385607itg.3
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 11:24:37 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <alpine.LSU.2.11.1711141057510.2433@eggly.anvils>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193139.B039E97B@viggo.jf.intel.com>
- <20171114182009.jbhobwxlkfjb2t6i@hirez.programming.kicks-ass.net>
- <30655167-963f-09e3-f88f-600bb95407e8@linux.intel.com> <alpine.LSU.2.11.1711141057510.2433@eggly.anvils>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 14 Nov 2017 11:24:16 -0800
-Message-ID: <CALCETrUtnkhURucGJzUsaWP_8mJ1X_axQFfwHmM7gZydP-j+=Q@mail.gmail.com>
-Subject: Re: [PATCH 18/30] x86, kaiser: map virtually-addressed performance
- monitoring buffers
-Content-Type: text/plain; charset="UTF-8"
+        Tue, 14 Nov 2017 11:38:50 -0800 (PST)
+Message-ID: <1510688325.1080.1.camel@redhat.com>
+Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
+ KAISER
+From: Rik van Riel <riel@redhat.com>
+Date: Tue, 14 Nov 2017 14:38:45 -0500
+In-Reply-To: <20171110193105.02A90543@viggo.jf.intel.com>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+	 <20171110193105.02A90543@viggo.jf.intel.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-5Ku5CO9A2Ypi3TwbeLpD"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, X86 ML <x86@kernel.org>
+To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, bp@suse.de, tglx@linutronix.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Tue, Nov 14, 2017 at 11:10 AM, Hugh Dickins <hughd@google.com> wrote:
-> On Tue, 14 Nov 2017, Dave Hansen wrote:
->> On 11/14/2017 10:20 AM, Peter Zijlstra wrote:
->> > On Fri, Nov 10, 2017 at 11:31:39AM -0800, Dave Hansen wrote:
->> >>  static int alloc_ds_buffer(int cpu)
->> >>  {
->> >> +  struct debug_store *ds = per_cpu_ptr(&cpu_debug_store, cpu);
->> >>
->> >> +  memset(ds, 0, sizeof(*ds));
->> > Still wondering about that memset...
->
-> Sorry, my attention is far away at the moment.
->
->>
->> My guess is that it was done to mirror the zeroing done by the original
->> kzalloc().
->
-> You guess right.
->
->> But, I think you're right that it's zero'd already by virtue
->> of being static:
->>
->> static
->> DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store,
->> cpu_debug_store);
->>
->> I'll queue a cleanup, or update it if I re-post the set.
->
-> I was about to agree, but now I'm not so sure.  I don't know much
-> about these PMC things, but at a glance it looks like what is reserved
-> by x86_reserve_hardware() may later be released by x86_release_hardware(),
-> and then later reserved again by x86_reserve_hardware().  And although
-> the static per-cpu area would be zeroed the first time, the second time
-> it will contain data left over from before, so really needs the memset?
->
 
-For an upstream solution, I would really really like to see
-DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED and friends completely gone
-and to use cpu_entry_area instead.  I don't know whether this has any
-material impact on this particular discussion, though.
+--=-5Ku5CO9A2Ypi3TwbeLpD
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
---Andy
+On Fri, 2017-11-10 at 11:31 -0800, Dave Hansen wrote:
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>=20
+> Global pages stay in the TLB across context switches.=C2=A0=C2=A0Since al=
+l
+> contexts
+> share the same kernel mapping, these mappings are marked as global
+> pages
+> so kernel entries in the TLB are not flushed out on a context switch.
+>=20
+> But, even having these entries in the TLB opens up something that an
+> attacker can use [1].
+>=20
+> That means that even when KAISER switches page tables on return to
+> user
+> space the global pages would stay in the TLB cache.
+>=20
+> Disable global pages so that kernel TLB entries can be flushed before
+> returning to user space. This way, all accesses to kernel addresses
+> from
+> userspace result in a TLB miss independent of the existence of a
+> kernel
+> mapping.
+>=20
+> Replace _PAGE_GLOBAL by __PAGE_KERNEL_GLOBAL and keep _PAGE_GLOBAL
+> available so that it can still be used for a few selected kernel
+> mappings
+> which must be visible to userspace, when KAISER is enabled, like the
+> entry/exit code and data.
 
-> Hugh
+Nice changelog.
+
+Why am I pointing this out?
+
+> +++ b/arch/x86/include/asm/pgtable_types.h	2017-11-10
+> 11:22:06.626244956 -0800
+> @@ -179,8 +179,20 @@ enum page_cache_mode {
+> =C2=A0#define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT |
+> _PAGE_USER |	\
+> =C2=A0					=C2=A0_PAGE_ACCESSED)
+> =C2=A0
+> +/*
+> + * Disable global pages for anything using the default
+> + * __PAGE_KERNEL* macros.=C2=A0=C2=A0PGE will still be enabled
+> + * and _PAGE_GLOBAL may still be used carefully.
+> + */
+> +#ifdef CONFIG_KAISER
+> +#define __PAGE_KERNEL_GLOBAL	0
+> +#else
+> +#define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
+> +#endif
+> +				=09
+
+The comment above could use a little more info
+on why things are done that way, though :)
+
+--=20
+All rights reversed
+--=-5Ku5CO9A2Ypi3TwbeLpD
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+
+iQEcBAABCAAGBQJaC0ZFAAoJEM553pKExN6D2d8H/1Njx1gfgFj9TB8cjwfMGYMA
+ZRSexbV1V+UqQT5bJ3MS/Qkceusj8iCI6uvswYOMvdHkUw4j5SWVoYrisSb2L6eI
+DfdTjxD7oU2nGj7rGyCE04u0VpLoZMpPULDNiLahGye2yPsrRo1dduzwL0Qqtxmn
+5OOy7v3FCIwewoV6ApKulTEmueZISdpm62oOpylJ753+vXCn9rozwPOXWsuSR/tC
+VaU+5bD6+8KUi8LCEt+ZlJlUf9hkjt3mdp2dYKCVq1BZFDEGmUO50SvvvZ5lYws/
+faIF5bgGi+LOdVsy+9ZBBv+HEGHt6tXmrsoEGvtm4GOlSbjoU/0WYaXifx9pz04=
+=/HyD
+-----END PGP SIGNATURE-----
+
+--=-5Ku5CO9A2Ypi3TwbeLpD--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
