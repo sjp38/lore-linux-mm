@@ -1,120 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1797A6B0253
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 06:53:56 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id z52so10980318wrc.5
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 03:53:56 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e47si1341445edb.142.2017.11.14.03.53.54
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EDD6F6B0253
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 06:59:48 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id c123so10273203pga.17
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 03:59:48 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id a13si15816994pgt.72.2017.11.14.03.59.47
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 14 Nov 2017 03:53:54 -0800 (PST)
-Date: Tue, 14 Nov 2017 12:53:50 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH v1] mm: make alloc_node_mem_map a voidcall if we don't
- have CONFIG_FLAT_NODE_MEM_MAP
-Message-ID: <20171114115350.swkju2g3ay5q2vaw@dhcp22.suse.cz>
-References: <20171114111935.GA11758@techadventures.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 14 Nov 2017 03:59:47 -0800 (PST)
+Message-ID: <5A0ADB3B.4070407@intel.com>
+Date: Tue, 14 Nov 2017 20:02:03 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171114111935.GA11758@techadventures.net>
+Subject: Re: [PATCH v17 6/6] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com> <1509696786-1597-7-git-send-email-wei.w.wang@intel.com> <5A097548.8000608@intel.com> <20171113192309-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171113192309-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: linux-mm@kvack.org, mgorman@techsingularity.net, vbabka@suse.cz, Andrew Morton <akpm@linux-foundation.org>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, Nitesh Narayan Lal <nilal@redhat.com>, Rik van Riel <riel@redhat.com>
 
-Cc Andrew
+On 11/14/2017 01:32 AM, Michael S. Tsirkin wrote:
+>> - guest2host_cmd: written by the guest to ACK to the host about the
+>> commands that have been received. The host will clear the corresponding
+>> bits on the host2guest_cmd register. The guest also uses this register
+>> to send commands to the host (e.g. when finish free page reporting).
+> I am not sure what is the role of guest2host_cmd. Reporting of
+> the correct cmd id seems sufficient indication that guest
+> received the start command. Not getting any more seems sufficient
+> to detect stop.
+>
 
-On Tue 14-11-17 12:19:35, Oscar Salvador wrote:
-> free_area_init_node() calls alloc_node_mem_map(), but this function
-> does nothing unless we have CONFIG_FLAT_NODE_MEM_MAP.
-> 
-> As a cleanup, we can move the "#ifdef CONFIG_FLAT_NODE_MEM_MAP" within
-> alloc_node_mem_map() out of the function, and define a
-> alloc_node_mem_map() { } when CONFIG_FLAT_NODE_MEM_MAP is not present.
-> 
-> This also moves the printk, that lays within the "#ifdef CONFIG_FLAT_NODE_MEM_MAP" block,
-> from free_area_init_node() to alloc_node_mem_map(), getting rid of the
-> "#ifdef CONFIG_FLAT_NODE_MEM_MAP" in free_area_init_node().
-> 
-> Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
+I think the issue is when the host is waiting for the guest to report 
+pages, it does not know whether the guest is going to report more or the 
+report is done already. That's why we need a way to let the guest tell 
+the host "the report is done, don't wait for more", then the host 
+continues to the next step - sending the non-free pages to the 
+destination. The following method is a conclusion of other comments, 
+with some new thought. Please have a check if it is good.
 
-Yes, this looks like a nice cleanup even though it doesn't really remove
-any code. The ifdef mess in alloc_node_mem_map is just too awful to live
+Two new configuration registers in total:
+- cmd_reg: the command register, combined from the previous host2guest 
+and guest2host. I think we can use the same register for host requesting 
+and guest ACKing, since the guest writing will trap to QEMU, that is, 
+all the writes to the register are performed in QEMU, and we can keep 
+things work in a correct way there.
+- cmd_id_reg: the sequence id of the free page report command.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+-- free page report:
+     - host requests the guest to start reporting by "cmd_reg | 
+REPORT_START";
+     - guest ACKs to the host about receiving the start reporting 
+request by "cmd_reg | REPORT_START", host will clear the flag bit once 
+receiving the ACK.
+     - host requests the guest to stop reporting by "cmd_reg | REPORT_STOP";
+     - guest ACKs to the host about receiving the stop reporting request 
+by "cmd_reg | REPORT_STOP", host will clear the flag once receiving the ACK.
+     - guest tells the host about the start of the reporting by writing 
+"cmd id" into an outbuf, which is added to the free page vq.
+     - guest tells the host about the end of the reporting by writing 
+"0" into an outbuf, which is added to the free page vq. (we reserve 
+"id=0" as the stop sign)
 
-> ---
->  mm/page_alloc.c | 14 +++++++-------
->  1 file changed, 7 insertions(+), 7 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 77e4d3c5c57b..56400b5d3183 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -6126,6 +6126,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
->  	}
->  }
->  
-> +#ifdef CONFIG_FLAT_NODE_MEM_MAP
->  static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
->  {
->  	unsigned long __maybe_unused start = 0;
-> @@ -6135,7 +6136,6 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
->  	if (!pgdat->node_spanned_pages)
->  		return;
->  
-> -#ifdef CONFIG_FLAT_NODE_MEM_MAP
->  	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
->  	offset = pgdat->node_start_pfn - start;
->  	/* ia64 gets its own node_mem_map, before this, without bootmem */
-> @@ -6157,6 +6157,9 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
->  							       pgdat->node_id);
->  		pgdat->node_mem_map = map + offset;
->  	}
-> +	printk(KERN_DEBUG "alloc_node_mem_map: node %d, pgdat %08lx, node_mem_map %08lx\n",
-> +							pgdat->node_id, (unsigned long)pgdat,
-> +							(unsigned long)pgdat->node_mem_map);
->  #ifndef CONFIG_NEED_MULTIPLE_NODES
->  	/*
->  	 * With no DISCONTIG, the global mem_map is just set as node 0's
-> @@ -6169,8 +6172,10 @@ static void __ref alloc_node_mem_map(struct pglist_data *pgdat)
->  #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
->  	}
->  #endif
-> -#endif /* CONFIG_FLAT_NODE_MEM_MAP */
->  }
-> +#else
-> +static void __ref alloc_node_mem_map(struct pglist_data *pgdat) { }
-> +#endif /* CONFIG_FLAT_NODE_MEM_MAP */
->  
->  void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  		unsigned long node_start_pfn, unsigned long *zholes_size)
-> @@ -6197,11 +6202,6 @@ void __paginginit free_area_init_node(int nid, unsigned long *zones_size,
->  				  zones_size, zholes_size);
->  
->  	alloc_node_mem_map(pgdat);
-> -#ifdef CONFIG_FLAT_NODE_MEM_MAP
-> -	printk(KERN_DEBUG "free_area_init_node: node %d, pgdat %08lx, node_mem_map %08lx\n",
-> -		nid, (unsigned long)pgdat,
-> -		(unsigned long)pgdat->node_mem_map);
-> -#endif
->  
->  	reset_deferred_meminit(pgdat);
->  	free_area_init_core(pgdat);
-> -- 
-> 2.13.5
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+-- ballooning:
+     - host requests the guest to start ballooning by "cmd_reg | 
+BALLOONING";
+     - guest ACKs to the host about receiving the request by "cmd_reg | 
+BALLOONING", host will clear the flag once receiving the ACK.
 
--- 
-Michal Hocko
-SUSE Labs
+
+Some more explanations:
+-- Why not let the host request the guest to start the free page 
+reporting simply by writing a new cmd id to the cmd_id_reg?
+The configuration interrupt is shared among all the features - 
+ballooning, free page reporting, and future feature extensions which 
+need host-to-guest requests. Some features may need to add other feature 
+specific configuration registers, like free page reporting need the 
+cmd_id_reg, which is not used by ballooning. The rule here is that the 
+feature specific registers are read only when that feature is requested 
+via the cmd_reg. For example, the cmd_id_reg is read only when "cmd_reg 
+| REPORT_START" is true. Otherwise, when the driver receives a 
+configuration interrupt, it has to read both cmd_reg and cmd_id 
+registers to know what are requested by the host - think about the case 
+that ballooning requests are sent frequently while free page reporting 
+isn't requested, the guest has to read the cmd_id register every time a 
+ballooning request is sent by the host, which is not necessary. If 
+future new features follow this style, there will be more unnecessary 
+VMexits to read the unused feature specific registers.
+So I think it is good to have a central control of the feature request 
+via only one cmd register - reading that one is enough to know what is 
+requested by the host.
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
