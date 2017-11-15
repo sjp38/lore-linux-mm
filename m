@@ -1,175 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 46F0F6B026C
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:13:30 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id n37so12745190wrb.17
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:13:30 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s7sor12255529edi.48.2017.11.15.06.13.28
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F35F46B0272
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:13:31 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id u97so13000912wrc.3
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:13:31 -0800 (PST)
+Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
+        by mx.google.com with ESMTPS id r42si2982347eda.155.2017.11.15.06.13.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 Nov 2017 06:13:28 -0800 (PST)
-Date: Wed, 15 Nov 2017 17:13:27 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
- DEFAULT_MAP_WINDOW border
-Message-ID: <20171115141326.xzsbkycdwq4vafxf@node.shutemov.name>
-References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
- <alpine.DEB.2.20.1711141630210.2044@nanos>
- <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name>
- <alpine.DEB.2.20.1711142131010.2221@nanos>
- <20171114222718.76w4lmclf6wasbl3@node.shutemov.name>
- <alpine.DEB.2.20.1711142354520.2221@nanos>
- <20171115112702.e2m66wons37imtcj@node.shutemov.name>
- <alpine.DEB.2.20.1711151238500.1805@nanos>
- <20171115121042.dt2us5fsuqmepx4i@node.shutemov.name>
- <20171115140426.bgvcd3bmegqadm5q@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Nov 2017 06:13:30 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 445811C4475
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 14:13:30 +0000 (GMT)
+Date: Wed, 15 Nov 2017 14:13:29 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
+ trace_buf_size is specified
+Message-ID: <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
+References: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
+ <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20171115140426.bgvcd3bmegqadm5q@node.shutemov.name>
+In-Reply-To: <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yasu.isimatu@gmail.com, koki.sanagi@us.fujitsu.com
 
-On Wed, Nov 15, 2017 at 05:04:26PM +0300, Kirill A. Shutemov wrote:
-> On Wed, Nov 15, 2017 at 03:10:42PM +0300, Kirill A. Shutemov wrote:
-> > On Wed, Nov 15, 2017 at 12:39:40PM +0100, Thomas Gleixner wrote:
-> > > On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
-> > > > On Wed, Nov 15, 2017 at 12:00:46AM +0100, Thomas Gleixner wrote:
-> > > > > On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
-> > > > > > On Tue, Nov 14, 2017 at 09:54:52PM +0100, Thomas Gleixner wrote:
-> > > > > > > On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
-> > > > > > > 
-> > > > > > > > On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
-> > > > > > > > > @@ -198,11 +199,14 @@ arch_get_unmapped_area_topdown(struct fi
-> > > > > > > > >  	/* requesting a specific address */
-> > > > > > > > >  	if (addr) {
-> > > > > > > > >  		addr = PAGE_ALIGN(addr);
-> > > > > > > > > +		if (!mmap_address_hint_valid(addr, len))
-> > > > > > > > > +			goto get_unmapped_area;
-> > > > > > > > > +
-> > > > > > > > 
-> > > > > > > > Here and in hugetlb_get_unmapped_area(), we should align the addr after
-> > > > > > > > the check, not before. Otherwise the alignment itself can bring us over
-> > > > > > > > the borderline as we align up.
-> > > > > > > 
-> > > > > > > Hmm, then I wonder whether the next check against vm_start_gap() which
-> > > > > > > checks against the aligned address is correct:
-> > > > > > > 
-> > > > > > >                 addr = PAGE_ALIGN(addr);
-> > > > > > >                 vma = find_vma(mm, addr);
-> > > > > > > 
-> > > > > > >                 if (end - len >= addr &&
-> > > > > > >                     (!vma || addr + len <= vm_start_gap(vma)))
-> > > > > > >                         return addr;
-> > > > > > 
-> > > > > > I think the check is correct. The check is against resulting addresses
-> > > > > > that end up in vm_start/vm_end. In our case we want to figure out what
-> > > > > > user asked for.
-> > > > > 
-> > > > > Well, but then checking just against the user supplied addr is only half of
-> > > > > the story.
-> > > > > 
-> > > > >     addr = boundary - PAGE_SIZE - PAGE_SIZE / 2;
-> > > > >     len = PAGE_SIZE - PAGE_SIZE / 2;
-> > > > > 
-> > > > > That fits, but then after alignment we end up with
-> > > > > 
-> > > > >     addr = boudary - PAGE_SIZE;
-> > > > > 
-> > > > > and due to len > PAGE_SIZE this will result in a mapping which crosses the
-> > > > > boundary, right? So checking against the PAGE_ALIGN(addr) should be the
-> > > > > right thing to do.
-> > > > 
-> > > > IIUC, this is only the case if 'len' is not aligned, right?
-> > > > 
-> > > > >From what I see we expect caller to align it (and mm/mmap.c does this, I
-> > > > haven't checked other callers).
-> > > > 
-> > > > And hugetlb would actively reject non-aligned len.
-> > > > 
-> > > > I *think* we should be fine with checking unaligned 'addr'.
-> > > 
-> > > I think we should keep it consistent for the normal and the huge case and
-> > > just check aligned and be done with it.
+On Wed, Nov 15, 2017 at 12:55:59PM +0100, Michal Hocko wrote:
+> On Wed 15-11-17 08:55:56, Mel Gorman wrote:
+> > Yasuaki Ishimatsu reported a premature OOM when trace_buf_size=100m was
+> > specified on a machine with many CPUs. The kernel tried to allocate 38.4GB
+> > but only 16GB was available due to deferred memory initialisation.
 > > 
-> > Aligned 'addr'? Or 'len'? Both?
-> > 
-> > We would have problem with checking aligned addr. I steped it in hugetlb
-> > case:
-> > 
-> >   - User asks for mmap((1UL << 47) - PAGE_SIZE, 2 << 20, MAP_HUGETLB);
-> > 
-> >   - On 4-level paging machine this gives us invalid hint address as
-> >     'TASK_SIZE - len' is more than 'addr'. Goto get_unmapped_area.
-> > 
-> >   - On 5-level paging machine hint address gets rounded up to next 2MB
-> >     boundary that is exactly 1UL << 47 and we happily allocate from full
-> >     address space which may lead to trouble.
+> > The allocation context is within smp_init() so there are no opportunities
+> > to do the deferred meminit earlier. Furthermore, the partial initialisation
+> > of memory occurs before the size of the trace buffers is set so there is
+> > no opportunity to adjust the amount of memory that is pre-initialised. We
+> > could potentially catch when memory is low during system boot and adjust the
+> > amount that is initialised serially but it's a little clumsy as it would
+> > require a check in the failure path of the page allocator.  Given that
+> > deferred meminit is basically a minor optimisation that only benefits very
+> > large machines and trace_buf_size is somewhat specialised, it follows that
+> > the most straight-forward option is to go back to serialised meminit if
+> > trace_buf_size is specified.
 > 
-> Below is updated patch with self-test.
-> 
-> Output on 5-level paging machine:
-> 
-> mmap(NULL): 0x7fbbad1f3000 - OK
-> mmap(LOW_ADDR): 0x40000000 - OK
-> mmap(HIGH_ADDR): 0x4000000000000 - OK
-> mmap(HIGH_ADDR) again: 0xffffbbad1fb000 - OK
-> mmap(HIGH_ADDR, MAP_FIXED): 0x4000000000000 - OK
-> mmap(-1): 0xffffbbad1f9000 - OK
-> mmap(-1) again: 0xffffbbad1f7000 - OK
-> mmap((1UL << 47), 2 * PAGE_SIZE): 0x7fbbad1f3000 - OK
-> mmap((1UL << 47), 2 * PAGE_SIZE / 2): 0x7fbbad1f1000 - OK
-> mmap((1UL << 47) - PAGE_SIZE, 2 * PAGE_SIZE, MAP_FIXED): 0x7ffffffff000 - OK
-> mmap(NULL, MAP_HUGETLB): 0x7fbbac400000 - OK
-> mmap(LOW_ADDR, MAP_HUGETLB): 0x40000000 - OK
-> mmap(HIGH_ADDR, MAP_HUGETLB): 0x4000000000000 - OK
-> mmap(HIGH_ADDR, MAP_HUGETLB) again: 0xffffbbace00000 - OK
-> mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB): 0x4000000000000 - OK
-> mmap(-1, MAP_HUGETLB): (nil) - OK
-> mmap(-1, MAP_HUGETLB) again: 0x7fbbac400000 - OK
-> mmap((1UL << 47), 2UL << 20, MAP_HUGETLB): 0x800000000000 - FAILED
-> mmap((1UL << 47) - (2UL << 20), 4UL << 20, MAP_FIXED | MAP_HUGETLB): 0x7fffffe00000 - OK
-> 
-> So, only hugetlb is problematic. mmap() aligns addr to PAGE_SIZE.
-> See round_hint_to_min(). In this case we round address *down* and it works
-> fine.
-> 
-> Replacing 'addr = ALIGN(addr, huge_page_size(h))' in hugetlbpage.c with
-> 'addr &= huge_page_mask(h)' fixes the issue.
+> Can we instead do a smaller trace buffer in the early stage and then
+> allocate the rest after the whole memory is initialized?
 
-What about this fixup:
+Potentially yes, but it's also unnecessarily complex to setup buffers,
+finish init, tear them down, set them back up etc. It's not much of an
+improvement to allocate a small buffer and then grow them later.
 
-diff --git a/arch/x86/kernel/sys_x86_64.c b/arch/x86/kernel/sys_x86_64.c
-index 835b78720ca2..676774b9bb8d 100644
---- a/arch/x86/kernel/sys_x86_64.c
-+++ b/arch/x86/kernel/sys_x86_64.c
-@@ -198,7 +198,7 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
- 
- 	/* requesting a specific address */
- 	if (addr) {
--		addr = PAGE_ALIGN(addr);
-+		addr &= PAGE_MASK;
- 		if (!mmap_address_hint_valid(addr, len))
- 			goto get_unmapped_area;
- 
-diff --git a/arch/x86/mm/hugetlbpage.c b/arch/x86/mm/hugetlbpage.c
-index 92db903c3dad..00b296617ca4 100644
---- a/arch/x86/mm/hugetlbpage.c
-+++ b/arch/x86/mm/hugetlbpage.c
-@@ -166,7 +166,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
- 	}
- 
- 	if (addr) {
--		addr = ALIGN(addr, huge_page_size(h));
-+		addr &= huge_page_mask(h);
- 		if (!mmap_address_hint_valid(addr, len))
- 			goto get_unmapped_area;
- 
+> The early
+> memory init code is quite complex to make it even more so for something
+> that looks like a borderline useful usecase.
+
+The additional complexity to memory init is marginal in comparison to
+playing games with how the tracing ring buffers are allocated.
+
+> Seriously, who is going
+> need 100M trace buffer _per cpu_ during early boot?
+> 
+
+I doubt anyone well. Even the original reporter appeared to pick that
+particular value just to trigger the OOM.
+
 -- 
- Kirill A. Shutemov
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
