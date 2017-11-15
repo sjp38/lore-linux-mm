@@ -1,175 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 56AB0280247
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 18:14:53 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id b189so1388822wmd.5
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 15:14:53 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id o6si31541eda.375.2017.11.15.15.14.50
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 387536B0275
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 18:48:31 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 5so26745wmk.0
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 15:48:31 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z61si732408wrc.174.2017.11.15.15.48.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 15:14:51 -0800 (PST)
-From: Roman Gushchin <guro@fb.com>
-Subject: [PATCH v2] mm: show total hugetlb memory consumption in /proc/meminfo
-Date: Wed, 15 Nov 2017 23:14:09 +0000
-Message-ID: <20171115231409.12131-1-guro@fb.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        Wed, 15 Nov 2017 15:48:29 -0800 (PST)
+Date: Wed, 15 Nov 2017 15:48:26 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm: use sc->priority for slab shrink targets
+Message-Id: <20171115154826.45d70959f630ac7508d8d36e@linux-foundation.org>
+In-Reply-To: <1510766070-4772-1-git-send-email-josef@toxicpanda.com>
+References: <1510766070-4772-1-git-send-email-josef@toxicpanda.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: kernel-team@fb.com, linux-mm@kvack.org, Josef Bacik <jbacik@fb.com>
 
-Currently we display some hugepage statistics (total, free, etc)
-in /proc/meminfo, but only for default hugepage size (e.g. 2Mb).
+On Wed, 15 Nov 2017 12:14:30 -0500 Josef Bacik <josef@toxicpanda.com> wrote:
 
-If hugepages of different sizes are used (like 2Mb and 1Gb on x86-64),
-/proc/meminfo output can be confusing, as non-default sized hugepages
-are not reflected at all, and there are no signs that they are
-existing and consuming system memory.
+> Previously we were using the ratio of the number of lru pages scanned to
+> the number of eligible lru pages to determine the number of slab objects
+> to scan.  The problem with this is that these two things have nothing to
+> do with each other, so in slab heavy work loads where there is little to
+> no page cache we can end up with the pages scanned being a very low
+> number.  This means that we reclaim next to no slab pages and waste a
+> lot of time reclaiming small amounts of space.
+> 
+> ...
+>
+> Andrew, I noticed you hadn't picked this up yet, so I rebased it on the latest
+> linus and updated the ack's, it should be good to go.
 
-To solve this problem, let's display the total amount of memory,
-consumed by hugetlb pages of all sized (both free and used).
-Let's call it "Hugetlb", and display size in kB to match generic
-/proc/meminfo style.
+I dropped a previous version of this on Oct 3 due to runtime failures
+(I think).  What were those and how does this patch fix them (if it
+does?)
 
-For example, (1024 2Mb pages and 2 1Gb pages are pre-allocated):
-  $ cat /proc/meminfo
-  MemTotal:        8168984 kB
-  MemFree:         3789276 kB
-  <...>
-  CmaFree:               0 kB
-  HugePages_Total:    1024
-  HugePages_Free:     1024
-  HugePages_Rsvd:        0
-  HugePages_Surp:        0
-  Hugepagesize:       2048 kB
-  Hugetlb:         4194304 kB
-  DirectMap4k:       32632 kB
-  DirectMap2M:     4161536 kB
-  DirectMap1G:     6291456 kB
-
-Also, this patch updates corresponding docs to reflect
-Hugetlb entry meaning and difference between Hugetlb and
-HugePages_Total * Hugepagesize.
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: kernel-team@fb.com
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
----
- Documentation/vm/hugetlbpage.txt | 27 ++++++++++++++++++---------
- mm/hugetlb.c                     | 36 ++++++++++++++++++++++++------------
- 2 files changed, 42 insertions(+), 21 deletions(-)
-
-diff --git a/Documentation/vm/hugetlbpage.txt b/Documentation/vm/hugetlbpage.txt
-index 59cbc803aad6..faf077d50d42 100644
---- a/Documentation/vm/hugetlbpage.txt
-+++ b/Documentation/vm/hugetlbpage.txt
-@@ -20,19 +20,20 @@ options.
- 
- The /proc/meminfo file provides information about the total number of
- persistent hugetlb pages in the kernel's huge page pool.  It also displays
--information about the number of free, reserved and surplus huge pages and the
--default huge page size.  The huge page size is needed for generating the
--proper alignment and size of the arguments to system calls that map huge page
--regions.
-+default huge page size and information about the number of free, reserved
-+and surplus huge pages in the pool of huge pages of default size.
-+The huge page size is needed for generating the proper alignment and
-+size of the arguments to system calls that map huge page regions.
- 
- The output of "cat /proc/meminfo" will include lines like:
- 
- .....
--HugePages_Total: vvv
--HugePages_Free:  www
--HugePages_Rsvd:  xxx
--HugePages_Surp:  yyy
--Hugepagesize:    zzz kB
-+HugePages_Total: uuu
-+HugePages_Free:  vvv
-+HugePages_Rsvd:  www
-+HugePages_Surp:  xxx
-+Hugepagesize:    yyy kB
-+Hugetlb:         zzz kB
- 
- where:
- HugePages_Total is the size of the pool of huge pages.
-@@ -47,6 +48,14 @@ HugePages_Surp  is short for "surplus," and is the number of huge pages in
-                 the pool above the value in /proc/sys/vm/nr_hugepages. The
-                 maximum number of surplus huge pages is controlled by
-                 /proc/sys/vm/nr_overcommit_hugepages.
-+Hugepagesize    is the default hugepage size (in Kb).
-+Hugetlb         is the total amount of memory (in kB), consumed by huge
-+                pages of all sizes.
-+                If huge pages of different sizes are in use, this number
-+                will exceed HugePages_Total * Hugepagesize. To get more
-+                detailed information, please, refer to
-+                /sys/kernel/mm/hugepages (described below).
-+
- 
- /proc/filesystems should also show a filesystem of type "hugetlbfs" configured
- in the kernel.
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 4b3bbd2980bb..672377e6de9f 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -2973,20 +2973,32 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
- 
- void hugetlb_report_meminfo(struct seq_file *m)
- {
--	struct hstate *h = &default_hstate;
-+	struct hstate *h;
-+	unsigned long total = 0;
-+
- 	if (!hugepages_supported())
- 		return;
--	seq_printf(m,
--			"HugePages_Total:   %5lu\n"
--			"HugePages_Free:    %5lu\n"
--			"HugePages_Rsvd:    %5lu\n"
--			"HugePages_Surp:    %5lu\n"
--			"Hugepagesize:   %8lu kB\n",
--			h->nr_huge_pages,
--			h->free_huge_pages,
--			h->resv_huge_pages,
--			h->surplus_huge_pages,
--			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-+
-+	for_each_hstate(h) {
-+		unsigned long count = h->nr_huge_pages;
-+
-+		total += (PAGE_SIZE << huge_page_order(h)) * count;
-+
-+		if (h == &default_hstate)
-+			seq_printf(m,
-+				   "HugePages_Total:   %5lu\n"
-+				   "HugePages_Free:    %5lu\n"
-+				   "HugePages_Rsvd:    %5lu\n"
-+				   "HugePages_Surp:    %5lu\n"
-+				   "Hugepagesize:   %8lu kB\n",
-+				   count,
-+				   h->free_huge_pages,
-+				   h->resv_huge_pages,
-+				   h->surplus_huge_pages,
-+				   (PAGE_SIZE << huge_page_order(h)) / 1024);
-+	}
-+
-+	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
- }
- 
- int hugetlb_report_node_meminfo(int nid, char *buf)
--- 
-2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
