@@ -1,91 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09EC36B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:39:52 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n74so581867wmi.3
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 03:39:51 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id o65si18213518wrc.248.2017.11.15.03.39.50
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 05A416B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:42:26 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id v88so12557348wrb.22
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 03:42:25 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c35si538585ede.367.2017.11.15.03.42.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Nov 2017 03:39:50 -0800 (PST)
-Date: Wed, 15 Nov 2017 12:39:40 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
- DEFAULT_MAP_WINDOW border
-In-Reply-To: <20171115112702.e2m66wons37imtcj@node.shutemov.name>
-Message-ID: <alpine.DEB.2.20.1711151238500.1805@nanos>
-References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com> <alpine.DEB.2.20.1711141630210.2044@nanos> <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name> <alpine.DEB.2.20.1711142131010.2221@nanos> <20171114222718.76w4lmclf6wasbl3@node.shutemov.name>
- <alpine.DEB.2.20.1711142354520.2221@nanos> <20171115112702.e2m66wons37imtcj@node.shutemov.name>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Nov 2017 03:42:24 -0800 (PST)
+Date: Wed, 15 Nov 2017 12:42:23 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] memcg: hugetlbfs basic usage accounting
+Message-ID: <20171115114223.ykyfrnxvvzhiglfd@dhcp22.suse.cz>
+References: <20171114172429.8916-1-guro@fb.com>
+ <20171115083504.nwczf5xq6posy3bw@dhcp22.suse.cz>
+ <20171115111803.GA28352@castle>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171115111803.GA28352@castle>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
-> On Wed, Nov 15, 2017 at 12:00:46AM +0100, Thomas Gleixner wrote:
-> > On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
-> > > On Tue, Nov 14, 2017 at 09:54:52PM +0100, Thomas Gleixner wrote:
-> > > > On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
-> > > > 
-> > > > > On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
-> > > > > > @@ -198,11 +199,14 @@ arch_get_unmapped_area_topdown(struct fi
-> > > > > >  	/* requesting a specific address */
-> > > > > >  	if (addr) {
-> > > > > >  		addr = PAGE_ALIGN(addr);
-> > > > > > +		if (!mmap_address_hint_valid(addr, len))
-> > > > > > +			goto get_unmapped_area;
-> > > > > > +
-> > > > > 
-> > > > > Here and in hugetlb_get_unmapped_area(), we should align the addr after
-> > > > > the check, not before. Otherwise the alignment itself can bring us over
-> > > > > the borderline as we align up.
-> > > > 
-> > > > Hmm, then I wonder whether the next check against vm_start_gap() which
-> > > > checks against the aligned address is correct:
-> > > > 
-> > > >                 addr = PAGE_ALIGN(addr);
-> > > >                 vma = find_vma(mm, addr);
-> > > > 
-> > > >                 if (end - len >= addr &&
-> > > >                     (!vma || addr + len <= vm_start_gap(vma)))
-> > > >                         return addr;
-> > > 
-> > > I think the check is correct. The check is against resulting addresses
-> > > that end up in vm_start/vm_end. In our case we want to figure out what
-> > > user asked for.
-> > 
-> > Well, but then checking just against the user supplied addr is only half of
-> > the story.
-> > 
-> >     addr = boundary - PAGE_SIZE - PAGE_SIZE / 2;
-> >     len = PAGE_SIZE - PAGE_SIZE / 2;
-> > 
-> > That fits, but then after alignment we end up with
-> > 
-> >     addr = boudary - PAGE_SIZE;
-> > 
-> > and due to len > PAGE_SIZE this will result in a mapping which crosses the
-> > boundary, right? So checking against the PAGE_ALIGN(addr) should be the
-> > right thing to do.
+On Wed 15-11-17 11:18:13, Roman Gushchin wrote:
+> On Wed, Nov 15, 2017 at 09:35:04AM +0100, Michal Hocko wrote:
+[...]
+> > So my primary question is, why don't you simply allow hugetlb controller
+> > rather than tweak stats for memcg? Is there any fundamental reason why
+> > hugetlb controller is not v2 compatible?
 > 
-> IIUC, this is only the case if 'len' is not aligned, right?
+> I really don't know if the hugetlb controller has enough users to deserve
+> full support in v2 interface: adding knobs like memory.hugetlb.current,
+> memory.hugetlb.min, memory.hugetlb.high, memory.hugetlb.max, etc.
 > 
-> >From what I see we expect caller to align it (and mm/mmap.c does this, I
-> haven't checked other callers).
-> 
-> And hugetlb would actively reject non-aligned len.
-> 
-> I *think* we should be fine with checking unaligned 'addr'.
+> I'd be rather conservative here and avoid adding a lot to the interface
+> without clear demand. Also, hugetlb pages are really special, and it's
+> at least not obvious how, say, memory.high should work for it.
 
-I think we should keep it consistent for the normal and the huge case and
-just check aligned and be done with it.
+But you clearly want the hugetlb accoutning and that is what hugetlb
+controller is for. You might not be interested in the limit enforcement
+but that is not strictly required. So my question remains. Why don't we
+reuse an existing infrastructure and add a new which might confuse users
+in an extreme case?
 
-Thanks,
-
-	tglx
+Please note that I am not saying your patch is wrong, I just do not see
+why we should handle hugetlb pages 2 different ways to achieve a common
+infrastructure.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
