@@ -1,302 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E77E6B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 12:14:34 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id g49so7310310qta.8
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:14:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 35sor13738272qth.97.2017.11.15.09.14.32
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 15 Nov 2017 09:14:32 -0800 (PST)
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH] mm: use sc->priority for slab shrink targets
-Date: Wed, 15 Nov 2017 12:14:30 -0500
-Message-Id: <1510766070-4772-1-git-send-email-josef@toxicpanda.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BEA56B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 12:33:27 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id o126so15468752oif.21
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:33:27 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id l95si8684132otl.339.2017.11.15.09.33.25
+        for <linux-mm@kvack.org>;
+        Wed, 15 Nov 2017 09:33:25 -0800 (PST)
+Date: Wed, 15 Nov 2017 17:33:32 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy (was: Re:
+ [RESEND PATCH] mm, oom_reaper: gather each vma to prevent) leaking TLB entry
+Message-ID: <20171115173332.GL19071@arm.com>
+References: <20171107095453.179940-1-wangnan0@huawei.com>
+ <20171110001933.GA12421@bbox>
+ <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
+ <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, kernel-team@fb.com, linux-mm@kvack.org
-Cc: Josef Bacik <jbacik@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>, Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
 
-From: Josef Bacik <jbacik@fb.com>
+Hi Michal,
 
-Previously we were using the ratio of the number of lru pages scanned to
-the number of eligible lru pages to determine the number of slab objects
-to scan.  The problem with this is that these two things have nothing to
-do with each other, so in slab heavy work loads where there is little to
-no page cache we can end up with the pages scanned being a very low
-number.  This means that we reclaim next to no slab pages and waste a
-lot of time reclaiming small amounts of space.
+On Fri, Nov 10, 2017 at 01:26:35PM +0100, Michal Hocko wrote:
+> From 7f0fcd2cab379ddac5611b2a520cdca8a77a235b Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Fri, 10 Nov 2017 11:27:17 +0100
+> Subject: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy
+> 
+> 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
+> introduced an optimization to not flush tlb when we are tearing the
+> whole address space down. Will goes on to explain
+> 
+> : Basically, we tag each address space with an ASID (PCID on x86) which
+> : is resident in the TLB. This means we can elide TLB invalidation when
+> : pulling down a full mm because we won't ever assign that ASID to
+> : another mm without doing TLB invalidation elsewhere (which actually
+> : just nukes the whole TLB).
+> 
+> This all is nice but tlb_gather users are not aware of that and this can
+> actually cause some real problems. E.g. the oom_reaper tries to reap the
+> whole address space but it might race with threads accessing the memory [1].
+> It is possible that soft-dirty handling might suffer from the same
+> problem [2].
+> 
+> Introduce an explicit lazy variant tlb_gather_mmu_lazy which allows the
+> behavior arm64 implements for the fullmm case and replace it by an
+> explicit lazy flag in the mmu_gather structure. exit_mmap path is then
+> turned into the explicit lazy variant. Other architectures simply ignore
+> the flag.
+> 
+> [1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
+> [2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  arch/arm/include/asm/tlb.h   |  3 ++-
+>  arch/arm64/include/asm/tlb.h |  2 +-
+>  arch/ia64/include/asm/tlb.h  |  3 ++-
+>  arch/s390/include/asm/tlb.h  |  3 ++-
+>  arch/sh/include/asm/tlb.h    |  2 +-
+>  arch/um/include/asm/tlb.h    |  2 +-
+>  include/asm-generic/tlb.h    |  6 ++++--
+>  include/linux/mm_types.h     |  2 ++
+>  mm/memory.c                  | 17 +++++++++++++++--
+>  mm/mmap.c                    |  2 +-
+>  10 files changed, 31 insertions(+), 11 deletions(-)
+> 
+> diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+> index d5562f9ce600..fe9042aee8e9 100644
+> --- a/arch/arm/include/asm/tlb.h
+> +++ b/arch/arm/include/asm/tlb.h
+> @@ -149,7 +149,8 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+>  
+>  static inline void
+>  arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+> -			unsigned long start, unsigned long end)
+> +			unsigned long start, unsigned long end,
+> +			bool lazy)
+>  {
+>  	tlb->mm = mm;
+>  	tlb->fullmm = !(start | (end+1));
+> diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+> index ffdaea7954bb..7adde19b2bcc 100644
+> --- a/arch/arm64/include/asm/tlb.h
+> +++ b/arch/arm64/include/asm/tlb.h
+> @@ -43,7 +43,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
+>  	 * The ASID allocator will either invalidate the ASID or mark
+>  	 * it as used.
+>  	 */
+> -	if (tlb->fullmm)
+> +	if (tlb->lazy)
+>  		return;
 
-Consider the following scenario, where we have the following values and
-the rest of the memory usage is in slab
+This looks like the right idea, but I'd rather make this check:
 
-Active:            58840 kB
-Inactive:          46860 kB
+	if (tlb->fullmm && tlb->lazy)
 
-Every time we do a get_scan_count() we do this
+since the optimisation doesn't work for anything than tearing down the
+entire address space.
 
-scan = size >> sc->priority
+Alternatively, I could actually go check MMF_UNSTABLE in tlb->mm, which
+would save you having to add an extra flag in the first place, e.g.:
 
-where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop
-through reclaim would result in a scan target of 2 pages to 11715 total
-inactive pages, and 3 pages to 14710 total active pages.  This is a
-really really small target for a system that is entirely slab pages.
-And this is super optimistic, this assumes we even get to scan these
-pages.  We don't increment sc->nr_scanned unless we 1) isolate the page,
-which assumes it's not in use, and 2) can lock the page.  Under
-pressure these numbers could probably go down, I'm sure there's some
-random pages from daemons that aren't actually in use, so the targets
-get even smaller.
+	if (tlb->fullmm && !test_bit(MMF_UNSTABLE, &tlb->mm->flags))
 
-Instead use sc->priority in the same way we use it to determine scan
-amounts for the lru's.  This generally equates to pages.  Consider the
-following
+which is a nice one-liner.
 
-slab_pages = (nr_objects * object_size) / PAGE_SIZE
-
-What we would like to do is
-
-scan = slab_pages >> sc->priority
-
-but we don't know the number of slab pages each shrinker controls, only
-the objects.  However say that theoretically we knew how many pages a
-shrinker controlled, we'd still have to convert this to objects, which
-would look like the following
-
-scan = shrinker_pages >> sc->priority
-scan_objects = (PAGE_SIZE / object_size) * scan
-
-or written another way
-
-scan_objects = (shrinker_pages >> sc->priority) *
-		(PAGE_SIZE / object_size)
-
-which can thus be written
-
-scan_objects = ((shrinker_pages * PAGE_SIZE) / object_size) >>
-		sc->priority
-
-which is just
-
-scan_objects = nr_objects >> sc->priority
-
-We don't need to know exactly how many pages each shrinker represents,
-it's objects are all the information we need.  Making this change allows
-us to place an appropriate amount of pressure on the shrinker pools for
-their relative size.
-
-Signed-off-by: Josef Bacik <jbacik@fb.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Acked-by: Dave Chinner <david@fromorbit.com>
-Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
-
-Andrew, I noticed you hadn't picked this up yet, so I rebased it on the latest
-linus and updated the ack's, it should be good to go.
-
- include/trace/events/vmscan.h | 23 ++++++++++------------
- mm/vmscan.c                   | 46 +++++++++++--------------------------------
- 2 files changed, 22 insertions(+), 47 deletions(-)
-
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index dc23cf032403..c606a07ac7e3 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -188,12 +188,12 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
- 
- TRACE_EVENT(mm_shrink_slab_start,
- 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
--		long nr_objects_to_shrink, unsigned long pgs_scanned,
--		unsigned long lru_pgs, unsigned long cache_items,
--		unsigned long long delta, unsigned long total_scan),
-+		long nr_objects_to_shrink, unsigned long cache_items,
-+		unsigned long long delta, unsigned long total_scan,
-+		int priority),
- 
--	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
--		cache_items, delta, total_scan),
-+	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
-+		priority),
- 
- 	TP_STRUCT__entry(
- 		__field(struct shrinker *, shr)
-@@ -201,11 +201,10 @@ TRACE_EVENT(mm_shrink_slab_start,
- 		__field(int, nid)
- 		__field(long, nr_objects_to_shrink)
- 		__field(gfp_t, gfp_flags)
--		__field(unsigned long, pgs_scanned)
--		__field(unsigned long, lru_pgs)
- 		__field(unsigned long, cache_items)
- 		__field(unsigned long long, delta)
- 		__field(unsigned long, total_scan)
-+		__field(int, priority)
- 	),
- 
- 	TP_fast_assign(
-@@ -214,24 +213,22 @@ TRACE_EVENT(mm_shrink_slab_start,
- 		__entry->nid = sc->nid;
- 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
- 		__entry->gfp_flags = sc->gfp_mask;
--		__entry->pgs_scanned = pgs_scanned;
--		__entry->lru_pgs = lru_pgs;
- 		__entry->cache_items = cache_items;
- 		__entry->delta = delta;
- 		__entry->total_scan = total_scan;
-+		__entry->priority = priority;
- 	),
- 
--	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
-+	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s cache items %ld delta %lld total_scan %ld priority %d",
- 		__entry->shrink,
- 		__entry->shr,
- 		__entry->nid,
- 		__entry->nr_objects_to_shrink,
- 		show_gfp_flags(__entry->gfp_flags),
--		__entry->pgs_scanned,
--		__entry->lru_pgs,
- 		__entry->cache_items,
- 		__entry->delta,
--		__entry->total_scan)
-+		__entry->total_scan,
-+		__entry->priority)
- );
- 
- TRACE_EVENT(mm_shrink_slab_end,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 15b483ef6440..d6ca130c4407 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -307,9 +307,7 @@ EXPORT_SYMBOL(unregister_shrinker);
- #define SHRINK_BATCH 128
- 
- static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
--				    struct shrinker *shrinker,
--				    unsigned long nr_scanned,
--				    unsigned long nr_eligible)
-+				    struct shrinker *shrinker, int priority)
- {
- 	unsigned long freed = 0;
- 	unsigned long long delta;
-@@ -334,9 +332,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
- 
- 	total_scan = nr;
--	delta = (4 * nr_scanned) / shrinker->seeks;
--	delta *= freeable;
--	do_div(delta, nr_eligible + 1);
-+	delta = freeable >> priority;
-+	delta = (4 * delta) / shrinker->seeks;
- 	total_scan += delta;
- 	if (total_scan < 0) {
- 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
-@@ -370,8 +367,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 		total_scan = freeable * 2;
- 
- 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
--				   nr_scanned, nr_eligible,
--				   freeable, delta, total_scan);
-+				   freeable, delta, total_scan, priority);
- 
- 	/*
- 	 * Normally, we should not scan less than batch_size objects in one
-@@ -431,8 +427,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  * @gfp_mask: allocation context
-  * @nid: node whose slab caches to target
-  * @memcg: memory cgroup whose slab caches to target
-- * @nr_scanned: pressure numerator
-- * @nr_eligible: pressure denominator
-+ * @priority: the reclaim priority
-  *
-  * Call the shrink functions to age shrinkable caches.
-  *
-@@ -444,20 +439,14 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-  * objects from the memory cgroup specified. Otherwise, only unaware
-  * shrinkers are called.
-  *
-- * @nr_scanned and @nr_eligible form a ratio that indicate how much of
-- * the available objects should be scanned.  Page reclaim for example
-- * passes the number of pages scanned and the number of pages on the
-- * LRU lists that it considered on @nid, plus a bias in @nr_scanned
-- * when it encountered mapped pages.  The ratio is further biased by
-- * the ->seeks setting of the shrink function, which indicates the
-- * cost to recreate an object relative to that of an LRU page.
-+ * @priority is sc->priority, we take the number of objects and >> by priority
-+ * in order to get the scan target.
-  *
-  * Returns the number of reclaimed slab objects.
-  */
- static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 				 struct mem_cgroup *memcg,
--				 unsigned long nr_scanned,
--				 unsigned long nr_eligible)
-+				 int priority)
- {
- 	struct shrinker *shrinker;
- 	unsigned long freed = 0;
-@@ -465,9 +454,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
- 		return 0;
- 
--	if (nr_scanned == 0)
--		nr_scanned = SWAP_CLUSTER_MAX;
--
- 	if (!down_read_trylock(&shrinker_rwsem)) {
- 		/*
- 		 * If we would return 0, our callers would understand that we
-@@ -498,7 +484,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
- 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
- 			sc.nid = 0;
- 
--		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
-+		freed += do_shrink_slab(&sc, shrinker, priority);
- 	}
- 
- 	up_read(&shrinker_rwsem);
-@@ -516,8 +502,7 @@ void drop_slab_node(int nid)
- 
- 		freed = 0;
- 		do {
--			freed += shrink_slab(GFP_KERNEL, nid, memcg,
--					     1000, 1000);
-+			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
- 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
- 	} while (freed > 10);
- }
-@@ -2612,14 +2597,12 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 
- 			reclaimed = sc->nr_reclaimed;
- 			scanned = sc->nr_scanned;
--
- 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
- 			node_lru_pages += lru_pages;
- 
- 			if (memcg)
- 				shrink_slab(sc->gfp_mask, pgdat->node_id,
--					    memcg, sc->nr_scanned - scanned,
--					    lru_pages);
-+					    memcg, sc->priority);
- 
- 			/* Record the group's reclaim efficiency */
- 			vmpressure(sc->gfp_mask, memcg, false,
-@@ -2643,14 +2626,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			}
- 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
- 
--		/*
--		 * Shrink the slab caches in the same proportion that
--		 * the eligible LRU pages were scanned.
--		 */
- 		if (global_reclaim(sc))
- 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
--				    sc->nr_scanned - nr_scanned,
--				    node_lru_pages);
-+				    sc->priority);
- 
- 		if (reclaim_state) {
- 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
--- 
-2.7.5
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
