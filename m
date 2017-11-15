@@ -1,166 +1,302 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 301966B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 12:04:36 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q126so24236466pgq.7
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:04:36 -0800 (PST)
-Received: from mailout4.samsung.com (mailout4.samsung.com. [203.254.224.34])
-        by mx.google.com with ESMTPS id y73si974390pfb.364.2017.11.15.09.04.32
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0E77E6B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 12:14:34 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id g49so7310310qta.8
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:14:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 35sor13738272qth.97.2017.11.15.09.14.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 09:04:33 -0800 (PST)
-MIME-version: 1.0
-Content-transfer-encoding: 8BIT
-Content-type: text/plain; charset="utf-8"
-Subject: Re: [RFC PATCH] drivers: base: dma-coherent: find free region
- without alignment
-From: Jaewon Kim <jaewon31.kim@samsung.com>
-Message-id: <5A0C7391.3090801@samsung.com>
-Date: Thu, 16 Nov 2017 02:04:17 +0900
-In-reply-to: <94f35456-b661-908a-bdc0-ddd74cbaf9ec@samsung.com>
-References: <CGME20171114084234epcas2p44ac00494b49aa798f709c5bbdf92127a@epcas2p4.samsung.com>
-	<20171114084229.13512-1-jaewon31.kim@samsung.com>
-	<94f35456-b661-908a-bdc0-ddd74cbaf9ec@samsung.com>
+        (Google Transport Security);
+        Wed, 15 Nov 2017 09:14:32 -0800 (PST)
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: [PATCH] mm: use sc->priority for slab shrink targets
+Date: Wed, 15 Nov 2017 12:14:30 -0500
+Message-Id: <1510766070-4772-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marek Szyprowski <m.szyprowski@samsung.com>, hch@lst.de, robin.murphy@arm.com, gregkh@linuxfoundation.org, iommu@lists.linux-foundation.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com, vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org, jaewon31.kim@gmail.com
+To: akpm@linux-foundation.org, kernel-team@fb.com, linux-mm@kvack.org
+Cc: Josef Bacik <jbacik@fb.com>
 
-Hello Marek
+From: Josef Bacik <jbacik@fb.com>
 
-On 2017e?? 11i?? 14i? 1/4  20:07, Marek Szyprowski wrote:
-> Hi Jaewon,
->
-> On 2017-11-14 09:42, Jaewon Kim wrote:
->> dma-coherent uses bitmap API which internally consider align based on the
->> requested size. Depending on some usage pattern, using align, I think, may
->> be good for fast search and anti-fragmentation. But with the align, an
->> allocation may be failed.
->>
->> This is a example, total size is 30MB, only few memory at front is being
->> used, and 9MB is being requsted. Then 9MB will be aligned to 16MB. The
->> first try on offset 0MB will be failed because of others already using. The
->> second try on offset 16MB will be failed because of ouf of bound.
->>
->> So if the align is not necessary on dma-coherent, this patch removes the
->> align policy to allow allocation without increasing the total size.
->
-> You are right that keeping strict alignment is waste of memory for large
-> allocations. However for the smaller ones, typically under 1MiB, it helps
-> to reduce memory fragmentation. The alignment of the allocated buffers is
-> de-facto guaranteed by the memory management framework in Linux kernel
-> and there are drivers that depends on this feature.
->
-> Maybe it would make sense to keep alignment for buffers smaller than some
-> predefined value (like 1MiB), something similar to config
-> ARM_DMA_IOMMU_ALIGNMENT in arch/arm/Kconfig. Otherwise I would expect that
-> some drivers will be broken by this patch.
-Thank you for your comment.
+Previously we were using the ratio of the number of lru pages scanned to
+the number of eligible lru pages to determine the number of slab objects
+to scan.  The problem with this is that these two things have nothing to
+do with each other, so in slab heavy work loads where there is little to
+no page cache we can end up with the pages scanned being a very low
+number.  This means that we reclaim next to no slab pages and waste a
+lot of time reclaiming small amounts of space.
 
-I looked ARM_DMA_IOMMU_ALIGNMENT in ARM, it looks similar but it is using
-bitmap_find_next_zero_area rather than bitmap_find_free_region. bitmap_find_next_zero_area
-apply aligning only onto offset but not onto size. So I think ARM_DMA_IOMMU_ALIGNMENT way
-is not perfect on this dma-coherent APIs which tries to align even on size.
+Consider the following scenario, where we have the following values and
+the rest of the memory usage is in slab
 
-Let me say another way where each reserved_mem from device tree can decide if it wants aligning.
-This could be implemented like below. I need to change other dma-coherent APIs though.
-I will wait for your comment on this.
+Active:            58840 kB
+Inactive:          46860 kB
 
---- a/drivers/base/dma-coherent.c
-+++ b/drivers/base/dma-coherent.c
-@@ -17,6 +17,7 @@ struct dma_coherent_mem {
-        unsigned long   *bitmap;
-        spinlock_t      spinlock;
-        bool            use_dev_dma_pfn_offset;
-+       bool            no_align;
- };
+Every time we do a get_scan_count() we do this
+
+scan = size >> sc->priority
+
+where sc->priority starts at DEF_PRIORITY, which is 12.  The first loop
+through reclaim would result in a scan target of 2 pages to 11715 total
+inactive pages, and 3 pages to 14710 total active pages.  This is a
+really really small target for a system that is entirely slab pages.
+And this is super optimistic, this assumes we even get to scan these
+pages.  We don't increment sc->nr_scanned unless we 1) isolate the page,
+which assumes it's not in use, and 2) can lock the page.  Under
+pressure these numbers could probably go down, I'm sure there's some
+random pages from daemons that aren't actually in use, so the targets
+get even smaller.
+
+Instead use sc->priority in the same way we use it to determine scan
+amounts for the lru's.  This generally equates to pages.  Consider the
+following
+
+slab_pages = (nr_objects * object_size) / PAGE_SIZE
+
+What we would like to do is
+
+scan = slab_pages >> sc->priority
+
+but we don't know the number of slab pages each shrinker controls, only
+the objects.  However say that theoretically we knew how many pages a
+shrinker controlled, we'd still have to convert this to objects, which
+would look like the following
+
+scan = shrinker_pages >> sc->priority
+scan_objects = (PAGE_SIZE / object_size) * scan
+
+or written another way
+
+scan_objects = (shrinker_pages >> sc->priority) *
+		(PAGE_SIZE / object_size)
+
+which can thus be written
+
+scan_objects = ((shrinker_pages * PAGE_SIZE) / object_size) >>
+		sc->priority
+
+which is just
+
+scan_objects = nr_objects >> sc->priority
+
+We don't need to know exactly how many pages each shrinker represents,
+it's objects are all the information we need.  Making this change allows
+us to place an appropriate amount of pressure on the shrinker pools for
+their relative size.
+
+Signed-off-by: Josef Bacik <jbacik@fb.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: Dave Chinner <david@fromorbit.com>
+Acked-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+---
+
+Andrew, I noticed you hadn't picked this up yet, so I rebased it on the latest
+linus and updated the ack's, it should be good to go.
+
+ include/trace/events/vmscan.h | 23 ++++++++++------------
+ mm/vmscan.c                   | 46 +++++++++++--------------------------------
+ 2 files changed, 22 insertions(+), 47 deletions(-)
+
+diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
+index dc23cf032403..c606a07ac7e3 100644
+--- a/include/trace/events/vmscan.h
++++ b/include/trace/events/vmscan.h
+@@ -188,12 +188,12 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
  
- static struct dma_coherent_mem *dma_coherent_default_memory __ro_after_init;
-@@ -162,7 +163,6 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
- static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
-                ssize_t size, dma_addr_t *dma_handle)
+ TRACE_EVENT(mm_shrink_slab_start,
+ 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
+-		long nr_objects_to_shrink, unsigned long pgs_scanned,
+-		unsigned long lru_pgs, unsigned long cache_items,
+-		unsigned long long delta, unsigned long total_scan),
++		long nr_objects_to_shrink, unsigned long cache_items,
++		unsigned long long delta, unsigned long total_scan,
++		int priority),
+ 
+-	TP_ARGS(shr, sc, nr_objects_to_shrink, pgs_scanned, lru_pgs,
+-		cache_items, delta, total_scan),
++	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
++		priority),
+ 
+ 	TP_STRUCT__entry(
+ 		__field(struct shrinker *, shr)
+@@ -201,11 +201,10 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__field(int, nid)
+ 		__field(long, nr_objects_to_shrink)
+ 		__field(gfp_t, gfp_flags)
+-		__field(unsigned long, pgs_scanned)
+-		__field(unsigned long, lru_pgs)
+ 		__field(unsigned long, cache_items)
+ 		__field(unsigned long long, delta)
+ 		__field(unsigned long, total_scan)
++		__field(int, priority)
+ 	),
+ 
+ 	TP_fast_assign(
+@@ -214,24 +213,22 @@ TRACE_EVENT(mm_shrink_slab_start,
+ 		__entry->nid = sc->nid;
+ 		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
+ 		__entry->gfp_flags = sc->gfp_mask;
+-		__entry->pgs_scanned = pgs_scanned;
+-		__entry->lru_pgs = lru_pgs;
+ 		__entry->cache_items = cache_items;
+ 		__entry->delta = delta;
+ 		__entry->total_scan = total_scan;
++		__entry->priority = priority;
+ 	),
+ 
+-	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s pgs_scanned %ld lru_pgs %ld cache items %ld delta %lld total_scan %ld",
++	TP_printk("%pF %p: nid: %d objects to shrink %ld gfp_flags %s cache items %ld delta %lld total_scan %ld priority %d",
+ 		__entry->shrink,
+ 		__entry->shr,
+ 		__entry->nid,
+ 		__entry->nr_objects_to_shrink,
+ 		show_gfp_flags(__entry->gfp_flags),
+-		__entry->pgs_scanned,
+-		__entry->lru_pgs,
+ 		__entry->cache_items,
+ 		__entry->delta,
+-		__entry->total_scan)
++		__entry->total_scan,
++		__entry->priority)
+ );
+ 
+ TRACE_EVENT(mm_shrink_slab_end,
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 15b483ef6440..d6ca130c4407 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -307,9 +307,7 @@ EXPORT_SYMBOL(unregister_shrinker);
+ #define SHRINK_BATCH 128
+ 
+ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+-				    struct shrinker *shrinker,
+-				    unsigned long nr_scanned,
+-				    unsigned long nr_eligible)
++				    struct shrinker *shrinker, int priority)
  {
--       int order = get_order(size);
-        unsigned long flags;
-        int pageno;
-        void *ret;
-@@ -172,9 +172,21 @@ static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
-        if (unlikely(size > (mem->size << PAGE_SHIFT)))
-                goto err;
+ 	unsigned long freed = 0;
+ 	unsigned long long delta;
+@@ -334,9 +332,8 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
  
--       pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
--       if (unlikely(pageno < 0))
--               goto err;
-+       if (mem->no_align) {
-+               int nr_page = PAGE_ALIGN(size) >> PAGE_SHIFT;
-+
-+               pageno = bitmap_find_next_zero_area(mem->bitmap, mem->size, 0,
-+                                                   nr_page, 0);
-+               if (unlikely(pageno >= mem->size))
-+                       goto err;
-+               bitmap_set(mem->bitmap, pageno, nr_page);
-+       } else {
-+               int order = get_order(size);
-+
-+               pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
-+               if (unlikely(pageno < 0))
-+                       goto err;
-+       }
+ 	total_scan = nr;
+-	delta = (4 * nr_scanned) / shrinker->seeks;
+-	delta *= freeable;
+-	do_div(delta, nr_eligible + 1);
++	delta = freeable >> priority;
++	delta = (4 * delta) / shrinker->seeks;
+ 	total_scan += delta;
+ 	if (total_scan < 0) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+@@ -370,8 +367,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		total_scan = freeable * 2;
  
-        /*
-         * Memory was found in the coherent area.
-@@ -346,6 +358,7 @@ static struct reserved_mem *dma_reserved_default_memory __initdata;
- static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
+ 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+-				   nr_scanned, nr_eligible,
+-				   freeable, delta, total_scan);
++				   freeable, delta, total_scan, priority);
+ 
+ 	/*
+ 	 * Normally, we should not scan less than batch_size objects in one
+@@ -431,8 +427,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * @gfp_mask: allocation context
+  * @nid: node whose slab caches to target
+  * @memcg: memory cgroup whose slab caches to target
+- * @nr_scanned: pressure numerator
+- * @nr_eligible: pressure denominator
++ * @priority: the reclaim priority
+  *
+  * Call the shrink functions to age shrinkable caches.
+  *
+@@ -444,20 +439,14 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+  * objects from the memory cgroup specified. Otherwise, only unaware
+  * shrinkers are called.
+  *
+- * @nr_scanned and @nr_eligible form a ratio that indicate how much of
+- * the available objects should be scanned.  Page reclaim for example
+- * passes the number of pages scanned and the number of pages on the
+- * LRU lists that it considered on @nid, plus a bias in @nr_scanned
+- * when it encountered mapped pages.  The ratio is further biased by
+- * the ->seeks setting of the shrink function, which indicates the
+- * cost to recreate an object relative to that of an LRU page.
++ * @priority is sc->priority, we take the number of objects and >> by priority
++ * in order to get the scan target.
+  *
+  * Returns the number of reclaimed slab objects.
+  */
+ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 				 struct mem_cgroup *memcg,
+-				 unsigned long nr_scanned,
+-				 unsigned long nr_eligible)
++				 int priority)
  {
-        struct dma_coherent_mem *mem = rmem->priv;
-+       unsigned long node = rmem->fdt_node;
-        int ret;
+ 	struct shrinker *shrinker;
+ 	unsigned long freed = 0;
+@@ -465,9 +454,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (memcg && (!memcg_kmem_enabled() || !mem_cgroup_online(memcg)))
+ 		return 0;
  
-        if (!mem) {
-@@ -360,6 +373,8 @@ static int rmem_dma_device_init(struct reserved_mem *rmem, struct device *dev)
-        }
-        mem->use_dev_dma_pfn_offset = true;
-        rmem->priv = mem;
-+       if (of_get_flat_dt_prop(node, "no-align", NULL))
-+               mem->no_align = true;
-        dma_assign_coherent_memory(dev, mem);
-        return 0;
+-	if (nr_scanned == 0)
+-		nr_scanned = SWAP_CLUSTER_MAX;
+-
+ 	if (!down_read_trylock(&shrinker_rwsem)) {
+ 		/*
+ 		 * If we would return 0, our callers would understand that we
+@@ -498,7 +484,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
+ 
+-		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		freed += do_shrink_slab(&sc, shrinker, priority);
+ 	}
+ 
+ 	up_read(&shrinker_rwsem);
+@@ -516,8 +502,7 @@ void drop_slab_node(int nid)
+ 
+ 		freed = 0;
+ 		do {
+-			freed += shrink_slab(GFP_KERNEL, nid, memcg,
+-					     1000, 1000);
++			freed += shrink_slab(GFP_KERNEL, nid, memcg, 0);
+ 		} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+ 	} while (freed > 10);
  }
-
-
->
->> Signed-off-by: Jaewon Kim <jaewon31.kim@samsung.com>
->> ---
->>   drivers/base/dma-coherent.c | 8 +++++---
->>   1 file changed, 5 insertions(+), 3 deletions(-)
->>
->> diff --git a/drivers/base/dma-coherent.c b/drivers/base/dma-coherent.c
->> index 744f64f43454..b86a96d0cd07 100644
->> --- a/drivers/base/dma-coherent.c
->> +++ b/drivers/base/dma-coherent.c
->> @@ -162,7 +162,7 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
->>   static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
->>           ssize_t size, dma_addr_t *dma_handle)
->>   {
->> -    int order = get_order(size);
->> +    int nr_page = PAGE_ALIGN(size) >> PAGE_SHIFT;
->>       unsigned long flags;
->>       int pageno;
->>       void *ret;
->> @@ -172,9 +172,11 @@ static void *__dma_alloc_from_coherent(struct dma_coherent_mem *mem,
->>       if (unlikely(size > (mem->size << PAGE_SHIFT)))
->>           goto err;
->>   -    pageno = bitmap_find_free_region(mem->bitmap, mem->size, order);
->> -    if (unlikely(pageno < 0))
->> +    pageno = bitmap_find_next_zero_area(mem->bitmap, mem->size, 0,
->> +                        nr_page, 0);
->> +    if (unlikely(pageno >= mem->size)) {
->>           goto err;
->> +    bitmap_set(mem->bitmap, pageno, nr_page);
->>         /*
->>        * Memory was found in the coherent area.
->
-> Best regards
+@@ -2612,14 +2597,12 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 
+ 			reclaimed = sc->nr_reclaimed;
+ 			scanned = sc->nr_scanned;
+-
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+ 			if (memcg)
+ 				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-					    memcg, sc->nr_scanned - scanned,
+-					    lru_pages);
++					    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -2643,14 +2626,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			}
+ 		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+ 
+-		/*
+-		 * Shrink the slab caches in the same proportion that
+-		 * the eligible LRU pages were scanned.
+-		 */
+ 		if (global_reclaim(sc))
+ 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+-				    sc->nr_scanned - nr_scanned,
+-				    node_lru_pages);
++				    sc->priority);
+ 
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+-- 
+2.7.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
