@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DA46C6B026A
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:08:47 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id n89so20979240pfk.17
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:08:47 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 03C846B026C
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:08:53 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 70so12779869pgf.5
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:08:52 -0800 (PST)
 Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id e7si17931586plk.481.2017.11.15.06.08.46
+        by mx.google.com with ESMTPS id e7si17931586plk.481.2017.11.15.06.08.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 06:08:46 -0800 (PST)
+        Wed, 15 Nov 2017 06:08:51 -0800 (PST)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 11/16] uprobes: convert uprobe.ref to refcount_t
-Date: Wed, 15 Nov 2017 16:03:35 +0200
-Message-Id: <1510754620-27088-12-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 12/16] nsproxy: convert nsproxy.count to refcount_t
+Date: Wed, 15 Nov 2017 16:03:36 +0200
+Message-Id: <1510754620-27088-13-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,7 +34,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable uprobe.ref is used as pure reference counter.
+The variable nsproxy.count is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 **Important note for maintainers:
@@ -51,58 +51,83 @@ some rare cases it might matter.
 Please double check that you don't have some undocumented
 memory guarantees for this variable usage.
 
-For the uprobe.ref it might make a difference
+For the nsproxy.count it might make a difference
 in following places:
- - put_uprobe(): decrement in refcount_dec_and_test() only
-   provides RELEASE ordering and control dependency on success
-   vs. fully ordered atomic counterpart
+ - put_nsproxy() and switch_task_namespaces(): decrement in
+   refcount_dec_and_test() only provides RELEASE ordering
+   and control dependency on success vs. fully ordered
+   atomic counterpart
 
 Suggested-by: Kees Cook <keescook@chromium.org>
 Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/events/uprobes.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ include/linux/nsproxy.h | 6 +++---
+ kernel/nsproxy.c        | 6 +++---
+ 2 files changed, 6 insertions(+), 6 deletions(-)
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 8d42d8f..3514b42 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -66,7 +66,7 @@ static struct percpu_rw_semaphore dup_mmap_sem;
+diff --git a/include/linux/nsproxy.h b/include/linux/nsproxy.h
+index 2ae1b1a..90f09ff 100644
+--- a/include/linux/nsproxy.h
++++ b/include/linux/nsproxy.h
+@@ -29,7 +29,7 @@ struct fs_struct;
+  * nsproxy is copied.
+  */
+ struct nsproxy {
+-	atomic_t count;
++	refcount_t count;
+ 	struct uts_namespace *uts_ns;
+ 	struct ipc_namespace *ipc_ns;
+ 	struct mnt_namespace *mnt_ns;
+@@ -75,14 +75,14 @@ int __init nsproxy_cache_init(void);
  
- struct uprobe {
- 	struct rb_node		rb_node;	/* node in the rb tree */
--	atomic_t		ref;
-+	refcount_t		ref;
- 	struct rw_semaphore	register_rwsem;
- 	struct rw_semaphore	consumer_rwsem;
- 	struct list_head	pending_list;
-@@ -371,13 +371,13 @@ set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long v
- 
- static struct uprobe *get_uprobe(struct uprobe *uprobe)
+ static inline void put_nsproxy(struct nsproxy *ns)
  {
--	atomic_inc(&uprobe->ref);
-+	refcount_inc(&uprobe->ref);
- 	return uprobe;
+-	if (atomic_dec_and_test(&ns->count)) {
++	if (refcount_dec_and_test(&ns->count)) {
+ 		free_nsproxy(ns);
+ 	}
  }
  
- static void put_uprobe(struct uprobe *uprobe)
+ static inline void get_nsproxy(struct nsproxy *ns)
  {
--	if (atomic_dec_and_test(&uprobe->ref))
-+	if (refcount_dec_and_test(&uprobe->ref))
- 		kfree(uprobe);
+-	atomic_inc(&ns->count);
++	refcount_inc(&ns->count);
  }
  
-@@ -459,7 +459,7 @@ static struct uprobe *__insert_uprobe(struct uprobe *uprobe)
- 	rb_link_node(&uprobe->rb_node, parent, p);
- 	rb_insert_color(&uprobe->rb_node, &uprobes_tree);
- 	/* get access + creation ref */
--	atomic_set(&uprobe->ref, 2);
-+	refcount_set(&uprobe->ref, 2);
+ #endif
+diff --git a/kernel/nsproxy.c b/kernel/nsproxy.c
+index f6c5d33..5bfe691 100644
+--- a/kernel/nsproxy.c
++++ b/kernel/nsproxy.c
+@@ -31,7 +31,7 @@
+ static struct kmem_cache *nsproxy_cachep;
  
- 	return u;
+ struct nsproxy init_nsproxy = {
+-	.count			= ATOMIC_INIT(1),
++	.count			= REFCOUNT_INIT(1),
+ 	.uts_ns			= &init_uts_ns,
+ #if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
+ 	.ipc_ns			= &init_ipc_ns,
+@@ -52,7 +52,7 @@ static inline struct nsproxy *create_nsproxy(void)
+ 
+ 	nsproxy = kmem_cache_alloc(nsproxy_cachep, GFP_KERNEL);
+ 	if (nsproxy)
+-		atomic_set(&nsproxy->count, 1);
++		refcount_set(&nsproxy->count, 1);
+ 	return nsproxy;
  }
+ 
+@@ -225,7 +225,7 @@ void switch_task_namespaces(struct task_struct *p, struct nsproxy *new)
+ 	p->nsproxy = new;
+ 	task_unlock(p);
+ 
+-	if (ns && atomic_dec_and_test(&ns->count))
++	if (ns && refcount_dec_and_test(&ns->count))
+ 		free_nsproxy(ns);
+ }
+ 
 -- 
 2.7.4
 
