@@ -1,151 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8777B6B025F
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 22:45:44 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 70so11314004pgf.5
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 19:45:44 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id c1si674148pgu.693.2017.11.14.19.45.42
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 51A086B0033
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 23:11:56 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id r58so4467554qtc.7
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 20:11:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o8sor2673004qtf.78.2017.11.14.20.11.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 14 Nov 2017 19:45:42 -0800 (PST)
-Message-ID: <5A0BB8EE.4050402@intel.com>
-Date: Wed, 15 Nov 2017 11:47:58 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 14 Nov 2017 20:11:55 -0800 (PST)
+Subject: Re: Allocation failure of ring buffer for trace
+References: <9631b871-99cc-82bb-363f-9d429b56f5b9@gmail.com>
+ <20171114114633.6ltw7f4y7qwipcqp@suse.de>
+From: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
+Message-ID: <9afee361-8a6f-1c41-5c30-0ed682608c4c@gmail.com>
+Date: Tue, 14 Nov 2017 23:11:52 -0500
 MIME-Version: 1.0
-Subject: Re: [PATCH v17 6/6] virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com> <1509696786-1597-7-git-send-email-wei.w.wang@intel.com> <5A097548.8000608@intel.com> <20171113192309-mutt-send-email-mst@kernel.org> <5A0ADB3B.4070407@intel.com> <20171114230805-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171114230805-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=windows-1252; format=flowed
+In-Reply-To: <20171114114633.6ltw7f4y7qwipcqp@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, Nitesh Narayan Lal <nilal@redhat.com>, Rik van Riel <riel@redhat.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: rostedt@goodmis.org, mingo@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, koki.sanagi@us.fujitsu.com, yasu.isimatu@gmail.com
 
-On 11/15/2017 05:21 AM, Michael S. Tsirkin wrote:
-> On Tue, Nov 14, 2017 at 08:02:03PM +0800, Wei Wang wrote:
->> On 11/14/2017 01:32 AM, Michael S. Tsirkin wrote:
->>>> - guest2host_cmd: written by the guest to ACK to the host about the
->>>> commands that have been received. The host will clear the corresponding
->>>> bits on the host2guest_cmd register. The guest also uses this register
->>>> to send commands to the host (e.g. when finish free page reporting).
->>> I am not sure what is the role of guest2host_cmd. Reporting of
->>> the correct cmd id seems sufficient indication that guest
->>> received the start command. Not getting any more seems sufficient
->>> to detect stop.
->>>
->> I think the issue is when the host is waiting for the guest to report pages,
->> it does not know whether the guest is going to report more or the report is
->> done already. That's why we need a way to let the guest tell the host "the
->> report is done, don't wait for more", then the host continues to the next
->> step - sending the non-free pages to the destination. The following method
->> is a conclusion of other comments, with some new thought. Please have a
->> check if it is good.
-> config won't work well for this IMHO.
-> Writes to config register are hard to synchronize with the VQ.
-> For example, guest sends free pages, host says stop, meanwhile
-> guest sends stop for 1st set of pages.
+Hi Mel,
 
-I still don't see an issue with this. Please see below:
-(before jumping into the discussion, just make sure I've well explained 
-this point: now host-to-guest commands are done via config, and 
-guest-to-host commands are done via the free page vq)
+Your patch works good.
 
-Case: Host starts to request the reporting with cmd_id=1. Some time 
-later, Host writes "stop" to config, meantime guest happens to finish 
-the reporting and plan to actively send a "stop" command from the 
-free_page_vq().
-           Essentially, this is like a sync between two threads - if we 
-view the config interrupt handler as one thread, another is the free 
-page reporting worker thread.
+Here are the results of your patch.
 
-         - what the config handler does is simply:
-               1.1:  WRITE_ONCE(vb->reporting_stop, true);
+- boot up without trace_buf_size boot option
 
-         - what the reporting thread will do is
-               2.1:  WRITE_ONCE(vb->reporting_stop, true);
-               2.2:  send_stop_to_host_via_vq();
+When system boots up without trace_buf_size boot option, deferred_init_memmap()
+runs after booting SMP configuration. There no change of boot sequence between
+4.14.0 and 4.14.0 with your patch.
 
- From the guest point of view, no matter 1.1 is executed first or 2.1 
-first, it doesn't make a difference to the end result - 
-vb->reporting_stop is set.
+[    0.256285] x86: Booting SMP configuration:
+...
+[    5.313195] node 0 initialised, 15530251 pages in 653ms
+[    5.330691] node 1 initialised, 15988494 pages in 670ms
+[    5.331746] node 2 initialised, 15988493 pages in 671ms
+[    5.332166] node 6 initialised, 15982779 pages in 670ms
+[    5.332673] node 3 initialised, 15988494 pages in 671ms
+[    5.332618] node 4 initialised, 15988494 pages in 672ms
+[    5.334187] node 7 initialised, 15987304 pages in 672ms
+[    5.334976] node 5 initialised, 15988494 pages in 673ms
 
- From the host point of view, it knows that cmd_id=1 has truly stopped 
-the reporting when it receives a "stop" sign via the vq.
+- boot up with trace_buf_size boot option
 
+When system boots up with trace_buf_size boot option, deferred_init_memmap()
+runs before booting SMP configuration. So every memory on all nodes is
+initialised before allocating trace buffer. And system can boot up even if
+we set trace_buf_size boot option.
 
-> How about adding a buffer with "stop" in the VQ instead?
-> Wastes a VQ entry which you will need to reserve for this
-> but is it a big deal?
+[    0.932114] node 0 initialised, 15530251 pages in 684ms
+[    1.604918] node 1 initialised, 15988494 pages in 671ms
+[    2.278933] node 2 initialised, 15988494 pages in 673ms
+[    2.965076] node 3 initialised, 15988494 pages in 686ms
+[    3.669064] node 4 initialised, 15988494 pages in 703ms
+[    4.354983] node 5 initialised, 15988493 pages in 684ms
+[    5.028681] node 6 initialised, 15982779 pages in 673ms
+[    5.716102] node 7 initialised, 15987304 pages in 687ms
+[    5.727855] smp: Bringing up secondary CPUs ...
+[    5.745937] x86: Booting SMP configuration:
 
-The free page vq is guest-to-host direction. Using it for host-to-guest 
-requests will make it bidirectional, which will result in the same issue 
-described before: https://lkml.org/lkml/2017/10/11/1009 (the first response)
+Thanks,
+Yasuaki Ishimatsu
 
-On the other hand, I think adding another new vq for host-to-guest 
-requesting doesn't make a difference in essence, compared to using 
-config (same 1.1, 2.1, 2.2 above), but will be more complicated.
-
-
->> Two new configuration registers in total:
->> - cmd_reg: the command register, combined from the previous host2guest and
->> guest2host. I think we can use the same register for host requesting and
->> guest ACKing, since the guest writing will trap to QEMU, that is, all the
->> writes to the register are performed in QEMU, and we can keep things work in
->> a correct way there.
->> - cmd_id_reg: the sequence id of the free page report command.
+On 11/14/2017 06:46 AM, Mel Gorman wrote:
+> On Mon, Nov 13, 2017 at 12:48:36PM -0500, YASUAKI ISHIMATSU wrote:
+>> When using trace_buf_size= boot option, memory allocation of ring buffer
+>> for trace fails as follows:
 >>
->> -- free page report:
->>      - host requests the guest to start reporting by "cmd_reg |
->> REPORT_START";
->>      - guest ACKs to the host about receiving the start reporting request by
->> "cmd_reg | REPORT_START", host will clear the flag bit once receiving the
->> ACK.
->>      - host requests the guest to stop reporting by "cmd_reg | REPORT_STOP";
->>      - guest ACKs to the host about receiving the stop reporting request by
->> "cmd_reg | REPORT_STOP", host will clear the flag once receiving the ACK.
->>      - guest tells the host about the start of the reporting by writing "cmd
->> id" into an outbuf, which is added to the free page vq.
->>      - guest tells the host about the end of the reporting by writing "0"
->> into an outbuf, which is added to the free page vq. (we reserve "id=0" as
->> the stop sign)
+>> [ ] x86: Booting SMP configuration:
+>> <SNIP>
 >>
->> -- ballooning:
->>      - host requests the guest to start ballooning by "cmd_reg | BALLOONING";
->>      - guest ACKs to the host about receiving the request by "cmd_reg |
->> BALLOONING", host will clear the flag once receiving the ACK.
+>> In my server, there are 384 CPUs, 512 GB memory and 8 nodes. And
+>> "trace_buf_size=100M" is set.
 >>
+>> When using trace_buf_size=100M, kernel allocates 100 MB memory
+>> per CPU before calling free_are_init_core(). Kernel tries to
+>> allocates 38.4GB (100 MB * 384 CPU) memory. But available memory
+>> at this time is about 16GB (2 GB * 8 nodes) due to the following commit:
 >>
->> Some more explanations:
->> -- Why not let the host request the guest to start the free page reporting
->> simply by writing a new cmd id to the cmd_id_reg?
->> The configuration interrupt is shared among all the features - ballooning,
->> free page reporting, and future feature extensions which need host-to-guest
->> requests. Some features may need to add other feature specific configuration
->> registers, like free page reporting need the cmd_id_reg, which is not used
->> by ballooning. The rule here is that the feature specific registers are read
->> only when that feature is requested via the cmd_reg. For example, the
->> cmd_id_reg is read only when "cmd_reg | REPORT_START" is true. Otherwise,
->> when the driver receives a configuration interrupt, it has to read both
->> cmd_reg and cmd_id registers to know what are requested by the host - think
->> about the case that ballooning requests are sent frequently while free page
->> reporting isn't requested, the guest has to read the cmd_id register every
->> time a ballooning request is sent by the host, which is not necessary. If
->> future new features follow this style, there will be more unnecessary
->> VMexits to read the unused feature specific registers.
->> So I think it is good to have a central control of the feature request via
->> only one cmd register - reading that one is enough to know what is requested
->> by the host.
+>>   3a80a7fa7989 ("mm: meminit: initialise a subset of struct pages
+>>                  if CONFIG_DEFERRED_STRUCT_PAGE_INIT is set")
 >>
-> Right now you are increasing the cost of balloon request 3x though.
-
-Not that much, I think, just a cmd register read and ACK, and this 
-should be neglected compared to the ballooning time.
-(I don't see a difference in the performance testing either).
-
-Best,
-Wei
+> 
+> 1. What is the use case for such a large trace buffer being allocated at
+>    boot time?
+> 2. Is disabling CONFIG_DEFERRED_STRUCT_PAGE_INIT at compile time an
+>    option for you given that it's a custom-built kernel and not a
+>    distribution kernel?
+> 
+> Basically, as the allocation context is within smp_init(), there are no
+> opportunities to do the deferred meminit early. Furthermore, the partial
+> initialisation of memory occurs before the size of the trace buffers is
+> set so there is no opportunity to adjust the amount of memory that is
+> pre-initialised. We could potentially catch when memory is low during
+> system boot and adjust the amount that is initialised serially but the
+> complexity would be high. Given that deferred meminit is basically a minor
+> optimisation that only affects very large machines and trace_buf_size being
+> used is somewhat specialised, I think the most straight-forward option is
+> to go back to serialised meminit if trace_buf_size is specified like this;
+> 
+> diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+> index 710143741eb5..6ef0ab13f774 100644
+> --- a/include/linux/gfp.h
+> +++ b/include/linux/gfp.h
+> @@ -558,6 +558,19 @@ void drain_local_pages(struct zone *zone);
+>  
+>  void page_alloc_init_late(void);
+>  
+> +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> +extern void __init disable_deferred_meminit(void);
+> +extern void page_alloc_init_late_prepare(void);
+> +#else
+> +static inline void disable_deferred_meminit(void)
+> +{
+> +}
+> +
+> +static inline void page_alloc_init_late_prepare(void)
+> +{
+> +}
+> +#endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+> +
+>  /*
+>   * gfp_allowed_mask is set to GFP_BOOT_MASK during early boot to restrict what
+>   * GFP flags are used before interrupts are enabled. Once interrupts are
+> diff --git a/init/main.c b/init/main.c
+> index 0ee9c6866ada..0248b8b5bc3a 100644
+> --- a/init/main.c
+> +++ b/init/main.c
+> @@ -1058,6 +1058,8 @@ static noinline void __init kernel_init_freeable(void)
+>  	do_pre_smp_initcalls();
+>  	lockup_detector_init();
+>  
+> +	page_alloc_init_late_prepare();
+> +
+>  	smp_init();
+>  	sched_init_smp();
+>  
+> diff --git a/kernel/trace/trace.c b/kernel/trace/trace.c
+> index 752e5daf0896..cfa7175ff093 100644
+> --- a/kernel/trace/trace.c
+> +++ b/kernel/trace/trace.c
+> @@ -1115,6 +1115,13 @@ static int __init set_buf_size(char *str)
+>  	if (buf_size == 0)
+>  		return 0;
+>  	trace_buf_size = buf_size;
+> +
+> +	/*
+> +	 * The size of buffers are unpredictable so initialise all memory
+> +	 * before the allocation attempt occurs.
+> +	 */
+> +	disable_deferred_meminit();
+> +
+>  	return 1;
+>  }
+>  __setup("trace_buf_size=", set_buf_size);
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 77e4d3c5c57b..4dd0e153b0f2 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -290,6 +290,19 @@ EXPORT_SYMBOL(nr_online_nodes);
+>  int page_group_by_mobility_disabled __read_mostly;
+>  
+>  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> +bool __initdata deferred_meminit_disabled;
+> +
+> +/*
+> + * Allow deferred meminit to be disabled by subsystems that require large
+> + * allocations before the memory allocator is fully initialised. It should
+> + * only be used in cases where the size of the allocation may not fit into
+> + * the 2G per node that is allocated serially.
+> + */
+> +void __init disable_deferred_meminit(void)
+> +{
+> +	deferred_meminit_disabled = true;
+> +}
+> +
+>  static inline void reset_deferred_meminit(pg_data_t *pgdat)
+>  {
+>  	unsigned long max_initialise;
+> @@ -1567,6 +1580,23 @@ static int __init deferred_init_memmap(void *data)
+>  }
+>  #endif /* CONFIG_DEFERRED_STRUCT_PAGE_INIT */
+>  
+> +#ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+> +/*
+> + * Serialised init of remaining memory if large buffers of unknown size
+> + * are required that might fail before parallelised meminit can start
+> + */
+> +void __init page_alloc_init_late_prepare(void)
+> +{
+> +	int nid;
+> +
+> +	if (!deferred_meminit_disabled)
+> +		return;
+> +
+> +	for_each_node_state(nid, N_MEMORY)
+> +		deferred_init_memmap(NODE_DATA(nid));
+> +}
+> +#endif
+> +
+>  void __init page_alloc_init_late(void)
+>  {
+>  	struct zone *zone;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
