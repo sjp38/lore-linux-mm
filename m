@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D96F28025E
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 08:57:30 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id t10so27321019pgo.20
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 05:57:30 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A034028025E
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 08:57:33 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id m188so17475162pga.22
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 05:57:33 -0800 (PST)
 Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTP id i185si915807pgc.294.2017.11.16.05.57.26
+        by mx.google.com with ESMTP id f24si1008888pfk.415.2017.11.16.05.57.29
         for <linux-mm@kvack.org>;
-        Thu, 16 Nov 2017 05:57:29 -0800 (PST)
+        Thu, 16 Nov 2017 05:57:32 -0800 (PST)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 09/16] perf/ring_buffer: convert ring_buffer.refcount to refcount_t
-Date: Wed, 15 Nov 2017 16:03:33 +0200
-Message-Id: <1510754620-27088-10-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 10/16] perf/ring_buffer: convert ring_buffer.aux_refcount to refcount_t
+Date: Wed, 15 Nov 2017 16:03:34 +0200
+Message-Id: <1510754620-27088-11-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -33,7 +33,7 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable ring_buffer.refcount is used as pure reference counter.
+The variable ring_buffer.aux_refcount is used as pure reference counter.
 Convert it to refcount_t and fix up the operations.
 
 **Important note for maintainers:
@@ -50,12 +50,12 @@ some rare cases it might matter.
 Please double check that you don't have some undocumented
 memory guarantees for this variable usage.
 
-For the ring_buffer.refcount it might make a difference
+For the ring_buffer.aux_refcount it might make a difference
 in following places:
- - ring_buffer_get(): increment in refcount_inc_not_zero() only
+ - perf_aux_output_begin(): increment in refcount_inc_not_zero() only
    guarantees control dependency on success vs. fully ordered
    atomic counterpart
- - ring_buffer_put(): decrement in refcount_dec_and_test() only
+ - rb_free_aux(): decrement in refcount_dec_and_test() only
    provides RELEASE ordering and control dependency on success
    vs. fully ordered atomic counterpart
 
@@ -64,66 +64,68 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/events/core.c        | 4 ++--
- kernel/events/internal.h    | 3 ++-
- kernel/events/ring_buffer.c | 2 +-
- 3 files changed, 5 insertions(+), 4 deletions(-)
+ kernel/events/core.c        | 2 +-
+ kernel/events/internal.h    | 2 +-
+ kernel/events/ring_buffer.c | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/kernel/events/core.c b/kernel/events/core.c
-index 29c381f..3497c6a 100644
+index 3497c6a..5f087f4 100644
 --- a/kernel/events/core.c
 +++ b/kernel/events/core.c
-@@ -5020,7 +5020,7 @@ struct ring_buffer *ring_buffer_get(struct perf_event *event)
- 	rcu_read_lock();
- 	rb = rcu_dereference(event->rb);
- 	if (rb) {
--		if (!atomic_inc_not_zero(&rb->refcount))
-+		if (!refcount_inc_not_zero(&rb->refcount))
- 			rb = NULL;
+@@ -5095,7 +5095,7 @@ static void perf_mmap_close(struct vm_area_struct *vma)
+ 
+ 		/* this has to be the last one */
+ 		rb_free_aux(rb);
+-		WARN_ON_ONCE(atomic_read(&rb->aux_refcount));
++		WARN_ON_ONCE(refcount_read(&rb->aux_refcount));
+ 
+ 		mutex_unlock(&event->mmap_mutex);
  	}
- 	rcu_read_unlock();
-@@ -5030,7 +5030,7 @@ struct ring_buffer *ring_buffer_get(struct perf_event *event)
- 
- void ring_buffer_put(struct ring_buffer *rb)
- {
--	if (!atomic_dec_and_test(&rb->refcount))
-+	if (!refcount_dec_and_test(&rb->refcount))
- 		return;
- 
- 	WARN_ON_ONCE(!list_empty(&rb->event_list));
 diff --git a/kernel/events/internal.h b/kernel/events/internal.h
-index 09b1537..86c5c7f 100644
+index 86c5c7f..50ecf00 100644
 --- a/kernel/events/internal.h
 +++ b/kernel/events/internal.h
-@@ -4,13 +4,14 @@
+@@ -49,7 +49,7 @@ struct ring_buffer {
+ 	atomic_t			aux_mmap_count;
+ 	unsigned long			aux_mmap_locked;
+ 	void				(*free_aux)(void *);
+-	atomic_t			aux_refcount;
++	refcount_t			aux_refcount;
+ 	void				**aux_pages;
+ 	void				*aux_priv;
  
- #include <linux/hardirq.h>
- #include <linux/uaccess.h>
-+#include <linux/refcount.h>
- 
- /* Buffer handling */
- 
- #define RING_BUFFER_WRITABLE		0x01
- 
- struct ring_buffer {
--	atomic_t			refcount;
-+	refcount_t			refcount;
- 	struct rcu_head			rcu_head;
- #ifdef CONFIG_PERF_USE_VMALLOC
- 	struct work_struct		work;
 diff --git a/kernel/events/ring_buffer.c b/kernel/events/ring_buffer.c
-index 141aa2c..de12d36 100644
+index de12d36..b29d6ce 100644
 --- a/kernel/events/ring_buffer.c
 +++ b/kernel/events/ring_buffer.c
-@@ -284,7 +284,7 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
- 	else
- 		rb->overwrite = 1;
+@@ -357,7 +357,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
+ 	if (!atomic_read(&rb->aux_mmap_count))
+ 		goto err;
  
--	atomic_set(&rb->refcount, 1);
-+	refcount_set(&rb->refcount, 1);
+-	if (!atomic_inc_not_zero(&rb->aux_refcount))
++	if (!refcount_inc_not_zero(&rb->aux_refcount))
+ 		goto err;
  
- 	INIT_LIST_HEAD(&rb->event_list);
- 	spin_lock_init(&rb->event_lock);
+ 	/*
+@@ -659,7 +659,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
+ 	 * we keep a refcount here to make sure either of the two can
+ 	 * reference them safely.
+ 	 */
+-	atomic_set(&rb->aux_refcount, 1);
++	refcount_set(&rb->aux_refcount, 1);
+ 
+ 	rb->aux_overwrite = overwrite;
+ 	rb->aux_watermark = watermark;
+@@ -678,7 +678,7 @@ int rb_alloc_aux(struct ring_buffer *rb, struct perf_event *event,
+ 
+ void rb_free_aux(struct ring_buffer *rb)
+ {
+-	if (atomic_dec_and_test(&rb->aux_refcount))
++	if (refcount_dec_and_test(&rb->aux_refcount))
+ 		__rb_free_aux(rb);
+ }
+ 
 -- 
 2.7.4
 
