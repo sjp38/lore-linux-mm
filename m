@@ -1,60 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 701116B0253
-	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 19:42:44 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id r6so19323423pfj.14
-        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 16:42:44 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b11sor6321004plk.105.2017.11.14.16.42.43
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 14 Nov 2017 16:42:43 -0800 (PST)
-Date: Tue, 14 Nov 2017 16:42:41 -0800
-From: Tycho Andersen <tycho@tycho.ws>
-Subject: Re: [kernel-hardening] Re: [PATCH v6 03/11] mm, x86: Add support for
- eXclusive Page Frame Ownership (XPFO)
-Message-ID: <20171115004241.x26in64ruukitrjb@cisco>
-References: <34454a32-72c2-c62e-546c-1837e05327e1@intel.com>
- <20170920223452.vam3egenc533rcta@smitten>
- <97475308-1f3d-ea91-5647-39231f3b40e5@intel.com>
- <20170921000901.v7zo4g5edhqqfabm@docker>
- <d1a35583-8225-2ab3-d9fa-273482615d09@intel.com>
- <20171110010907.qfkqhrbtdkt5y3hy@smitten>
- <7237ae6d-f8aa-085e-c144-9ed5583ec06b@intel.com>
- <2aa64bf6-fead-08cc-f4fe-bd353008ca59@intel.com>
- <20171115003358.r3bsukc3vlbikjef@cisco>
- <c9516f27-ad4c-5b65-1611-f0c3604168bf@intel.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 287436B0033
+	for <linux-mm@kvack.org>; Tue, 14 Nov 2017 19:56:05 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id p2so19340975pfk.13
+        for <linux-mm@kvack.org>; Tue, 14 Nov 2017 16:56:05 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 17si5599390pfh.401.2017.11.14.16.56.03
+        for <linux-mm@kvack.org>;
+        Tue, 14 Nov 2017 16:56:04 -0800 (PST)
+Date: Wed, 15 Nov 2017 09:56:02 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20171115005602.GB23810@bbox>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <c9516f27-ad4c-5b65-1611-f0c3604168bf@intel.com>
+In-Reply-To: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Nov 14, 2017 at 04:37:34PM -0800, Dave Hansen wrote:
-> On 11/14/2017 04:33 PM, Tycho Andersen wrote:
-> >>
-> >> void set_bh_page(struct buffer_head *bh,
-> >> ...
-> >> 	bh->b_data = page_address(page) + offset;
-> > Ah, yes. I guess there will be many bugs like this :). Anyway, I'll
-> > try to cook up a patch.
+On Tue, Nov 14, 2017 at 06:37:42AM +0900, Tetsuo Handa wrote:
+> When shrinker_rwsem was introduced, it was assumed that
+> register_shrinker()/unregister_shrinker() are really unlikely paths
+> which are called during initialization and tear down. But nowadays,
+> register_shrinker()/unregister_shrinker() might be called regularly.
+> This patch prepares for allowing parallel registration/unregistration
+> of shrinkers.
 > 
-> It won't catch all the bugs, but it might be handy to have a debugging
-> mode that records the location of the last user of page_address() and
-> friends.  That way, when we trip over an unmapped page, we have an
-> easier time finding the offender.
+> Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
+> using one RCU section. But using atomic_inc()/atomic_dec() for each
+> do_shrink_slab() call will not impact so much.
+> 
+> This patch uses polling loop with short sleep for unregister_shrinker()
+> rather than wait_on_atomic_t(), for we can save reader's cost (plain
+> atomic_dec() compared to atomic_dec_and_test()), we can expect that
+> do_shrink_slab() of unregistering shrinker likely returns shortly, and
+> we can avoid khungtaskd warnings when do_shrink_slab() of unregistering
+> shrinker unexpectedly took so long.
+> 
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-Ok, what I've been doing now is saving the stack frame of the code
-that allocated the page, which also seems useful. I'll see about
-adding a DEBUG_XPFO config option for the next series with both of
-these things, though.
+Before reviewing this patch, can't we solve the problem with more
+simple way? Like this.
 
-Cheers,
+Shakeel, What do you think?
 
-Tycho
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 13d711dd8776..cbb624cb9baa 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -498,6 +498,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 			sc.nid = 0;
+ 
+ 		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		/*
++		 * bail out if someone want to register a new shrinker to prevent
++		 * long time stall by parallel ongoing shrinking.
++		 */
++		if (rwsem_is_contended(&shrinker_rwsem)) {
++			freed = 1;
++			break;
++		}
+ 	}
+ 
+ 	up_read(&shrinker_rwsem);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
