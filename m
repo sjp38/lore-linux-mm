@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B460E6B026D
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:57:19 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id x66so8299652pfe.21
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:57:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c7si17976971plo.298.2017.11.15.06.57.18
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 47B9A6B026F
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:58:40 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id u70so21121753pfa.2
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:58:40 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id d12si15472525pgn.478.2017.11.15.06.58.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Nov 2017 06:57:18 -0800 (PST)
-Date: Wed, 15 Nov 2017 15:57:16 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
- trace_buf_size is specified
-Message-ID: <20171115145716.w34jaez5ljb3fssn@dhcp22.suse.cz>
-References: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
- <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
- <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
- <20171115142816.zxdgkad3ch2bih6d@dhcp22.suse.cz>
- <20171115144314.xwdi2sbcn6m6lqdo@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 15 Nov 2017 06:58:39 -0800 (PST)
+Date: Wed, 15 Nov 2017 06:58:35 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v6 03/11] mm, x86: Add support for eXclusive Page Frame
+ Ownership (XPFO)
+Message-ID: <20171115145835.GB319@bombadil.infradead.org>
+References: <34454a32-72c2-c62e-546c-1837e05327e1@intel.com>
+ <20170920223452.vam3egenc533rcta@smitten>
+ <97475308-1f3d-ea91-5647-39231f3b40e5@intel.com>
+ <20170921000901.v7zo4g5edhqqfabm@docker>
+ <d1a35583-8225-2ab3-d9fa-273482615d09@intel.com>
+ <20171110010907.qfkqhrbtdkt5y3hy@smitten>
+ <7237ae6d-f8aa-085e-c144-9ed5583ec06b@intel.com>
+ <2aa64bf6-fead-08cc-f4fe-bd353008ca59@intel.com>
+ <20171115034430.GA24257@bombadil.infradead.org>
+ <d1459463-061c-2aba-ff89-936284c138a3@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171115144314.xwdi2sbcn6m6lqdo@techsingularity.net>
+In-Reply-To: <d1459463-061c-2aba-ff89-936284c138a3@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yasu.isimatu@gmail.com, koki.sanagi@us.fujitsu.com
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Tycho Andersen <tycho@docker.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com, Marco Benatto <marco.antonio.780@gmail.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, x86@kernel.org
 
-On Wed 15-11-17 14:43:14, Mel Gorman wrote:
-> On Wed, Nov 15, 2017 at 03:28:16PM +0100, Michal Hocko wrote:
-> > On Wed 15-11-17 14:13:29, Mel Gorman wrote:
-> > [...]
-> > > I doubt anyone well. Even the original reporter appeared to pick that
-> > > particular value just to trigger the OOM.
-> > 
-> > Then why do we care at all? The trace buffer size can be configured from
-> > the userspace if it is not sufficiently large IIRC.
-> > 
+On Tue, Nov 14, 2017 at 11:00:20PM -0800, Dave Hansen wrote:
+> On 11/14/2017 07:44 PM, Matthew Wilcox wrote:
+> > We don't need to kmap in order to access MOVABLE allocations.  kmap is
+> > only needed for HIGHMEM allocations.  So there's nothing wrong with ext4
+> > or set_bh_page().
 > 
-> I guess there is the potential that the trace buffer needs to be large
-> enough early on in boot but I'm not sure why it would need to be that large
-> to be honest. Bottom line, it's fairly trivial to just serialise meminit
-> in the event that it's resized from command line. I'm also ok with just
-> leaving this is as a "don't set the buffer that large"
+> Yeah, it's definitely not _buggy_.
+> 
+> Although, I do wonder what we should do about these for XPFO.  Should we
+> just stick a kmap() in there and comment it?  What we really need is a
+> mechanism to say "use this as a kernel page" and "stop using this as a
+> kernel page".  kmap() does that... kinda.  It's not a perfect fit, but
+> it's pretty close.
 
-I would be reluctant to touch the code just because of insane kernel
-command line option.
-
-That being said, I will not object or block the patch it just seems
-unnecessary for most reasonable setups I can think of. If there is a
-legitimate usage of such a large trace buffer then I wouldn't oppose.
--- 
-Michal Hocko
-SUSE Labs
+It'd be kind of funny if getting XPFO working better means improving
+how well Linux runs on 32-bit machines with HIGHMEM.  I think there's
+always going to be interest in those -- ARM developed 36 bit physmem
+before biting the bullet and going to arm64.  Maybe OpenRISC will do
+that next ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
