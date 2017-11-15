@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A74656B0069
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:07:55 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id s28so15642500pfg.6
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:07:55 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id p9si18452014pls.538.2017.11.15.06.07.54
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B6DE6B0253
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:08:01 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id c123so14044304pga.17
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:08:01 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id u17si15062401pge.390.2017.11.15.06.07.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 06:07:54 -0800 (PST)
+        Wed, 15 Nov 2017 06:07:59 -0800 (PST)
 From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 01/16] futex: convert futex_pi_state.refcount to refcount_t
-Date: Wed, 15 Nov 2017 16:03:25 +0200
-Message-Id: <1510754620-27088-2-git-send-email-elena.reshetova@intel.com>
+Subject: [PATCH 02/16] sched: convert sighand_struct.count to refcount_t
+Date: Wed, 15 Nov 2017 16:03:26 +0200
+Message-Id: <1510754620-27088-3-git-send-email-elena.reshetova@intel.com>
 In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
 Sender: owner-linux-mm@kvack.org
@@ -34,9 +34,8 @@ refcount_t type and API that prevents accidental counter overflows
 and underflows. This is important since overflows and underflows
 can lead to use-after-free situation and be exploitable.
 
-The variable futex_pi_state.refcount is used as pure
-reference counter. Convert it to refcount_t and fix up
-the operations.
+The variable sighand_struct.count is used as pure reference counter.
+Convert it to refcount_t and fix up the operations.
 
 **Important note for maintainers:
 
@@ -52,12 +51,9 @@ some rare cases it might matter.
 Please double check that you don't have some undocumented
 memory guarantees for this variable usage.
 
-For the futex_pi_state.refcount it might make a difference
+For the sighand_struct.count it might make a difference
 in following places:
- - get_pi_state() and exit_pi_state_list(): increment in
-   refcount_inc_not_zero() only guarantees control dependency
-   on success vs. fully ordered atomic counterpart
- - put_pi_state(): decrement in refcount_dec_and_test() only
+ - __cleanup_sighand: decrement in refcount_dec_and_test() only
    provides RELEASE ordering and control dependency on success
    vs. fully ordered atomic counterpart
 
@@ -66,84 +62,120 @@ Reviewed-by: David Windsor <dwindsor@gmail.com>
 Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- kernel/futex.c | 15 ++++++++-------
- 1 file changed, 8 insertions(+), 7 deletions(-)
+ fs/exec.c                    | 4 ++--
+ fs/proc/task_nommu.c         | 2 +-
+ include/linux/init_task.h    | 2 +-
+ include/linux/sched/signal.h | 3 ++-
+ kernel/fork.c                | 8 ++++----
+ 5 files changed, 10 insertions(+), 9 deletions(-)
 
-diff --git a/kernel/futex.c b/kernel/futex.c
-index 76ed592..907055f 100644
---- a/kernel/futex.c
-+++ b/kernel/futex.c
-@@ -67,6 +67,7 @@
- #include <linux/freezer.h>
- #include <linux/bootmem.h>
- #include <linux/fault-inject.h>
+diff --git a/fs/exec.c b/fs/exec.c
+index 19e6325..09d99b5 100644
+--- a/fs/exec.c
++++ b/fs/exec.c
+@@ -1181,7 +1181,7 @@ static int de_thread(struct task_struct *tsk)
+ 	flush_itimer_signals();
+ #endif
+ 
+-	if (atomic_read(&oldsighand->count) != 1) {
++	if (refcount_read(&oldsighand->count) != 1) {
+ 		struct sighand_struct *newsighand;
+ 		/*
+ 		 * This ->sighand is shared with the CLONE_SIGHAND
+@@ -1191,7 +1191,7 @@ static int de_thread(struct task_struct *tsk)
+ 		if (!newsighand)
+ 			return -ENOMEM;
+ 
+-		atomic_set(&newsighand->count, 1);
++		refcount_set(&newsighand->count, 1);
+ 		memcpy(newsighand->action, oldsighand->action,
+ 		       sizeof(newsighand->action));
+ 
+diff --git a/fs/proc/task_nommu.c b/fs/proc/task_nommu.c
+index 0b60ac6..684f808 100644
+--- a/fs/proc/task_nommu.c
++++ b/fs/proc/task_nommu.c
+@@ -64,7 +64,7 @@ void task_mem(struct seq_file *m, struct mm_struct *mm)
+ 	else
+ 		bytes += kobjsize(current->files);
+ 
+-	if (current->sighand && atomic_read(&current->sighand->count) > 1)
++	if (current->sighand && refcount_read(&current->sighand->count) > 1)
+ 		sbytes += kobjsize(current->sighand);
+ 	else
+ 		bytes += kobjsize(current->sighand);
+diff --git a/include/linux/init_task.h b/include/linux/init_task.h
+index 6a53262..9eb2ce8 100644
+--- a/include/linux/init_task.h
++++ b/include/linux/init_task.h
+@@ -86,7 +86,7 @@ extern struct fs_struct init_fs;
+ extern struct nsproxy init_nsproxy;
+ 
+ #define INIT_SIGHAND(sighand) {						\
+-	.count		= ATOMIC_INIT(1), 				\
++	.count		= REFCOUNT_INIT(1), 				\
+ 	.action		= { { { .sa_handler = SIG_DFL, } }, },		\
+ 	.siglock	= __SPIN_LOCK_UNLOCKED(sighand.siglock),	\
+ 	.signalfd_wqh	= __WAIT_QUEUE_HEAD_INITIALIZER(sighand.signalfd_wqh),	\
+diff --git a/include/linux/sched/signal.h b/include/linux/sched/signal.h
+index 64d85fc..4a0e2d8 100644
+--- a/include/linux/sched/signal.h
++++ b/include/linux/sched/signal.h
+@@ -8,13 +8,14 @@
+ #include <linux/sched/jobctl.h>
+ #include <linux/sched/task.h>
+ #include <linux/cred.h>
 +#include <linux/refcount.h>
  
- #include <asm/futex.h>
- 
-@@ -209,7 +210,7 @@ struct futex_pi_state {
- 	struct rt_mutex pi_mutex;
- 
- 	struct task_struct *owner;
--	atomic_t refcount;
-+	refcount_t refcount;
- 
- 	union futex_key key;
- } __randomize_layout;
-@@ -795,7 +796,7 @@ static int refill_pi_state_cache(void)
- 	INIT_LIST_HEAD(&pi_state->list);
- 	/* pi_mutex gets initialized later */
- 	pi_state->owner = NULL;
--	atomic_set(&pi_state->refcount, 1);
-+	refcount_set(&pi_state->refcount, 1);
- 	pi_state->key = FUTEX_KEY_INIT;
- 
- 	current->pi_state_cache = pi_state;
-@@ -815,7 +816,7 @@ static struct futex_pi_state *alloc_pi_state(void)
- 
- static void get_pi_state(struct futex_pi_state *pi_state)
- {
--	WARN_ON_ONCE(!atomic_inc_not_zero(&pi_state->refcount));
-+	WARN_ON_ONCE(!refcount_inc_not_zero(&pi_state->refcount));
- }
- 
  /*
-@@ -827,7 +828,7 @@ static void put_pi_state(struct futex_pi_state *pi_state)
- 	if (!pi_state)
- 		return;
+  * Types defining task->signal and task->sighand and APIs using them:
+  */
  
--	if (!atomic_dec_and_test(&pi_state->refcount))
-+	if (!refcount_dec_and_test(&pi_state->refcount))
- 		return;
+ struct sighand_struct {
+-	atomic_t		count;
++	refcount_t		count;
+ 	struct k_sigaction	action[_NSIG];
+ 	spinlock_t		siglock;
+ 	wait_queue_head_t	signalfd_wqh;
+diff --git a/kernel/fork.c b/kernel/fork.c
+index a1db74e..be451af 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1381,7 +1381,7 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
+ 	struct sighand_struct *sig;
  
- 	/*
-@@ -857,7 +858,7 @@ static void put_pi_state(struct futex_pi_state *pi_state)
- 		 * refcount is at 0 - put it back to 1.
- 		 */
- 		pi_state->owner = NULL;
--		atomic_set(&pi_state->refcount, 1);
-+		refcount_set(&pi_state->refcount, 1);
- 		current->pi_state_cache = pi_state;
+ 	if (clone_flags & CLONE_SIGHAND) {
+-		atomic_inc(&current->sighand->count);
++		refcount_inc(&current->sighand->count);
+ 		return 0;
  	}
- }
-@@ -918,7 +919,7 @@ void exit_pi_state_list(struct task_struct *curr)
- 		 * In that case; drop the locks to let put_pi_state() make
- 		 * progress and retry the loop.
- 		 */
--		if (!atomic_inc_not_zero(&pi_state->refcount)) {
-+		if (!refcount_inc_not_zero(&pi_state->refcount)) {
- 			raw_spin_unlock_irq(&curr->pi_lock);
- 			cpu_relax();
- 			raw_spin_lock_irq(&curr->pi_lock);
-@@ -1074,7 +1075,7 @@ static int attach_to_pi_state(u32 __user *uaddr, u32 uval,
- 	 * and futex_wait_requeue_pi() as it cannot go to 0 and consequently
- 	 * free pi_state before we can take a reference ourselves.
- 	 */
--	WARN_ON(!atomic_read(&pi_state->refcount));
-+	WARN_ON(!refcount_read(&pi_state->refcount));
+ 	sig = kmem_cache_alloc(sighand_cachep, GFP_KERNEL);
+@@ -1389,14 +1389,14 @@ static int copy_sighand(unsigned long clone_flags, struct task_struct *tsk)
+ 	if (!sig)
+ 		return -ENOMEM;
  
- 	/*
- 	 * Now that we have a pi_state, we can acquire wait_lock
+-	atomic_set(&sig->count, 1);
++	refcount_set(&sig->count, 1);
+ 	memcpy(sig->action, current->sighand->action, sizeof(sig->action));
+ 	return 0;
+ }
+ 
+ void __cleanup_sighand(struct sighand_struct *sighand)
+ {
+-	if (atomic_dec_and_test(&sighand->count)) {
++	if (refcount_dec_and_test(&sighand->count)) {
+ 		signalfd_cleanup(sighand);
+ 		/*
+ 		 * sighand_cachep is SLAB_TYPESAFE_BY_RCU so we can free it
+@@ -2303,7 +2303,7 @@ static int check_unshare_flags(unsigned long unshare_flags)
+ 			return -EINVAL;
+ 	}
+ 	if (unshare_flags & (CLONE_SIGHAND | CLONE_VM)) {
+-		if (atomic_read(&current->sighand->count) > 1)
++		if (refcount_read(&current->sighand->count) > 1)
+ 			return -EINVAL;
+ 	}
+ 	if (unshare_flags & CLONE_VM) {
 -- 
 2.7.4
 
