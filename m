@@ -1,72 +1,166 @@
-From: =?UTF-8?q?Tom=C3=A1=C5=A1=20Golembiovsk=C3=BD?= <tgolembi@redhat.com>
-Subject: [PATCH v3] virtio_balloon: include disk/file caches memory statistics
-Date: Sun, 12 Nov 2017 13:05:38 +0100
-Message-ID: <2e8c12f5242bcf755a33ee3a0e9ef94339d1808c.1510487579.git.tgolembi@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
-Return-path: <virtio-dev-return-2674-gcvd-virtio-dev=m.gmane.org@lists.oasis-open.org>
-Sender: <virtio-dev@lists.oasis-open.org>
-List-Post: <mailto:virtio-dev@lists.oasis-open.org>
-List-Help: <mailto:virtio-dev-help@lists.oasis-open.org>
-List-Unsubscribe: <mailto:virtio-dev-unsubscribe@lists.oasis-open.org>
-List-Subscribe: <mailto:virtio-dev-subscribe@lists.oasis-open.org>
-To: linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtualization@lists.linux-foundation.org
-Cc: Huang Ying <ying.huang@intel.com>, Gal Hammer <ghammer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, Amnon Ilan <ailan@redhat.com>, Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@redhat.com>, =?UTF-8?q?Tom=C3=A1=C5=A1=20Golembiovsk=C3=BD?= <tgolembi@redhat.com>
+From: Elena Reshetova <elena.reshetova@intel.com>
+Subject: [PATCH 16/16] bdi: convert bdi_writeback_congested.refcnt from atomic_t to refcount_t
+Date: Wed, 15 Nov 2017 16:03:40 +0200
+Message-ID: <1510754620-27088-17-git-send-email-elena.reshetova@intel.com>
+References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
+Return-path: <linux-fsdevel-owner@vger.kernel.org>
+In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
+Sender: linux-fsdevel-owner@vger.kernel.org
+To: mingo@redhat.com
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, tj@kernel.org, hannes@cmpxchg.org, lizefan@huawei.com, acme@kernel.org, alexander.shishkin@linux.intel.com, eparis@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, keescook@chromium.org, tglx@linutronix.de, dvhart@infradead.org, ebiederm@xmission.com, linux-mm@kvack.org, axboe@kernel.dk, Elena Reshetova <elena.reshetova@intel.com>
 List-Id: linux-mm.kvack.org
 
-Add a new field VIRTIO_BALLOON_S_CACHES to virtio_balloon memory
-statistics protocol. The value represents all disk/file caches.
+atomic_t variables are currently used to implement reference
+counters with the following properties:
+ - counter is initialized to 1 using atomic_set()
+ - a resource is freed upon counter reaching zero
+ - once counter reaches zero, its further
+   increments aren't allowed
+ - counter schema uses basic atomic operations
+   (set, inc, inc_not_zero, dec_and_test, etc.)
 
-In this case it corresponds to the sum of values
-Buffers+Cached+SwapCached from /proc/meminfo.
+Such atomic variables should be converted to a newly provided
+refcount_t type and API that prevents accidental counter overflows
+and underflows. This is important since overflows and underflows
+can lead to use-after-free situation and be exploitable.
 
-Signed-off-by: Tomáš Golembiovský <tgolembi@redhat.com>
+The variable bdi_writeback_congested.refcnt is used as pure reference counter.
+Convert it to refcount_t and fix up the operations.
+
+**Important note for maintainers:
+
+Some functions from refcount_t API defined in lib/refcount.c
+have different memory ordering guarantees than their atomic
+counterparts.
+The full comparison can be seen in
+https://lkml.org/lkml/2017/11/15/57 and it is hopefully soon
+in state to be merged to the documentation tree.
+Normally the differences should not matter since refcount_t provides
+enough guarantees to satisfy the refcounting use cases, but in
+some rare cases it might matter.
+Please double check that you don't have some undocumented
+memory guarantees for this variable usage.
+
+For the bdi_writeback_congested.refcnt it might make a difference
+in following places:
+ - wb_congested_put() in include/linux/backing-dev.h:
+   decrement in refcount_dec_and_test() only
+   provides RELEASE ordering and control dependency on success
+   vs. fully ordered atomic counterpart
+ - wb_congested_put() in mm/backing-dev.c: decrement in
+   refcount_dec_and_lock() only
+   provides RELEASE ordering, control dependency on success
+   and hold spin_lock() on success vs. fully ordered atomic
+   counterpart. Note, there is no difference in spin lock
+   locking.
+
+Suggested-by: Kees Cook <keescook@chromium.org>
+Reviewed-by: David Windsor <dwindsor@gmail.com>
+Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
+Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 ---
- drivers/virtio/virtio_balloon.c     | 4 ++++
- include/uapi/linux/virtio_balloon.h | 3 ++-
- 2 files changed, 6 insertions(+), 1 deletion(-)
+ include/linux/backing-dev-defs.h |  3 ++-
+ include/linux/backing-dev.h      |  4 ++--
+ mm/backing-dev.c                 | 14 ++++++++------
+ 3 files changed, 12 insertions(+), 9 deletions(-)
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index f0b3a0b9d42f..d2bd13bbaf9f 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -244,11 +244,13 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
- 	struct sysinfo i;
- 	unsigned int idx = 0;
- 	long available;
-+	unsigned long caches;
+diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
+index bfe86b5..0b1bcce 100644
+--- a/include/linux/backing-dev-defs.h
++++ b/include/linux/backing-dev-defs.h
+@@ -5,6 +5,7 @@
+ #include <linux/list.h>
+ #include <linux/radix-tree.h>
+ #include <linux/rbtree.h>
++#include <linux/refcount.h>
+ #include <linux/spinlock.h>
+ #include <linux/percpu_counter.h>
+ #include <linux/percpu-refcount.h>
+@@ -76,7 +77,7 @@ enum wb_reason {
+  */
+ struct bdi_writeback_congested {
+ 	unsigned long state;		/* WB_[a]sync_congested flags */
+-	atomic_t refcnt;		/* nr of attached wb's and blkg */
++	refcount_t refcnt;		/* nr of attached wb's and blkg */
  
- 	all_vm_events(events);
- 	si_meminfo(&i);
- 
- 	available = si_mem_available();
-+	caches = global_node_page_state(NR_FILE_PAGES);
- 
- #ifdef CONFIG_VM_EVENT_COUNTERS
- 	update_stat(vb, idx++, VIRTIO_BALLOON_S_SWAP_IN,
-@@ -264,6 +266,8 @@ static unsigned int update_balloon_stats(struct virtio_balloon *vb)
- 				pages_to_bytes(i.totalram));
- 	update_stat(vb, idx++, VIRTIO_BALLOON_S_AVAIL,
- 				pages_to_bytes(available));
-+	update_stat(vb, idx++, VIRTIO_BALLOON_S_CACHES,
-+				pages_to_bytes(caches));
- 
- 	return idx;
+ #ifdef CONFIG_CGROUP_WRITEBACK
+ 	struct backing_dev_info *__bdi;	/* the associated bdi, set to NULL
+diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
+index e54e7e0..d6bac2e 100644
+--- a/include/linux/backing-dev.h
++++ b/include/linux/backing-dev.h
+@@ -402,13 +402,13 @@ static inline bool inode_cgwb_enabled(struct inode *inode)
+ static inline struct bdi_writeback_congested *
+ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ {
+-	atomic_inc(&bdi->wb_congested->refcnt);
++	refcount_inc(&bdi->wb_congested->refcnt);
+ 	return bdi->wb_congested;
  }
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 343d7ddefe04..4e8b8304b793 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -52,7 +52,8 @@ struct virtio_balloon_config {
- #define VIRTIO_BALLOON_S_MEMFREE  4   /* Total amount of free memory */
- #define VIRTIO_BALLOON_S_MEMTOT   5   /* Total amount of memory */
- #define VIRTIO_BALLOON_S_AVAIL    6   /* Available memory as in /proc */
--#define VIRTIO_BALLOON_S_NR       7
-+#define VIRTIO_BALLOON_S_CACHES   7   /* Disk caches */
-+#define VIRTIO_BALLOON_S_NR       8
  
- /*
-  * Memory statistics structure.
+ static inline void wb_congested_put(struct bdi_writeback_congested *congested)
+ {
+-	if (atomic_dec_and_test(&congested->refcnt))
++	if (refcount_dec_and_test(&congested->refcnt))
+ 		kfree(congested);
+ }
+ 
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index 74b52df..e92a20f 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -440,14 +440,17 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 			node = &parent->rb_left;
+ 		else if (congested->blkcg_id > blkcg_id)
+ 			node = &parent->rb_right;
+-		else
+-			goto found;
++		else {
++			refcount_inc(&congested->refcnt);
++ 			goto found;
++		}
+ 	}
+ 
+ 	if (new_congested) {
+ 		/* !found and storage for new one already allocated, insert */
+ 		congested = new_congested;
+ 		new_congested = NULL;
++		refcount_set(&congested->refcnt, 1);
+ 		rb_link_node(&congested->rb_node, parent, node);
+ 		rb_insert_color(&congested->rb_node, &bdi->cgwb_congested_tree);
+ 		goto found;
+@@ -460,13 +463,12 @@ wb_congested_get_create(struct backing_dev_info *bdi, int blkcg_id, gfp_t gfp)
+ 	if (!new_congested)
+ 		return NULL;
+ 
+-	atomic_set(&new_congested->refcnt, 0);
++	refcount_set(&new_congested->refcnt, 0);
+ 	new_congested->__bdi = bdi;
+ 	new_congested->blkcg_id = blkcg_id;
+ 	goto retry;
+ 
+ found:
+-	atomic_inc(&congested->refcnt);
+ 	spin_unlock_irqrestore(&cgwb_lock, flags);
+ 	kfree(new_congested);
+ 	return congested;
+@@ -483,7 +485,7 @@ void wb_congested_put(struct bdi_writeback_congested *congested)
+ 	unsigned long flags;
+ 
+ 	local_irq_save(flags);
+-	if (!atomic_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
++	if (!refcount_dec_and_lock(&congested->refcnt, &cgwb_lock)) {
+ 		local_irq_restore(flags);
+ 		return;
+ 	}
+@@ -793,7 +795,7 @@ static int cgwb_bdi_init(struct backing_dev_info *bdi)
+ 	if (!bdi->wb_congested)
+ 		return -ENOMEM;
+ 
+-	atomic_set(&bdi->wb_congested->refcnt, 1);
++	refcount_set(&bdi->wb_congested->refcnt, 1);
+ 
+ 	err = wb_init(&bdi->wb, bdi, 1, GFP_KERNEL);
+ 	if (err) {
 -- 
-2.15.0
+2.7.4
