@@ -1,75 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F35F46B0272
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:13:31 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id u97so13000912wrc.3
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:13:31 -0800 (PST)
-Received: from outbound-smtp10.blacknight.com (outbound-smtp10.blacknight.com. [46.22.139.15])
-        by mx.google.com with ESMTPS id r42si2982347eda.155.2017.11.15.06.13.30
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 18F576B0274
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:18:11 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id b189so751349wmd.5
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:18:11 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id k129si2603551wmf.199.2017.11.15.06.18.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 06:13:30 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp10.blacknight.com (Postfix) with ESMTPS id 445811C4475
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 14:13:30 +0000 (GMT)
-Date: Wed, 15 Nov 2017 14:13:29 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
- trace_buf_size is specified
-Message-ID: <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
-References: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
- <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Nov 2017 06:18:09 -0800 (PST)
+Date: Wed, 15 Nov 2017 15:18:02 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+In-Reply-To: <20171115121042.dt2us5fsuqmepx4i@node.shutemov.name>
+Message-ID: <alpine.DEB.2.20.1711151509060.1805@nanos>
+References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com> <alpine.DEB.2.20.1711141630210.2044@nanos> <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name> <alpine.DEB.2.20.1711142131010.2221@nanos> <20171114222718.76w4lmclf6wasbl3@node.shutemov.name>
+ <alpine.DEB.2.20.1711142354520.2221@nanos> <20171115112702.e2m66wons37imtcj@node.shutemov.name> <alpine.DEB.2.20.1711151238500.1805@nanos> <20171115121042.dt2us5fsuqmepx4i@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yasu.isimatu@gmail.com, koki.sanagi@us.fujitsu.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 15, 2017 at 12:55:59PM +0100, Michal Hocko wrote:
-> On Wed 15-11-17 08:55:56, Mel Gorman wrote:
-> > Yasuaki Ishimatsu reported a premature OOM when trace_buf_size=100m was
-> > specified on a machine with many CPUs. The kernel tried to allocate 38.4GB
-> > but only 16GB was available due to deferred memory initialisation.
+On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
+> On Wed, Nov 15, 2017 at 12:39:40PM +0100, Thomas Gleixner wrote:
+> > > I *think* we should be fine with checking unaligned 'addr'.
 > > 
-> > The allocation context is within smp_init() so there are no opportunities
-> > to do the deferred meminit earlier. Furthermore, the partial initialisation
-> > of memory occurs before the size of the trace buffers is set so there is
-> > no opportunity to adjust the amount of memory that is pre-initialised. We
-> > could potentially catch when memory is low during system boot and adjust the
-> > amount that is initialised serially but it's a little clumsy as it would
-> > require a check in the failure path of the page allocator.  Given that
-> > deferred meminit is basically a minor optimisation that only benefits very
-> > large machines and trace_buf_size is somewhat specialised, it follows that
-> > the most straight-forward option is to go back to serialised meminit if
-> > trace_buf_size is specified.
+> > I think we should keep it consistent for the normal and the huge case and
+> > just check aligned and be done with it.
 > 
-> Can we instead do a smaller trace buffer in the early stage and then
-> allocate the rest after the whole memory is initialized?
-
-Potentially yes, but it's also unnecessarily complex to setup buffers,
-finish init, tear them down, set them back up etc. It's not much of an
-improvement to allocate a small buffer and then grow them later.
-
-> The early
-> memory init code is quite complex to make it even more so for something
-> that looks like a borderline useful usecase.
-
-The additional complexity to memory init is marginal in comparison to
-playing games with how the tracing ring buffers are allocated.
-
-> Seriously, who is going
-> need 100M trace buffer _per cpu_ during early boot?
+> Aligned 'addr'? Or 'len'? Both?
 > 
+> We would have problem with checking aligned addr. I steped it in hugetlb
+> case:
+> 
+>   - User asks for mmap((1UL << 47) - PAGE_SIZE, 2 << 20, MAP_HUGETLB);
+> 
+>   - On 4-level paging machine this gives us invalid hint address as
+>     'TASK_SIZE - len' is more than 'addr'. Goto get_unmapped_area.
+> 
+>   - On 5-level paging machine hint address gets rounded up to next 2MB
+>     boundary that is exactly 1UL << 47 and we happily allocate from full
+>     address space which may lead to trouble.
 
-I doubt anyone well. Even the original reporter appeared to pick that
-particular value just to trigger the OOM.
+Ah, right because that ALIGN is using huge_page_size(h) and not PAGE_SIZE.
 
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
