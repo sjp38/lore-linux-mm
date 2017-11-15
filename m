@@ -1,86 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5ACCC6B0253
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 04:18:06 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id u97so12585924wrc.3
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 01:18:06 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DBFA96B0253
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 04:31:33 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id 5so8023761wmk.0
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 01:31:33 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r13si1908585edk.420.2017.11.15.01.18.05
+        by mx.google.com with ESMTPS id m39si2742241edm.154.2017.11.15.01.31.32
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Nov 2017 01:18:05 -0800 (PST)
-Date: Wed, 15 Nov 2017 10:18:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
-Message-ID: <20171115091803.vdiozmlv23unajna@dhcp22.suse.cz>
-References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171115005602.GB23810@bbox>
- <20171115085625.afvw333csgypbk24@dhcp22.suse.cz>
+        Wed, 15 Nov 2017 01:31:32 -0800 (PST)
+Date: Wed, 15 Nov 2017 10:31:31 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v2] fs: fsnotify: account fsnotify metadata to kmemcg
+Message-ID: <20171115093131.GA17359@quack2.suse.cz>
+References: <1509128538-50162-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171030124358.GF23278@quack2.suse.cz>
+ <76a4d544-833a-5f42-a898-115640b6783b@alibaba-inc.com>
+ <20171031101238.GD8989@quack2.suse.cz>
+ <20171109135444.znaksm4fucmpuylf@dhcp22.suse.cz>
+ <10924085-6275-125f-d56b-547d734b6f4e@alibaba-inc.com>
+ <20171114093909.dbhlm26qnrrb2ww4@dhcp22.suse.cz>
+ <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171115085625.afvw333csgypbk24@dhcp22.suse.cz>
+In-Reply-To: <afa2dc80-16a3-d3d1-5090-9430eaafc841@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Jan Kara <jack@suse.cz>, amir73il@gmail.com, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 15-11-17 09:56:25, Michal Hocko wrote:
-> On Wed 15-11-17 09:56:02, Minchan Kim wrote:
-> > On Tue, Nov 14, 2017 at 06:37:42AM +0900, Tetsuo Handa wrote:
-> > > When shrinker_rwsem was introduced, it was assumed that
-> > > register_shrinker()/unregister_shrinker() are really unlikely paths
-> > > which are called during initialization and tear down. But nowadays,
-> > > register_shrinker()/unregister_shrinker() might be called regularly.
-> > > This patch prepares for allowing parallel registration/unregistration
-> > > of shrinkers.
-> > > 
-> > > Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
-> > > using one RCU section. But using atomic_inc()/atomic_dec() for each
-> > > do_shrink_slab() call will not impact so much.
-> > > 
-> > > This patch uses polling loop with short sleep for unregister_shrinker()
-> > > rather than wait_on_atomic_t(), for we can save reader's cost (plain
-> > > atomic_dec() compared to atomic_dec_and_test()), we can expect that
-> > > do_shrink_slab() of unregistering shrinker likely returns shortly, and
-> > > we can avoid khungtaskd warnings when do_shrink_slab() of unregistering
-> > > shrinker unexpectedly took so long.
-> > > 
-> > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > 
-> > Before reviewing this patch, can't we solve the problem with more
-> > simple way? Like this.
-> > 
-> > Shakeel, What do you think?
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 13d711dd8776..cbb624cb9baa 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -498,6 +498,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
-> >  			sc.nid = 0;
-> >  
-> >  		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
-> > +		/*
-> > +		 * bail out if someone want to register a new shrinker to prevent
-> > +		 * long time stall by parallel ongoing shrinking.
-> > +		 */
-> > +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> > +			freed = 1;
-> > +			break;
-> > +		}
+On Wed 15-11-17 01:32:16, Yang Shi wrote:
 > 
-> So you want to do only partial slab shrinking if we have more contending
-> direct reclaimers? This would just make a larger pressure on those on
-> the list head rather than the tail. I do not think this is a good idea.
+> 
+> On 11/14/17 1:39 AM, Michal Hocko wrote:
+> >On Tue 14-11-17 03:10:22, Yang Shi wrote:
+> >>
+> >>
+> >>On 11/9/17 5:54 AM, Michal Hocko wrote:
+> >>>[Sorry for the late reply]
+> >>>
+> >>>On Tue 31-10-17 11:12:38, Jan Kara wrote:
+> >>>>On Tue 31-10-17 00:39:58, Yang Shi wrote:
+> >>>[...]
+> >>>>>I do agree it is not fair and not neat to account to producer rather than
+> >>>>>misbehaving consumer, but current memcg design looks not support such use
+> >>>>>case. And, the other question is do we know who is the listener if it
+> >>>>>doesn't read the events?
+> >>>>
+> >>>>So you never know who will read from the notification file descriptor but
+> >>>>you can simply account that to the process that created the notification
+> >>>>group and that is IMO the right process to account to.
+> >>>
+> >>>Yes, if the creator is de-facto owner which defines the lifetime of
+> >>>those objects then this should be a target of the charge.
+> >>>
+> >>>>I agree that current SLAB memcg accounting does not allow to account to a
+> >>>>different memcg than the one of the running process. However I *think* it
+> >>>>should be possible to add such interface. Michal?
+> >>>
+> >>>We do have memcg_kmem_charge_memcg but that would require some plumbing
+> >>>to hook it into the specific allocation path. I suspect it uses kmalloc,
+> >>>right?
+> >>
+> >>Yes.
+> >>
+> >>I took a look at the implementation and the callsites of
+> >>memcg_kmem_charge_memcg(). It looks it is called by:
+> >>
+> >>* charge kmem to memcg, but it is charged to the allocator's memcg
+> >>* allocate new slab page, charge to memcg_params.memcg
+> >>
+> >>I think this is the plumbing you mentioned, right?
+> >
+> >Maybe I have misunderstood, but you are using slab allocator. So you
+> >would need to force it to use a different charging context than current.
+> 
+> Yes.
+> 
+> >I haven't checked deeply but this doesn't look trivial to me.
+> 
+> I agree. This is also what I explained to Jan and Amir in earlier
+> discussion.
 
-Scratch that. rwsem_is_contended is true only if there is at least one
-writer. So the regular reclaim path will be OK. (Un)Register will
-shortcut the reclaim. This is acceptable and actually much more simple
-than the complex locking proposed in the patch. So it looks good to me.
+And I also agree. But the fact that it is not trivial does not mean that it
+should not be done...
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
