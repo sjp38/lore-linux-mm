@@ -1,54 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 276226B0069
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 08:28:53 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id p96so12574603wrb.12
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 05:28:53 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id 63si247998edn.197.2017.11.15.05.28.51
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 15 Nov 2017 05:28:51 -0800 (PST)
-Date: Wed, 15 Nov 2017 08:28:36 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
-Message-ID: <20171115132836.GA6524@cmpxchg.org>
-References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171115090251.umpd53zpvp42xkvi@dhcp22.suse.cz>
- <201711151958.CBI60413.FHQMtFLFOOSOJV@I-love.SAKURA.ne.jp>
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B3FA06B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 08:54:34 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id r55so5136143otc.23
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 05:54:34 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id v190si8344537oif.100.2017.11.15.05.54.33
+        for <linux-mm@kvack.org>;
+        Wed, 15 Nov 2017 05:54:33 -0800 (PST)
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+ <20171011082227.20546-2-liuwenliang@huawei.com>
+ <227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
+ <8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
+ <87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
+From: Marc Zyngier <marc.zyngier@arm.com>
+Message-ID: <bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
+Date: Wed, 15 Nov 2017 13:54:25 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201711151958.CBI60413.FHQMtFLFOOSOJV@I-love.SAKURA.ne.jp>
+In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Cc: "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-On Wed, Nov 15, 2017 at 07:58:09PM +0900, Tetsuo Handa wrote:
-> I think that Minchan's approach depends on how
+On 15/11/17 13:16, Liuwenliang (Abbott Liu) wrote:
+> On 09/11/17  18:36 Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
+>> On Wed, Nov 15 2017 at 10:20:02 am GMT, "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com> wrote:
+>>> On 09/11/17 18:11, Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
+>>>> On 09/11/17 07:46, Liuwenliang (Abbott Liu) wrote:
+>>>>> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
+>>>>> index 049ee0a..359a782 100644
+>>>>> --- a/arch/arm/mm/kasan_init.c
+>>>>> +++ b/arch/arm/mm/kasan_init.c
+>>>>> @@ -15,6 +15,7 @@
+>>>>>  #include <asm/proc-fns.h>
+>>>>>  #include <asm/tlbflush.h>
+>>>>>  #include <asm/cp15.h>
+>>>>> +#include <asm/kvm_hyp.h>
+>>>>
+>>>> No, please don't do that. You shouldn't have to include KVM stuff in
+>>>> unrelated code. Instead of adding stuff to kvm_hyp.h, move all the
+>>>> __ACCESS_CP15* to cp15.h, and it will be obvious to everyone that this
+>>>> is where new definition should be added.
+>>>
+>>> Thanks for your review.  You are right. It is better to move
+>>> __ACCESS_CP15* to cp15.h than to include kvm_hyp.h. But I don't think
+>>> it is a good idea to move registers definition which is used in
+>>> virtualization to cp15.h, Because there is no virtualization stuff in
+>>> cp15.h.
+>>
+>> It is not about virtualization at all.
+>>
+>> It is about what is a CP15 register and what is not. This file is called
+>> "cp15.h", not "cp15-except-virtualization-and-maybe-some-others.h". But
+>> at the end of the day, that's for Russell to decide.
 > 
->   In our production, we have observed that the job loader gets stuck for
->   10s of seconds while doing mount operation. It turns out that it was
->   stuck in register_shrinker() and some unrelated job was under memory
->   pressure and spending time in shrink_slab(). Our machines have a lot
->   of shrinkers registered and jobs under memory pressure has to traverse
->   all of those memcg-aware shrinkers and do affect unrelated jobs which
->   want to register their own shrinkers.
+> Thanks for your review.
+> You are right, all __ACCESS_CP15* are cp15 registers. I splited normal cp15 register
+> (such as TTBR0/TTBR1/SCTLR and so on) and virtualizaton cp15 registers(such as VTTBR/
+> CNTV_CVAL/HCR) because I didn't think we need use those virtualization cp15 registers
+> in non virtualization system.
 > 
-> is interpreted. If there were 100000 shrinkers and each do_shrink_slab() call
-> took 1 millisecond, aborting the iteration as soon as rwsem_is_contended() would
-> help a lot. But if there were 10 shrinkers and each do_shrink_slab() call took
-> 10 seconds, aborting the iteration as soon as rwsem_is_contended() would help
-> less. Or, there might be some specific shrinker where its do_shrink_slab() call
-> takes 100 seconds. In that case, checking rwsem_is_contended() is too lazy.
+> But now I think all __ACCESS_CP15* move to cp15.h may be a better choise. 
+> 
+>>>
+>>> Here is the code which I tested on vexpress_a15 and vexpress_a9:
+>>> diff --git a/arch/arm/include/asm/cp15.h b/arch/arm/include/asm/cp15.h
+>>> index dbdbce1..6db1f51 100644
+>>> --- a/arch/arm/include/asm/cp15.h
+>>> +++ b/arch/arm/include/asm/cp15.h
+>>> @@ -64,6 +64,43 @@
+>>>  #define __write_sysreg(v, r, w, c, t)  asm volatile(w " " c : : "r" ((t)(v)))
+>>>  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS__)
+>>>
+>>> +#ifdef CONFIG_ARM_LPAE
+>>> +#define TTBR0           __ACCESS_CP15_64(0, c2)
+>>> +#define TTBR1           __ACCESS_CP15_64(1, c2)
+>>> +#define PAR             __ACCESS_CP15_64(0, c7)
+>>> +#else
+>>> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
+>>> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
+>>> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
+>>> +#endif
+>>
+>> Again: there is no point in not having these register encodings
+>> cohabiting. They are both perfectly defined in the architecture. Just
+>> suffix one (or even both) with their respective size, making it obvious
+>> which one you're talking about.
+> 
+> I am sorry that I didn't point why I need to define TTBR0/ TTBR1/PAR in to different way
+> between CONFIG_ARM_LPAE and non CONFIG_ARM_LPAE.
+> The following description is the reason:
+> Here is the description come from DDI0406C2c_arm_architecture_reference_manual.pdf:
+[...]
 
-In your patch, unregister() waits for shrinker->nr_active instead of
-the lock, which is decreased in the same location where Minchan drops
-the lock. How is that different behavior for long-running shrinkers?
+You're missing the point. TTBR0 existence as a 64bit CP15 register has
+nothing to do the kernel being compiled with LPAE or not. It has
+everything to do with the HW supporting LPAE, and it is the kernel's job
+to use the right accessor depending on how it is compiled. On a CPU
+supporting LPAE, both TTBR0 accessors are valid. It is the kernel that
+chooses to use one rather than the other.
 
-Anyway, I suspect it's many shrinkers and many concurrent invocations,
-so the lockbreak granularity you both chose should be fine.
+Also, if I follow your reasoning, why are you bothering defining PAR in
+the non-LPAE case? It is not used by anything, as far as I can see...
+
+Thanks,
+
+	M.
+-- 
+Jazz is not dead. It just smells funny...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
