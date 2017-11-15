@@ -1,57 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DF666B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:56:01 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id f9so12816455wra.2
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 03:56:01 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m10si1152719eda.449.2017.11.15.03.55.59
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 192966B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 07:10:46 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id y42so12459998wrd.23
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 04:10:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v10sor13051368edf.47.2017.11.15.04.10.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 15 Nov 2017 03:56:00 -0800 (PST)
-Date: Wed, 15 Nov 2017 12:55:59 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
- trace_buf_size is specified
-Message-ID: <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz>
-References: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
+        (Google Transport Security);
+        Wed, 15 Nov 2017 04:10:44 -0800 (PST)
+Date: Wed, 15 Nov 2017 15:10:42 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171115121042.dt2us5fsuqmepx4i@node.shutemov.name>
+References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711141630210.2044@nanos>
+ <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name>
+ <alpine.DEB.2.20.1711142131010.2221@nanos>
+ <20171114222718.76w4lmclf6wasbl3@node.shutemov.name>
+ <alpine.DEB.2.20.1711142354520.2221@nanos>
+ <20171115112702.e2m66wons37imtcj@node.shutemov.name>
+ <alpine.DEB.2.20.1711151238500.1805@nanos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
+In-Reply-To: <alpine.DEB.2.20.1711151238500.1805@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, yasu.isimatu@gmail.com, koki.sanagi@us.fujitsu.com
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 15-11-17 08:55:56, Mel Gorman wrote:
-> Yasuaki Ishimatsu reported a premature OOM when trace_buf_size=100m was
-> specified on a machine with many CPUs. The kernel tried to allocate 38.4GB
-> but only 16GB was available due to deferred memory initialisation.
+On Wed, Nov 15, 2017 at 12:39:40PM +0100, Thomas Gleixner wrote:
+> On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
+> > On Wed, Nov 15, 2017 at 12:00:46AM +0100, Thomas Gleixner wrote:
+> > > On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
+> > > > On Tue, Nov 14, 2017 at 09:54:52PM +0100, Thomas Gleixner wrote:
+> > > > > On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
+> > > > > 
+> > > > > > On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
+> > > > > > > @@ -198,11 +199,14 @@ arch_get_unmapped_area_topdown(struct fi
+> > > > > > >  	/* requesting a specific address */
+> > > > > > >  	if (addr) {
+> > > > > > >  		addr = PAGE_ALIGN(addr);
+> > > > > > > +		if (!mmap_address_hint_valid(addr, len))
+> > > > > > > +			goto get_unmapped_area;
+> > > > > > > +
+> > > > > > 
+> > > > > > Here and in hugetlb_get_unmapped_area(), we should align the addr after
+> > > > > > the check, not before. Otherwise the alignment itself can bring us over
+> > > > > > the borderline as we align up.
+> > > > > 
+> > > > > Hmm, then I wonder whether the next check against vm_start_gap() which
+> > > > > checks against the aligned address is correct:
+> > > > > 
+> > > > >                 addr = PAGE_ALIGN(addr);
+> > > > >                 vma = find_vma(mm, addr);
+> > > > > 
+> > > > >                 if (end - len >= addr &&
+> > > > >                     (!vma || addr + len <= vm_start_gap(vma)))
+> > > > >                         return addr;
+> > > > 
+> > > > I think the check is correct. The check is against resulting addresses
+> > > > that end up in vm_start/vm_end. In our case we want to figure out what
+> > > > user asked for.
+> > > 
+> > > Well, but then checking just against the user supplied addr is only half of
+> > > the story.
+> > > 
+> > >     addr = boundary - PAGE_SIZE - PAGE_SIZE / 2;
+> > >     len = PAGE_SIZE - PAGE_SIZE / 2;
+> > > 
+> > > That fits, but then after alignment we end up with
+> > > 
+> > >     addr = boudary - PAGE_SIZE;
+> > > 
+> > > and due to len > PAGE_SIZE this will result in a mapping which crosses the
+> > > boundary, right? So checking against the PAGE_ALIGN(addr) should be the
+> > > right thing to do.
+> > 
+> > IIUC, this is only the case if 'len' is not aligned, right?
+> > 
+> > >From what I see we expect caller to align it (and mm/mmap.c does this, I
+> > haven't checked other callers).
+> > 
+> > And hugetlb would actively reject non-aligned len.
+> > 
+> > I *think* we should be fine with checking unaligned 'addr'.
 > 
-> The allocation context is within smp_init() so there are no opportunities
-> to do the deferred meminit earlier. Furthermore, the partial initialisation
-> of memory occurs before the size of the trace buffers is set so there is
-> no opportunity to adjust the amount of memory that is pre-initialised. We
-> could potentially catch when memory is low during system boot and adjust the
-> amount that is initialised serially but it's a little clumsy as it would
-> require a check in the failure path of the page allocator.  Given that
-> deferred meminit is basically a minor optimisation that only benefits very
-> large machines and trace_buf_size is somewhat specialised, it follows that
-> the most straight-forward option is to go back to serialised meminit if
-> trace_buf_size is specified.
+> I think we should keep it consistent for the normal and the huge case and
+> just check aligned and be done with it.
 
-Can we instead do a smaller trace buffer in the early stage and then
-allocate the rest after the whole memory is initialized? The early
-memory init code is quite complex to make it even more so for something
-that looks like a borderline useful usecase. Seriously, who is going
-need 100M trace buffer _per cpu_ during early boot?
+Aligned 'addr'? Or 'len'? Both?
 
-> Reported-and-tested-by: YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+We would have problem with checking aligned addr. I steped it in hugetlb
+case:
+
+  - User asks for mmap((1UL << 47) - PAGE_SIZE, 2 << 20, MAP_HUGETLB);
+
+  - On 4-level paging machine this gives us invalid hint address as
+    'TASK_SIZE - len' is more than 'addr'. Goto get_unmapped_area.
+
+  - On 5-level paging machine hint address gets rounded up to next 2MB
+    boundary that is exactly 1UL << 47 and we happily allocate from full
+    address space which may lead to trouble.
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
