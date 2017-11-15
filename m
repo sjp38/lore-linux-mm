@@ -1,85 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A22B76B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:18:48 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id m6so19441724qtc.6
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 03:18:48 -0800 (PST)
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id r24si7280093qtk.168.2017.11.15.03.18.45
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1676B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:27:06 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id s8so852120wrc.16
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 03:27:06 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b13sor12168767edk.55.2017.11.15.03.27.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 03:18:46 -0800 (PST)
-Date: Wed, 15 Nov 2017 11:18:13 +0000
-From: Roman Gushchin <guro@fb.com>
-Subject: Re: [PATCH] memcg: hugetlbfs basic usage accounting
-Message-ID: <20171115111803.GA28352@castle>
-References: <20171114172429.8916-1-guro@fb.com>
- <20171115083504.nwczf5xq6posy3bw@dhcp22.suse.cz>
+        (Google Transport Security);
+        Wed, 15 Nov 2017 03:27:04 -0800 (PST)
+Date: Wed, 15 Nov 2017 14:27:02 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 1/2] x86/mm: Do not allow non-MAP_FIXED mapping across
+ DEFAULT_MAP_WINDOW border
+Message-ID: <20171115112702.e2m66wons37imtcj@node.shutemov.name>
+References: <20171114134322.40321-1-kirill.shutemov@linux.intel.com>
+ <alpine.DEB.2.20.1711141630210.2044@nanos>
+ <20171114202102.crpgiwgv2lu5aboq@node.shutemov.name>
+ <alpine.DEB.2.20.1711142131010.2221@nanos>
+ <20171114222718.76w4lmclf6wasbl3@node.shutemov.name>
+ <alpine.DEB.2.20.1711142354520.2221@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171115083504.nwczf5xq6posy3bw@dhcp22.suse.cz>
+In-Reply-To: <alpine.DEB.2.20.1711142354520.2221@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Dave Hansen <dave.hansen@intel.com>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 15, 2017 at 09:35:04AM +0100, Michal Hocko wrote:
-> On Tue 14-11-17 17:24:29, Roman Gushchin wrote:
-> > This patch implements basic accounting of memory consumption
-> > by hugetlbfs pages for cgroup v2 memory controller.
+On Wed, Nov 15, 2017 at 12:00:46AM +0100, Thomas Gleixner wrote:
+> On Wed, 15 Nov 2017, Kirill A. Shutemov wrote:
+> > On Tue, Nov 14, 2017 at 09:54:52PM +0100, Thomas Gleixner wrote:
+> > > On Tue, 14 Nov 2017, Kirill A. Shutemov wrote:
+> > > 
+> > > > On Tue, Nov 14, 2017 at 05:01:50PM +0100, Thomas Gleixner wrote:
+> > > > > @@ -198,11 +199,14 @@ arch_get_unmapped_area_topdown(struct fi
+> > > > >  	/* requesting a specific address */
+> > > > >  	if (addr) {
+> > > > >  		addr = PAGE_ALIGN(addr);
+> > > > > +		if (!mmap_address_hint_valid(addr, len))
+> > > > > +			goto get_unmapped_area;
+> > > > > +
+> > > > 
+> > > > Here and in hugetlb_get_unmapped_area(), we should align the addr after
+> > > > the check, not before. Otherwise the alignment itself can bring us over
+> > > > the borderline as we align up.
+> > > 
+> > > Hmm, then I wonder whether the next check against vm_start_gap() which
+> > > checks against the aligned address is correct:
+> > > 
+> > >                 addr = PAGE_ALIGN(addr);
+> > >                 vma = find_vma(mm, addr);
+> > > 
+> > >                 if (end - len >= addr &&
+> > >                     (!vma || addr + len <= vm_start_gap(vma)))
+> > >                         return addr;
 > > 
-> > Cgroup v2 memory controller lacks any visibility into the
-> > hugetlbfs memory consumption. Cgroup v1 implemented a separate
-> > hugetlbfs controller, which provided such stats, and also
-> > provided some control abilities. Although porting of the
-> > hugetlbfs controller to cgroup v2 is arguable a good idea and
-> > is outside of scope of this patch, it's very useful to have
-> > basic stats provided by memory.stat.
-
-Hi, Michal!
-
-> Separate hugetlb cgroup controller was really a deliberate decision.
-> We didn't want to mix hugetlb with the reclaimable memory. There is no
-> reasonable way to enforce memcg limits if hugetlb pages are involved.
+> > I think the check is correct. The check is against resulting addresses
+> > that end up in vm_start/vm_end. In our case we want to figure out what
+> > user asked for.
 > 
-> AFAICS your patch shouldn't break the hugetlb controller because that
-> one (ab)uses page[2].private to store the hstate for the accounting.
-> You also do not really charge those hugetlb pages so the memcg
-> accounting will work unchaged.
-
-Yes, you are right.
-
+> Well, but then checking just against the user supplied addr is only half of
+> the story.
 > 
-> So my primary question is, why don't you simply allow hugetlb controller
-> rather than tweak stats for memcg? Is there any fundamental reason why
-> hugetlb controller is not v2 compatible?
+>     addr = boundary - PAGE_SIZE - PAGE_SIZE / 2;
+>     len = PAGE_SIZE - PAGE_SIZE / 2;
+> 
+> That fits, but then after alignment we end up with
+> 
+>     addr = boudary - PAGE_SIZE;
+> 
+> and due to len > PAGE_SIZE this will result in a mapping which crosses the
+> boundary, right? So checking against the PAGE_ALIGN(addr) should be the
+> right thing to do.
 
-I really don't know if the hugetlb controller has enough users to deserve
-full support in v2 interface: adding knobs like memory.hugetlb.current,
-memory.hugetlb.min, memory.hugetlb.high, memory.hugetlb.max, etc.
+IIUC, this is only the case if 'len' is not aligned, right?
 
-I'd be rather conservative here and avoid adding a lot to the interface
-without clear demand. Also, hugetlb pages are really special, and it's
-at least not obvious how, say, memory.high should work for it.
+>From what I see we expect caller to align it (and mm/mmap.c does this, I
+haven't checked other callers).
 
-At the same time we don't really have any accounting of hugetlb page
-usage (except system-wide stats in sysfs). And providing such stats
-is really useful.
-In my particular case, I have some number of pre-allocated hugepages,
-and I have several containerized workloads, which are potentially
-using them to get performance bonuses. Having these stats allows to
-attribute the memory holding by hugetlb pages to one of the workloads.
+And hugetlb would actively reject non-aligned len.
 
-> It feels really strange to keeps stats of something the controller
-> doesn't really control. I can imagine confused users claiming that
-> numbers just do not add up...
+I *think* we should be fine with checking unaligned 'addr'.
 
-This is why I do not add this number to memory.current. At the same
-time numbers in memory.stat are not intended to be summed (we have
-event counters there, dirty pages counter, etc), so I don't see a problem.
-
-Thanks!
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
