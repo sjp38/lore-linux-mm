@@ -1,93 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 95D066B0033
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 05:35:49 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id n16so9583774oig.19
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 02:35:49 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id a5si8111389otc.533.2017.11.15.02.35.48
-        for <linux-mm@kvack.org>;
-        Wed, 15 Nov 2017 02:35:48 -0800 (PST)
-From: Marc Zyngier <marc.zyngier@arm.com>
-Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
-In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
-	(liuwenliang@huawei.com's message of "Wed, 15 Nov 2017 10:20:02
-	+0000")
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
-	<20171011082227.20546-2-liuwenliang@huawei.com>
-	<227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
-	<8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
-Date: Wed, 15 Nov 2017 10:35:38 +0000
-Message-ID: <87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 650876B0033
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 05:58:26 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id e142so5677249oih.5
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 02:58:26 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 38si4625035otx.463.2017.11.15.02.58.24
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Nov 2017 02:58:24 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171115090251.umpd53zpvp42xkvi@dhcp22.suse.cz>
+In-Reply-To: <20171115090251.umpd53zpvp42xkvi@dhcp22.suse.cz>
+Message-Id: <201711151958.CBI60413.FHQMtFLFOOSOJV@I-love.SAKURA.ne.jp>
+Date: Wed, 15 Nov 2017 19:58:09 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Cc: "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: mhocko@kernel.org
+Cc: minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 15 2017 at 10:20:02 am GMT, "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com> wrote:
-> On 09/11/17 18:11, Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
->>On 09/11/17 07:46, Liuwenliang (Abbott Liu) wrote:
->>> diff --git a/arch/arm/mm/kasan_init.c b/arch/arm/mm/kasan_init.c
->>> index 049ee0a..359a782 100644
->>> --- a/arch/arm/mm/kasan_init.c
->>> +++ b/arch/arm/mm/kasan_init.c
->>> @@ -15,6 +15,7 @@
->>>  #include <asm/proc-fns.h>
->>>  #include <asm/tlbflush.h>
->>>  #include <asm/cp15.h>
->>> +#include <asm/kvm_hyp.h>
->>
->>No, please don't do that. You shouldn't have to include KVM stuff in
->>unrelated code. Instead of adding stuff to kvm_hyp.h, move all the
->>__ACCESS_CP15* to cp15.h, and it will be obvious to everyone that this
->>is where new definition should be added.
->
-> Thanks for your review.  You are right. It is better to move
-> __ACCESS_CP15* to cp15.h than to include kvm_hyp.h. But I don't think
-> it is a good idea to move registers definition which is used in
-> virtualization to cp15.h, Because there is no virtualization stuff in
-> cp15.h.
+Michal Hocko wrote:
+> On Tue 14-11-17 06:37:42, Tetsuo Handa wrote:
+> > When shrinker_rwsem was introduced, it was assumed that
+> > register_shrinker()/unregister_shrinker() are really unlikely paths
+> > which are called during initialization and tear down. But nowadays,
+> > register_shrinker()/unregister_shrinker() might be called regularly.
+> 
+> Please provide some examples. I know your other patch mentions the
+> usecase but I guess the two patches should be just squashed together.
 
-It is not about virtualization at all.
+They were squashed together in a draft version at
+http://lkml.kernel.org/r/2940c150-577a-30a8-fac3-cf59a49b84b4@I-love.SAKURA.ne.jp .
+Since Shakeel suggested me to post the patch for others to review without
+parallel register/unregister and SHRINKER_PERMANENT, but I thought that
+parallel register/unregister is still helpful (described below), I posted
+as two patches.
 
-It is about what is a CP15 register and what is not. This file is called
-"cp15.h", not "cp15-except-virtualization-and-maybe-some-others.h". But
-at the end of the day, that's for Russell to decide.
+> 
+> > This patch prepares for allowing parallel registration/unregistration
+> > of shrinkers.
+> > 
+> > Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
+> > using one RCU section. But using atomic_inc()/atomic_dec() for each
+> > do_shrink_slab() call will not impact so much.
+> > 
+> > This patch uses polling loop with short sleep for unregister_shrinker()
+> > rather than wait_on_atomic_t(), for we can save reader's cost (plain
+> > atomic_dec() compared to atomic_dec_and_test()), we can expect that
+> > do_shrink_slab() of unregistering shrinker likely returns shortly, and
+> > we can avoid khungtaskd warnings when do_shrink_slab() of unregistering
+> > shrinker unexpectedly took so long.
+> 
+> I would use wait_event_interruptible in the remove path rather than the
+> short sleep loop which is just too ugly. The shrinker walk would then
+> just wake_up the sleeper when the ref. count drops to 0. Two
+> synchronize_rcu is quite ugly as well, but I was not able to simplify
+> them. I will keep thinking. It just sucks how we cannot follow the
+> standard rcu list with dynamically allocated structure pattern here.
 
->
-> Here is the code which I tested on vexpress_a15 and vexpress_a9:
-> diff --git a/arch/arm/include/asm/cp15.h b/arch/arm/include/asm/cp15.h
-> index dbdbce1..6db1f51 100644
-> --- a/arch/arm/include/asm/cp15.h
-> +++ b/arch/arm/include/asm/cp15.h
-> @@ -64,6 +64,43 @@
->  #define __write_sysreg(v, r, w, c, t)  asm volatile(w " " c : : "r" ((t)(v)))
->  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS__)
->
-> +#ifdef CONFIG_ARM_LPAE
-> +#define TTBR0           __ACCESS_CP15_64(0, c2)
-> +#define TTBR1           __ACCESS_CP15_64(1, c2)
-> +#define PAR             __ACCESS_CP15_64(0, c7)
-> +#else
-> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
-> +#endif
+I think that Minchan's approach depends on how
 
-Again: there is no point in not having these register encodings
-cohabiting. They are both perfectly defined in the architecture. Just
-suffix one (or even both) with their respective size, making it obvious
-which one you're talking about.
+  In our production, we have observed that the job loader gets stuck for
+  10s of seconds while doing mount operation. It turns out that it was
+  stuck in register_shrinker() and some unrelated job was under memory
+  pressure and spending time in shrink_slab(). Our machines have a lot
+  of shrinkers registered and jobs under memory pressure has to traverse
+  all of those memcg-aware shrinkers and do affect unrelated jobs which
+  want to register their own shrinkers.
 
-Thanks,
+is interpreted. If there were 100000 shrinkers and each do_shrink_slab() call
+took 1 millisecond, aborting the iteration as soon as rwsem_is_contended() would
+help a lot. But if there were 10 shrinkers and each do_shrink_slab() call took
+10 seconds, aborting the iteration as soon as rwsem_is_contended() would help
+less. Or, there might be some specific shrinker where its do_shrink_slab() call
+takes 100 seconds. In that case, checking rwsem_is_contended() is too lazy.
 
-	M.
--- 
-Jazz is not dead, it just smell funny.
+Since it is possible for a local unpriviledged user to lockup the system at least
+due to mute_trylock(&oom_lock) versus (printk() or schedule_timeout_killable(1)),
+I suggest completely eliminating scheduling priority problem (i.e. a very low
+scheduling priority thread might take 100 seconds inside some do_shrink_slab()
+call) by not relying on an assumption of shortly returning from do_shrink_slab().
+My first patch + my second patch will eliminate relying on such assumption, and
+avoid potential khungtaskd warnings.
+
+>  
+> > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > ---
+> >  include/linux/shrinker.h |  3 ++-
+> >  mm/vmscan.c              | 41 +++++++++++++++++++----------------------
+> >  2 files changed, 21 insertions(+), 23 deletions(-)
+> > 
+> > diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> > index 388ff29..333a1d0 100644
+> > --- a/include/linux/shrinker.h
+> > +++ b/include/linux/shrinker.h
+> > @@ -62,9 +62,10 @@ struct shrinker {
+> >  
+> >  	int seeks;	/* seeks to recreate an obj */
+> >  	long batch;	/* reclaim batch size, 0 = default */
+> > -	unsigned long flags;
+> > +	unsigned int flags;
+> 
+> Why?
+
+In Shakeel's first version, it tried to keep structure size intact on
+x86_64 architecture. Actually currently only two flags are defined.
+
+> 
+> >  
+> >  	/* These are for internal use */
+> > +	atomic_t nr_active;
+> >  	struct list_head list;
+> >  	/* objs pending delete, per node */
+> >  	atomic_long_t *nr_deferred;
+> > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > index 1c1bc95..c8996e8 100644
+> > --- a/mm/vmscan.c
+> > +++ b/mm/vmscan.c
+> > @@ -157,7 +157,7 @@ struct scan_control {
+> >  unsigned long vm_total_pages;
+> >  
+> >  static LIST_HEAD(shrinker_list);
+> > -static DECLARE_RWSEM(shrinker_rwsem);
+> > +static DEFINE_MUTEX(shrinker_lock);
+> >  
+> >  #ifdef CONFIG_MEMCG
+> >  static bool global_reclaim(struct scan_control *sc)
+> > @@ -285,9 +285,10 @@ int register_shrinker(struct shrinker *shrinker)
+> >  	if (!shrinker->nr_deferred)
+> >  		return -ENOMEM;
+> >  
+> > -	down_write(&shrinker_rwsem);
+> > -	list_add_tail(&shrinker->list, &shrinker_list);
+> > -	up_write(&shrinker_rwsem);
+> > +	atomic_set(&shrinker->nr_active, 0);
+> 
+> I would expect ref counter to be 1 and either remove path dec it down to
+> 0 or the racing walker would. In any case that is when
+> unregister_shrinker can continue.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
