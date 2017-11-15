@@ -1,117 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C48B56B0253
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:09:08 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id b6so20873389pff.18
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:09:08 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id y68si17054509pfk.100.2017.11.15.06.09.07
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5476B0260
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 09:11:17 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n74so767366wmi.3
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 06:11:17 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d12si1593905edh.180.2017.11.15.06.11.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 15 Nov 2017 06:09:07 -0800 (PST)
-From: Elena Reshetova <elena.reshetova@intel.com>
-Subject: [PATCH 15/16] kcov: convert kcov.refcount to refcount_t
-Date: Wed, 15 Nov 2017 16:03:39 +0200
-Message-Id: <1510754620-27088-16-git-send-email-elena.reshetova@intel.com>
-In-Reply-To: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
-References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 15 Nov 2017 06:11:16 -0800 (PST)
+Date: Wed, 15 Nov 2017 15:11:13 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20171115141113.2nw4c4nejermhckb@dhcp22.suse.cz>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171115090251.umpd53zpvp42xkvi@dhcp22.suse.cz>
+ <20171115140020.GA6771@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171115140020.GA6771@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mingo@redhat.com
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, peterz@infradead.org, gregkh@linuxfoundation.org, viro@zeniv.linux.org.uk, tj@kernel.org, hannes@cmpxchg.org, lizefan@huawei.com, acme@kernel.org, alexander.shishkin@linux.intel.com, eparis@redhat.com, akpm@linux-foundation.org, arnd@arndb.de, luto@kernel.org, keescook@chromium.org, tglx@linutronix.de, dvhart@infradead.org, ebiederm@xmission.com, linux-mm@kvack.org, axboe@kernel.dk, Elena Reshetova <elena.reshetova@intel.com>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-atomic_t variables are currently used to implement reference
-counters with the following properties:
- - counter is initialized to 1 using atomic_set()
- - a resource is freed upon counter reaching zero
- - once counter reaches zero, its further
-   increments aren't allowed
- - counter schema uses basic atomic operations
-   (set, inc, inc_not_zero, dec_and_test, etc.)
+On Wed 15-11-17 09:00:20, Johannes Weiner wrote:
+> On Wed, Nov 15, 2017 at 10:02:51AM +0100, Michal Hocko wrote:
+> > On Tue 14-11-17 06:37:42, Tetsuo Handa wrote:
+> > > This patch uses polling loop with short sleep for unregister_shrinker()
+> > > rather than wait_on_atomic_t(), for we can save reader's cost (plain
+> > > atomic_dec() compared to atomic_dec_and_test()), we can expect that
+> > > do_shrink_slab() of unregistering shrinker likely returns shortly, and
+> > > we can avoid khungtaskd warnings when do_shrink_slab() of unregistering
+> > > shrinker unexpectedly took so long.
+> > 
+> > I would use wait_event_interruptible in the remove path rather than the
+> > short sleep loop which is just too ugly. The shrinker walk would then
+> > just wake_up the sleeper when the ref. count drops to 0. Two
+> > synchronize_rcu is quite ugly as well, but I was not able to simplify
+> > them. I will keep thinking. It just sucks how we cannot follow the
+> > standard rcu list with dynamically allocated structure pattern here.
+> 
+> It's because the refcount is dropped too early. The refcount protects
+> the object during shrink, but not for the list_next(), and so you need
+> an additional grace period just for that part.
 
-Such atomic variables should be converted to a newly provided
-refcount_t type and API that prevents accidental counter overflows
-and underflows. This is important since overflows and underflows
-can lead to use-after-free situation and be exploitable.
+Exactly
 
-The variable kcov.refcount is used as pure reference counter.
-Convert it to refcount_t and fix up the operations.
+> I think you could drop the reference count in the next iteration. This
+> way the list_next() works without requiring a second RCU grace period.
 
-**Important note for maintainers:
+That would work. I was playing with an idea of prefetching the next
+elemnt before dropping the reference but that would require a lock for
+the remove operation. Ugly...
 
-Some functions from refcount_t API defined in lib/refcount.c
-have different memory ordering guarantees than their atomic
-counterparts.
-The full comparison can be seen in
-https://lkml.org/lkml/2017/11/15/57 and it is hopefully soon
-in state to be merged to the documentation tree.
-Normally the differences should not matter since refcount_t provides
-enough guarantees to satisfy the refcounting use cases, but in
-some rare cases it might matter.
-Please double check that you don't have some undocumented
-memory guarantees for this variable usage.
+> ref count protects the object and its list pointers; RCU protects what
+> the list pointers point to before we acquire the reference:
+> 
+> 	rcu_read_lock();
+> 	list_for_each_entry_rcu(pos, list) {
+> 		if (!atomic_inc_not_zero(&pos->ref))
+> 			continue;
+> 		rcu_read_unlock();
+> 
+> 		if (prev)
+> 			atomic_dec(&prev->ref);
+> 		prev = pos;
+> 
+> 		shrink();
+> 
+> 		rcu_read_lock();
+> 	}
+> 	rcu_read_unlock();
+> 	if (prev)
+> 		atomic_dec(&prev->ref);
+> 
+> In any case, Minchan's lock breaking seems way preferable over that
+> level of headscratching complexity for an unusual case like Shakeel's.
 
-For the kcov.refcount it might make a difference
-in following places:
- - kcov_put(): decrement in refcount_dec_and_test() only
-   provides RELEASE ordering and control dependency on success
-   vs. fully ordered atomic counterpart
+agreed! I would go the more complex way only if it turns out that early
+break out causes some real problems.
 
-Suggested-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: David Windsor <dwindsor@gmail.com>
-Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
-Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
----
- kernel/kcov.c | 9 +++++----
- 1 file changed, 5 insertions(+), 4 deletions(-)
-
-diff --git a/kernel/kcov.c b/kernel/kcov.c
-index 15f33fa..343288c 100644
---- a/kernel/kcov.c
-+++ b/kernel/kcov.c
-@@ -20,6 +20,7 @@
- #include <linux/debugfs.h>
- #include <linux/uaccess.h>
- #include <linux/kcov.h>
-+#include <linux/refcount.h>
- #include <asm/setup.h>
- 
- /* Number of 64-bit words written per one comparison: */
-@@ -44,7 +45,7 @@ struct kcov {
- 	 *  - opened file descriptor
- 	 *  - task with enabled coverage (we can't unwire it from another task)
- 	 */
--	atomic_t		refcount;
-+	refcount_t		refcount;
- 	/* The lock protects mode, size, area and t. */
- 	spinlock_t		lock;
- 	enum kcov_mode		mode;
-@@ -228,12 +229,12 @@ EXPORT_SYMBOL(__sanitizer_cov_trace_switch);
- 
- static void kcov_get(struct kcov *kcov)
- {
--	atomic_inc(&kcov->refcount);
-+	refcount_inc(&kcov->refcount);
- }
- 
- static void kcov_put(struct kcov *kcov)
- {
--	if (atomic_dec_and_test(&kcov->refcount)) {
-+	if (refcount_dec_and_test(&kcov->refcount)) {
- 		vfree(kcov->area);
- 		kfree(kcov);
- 	}
-@@ -311,7 +312,7 @@ static int kcov_open(struct inode *inode, struct file *filep)
- 	if (!kcov)
- 		return -ENOMEM;
- 	kcov->mode = KCOV_MODE_DISABLED;
--	atomic_set(&kcov->refcount, 1);
-+	refcount_set(&kcov->refcount, 1);
- 	spin_lock_init(&kcov->lock);
- 	filep->private_data = kcov;
- 	return nonseekable_open(inode, filep);
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
