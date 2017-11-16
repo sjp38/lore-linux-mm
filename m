@@ -1,55 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A65B26B0033
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:41:41 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id x63so806129wmf.2
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 14:41:41 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b193sor701751wmd.5.2017.11.16.14.41.40
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABE716B0033
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:56:20 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id v2so515144pfa.10
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 14:56:20 -0800 (PST)
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTPS id t9si1618742pgr.88.2017.11.16.14.56.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 Nov 2017 14:41:40 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Nov 2017 14:56:19 -0800 (PST)
+From: <miles.chen@mediatek.com>
+Subject: [PATCH v4] dma-debug: fix incorrect pfn calculation
+Date: Fri, 17 Nov 2017 06:56:12 +0800
+Message-ID: <1510872972-23919-1-git-send-email-miles.chen@mediatek.com>
 MIME-Version: 1.0
-In-Reply-To: <20171116212904.GA4823@redhat.com>
-References: <CAA_GA1ff4mGKfxxRpjYCRjXOvbUuksM0K2gmH1VrhL4qtGWFbw@mail.gmail.com>
- <20170926161635.GA3216@redhat.com> <0d7273c3-181c-6d68-3c5f-fa518e782374@huawei.com>
- <20170930224927.GC6775@redhat.com> <CAA_GA1dhrs7n-ewZmW4bNtouK8rKnF1_TWv0z+2vrUgJjWpnMQ@mail.gmail.com>
- <20171012153721.GA2986@redhat.com> <CAAsGZS7JeH-cxrmZAVraLm5RjSVHJLXMdwZQ7Cxm91KGdVQocg@mail.gmail.com>
- <20171116024425.GC2934@redhat.com> <CAAsGZS5eoSK=Hd5av2bkw=chPGyfOYYNbrdizzCqq2gZ7+XH_g@mail.gmail.com>
- <CAAsGZS43n2_f9sQXGH5Ap=eEx2f099CDwHC0aTTgOEbw7Dc=zg@mail.gmail.com> <20171116212904.GA4823@redhat.com>
-From: chetan L <loke.chetan@gmail.com>
-Date: Thu, 16 Nov 2017 14:41:39 -0800
-Message-ID: <CAAsGZS7oCjHuUTUAUadb+F+drp3KgDARuaOaSBbW-8RWbJBDMA@mail.gmail.com>
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Bob Liu <lliubbo@gmail.com>, David Nellans <dnellans@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-accelerators@lists.ozlabs.org
+To: Christoph Hellwig <hch@lst.de>, Robin Murphy <robin.murphy@arm.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Miles Chen <miles.chen@mediatek.com>
 
-On Thu, Nov 16, 2017 at 1:29 PM, Jerome Glisse <jglisse@redhat.com> wrote:
+From: Miles Chen <miles.chen@mediatek.com>
 
->
-> For the NUMA discussion this is related to CPU less node ie not wanting
-> to add any more CPU less node (node with only memory) and they are other
-> aspect too. For instance you do not necessarily have good informations
-> from the device to know if a page is access a lot by the device (this
-> kind of information is often only accessible by the device driver). Thus
+dma-debug reports the following warning:
 
-@Jerome - one comment w.r.t 'do not necessarily have good info on
-device access'.
+[name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
+debug _dma_assert_idle+0x1a8/0x230()
+DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
+CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
+Hardware name: MT6739 (DT)
+Call trace:
+[<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
+[<ffffff800808affc>] show_stack+0x14/0x1c
+[<ffffff800838019c>] dump_stack+0xa8/0xe0
+[<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
+[<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
+[<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
+[<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
+[<ffffff80081de114>] do_wp_page+0x4fc/0x534
+[<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
+[<ffffff8008098798>] do_page_fault+0x1c8/0x394
+[<ffffff800808231c>] do_mem_abort+0x50/0xec
 
-So you could be assuming a few things here :). CCIX extends the CPU
-complex's coherency domain(it is now a single/unified coherency
-domain). The CCIX-EP (lets say an accelerator/XPU or a NIC or a combo)
-is now a true peer w.r.t the host-numa-node(s) (aka 1st class
-citizen). I don't know how much info was revealed at the latest ARM
-techcon where CCIX was presented. So I cannot divulge any further
-details until I see that slide deck. However, you can safely assume
-that the host will have *all* the info w.r.t the device-access and
-vice-versa.
+I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
+assume that dma_alloc_coherent() always returns a linear address.  However
+it's possible that dma_alloc_coherent() returns a non-linear address.  In
+this case, page_to_pfn(virt_to_page(virt)) will return an incorrect pfn.
+If the pfn is valid and mapped as a COW page, we will hit the warning when
+doing wp_page_copy().
 
-Chetan
+Fix this by calculating pfn for linear and non-linear addresses.
+
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+---
+ lib/dma-debug.c | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+index ea4cc3d..1b34d21 100644
+--- a/lib/dma-debug.c
++++ b/lib/dma-debug.c
+@@ -1495,14 +1495,22 @@ void debug_dma_alloc_coherent(struct device *dev, size_t size,
+ 	if (!entry)
+ 		return;
+ 
++	/* handle vmalloc and linear addresses */
++	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
++		return;
++
+ 	entry->type      = dma_debug_coherent;
+ 	entry->dev       = dev;
+-	entry->pfn	 = page_to_pfn(virt_to_page(virt));
+ 	entry->offset	 = offset_in_page(virt);
+ 	entry->size      = size;
+ 	entry->dev_addr  = dma_addr;
+ 	entry->direction = DMA_BIDIRECTIONAL;
+ 
++	if (is_vmalloc_addr(virt))
++		entry->pfn = vmalloc_to_pfn(virt);
++	else
++		entry->pfn = page_to_pfn(virt_to_page(virt));
++
+ 	add_dma_entry(entry);
+ }
+ EXPORT_SYMBOL(debug_dma_alloc_coherent);
+@@ -1513,13 +1521,21 @@ void debug_dma_free_coherent(struct device *dev, size_t size,
+ 	struct dma_debug_entry ref = {
+ 		.type           = dma_debug_coherent,
+ 		.dev            = dev,
+-		.pfn		= page_to_pfn(virt_to_page(virt)),
+ 		.offset		= offset_in_page(virt),
+ 		.dev_addr       = addr,
+ 		.size           = size,
+ 		.direction      = DMA_BIDIRECTIONAL,
+ 	};
+ 
++	/* handle vmalloc and linear addresses */
++	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
++		return;
++
++	if (is_vmalloc_addr(virt))
++		ref.pfn = vmalloc_to_pfn(virt);
++	else
++		ref.pfn = page_to_pfn(virt_to_page(virt));
++
+ 	if (unlikely(dma_debug_disabled()))
+ 		return;
+ 
+-- 
+1.9.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
