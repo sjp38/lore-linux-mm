@@ -1,144 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 42E0928025F
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 05:19:22 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id w95so14454480wrc.20
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 02:19:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q7sor636343edh.11.2017.11.16.02.19.20
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4179228025F
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 05:56:52 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id v21so4039393ioi.5
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 02:56:52 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id b21si575949iob.153.2017.11.16.02.56.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 Nov 2017 02:19:20 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
-Date: Thu, 16 Nov 2017 11:19:00 +0100
-Message-Id: <20171116101900.13621-3-mhocko@kernel.org>
-In-Reply-To: <20171116101900.13621-1-mhocko@kernel.org>
-References: <20171116101900.13621-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Nov 2017 02:56:50 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171115090251.umpd53zpvp42xkvi@dhcp22.suse.cz>
+	<201711151958.CBI60413.FHQMtFLFOOSOJV@I-love.SAKURA.ne.jp>
+	<20171115132836.GA6524@cmpxchg.org>
+In-Reply-To: <20171115132836.GA6524@cmpxchg.org>
+Message-Id: <201711161956.EBF57883.QFFMOLOVSOHJFt@I-love.SAKURA.ne.jp>
+Date: Thu, 16 Nov 2017 19:56:37 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-api@vger.kernel.org
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
+To: hannes@cmpxchg.org
+Cc: mhocko@kernel.org, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+Johannes Weiner wrote:
+> On Wed, Nov 15, 2017 at 07:58:09PM +0900, Tetsuo Handa wrote:
+> > I think that Minchan's approach depends on how
+> > 
+> >   In our production, we have observed that the job loader gets stuck for
+> >   10s of seconds while doing mount operation. It turns out that it was
+> >   stuck in register_shrinker() and some unrelated job was under memory
+> >   pressure and spending time in shrink_slab(). Our machines have a lot
+> >   of shrinkers registered and jobs under memory pressure has to traverse
+> >   all of those memcg-aware shrinkers and do affect unrelated jobs which
+> >   want to register their own shrinkers.
+> > 
+> > is interpreted. If there were 100000 shrinkers and each do_shrink_slab() call
+> > took 1 millisecond, aborting the iteration as soon as rwsem_is_contended() would
+> > help a lot. But if there were 10 shrinkers and each do_shrink_slab() call took
+> > 10 seconds, aborting the iteration as soon as rwsem_is_contended() would help
+> > less. Or, there might be some specific shrinker where its do_shrink_slab() call
+> > takes 100 seconds. In that case, checking rwsem_is_contended() is too lazy.
+> 
+> In your patch, unregister() waits for shrinker->nr_active instead of
+> the lock, which is decreased in the same location where Minchan drops
+> the lock. How is that different behavior for long-running shrinkers?
 
-Both load_elf_interp and load_elf_binary rely on elf_map to map segments
-on a controlled address and they use MAP_FIXED to enforce that. This is
-however dangerous thing prone to silent data corruption which can be
-even exploitable. Let's take CVE-2017-1000253 as an example. At the time
-(before eab09532d400 ("binfmt_elf: use ELF_ET_DYN_BASE only for PIE"))
-ELF_ET_DYN_BASE was at TASK_SIZE / 3 * 2 which is not that far away from
-the stack top on 32b (legacy) memory layout (only 1GB away). Therefore
-we could end up mapping over the existing stack with some luck.
+My patch waits for only one shrinker which unregister_shrinker() is trying to
+unregister. Minchan's patch waits for the longest-running in-flight shrinkers.
+The difference is that my patch is not disturbed by other in-flight shrinkers
+unless the shrinker which unregister_shrinker() is trying to unregister is
+the longest-running in-flight shrinker, but it is natural (and required thing)
+to wait for the shrinker which unregister_shrinker() is trying to unregister.
+This will make difference if some shrinker which unregister_shrinker() is not
+trying to unregister is doing crazy stuff.
 
-The issue has been fixed since then (a87938b2e246 ("fs/binfmt_elf.c:
-fix bug in loading of PIE binaries")), ELF_ET_DYN_BASE moved moved much
-further from the stack (eab09532d400 and later by c715b72c1ba4 ("mm:
-revert x86_64 and arm64 ELF_ET_DYN_BASE base changes")) and excessive
-stack consumption early during execve fully stopped by da029c11e6b1
-("exec: Limit arg stack to at most 75% of _STK_LIM"). So we should be
-safe and any attack should be impractical. On the other hand this is
-just too subtle assumption so it can break quite easily and hard to
-spot.
+> 
+> Anyway, I suspect it's many shrinkers and many concurrent invocations,
+> so the lockbreak granularity you both chose should be fine.
+> 
 
-I believe that the MAP_FIXED usage in load_elf_binary (et. al) is still
-fundamentally dangerous. Moreover it shouldn't be even needed. We are
-at the early process stage and so there shouldn't be unrelated mappings
-(except for stack and loader) existing so mmap for a given address
-should succeed even without MAP_FIXED. Something is terribly wrong if
-this is not the case and we should rather fail than silently corrupt the
-underlying mapping.
+So far, Shakeel's environment does not seem to have shrinkers which do
+crazy stuff. But if there is, my approach will reduce the latency.
 
-Address this issue by changing MAP_FIXED to the newly added
-MAP_FIXED_SAFE. This will mean that mmap will fail if there is an
-existing mapping clashing with the requested one without clobbering it.
+If we can tolerate per "struct task_struct" marker, I think we can remove
+atomic variables.
 
-Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
-Cc: Joel Stanley <joel@jms.id.au>
-Cc: Kees Cook <keescook@chromium.org>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- arch/metag/kernel/process.c |  6 +++++-
- fs/binfmt_elf.c             | 12 ++++++++----
- 2 files changed, 13 insertions(+), 5 deletions(-)
+ include/linux/sched.h    |  1 +
+ include/linux/shrinker.h |  1 +
+ mm/vmscan.c              | 67 ++++++++++++++++++++++++++++++++----------------
+ 3 files changed, 47 insertions(+), 22 deletions(-)
 
-diff --git a/arch/metag/kernel/process.c b/arch/metag/kernel/process.c
-index c4606ce743d2..2286140e54e0 100644
---- a/arch/metag/kernel/process.c
-+++ b/arch/metag/kernel/process.c
-@@ -398,7 +398,7 @@ unsigned long __metag_elf_map(struct file *filep, unsigned long addr,
- 	tcm_tag = tcm_lookup_tag(addr);
- 
- 	if (tcm_tag != TCM_INVALID_TAG)
--		type &= ~MAP_FIXED;
-+		type &= ~(MAP_FIXED | MAP_FIXED_SAFE);
+diff --git a/include/linux/sched.h b/include/linux/sched.h
+index a5dc7c9..f7eed9b 100644
+--- a/include/linux/sched.h
++++ b/include/linux/sched.h
+@@ -1098,6 +1098,7 @@ struct task_struct {
+ 	/* Used by LSM modules for access restriction: */
+ 	void				*security;
+ #endif
++	struct shrinker			*active_shrinker; /* Not for deref. */
  
  	/*
- 	* total_size is the size of the ELF (interpreter) image.
-@@ -416,6 +416,10 @@ unsigned long __metag_elf_map(struct file *filep, unsigned long addr,
- 	} else
- 		map_addr = vm_mmap(filep, addr, size, prot, type, off);
+ 	 * New fields for task_struct should be added above here, so that
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 388ff29..77cfd3f 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -66,6 +66,7 @@ struct shrinker {
  
-+	if ((type & MAP_FIXED_SAFE) && BAD_ADDR(map_addr))
-+		pr_info("%d (%s): Uhuuh, elf segement at %p requested but the memory is mapped already\n",
-+				task_pid_nr(current), tsk->comm, (void*)addr);
-+
- 	if (!BAD_ADDR(map_addr) && tcm_tag != TCM_INVALID_TAG) {
- 		struct tcm_allocation *tcm;
- 		unsigned long tcm_addr;
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index 6466153f2bf0..12b21942ccde 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -372,6 +372,10 @@ static unsigned long elf_map(struct file *filep, unsigned long addr,
- 	} else
- 		map_addr = vm_mmap(filep, addr, size, prot, type, off);
+ 	/* These are for internal use */
+ 	struct list_head list;
++	struct list_head gc_list;
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
+ };
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 1c1bc95..c6b2f5c 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -157,7 +157,7 @@ struct scan_control {
+ unsigned long vm_total_pages;
  
-+	if ((type & MAP_FIXED_SAFE) && BAD_ADDR(map_addr))
-+		pr_info("%d (%s): Uhuuh, elf segement at %p requested but the memory is mapped already\n",
-+				task_pid_nr(current), current->comm, (void*)addr);
-+
- 	return(map_addr);
+ static LIST_HEAD(shrinker_list);
+-static DECLARE_RWSEM(shrinker_rwsem);
++static DEFINE_SPINLOCK(shrinker_lock);
+ 
+ #ifdef CONFIG_MEMCG
+ static bool global_reclaim(struct scan_control *sc)
+@@ -285,9 +285,9 @@ int register_shrinker(struct shrinker *shrinker)
+ 	if (!shrinker->nr_deferred)
+ 		return -ENOMEM;
+ 
+-	down_write(&shrinker_rwsem);
+-	list_add_tail(&shrinker->list, &shrinker_list);
+-	up_write(&shrinker_rwsem);
++	spin_lock(&shrinker_lock);
++	list_add_tail_rcu(&shrinker->list, &shrinker_list);
++	spin_unlock(&shrinker_lock);
+ 	return 0;
  }
+ EXPORT_SYMBOL(register_shrinker);
+@@ -297,9 +297,40 @@ int register_shrinker(struct shrinker *shrinker)
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
+-	down_write(&shrinker_rwsem);
+-	list_del(&shrinker->list);
+-	up_write(&shrinker_rwsem);
++	struct task_struct *g, *p;
++	static LIST_HEAD(shrinker_gc_list);
++	struct shrinker *gc;
++
++	spin_lock(&shrinker_lock);
++	list_del_rcu(&shrinker->list);
++	/*
++	 * Need to update ->list.next if concurrently unregistering shrinkers
++	 * can find this shrinker, for this shrinker's unregistration might
++	 * complete before their unregistrations complete.
++	 */
++	list_for_each_entry(gc, &shrinker_gc_list, gc_list) {
++		if (gc->list.next == &shrinker->list)
++			rcu_assign_pointer(gc->list.next, shrinker->list.next);
++	}
++	list_add_tail(&shrinker->gc_list, &shrinker_gc_list);
++	spin_unlock(&shrinker_lock);
++	synchronize_rcu();
++ retry:
++	rcu_read_lock();
++	for_each_process_thread(g, p) {
++		if (unlikely(p->active_shrinker == shrinker)) {
++			get_task_struct(p);
++			rcu_read_unlock();
++			while (p->active_shrinker == shrinker)
++				schedule_timeout_uninterruptible(1);
++			put_task_struct(p);
++			goto retry;
++		}
++	}
++	rcu_read_unlock();
++	spin_lock(&shrinker_lock);
++	list_del(&shrinker->gc_list);
++	spin_unlock(&shrinker_lock);
+ 	kfree(shrinker->nr_deferred);
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+@@ -468,18 +499,8 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 	if (nr_scanned == 0)
+ 		nr_scanned = SWAP_CLUSTER_MAX;
  
-@@ -569,7 +573,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
- 				elf_prot |= PROT_EXEC;
- 			vaddr = eppnt->p_vaddr;
- 			if (interp_elf_ex->e_type == ET_EXEC || load_addr_set)
--				elf_type |= MAP_FIXED;
-+				elf_type |= MAP_FIXED_SAFE;
- 			else if (no_base && interp_elf_ex->e_type == ET_DYN)
- 				load_addr = -vaddr;
+-	if (!down_read_trylock(&shrinker_rwsem)) {
+-		/*
+-		 * If we would return 0, our callers would understand that we
+-		 * have nothing else to shrink and give up trying. By returning
+-		 * 1 we keep it going and assume we'll be able to shrink next
+-		 * time.
+-		 */
+-		freed = 1;
+-		goto out;
+-	}
+-
+-	list_for_each_entry(shrinker, &shrinker_list, list) {
++	rcu_read_lock();
++	list_for_each_entry_rcu(shrinker, &shrinker_list, list) {
+ 		struct shrink_control sc = {
+ 			.gfp_mask = gfp_mask,
+ 			.nid = nid,
+@@ -498,11 +519,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 		if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+ 			sc.nid = 0;
  
-@@ -929,7 +933,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
- 		 * the ET_DYN load_addr calculations, proceed normally.
- 		 */
- 		if (loc->elf_ex.e_type == ET_EXEC || load_addr_set) {
--			elf_flags |= MAP_FIXED;
-+			elf_flags |= MAP_FIXED_SAFE;
- 		} else if (loc->elf_ex.e_type == ET_DYN) {
- 			/*
- 			 * This logic is run once for the first LOAD Program
-@@ -965,7 +969,7 @@ static int load_elf_binary(struct linux_binprm *bprm)
- 				load_bias = ELF_ET_DYN_BASE;
- 				if (current->flags & PF_RANDOMIZE)
- 					load_bias += arch_mmap_rnd();
--				elf_flags |= MAP_FIXED;
-+				elf_flags |= MAP_FIXED_SAFE;
- 			} else
- 				load_bias = 0;
- 
-@@ -1220,7 +1224,7 @@ static int load_elf_library(struct file *file)
- 			(eppnt->p_filesz +
- 			 ELF_PAGEOFFSET(eppnt->p_vaddr)),
- 			PROT_READ | PROT_WRITE | PROT_EXEC,
--			MAP_FIXED | MAP_PRIVATE | MAP_DENYWRITE,
-+			MAP_FIXED_SAFE | MAP_PRIVATE | MAP_DENYWRITE,
- 			(eppnt->p_offset -
- 			 ELF_PAGEOFFSET(eppnt->p_vaddr)));
- 	if (error != ELF_PAGESTART(eppnt->p_vaddr))
++		current->active_shrinker = shrinker;
++		rcu_read_unlock();
+ 		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
++		rcu_read_lock();
+ 	}
+-
+-	up_read(&shrinker_rwsem);
+-out:
++	rcu_read_unlock();
++	current->active_shrinker = NULL;
+ 	cond_resched();
+ 	return freed;
+ }
 -- 
-2.15.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
