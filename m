@@ -1,60 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4826928025F
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 04:19:51 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id s18so4640942pge.19
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 01:19:51 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C78FC28025F
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 04:20:45 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c83so12827304pfj.11
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 01:20:45 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g71si597395pfd.400.2017.11.16.01.19.49
+        by mx.google.com with ESMTPS id f9si574237pli.88.2017.11.16.01.20.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Nov 2017 01:19:50 -0800 (PST)
-Date: Thu, 16 Nov 2017 10:19:41 +0100
+        Thu, 16 Nov 2017 01:20:44 -0800 (PST)
+Date: Thu, 16 Nov 2017 10:20:42 +0100
 From: Michal Hocko <mhocko@kernel.org>
 Subject: Re: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy (was: Re:
  [RESEND PATCH] mm, oom_reaper: gather each vma to prevent) leaking TLB entry
-Message-ID: <20171116091941.elzfpt72mgxofux4@dhcp22.suse.cz>
+Message-ID: <20171116092042.esxqtnfxdrozfwey@dhcp22.suse.cz>
 References: <20171107095453.179940-1-wangnan0@huawei.com>
  <20171110001933.GA12421@bbox>
  <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
  <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
- <20171113002833.GA18301@bbox>
- <20171115081452.bt7cpfombm4bzha4@dhcp22.suse.cz>
- <20171116004457.GA12222@bbox>
+ <20171115173332.GL19071@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171116004457.GA12222@bbox>
+In-Reply-To: <20171115173332.GL19071@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, will.deacon@arm.com, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Minchan Kim <minchan@kernel.org>, Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
 
-On Thu 16-11-17 09:44:57, Minchan Kim wrote:
-> On Wed, Nov 15, 2017 at 09:14:52AM +0100, Michal Hocko wrote:
-> > On Mon 13-11-17 09:28:33, Minchan Kim wrote:
-> > [...]
-> > > void arch_tlb_gather_mmu(...)
-> > > 
-> > >         tlb->fullmm = !(start | (end + 1)) && atomic_read(&mm->mm_users) == 0;
-> > 
-> > Sorry, I should have realized sooner but this will not work for the oom
-> > reaper. It _can_ race with the final exit_mmap and run with mm_users == 0
+On Wed 15-11-17 17:33:32, Will Deacon wrote:
+> Hi Michal,
 > 
-> If someone see mm_users is zero, it means there is no user to access
-> address space by stale TLB. Am I missing something?
+> On Fri, Nov 10, 2017 at 01:26:35PM +0100, Michal Hocko wrote:
+> > From 7f0fcd2cab379ddac5611b2a520cdca8a77a235b Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Fri, 10 Nov 2017 11:27:17 +0100
+> > Subject: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy
+> > 
+> > 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
+> > introduced an optimization to not flush tlb when we are tearing the
+> > whole address space down. Will goes on to explain
+> > 
+> > : Basically, we tag each address space with an ASID (PCID on x86) which
+> > : is resident in the TLB. This means we can elide TLB invalidation when
+> > : pulling down a full mm because we won't ever assign that ASID to
+> > : another mm without doing TLB invalidation elsewhere (which actually
+> > : just nukes the whole TLB).
+> > 
+> > This all is nice but tlb_gather users are not aware of that and this can
+> > actually cause some real problems. E.g. the oom_reaper tries to reap the
+> > whole address space but it might race with threads accessing the memory [1].
+> > It is possible that soft-dirty handling might suffer from the same
+> > problem [2].
+> > 
+> > Introduce an explicit lazy variant tlb_gather_mmu_lazy which allows the
+> > behavior arm64 implements for the fullmm case and replace it by an
+> > explicit lazy flag in the mmu_gather structure. exit_mmap path is then
+> > turned into the explicit lazy variant. Other architectures simply ignore
+> > the flag.
+> > 
+> > [1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
+> > [2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> >  arch/arm/include/asm/tlb.h   |  3 ++-
+> >  arch/arm64/include/asm/tlb.h |  2 +-
+> >  arch/ia64/include/asm/tlb.h  |  3 ++-
+> >  arch/s390/include/asm/tlb.h  |  3 ++-
+> >  arch/sh/include/asm/tlb.h    |  2 +-
+> >  arch/um/include/asm/tlb.h    |  2 +-
+> >  include/asm-generic/tlb.h    |  6 ++++--
+> >  include/linux/mm_types.h     |  2 ++
+> >  mm/memory.c                  | 17 +++++++++++++++--
+> >  mm/mmap.c                    |  2 +-
+> >  10 files changed, 31 insertions(+), 11 deletions(-)
+> > 
+> > diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
+> > index d5562f9ce600..fe9042aee8e9 100644
+> > --- a/arch/arm/include/asm/tlb.h
+> > +++ b/arch/arm/include/asm/tlb.h
+> > @@ -149,7 +149,8 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
+> >  
+> >  static inline void
+> >  arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
+> > -			unsigned long start, unsigned long end)
+> > +			unsigned long start, unsigned long end,
+> > +			bool lazy)
+> >  {
+> >  	tlb->mm = mm;
+> >  	tlb->fullmm = !(start | (end+1));
+> > diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
+> > index ffdaea7954bb..7adde19b2bcc 100644
+> > --- a/arch/arm64/include/asm/tlb.h
+> > +++ b/arch/arm64/include/asm/tlb.h
+> > @@ -43,7 +43,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
+> >  	 * The ASID allocator will either invalidate the ASID or mark
+> >  	 * it as used.
+> >  	 */
+> > -	if (tlb->fullmm)
+> > +	if (tlb->lazy)
+> >  		return;
+> 
+> This looks like the right idea, but I'd rather make this check:
+> 
+> 	if (tlb->fullmm && tlb->lazy)
+> 
+> since the optimisation doesn't work for anything than tearing down the
+> entire address space.
 
-You are probably right but changing the flushing policy in the middle of
-the address space tear down makes me nervous. While this might work
-right now, it is kind of tricky and it has some potential to kick us
-back in future. Just note how the current arm64 optimization went
-unnoticed because the the oom reaper is such a rare event that nobody
-has actually noticed this. And I suspect that the likelyhood of failure
-is very low even when applied for anybody to notice in the real life.
+OK, that makes sense.
 
-So I would very much like to make the behavior really explicit for
-everybody to see what is going on there.
+> Alternatively, I could actually go check MMF_UNSTABLE in tlb->mm, which
+> would save you having to add an extra flag in the first place, e.g.:
+> 
+> 	if (tlb->fullmm && !test_bit(MMF_UNSTABLE, &tlb->mm->flags))
+> 
+> which is a nice one-liner.
 
+But that would make it oom_reaper specific. What about the softdirty
+case Minchan has mentioned earlier?
 -- 
 Michal Hocko
 SUSE Labs
