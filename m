@@ -1,83 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EF8A2280247
-	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 19:46:17 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id r12so14351084pgu.9
-        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 16:46:17 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id 9si18704568ple.456.2017.11.15.16.46.16
-        for <linux-mm@kvack.org>;
-        Wed, 15 Nov 2017 16:46:16 -0800 (PST)
-Date: Thu, 16 Nov 2017 09:46:14 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
-Message-ID: <20171116004614.GB12222@bbox>
-References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171115005602.GB23810@bbox>
- <CALvZod44uBUJdaRSqAB4Kym9u9KX0pgitYmWVbM-Ww30HdFpzQ@mail.gmail.com>
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C46BE280247
+	for <linux-mm@kvack.org>; Wed, 15 Nov 2017 19:52:20 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id o29so9663029qto.12
+        for <linux-mm@kvack.org>; Wed, 15 Nov 2017 16:52:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m129sor14576822qkc.153.2017.11.15.16.52.19
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 15 Nov 2017 16:52:19 -0800 (PST)
+Date: Wed, 15 Nov 2017 19:52:18 -0500
+From: Josef Bacik <josef@toxicpanda.com>
+Subject: Re: [PATCH] mm: use sc->priority for slab shrink targets
+Message-ID: <20171116005217.jtm3rh7l65bfhhfb@destiny>
+References: <1510766070-4772-1-git-send-email-josef@toxicpanda.com>
+ <20171115154826.45d70959f630ac7508d8d36e@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod44uBUJdaRSqAB4Kym9u9KX0pgitYmWVbM-Ww30HdFpzQ@mail.gmail.com>
+In-Reply-To: <20171115154826.45d70959f630ac7508d8d36e@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Josef Bacik <josef@toxicpanda.com>, kernel-team@fb.com, linux-mm@kvack.org, Josef Bacik <jbacik@fb.com>
 
-On Tue, Nov 14, 2017 at 10:28:10PM -0800, Shakeel Butt wrote:
-> On Tue, Nov 14, 2017 at 4:56 PM, Minchan Kim <minchan@kernel.org> wrote:
-> > On Tue, Nov 14, 2017 at 06:37:42AM +0900, Tetsuo Handa wrote:
-> >> When shrinker_rwsem was introduced, it was assumed that
-> >> register_shrinker()/unregister_shrinker() are really unlikely paths
-> >> which are called during initialization and tear down. But nowadays,
-> >> register_shrinker()/unregister_shrinker() might be called regularly.
-> >> This patch prepares for allowing parallel registration/unregistration
-> >> of shrinkers.
-> >>
-> >> Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
-> >> using one RCU section. But using atomic_inc()/atomic_dec() for each
-> >> do_shrink_slab() call will not impact so much.
-> >>
-> >> This patch uses polling loop with short sleep for unregister_shrinker()
-> >> rather than wait_on_atomic_t(), for we can save reader's cost (plain
-> >> atomic_dec() compared to atomic_dec_and_test()), we can expect that
-> >> do_shrink_slab() of unregistering shrinker likely returns shortly, and
-> >> we can avoid khungtaskd warnings when do_shrink_slab() of unregistering
-> >> shrinker unexpectedly took so long.
-> >>
-> >> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> >
-> > Before reviewing this patch, can't we solve the problem with more
-> > simple way? Like this.
-> >
-> > Shakeel, What do you think?
-> >
+On Wed, Nov 15, 2017 at 03:48:26PM -0800, Andrew Morton wrote:
+> On Wed, 15 Nov 2017 12:14:30 -0500 Josef Bacik <josef@toxicpanda.com> wrote:
 > 
-> Seems simple enough. I will run my test (running fork bomb in one
-> memcg and separately time a mount operation) and update if numbers
-> differ significantly.
-
-Thanks.
-
-> 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 13d711dd8776..cbb624cb9baa 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -498,6 +498,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
-> >                         sc.nid = 0;
+> > Previously we were using the ratio of the number of lru pages scanned to
+> > the number of eligible lru pages to determine the number of slab objects
+> > to scan.  The problem with this is that these two things have nothing to
+> > do with each other, so in slab heavy work loads where there is little to
+> > no page cache we can end up with the pages scanned being a very low
+> > number.  This means that we reclaim next to no slab pages and waste a
+> > lot of time reclaiming small amounts of space.
+> > 
+> > ...
 > >
-> >                 freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
-> > +               /*
-> > +                * bail out if someone want to register a new shrinker to prevent
-> > +                * long time stall by parallel ongoing shrinking.
-> > +                */
-> > +               if (rwsem_is_contended(&shrinker_rwsem)) {
-> > +                       freed = 1;
+> > Andrew, I noticed you hadn't picked this up yet, so I rebased it on the latest
+> > linus and updated the ack's, it should be good to go.
 > 
-> freed = freed ?: 1;
+> I dropped a previous version of this on Oct 3 due to runtime failures
+> (I think).  What were those and how does this patch fix them (if it
+> does?)
+> 
 
-Yub.
+I went back and looked and you said it didn't apply cleanly, but then I rebased
+it and it applied fine, so I was confused.  What I _think_ happened is Johannes
+added a cleanup patch in the thread that didn't apply cleanly so you didn't
+apply either of them.  I'll dig out Johannes patch in the morning and clean it
+up and send it along as well.  Thanks,
+
+Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
