@@ -1,67 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 16BE8280277
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 09:39:02 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id y139so127370wmc.9
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 06:39:02 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id 6si1324235edy.402.2017.11.16.06.39.00
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 06:39:00 -0800 (PST)
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [PATCH RESEND v10 09/10] mm: Allow arch code to override copy_highpage()
-Date: Thu, 16 Nov 2017 07:38:32 -0700
-Message-Id: <6bf7a449fb35d9235b539bb452df23c453b23401.1510768775.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1510768775.git.khalid.aziz@oracle.com>
-References: <cover.1510768775.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1510768775.git.khalid.aziz@oracle.com>
-References: <cover.1510768775.git.khalid.aziz@oracle.com>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 570594402ED
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 09:40:52 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id a75so11527606oib.13
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 06:40:52 -0800 (PST)
+Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id x5si418671oig.131.2017.11.16.06.40.50
+        for <linux-mm@kvack.org>;
+        Thu, 16 Nov 2017 06:40:50 -0800 (PST)
+From: Marc Zyngier <marc.zyngier@arm.com>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
+	(liuwenliang@huawei.com's message of "Thu, 16 Nov 2017 14:24:31
+	+0000")
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+	<20171011082227.20546-2-liuwenliang@huawei.com>
+	<227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
+	<8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
+	<87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
+	<bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
+	<87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
+Date: Thu, 16 Nov 2017 14:40:40 +0000
+Message-ID: <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, davem@davemloft.net
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Cc: "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-Some architectures can support metadata for memory pages and when a
-page is copied, its metadata must also be copied. Sparc processors
-from M7 onwards support metadata for memory pages. This metadata
-provides tag based protection for access to memory pages. To maintain
-this protection, the tag data must be copied to the new page when a
-page is migrated across NUMA nodes. This patch allows arch specific
-code to override default copy_highpage() and copy metadata along
-with page data upon migration.
+On Thu, Nov 16 2017 at  2:24:31 pm GMT, "Liuwenliang (Abbott Liu)" <liuwenl=
+iang@huawei.com> wrote:
+> On 16/11/17  17:54 Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
+>>On Thu, Nov 16 2017 at 3:07:54 am GMT, "Liuwenliang (Abbott Liu)"
+>> <liuwenliang@huawei.com> wrote:
+>>>>On 15/11/17 13:16, Liuwenliang (Abbott Liu) wrote:
+>>>>> On 09/11/17  18:36 Marc Zyngier [mailto:marc.zyngier@arm.com] wrote:
+>>>>>> On Wed, Nov 15 2017 at 10:20:02 am GMT, "Liuwenliang (Abbott Liu)"
+>>>>>> <liuwenliang@huawei.com> wrote:
+>>>>>>> diff --git a/arch/arm/include/asm/cp15.h
+>>>>>>> b/arch/arm/include/asm/cp15.h index dbdbce1..6db1f51 100644
+>>>>>>> --- a/arch/arm/include/asm/cp15.h
+>>>>>>> +++ b/arch/arm/include/asm/cp15.h
+>>>>>>> @@ -64,6 +64,43 @@
+>>>>>>>  #define __write_sysreg(v, r, w, c, t) asm volatile(w " " c : :
+>>>>>>> "r" ((t)(v)))
+>>>>>>>  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS=
+__)
+>>>>>>>
+>>>>>>> +#ifdef CONFIG_ARM_LPAE
+>>>>>>> +#define TTBR0           __ACCESS_CP15_64(0, c2)
+>>>>>>> +#define TTBR1           __ACCESS_CP15_64(1, c2)
+>>>>>>> +#define PAR             __ACCESS_CP15_64(0, c7)
+>>>>>>> +#else
+>>>>>>> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
+>>>>>>> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
+>>>>>>> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
+>>>>>>> +#endif
+>>>>>> Again: there is no point in not having these register encodings
+>>>>>> cohabiting. They are both perfectly defined in the architecture.
+>>>>>> Just suffix one (or even both) with their respective size, making
+>>>>>> it obvious which one you're talking about.
+>>>>>
+>>>>> I am sorry that I didn't point why I need to define TTBR0/ TTBR1/PAR
+>>>>> in to different way between CONFIG_ARM_LPAE and non CONFIG_ARM_LPAE.
+>>>>> The following description is the reason:
+>>>>> Here is the description come from
+>>>>> DDI0406C2c_arm_architecture_reference_manual.pdf:
+>>>>[...]
+>>>>
+>>>>You're missing the point. TTBR0 existence as a 64bit CP15 register has
+>>>>nothing to do the kernel being compiled with LPAE or not. It has
+>>>>everything to do with the HW supporting LPAE, and it is the kernel's job
+>>>>to use the right accessor depending on how it is compiled. On a CPU
+>>>>supporting LPAE, both TTBR0 accessors are valid. It is the kernel that
+>>>>chooses to use one rather than the other.
+>>>
+>>> Thanks for your review.  I don't think both TTBR0 accessors(64bit
+>>> accessor and 32bit accessor) are valid on a CPU supporting LPAE which
+>>> the LPAE is enabled. Here is the description come form
+>>> DDI0406C2c_arm_architecture_reference_manual.pdf (=3DARM=C2=AE Architec=
+ture
+>>> Reference Manual ARMv7-A and ARMv7-R edition) which you can get the
+>>> document by google "ARM=C2=AE Architecture Reference Manual ARMv7-A and
+>>> ARMv7-R edition".
+>
+>>Trust me, from where I seat, I have a much better source than Google for
+>>that document. Who would have thought?
+>
+>>Nothing in what you randomly quote invalids what I've been saying. And
+>>to show you what's wrong with your reasoning, let me describe a
+>>scenario,
+>
+>>I have a non-LPAE kernel that runs on my system. It uses the 32bit
+>>version of the TTBRs. It turns out that this kernel runs under a
+>>hypervisor (KVM, Xen, or your toy of the day). The hypervisor
+>>context-switches vcpus without even looking at whether the configuration
+>>of that guest. It doesn't have to care. It just blindly uses the 64bit
+>>version of the TTBRs.
+>
+>>The architecture *guarantees* that it works (it even works with a 32bit
+>>guest under a 64bit hypervisor). In your world, this doesn't work. I
+>>guess the architecture wins.
+>
+>>> So, I think if you access TTBR0/TTBR1 on CPU supporting LPAE, you must
+>>> use "mcrr/mrrc" instruction (__ACCESS_CP15_64). If you access
+>>> TTBR0/TTBR1 on CPU supporting LPAE by "mcr/mrc" instruction which is
+>>> 32bit version (__ACCESS_CP15), even if the CPU doesn't report error,
+>>> you also lose the high or low 32bit of the TTBR0/TTBR1.
+>
+>>It is not about "supporting LPAE". It is about using the accessor that
+>>makes sense in a particular context. Yes, the architecture allows you to
+>>do something stupid. Don't do it. It doesn't mean the accessors cannot
+>>be used, and I hope that my example above demonstrates it.
+>
+>>Conclusion: I still stand by my request that both versions of TTBRs/PAR
+>>are described without depending on the kernel configuration, because
+>>this has nothing to do with the kernel configuration.
+>
+> Thanks for your reviews.
+> Yes, you are right. I have tested that "mcrr/mrrc" instruction
+> (__ACCESS_CP15_64) can work on non LPAE on vexpress_a9.
 
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Khalid Aziz <khalid@gonehiking.org>
----
-v9:
-	- new patch
+No, it doesn't. It cannot work, because Cortex-A9 predates the invention
+of the 64bit accessor. I suspect that you are testing stuff in QEMU,
+which is giving you a SW model that always supports LPAE. I suggest you
+test this code on *real* HW, and not only on QEMU.
 
- include/linux/highmem.h | 4 ++++
- 1 file changed, 4 insertions(+)
+What I have said is:
 
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 776f90f3a1cd..0690679832d4 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -237,6 +237,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
- 
- #endif
- 
-+#ifndef __HAVE_ARCH_COPY_HIGHPAGE
-+
- static inline void copy_highpage(struct page *to, struct page *from)
- {
- 	char *vfrom, *vto;
-@@ -248,4 +250,6 @@ static inline void copy_highpage(struct page *to, struct page *from)
- 	kunmap_atomic(vfrom);
- }
- 
-+#endif
-+
- #endif /* _LINUX_HIGHMEM_H */
--- 
-2.11.0
+- If the CPU supports LPAE, then both 32 and 64bit accessors work
+- If the CPU doesn't support LPAE, then only the 32bit accssor work
+- In both cases, that's a function of the CPU, and not of the kernel
+  configuration.
+- Both accessors can be safely defined as long as we ensure that they
+  are used in the right context.
+
+> Here is the code I tested on vexpress_a9 and vexpress_a15:
+> --- a/arch/arm/include/asm/cp15.h
+> +++ b/arch/arm/include/asm/cp15.h
+> @@ -64,6 +64,56 @@
+>  #define __write_sysreg(v, r, w, c, t)  asm volatile(w " " c : : "r" ((t)=
+(v)))
+>  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS__)
+>
+> +#define TTBR0           __ACCESS_CP15_64(0, c2)
+> +#define TTBR1           __ACCESS_CP15_64(1, c2)
+> +#define PAR             __ACCESS_CP15_64(0, c7)
+
+You still need to add the 32bit accessors.
+
+	M.
+--=20
+Jazz is not dead, it just smell funny.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
