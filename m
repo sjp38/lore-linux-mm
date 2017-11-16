@@ -1,101 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EE106B0033
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:29:10 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id b189so230738oia.10
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 13:29:10 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id g84si638797oia.409.2017.11.16.13.29.08
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 676B76B0033
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:24:27 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id e19so814851qte.15
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 14:24:27 -0800 (PST)
+Received: from frisell.zx2c4.com (frisell.zx2c4.com. [192.95.5.64])
+        by mx.google.com with ESMTPS id v23si2079244qta.244.2017.11.16.14.24.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 13:29:09 -0800 (PST)
-Date: Thu, 16 Nov 2017 16:29:04 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [PATCH 0/6] Cache coherent device memory (CDM) with HMM v5
-Message-ID: <20171116212904.GA4823@redhat.com>
-References: <CAA_GA1ff4mGKfxxRpjYCRjXOvbUuksM0K2gmH1VrhL4qtGWFbw@mail.gmail.com>
- <20170926161635.GA3216@redhat.com>
- <0d7273c3-181c-6d68-3c5f-fa518e782374@huawei.com>
- <20170930224927.GC6775@redhat.com>
- <CAA_GA1dhrs7n-ewZmW4bNtouK8rKnF1_TWv0z+2vrUgJjWpnMQ@mail.gmail.com>
- <20171012153721.GA2986@redhat.com>
- <CAAsGZS7JeH-cxrmZAVraLm5RjSVHJLXMdwZQ7Cxm91KGdVQocg@mail.gmail.com>
- <20171116024425.GC2934@redhat.com>
- <CAAsGZS5eoSK=Hd5av2bkw=chPGyfOYYNbrdizzCqq2gZ7+XH_g@mail.gmail.com>
- <CAAsGZS43n2_f9sQXGH5Ap=eEx2f099CDwHC0aTTgOEbw7Dc=zg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 16 Nov 2017 14:24:23 -0800 (PST)
+Received: 
+	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTP id 2a2e7eb1
+	for <linux-mm@kvack.org>;
+	Thu, 16 Nov 2017 22:19:58 +0000 (UTC)
+Received: 
+	by frisell.zx2c4.com (ZX2C4 Mail Server) with ESMTPSA id f2e90f8c (TLSv1.2:ECDHE-RSA-AES128-GCM-SHA256:128:NO)
+	for <linux-mm@kvack.org>;
+	Thu, 16 Nov 2017 22:19:57 +0000 (UTC)
+Received: by mail-ot0-f182.google.com with SMTP id d27so489040ote.11
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 14:24:22 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAAsGZS43n2_f9sQXGH5Ap=eEx2f099CDwHC0aTTgOEbw7Dc=zg@mail.gmail.com>
+In-Reply-To: <20170823211408.31198-1-ebiggers3@gmail.com>
+References: <20170823211408.31198-1-ebiggers3@gmail.com>
+From: "Jason A. Donenfeld" <Jason@zx2c4.com>
+Date: Thu, 16 Nov 2017 23:24:21 +0100
+Message-ID: <CAHmME9rBoJBQi8QRpAK-Vzc1hWnN_UasjUfaxtrioJy1mLxGKw@mail.gmail.com>
+Subject: Re: [PATCH] fork: fix incorrect fput of ->exe_file causing use-after-free
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: chetan L <loke.chetan@gmail.com>
-Cc: Bob Liu <lliubbo@gmail.com>, David Nellans <dnellans@nvidia.com>, John Hubbard <jhubbard@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-accelerators@lists.ozlabs.org
+To: Eric Biggers <ebiggers3@gmail.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Ingo Molnar <mingo@kernel.org>, Konstantin Khlebnikov <koct9i@gmail.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Vlastimil Babka <vbabka@suse.cz>, Eric Biggers <ebiggers@google.com>
 
-On Wed, Nov 15, 2017 at 07:29:10PM -0800, chetan L wrote:
-> On Wed, Nov 15, 2017 at 7:23 PM, chetan L <loke.chetan@gmail.com> wrote:
-> > On Wed, Nov 15, 2017 at 6:44 PM, Jerome Glisse <jglisse@redhat.com> wrote:
-> >> On Wed, Nov 15, 2017 at 06:10:08PM -0800, chet l wrote:
-> >>> >> You may think it as a CCIX device or CAPI device.
-> >>> >> The requirement is eliminate any extra copy.
-> >>> >> A typical usecase/requirement is malloc() and madvise() allocate from
-> >>> >> device memory, then CPU write data to device memory directly and
-> >>> >> trigger device to read the data/do calculation.
-> >>> >
-> >>> > I suggest you rely on the device driver userspace API to do a migration after malloc
-> >>> > then. Something like:
-> >>> >   ptr = malloc(size);
-> >>> >   my_device_migrate(ptr, size);
-> >>> >
-> >>> > Which would call an ioctl of the device driver which itself would migrate memory or
-> >>> > allocate device memory for the range if pointer return by malloc is not yet back by
-> >>> > any pages.
-> >>> >
-> >>>
-> >>> So for CCIX, I don't think there is going to be an inline device
-> >>> driver that would allocate any memory for you. The expansion memory
-> >>> will become part of the system memory as part of the boot process. So,
-> >>> if the host DDR is 256GB and the CCIX expansion memory is 4GB, the
-> >>> total system mem will be 260GB.
-> >>>
-> >>> Assume that the 'mm' is taught to mark/anoint the ZONE_DEVICE(or
-> >>> ZONE_XXX) range from 256 to 260 GB. Then, for kmalloc it(mm) won't use
-> >>> the ZONE_DEV range. But for a malloc, it will/can use that range.
-> >>
-> >> HMM zone device memory would work with that, you just need to teach the
-> >> platform to identify this memory zone and not hotplug it. Again you
-> >> should rely on specific device driver API to allocate this memory.
-> >>
-> >
-> > @Jerome - a new linux-accelerator's list has just been created. I have
-> > CC'd that list since we have overlapping interests w.r.t CCIX.
-> >
-> > I cannot comment on surprise add/remove as of now ... will cross the
-> > bridge later.
+Hey Eric,
 
-Note that this is not hotplug strictly speaking. Design today is that it
-is the device driver that register the memory. From kernel point of view
-this is an hotplug but for many of the target architecture there is no
-real hotplug ie device and its memory was present at boot time.
+This is a pretty late response to the thread, but in case you're
+curious, since Ubuntu forgot to backport this (I already emailed them
+about it), I actually experienced a set of boxes that hit this bug in
+the wild and were crashing every 2 weeks or so, when under highload.
+It's pretty amazing that syzkaller unearthed this, resulting in a nice
+test case, making it possible to debug and fix the error. Otherwise
+it'd be a real heisenbug.
 
-Like i said i think for now we are better of having each device manage and
-register its memory. HMM provide a toolbox for that. If we see common trend
-accross multiple devices then we can think about making something more
-generic.
+So, thanks.
 
-
-For the NUMA discussion this is related to CPU less node ie not wanting
-to add any more CPU less node (node with only memory) and they are other
-aspect too. For instance you do not necessarily have good informations
-from the device to know if a page is access a lot by the device (this
-kind of information is often only accessible by the device driver). Thus
-the automatic NUMA placement is useless here. Not mentioning that for it
-to work we would need to change how it currently work (iirc there is
-issue when you not have a CPU id you can use).
-
-Cheers,
-Jerome
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
