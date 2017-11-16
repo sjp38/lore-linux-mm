@@ -1,119 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 137D028025F
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 07:05:44 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id q127so2294856wmd.1
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 04:05:44 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x14sor855182edd.14.2017.11.16.04.05.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DBDEF28025F
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 07:14:43 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 70so15983123pgf.5
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 04:14:43 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q13si755294pgt.668.2017.11.16.04.14.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 Nov 2017 04:05:42 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Nov 2017 04:14:42 -0800 (PST)
+Date: Thu, 16 Nov 2017 13:14:38 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mm: drop hotplug lock from lru_add_drain_all
-Date: Thu, 16 Nov 2017 13:05:35 +0100
-Message-Id: <20171116120535.23765-1-mhocko@kernel.org>
+Subject: [RFC PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171116121438.6vegs4wiahod3byl@dhcp22.suse.cz>
+References: <20171116101900.13621-1-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171116101900.13621-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
 
-From: Michal Hocko <mhocko@suse.com>
+[Ups, managed to screw the subject - fix it]
 
-Pulling cpu hotplug locks inside the mm core function like
-lru_add_drain_all just asks for problems and the recent lockdep splat
-[1] just proves this. While the usage in that particular case might
-be wrong we should prevent from locking as lru_add_drain_all is used
-at many places. It seems that this is not all that hard to achieve
-actually.
+On Thu 16-11-17 11:18:58, Michal Hocko wrote:
+> Hi,
+> this has started as a follow up discussion [1][2] resulting in the
+> runtime failure caused by hardening patch [3] which removes MAP_FIXED
+> from the elf loader because MAP_FIXED is inherently dangerous as it
+> might silently clobber and existing underlying mapping (e.g. stack). The
+> reason for the failure is that some architectures enforce an alignment
+> for the given address hint without MAP_FIXED used (e.g. for shared or
+> file backed mappings).
+> 
+> One way around this would be excluding those archs which do alignment
+> tricks from the hardening [4]. The patch is really trivial but it has
+> been objected, rightfully so, that this screams for a more generic
+> solution. We basically want a non-destructive MAP_FIXED.
+> 
+> The first patch introduced MAP_FIXED_SAFE which enforces the given
+> address but unlike MAP_FIXED it fails with ENOMEM if the given range
+> conflicts with an existing one. The flag is introduced as a completely
+> new flag rather than a MAP_FIXED extension because of the backward
+> compatibility. We really want a never-clobber semantic even on older
+> kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+> flags evaluation because we do not EINVAL on unknown flags. On those
+> kernels we would simply use the traditional hint based semantic so the
+> caller can still get a different address (which sucks) but at least not
+> silently corrupt an existing mapping. I do not see a good way around
+> that. Except we won't export expose the new semantic to the userspace at
+> all. It seems there are users who would like to have something like that
+> [5], though. Atomic address range probing in the multithreaded programs
+> sounds like an interesting thing to me as well, although I do not have
+> any specific usecase in mind.
+> 
+> The second patch simply replaces MAP_FIXED use in elf loader by
+> MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
+> follow. Actually real MAP_FIXED usages should be docummented properly
+> and they should be more of an exception.
+> 
+> Does anybody see any fundamental reasons why this is a wrong approach?
+> 
+> Diffstat says
+>  arch/alpha/include/uapi/asm/mman.h   |  2 ++
+>  arch/metag/kernel/process.c          |  6 +++++-
+>  arch/mips/include/uapi/asm/mman.h    |  2 ++
+>  arch/parisc/include/uapi/asm/mman.h  |  2 ++
+>  arch/powerpc/include/uapi/asm/mman.h |  1 +
+>  arch/sparc/include/uapi/asm/mman.h   |  1 +
+>  arch/tile/include/uapi/asm/mman.h    |  1 +
+>  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
+>  fs/binfmt_elf.c                      | 12 ++++++++----
+>  include/uapi/asm-generic/mman.h      |  1 +
+>  mm/mmap.c                            | 11 +++++++++++
+>  11 files changed, 36 insertions(+), 5 deletions(-)
+> 
+> [1] http://lkml.kernel.org/r/20171107162217.382cd754@canb.auug.org.au
+> [2] http://lkml.kernel.org/r/1510048229.12079.7.camel@abdul.in.ibm.com
+> [3] http://lkml.kernel.org/r/20171023082608.6167-1-mhocko@kernel.org
+> [4] http://lkml.kernel.org/r/20171113094203.aofz2e7kueitk55y@dhcp22.suse.cz
+> [5] http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au
+> 
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-We have done the same thing for drain_all_pages which is analogous by
-a459eeb7b852 ("mm, page_alloc: do not depend on cpu hotplug locks inside
-the allocator"). All we have to care about is to handle
-      - the work item might be executed on a different cpu in worker from
-        unbound pool so it doesn't run on pinned on the cpu
-
-      - we have to make sure that we do not race with page_alloc_cpu_dead
-        calling lru_add_drain_cpu
-
-the first part is already handled because the worker calls lru_add_drain
-which disables preemption when calling lru_add_drain_cpu on the local
-cpu it is draining. The later is true because page_alloc_cpu_dead
-is called on the controlling CPU after the hotplugged CPU vanished
-completely.
-
-[1] http://lkml.kernel.org/r/089e0825eec8955c1f055c83d476@google.com
-
-[add a cpu hotplug locking interaction as per tglx]
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/swap.h |  1 -
- mm/memory_hotplug.c  |  2 +-
- mm/swap.c            | 16 ++++++++--------
- 3 files changed, 9 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 84255b3da7c1..cfc200673e13 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -331,7 +331,6 @@ extern void mark_page_accessed(struct page *);
- extern void lru_add_drain(void);
- extern void lru_add_drain_cpu(int cpu);
- extern void lru_add_drain_all(void);
--extern void lru_add_drain_all_cpuslocked(void);
- extern void rotate_reclaimable_page(struct page *page);
- extern void deactivate_file_page(struct page *page);
- extern void mark_page_lazyfree(struct page *page);
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 832a042134f8..c9f6b418be79 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -1641,7 +1641,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		goto failed_removal;
- 
- 	cond_resched();
--	lru_add_drain_all_cpuslocked();
-+	lru_add_drain_all();
- 	drain_all_pages(zone);
- 
- 	pfn = scan_movable_pages(start_pfn, end_pfn);
-diff --git a/mm/swap.c b/mm/swap.c
-index 381e0fe9efbf..1ab8122d2d0c 100644
---- a/mm/swap.c
-+++ b/mm/swap.c
-@@ -688,7 +688,14 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
- 
- static DEFINE_PER_CPU(struct work_struct, lru_add_drain_work);
- 
--void lru_add_drain_all_cpuslocked(void)
-+/*
-+ * Doesn't need any cpu hotplug locking because we do rely on per-cpu
-+ * kworkers being shut down before our page_alloc_cpu_dead callback is
-+ * executed on the offlined cpu.
-+ * Calling this function with cpu hotplug locks held can actually lead
-+ * to obscure indirect dependencies via WQ context.
-+ */
-+void lru_add_drain_all(void)
- {
- 	static DEFINE_MUTEX(lock);
- 	static struct cpumask has_work;
-@@ -724,13 +731,6 @@ void lru_add_drain_all_cpuslocked(void)
- 	mutex_unlock(&lock);
- }
- 
--void lru_add_drain_all(void)
--{
--	get_online_cpus();
--	lru_add_drain_all_cpuslocked();
--	put_online_cpus();
--}
--
- /**
-  * release_pages - batched put_page()
-  * @pages: array of pages to release
 -- 
-2.15.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
