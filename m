@@ -1,76 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AE5A6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 12:26:21 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id o12so690078wme.5
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 09:26:21 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 086526B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 12:35:05 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y42so1827965wrd.23
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 09:35:04 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a138sor1208360wmd.42.2017.11.17.09.26.19
+        by mx.google.com with SMTPS id i4sor1851554wrh.31.2017.11.17.09.35.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Nov 2017 09:26:19 -0800 (PST)
-From: Alexander Potapenko <glider@google.com>
-Subject: [PATCH v2] lib/stackdepot: use a non-instrumented version of memcmp()
-Date: Fri, 17 Nov 2017 18:21:49 +0100
-Message-Id: <20171117172149.69562-1-glider@google.com>
+        Fri, 17 Nov 2017 09:35:03 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CALOAHbABr5gVL0f5LX5M2NstZ=FqzaFxrohu8B97uhrSo6Jp2Q@mail.gmail.com>
+References: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
+ <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
+ <20171117155509.GA920@castle> <CALOAHbAWvYKve4eB9+zissgi24cNKeFih1=avfSi_dH5upQVOg@mail.gmail.com>
+ <20171117164531.GA23745@castle> <CALOAHbABr5gVL0f5LX5M2NstZ=FqzaFxrohu8B97uhrSo6Jp2Q@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Fri, 17 Nov 2017 09:35:01 -0800
+Message-ID: <CALvZod77t3FWgO+rNLHDGU9TZUH-_3qBpzt86BC6R8JJK2ZZ=g@mail.gmail.com>
+Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, dvyukov@google.com, akpm@linux-foundation.org
-Cc: kasan-dev@googlegroups.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-stackdepot used to call memcmp(), which compiler tools normally
-instrument, therefore every lookup used to unnecessarily call
-instrumented code.
-This is somewhat ok in the case of KASAN, but under KMSAN a lot of time
-was spent in the instrumentation.
+On Fri, Nov 17, 2017 at 9:09 AM, Yafang Shao <laoar.shao@gmail.com> wrote:
+> 2017-11-18 0:45 GMT+08:00 Roman Gushchin <guro@fb.com>:
+>> On Sat, Nov 18, 2017 at 12:20:40AM +0800, Yafang Shao wrote:
+>>> 2017-11-17 23:55 GMT+08:00 Roman Gushchin <guro@fb.com>:
+>>> > On Thu, Nov 16, 2017 at 08:43:17PM -0800, Shakeel Butt wrote:
+>>> >> On Thu, Nov 16, 2017 at 7:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
+>>> >> > Currently the default tmpfs size is totalram_pages / 2 if mount tmpfs
+>>> >> > without "-o size=XXX".
+>>> >> > When we mount tmpfs in a container(i.e. docker), it is also
+>>> >> > totalram_pages / 2 regardless of the memory limit on this container.
+>>> >> > That may easily cause OOM if tmpfs occupied too much memory when swap is
+>>> >> > off.
+>>> >> > So when we mount tmpfs in a memcg, the default size should be limited by
+>>> >> > the memcg memory.limit.
+>>> >> >
+>>> >>
+>>> >> The pages of the tmpfs files are charged to the memcg of allocators
+>>> >> which can be in memcg different from the memcg in which the mount
+>>> >> operation happened. So, tying the size of a tmpfs mount where it was
+>>> >> mounted does not make much sense.
+>>> >
+>>> > Also, memory limit is adjustable,
+>>>
+>>> Yes. But that's irrelevant.
+>>>
+>>> > and using a particular limit value
+>>> > at a moment of tmpfs mounting doesn't provide any warranties further.
+>>> >
+>>>
+>>> I can not agree.
+>>> The default size of tmpfs is totalram / 2, the reason we do this is to
+>>> provide any warranties further IMHO.
+>>>
+>>> > Is there a reason why the userspace app which is mounting tmpfs can't
+>>> > set the size based on memory.limit?
+>>>
+>>> That's because of misuse.
+>>> The application should set size with "-o size=" when mount tmpfs, but
+>>> not all applications do this.
+>>> As we can't guarantee that all applications will do this, we should
+>>> give them a proper default value.
+>>
+>> The value you're suggesting is proper only if an app which is mounting
+>> tmpfs resides in the same memcg
+>
+> Yes.
+> But maybe that's mostly used today?
+>
+>> and the memory limit will not be adjusted
+>> significantly later.
+>
+> There's a similar issue for physical memory adjusted by memory hotplug.
+> So what will happen if the physical memory adjusted significantly later ?
+>
+>> Otherwise you can end up with a default value, which
+>> is worse than totalram/2, for instance, if tmpfs is mounted by some helper,
+>> which is located in a separate and very limited memcg.
+>
+> That may happen.
+> Maybe we could improve the solution to handle this issue ?
+>
+>
 
-Signed-off-by: Alexander Potapenko <glider@google.com>
----
-v2: As requested by Andrey Ryabinin, made the parameters unsigned long *
----
- lib/stackdepot.c | 19 ++++++++++++++++---
- 1 file changed, 16 insertions(+), 3 deletions(-)
+Let's backtrack, what is the actual concern? If a user/process inside
+a memcg is allocating pages for a file on a tmpfs mounted without size
+parameter, you want the OS to return ENOSPC (if allocation is done by
+write syscall) earlier to not cause the user/process's memcg to OOM.
+Is that right?
 
-diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-index f87d138e9672..e513459a5601 100644
---- a/lib/stackdepot.c
-+++ b/lib/stackdepot.c
-@@ -163,6 +163,21 @@ static inline u32 hash_stack(unsigned long *entries, unsigned int size)
- 			       STACK_HASH_SEED);
- }
- 
-+/* Use our own, non-instrumented version of memcmp().
-+ *
-+ * We actually don't care about the order, just the equality.
-+ */
-+static inline
-+int stackdepot_memcmp(const unsigned long *u1, const unsigned long *u2,
-+			unsigned int n)
-+{
-+	for ( ; n-- ; u1++, u2++) {
-+		if (*u1 != *u2)
-+			return 1;
-+	}
-+	return 0;
-+}
-+
- /* Find a stack that is equal to the one stored in entries in the hash */
- static inline struct stack_record *find_stack(struct stack_record *bucket,
- 					     unsigned long *entries, int size,
-@@ -173,10 +188,8 @@ static inline struct stack_record *find_stack(struct stack_record *bucket,
- 	for (found = bucket; found; found = found->next) {
- 		if (found->hash == hash &&
- 		    found->size == size &&
--		    !memcmp(entries, found->entries,
--			    size * sizeof(unsigned long))) {
-+		    !stackdepot_memcmp(entries, found->entries, size))
- 			return found;
--		}
- 	}
- 	return NULL;
- }
--- 
-2.15.0.448.gf294e3d99a-goog
+First, there is no guarantee to not cause OOM by restricting tmpfs to
+half the size of memcg limit due to the presence of other memory
+charged to that memcg. The memcg can OOM even before the tmpfs hits
+its size.
+
+Second, the users who really care to avoid such scenario should just
+set the size parameter of tmpfs.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
