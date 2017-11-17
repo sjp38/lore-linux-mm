@@ -1,157 +1,212 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A1AC6B025E
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:17:01 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id g73so6037137ioj.0
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:17:01 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 224B76B0253
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:27:39 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id u42so5926627ioi.7
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:27:39 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v11sor1111676iod.324.2017.11.16.16.17.00
+        by mx.google.com with SMTPS id y123sor1064343ioy.189.2017.11.16.16.27.37
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 Nov 2017 16:17:00 -0800 (PST)
+        Thu, 16 Nov 2017 16:27:38 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1510754620-27088-5-git-send-email-elena.reshetova@intel.com>
-References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com> <1510754620-27088-5-git-send-email-elena.reshetova@intel.com>
+In-Reply-To: <20171116101900.13621-2-mhocko@kernel.org>
+References: <20171116101900.13621-1-mhocko@kernel.org> <20171116101900.13621-2-mhocko@kernel.org>
 From: Kees Cook <keescook@chromium.org>
-Date: Thu, 16 Nov 2017 16:16:58 -0800
-Message-ID: <CAGXu5jL0GCqdGEYPYHvdr9QrhO8MNzt7+kh2hWm-u=BUFvMmew@mail.gmail.com>
-Subject: Re: [PATCH 04/16] sched: convert user_struct.__count to refcount_t
+Date: Thu, 16 Nov 2017 16:27:36 -0800
+Message-ID: <CAGXu5jKssQCcYcZujvQeFy5LTzhXSW=f-a0riB=4+caT1i38BQ@mail.gmail.com>
+Subject: Re: [RFC PATCH 1/2] mm: introduce MAP_FIXED_SAFE
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Elena Reshetova <elena.reshetova@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Eric Paris <eparis@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Nov 15, 2017 at 6:03 AM, Elena Reshetova
-<elena.reshetova@intel.com> wrote:
-> atomic_t variables are currently used to implement reference
-> counters with the following properties:
->  - counter is initialized to 1 using atomic_set()
->  - a resource is freed upon counter reaching zero
->  - once counter reaches zero, its further
->    increments aren't allowed
->  - counter schema uses basic atomic operations
->    (set, inc, inc_not_zero, dec_and_test, etc.)
+On Thu, Nov 16, 2017 at 2:18 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> From: Michal Hocko <mhocko@suse.com>
 >
-> Such atomic variables should be converted to a newly provided
-> refcount_t type and API that prevents accidental counter overflows
-> and underflows. This is important since overflows and underflows
-> can lead to use-after-free situation and be exploitable.
+> MAP_FIXED is used quite often to enforce mapping at the particular
+> range. The main problem of this flag is, however, that it is inherently
+> dangerous because it unmaps existing mappings covered by the requested
+> range. This can cause silent memory corruptions. Some of them even with
+> serious security implications. While the current semantic might be
+> really desiderable in many cases there are others which would want to
+> enforce the given range but rather see a failure than a silent memory
+> corruption on a clashing range. Please note that there is no guarantee
+> that a given range is obeyed by the mmap even when it is free - e.g.
+> arch specific code is allowed to apply an alignment.
 >
-> The variable user_struct.__count is used as pure reference counter.
-> Convert it to refcount_t and fix up the operations.
->
-> **Important note for maintainers:
->
-> Some functions from refcount_t API defined in lib/refcount.c
-> have different memory ordering guarantees than their atomic
-> counterparts.
-> The full comparison can be seen in
-> https://lkml.org/lkml/2017/11/15/57 and it is hopefully soon
-> in state to be merged to the documentation tree.
-> Normally the differences should not matter since refcount_t provides
-> enough guarantees to satisfy the refcounting use cases, but in
-> some rare cases it might matter.
-> Please double check that you don't have some undocumented
-> memory guarantees for this variable usage.
->
-> For the user_struct.__count it might make a difference
-> in following places:
->  - free_uid(): decrement in refcount_dec_and_lock() only
->    provides RELEASE ordering, control dependency on success
->    and will hold a spin lock on success vs. fully ordered
->    atomic counterpart. Note there is no changes in spin lock
->    locking here.
+> Introduce a new MAP_FIXED_SAFE flag for mmap to achieve this behavior.
+> It has the same semantic as MAP_FIXED wrt. the given address request
+> with a single exception that it fails with ENOMEM if the requested
+> address is already covered by an existing mapping. We still do rely on
+> get_unmaped_area to handle all the arch specific MAP_FIXED treatment and
+> check for a conflicting vma after it returns.
 
-As with the others, this looks correct to me. Andrew, this looks like
-one for you again. :)
+I like this much more than special-casing the ELF loader. It is an
+unusual property that MAP_FIXED does _two_ things, so I like having
+this split out.
 
-Acked-by: Kees Cook <keescook@chromium.org>
+Bikeshedding: maybe call this MAP_NO_CLOBBER? It's a modifier to
+MAP_FIXED, really...
+
+At the end of the day, I don't really care about the name, but "SAFE"
+isn't very descriptive for what the flag changes about FIXED.
 
 -Kees
 
 >
-> Suggested-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: David Windsor <dwindsor@gmail.com>
-> Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
-> Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
+> [set MAP_FIXED before round_hint_to_min as per Khalid Aziz]
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
 > ---
->  include/linux/sched/user.h | 5 +++--
->  kernel/user.c              | 8 ++++----
->  2 files changed, 7 insertions(+), 6 deletions(-)
+>  arch/alpha/include/uapi/asm/mman.h   |  2 ++
+>  arch/mips/include/uapi/asm/mman.h    |  2 ++
+>  arch/parisc/include/uapi/asm/mman.h  |  2 ++
+>  arch/powerpc/include/uapi/asm/mman.h |  1 +
+>  arch/sparc/include/uapi/asm/mman.h   |  1 +
+>  arch/tile/include/uapi/asm/mman.h    |  1 +
+>  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
+>  include/uapi/asm-generic/mman.h      |  1 +
+>  mm/mmap.c                            | 11 +++++++++++
+>  9 files changed, 23 insertions(+)
 >
-> diff --git a/include/linux/sched/user.h b/include/linux/sched/user.h
-> index 0dcf4e4..2ca7cf4 100644
-> --- a/include/linux/sched/user.h
-> +++ b/include/linux/sched/user.h
-> @@ -4,6 +4,7 @@
+> diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+> index 3b26cc62dadb..0e5724e4b4ad 100644
+> --- a/arch/alpha/include/uapi/asm/mman.h
+> +++ b/arch/alpha/include/uapi/asm/mman.h
+> @@ -31,6 +31,8 @@
+>  #define MAP_STACK      0x80000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x100000        /* create a huge page mapping */
 >
->  #include <linux/uidgid.h>
->  #include <linux/atomic.h>
-> +#include <linux/refcount.h>
+> +#define MAP_FIXED_SAFE 0x200000        /* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  #define MS_ASYNC       1               /* sync memory asynchronously */
+>  #define MS_SYNC                2               /* synchronous memory sync */
+>  #define MS_INVALIDATE  4               /* invalidate the caches */
+> diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
+> index da3216007fe0..fc5e61ef9fd4 100644
+> --- a/arch/mips/include/uapi/asm/mman.h
+> +++ b/arch/mips/include/uapi/asm/mman.h
+> @@ -49,6 +49,8 @@
+>  #define MAP_STACK      0x40000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x80000         /* create a huge page mapping */
 >
->  struct key;
->
-> @@ -11,7 +12,7 @@ struct key;
->   * Some day this will be a full-fledged user tracking system..
+> +#define MAP_FIXED_SAFE 0x100000        /* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  /*
+>   * Flags for msync
 >   */
->  struct user_struct {
-> -       atomic_t __count;       /* reference count */
-> +       refcount_t __count;     /* reference count */
->         atomic_t processes;     /* How many processes does this user have? */
->         atomic_t sigpending;    /* How many pending signals does this user have? */
->  #ifdef CONFIG_FANOTIFY
-> @@ -55,7 +56,7 @@ extern struct user_struct root_user;
->  extern struct user_struct * alloc_uid(kuid_t);
->  static inline struct user_struct *get_uid(struct user_struct *u)
->  {
-> -       atomic_inc(&u->__count);
-> +       refcount_inc(&u->__count);
->         return u;
->  }
->  extern void free_uid(struct user_struct *);
-> diff --git a/kernel/user.c b/kernel/user.c
-> index 9a20acc..f104474 100644
-> --- a/kernel/user.c
-> +++ b/kernel/user.c
-> @@ -96,7 +96,7 @@ static DEFINE_SPINLOCK(uidhash_lock);
+> diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+> index cc9ba1d34779..c926487472fa 100644
+> --- a/arch/parisc/include/uapi/asm/mman.h
+> +++ b/arch/parisc/include/uapi/asm/mman.h
+> @@ -25,6 +25,8 @@
+>  #define MAP_STACK      0x40000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x80000         /* create a huge page mapping */
 >
->  /* root_user.__count is 1, for init task cred */
->  struct user_struct root_user = {
-> -       .__count        = ATOMIC_INIT(1),
-> +       .__count        = REFCOUNT_INIT(1),
->         .processes      = ATOMIC_INIT(1),
->         .sigpending     = ATOMIC_INIT(0),
->         .locked_shm     = 0,
-> @@ -122,7 +122,7 @@ static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
+> +#define MAP_FIXED_SAFE 0x100000        /* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  #define MS_SYNC                1               /* synchronous memory sync */
+>  #define MS_ASYNC       2               /* sync memory asynchronously */
+>  #define MS_INVALIDATE  4               /* invalidate the caches */
+> diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
+> index 03c06ba7464f..d97342ca25b1 100644
+> --- a/arch/powerpc/include/uapi/asm/mman.h
+> +++ b/arch/powerpc/include/uapi/asm/mman.h
+> @@ -28,5 +28,6 @@
+>  #define MAP_NONBLOCK   0x10000         /* do not block on IO */
+>  #define MAP_STACK      0x20000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x40000         /* create a huge page mapping */
+> +#define MAP_FIXED_SAFE 0x800000        /* MAP_FIXED which doesn't unmap underlying mapping */
 >
->         hlist_for_each_entry(user, hashent, uidhash_node) {
->                 if (uid_eq(user->uid, uid)) {
-> -                       atomic_inc(&user->__count);
-> +                       refcount_inc(&user->__count);
->                         return user;
->                 }
->         }
-> @@ -169,7 +169,7 @@ void free_uid(struct user_struct *up)
->                 return;
+>  #endif /* _UAPI_ASM_POWERPC_MMAN_H */
+> diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
+> index 9765896ecb2c..7b00477a7f9a 100644
+> --- a/arch/sparc/include/uapi/asm/mman.h
+> +++ b/arch/sparc/include/uapi/asm/mman.h
+> @@ -23,6 +23,7 @@
+>  #define MAP_NONBLOCK   0x10000         /* do not block on IO */
+>  #define MAP_STACK      0x20000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x40000         /* create a huge page mapping */
+> +#define MAP_FIXED_SAFE 0x80000         /* MAP_FIXED which doesn't unmap underlying mapping */
 >
->         local_irq_save(flags);
-> -       if (atomic_dec_and_lock(&up->__count, &uidhash_lock))
-> +       if (refcount_dec_and_lock(&up->__count, &uidhash_lock))
->                 free_user(up, flags);
->         else
->                 local_irq_restore(flags);
-> @@ -190,7 +190,7 @@ struct user_struct *alloc_uid(kuid_t uid)
->                         goto out_unlock;
 >
->                 new->uid = uid;
-> -               atomic_set(&new->__count, 1);
-> +               refcount_set(&new->__count, 1);
+>  #endif /* _UAPI__SPARC_MMAN_H__ */
+> diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
+> index 63ee13faf17d..d5d58d2dc95e 100644
+> --- a/arch/tile/include/uapi/asm/mman.h
+> +++ b/arch/tile/include/uapi/asm/mman.h
+> @@ -29,6 +29,7 @@
+>  #define MAP_DENYWRITE  0x0800          /* ETXTBSY */
+>  #define MAP_EXECUTABLE 0x1000          /* mark it as an executable */
+>  #define MAP_HUGETLB    0x4000          /* create a huge page mapping */
+> +#define MAP_FIXED_SAFE 0x8000          /* MAP_FIXED which doesn't unmap underlying mapping */
 >
->                 /*
->                  * Before adding this, check whether we raced
+>
+>  /*
+> diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+> index b15b278aa314..d665bd8b7cbd 100644
+> --- a/arch/xtensa/include/uapi/asm/mman.h
+> +++ b/arch/xtensa/include/uapi/asm/mman.h
+> @@ -55,6 +55,7 @@
+>  #define MAP_NONBLOCK   0x20000         /* do not block on IO */
+>  #define MAP_STACK      0x40000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x80000         /* create a huge page mapping */
+> +#define MAP_FIXED_SAFE 0x100000        /* MAP_FIXED which doesn't unmap underlying mapping */
+>  #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+>  # define MAP_UNINITIALIZED 0x4000000   /* For anonymous mmap, memory could be
+>                                          * uninitialized */
+> @@ -62,6 +63,7 @@
+>  # define MAP_UNINITIALIZED 0x0         /* Don't support this flag */
+>  #endif
+>
+> +
+>  /*
+>   * Flags for msync
+>   */
+> diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
+> index 7162cd4cca73..64c46047fbd3 100644
+> --- a/include/uapi/asm-generic/mman.h
+> +++ b/include/uapi/asm-generic/mman.h
+> @@ -12,6 +12,7 @@
+>  #define MAP_NONBLOCK   0x10000         /* do not block on IO */
+>  #define MAP_STACK      0x20000         /* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB    0x40000         /* create a huge page mapping */
+> +#define MAP_FIXED_SAFE 0x80000         /* MAP_FIXED which doesn't unmap underlying mapping */
+>
+>  /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
+>
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 680506faceae..89af0b5839a5 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1342,6 +1342,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>                 if (!(file && path_noexec(&file->f_path)))
+>                         prot |= PROT_EXEC;
+>
+> +       /* force arch specific MAP_FIXED handling in get_unmapped_area */
+> +       if (flags & MAP_FIXED_SAFE)
+> +               flags |= MAP_FIXED;
+> +
+>         if (!(flags & MAP_FIXED))
+>                 addr = round_hint_to_min(addr);
+>
+> @@ -1365,6 +1369,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>         if (offset_in_page(addr))
+>                 return addr;
+>
+> +       if (flags & MAP_FIXED_SAFE) {
+> +               struct vm_area_struct *vma = find_vma(mm, addr);
+> +
+> +               if (vma && vma->vm_start <= addr)
+> +                       return -ENOMEM;
+> +       }
+> +
+>         if (prot == PROT_EXEC) {
+>                 pkey = execute_only_pkey(mm);
+>                 if (pkey < 0)
 > --
-> 2.7.4
+> 2.15.0
 >
 
 
