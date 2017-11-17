@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 409286B025E
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 651F26B0253
 	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:49:40 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id r70so6222206ioi.2
+Received: by mail-it0-f71.google.com with SMTP id b5so1720768itc.7
         for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:49:40 -0800 (PST)
 Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id m133si1624347ioe.229.2017.11.16.17.49.36
+        by mx.google.com with ESMTPS id w33si1878629ioe.106.2017.11.16.17.49.36
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Nov 2017 17:49:38 -0800 (PST)
+        Thu, 16 Nov 2017 17:49:39 -0800 (PST)
 From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH v3 0/3] some fixes and clean up for mempolicy
-Date: Fri, 17 Nov 2017 09:37:01 +0800
-Message-ID: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
+Subject: [PATCH v3 3/3] mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
+Date: Fri, 17 Nov 2017 09:37:04 +0800
+Message-ID: <1510882624-44342-4-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
+References: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -20,40 +22,49 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, ak@linux.intel.com, cl@linux.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, tanxiaojun@huawei.com
 
-This patchset is triggered by Xiojun's report of ltp test fail[1],
-and I have sent a patch to resolve it by check nodes_empty of new_nodes[2].
+As manpage of migrate_pages, the errno should be set to EINVAL when
+none of the node IDs specified by new_nodes are on-line and allowed
+by the process's current cpuset context, or none of the specified
+nodes contain memory. However, when test by following case:
 
-The new version is to follow Vlastimil's suggestion, which fix by checking
-the new_nodes value in function get_nodes. And I just split them to small
-patches for easy to review and discussion. For more detail, please look
-into each patches.
+	new_nodes = 0;
+	old_nodes = 0xf;
+	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
 
-Change logs of v3:
- * remove patch get_nodes's mask miscalculation
- * check whether node is empty after AND current task node, and then nodes
-   which have memory.
+The ret will be 0 and no errno is set. As the new_nodes is empty,
+we should expect EINVAL as documented.
 
-Change logs of v2:
- * fix get_nodes's mask miscalculation
- * remove redundant check in get_nodes
- * fix the check of nodemask from user - per Vlastimil
+To fix the case like above, this patch check whether target nodes
+AND current task_nodes is empty, and then check whether AND
+node_states[N_MEMORY] is empty.
 
-Any comment and complain is welome.
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+---
+ mm/mempolicy.c | 10 +++++++---
+ 1 file changed, 7 insertions(+), 3 deletions(-)
 
-Thanks
-Yisheng Xie
-
-[1] https://patchwork.kernel.org/patch/10012005/
-[2] https://patchwork.kernel.org/patch/10013329/
-
-Yisheng Xie (3):
-  mm/mempolicy: remove redundant check in get_nodes
-  mm/mempolicy: fix the check of nodemask from user
-  mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
-
- mm/mempolicy.c | 35 +++++++++++++++++++++++++++--------
- 1 file changed, 27 insertions(+), 8 deletions(-)
-
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 65df28d..f604b22 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1433,10 +1433,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+ 		goto out_put;
+ 	}
+ 
+-	if (!nodes_subset(*new, node_states[N_MEMORY])) {
+-		err = -EINVAL;
++	task_nodes = cpuset_mems_allowed(current);
++	nodes_and(*new, *new, task_nodes);
++	if (nodes_empty(*new))
++		goto out_put;
++
++	nodes_and(*new, *new, node_states[N_MEMORY]);
++	if (nodes_empty(*new))
+ 		goto out_put;
+-	}
+ 
+ 	err = security_task_movememory(task);
+ 	if (err)
 -- 
 1.8.3.1
 
