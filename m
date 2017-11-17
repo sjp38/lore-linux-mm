@@ -1,26 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C7FA56B0253
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:14:17 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id h205so5975467iof.15
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:14:17 -0800 (PST)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A1AC6B025E
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:17:01 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id g73so6037137ioj.0
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:17:01 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m87sor1258561ioi.108.2017.11.16.16.14.16
+        by mx.google.com with SMTPS id v11sor1111676iod.324.2017.11.16.16.17.00
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 Nov 2017 16:14:16 -0800 (PST)
+        Thu, 16 Nov 2017 16:17:00 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1510754620-27088-15-git-send-email-elena.reshetova@intel.com>
-References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com> <1510754620-27088-15-git-send-email-elena.reshetova@intel.com>
+In-Reply-To: <1510754620-27088-5-git-send-email-elena.reshetova@intel.com>
+References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com> <1510754620-27088-5-git-send-email-elena.reshetova@intel.com>
 From: Kees Cook <keescook@chromium.org>
-Date: Thu, 16 Nov 2017 16:14:14 -0800
-Message-ID: <CAGXu5jKZ4S=aTYpGff7QiCS0BVFKxvw+TRXKt=Yr0L8M1uTHpg@mail.gmail.com>
-Subject: Re: [PATCH 14/16] creds: convert cred.usage to refcount_t
+Date: Thu, 16 Nov 2017 16:16:58 -0800
+Message-ID: <CAGXu5jL0GCqdGEYPYHvdr9QrhO8MNzt7+kh2hWm-u=BUFvMmew@mail.gmail.com>
+Subject: Re: [PATCH 04/16] sched: convert user_struct.__count to refcount_t
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>, Elena Reshetova <elena.reshetova@intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Eric Paris <eparis@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, David Howells <dhowells@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Eric Paris <eparis@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>
 
 On Wed, Nov 15, 2017 at 6:03 AM, Elena Reshetova
 <elena.reshetova@intel.com> wrote:
@@ -38,7 +38,7 @@ On Wed, Nov 15, 2017 at 6:03 AM, Elena Reshetova
 > and underflows. This is important since overflows and underflows
 > can lead to use-after-free situation and be exploitable.
 >
-> The variable cred.usage is used as pure reference counter.
+> The variable user_struct.__count is used as pure reference counter.
 > Convert it to refcount_t and fix up the operations.
 >
 > **Important note for maintainers:
@@ -55,17 +55,16 @@ On Wed, Nov 15, 2017 at 6:03 AM, Elena Reshetova
 > Please double check that you don't have some undocumented
 > memory guarantees for this variable usage.
 >
-> For the cred.usage it might make a difference
+> For the user_struct.__count it might make a difference
 > in following places:
->  - get_task_cred(): increment in refcount_inc_not_zero() only
->    guarantees control dependency on success vs. fully ordered
->    atomic counterpart
->  - put_cred(): decrement in refcount_dec_and_test() only
->    provides RELEASE ordering and control dependency on success
->    vs. fully ordered atomic counterpart
+>  - free_uid(): decrement in refcount_dec_and_lock() only
+>    provides RELEASE ordering, control dependency on success
+>    and will hold a spin lock on success vs. fully ordered
+>    atomic counterpart. Note there is no changes in spin lock
+>    locking here.
 
-Both cases seem to operate under these conditions already. Andrew, can
-you take this too?
+As with the others, this looks correct to me. Andrew, this looks like
+one for you again. :)
 
 Acked-by: Kees Cook <keescook@chromium.org>
 
@@ -77,222 +76,80 @@ Acked-by: Kees Cook <keescook@chromium.org>
 > Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
 > Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
 > ---
->  include/linux/cred.h |  6 +++---
->  kernel/cred.c        | 44 ++++++++++++++++++++++----------------------
->  2 files changed, 25 insertions(+), 25 deletions(-)
+>  include/linux/sched/user.h | 5 +++--
+>  kernel/user.c              | 8 ++++----
+>  2 files changed, 7 insertions(+), 6 deletions(-)
 >
-> diff --git a/include/linux/cred.h b/include/linux/cred.h
-> index 00948dd..a9f217b 100644
-> --- a/include/linux/cred.h
-> +++ b/include/linux/cred.h
-> @@ -109,7 +109,7 @@ extern bool may_setgroups(void);
->   * same context as task->real_cred.
+> diff --git a/include/linux/sched/user.h b/include/linux/sched/user.h
+> index 0dcf4e4..2ca7cf4 100644
+> --- a/include/linux/sched/user.h
+> +++ b/include/linux/sched/user.h
+> @@ -4,6 +4,7 @@
+>
+>  #include <linux/uidgid.h>
+>  #include <linux/atomic.h>
+> +#include <linux/refcount.h>
+>
+>  struct key;
+>
+> @@ -11,7 +12,7 @@ struct key;
+>   * Some day this will be a full-fledged user tracking system..
 >   */
->  struct cred {
-> -       atomic_t        usage;
-> +       refcount_t      usage;
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         atomic_t        subscribers;    /* number of processes subscribed */
->         void            *put_addr;
-> @@ -222,7 +222,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
->   */
->  static inline struct cred *get_new_cred(struct cred *cred)
+>  struct user_struct {
+> -       atomic_t __count;       /* reference count */
+> +       refcount_t __count;     /* reference count */
+>         atomic_t processes;     /* How many processes does this user have? */
+>         atomic_t sigpending;    /* How many pending signals does this user have? */
+>  #ifdef CONFIG_FANOTIFY
+> @@ -55,7 +56,7 @@ extern struct user_struct root_user;
+>  extern struct user_struct * alloc_uid(kuid_t);
+>  static inline struct user_struct *get_uid(struct user_struct *u)
 >  {
-> -       atomic_inc(&cred->usage);
-> +       refcount_inc(&cred->usage);
->         return cred;
+> -       atomic_inc(&u->__count);
+> +       refcount_inc(&u->__count);
+>         return u;
 >  }
+>  extern void free_uid(struct user_struct *);
+> diff --git a/kernel/user.c b/kernel/user.c
+> index 9a20acc..f104474 100644
+> --- a/kernel/user.c
+> +++ b/kernel/user.c
+> @@ -96,7 +96,7 @@ static DEFINE_SPINLOCK(uidhash_lock);
 >
-> @@ -262,7 +262,7 @@ static inline void put_cred(const struct cred *_cred)
->         struct cred *cred = (struct cred *) _cred;
+>  /* root_user.__count is 1, for init task cred */
+>  struct user_struct root_user = {
+> -       .__count        = ATOMIC_INIT(1),
+> +       .__count        = REFCOUNT_INIT(1),
+>         .processes      = ATOMIC_INIT(1),
+>         .sigpending     = ATOMIC_INIT(0),
+>         .locked_shm     = 0,
+> @@ -122,7 +122,7 @@ static struct user_struct *uid_hash_find(kuid_t uid, struct hlist_head *hashent)
 >
->         validate_creds(cred);
-> -       if (atomic_dec_and_test(&(cred)->usage))
-> +       if (refcount_dec_and_test(&(cred)->usage))
->                 __put_cred(cred);
->  }
+>         hlist_for_each_entry(user, hashent, uidhash_node) {
+>                 if (uid_eq(user->uid, uid)) {
+> -                       atomic_inc(&user->__count);
+> +                       refcount_inc(&user->__count);
+>                         return user;
+>                 }
+>         }
+> @@ -169,7 +169,7 @@ void free_uid(struct user_struct *up)
+>                 return;
 >
-> diff --git a/kernel/cred.c b/kernel/cred.c
-> index 9604c1a..86c039a 100644
-> --- a/kernel/cred.c
-> +++ b/kernel/cred.c
-> @@ -42,7 +42,7 @@ struct group_info init_groups = { .usage = REFCOUNT_INIT(2) };
->   * The initial credentials for the initial task
->   */
->  struct cred init_cred = {
-> -       .usage                  = ATOMIC_INIT(4),
-> +       .usage                  = REFCOUNT_INIT(4),
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         .subscribers            = ATOMIC_INIT(2),
->         .magic                  = CRED_MAGIC,
-> @@ -101,17 +101,17 @@ static void put_cred_rcu(struct rcu_head *rcu)
+>         local_irq_save(flags);
+> -       if (atomic_dec_and_lock(&up->__count, &uidhash_lock))
+> +       if (refcount_dec_and_lock(&up->__count, &uidhash_lock))
+>                 free_user(up, flags);
+>         else
+>                 local_irq_restore(flags);
+> @@ -190,7 +190,7 @@ struct user_struct *alloc_uid(kuid_t uid)
+>                         goto out_unlock;
 >
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         if (cred->magic != CRED_MAGIC_DEAD ||
-> -           atomic_read(&cred->usage) != 0 ||
-> +           refcount_read(&cred->usage) != 0 ||
->             read_cred_subscribers(cred) != 0)
->                 panic("CRED: put_cred_rcu() sees %p with"
->                       " mag %x, put %p, usage %d, subscr %d\n",
->                       cred, cred->magic, cred->put_addr,
-> -                     atomic_read(&cred->usage),
-> +                     refcount_read(&cred->usage),
->                       read_cred_subscribers(cred));
->  #else
-> -       if (atomic_read(&cred->usage) != 0)
-> +       if (refcount_read(&cred->usage) != 0)
->                 panic("CRED: put_cred_rcu() sees %p with usage %d\n",
-> -                     cred, atomic_read(&cred->usage));
-> +                     cred, refcount_read(&cred->usage));
->  #endif
+>                 new->uid = uid;
+> -               atomic_set(&new->__count, 1);
+> +               refcount_set(&new->__count, 1);
 >
->         security_cred_free(cred);
-> @@ -135,10 +135,10 @@ static void put_cred_rcu(struct rcu_head *rcu)
->  void __put_cred(struct cred *cred)
->  {
->         kdebug("__put_cred(%p{%d,%d})", cred,
-> -              atomic_read(&cred->usage),
-> +              refcount_read(&cred->usage),
->                read_cred_subscribers(cred));
->
-> -       BUG_ON(atomic_read(&cred->usage) != 0);
-> +       BUG_ON(refcount_read(&cred->usage) != 0);
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         BUG_ON(read_cred_subscribers(cred) != 0);
->         cred->magic = CRED_MAGIC_DEAD;
-> @@ -159,7 +159,7 @@ void exit_creds(struct task_struct *tsk)
->         struct cred *cred;
->
->         kdebug("exit_creds(%u,%p,%p,{%d,%d})", tsk->pid, tsk->real_cred, tsk->cred,
-> -              atomic_read(&tsk->cred->usage),
-> +              refcount_read(&tsk->cred->usage),
->                read_cred_subscribers(tsk->cred));
->
->         cred = (struct cred *) tsk->real_cred;
-> @@ -194,7 +194,7 @@ const struct cred *get_task_cred(struct task_struct *task)
->         do {
->                 cred = __task_cred((task));
->                 BUG_ON(!cred);
-> -       } while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
-> +       } while (!refcount_inc_not_zero(&((struct cred *)cred)->usage));
->
->         rcu_read_unlock();
->         return cred;
-> @@ -212,7 +212,7 @@ struct cred *cred_alloc_blank(void)
->         if (!new)
->                 return NULL;
->
-> -       atomic_set(&new->usage, 1);
-> +       refcount_set(&new->usage, 1);
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         new->magic = CRED_MAGIC;
->  #endif
-> @@ -258,7 +258,7 @@ struct cred *prepare_creds(void)
->         old = task->cred;
->         memcpy(new, old, sizeof(struct cred));
->
-> -       atomic_set(&new->usage, 1);
-> +       refcount_set(&new->usage, 1);
->         set_cred_subscribers(new, 0);
->         get_group_info(new->group_info);
->         get_uid(new->user);
-> @@ -335,7 +335,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
->                 get_cred(p->cred);
->                 alter_cred_subscribers(p->cred, 2);
->                 kdebug("share_creds(%p{%d,%d})",
-> -                      p->cred, atomic_read(&p->cred->usage),
-> +                      p->cred, refcount_read(&p->cred->usage),
->                        read_cred_subscribers(p->cred));
->                 atomic_inc(&p->cred->user->processes);
->                 return 0;
-> @@ -426,7 +426,7 @@ int commit_creds(struct cred *new)
->         const struct cred *old = task->real_cred;
->
->         kdebug("commit_creds(%p{%d,%d})", new,
-> -              atomic_read(&new->usage),
-> +              refcount_read(&new->usage),
->                read_cred_subscribers(new));
->
->         BUG_ON(task->cred != old);
-> @@ -435,7 +435,7 @@ int commit_creds(struct cred *new)
->         validate_creds(old);
->         validate_creds(new);
->  #endif
-> -       BUG_ON(atomic_read(&new->usage) < 1);
-> +       BUG_ON(refcount_read(&new->usage) < 1);
->
->         get_cred(new); /* we will require a ref for the subj creds too */
->
-> @@ -501,13 +501,13 @@ EXPORT_SYMBOL(commit_creds);
->  void abort_creds(struct cred *new)
->  {
->         kdebug("abort_creds(%p{%d,%d})", new,
-> -              atomic_read(&new->usage),
-> +              refcount_read(&new->usage),
->                read_cred_subscribers(new));
->
->  #ifdef CONFIG_DEBUG_CREDENTIALS
->         BUG_ON(read_cred_subscribers(new) != 0);
->  #endif
-> -       BUG_ON(atomic_read(&new->usage) < 1);
-> +       BUG_ON(refcount_read(&new->usage) < 1);
->         put_cred(new);
->  }
->  EXPORT_SYMBOL(abort_creds);
-> @@ -524,7 +524,7 @@ const struct cred *override_creds(const struct cred *new)
->         const struct cred *old = current->cred;
->
->         kdebug("override_creds(%p{%d,%d})", new,
-> -              atomic_read(&new->usage),
-> +              refcount_read(&new->usage),
->                read_cred_subscribers(new));
->
->         validate_creds(old);
-> @@ -535,7 +535,7 @@ const struct cred *override_creds(const struct cred *new)
->         alter_cred_subscribers(old, -1);
->
->         kdebug("override_creds() = %p{%d,%d}", old,
-> -              atomic_read(&old->usage),
-> +              refcount_read(&old->usage),
->                read_cred_subscribers(old));
->         return old;
->  }
-> @@ -553,7 +553,7 @@ void revert_creds(const struct cred *old)
->         const struct cred *override = current->cred;
->
->         kdebug("revert_creds(%p{%d,%d})", old,
-> -              atomic_read(&old->usage),
-> +              refcount_read(&old->usage),
->                read_cred_subscribers(old));
->
->         validate_creds(old);
-> @@ -612,7 +612,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
->         validate_creds(old);
->
->         *new = *old;
-> -       atomic_set(&new->usage, 1);
-> +       refcount_set(&new->usage, 1);
->         set_cred_subscribers(new, 0);
->         get_uid(new->user);
->         get_user_ns(new->user_ns);
-> @@ -736,7 +736,7 @@ static void dump_invalid_creds(const struct cred *cred, const char *label,
->         printk(KERN_ERR "CRED: ->magic=%x, put_addr=%p\n",
->                cred->magic, cred->put_addr);
->         printk(KERN_ERR "CRED: ->usage=%d, subscr=%d\n",
-> -              atomic_read(&cred->usage),
-> +              refcount_read(&cred->usage),
->                read_cred_subscribers(cred));
->         printk(KERN_ERR "CRED: ->*uid = { %d,%d,%d,%d }\n",
->                 from_kuid_munged(&init_user_ns, cred->uid),
-> @@ -810,7 +810,7 @@ void validate_creds_for_do_exit(struct task_struct *tsk)
->  {
->         kdebug("validate_creds_for_do_exit(%p,%p{%d,%d})",
->                tsk->real_cred, tsk->cred,
-> -              atomic_read(&tsk->cred->usage),
-> +              refcount_read(&tsk->cred->usage),
->                read_cred_subscribers(tsk->cred));
->
->         __validate_process_creds(tsk, __FILE__, __LINE__);
+>                 /*
+>                  * Before adding this, check whether we raced
 > --
 > 2.7.4
 >
