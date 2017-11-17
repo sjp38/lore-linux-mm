@@ -1,86 +1,238 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ED8B6B0038
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 03:20:42 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id g127so388926lfe.19
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 00:20:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k76sor548359ljb.31.2017.11.17.00.20.40
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8626B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 03:37:21 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f85so1813043pfe.7
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 00:37:21 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id d11si2399656plr.754.2017.11.17.00.37.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Nov 2017 00:20:40 -0800 (PST)
-Date: Fri, 17 Nov 2017 09:20:32 +0100
-From: Vitaly Wool <vitalywool@gmail.com>
-Subject: [PATCH] z3fold: use kref to prevent page free / compact race
-Message-Id: <20171117092032.00ea56f42affbed19f4fcc6c@gmail.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Nov 2017 00:37:19 -0800 (PST)
+Subject: Re: [RFC PATCH 1/2] mm: introduce MAP_FIXED_SAFE
+References: <20171116101900.13621-1-mhocko@kernel.org>
+ <20171116101900.13621-2-mhocko@kernel.org>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <be5c9478-3e03-9a1d-525c-31c904b667d8@nvidia.com>
+Date: Fri, 17 Nov 2017 00:37:18 -0800
+MIME-Version: 1.0
+In-Reply-To: <20171116101900.13621-2-mhocko@kernel.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
+To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>
 
-There is a race in the current z3fold implementation between
-do_compact() called in a work queue context and the page release
-procedure when page's kref goes to 0. do_compact() may be waiting
-for page lock, which is released by release_z3fold_page_locked
-right before putting the page onto the "stale" list, and then the
-page may be freed as do_compact() modifies its contents.
-    
-The mechanism currently implemented to handle that (checking the
-PAGE_STALE flag) is not reliable enough. Instead, we'll use page's
-kref counter to guarantee that the page is not released if its
-compaction is scheduled. It then becomes compaction function's
-responsibility to decrease the counter and quit immediately if
-the page was actually freed.
-
-Signed-off-by: Vitaly Wool <vitaly.wool@sonymobile.com>   
-Cc: stable <stable@vger.kernel.org> 
-
----
-
- mm/z3fold.c |   10 ++++++++--
- 1 file changed, 8 insertions(+), 2 deletions(-)
-
-diff --git a/mm/z3fold.c b/mm/z3fold.c
-index 8984735..48d679d 100644
---- a/mm/z3fold.c
-+++ b/mm/z3fold.c
-@@ -404,8 +404,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
- 		WARN_ON(z3fold_page_trylock(zhdr));
- 	else
- 		z3fold_page_lock(zhdr);
--	if (test_bit(PAGE_STALE, &page->private) ||
--	    !test_and_clear_bit(NEEDS_COMPACTING, &page->private)) {
-+	if (WARN_ON(!test_and_clear_bit(NEEDS_COMPACTING, &page->private))) {
- 		z3fold_page_unlock(zhdr);
- 		return;
- 	}
-@@ -413,6 +412,11 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
- 	list_del_init(&zhdr->buddy);
- 	spin_unlock(&pool->lock);
+On 11/16/2017 02:18 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> MAP_FIXED is used quite often to enforce mapping at the particular
+> range. The main problem of this flag is, however, that it is inherently
+> dangerous because it unmaps existing mappings covered by the requested
+> range. This can cause silent memory corruptions. Some of them even with
+> serious security implications. While the current semantic might be
+> really desiderable in many cases there are others which would want to
+> enforce the given range but rather see a failure than a silent memory
+> corruption on a clashing range. Please note that there is no guarantee
+> that a given range is obeyed by the mmap even when it is free - e.g.
+> arch specific code is allowed to apply an alignment.
+> 
+> Introduce a new MAP_FIXED_SAFE flag for mmap to achieve this behavior.
+> It has the same semantic as MAP_FIXED wrt. the given address request
+> with a single exception that it fails with ENOMEM if the requested
+> address is already covered by an existing mapping. We still do rely on
+> get_unmaped_area to handle all the arch specific MAP_FIXED treatment and
+> check for a conflicting vma after it returns.
+> 
+> [set MAP_FIXED before round_hint_to_min as per Khalid Aziz]
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  arch/alpha/include/uapi/asm/mman.h   |  2 ++
+>  arch/mips/include/uapi/asm/mman.h    |  2 ++
+>  arch/parisc/include/uapi/asm/mman.h  |  2 ++
+>  arch/powerpc/include/uapi/asm/mman.h |  1 +
+>  arch/sparc/include/uapi/asm/mman.h   |  1 +
+>  arch/tile/include/uapi/asm/mman.h    |  1 +
+>  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
+>  include/uapi/asm-generic/mman.h      |  1 +
+>  mm/mmap.c                            | 11 +++++++++++
+>  9 files changed, 23 insertions(+)
+> 
+> diff --git a/arch/alpha/include/uapi/asm/mman.h b/arch/alpha/include/uapi/asm/mman.h
+> index 3b26cc62dadb..0e5724e4b4ad 100644
+> --- a/arch/alpha/include/uapi/asm/mman.h
+> +++ b/arch/alpha/include/uapi/asm/mman.h
+> @@ -31,6 +31,8 @@
+>  #define MAP_STACK	0x80000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x100000	/* create a huge page mapping */
+>  
+> +#define MAP_FIXED_SAFE	0x200000	/* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  #define MS_ASYNC	1		/* sync memory asynchronously */
+>  #define MS_SYNC		2		/* synchronous memory sync */
+>  #define MS_INVALIDATE	4		/* invalidate the caches */
+> diff --git a/arch/mips/include/uapi/asm/mman.h b/arch/mips/include/uapi/asm/mman.h
+> index da3216007fe0..fc5e61ef9fd4 100644
+> --- a/arch/mips/include/uapi/asm/mman.h
+> +++ b/arch/mips/include/uapi/asm/mman.h
+> @@ -49,6 +49,8 @@
+>  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
+>  
+> +#define MAP_FIXED_SAFE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  /*
+>   * Flags for msync
+>   */
+> diff --git a/arch/parisc/include/uapi/asm/mman.h b/arch/parisc/include/uapi/asm/mman.h
+> index cc9ba1d34779..c926487472fa 100644
+> --- a/arch/parisc/include/uapi/asm/mman.h
+> +++ b/arch/parisc/include/uapi/asm/mman.h
+> @@ -25,6 +25,8 @@
+>  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
+>  
+> +#define MAP_FIXED_SAFE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+> +
+>  #define MS_SYNC		1		/* synchronous memory sync */
+>  #define MS_ASYNC	2		/* sync memory asynchronously */
+>  #define MS_INVALIDATE	4		/* invalidate the caches */
+> diff --git a/arch/powerpc/include/uapi/asm/mman.h b/arch/powerpc/include/uapi/asm/mman.h
+> index 03c06ba7464f..d97342ca25b1 100644
+> --- a/arch/powerpc/include/uapi/asm/mman.h
+> +++ b/arch/powerpc/include/uapi/asm/mman.h
+> @@ -28,5 +28,6 @@
+>  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+>  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+> +#define MAP_FIXED_SAFE	0x800000	/* MAP_FIXED which doesn't unmap underlying mapping */
  
-+	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
-+		atomic64_dec(&pool->pages_nr);
-+		return;
-+	}
-+
- 	z3fold_compact_page(zhdr);
- 	unbuddied = get_cpu_ptr(pool->unbuddied);
- 	fchunks = num_free_chunks(zhdr);
-@@ -754,9 +758,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
- 		list_del_init(&zhdr->buddy);
- 		spin_unlock(&pool->lock);
- 		zhdr->cpu = -1;
-+		kref_get(&zhdr->refcount);
- 		do_compact_page(zhdr, true);
- 		return;
- 	}
-+	kref_get(&zhdr->refcount);
- 	queue_work_on(zhdr->cpu, pool->compact_wq, &zhdr->work);
- 	z3fold_page_unlock(zhdr);
- }
+
+Hi Michal,
+
+1. The powerpc change, above, has one too many zeroes. It should be 0x80000, 
+not 0x800000.
+
+2. For the one-line comments, if you phrase them like this:
+
+/* Like MAP_FIXED, except that it doesn't unmap pre-existing mappings */
+
+...I think that would be a little clearer.
+
+more below:
+
+>  #endif /* _UAPI_ASM_POWERPC_MMAN_H */
+> diff --git a/arch/sparc/include/uapi/asm/mman.h b/arch/sparc/include/uapi/asm/mman.h
+> index 9765896ecb2c..7b00477a7f9a 100644
+> --- a/arch/sparc/include/uapi/asm/mman.h
+> +++ b/arch/sparc/include/uapi/asm/mman.h
+> @@ -23,6 +23,7 @@
+>  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+>  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+> +#define MAP_FIXED_SAFE	0x80000		/* MAP_FIXED which doesn't unmap underlying mapping */
+>  
+>  
+>  #endif /* _UAPI__SPARC_MMAN_H__ */
+> diff --git a/arch/tile/include/uapi/asm/mman.h b/arch/tile/include/uapi/asm/mman.h
+> index 63ee13faf17d..d5d58d2dc95e 100644
+> --- a/arch/tile/include/uapi/asm/mman.h
+> +++ b/arch/tile/include/uapi/asm/mman.h
+> @@ -29,6 +29,7 @@
+>  #define MAP_DENYWRITE	0x0800		/* ETXTBSY */
+>  #define MAP_EXECUTABLE	0x1000		/* mark it as an executable */
+>  #define MAP_HUGETLB	0x4000		/* create a huge page mapping */
+> +#define MAP_FIXED_SAFE	0x8000		/* MAP_FIXED which doesn't unmap underlying mapping */
+>  
+>  
+>  /*
+> diff --git a/arch/xtensa/include/uapi/asm/mman.h b/arch/xtensa/include/uapi/asm/mman.h
+> index b15b278aa314..d665bd8b7cbd 100644
+> --- a/arch/xtensa/include/uapi/asm/mman.h
+> +++ b/arch/xtensa/include/uapi/asm/mman.h
+> @@ -55,6 +55,7 @@
+>  #define MAP_NONBLOCK	0x20000		/* do not block on IO */
+>  #define MAP_STACK	0x40000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x80000		/* create a huge page mapping */
+> +#define MAP_FIXED_SAFE	0x100000	/* MAP_FIXED which doesn't unmap underlying mapping */
+>  #ifdef CONFIG_MMAP_ALLOW_UNINITIALIZED
+>  # define MAP_UNINITIALIZED 0x4000000	/* For anonymous mmap, memory could be
+>  					 * uninitialized */
+> @@ -62,6 +63,7 @@
+>  # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
+>  #endif
+>  
+> +
+>  /*
+>   * Flags for msync
+>   */
+> diff --git a/include/uapi/asm-generic/mman.h b/include/uapi/asm-generic/mman.h
+> index 7162cd4cca73..64c46047fbd3 100644
+> --- a/include/uapi/asm-generic/mman.h
+> +++ b/include/uapi/asm-generic/mman.h
+> @@ -12,6 +12,7 @@
+>  #define MAP_NONBLOCK	0x10000		/* do not block on IO */
+>  #define MAP_STACK	0x20000		/* give out an address that is best suited for process/thread stacks */
+>  #define MAP_HUGETLB	0x40000		/* create a huge page mapping */
+> +#define MAP_FIXED_SAFE	0x80000		/* MAP_FIXED which doesn't unmap underlying mapping */
+>  
+>  /* Bits [26:31] are reserved, see mman-common.h for MAP_HUGETLB usage */
+>  
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 680506faceae..89af0b5839a5 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -1342,6 +1342,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>  		if (!(file && path_noexec(&file->f_path)))
+>  			prot |= PROT_EXEC;
+>  
+> +	/* force arch specific MAP_FIXED handling in get_unmapped_area */
+> +	if (flags & MAP_FIXED_SAFE)
+> +		flags |= MAP_FIXED;
+
+Hooking in at this point is a nice way to solve the problem. :)
+
+For the naming and implementation, I see a couple of things that might improve
+it slightly:
+
+a) Change MAP_FIXED_SAFE to MAP_NO_CLOBBER (as per Kees' idea), but keep the
+new flag independent, by omitting the above two lines. Instead of forcing
+MAP_FIXED as a result of the new flag, you could simply fail to take any action
+on MAP_NO_CLOBBER *unless* MAP_FIXED is set.
+
+This is a bit easier to explain and reason about, as compared to a flag that
+auto-sets another flag. I like this approach best.
+
+  or
+
+b) Change MAP_FIXED_SAFE to MAP_FIXED_NO_CLOBBER (also a variation on Kees' name
+idea, but a little longer, a bit uglier, and clearer), and leave the implementation
+the same.
+
+thanks,
+John Hubbard
+
+> +
+>  	if (!(flags & MAP_FIXED))
+>  		addr = round_hint_to_min(addr);
+>  
+> @@ -1365,6 +1369,13 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+>  	if (offset_in_page(addr))
+>  		return addr;
+>  
+> +	if (flags & MAP_FIXED_SAFE) {
+> +		struct vm_area_struct *vma = find_vma(mm, addr);
+> +
+> +		if (vma && vma->vm_start <= addr)
+> +			return -ENOMEM;
+> +	}
+> +
+>  	if (prot == PROT_EXEC) {
+>  		pkey = execute_only_pkey(mm);
+>  		if (pkey < 0)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
