@@ -1,140 +1,277 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 16C1F6B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:23:25 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 190so941521pgh.16
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:23:25 -0800 (PST)
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTPS id 81si1981453pfj.320.2017.11.16.17.23.23
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 70E146B0038
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:25:06 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id z37so1384913qtz.16
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:25:06 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id a67si2407545qkg.486.2017.11.16.17.25.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 17:23:23 -0800 (PST)
-Message-ID: <1510881798.3024.43.camel@mtkswgap22>
-Subject: Re: [PATCH v4] dma-debug: fix incorrect pfn calculation
-From: Miles Chen <miles.chen@mediatek.com>
-Date: Fri, 17 Nov 2017 09:23:18 +0800
-In-Reply-To: <20171116161350.3b8bd1fbcaae8e032441d3e7@linux-foundation.org>
-References: <1510872972-23919-1-git-send-email-miles.chen@mediatek.com>
-	 <20171116161350.3b8bd1fbcaae8e032441d3e7@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 7bit
+        Thu, 16 Nov 2017 17:25:05 -0800 (PST)
+Date: Thu, 16 Nov 2017 17:24:53 -0800
+From: Liu Bo <bo.li.liu@oracle.com>
+Subject: Re: [PATCH 10/10] btrfs: rework end io for extent buffer reads
+Message-ID: <20171117012453.GG23614@dhcp-whq-twvpn-1-vpnpool-10-159-142-193.vpn.oracle.com>
+Reply-To: bo.li.liu@oracle.com
+References: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
+ <1510696616-8489-10-git-send-email-josef@toxicpanda.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1510696616-8489-10-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>, Robin Murphy <robin.murphy@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@infradead.org>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-On Thu, 2017-11-16 at 16:13 -0800, Andrew Morton wrote:
-> On Fri, 17 Nov 2017 06:56:12 +0800 <miles.chen@mediatek.com> wrote:
+On Tue, Nov 14, 2017 at 04:56:56PM -0500, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
 > 
-> > From: Miles Chen <miles.chen@mediatek.com>
-> > 
-> > dma-debug reports the following warning:
-> > 
-> > [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
-> > debug _dma_assert_idle+0x1a8/0x230()
-> > DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
-> > CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
-> > Hardware name: MT6739 (DT)
-> > Call trace:
-> > [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
-> > [<ffffff800808affc>] show_stack+0x14/0x1c
-> > [<ffffff800838019c>] dump_stack+0xa8/0xe0
-> > [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
-> > [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
-> > [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
-> > [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
-> > [<ffffff80081de114>] do_wp_page+0x4fc/0x534
-> > [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
-> > [<ffffff8008098798>] do_page_fault+0x1c8/0x394
-> > [<ffffff800808231c>] do_mem_abort+0x50/0xec
-> > 
-> > I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-> > assume that dma_alloc_coherent() always returns a linear address.  However
-> > it's possible that dma_alloc_coherent() returns a non-linear address.  In
-> > this case, page_to_pfn(virt_to_page(virt)) will return an incorrect pfn.
-> > If the pfn is valid and mapped as a COW page, we will hit the warning when
-> > doing wp_page_copy().
-> > 
-> > Fix this by calculating pfn for linear and non-linear addresses.
-> > 
+> Now that the only thing that keeps eb's alive is io_pages and it's
+> refcount we need to hold the eb ref for the entire end io call so we
+> don't get it removed out from underneath us.  Also the hooks make no
+> sense for us now, so rework this to be cleaner.
 > 
-> It's a shame you didn't Cc Christoph, who was the sole reviewer of the
-> earlier version.
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
+> ---
+>  fs/btrfs/disk-io.c   | 63 ++++--------------------------------------------
+>  fs/btrfs/disk-io.h   |  1 +
+>  fs/btrfs/extent_io.c | 67 +++++++++++++++++++++++++++-------------------------
+>  3 files changed, 41 insertions(+), 90 deletions(-)
 > 
-> And it's a shame you didn't capture the result of that review
-> discussion in the v3 changelog.
-> 
-> And it's a shame that you didn't describe how this patch differs from
-> earlier versions.
-
-
-I am truly sorry about this. I was not sure if I can submit a patch
-based on a linux-next patch, so I submit a new patch based on the latest
-mainline kernel again.
-
-I know how to do this now. I will do it correctly next time.
-
-Is there anyway to fix this? (send another patch with v3 discussion and
-the difference from earlier versions to the commit message).
-
-> Oh well, here's the incremental patch:
-> 
-> --- a/lib/dma-debug.c~dma-debug-fix-incorrect-pfn-calculation-v4
-> +++ a/lib/dma-debug.c
-> @@ -1495,15 +1495,22 @@ void debug_dma_alloc_coherent(struct dev
->  	if (!entry)
->  		return;
->  
-> +	/* handle vmalloc and linear addresses */
-> +	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
-> +		return;
-> +
->  	entry->type      = dma_debug_coherent;
->  	entry->dev       = dev;
-> -	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-> -						page_to_pfn(virt_to_page(virt));
->  	entry->offset	 = offset_in_page(virt);
->  	entry->size      = size;
->  	entry->dev_addr  = dma_addr;
->  	entry->direction = DMA_BIDIRECTIONAL;
->  
-> +	if (is_vmalloc_addr(virt))
-> +		entry->pfn = vmalloc_to_pfn(virt);
-> +	else
-> +		entry->pfn = page_to_pfn(virt_to_page(virt));
-> +
->  	add_dma_entry(entry);
+> diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
+> index 7ccb6d839126..459491d662a0 100644
+> --- a/fs/btrfs/disk-io.c
+> +++ b/fs/btrfs/disk-io.c
+> @@ -755,33 +755,13 @@ static int check_node(struct btrfs_root *root, struct extent_buffer *node)
+>  	return ret;
 >  }
->  EXPORT_SYMBOL(debug_dma_alloc_coherent);
-> @@ -1514,14 +1521,21 @@ void debug_dma_free_coherent(struct devi
->  	struct dma_debug_entry ref = {
->  		.type           = dma_debug_coherent,
->  		.dev            = dev,
-> -		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
-> -						page_to_pfn(virt_to_page(virt)),
->  		.offset		= offset_in_page(virt),
->  		.dev_addr       = addr,
->  		.size           = size,
->  		.direction      = DMA_BIDIRECTIONAL,
->  	};
 >  
-> +	/* handle vmalloc and linear addresses */
-> +	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
-> +		return;
-> +
-> +	if (is_vmalloc_addr(virt))
-> +		ref.pfn = vmalloc_to_pfn(virt);
-> +	else
-> +		ref.pfn = page_to_pfn(virt_to_page(virt));
-> +
->  	if (unlikely(dma_debug_disabled()))
->  		return;
+> -static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
+> -				      u64 phy_offset, struct page *page,
+> -				      u64 start, u64 end, int mirror)
+> +int btrfs_extent_buffer_end_read(struct extent_buffer *eb, int mirror)
+>  {
+> +	struct btrfs_fs_info *fs_info = eb->eb_info->fs_info;
+> +	struct btrfs_root *root = fs_info->tree_root;
+>  	u64 found_start;
+>  	int found_level;
+> -	struct extent_buffer *eb;
+> -	struct btrfs_root *root;
+> -	struct btrfs_fs_info *fs_info;
+>  	int ret = 0;
+> -	int reads_done;
+> -
+> -	if (!page->private)
+> -		goto out;
+> -
+> -	eb = (struct extent_buffer *)page->private;
+> -
+> -	/* the pending IO might have been the only thing that kept this buffer
+> -	 * in memory.  Make sure we have a ref for all this other checks
+> -	 */
+> -	extent_buffer_get(eb);
+> -	fs_info = eb->eb_info->fs_info;
+> -	root = fs_info->tree_root;
+> -
+> -	reads_done = atomic_dec_and_test(&eb->io_pages);
+> -	if (!reads_done)
+> -		goto err;
 >  
-> _
-> 
-> 
+>  	eb->read_mirror = mirror;
+>  	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
+> @@ -833,45 +813,14 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
+>  	if (!ret)
+>  		set_extent_buffer_uptodate(eb);
+>  err:
+> -	if (reads_done &&
+> -	    test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
+> +	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
+>  		btree_readahead_hook(eb, ret);
+>  
+> -	if (ret) {
+> -		/*
+> -		 * our io error hook is going to dec the io pages
+> -		 * again, we have to make sure it has something
+> -		 * to decrement.
+> -		 *
+> -		 * TODO: Kill this, we've re-arranged how this works now so we
+> -		 * don't need to do this io_pages dance.
+> -		 */
+> -		atomic_inc(&eb->io_pages);
+> +	if (ret)
+>  		clear_extent_buffer_uptodate(eb);
+> -	}
+> -	if (reads_done) {
+> -		clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
+> -		smp_mb__after_atomic();
+> -		wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
+> -	}
+> -	free_extent_buffer(eb);
+> -out:
+>  	return ret;
+>  }
+>  
+> -static int btree_io_failed_hook(struct page *page, int failed_mirror)
+> -{
+> -	struct extent_buffer *eb;
+> -
+> -	eb = (struct extent_buffer *)page->private;
+> -	set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
+> -	eb->read_mirror = failed_mirror;
+> -	atomic_dec(&eb->io_pages);
+> -	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
+> -		btree_readahead_hook(eb, -EIO);
+> -	return -EIO;	/* we fixed nothing */
+> -}
+> -
+>  static void end_workqueue_bio(struct bio *bio)
+>  {
+>  	struct btrfs_end_io_wq *end_io_wq = bio->bi_private;
+> @@ -4553,9 +4502,7 @@ static int btree_merge_bio_hook(struct page *page, unsigned long offset,
+>  static const struct extent_io_ops btree_extent_io_ops = {
+>  	/* mandatory callbacks */
+>  	.submit_bio_hook = btree_submit_bio_hook,
+> -	.readpage_end_io_hook = btree_readpage_end_io_hook,
+>  	.merge_bio_hook = btree_merge_bio_hook,
+> -	.readpage_io_failed_hook = btree_io_failed_hook,
+>  	.set_range_writeback = btrfs_set_range_writeback,
+>  	.tree_fs_info = btree_fs_info,
+>  
+> diff --git a/fs/btrfs/disk-io.h b/fs/btrfs/disk-io.h
+> index 7f7c35d6347a..e1f4fef91547 100644
+> --- a/fs/btrfs/disk-io.h
+> +++ b/fs/btrfs/disk-io.h
+> @@ -152,6 +152,7 @@ int btree_lock_page_hook(struct page *page, void *data,
+>  int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
+>  int __init btrfs_end_io_wq_init(void);
+>  void btrfs_end_io_wq_exit(void);
+> +int btrfs_extent_buffer_end_read(struct extent_buffer *eb, int mirror);
+>  
+>  #ifdef CONFIG_DEBUG_LOCK_ALLOC
+>  void btrfs_init_lockdep(void);
+> diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+> index 2077bd6ad1b3..1e5affee0f7e 100644
+> --- a/fs/btrfs/extent_io.c
+> +++ b/fs/btrfs/extent_io.c
+> @@ -20,6 +20,7 @@
+>  #include "locking.h"
+>  #include "rcu-string.h"
+>  #include "backref.h"
+> +#include "disk-io.h"
+>  
+>  static struct kmem_cache *extent_state_cache;
+>  static struct kmem_cache *extent_buffer_cache;
+> @@ -5375,6 +5376,15 @@ int extent_buffer_uptodate(struct extent_buffer *eb)
+>  	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+>  }
+>  
+> +static void mark_eb_failed(struct extent_buffer *eb, int failed_mirror)
+> +{
+> +	set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
+> +	eb->read_mirror = failed_mirror;
+> +	atomic_dec(&eb->io_pages);
+> +	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
+> +		btree_readahead_hook(eb, -EIO);
+> +}
+> +
+>  static void end_bio_extent_buffer_readpage(struct bio *bio)
+>  {
+>  	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
+> @@ -5383,12 +5393,13 @@ static void end_bio_extent_buffer_readpage(struct bio *bio)
+>  	u64 unlock_start = 0, unlock_len = 0;
+>  	int mirror_num = io_bio->mirror_num;
+>  	int uptodate = !bio->bi_status;
+> -	int i, ret;
+> +	int i;
+>  
+>  	bio_for_each_segment_all(bvec, bio, i) {
+>  		struct page *page = bvec->bv_page;
+>  		struct btrfs_eb_info *eb_info;
+>  		struct extent_buffer *eb;
+> +		int reads_done;
+>  
+>  		eb = (struct extent_buffer *)page->private;
+>  		if (WARN_ON(!eb))
+> @@ -5397,41 +5408,33 @@ static void end_bio_extent_buffer_readpage(struct bio *bio)
+>  		eb_info = eb->eb_info;
+>  		if (!tree)
+>  			tree = &eb_info->io_tree;
+> +		extent_buffer_get(eb);
+> +		reads_done = atomic_dec_and_test(&eb->io_pages);
+>  		if (uptodate) {
+> -			/*
+> -			 * btree_readpage_end_io_hook doesn't care about
+> -			 * start/end so just pass 0.  We'll kill this later.
+> -			 */
+> -			ret = tree->ops->readpage_end_io_hook(io_bio, 0,
+> -							      page, 0, 0,
+> -							      mirror_num);
+> -			if (ret) {
+> -				uptodate = 0;
+> -			} else {
+> -				u64 start = eb->start;
+> -				int c, num_pages;
+> -
+> -				num_pages = num_extent_pages(eb->start,
+> -							     eb->len);
+> -				for (c = 0; c < num_pages; c++) {
+> -					if (eb->pages[c] == page)
+> -						break;
+> -					start += PAGE_SIZE;
+> -				}
+> -				clean_io_failure(eb_info->fs_info,
+> -						 &eb_info->io_failure_tree,
+> -						 tree, start, page, 0, 0);
+> +			u64 start = eb->start;
+> +			int c, num_pages;
+> +
+> +			num_pages = num_extent_pages(eb->start,
+> +						     eb->len);
+> +			for (c = 0; c < num_pages; c++) {
+> +				if (eb->pages[c] == page)
+> +					break;
+> +				start += PAGE_SIZE;
+>  			}
+> +			clean_io_failure(eb_info->fs_info,
+> +					 &eb_info->io_failure_tree,
+> +					 tree, start, page, 0, 0);
 
+We don't fix failures here, so this can be removed.
+
+>  		}
+> -		/*
+> -		 * We never fix anything in btree_io_failed_hook.
+> -		 *
+> -		 * TODO: rework the io failed hook to not assume we can fix
+> -		 * anything.
+> -		 */
+> +		if (reads_done && btrfs_extent_buffer_end_read(eb, mirror_num))
+> +			uptodate = 0;
+>  		if (!uptodate)
+> -			tree->ops->readpage_io_failed_hook(page, mirror_num);
+> -
+> +			mark_eb_failed(eb, mirror_num);
+
+Correct me if I'm wrong, if !uptodate, ->io_pages would be dec'd twice
+here, eb would be checked without all pages hitting end_io.
+
+Thanks,
+
+-liubo
+> +		if (reads_done) {
+> +			clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
+> +			smp_mb__after_atomic();
+> +			wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
+> +		}
+> +		free_extent_buffer(eb);
+>  		if (unlock_start == 0) {
+>  			unlock_start = eb->start;
+>  			unlock_len = PAGE_SIZE;
+> -- 
+> 2.7.5
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
