@@ -1,91 +1,140 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BBC186B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:13:26 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id h9so1403546qtc.2
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:13:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d85sor1803572qkc.122.2017.11.16.17.13.25
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 16C1F6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:23:25 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 190so941521pgh.16
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:23:25 -0800 (PST)
+Received: from mailgw01.mediatek.com ([210.61.82.183])
+        by mx.google.com with ESMTPS id 81si1981453pfj.320.2017.11.16.17.23.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 16 Nov 2017 17:13:25 -0800 (PST)
-Date: Thu, 16 Nov 2017 20:13:23 -0500
-From: Josef Bacik <josef@toxicpanda.com>
-Subject: Re: [PATCH 09/10] Btrfs: kill the btree_inode
-Message-ID: <20171117011322.5nmz66joqaomr5j3@destiny>
-References: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
- <1510696616-8489-9-git-send-email-josef@toxicpanda.com>
- <20171117010307.GF23614@dhcp-whq-twvpn-1-vpnpool-10-159-142-193.vpn.oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Nov 2017 17:23:23 -0800 (PST)
+Message-ID: <1510881798.3024.43.camel@mtkswgap22>
+Subject: Re: [PATCH v4] dma-debug: fix incorrect pfn calculation
+From: Miles Chen <miles.chen@mediatek.com>
+Date: Fri, 17 Nov 2017 09:23:18 +0800
+In-Reply-To: <20171116161350.3b8bd1fbcaae8e032441d3e7@linux-foundation.org>
+References: <1510872972-23919-1-git-send-email-miles.chen@mediatek.com>
+	 <20171116161350.3b8bd1fbcaae8e032441d3e7@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171117010307.GF23614@dhcp-whq-twvpn-1-vpnpool-10-159-142-193.vpn.oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Liu Bo <bo.li.liu@oracle.com>
-Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>, Robin Murphy <robin.murphy@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@infradead.org>
 
-On Thu, Nov 16, 2017 at 05:03:08PM -0800, Liu Bo wrote:
-> On Tue, Nov 14, 2017 at 04:56:55PM -0500, Josef Bacik wrote:
-> > From: Josef Bacik <jbacik@fb.com>
+On Thu, 2017-11-16 at 16:13 -0800, Andrew Morton wrote:
+> On Fri, 17 Nov 2017 06:56:12 +0800 <miles.chen@mediatek.com> wrote:
+> 
+> > From: Miles Chen <miles.chen@mediatek.com>
 > > 
-> > In order to more efficiently support sub-page blocksizes we need to stop
-> > allocating pages from pagecache for our metadata.  Instead switch to using the
-> > account_metadata* counters for making sure we are keeping the system aware of
-> > how much dirty metadata we have, and use the ->free_cached_objects super
-> > operation in order to handle freeing up extent buffers.  This greatly simplifies
-> > how we deal with extent buffers as now we no longer have to tie the page cache
-> > reclaimation stuff to the extent buffer stuff.  This will also allow us to
-> > simply kmalloc() our data for sub-page blocksizes.
-> >
+> > dma-debug reports the following warning:
+> > 
+> > [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
+> > debug _dma_assert_idle+0x1a8/0x230()
+> > DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
+> > CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
+> > Hardware name: MT6739 (DT)
+> > Call trace:
+> > [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
+> > [<ffffff800808affc>] show_stack+0x14/0x1c
+> > [<ffffff800838019c>] dump_stack+0xa8/0xe0
+> > [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
+> > [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
+> > [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
+> > [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
+> > [<ffffff80081de114>] do_wp_page+0x4fc/0x534
+> > [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
+> > [<ffffff8008098798>] do_page_fault+0x1c8/0x394
+> > [<ffffff800808231c>] do_mem_abort+0x50/0xec
+> > 
+> > I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
+> > assume that dma_alloc_coherent() always returns a linear address.  However
+> > it's possible that dma_alloc_coherent() returns a non-linear address.  In
+> > this case, page_to_pfn(virt_to_page(virt)) will return an incorrect pfn.
+> > If the pfn is valid and mapped as a COW page, we will hit the warning when
+> > doing wp_page_copy().
+> > 
+> > Fix this by calculating pfn for linear and non-linear addresses.
+> > 
 > 
-> The patch is too big for one to review, but so far it looks good to
-> me, a few comments.
->
-
-Yeah unfortunately I already did all the prep work I could in previous series,
-this stuff has to all be done whole hog otherwise things won't compile.
- 
-> > Signed-off-by: Josef Bacik <jbacik@fb.com>
-> > ---
-> ...
-> >  
-> > -static int check_async_write(struct btrfs_inode *bi)
-> > +static int check_async_write(void)
-> >  {
-> > -	if (atomic_read(&bi->sync_writers))
-> > +	if (current->journal_info)
+> It's a shame you didn't Cc Christoph, who was the sole reviewer of the
+> earlier version.
 > 
-> Please add a comment that explains we're called from commit
-> transaction.
+> And it's a shame you didn't capture the result of that review
+> discussion in the v3 changelog.
+> 
+> And it's a shame that you didn't describe how this patch differs from
+> earlier versions.
+
+
+I am truly sorry about this. I was not sure if I can submit a patch
+based on a linux-next patch, so I submit a new patch based on the latest
+mainline kernel again.
+
+I know how to do this now. I will do it correctly next time.
+
+Is there anyway to fix this? (send another patch with v3 discussion and
+the difference from earlier versions to the commit message).
+
+> Oh well, here's the incremental patch:
+> 
+> --- a/lib/dma-debug.c~dma-debug-fix-incorrect-pfn-calculation-v4
+> +++ a/lib/dma-debug.c
+> @@ -1495,15 +1495,22 @@ void debug_dma_alloc_coherent(struct dev
+>  	if (!entry)
+>  		return;
+>  
+> +	/* handle vmalloc and linear addresses */
+> +	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
+> +		return;
+> +
+>  	entry->type      = dma_debug_coherent;
+>  	entry->dev       = dev;
+> -	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
+> -						page_to_pfn(virt_to_page(virt));
+>  	entry->offset	 = offset_in_page(virt);
+>  	entry->size      = size;
+>  	entry->dev_addr  = dma_addr;
+>  	entry->direction = DMA_BIDIRECTIONAL;
+>  
+> +	if (is_vmalloc_addr(virt))
+> +		entry->pfn = vmalloc_to_pfn(virt);
+> +	else
+> +		entry->pfn = page_to_pfn(virt_to_page(virt));
+> +
+>  	add_dma_entry(entry);
+>  }
+>  EXPORT_SYMBOL(debug_dma_alloc_coherent);
+> @@ -1514,14 +1521,21 @@ void debug_dma_free_coherent(struct devi
+>  	struct dma_debug_entry ref = {
+>  		.type           = dma_debug_coherent,
+>  		.dev            = dev,
+> -		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
+> -						page_to_pfn(virt_to_page(virt)),
+>  		.offset		= offset_in_page(virt),
+>  		.dev_addr       = addr,
+>  		.size           = size,
+>  		.direction      = DMA_BIDIRECTIONAL,
+>  	};
+>  
+> +	/* handle vmalloc and linear addresses */
+> +	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
+> +		return;
+> +
+> +	if (is_vmalloc_addr(virt))
+> +		ref.pfn = vmalloc_to_pfn(virt);
+> +	else
+> +		ref.pfn = page_to_pfn(virt_to_page(virt));
+> +
+>  	if (unlikely(dma_debug_disabled()))
+>  		return;
+>  
+> _
+> 
 > 
 
-Yup.
-
-> >  		return 0;
-> >  #ifdef CONFIG_X86
-> >  	if (static_cpu_has(X86_FEATURE_XMM4_2))
-> ...
-> > @@ -4977,12 +5054,12 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
-> >  	unsigned long len = fs_info->nodesize;
-> >  	unsigned long num_pages = num_extent_pages(start, len);
-> >  	unsigned long i;
-> > -	unsigned long index = start >> PAGE_SHIFT;
-> >  	struct extent_buffer *eb;
-> >  	struct extent_buffer *exists = NULL;
-> >  	struct page *p;
-> > -	struct address_space *mapping = fs_info->btree_inode->i_mapping;
-> > -	int uptodate = 1;
-> > +	struct btrfs_eb_info *eb_info = fs_info->eb_info;
-> > +//	struct zone *last_zone = NULL;
-> > +//	struct pg_data_t *last_pgdata = NULL;
-> 
-> hmm, a typo?
-> 
-
-Oops.  Thanks,
-
-Josef
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
