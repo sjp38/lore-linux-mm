@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D3046B026C
+	by kanga.kvack.org (Postfix) with ESMTP id 2D00E6B026B
 	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 17:30:55 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id c83so3443364pfj.11
+Received: by mail-pf0-f198.google.com with SMTP id v2so3447396pfa.10
         for <linux-mm@kvack.org>; Fri, 17 Nov 2017 14:30:55 -0800 (PST)
 Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id f15si3516104plr.724.2017.11.17.14.30.53
+        by mx.google.com with ESMTPS id h185si3826728pfc.277.2017.11.17.14.30.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 17 Nov 2017 14:30:53 -0800 (PST)
 From: Wengang Wang <wen.gang.wang@oracle.com>
-Subject: [PATCH 1/5] mm/kasan: make space in shadow bytes for advanced check
-Date: Fri, 17 Nov 2017 14:30:39 -0800
-Message-Id: <20171117223043.7277-2-wen.gang.wang@oracle.com>
+Subject: [PATCH 3/5] mm/kasan: do advanced check
+Date: Fri, 17 Nov 2017 14:30:41 -0800
+Message-Id: <20171117223043.7277-4-wen.gang.wang@oracle.com>
 In-Reply-To: <20171117223043.7277-1-wen.gang.wang@oracle.com>
 References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,197 +20,263 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, aryabinin@virtuozzo.com
 Cc: wen.gang.wang@oracle.com, glider@google.com, dvyukov@google.com
 
-Kasan advanced check, I'm going to add this feature.
-Currently Kasan provide the detection of use-after-free and out-of-bounds
-problems. It is not able to find the overwrite-on-allocated-memory issue.
-We sometimes hit this kind of issue: We have a messed up structure
-(dynamially allocated), some of the fields in the structure were
-overwritten with unreasaonable values. We know those fields were
-overwritten somehow, but we have no easy way to find out which path did the
-overwritten. The advanced check wants to help in this scenario.
-
-Normally the write accesses on a given structure happen in only several or
-a dozen of functions if the structure is not that complicated. We call
-those functions "allowed functions". The idea is that we check if the write
-accesses are from the allowed functions and report error accordingly.
-
-As implementation, kasan provides a API to it's user to register their
-allowed functions. The API returns a token to users.  At run time, users
-bind the memory ranges they are interested in to the check they registered.
-Kasan then checks the bound memory ranges with the allowed functions.
-
-This is the first patch in the series it makes room for check in shadow
-bytes.
+This is the 3rd patch in the Kasan advanced check feature.
+It does advanced check in the poison check functions and report for
+advanced check.
 
 Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
 
+diff --git a/include/linux/kasan.h b/include/linux/kasan.h
+index 5017269..ba00594 100644
+--- a/include/linux/kasan.h
++++ b/include/linux/kasan.h
+@@ -16,6 +16,13 @@ struct task_struct;
+ #include <asm/kasan.h>
+ #include <asm/pgtable.h>
+ 
++/* advanced check type */
++enum kasan_adv_chk_type {
++	/* write access is allowed only for the owner */
++	KASAN_ADVCHK_OWNER,
++	__KASAN_ADVCHK_TYPE_COUNT,
++};
++
+ extern unsigned char kasan_zero_page[PAGE_SIZE];
+ extern pte_t kasan_zero_pte[PTRS_PER_PTE];
+ extern pmd_t kasan_zero_pmd[PTRS_PER_PMD];
 diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 6f319fb..060ed72 100644
+index 4501422..e945df7 100644
 --- a/mm/kasan/kasan.c
 +++ b/mm/kasan/kasan.c
-@@ -128,7 +128,8 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr)
+@@ -40,6 +40,51 @@
+ #include "kasan.h"
+ #include "../slab.h"
+ 
++struct kasan_adv_check kasan_adv_checks[(1 << KASAN_CHECK_BITS)-2];
++static int kasan_adv_nr_checks;
++static DEFINE_SPINLOCK(kasan_adv_lock);
++
++/* we don't take lock kasan_adv_lock. Locking can either cause deadload
++ * or kill the performance further.
++ * We are still safe without lock since kasan_adv_nr_checks increases only.
++ * The worst and rare case is kasan_adv_nr_checks is stale (smaller than it
++ * really is) and we miss a check.
++ */
++struct kasan_adv_check *get_check_by_nr(int nr)
++{
++	if (nr > kasan_adv_nr_checks || nr <= 0)
++		return NULL;
++	return &kasan_adv_checks[nr-1];
++}
++
++static __always_inline bool adv_check(bool write, s8 check)
++{
++	struct kasan_adv_check *chk = get_check_by_nr(check);
++
++	if (likely(chk)) {
++		bool violation = chk->ac_check_func(write, chk->ac_data);
++
++		if (unlikely(violation))
++			chk->ac_violation = violation;
++		return violation;
++	}
++	return false;
++}
++
++static __always_inline unsigned long adv_check_shadow(const s8 *shadow_addr,
++					     size_t shadow_size, bool write)
++{
++	s8 check;
++	int i;
++
++	for (i = 0; i < shadow_size; i++) {
++		check = kasan_get_check(*(shadow_addr + i));
++		if (unlikely(check && adv_check(write, check)))
++			return (unsigned long)(shadow_addr + i);
++	}
++	return 0;
++}
++
+ void kasan_enable_current(void)
+ {
+ 	current->kasan_depth++;
+@@ -128,8 +173,11 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr, bool write)
  
  	if (unlikely(shadow_value)) {
  		s8 last_accessible_byte = addr & KASAN_SHADOW_MASK;
--		return unlikely(last_accessible_byte >= shadow_value);
-+		return unlikely(last_accessible_byte >=
-+				KASAN_GET_POISON(shadow_value));
+-		return unlikely(last_accessible_byte >=
+-				KASAN_GET_POISON(shadow_value));
++		if (unlikely(KASAN_GET_POISON(shadow_value) &&
++			last_accessible_byte >= KASAN_GET_POISON(shadow_value)))
++			return true;
++		if (unlikely(kasan_get_check(shadow_value)))
++			return adv_check(write, kasan_get_check(shadow_value));
  	}
  
  	return false;
-@@ -144,7 +145,8 @@ static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
+@@ -145,9 +193,14 @@ static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
+ 	 * Access crosses 8(shadow size)-byte boundary. Such access maps
  	 * into 2 shadow bytes, so we need to check them both.
  	 */
- 	if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1))
--		return *shadow_addr || memory_is_poisoned_1(addr + size - 1);
-+		return KASAN_GET_POISON(*shadow_addr) ||
-+		       memory_is_poisoned_1(addr + size - 1);
+-	if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1))
+-		return KASAN_GET_POISON(*shadow_addr) ||
+-		       memory_is_poisoned_1(addr + size - 1, write);
++	if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1)) {
++		u8 check = kasan_get_check(*shadow_addr);
++
++		if (unlikely(KASAN_GET_POISON(*shadow_addr)))
++			return true;
++		if (unlikely(check && adv_check(write, check)))
++			return true;
++	}
  
- 	return memory_is_poisoned_1(addr + size - 1);
+ 	return memory_is_poisoned_1(addr + size - 1, write);
  }
-@@ -155,7 +157,8 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr)
- 
- 	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
- 	if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
--		return *shadow_addr || memory_is_poisoned_1(addr + 15);
-+		return KASAN_GET_POISON_16(*shadow_addr) ||
-+		       memory_is_poisoned_1(addr + 15);
- 
- 	return *shadow_addr;
- }
-@@ -164,7 +167,7 @@ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
- 					size_t size)
+@@ -157,21 +210,31 @@ static __always_inline bool memory_is_poisoned_16(unsigned long addr,
  {
+ 	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+ 
+-	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
+-	if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
+-		return KASAN_GET_POISON_16(*shadow_addr) ||
+-		       memory_is_poisoned_1(addr + 15, write);
++	if (unlikely(KASAN_GET_POISON_16(*shadow_addr)))
++		return true;
++
++	if (unlikely(adv_check_shadow((s8 *)shadow_addr, 2, write)))
++		return true;
+ 
+-	return *shadow_addr;
++	if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
++		return false;
++
++	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
++	return memory_is_poisoned_1(addr + 15, write);
+ }
+ 
+ static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
+ 						      size_t size,
+ 						      bool write)
+ {
++	int check;
++
  	while (size) {
--		if (unlikely(*start))
-+		if (unlikely(KASAN_GET_POISON(*start)))
+ 		if (unlikely(KASAN_GET_POISON(*start)))
  			return (unsigned long)start;
++		check = kasan_get_check(*start);
++		if (unlikely(check && adv_check(write, check)))
++			return (unsigned long)start;
  		start++;
  		size--;
-@@ -193,7 +196,7 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
- 
- 	words = (end - start) / 8;
+ 	}
+@@ -202,6 +265,9 @@ static __always_inline unsigned long memory_is_nonzero(const void *start,
  	while (words) {
--		if (unlikely(*(u64 *)start))
-+		if (unlikely(KASAN_GET_POISON_64(*(u64 *)start)))
- 			return bytes_is_nonzero(start, 8);
+ 		if (unlikely(KASAN_GET_POISON_64(*(u64 *)start)))
+ 			return bytes_is_nonzero(start, 8, write);
++		ret = adv_check_shadow(start, sizeof(u64), write);
++		if (unlikely(ret))
++			return (unsigned long)ret;
  		start += 8;
  		words--;
-@@ -215,7 +218,8 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
- 		s8 *last_shadow = (s8 *)kasan_mem_to_shadow((void *)last_byte);
- 
- 		if (unlikely(ret != (unsigned long)last_shadow ||
--			((long)(last_byte & KASAN_SHADOW_MASK) >= *last_shadow)))
-+			((long)(last_byte & KASAN_SHADOW_MASK) >=
-+			KASAN_GET_POISON(*last_shadow))))
+ 	}
+@@ -227,6 +293,11 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
+ 			((long)(last_byte & KASAN_SHADOW_MASK) >=
+ 			KASAN_GET_POISON(*last_shadow))))
  			return true;
++		else {
++			s8 check = kasan_get_check(*last_shadow);
++
++			return unlikely(check && adv_check(write, check));
++		}
  	}
  	return false;
-@@ -504,13 +508,15 @@ static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
- bool kasan_slab_free(struct kmem_cache *cache, void *object)
- {
- 	s8 shadow_byte;
-+	s8 poison;
- 
- 	/* RCU slabs could be legally used after free within the RCU period */
- 	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
- 		return false;
- 
- 	shadow_byte = READ_ONCE(*(s8 *)kasan_mem_to_shadow(object));
--	if (shadow_byte < 0 || shadow_byte >= KASAN_SHADOW_SCALE_SIZE) {
-+	poison = KASAN_GET_POISON(shadow_byte);
-+	if (poison < 0 || poison >= KASAN_SHADOW_SCALE_SIZE) {
- 		kasan_report_double_free(cache, object,
- 				__builtin_return_address(1));
- 		return true;
+ }
 diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
-index c70851a..df7fbfe 100644
+index df7fbfe..2e2af6d 100644
 --- a/mm/kasan/kasan.h
 +++ b/mm/kasan/kasan.h
-@@ -8,6 +8,18 @@
- #define KASAN_SHADOW_SCALE_SIZE (1UL << KASAN_SHADOW_SCALE_SHIFT)
- #define KASAN_SHADOW_MASK       (KASAN_SHADOW_SCALE_SIZE - 1)
+@@ -111,6 +111,16 @@ struct kasan_free_meta {
+ 	struct qlist_node quarantine_link;
+ };
  
-+/* We devide one shadow byte into two parts: "check" and "poison".
-+ * "check" is a used for advanced check.
-+ * "poison" is used to store the foot print of the tracked memory,
-+ * For a paticular address, one extra check is enough. So we can have up to
-+ * (1 << (KASAN_CHECK_BITS) - 1) - 1 checks. That's 0b001 to 0b110 (0b111 is
-+ * reserved for poison values)
-+ *
-+ * The bits occupition in shadow bytes (P for poison, C for check):
-+ *
-+ * |P|C|C|C|P|P|P|P|
-+ *
-+ */
- #define KASAN_FREE_PAGE         0xFF  /* page was freed */
- #define KASAN_PAGE_REDZONE      0xFE  /* redzone for kmalloc_large allocations */
- #define KASAN_KMALLOC_REDZONE   0xFC  /* redzone inside slub object */
-@@ -29,6 +41,19 @@
- #define KASAN_ABI_VERSION 1
- #endif
- 
-+#define KASAN_POISON_MASK	0x8F
-+#define KASAN_POISON_MASK_16	0x8F8F
-+#define KASAN_POISON_MASK_64	0x8F8F8F8F8F8F8F8F
-+#define KASAN_CHECK_MASK	0x70
-+#define KASAN_CHECK_SHIFT	4
-+#define KASAN_CHECK_BITS	3
++struct kasan_adv_check {
++	enum kasan_adv_chk_type	ac_type;
++	bool			(*ac_check_func)(bool, void *);
++	void			*ac_data;
++	char			*ac_msg;
++	bool			ac_violation;
++};
 +
-+#define KASAN_GET_POISON(val) ((s8)((val) & KASAN_POISON_MASK))
-+#define KASAN_CHECK_LOWMASK (KASAN_CHECK_MASK >> KASAN_CHECK_SHIFT)
-+/* 16 bits and 64 bits version */
-+#define KASAN_GET_POISON_16(val) ((val) & KASAN_POISON_MASK_16)
-+#define KASAN_GET_POISON_64(val) ((val) & KASAN_POISON_MASK_64)
++extern struct kasan_adv_check *get_check_by_nr(int nr);
 +
- struct kasan_access_info {
- 	const void *access_addr;
- 	const void *first_bad_addr;
-@@ -113,4 +138,11 @@ static inline void quarantine_reduce(void) { }
- static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
- #endif
- 
-+static inline u8 kasan_get_check(u8 val)
-+{
-+	val &= KASAN_CHECK_MASK;
-+	val >>= KASAN_CHECK_SHIFT;
-+
-+	return (val ^ KASAN_CHECK_LOWMASK) ?  val : 0;
-+}
- #endif
+ struct kasan_alloc_meta *get_alloc_info(struct kmem_cache *cache,
+ 					const void *object);
+ struct kasan_free_meta *get_free_info(struct kmem_cache *cache,
 diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index 6bcfb01..caf3a13 100644
+index caf3a13..403bae1 100644
 --- a/mm/kasan/report.c
 +++ b/mm/kasan/report.c
-@@ -61,20 +61,24 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+@@ -57,10 +57,26 @@ static bool addr_has_shadow(struct kasan_access_info *info)
+ 		kasan_shadow_to_mem((void *)KASAN_SHADOW_START));
+ }
+ 
++static bool is_clean_byte(u8 shadow_val)
++{
++	u8 poison = KASAN_GET_POISON(shadow_val);
++	u8 check = kasan_get_check(shadow_val);
++
++	if (poison > 0 && poison <= KASAN_SHADOW_SCALE_SIZE - 1) {
++		struct kasan_adv_check *chk = get_check_by_nr(check);
++
++		if (chk && chk->ac_violation)
++			return false;
++		return true;
++	}
++
++	return false;
++}
++
+ static const char *get_shadow_bug_type(struct kasan_access_info *info)
  {
  	const char *bug_type = "unknown-crash";
- 	u8 *shadow_addr;
-+	s8 poison;
+-	u8 *shadow_addr;
++	u8 *shadow_addr, check;
+ 	s8 poison;
  
  	info->first_bad_addr = find_first_bad_addr(info->access_addr,
- 						info->access_size);
+@@ -68,12 +84,15 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
  
  	shadow_addr = (u8 *)kasan_mem_to_shadow(info->first_bad_addr);
--
-+	poison = KASAN_GET_POISON(*shadow_addr);
+ 	poison = KASAN_GET_POISON(*shadow_addr);
++	check = kasan_get_check(*shadow_addr);
  	/*
  	 * If shadow byte value is in [0, KASAN_SHADOW_SCALE_SIZE) we can look
  	 * at the next shadow byte to determine the type of the bad access.
  	 */
--	if (*shadow_addr > 0 && *shadow_addr <= KASAN_SHADOW_SCALE_SIZE - 1)
--		shadow_addr++;
-+	if (poison > 0 && poison <= KASAN_SHADOW_SCALE_SIZE - 1)
-+		poison = KASAN_GET_POISON(*(shadow_addr + 1));
-+
-+	if (poison < 0)
-+		poison |= KASAN_CHECK_MASK;
+-	if (poison > 0 && poison <= KASAN_SHADOW_SCALE_SIZE - 1)
++	if (is_clean_byte(*shadow_addr)) {
+ 		poison = KASAN_GET_POISON(*(shadow_addr + 1));
++		check = check = kasan_get_check(*(shadow_addr + 1));
++	}
  
--	switch (*shadow_addr) {
-+	switch ((u8)poison) {
- 	case 0 ... KASAN_SHADOW_SCALE_SIZE - 1:
- 		/*
- 		 * In theory it's still possible to see these shadow values
+ 	if (poison < 0)
+ 		poison |= KASAN_CHECK_MASK;
+@@ -108,6 +127,15 @@ static const char *get_shadow_bug_type(struct kasan_access_info *info)
+ 		break;
+ 	}
+ 
++	if (check) {
++		struct kasan_adv_check *chk = get_check_by_nr(check);
++
++		if (chk && chk->ac_violation) {
++			bug_type = chk->ac_msg;
++			chk->ac_violation = false;
++		}
++	}
++
+ 	return bug_type;
+ }
+ 
 -- 
 2.9.4
 
