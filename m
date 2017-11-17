@@ -1,161 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5711A6B0069
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 02:16:24 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id x66so1616469pfe.21
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 23:16:24 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id a12si427022pfl.63.2017.11.16.23.16.23
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EA786B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 02:19:17 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i123so1807939pgd.2
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 23:19:17 -0800 (PST)
+Received: from szxga01-in.huawei.com (szxga01-in.huawei.com. [45.249.212.187])
+        by mx.google.com with ESMTPS id p3si2286688pld.115.2017.11.16.23.19.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 23:16:23 -0800 (PST)
-From: "Reshetova, Elena" <elena.reshetova@intel.com>
-Subject: RE: [PATCH 12/16] nsproxy: convert nsproxy.count to refcount_t
-Date: Fri, 17 Nov 2017 07:16:17 +0000
-Message-ID: <2236FBA76BA1254E88B949DDB74E612B802BF5F8@IRSMSX102.ger.corp.intel.com>
-References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com>
-	<1510754620-27088-13-git-send-email-elena.reshetova@intel.com>
- <87lgj733dn.fsf@xmission.com>
-In-Reply-To: <87lgj733dn.fsf@xmission.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Nov 2017 23:19:16 -0800 (PST)
+From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+Date: Fri, 17 Nov 2017 07:18:45 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C0063816@dggemm510-mbs.china.huawei.com>
+References: <20171011082227.20546-1-liuwenliang@huawei.com>
+	<20171011082227.20546-2-liuwenliang@huawei.com>
+	<227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
+	<8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
+	<87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
+	<bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
+	<87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
+	<B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
+ <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
+In-Reply-To: <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
+Content-Language: zh-CN
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Eric W. Biederman" <ebiederm@xmission.com>
-Cc: "mingo@redhat.com" <mingo@redhat.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>, "viro@zeniv.linux.org.uk" <viro@zeniv.linux.org.uk>, "tj@kernel.org" <tj@kernel.org>, "hannes@cmpxchg.org" <hannes@cmpxchg.org>, "lizefan@huawei.com" <lizefan@huawei.com>, "acme@kernel.org" <acme@kernel.org>, "alexander.shishkin@linux.intel.com" <alexander.shishkin@linux.intel.com>, "eparis@redhat.com" <eparis@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "arnd@arndb.de" <arnd@arndb.de>, "luto@kernel.org" <luto@kernel.org>, "keescook@chromium.org" <keescook@chromium.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "dvhart@infradead.org" <dvhart@infradead.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "axboe@kernel.dk" <axboe@kernel.dk>
+To: Marc Zyngier <marc.zyngier@arm.com>
+Cc: "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-> The middle of the merge window is the wrong time to send patches as
-> maintaner attention is going to making certain the merge goes smoothly
-> and nothing is missed.
-
-Sorry Eric, please feel free to ignore the patch until you have time.=20
-It is very difficult to figure out the correct time, since it varies vary m=
-uch
-by the maintainer when they want patches, so I am sending them to be
-"in the mailbox" until people believe it is the right time.=20
-
-Best Regards,
-Elena.
-
-
->=20
-> Eric
->=20
->=20
->=20
-> Elena Reshetova <elena.reshetova@intel.com> writes:
->=20
-> > atomic_t variables are currently used to implement reference
-> > counters with the following properties:
-> >  - counter is initialized to 1 using atomic_set()
-> >  - a resource is freed upon counter reaching zero
-> >  - once counter reaches zero, its further
-> >    increments aren't allowed
-> >  - counter schema uses basic atomic operations
-> >    (set, inc, inc_not_zero, dec_and_test, etc.)
-> >
-> > Such atomic variables should be converted to a newly provided
-> > refcount_t type and API that prevents accidental counter overflows
-> > and underflows. This is important since overflows and underflows
-> > can lead to use-after-free situation and be exploitable.
-> >
-> > The variable nsproxy.count is used as pure reference counter.
-> > Convert it to refcount_t and fix up the operations.
-> >
-> > **Important note for maintainers:
-> >
-> > Some functions from refcount_t API defined in lib/refcount.c
-> > have different memory ordering guarantees than their atomic
-> > counterparts.
-> > The full comparison can be seen in
-> > https://lkml.org/lkml/2017/11/15/57 and it is hopefully soon
-> > in state to be merged to the documentation tree.
-> > Normally the differences should not matter since refcount_t provides
-> > enough guarantees to satisfy the refcounting use cases, but in
-> > some rare cases it might matter.
-> > Please double check that you don't have some undocumented
-> > memory guarantees for this variable usage.
-> >
-> > For the nsproxy.count it might make a difference
-> > in following places:
-> >  - put_nsproxy() and switch_task_namespaces(): decrement in
-> >    refcount_dec_and_test() only provides RELEASE ordering
-> >    and control dependency on success vs. fully ordered
-> >    atomic counterpart
-> >
-> > Suggested-by: Kees Cook <keescook@chromium.org>
-> > Reviewed-by: David Windsor <dwindsor@gmail.com>
-> > Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
-> > Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
-> > ---
-> >  include/linux/nsproxy.h | 6 +++---
-> >  kernel/nsproxy.c        | 6 +++---
-> >  2 files changed, 6 insertions(+), 6 deletions(-)
-> >
-> > diff --git a/include/linux/nsproxy.h b/include/linux/nsproxy.h
-> > index 2ae1b1a..90f09ff 100644
-> > --- a/include/linux/nsproxy.h
-> > +++ b/include/linux/nsproxy.h
-> > @@ -29,7 +29,7 @@ struct fs_struct;
-> >   * nsproxy is copied.
-> >   */
-> >  struct nsproxy {
-> > -	atomic_t count;
-> > +	refcount_t count;
-> >  	struct uts_namespace *uts_ns;
-> >  	struct ipc_namespace *ipc_ns;
-> >  	struct mnt_namespace *mnt_ns;
-> > @@ -75,14 +75,14 @@ int __init nsproxy_cache_init(void);
-> >
-> >  static inline void put_nsproxy(struct nsproxy *ns)
-> >  {
-> > -	if (atomic_dec_and_test(&ns->count)) {
-> > +	if (refcount_dec_and_test(&ns->count)) {
-> >  		free_nsproxy(ns);
-> >  	}
-> >  }
-> >
-> >  static inline void get_nsproxy(struct nsproxy *ns)
-> >  {
-> > -	atomic_inc(&ns->count);
-> > +	refcount_inc(&ns->count);
-> >  }
-> >
-> >  #endif
-> > diff --git a/kernel/nsproxy.c b/kernel/nsproxy.c
-> > index f6c5d33..5bfe691 100644
-> > --- a/kernel/nsproxy.c
-> > +++ b/kernel/nsproxy.c
-> > @@ -31,7 +31,7 @@
-> >  static struct kmem_cache *nsproxy_cachep;
-> >
-> >  struct nsproxy init_nsproxy =3D {
-> > -	.count			=3D ATOMIC_INIT(1),
-> > +	.count			=3D REFCOUNT_INIT(1),
-> >  	.uts_ns			=3D &init_uts_ns,
-> >  #if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
-> >  	.ipc_ns			=3D &init_ipc_ns,
-> > @@ -52,7 +52,7 @@ static inline struct nsproxy *create_nsproxy(void)
-> >
-> >  	nsproxy =3D kmem_cache_alloc(nsproxy_cachep, GFP_KERNEL);
-> >  	if (nsproxy)
-> > -		atomic_set(&nsproxy->count, 1);
-> > +		refcount_set(&nsproxy->count, 1);
-> >  	return nsproxy;
-> >  }
-> >
-> > @@ -225,7 +225,7 @@ void switch_task_namespaces(struct task_struct *p, =
-struct
-> nsproxy *new)
-> >  	p->nsproxy =3D new;
-> >  	task_unlock(p);
-> >
-> > -	if (ns && atomic_dec_and_test(&ns->count))
-> > +	if (ns && refcount_dec_and_test(&ns->count))
-> >  		free_nsproxy(ns);
-> >  }
+T24gMTYvMTEvMTcgIDIyOjQxIE1hcmMgWnluZ2llciBbbWFpbHRvOm1hcmMuenluZ2llckBhcm0u
+Y29tXSB3cm90ZToNCj5ObywgaXQgZG9lc24ndC4gSXQgY2Fubm90IHdvcmssIGJlY2F1c2UgQ29y
+dGV4LUE5IHByZWRhdGVzIHRoZSBpbnZlbnRpb24NCj5vZiB0aGUgNjRiaXQgYWNjZXNzb3IuIEkg
+c3VzcGVjdCB0aGF0IHlvdSBhcmUgdGVzdGluZyBzdHVmZiBpbiBRRU1VLA0KPndoaWNoIGlzIGdp
+dmluZyB5b3UgYSBTVyBtb2RlbCB0aGF0IGFsd2F5cyBzdXBwb3J0cyBMUEFFLiBJIHN1Z2dlc3Qg
+eW91DQo+dGVzdCB0aGlzIGNvZGUgb24gKnJlYWwqIEhXLCBhbmQgbm90IG9ubHkgb24gUUVNVS4N
+Cg0KSSBhbSBzb3JyeS4gTXkgdGVzdCBpcyBmYXVsdC4gSSBvbmx5IGRlZmluZWQgVFRCUjAgYXMg
+X19BQ0NFU1NfQ1AxNV82NCwNCmJ1dCBJIGRvbid0IHVzZSB0aGUgZGVmaW5pdGlvbiBUVEJSMCBh
+cyBfX0FDQ0VTU19DUDE1XzY0LiANCg0KTm93IEkgdXNlIHRoZSBkZWZpbml0aW9uIFRUQlIwIGFz
+IF9fQUNDRVNTX0NQMTVfNjQgb24gQ1BVIHN1cHBvcnRpbmcNCkxQQUUodmV4cHJlc3NfYTkpLCBJ
+IGZpbmQgaXQgZG9lc24ndCB3b3JrIGFuZCByZXBvcnQgdW5kZWZpbmVkIGluc3RydWN0aW9uIGVy
+cm9yDQp3aGVuIGV4ZWN1dGUgIm1ycmMiIGluc3RydWN0aW9uLg0KDQpTbywgeW91IGFyZSByaWdo
+dCB0aGF0IDY0Yml0IGFjY2Vzc29yIG9mIFRUQlIwIGNhbm5vdCB3b3JrIG9uIExQQUUuDQoNCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
