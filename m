@@ -1,72 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 651F26B0253
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:49:40 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id b5so1720768itc.7
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:49:40 -0800 (PST)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id w33si1878629ioe.106.2017.11.16.17.49.36
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 11EA46B0261
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 21:16:15 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id b80so5466670iob.23
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 18:16:15 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id 7si1588589ioa.289.2017.11.16.18.16.12
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Nov 2017 17:49:39 -0800 (PST)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH v3 3/3] mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
-Date: Fri, 17 Nov 2017 09:37:04 +0800
-Message-ID: <1510882624-44342-4-git-send-email-xieyisheng1@huawei.com>
-In-Reply-To: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
-References: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Nov 2017 18:16:12 -0800 (PST)
+Subject: Re: [PATCH RESEND v10 00/10] Application Data Integrity feature introduced by SPARC M7
+Mime-Version: 1.0 (Mac OS X Mail 9.3 \(3124\))
+Content-Type: text/plain; charset=us-ascii
+From: Anthony Yznaga <anthony.yznaga@oracle.com>
+In-Reply-To: <cover.1510768775.git.khalid.aziz@oracle.com>
+Date: Thu, 16 Nov 2017 18:14:37 -0800
+Content-Transfer-Encoding: 7bit
+Message-Id: <3D32E16F-281B-464B-8F6D-D6A8FE62FAB2@oracle.com>
+References: <cover.1510768775.git.khalid.aziz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, ak@linux.intel.com, cl@linux.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, tanxiaojun@huawei.com
+To: Khalid Aziz <khalid.aziz@oracle.com>
+Cc: David Miller <davem@davemloft.net>, dave.hansen@linux.intel.com, akpm@linux-foundation.org, 0x7f454c46@gmail.com, aarcange@redhat.com, ak@linux.intel.com, Allen Pais <allen.pais@oracle.com>, aneesh.kumar@linux.vnet.ibm.com, arnd@arndb.de, Atish Patra <atish.patra@oracle.com>, benh@kernel.crashing.org, Bob Picco <bob.picco@oracle.com>, bsingharora@gmail.com, chris.hyser@oracle.com, cmetcalf@mellanox.com, corbet@lwn.net, dan.carpenter@oracle.com, dave.jiang@intel.com, dja@axtens.net, Eric Saint Etienne <eric.saint.etienne@oracle.com>, geert@linux-m68k.org, hannes@cmpxchg.org, heiko.carstens@de.ibm.com, hpa@zytor.com, hughd@google.com, imbrenda@linux.vnet.ibm.com, jack@suse.cz, jmarchan@redhat.com, jroedel@suse.de, Khalid Aziz <khalid@gonehiking.org>, kirill.shutemov@linux.intel.com, Liam.Howlett@oracle.com, lstoakes@gmail.com, mgorman@suse.de, mhocko@suse.com, Mike Kravetz <mike.kravetz@oracle.com>, minchan@kernel.org, mingo@redhat.com, mpe@ellerman.id.au, nitin.m.gupta@oracle.com, pasha.tatashin@oracle.com, paul.gortmaker@windriver.com, paulus@samba.org, peterz@infradead.org, rientjes@google.com, ross.zwisler@linux.intel.com, shli@fb.com, steven.sistare@oracle.com, tglx@linutronix.de, thomas.tai@oracle.com, tklauser@distanz.ch, tom.hromatka@oracle.com, vegard.nossum@oracle.com, vijay.ac.kumar@oracle.com, viro@zeniv.linux.org.uk, willy@infradead.org, x86@kernel.org, ying.huang@intel.com, zhongjiang@huawei.com, sparclinux@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linuxppc-dev@lists.ozlabs.org
 
-As manpage of migrate_pages, the errno should be set to EINVAL when
-none of the node IDs specified by new_nodes are on-line and allowed
-by the process's current cpuset context, or none of the specified
-nodes contain memory. However, when test by following case:
 
-	new_nodes = 0;
-	old_nodes = 0xf;
-	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
+> On Nov 16, 2017, at 6:38 AM, Khalid Aziz <khalid.aziz@oracle.com> wrote:
+> 
+> Changelog v10:
+> 
+> 	- Patch 1/10: Updated si_codes definitions for SEGV to match 4.14
+> 	- Patch 2/10: No changes
+> 	- Patch 3/10: Updated copyright
+> 	- Patch 4/10: No changes
+> 	- Patch 5/10: No changes
+> 	- Patch 6/10: Updated copyright
+> 	- Patch 7/10: No changes
+> 	- Patch 8/10: No changes
+> 	- Patch 9/10: No changes
+> 	- Patch 10/10: Added code to return from kernel path to set
+> 	  PSTATE.mcde if kernel continues execution in another thread
+> 	  (Suggested by Anthony)
 
-The ret will be 0 and no errno is set. As the new_nodes is empty,
-we should expect EINVAL as documented.
+Looks good, Khalid.  Thanks for making the changes.
 
-To fix the case like above, this patch check whether target nodes
-AND current task_nodes is empty, and then check whether AND
-node_states[N_MEMORY] is empty.
+For the entire series:
 
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
----
- mm/mempolicy.c | 10 +++++++---
- 1 file changed, 7 insertions(+), 3 deletions(-)
-
-diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index 65df28d..f604b22 100644
---- a/mm/mempolicy.c
-+++ b/mm/mempolicy.c
-@@ -1433,10 +1433,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
- 		goto out_put;
- 	}
- 
--	if (!nodes_subset(*new, node_states[N_MEMORY])) {
--		err = -EINVAL;
-+	task_nodes = cpuset_mems_allowed(current);
-+	nodes_and(*new, *new, task_nodes);
-+	if (nodes_empty(*new))
-+		goto out_put;
-+
-+	nodes_and(*new, *new, node_states[N_MEMORY]);
-+	if (nodes_empty(*new))
- 		goto out_put;
--	}
- 
- 	err = security_task_movememory(task);
- 	if (err)
--- 
-1.8.3.1
+Reviewed-by: Anthony Yznaga <anthony.yznaga@oracle.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
