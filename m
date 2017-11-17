@@ -1,69 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B92A96B0038
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 11:20:42 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id x28so3632433ita.9
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 08:20:42 -0800 (PST)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A1E06B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 11:34:47 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id 71so8199939ior.19
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 08:34:47 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o11sor3063768ito.73.2017.11.17.08.20.41
+        by mx.google.com with SMTPS id c3sor2012149iog.113.2017.11.17.08.34.45
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Nov 2017 08:20:41 -0800 (PST)
+        Fri, 17 Nov 2017 08:34:45 -0800 (PST)
+Subject: Re: [PATCH v2 2/3] bdi: add error handle for bdi_debug_register
+References: <cover.1509415695.git.zhangweiping@didichuxing.com>
+ <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
+ <20171101134722.GB28572@quack2.suse.cz>
+ <20171117150604.GA21325@localhost.didichuxing.com>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <e600ac56-e07d-ce4a-6af2-e3d7e4c71abf@kernel.dk>
+Date: Fri, 17 Nov 2017 09:34:43 -0700
 MIME-Version: 1.0
-In-Reply-To: <20171117155509.GA920@castle>
-References: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
- <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com> <20171117155509.GA920@castle>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 18 Nov 2017 00:20:40 +0800
-Message-ID: <CALOAHbAWvYKve4eB9+zissgi24cNKeFih1=avfSi_dH5upQVOg@mail.gmail.com>
-Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171117150604.GA21325@localhost.didichuxing.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: Shakeel Butt <shakeelb@google.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Jan Kara <jack@suse.cz>, linux-block@vger.kernel.org, linux-mm@kvack.org
 
-2017-11-17 23:55 GMT+08:00 Roman Gushchin <guro@fb.com>:
-> On Thu, Nov 16, 2017 at 08:43:17PM -0800, Shakeel Butt wrote:
->> On Thu, Nov 16, 2017 at 7:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
->> > Currently the default tmpfs size is totalram_pages / 2 if mount tmpfs
->> > without "-o size=XXX".
->> > When we mount tmpfs in a container(i.e. docker), it is also
->> > totalram_pages / 2 regardless of the memory limit on this container.
->> > That may easily cause OOM if tmpfs occupied too much memory when swap is
->> > off.
->> > So when we mount tmpfs in a memcg, the default size should be limited by
->> > the memcg memory.limit.
->> >
+On 11/17/2017 08:06 AM, weiping zhang wrote:
+> On Wed, Nov 01, 2017 at 02:47:22PM +0100, Jan Kara wrote:
+>> On Tue 31-10-17 18:38:24, weiping zhang wrote:
+>>> In order to make error handle more cleaner we call bdi_debug_register
+>>> before set state to WB_registered, that we can avoid call bdi_unregister
+>>> in release_bdi().
+>>>
+>>> Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
 >>
->> The pages of the tmpfs files are charged to the memcg of allocators
->> which can be in memcg different from the memcg in which the mount
->> operation happened. So, tying the size of a tmpfs mount where it was
->> mounted does not make much sense.
->
-> Also, memory limit is adjustable,
+>> Looks good to me. You can add:
+>>
+>> Reviewed-by: Jan Kara <jack@suse.cz>
+>>
+>> 								Honza
+>>
+>>> ---
+>>>  mm/backing-dev.c | 5 ++++-
+>>>  1 file changed, 4 insertions(+), 1 deletion(-)
+>>>
+>>> diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+>>> index b5f940ce0143..84b2dc76f140 100644
+>>> --- a/mm/backing-dev.c
+>>> +++ b/mm/backing-dev.c
+>>> @@ -882,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
+>>>  	if (IS_ERR(dev))
+>>>  		return PTR_ERR(dev);
+>>>  
+>>> +	if (bdi_debug_register(bdi, dev_name(dev))) {
+>>> +		device_destroy(bdi_class, dev->devt);
+>>> +		return -ENOMEM;
+>>> +	}
+>>>  	cgwb_bdi_register(bdi);
+>>>  	bdi->dev = dev;
+>>>  
+>>> -	bdi_debug_register(bdi, dev_name(dev));
+>>>  	set_bit(WB_registered, &bdi->wb.state);
+>>>  
+>>>  	spin_lock_bh(&bdi_lock);
+>>> -- 
+> 
+> Hello Jens,
+> 
+> Could you please give some comments for this series cleanup.
 
-Yes. But that's irrelevant.
+It looks good to me - for some reason I seem to be missing patch
+2/3 locally, but I have this followup. I'll get it applied for
+4.15, thanks.
 
-> and using a particular limit value
-> at a moment of tmpfs mounting doesn't provide any warranties further.
->
-
-I can not agree.
-The default size of tmpfs is totalram / 2, the reason we do this is to
-provide any warranties further IMHO.
-
-> Is there a reason why the userspace app which is mounting tmpfs can't
-> set the size based on memory.limit?
-
-That's because of misuse.
-The application should set size with "-o size=" when mount tmpfs, but
-not all applications do this.
-As we can't guarantee that all applications will do this, we should
-give them a proper default value.
-
-Thanks
-Yafang
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
