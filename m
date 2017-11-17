@@ -1,47 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DD346B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:42:17 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id h6so508286oia.17
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:42:17 -0800 (PST)
-Received: from szxga02-in.huawei.com (szxga02-in.huawei.com. [45.249.212.188])
-        by mx.google.com with ESMTPS id a22si767209oib.192.2017.11.16.17.42.14
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB2E16B0038
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:46:22 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id 8so1463222qtv.11
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:46:22 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j68si586466qkb.339.2017.11.16.17.46.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 16 Nov 2017 17:42:15 -0800 (PST)
-From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Subject: =?utf-8?B?562U5aSNOiBbUEFUQ0ggMDEvMTFdIEluaXRpYWxpemUgdGhlIG1hcHBpbmcg?=
- =?utf-8?Q?of_KASan_shadow_memory?=
-Date: Fri, 17 Nov 2017 01:39:40 +0000
-Message-ID: <B8AC3E80E903784988AB3003E3E97330C0063786@dggemm510-mbs.china.huawei.com>
-References: <20171011082227.20546-1-liuwenliang@huawei.com>
-	<20171011082227.20546-2-liuwenliang@huawei.com>
-	<227e2c6e-f479-849d-8942-1d5ff4ccd440@arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C0063172@dggemm510-mbs.china.huawei.com>
-	<8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
-	<87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
-	<bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
-	<87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
-	<B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
- <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
-In-Reply-To: <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
-Content-Language: zh-CN
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
-MIME-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 16 Nov 2017 17:46:21 -0800 (PST)
+From: Pavel Tatashin <pasha.tatashin@oracle.com>
+Subject: [PATCH v1] mm: relax deferred struct page requirements
+Date: Thu, 16 Nov 2017 20:46:01 -0500
+Message-Id: <20171117014601.31606-1-pasha.tatashin@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Marc Zyngier <marc.zyngier@arm.com>
-Cc: "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "cdall@linaro.org" <cdall@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, arbab@linux.vnet.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, linuxppc-dev@lists.ozlabs.org, mhocko@suse.com, linux-mm@kvack.org, linux-s390@vger.kernel.org, mgorman@techsingularity.net
 
-DQpPbiAxNi8xMS8xNyAgMjI6NDEgTWFyYyBaeW5naWVyIFttYWlsdG86bWFyYy56eW5naWVyQGFy
-bS5jb21dIHdyb3RlOg0KPi0gSWYgdGhlIENQVSBzdXBwb3J0cyBMUEFFLCB0aGVuIGJvdGggMzIg
-YW5kIDY0Yml0IGFjY2Vzc29ycyB3b3JrDQoNCg0KSSBkb24ndCBob3cgMzJiaXQgYWNjZXNzb3Ig
-Y2FuIHdvcmsgb24gQ1BVIHN1cHBvcnRpbmcgTFBBRSwgZ2l2ZSBtZSB5b3VyIHNvbHV0aW9uLg0K
-DQpUaGFua3MuDQoNCg0K
+There is no need to have ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT,
+as all the page initialization code is in common code.
+
+Also, there is no need to depend on MEMORY_HOTPLUG, as initialization code
+does not really use hotplug memory functionality. So, we can remove this
+requirement as well.
+
+This patch allows to use deferred struct page initialization on all
+platforms with memblock allocator.
+
+Tested on x86, arm64, and sparc. Also, verified that code compiles on
+PPC with CONFIG_MEMORY_HOTPLUG disabled.
+
+Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+---
+ arch/powerpc/Kconfig | 1 -
+ arch/s390/Kconfig    | 1 -
+ arch/x86/Kconfig     | 1 -
+ mm/Kconfig           | 7 +------
+ 4 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
+index cb782ac1c35d..1540348691c9 100644
+--- a/arch/powerpc/Kconfig
++++ b/arch/powerpc/Kconfig
+@@ -148,7 +148,6 @@ config PPC
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
+-	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+ 	select ARCH_USE_BUILTIN_BSWAP
+ 	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
+ 	select ARCH_WANT_IPC_PARSE_VERSION
+diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
+index 863a62a6de3c..525c2e3df6f5 100644
+--- a/arch/s390/Kconfig
++++ b/arch/s390/Kconfig
+@@ -108,7 +108,6 @@ config S390
+ 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
+ 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
+-	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+ 	select ARCH_SUPPORTS_NUMA_BALANCING
+ 	select ARCH_USE_BUILTIN_BSWAP
+ 	select ARCH_USE_CMPXCHG_LOCKREF
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index df3276d6bfe3..00a5446de394 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -69,7 +69,6 @@ config X86
+ 	select ARCH_MIGHT_HAVE_PC_PARPORT
+ 	select ARCH_MIGHT_HAVE_PC_SERIO
+ 	select ARCH_SUPPORTS_ATOMIC_RMW
+-	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+ 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
+ 	select ARCH_USE_BUILTIN_BSWAP
+ 	select ARCH_USE_QUEUED_RWLOCKS
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 9c4bdddd80c2..c6bd0309ce7a 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -639,15 +639,10 @@ config MAX_STACK_SIZE_MB
+ 
+ 	  A sane initial value is 80 MB.
+ 
+-# For architectures that support deferred memory initialisation
+-config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+-	bool
+-
+ config DEFERRED_STRUCT_PAGE_INIT
+ 	bool "Defer initialisation of struct pages to kthreads"
+ 	default n
+-	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
+-	depends on NO_BOOTMEM && MEMORY_HOTPLUG
++	depends on NO_BOOTMEM
+ 	depends on !FLATMEM
+ 	help
+ 	  Ordinarily all struct pages are initialised during early boot in a
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
