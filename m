@@ -1,76 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 354976B0038
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 10:06:38 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id z69so3494138ita.0
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 07:06:38 -0800 (PST)
-Received: from BJEXCAS004.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
-        by mx.google.com with ESMTPS id o191si2333713iod.278.2017.11.17.07.06.34
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 50FD46B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 10:56:05 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id z37so3844641qtz.16
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 07:56:05 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id a24si3922123qkj.286.2017.11.17.07.56.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 17 Nov 2017 07:06:35 -0800 (PST)
-Date: Fri, 17 Nov 2017 23:06:04 +0800
-From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: Re: [PATCH v2 2/3] bdi: add error handle for bdi_debug_register
-Message-ID: <20171117150604.GA21325@localhost.didichuxing.com>
-References: <cover.1509415695.git.zhangweiping@didichuxing.com>
- <100ecef9a09dc2a95feb5f6fac21c8bfa26be4eb.1509415695.git.zhangweiping@didichuxing.com>
- <20171101134722.GB28572@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Nov 2017 07:56:04 -0800 (PST)
+Date: Fri, 17 Nov 2017 15:55:16 +0000
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
+Message-ID: <20171117155509.GA920@castle>
+References: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
+ <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <20171101134722.GB28572@quack2.suse.cz>
+In-Reply-To: <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: axboe@kernel.dk, Jan Kara <jack@suse.cz>
-Cc: linux-block@vger.kernel.org, linux-mm@kvack.org
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Yafang Shao <laoar.shao@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, Nov 01, 2017 at 02:47:22PM +0100, Jan Kara wrote:
-> On Tue 31-10-17 18:38:24, weiping zhang wrote:
-> > In order to make error handle more cleaner we call bdi_debug_register
-> > before set state to WB_registered, that we can avoid call bdi_unregister
-> > in release_bdi().
-> > 
-> > Signed-off-by: weiping zhang <zhangweiping@didichuxing.com>
+On Thu, Nov 16, 2017 at 08:43:17PM -0800, Shakeel Butt wrote:
+> On Thu, Nov 16, 2017 at 7:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
+> > Currently the default tmpfs size is totalram_pages / 2 if mount tmpfs
+> > without "-o size=XXX".
+> > When we mount tmpfs in a container(i.e. docker), it is also
+> > totalram_pages / 2 regardless of the memory limit on this container.
+> > That may easily cause OOM if tmpfs occupied too much memory when swap is
+> > off.
+> > So when we mount tmpfs in a memcg, the default size should be limited by
+> > the memcg memory.limit.
+> >
 > 
-> Looks good to me. You can add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> 
-> 								Honza
-> 
-> > ---
-> >  mm/backing-dev.c | 5 ++++-
-> >  1 file changed, 4 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-> > index b5f940ce0143..84b2dc76f140 100644
-> > --- a/mm/backing-dev.c
-> > +++ b/mm/backing-dev.c
-> > @@ -882,10 +882,13 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
-> >  	if (IS_ERR(dev))
-> >  		return PTR_ERR(dev);
-> >  
-> > +	if (bdi_debug_register(bdi, dev_name(dev))) {
-> > +		device_destroy(bdi_class, dev->devt);
-> > +		return -ENOMEM;
-> > +	}
-> >  	cgwb_bdi_register(bdi);
-> >  	bdi->dev = dev;
-> >  
-> > -	bdi_debug_register(bdi, dev_name(dev));
-> >  	set_bit(WB_registered, &bdi->wb.state);
-> >  
-> >  	spin_lock_bh(&bdi_lock);
-> > -- 
+> The pages of the tmpfs files are charged to the memcg of allocators
+> which can be in memcg different from the memcg in which the mount
+> operation happened. So, tying the size of a tmpfs mount where it was
+> mounted does not make much sense.
 
-Hello Jens,
+Also, memory limit is adjustable, and using a particular limit value
+at a moment of tmpfs mounting doesn't provide any warranties further.
 
-Could you please give some comments for this series cleanup.
-
---
-Thanks
-weiping
+Is there a reason why the userspace app which is mounting tmpfs can't
+set the size based on memory.limit?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
