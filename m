@@ -1,37 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 736576B0275
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 17:33:16 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id s11so3827362pgc.13
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 14:33:16 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id e23si1105521pli.201.2017.11.17.14.33.15
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DED616B0276
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 17:56:43 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 4so3841175pge.8
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 14:56:43 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j1sor1773795pld.51.2017.11.17.14.56.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Nov 2017 14:33:15 -0800 (PST)
-Subject: Re: [PATCH 0/5] mm/kasan: advanced check
-References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
-From: Wengang Wang <wen.gang.wang@oracle.com>
-Message-ID: <e3edbe62-253a-7bfb-807d-f43c9a64e55e@oracle.com>
-Date: Fri, 17 Nov 2017 14:32:29 -0800
+        (Google Transport Security);
+        Fri, 17 Nov 2017 14:56:42 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <20171117223043.7277-1-wen.gang.wang@oracle.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 17 Nov 2017 23:56:21 +0100
+Message-ID: <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
+Subject: Re: [PATCH 0/5] mm/kasan: advanced check
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, aryabinin@virtuozzo.com
-Cc: glider@google.com, dvyukov@google.com
+To: Wengang Wang <wen.gang.wang@oracle.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-This patch seems only work for OUTLINE compile type. Anyway to make it 
-work for INLINE type?
-
-thanks,
-Wengang
-
-
-On 2017/11/17 14:30, Wengang Wang wrote:
+On Fri, Nov 17, 2017 at 11:30 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
 > Kasan advanced check, I'm going to add this feature.
 > Currently Kasan provide the detection of use-after-free and out-of-bounds
 > problems. It is not able to find the overwrite-on-allocated-memory issue.
@@ -66,12 +57,15 @@ On 2017/11/17 14:30, Wengang Wang wrote:
 > 0004-mm-kasan-register-check-and-bind-it-to-memory.patch
 > 0005-mm-kasan-add-advanced-check-test-case.patch
 >
->   include/linux/kasan.h |   16 ++
->   lib/test_kasan.c      |   73 ++++++++++++
->   mm/kasan/kasan.c      |  292 +++++++++++++++++++++++++++++++++++++++++++-------
->   mm/kasan/kasan.h      |   42 +++++++
->   mm/kasan/report.c     |   44 ++++++-
->   5 files changed, 424 insertions(+), 43 deletions(-)
+>  include/linux/kasan.h |   16 ++
+>  lib/test_kasan.c      |   73 ++++++++++++
+>  mm/kasan/kasan.c      |  292 +++++++++++++++++++++++++++++++++++++++++++-------
+>  mm/kasan/kasan.h      |   42 +++++++
+>  mm/kasan/report.c     |   44 ++++++-
+>  5 files changed, 424 insertions(+), 43 deletions(-)
+
+
++kasan-dev mailing list
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
