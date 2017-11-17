@@ -1,89 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 341C46B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 22:47:43 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id k100so706851wrc.9
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:47:43 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t8sor800518wmc.7.2017.11.16.19.47.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C698F6B0038
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 23:43:20 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id z34so778820wrz.0
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:43:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p4sor1164330wrd.45.2017.11.16.20.43.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 16 Nov 2017 19:47:41 -0800 (PST)
+        Thu, 16 Nov 2017 20:43:19 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4iWPG9wVqe1GW+Ewk4rqELZB6SRR=sF0G8NaabUu2jH_w@mail.gmail.com>
-References: <20170817000548.32038-1-jglisse@redhat.com> <20170904155123.GA3161@redhat.com>
- <7026dfda-9fd0-2661-5efc-66063dfdf6bc@huawei.com> <20170905023826.GA4836@redhat.com>
- <20170905185414.GB24073@linux.intel.com> <0bc5047d-d27c-65b6-acab-921263e715c8@huawei.com>
- <20170906021216.GA23436@redhat.com> <4f4a2196-228d-5d54-5386-72c3ffb1481b@huawei.com>
- <1726639990.10465990.1504805251676.JavaMail.zimbra@redhat.com>
- <863afc77-ed84-fed5-ebb8-d88e636816a3@huawei.com> <CAPcyv4iWPG9wVqe1GW+Ewk4rqELZB6SRR=sF0G8NaabUu2jH_w@mail.gmail.com>
-From: chetan L <loke.chetan@gmail.com>
-Date: Thu, 16 Nov 2017 19:47:40 -0800
-Message-ID: <CAAsGZS67JqVJYMMuPchz6zDr36JOdQK=+LQ8RPKKbQm-wsV4Vw@mail.gmail.com>
-Subject: Re: [HMM-v25 19/19] mm/hmm: add new helper to hotplug CDM memory
- region v3
+In-Reply-To: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
+References: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 16 Nov 2017 20:43:17 -0800
+Message-ID: <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
+Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Bob Liu <liubo95@huawei.com>, Jerome Glisse <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>, majiuyue <majiuyue@huawei.com>, "xieyisheng (A)" <xieyisheng1@huawei.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, Roman Gushchin <guro@fb.com>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Sep 8, 2017 at 1:43 PM, Dan Williams <dan.j.williams@intel.com> wro=
-te:
-> On Thu, Sep 7, 2017 at 6:59 PM, Bob Liu <liubo95@huawei.com> wrote:
->> On 2017/9/8 1:27, Jerome Glisse wrote:
-> [..]
->>> No this are 2 orthogonal thing, they do not conflict with each others q=
-uite
->>> the contrary. HMM (the CDM part is no different) is a set of helpers, s=
-ee
->>> it as a toolbox, for device driver.
->>>
->>> HMAT is a way for firmware to report memory resources with more informa=
-tions
->>> that just range of physical address. HMAT is specific to platform that =
-rely
->>> on ACPI. HMAT does not provide any helpers to manage these memory.
->>>
->>> So a device driver can get informations about device memory from HMAT a=
-nd then
->>> use HMM to help in managing and using this memory.
->>>
->>
->> Yes, but as Balbir mentioned requires :
->> 1. Don't online the memory as a NUMA node
->> 2. Use the HMM-CDM API's to map the memory to ZONE DEVICE via the driver
->>
->> And I'm not sure whether Intel going to use this HMM-CDM based method fo=
-r their "target domain" memory ?
->> Or they prefer to NUMA approach?   Ross=EF=BC=9F Dan?
+On Thu, Nov 16, 2017 at 7:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
+> Currently the default tmpfs size is totalram_pages / 2 if mount tmpfs
+> without "-o size=XXX".
+> When we mount tmpfs in a container(i.e. docker), it is also
+> totalram_pages / 2 regardless of the memory limit on this container.
+> That may easily cause OOM if tmpfs occupied too much memory when swap is
+> off.
+> So when we mount tmpfs in a memcg, the default size should be limited by
+> the memcg memory.limit.
 >
-> The starting / strawman proposal for performance differentiated memory
-> ranges is to get platform firmware to mark them reserved by default.
-> Then, after we parse the HMAT, make them available via the device-dax
-> mechanism so that applications that need 100% guaranteed access to
-> these potentially high-value / limited-capacity ranges can be sure to
-> get them by default, i.e. before any random kernel objects are placed
-> in them. Otherwise, if there are no dedicated users for the memory
-> ranges via device-dax, or they don't need the total capacity, we want
-> to hotplug that memory into the general purpose memory allocator with
-> a numa node number so typical numactl and memory-management flows are
-> enabled.
+
+The pages of the tmpfs files are charged to the memcg of allocators
+which can be in memcg different from the memcg in which the mount
+operation happened. So, tying the size of a tmpfs mount where it was
+mounted does not make much sense.
+
+Also mount operation which requires CAP_SYS_ADMIN, is usually
+performed by node controller (or job loader) which don't necessarily
+run in the memcg of the actual job.
+
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> ---
+>  include/linux/memcontrol.h |  1 +
+>  mm/memcontrol.c            |  2 +-
+>  mm/shmem.c                 | 20 +++++++++++++++++++-
+>  3 files changed, 21 insertions(+), 2 deletions(-)
 >
-> Ideally this would not be specific to HMAT and any agent that knows
-> differentiated performance characteristics of a memory range could use
-> this scheme.
+> diff --git a/include/linux/memcontrol.h b/include/linux/memcontrol.h
+> index 69966c4..79c6709 100644
+> --- a/include/linux/memcontrol.h
+> +++ b/include/linux/memcontrol.h
+> @@ -265,6 +265,7 @@ struct mem_cgroup {
+>         /* WARNING: nodeinfo must be the last member here */
+>  };
+>
+> +extern struct mutex memcg_limit_mutex;
+>  extern struct mem_cgroup *root_mem_cgroup;
+>
+>  static inline bool mem_cgroup_disabled(void)
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index 661f046..ad32f3c 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2464,7 +2464,7 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+>  }
+>  #endif
+>
+> -static DEFINE_MUTEX(memcg_limit_mutex);
+> +DEFINE_MUTEX(memcg_limit_mutex);
 
-@Dan/Ross
+This mutex is only needed for updating the limit.
 
-With this approach, in a SVM environment, if you would want a PRI(page
-grant) request to get satisfied from this HMAT-indexed memory node,
-then do you think we could make that happen. If yes, is that something
-you guys are currently working on.
-
-
-Chetan
+>
+>  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>                                    unsigned long limit)
+> diff --git a/mm/shmem.c b/mm/shmem.c
+> index 07a1d22..1c320dd 100644
+> --- a/mm/shmem.c
+> +++ b/mm/shmem.c
+> @@ -35,6 +35,7 @@
+>  #include <linux/uio.h>
+>  #include <linux/khugepaged.h>
+>  #include <linux/hugetlb.h>
+> +#include <linux/memcontrol.h>
+>
+>  #include <asm/tlbflush.h> /* for arch/microblaze update_mmu_cache() */
+>
+> @@ -108,7 +109,24 @@ struct shmem_falloc {
+>  #ifdef CONFIG_TMPFS
+>  static unsigned long shmem_default_max_blocks(void)
+>  {
+> -       return totalram_pages / 2;
+> +       unsigned long size;
+> +
+> +#ifdef CONFIG_MEMCG
+> +       struct mem_cgroup *memcg = mem_cgroup_from_task(current);
+> +
+> +       if (memcg == NULL || memcg == root_mem_cgroup)
+> +               size = totalram_pages / 2;
+> +       else {
+> +               mutex_lock(&memcg_limit_mutex);
+> +               size = memcg->memory.limit > totalram_pages ?
+> +                                totalram_pages / 2 : memcg->memory.limit / 2;
+> +               mutex_unlock(&memcg_limit_mutex);
+> +       }
+> +#else
+> +       size = totalram_pages / 2;
+> +#endif
+> +
+> +       return size;
+>  }
+>
+>  static unsigned long shmem_default_max_inodes(void)
+> --
+> 1.8.3.1
+>
+> --
+> To unsubscribe from this list: send the line "unsubscribe cgroups" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
