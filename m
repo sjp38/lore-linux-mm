@@ -1,64 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D6C16B0253
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 02:47:23 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id b189so1439436wmd.5
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 23:47:23 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id t22si2529504edm.436.2017.11.16.23.47.21
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6ED8B6B0038
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 03:20:42 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id g127so388926lfe.19
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 00:20:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id k76sor548359ljb.31.2017.11.17.00.20.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 23:47:21 -0800 (PST)
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAH7iZW4118558
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 02:47:20 -0500
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2e9tf5asnt-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 02:47:20 -0500
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <heiko.carstens@de.ibm.com>;
-	Fri, 17 Nov 2017 07:47:19 -0000
-Date: Fri, 17 Nov 2017 08:47:11 +0100
-From: Heiko Carstens <heiko.carstens@de.ibm.com>
-Subject: Re: [PATCH v1] mm: relax deferred struct page requirements
-References: <20171117014601.31606-1-pasha.tatashin@oracle.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171117014601.31606-1-pasha.tatashin@oracle.com>
-Message-Id: <20171117074711.GA3308@osiris>
+        (Google Transport Security);
+        Fri, 17 Nov 2017 00:20:40 -0800 (PST)
+Date: Fri, 17 Nov 2017 09:20:32 +0100
+From: Vitaly Wool <vitalywool@gmail.com>
+Subject: [PATCH] z3fold: use kref to prevent page free / compact race
+Message-Id: <20171117092032.00ea56f42affbed19f4fcc6c@gmail.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, arbab@linux.vnet.ibm.com, schwidefsky@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, linuxppc-dev@lists.ozlabs.org, mhocko@suse.com, linux-mm@kvack.org, linux-s390@vger.kernel.org, mgorman@techsingularity.net
+To: Linux-MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
+Cc: Andrew Morton <akpm@linux-foundation.org>, Oleksiy.Avramchenko@sony.com
 
-On Thu, Nov 16, 2017 at 08:46:01PM -0500, Pavel Tatashin wrote:
-> There is no need to have ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT,
-> as all the page initialization code is in common code.
-> 
-> Also, there is no need to depend on MEMORY_HOTPLUG, as initialization code
-> does not really use hotplug memory functionality. So, we can remove this
-> requirement as well.
-> 
-> This patch allows to use deferred struct page initialization on all
-> platforms with memblock allocator.
-> 
-> Tested on x86, arm64, and sparc. Also, verified that code compiles on
-> PPC with CONFIG_MEMORY_HOTPLUG disabled.
-> 
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  arch/powerpc/Kconfig | 1 -
->  arch/s390/Kconfig    | 1 -
->  arch/x86/Kconfig     | 1 -
->  mm/Kconfig           | 7 +------
->  4 files changed, 1 insertion(+), 9 deletions(-)
+There is a race in the current z3fold implementation between
+do_compact() called in a work queue context and the page release
+procedure when page's kref goes to 0. do_compact() may be waiting
+for page lock, which is released by release_z3fold_page_locked
+right before putting the page onto the "stale" list, and then the
+page may be freed as do_compact() modifies its contents.
+    
+The mechanism currently implemented to handle that (checking the
+PAGE_STALE flag) is not reliable enough. Instead, we'll use page's
+kref counter to guarantee that the page is not released if its
+compaction is scheduled. It then becomes compaction function's
+responsibility to decrease the counter and quit immediately if
+the page was actually freed.
 
-For s390 the s390 bit:
+Signed-off-by: Vitaly Wool <vitaly.wool@sonymobile.com>   
+Cc: stable <stable@vger.kernel.org> 
 
-Acked-by: Heiko Carstens <heiko.carstens@de.ibm.com>
+---
+
+ mm/z3fold.c |   10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index 8984735..48d679d 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -404,8 +404,7 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
+ 		WARN_ON(z3fold_page_trylock(zhdr));
+ 	else
+ 		z3fold_page_lock(zhdr);
+-	if (test_bit(PAGE_STALE, &page->private) ||
+-	    !test_and_clear_bit(NEEDS_COMPACTING, &page->private)) {
++	if (WARN_ON(!test_and_clear_bit(NEEDS_COMPACTING, &page->private))) {
+ 		z3fold_page_unlock(zhdr);
+ 		return;
+ 	}
+@@ -413,6 +412,11 @@ static void do_compact_page(struct z3fold_header *zhdr, bool locked)
+ 	list_del_init(&zhdr->buddy);
+ 	spin_unlock(&pool->lock);
+ 
++	if (kref_put(&zhdr->refcount, release_z3fold_page_locked)) {
++		atomic64_dec(&pool->pages_nr);
++		return;
++	}
++
+ 	z3fold_compact_page(zhdr);
+ 	unbuddied = get_cpu_ptr(pool->unbuddied);
+ 	fchunks = num_free_chunks(zhdr);
+@@ -754,9 +758,11 @@ static void z3fold_free(struct z3fold_pool *pool, unsigned long handle)
+ 		list_del_init(&zhdr->buddy);
+ 		spin_unlock(&pool->lock);
+ 		zhdr->cpu = -1;
++		kref_get(&zhdr->refcount);
+ 		do_compact_page(zhdr, true);
+ 		return;
+ 	}
++	kref_get(&zhdr->refcount);
+ 	queue_work_on(zhdr->cpu, pool->compact_wq, &zhdr->work);
+ 	z3fold_page_unlock(zhdr);
+ }
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
