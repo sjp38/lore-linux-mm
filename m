@@ -1,102 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CB2E16B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:46:22 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id 8so1463222qtv.11
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:46:22 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j68si586466qkb.339.2017.11.16.17.46.21
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C706B0038
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 20:49:39 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id s185so514623oif.16
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 17:49:39 -0800 (PST)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id e76si767095oih.461.2017.11.16.17.49.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 17:46:21 -0800 (PST)
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Subject: [PATCH v1] mm: relax deferred struct page requirements
-Date: Thu, 16 Nov 2017 20:46:01 -0500
-Message-Id: <20171117014601.31606-1-pasha.tatashin@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 16 Nov 2017 17:49:38 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v3 1/3] mm/mempolicy: remove redundant check in get_nodes
+Date: Fri, 17 Nov 2017 09:37:02 +0800
+Message-ID: <1510882624-44342-2-git-send-email-xieyisheng1@huawei.com>
+In-Reply-To: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
+References: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, arbab@linux.vnet.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, linuxppc-dev@lists.ozlabs.org, mhocko@suse.com, linux-mm@kvack.org, linux-s390@vger.kernel.org, mgorman@techsingularity.net
+To: akpm@linux-foundation.org, vbabka@suse.cz, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, ak@linux.intel.com, cl@linux.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, tanxiaojun@huawei.com
 
-There is no need to have ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT,
-as all the page initialization code is in common code.
+We have already checked whether maxnode is a page worth of bits, by:
+    maxnode > PAGE_SIZE*BITS_PER_BYTE
 
-Also, there is no need to depend on MEMORY_HOTPLUG, as initialization code
-does not really use hotplug memory functionality. So, we can remove this
-requirement as well.
+So no need to check it once more.
 
-This patch allows to use deferred struct page initialization on all
-platforms with memblock allocator.
-
-Tested on x86, arm64, and sparc. Also, verified that code compiles on
-PPC with CONFIG_MEMORY_HOTPLUG disabled.
-
-Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
 ---
- arch/powerpc/Kconfig | 1 -
- arch/s390/Kconfig    | 1 -
- arch/x86/Kconfig     | 1 -
- mm/Kconfig           | 7 +------
- 4 files changed, 1 insertion(+), 9 deletions(-)
+ mm/mempolicy.c | 2 --
+ 1 file changed, 2 deletions(-)
 
-diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-index cb782ac1c35d..1540348691c9 100644
---- a/arch/powerpc/Kconfig
-+++ b/arch/powerpc/Kconfig
-@@ -148,7 +148,6 @@ config PPC
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
- 	select ARCH_MIGHT_HAVE_PC_SERIO
- 	select ARCH_SUPPORTS_ATOMIC_RMW
--	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	select ARCH_USE_BUILTIN_BSWAP
- 	select ARCH_USE_CMPXCHG_LOCKREF		if PPC64
- 	select ARCH_WANT_IPC_PARSE_VERSION
-diff --git a/arch/s390/Kconfig b/arch/s390/Kconfig
-index 863a62a6de3c..525c2e3df6f5 100644
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -108,7 +108,6 @@ config S390
- 	select ARCH_INLINE_WRITE_UNLOCK_IRQRESTORE
- 	select ARCH_SAVE_PAGE_KEYS if HIBERNATION
- 	select ARCH_SUPPORTS_ATOMIC_RMW
--	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	select ARCH_SUPPORTS_NUMA_BALANCING
- 	select ARCH_USE_BUILTIN_BSWAP
- 	select ARCH_USE_CMPXCHG_LOCKREF
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index df3276d6bfe3..00a5446de394 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -69,7 +69,6 @@ config X86
- 	select ARCH_MIGHT_HAVE_PC_PARPORT
- 	select ARCH_MIGHT_HAVE_PC_SERIO
- 	select ARCH_SUPPORTS_ATOMIC_RMW
--	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
- 	select ARCH_SUPPORTS_NUMA_BALANCING	if X86_64
- 	select ARCH_USE_BUILTIN_BSWAP
- 	select ARCH_USE_QUEUED_RWLOCKS
-diff --git a/mm/Kconfig b/mm/Kconfig
-index 9c4bdddd80c2..c6bd0309ce7a 100644
---- a/mm/Kconfig
-+++ b/mm/Kconfig
-@@ -639,15 +639,10 @@ config MAX_STACK_SIZE_MB
- 
- 	  A sane initial value is 80 MB.
- 
--# For architectures that support deferred memory initialisation
--config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
--	bool
--
- config DEFERRED_STRUCT_PAGE_INIT
- 	bool "Defer initialisation of struct pages to kthreads"
- 	default n
--	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
--	depends on NO_BOOTMEM && MEMORY_HOTPLUG
-+	depends on NO_BOOTMEM
- 	depends on !FLATMEM
- 	help
- 	  Ordinarily all struct pages are initialised during early boot in a
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 4ce44d3..6e867a8 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1282,8 +1282,6 @@ static int get_nodes(nodemask_t *nodes, const unsigned long __user *nmask,
+ 	/* When the user specified more nodes than supported just check
+ 	   if the non supported part is all zero. */
+ 	if (nlongs > BITS_TO_LONGS(MAX_NUMNODES)) {
+-		if (nlongs > PAGE_SIZE/sizeof(long))
+-			return -EINVAL;
+ 		for (k = BITS_TO_LONGS(MAX_NUMNODES); k < nlongs; k++) {
+ 			unsigned long t;
+ 			if (get_user(t, nmask + k))
 -- 
-2.15.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
