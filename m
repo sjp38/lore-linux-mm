@@ -1,126 +1,307 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 889546B0038
-	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:13:54 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y41so428645wrc.22
-        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:13:54 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i70si1815322wri.414.2017.11.16.16.13.52
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C7FA56B0253
+	for <linux-mm@kvack.org>; Thu, 16 Nov 2017 19:14:17 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id h205so5975467iof.15
+        for <linux-mm@kvack.org>; Thu, 16 Nov 2017 16:14:17 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m87sor1258561ioi.108.2017.11.16.16.14.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 16 Nov 2017 16:13:53 -0800 (PST)
-Date: Thu, 16 Nov 2017 16:13:50 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] dma-debug: fix incorrect pfn calculation
-Message-Id: <20171116161350.3b8bd1fbcaae8e032441d3e7@linux-foundation.org>
-In-Reply-To: <1510872972-23919-1-git-send-email-miles.chen@mediatek.com>
-References: <1510872972-23919-1-git-send-email-miles.chen@mediatek.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 16 Nov 2017 16:14:16 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <1510754620-27088-15-git-send-email-elena.reshetova@intel.com>
+References: <1510754620-27088-1-git-send-email-elena.reshetova@intel.com> <1510754620-27088-15-git-send-email-elena.reshetova@intel.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 16 Nov 2017 16:14:14 -0800
+Message-ID: <CAGXu5jKZ4S=aTYpGff7QiCS0BVFKxvw+TRXKt=Yr0L8M1uTHpg@mail.gmail.com>
+Subject: Re: [PATCH 14/16] creds: convert cred.usage to refcount_t
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: miles.chen@mediatek.com
-Cc: Christoph Hellwig <hch@lst.de>, Robin Murphy <robin.murphy@arm.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, wsd_upstream@mediatek.com, linux-mediatek@lists.infradead.org, iommu@lists.linux-foundation.org, Christoph Hellwig <hch@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Elena Reshetova <elena.reshetova@intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, Greg KH <gregkh@linuxfoundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Tejun Heo <tj@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Li Zefan <lizefan@huawei.com>, Arnaldo Carvalho de Melo <acme@kernel.org>, Alexander Shishkin <alexander.shishkin@linux.intel.com>, Eric Paris <eparis@redhat.com>, Arnd Bergmann <arnd@arndb.de>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Darren Hart <dvhart@infradead.org>, "Eric W. Biederman" <ebiederm@xmission.com>, Linux-MM <linux-mm@kvack.org>, Jens Axboe <axboe@kernel.dk>, David Howells <dhowells@redhat.com>
 
-On Fri, 17 Nov 2017 06:56:12 +0800 <miles.chen@mediatek.com> wrote:
+On Wed, Nov 15, 2017 at 6:03 AM, Elena Reshetova
+<elena.reshetova@intel.com> wrote:
+> atomic_t variables are currently used to implement reference
+> counters with the following properties:
+>  - counter is initialized to 1 using atomic_set()
+>  - a resource is freed upon counter reaching zero
+>  - once counter reaches zero, its further
+>    increments aren't allowed
+>  - counter schema uses basic atomic operations
+>    (set, inc, inc_not_zero, dec_and_test, etc.)
+>
+> Such atomic variables should be converted to a newly provided
+> refcount_t type and API that prevents accidental counter overflows
+> and underflows. This is important since overflows and underflows
+> can lead to use-after-free situation and be exploitable.
+>
+> The variable cred.usage is used as pure reference counter.
+> Convert it to refcount_t and fix up the operations.
+>
+> **Important note for maintainers:
+>
+> Some functions from refcount_t API defined in lib/refcount.c
+> have different memory ordering guarantees than their atomic
+> counterparts.
+> The full comparison can be seen in
+> https://lkml.org/lkml/2017/11/15/57 and it is hopefully soon
+> in state to be merged to the documentation tree.
+> Normally the differences should not matter since refcount_t provides
+> enough guarantees to satisfy the refcounting use cases, but in
+> some rare cases it might matter.
+> Please double check that you don't have some undocumented
+> memory guarantees for this variable usage.
+>
+> For the cred.usage it might make a difference
+> in following places:
+>  - get_task_cred(): increment in refcount_inc_not_zero() only
+>    guarantees control dependency on success vs. fully ordered
+>    atomic counterpart
+>  - put_cred(): decrement in refcount_dec_and_test() only
+>    provides RELEASE ordering and control dependency on success
+>    vs. fully ordered atomic counterpart
 
-> From: Miles Chen <miles.chen@mediatek.com>
-> 
-> dma-debug reports the following warning:
-> 
-> [name:panic&]WARNING: CPU: 3 PID: 298 at kernel-4.4/lib/dma-debug.c:604
-> debug _dma_assert_idle+0x1a8/0x230()
-> DMA-API: cpu touching an active dma mapped cacheline [cln=0x00000882300]
-> CPU: 3 PID: 298 Comm: vold Tainted: G        W  O    4.4.22+ #1
-> Hardware name: MT6739 (DT)
-> Call trace:
-> [<ffffff800808acd0>] dump_backtrace+0x0/0x1d4
-> [<ffffff800808affc>] show_stack+0x14/0x1c
-> [<ffffff800838019c>] dump_stack+0xa8/0xe0
-> [<ffffff80080a0594>] warn_slowpath_common+0xf4/0x11c
-> [<ffffff80080a061c>] warn_slowpath_fmt+0x60/0x80
-> [<ffffff80083afe24>] debug_dma_assert_idle+0x1a8/0x230
-> [<ffffff80081dca9c>] wp_page_copy.isra.96+0x118/0x520
-> [<ffffff80081de114>] do_wp_page+0x4fc/0x534
-> [<ffffff80081e0a14>] handle_mm_fault+0xd4c/0x1310
-> [<ffffff8008098798>] do_page_fault+0x1c8/0x394
-> [<ffffff800808231c>] do_mem_abort+0x50/0xec
-> 
-> I found that debug_dma_alloc_coherent() and debug_dma_free_coherent()
-> assume that dma_alloc_coherent() always returns a linear address.  However
-> it's possible that dma_alloc_coherent() returns a non-linear address.  In
-> this case, page_to_pfn(virt_to_page(virt)) will return an incorrect pfn.
-> If the pfn is valid and mapped as a COW page, we will hit the warning when
-> doing wp_page_copy().
-> 
-> Fix this by calculating pfn for linear and non-linear addresses.
-> 
+Both cases seem to operate under these conditions already. Andrew, can
+you take this too?
 
-It's a shame you didn't Cc Christoph, who was the sole reviewer of the
-earlier version.
+Acked-by: Kees Cook <keescook@chromium.org>
 
-And it's a shame you didn't capture the result of that review
-discussion in the v3 changelog.
+-Kees
 
-And it's a shame that you didn't describe how this patch differs from
-earlier versions.
+>
+> Suggested-by: Kees Cook <keescook@chromium.org>
+> Reviewed-by: David Windsor <dwindsor@gmail.com>
+> Reviewed-by: Hans Liljestrand <ishkamiel@gmail.com>
+> Signed-off-by: Elena Reshetova <elena.reshetova@intel.com>
+> ---
+>  include/linux/cred.h |  6 +++---
+>  kernel/cred.c        | 44 ++++++++++++++++++++++----------------------
+>  2 files changed, 25 insertions(+), 25 deletions(-)
+>
+> diff --git a/include/linux/cred.h b/include/linux/cred.h
+> index 00948dd..a9f217b 100644
+> --- a/include/linux/cred.h
+> +++ b/include/linux/cred.h
+> @@ -109,7 +109,7 @@ extern bool may_setgroups(void);
+>   * same context as task->real_cred.
+>   */
+>  struct cred {
+> -       atomic_t        usage;
+> +       refcount_t      usage;
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         atomic_t        subscribers;    /* number of processes subscribed */
+>         void            *put_addr;
+> @@ -222,7 +222,7 @@ static inline bool cap_ambient_invariant_ok(const struct cred *cred)
+>   */
+>  static inline struct cred *get_new_cred(struct cred *cred)
+>  {
+> -       atomic_inc(&cred->usage);
+> +       refcount_inc(&cred->usage);
+>         return cred;
+>  }
+>
+> @@ -262,7 +262,7 @@ static inline void put_cred(const struct cred *_cred)
+>         struct cred *cred = (struct cred *) _cred;
+>
+>         validate_creds(cred);
+> -       if (atomic_dec_and_test(&(cred)->usage))
+> +       if (refcount_dec_and_test(&(cred)->usage))
+>                 __put_cred(cred);
+>  }
+>
+> diff --git a/kernel/cred.c b/kernel/cred.c
+> index 9604c1a..86c039a 100644
+> --- a/kernel/cred.c
+> +++ b/kernel/cred.c
+> @@ -42,7 +42,7 @@ struct group_info init_groups = { .usage = REFCOUNT_INIT(2) };
+>   * The initial credentials for the initial task
+>   */
+>  struct cred init_cred = {
+> -       .usage                  = ATOMIC_INIT(4),
+> +       .usage                  = REFCOUNT_INIT(4),
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         .subscribers            = ATOMIC_INIT(2),
+>         .magic                  = CRED_MAGIC,
+> @@ -101,17 +101,17 @@ static void put_cred_rcu(struct rcu_head *rcu)
+>
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         if (cred->magic != CRED_MAGIC_DEAD ||
+> -           atomic_read(&cred->usage) != 0 ||
+> +           refcount_read(&cred->usage) != 0 ||
+>             read_cred_subscribers(cred) != 0)
+>                 panic("CRED: put_cred_rcu() sees %p with"
+>                       " mag %x, put %p, usage %d, subscr %d\n",
+>                       cred, cred->magic, cred->put_addr,
+> -                     atomic_read(&cred->usage),
+> +                     refcount_read(&cred->usage),
+>                       read_cred_subscribers(cred));
+>  #else
+> -       if (atomic_read(&cred->usage) != 0)
+> +       if (refcount_read(&cred->usage) != 0)
+>                 panic("CRED: put_cred_rcu() sees %p with usage %d\n",
+> -                     cred, atomic_read(&cred->usage));
+> +                     cred, refcount_read(&cred->usage));
+>  #endif
+>
+>         security_cred_free(cred);
+> @@ -135,10 +135,10 @@ static void put_cred_rcu(struct rcu_head *rcu)
+>  void __put_cred(struct cred *cred)
+>  {
+>         kdebug("__put_cred(%p{%d,%d})", cred,
+> -              atomic_read(&cred->usage),
+> +              refcount_read(&cred->usage),
+>                read_cred_subscribers(cred));
+>
+> -       BUG_ON(atomic_read(&cred->usage) != 0);
+> +       BUG_ON(refcount_read(&cred->usage) != 0);
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         BUG_ON(read_cred_subscribers(cred) != 0);
+>         cred->magic = CRED_MAGIC_DEAD;
+> @@ -159,7 +159,7 @@ void exit_creds(struct task_struct *tsk)
+>         struct cred *cred;
+>
+>         kdebug("exit_creds(%u,%p,%p,{%d,%d})", tsk->pid, tsk->real_cred, tsk->cred,
+> -              atomic_read(&tsk->cred->usage),
+> +              refcount_read(&tsk->cred->usage),
+>                read_cred_subscribers(tsk->cred));
+>
+>         cred = (struct cred *) tsk->real_cred;
+> @@ -194,7 +194,7 @@ const struct cred *get_task_cred(struct task_struct *task)
+>         do {
+>                 cred = __task_cred((task));
+>                 BUG_ON(!cred);
+> -       } while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
+> +       } while (!refcount_inc_not_zero(&((struct cred *)cred)->usage));
+>
+>         rcu_read_unlock();
+>         return cred;
+> @@ -212,7 +212,7 @@ struct cred *cred_alloc_blank(void)
+>         if (!new)
+>                 return NULL;
+>
+> -       atomic_set(&new->usage, 1);
+> +       refcount_set(&new->usage, 1);
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         new->magic = CRED_MAGIC;
+>  #endif
+> @@ -258,7 +258,7 @@ struct cred *prepare_creds(void)
+>         old = task->cred;
+>         memcpy(new, old, sizeof(struct cred));
+>
+> -       atomic_set(&new->usage, 1);
+> +       refcount_set(&new->usage, 1);
+>         set_cred_subscribers(new, 0);
+>         get_group_info(new->group_info);
+>         get_uid(new->user);
+> @@ -335,7 +335,7 @@ int copy_creds(struct task_struct *p, unsigned long clone_flags)
+>                 get_cred(p->cred);
+>                 alter_cred_subscribers(p->cred, 2);
+>                 kdebug("share_creds(%p{%d,%d})",
+> -                      p->cred, atomic_read(&p->cred->usage),
+> +                      p->cred, refcount_read(&p->cred->usage),
+>                        read_cred_subscribers(p->cred));
+>                 atomic_inc(&p->cred->user->processes);
+>                 return 0;
+> @@ -426,7 +426,7 @@ int commit_creds(struct cred *new)
+>         const struct cred *old = task->real_cred;
+>
+>         kdebug("commit_creds(%p{%d,%d})", new,
+> -              atomic_read(&new->usage),
+> +              refcount_read(&new->usage),
+>                read_cred_subscribers(new));
+>
+>         BUG_ON(task->cred != old);
+> @@ -435,7 +435,7 @@ int commit_creds(struct cred *new)
+>         validate_creds(old);
+>         validate_creds(new);
+>  #endif
+> -       BUG_ON(atomic_read(&new->usage) < 1);
+> +       BUG_ON(refcount_read(&new->usage) < 1);
+>
+>         get_cred(new); /* we will require a ref for the subj creds too */
+>
+> @@ -501,13 +501,13 @@ EXPORT_SYMBOL(commit_creds);
+>  void abort_creds(struct cred *new)
+>  {
+>         kdebug("abort_creds(%p{%d,%d})", new,
+> -              atomic_read(&new->usage),
+> +              refcount_read(&new->usage),
+>                read_cred_subscribers(new));
+>
+>  #ifdef CONFIG_DEBUG_CREDENTIALS
+>         BUG_ON(read_cred_subscribers(new) != 0);
+>  #endif
+> -       BUG_ON(atomic_read(&new->usage) < 1);
+> +       BUG_ON(refcount_read(&new->usage) < 1);
+>         put_cred(new);
+>  }
+>  EXPORT_SYMBOL(abort_creds);
+> @@ -524,7 +524,7 @@ const struct cred *override_creds(const struct cred *new)
+>         const struct cred *old = current->cred;
+>
+>         kdebug("override_creds(%p{%d,%d})", new,
+> -              atomic_read(&new->usage),
+> +              refcount_read(&new->usage),
+>                read_cred_subscribers(new));
+>
+>         validate_creds(old);
+> @@ -535,7 +535,7 @@ const struct cred *override_creds(const struct cred *new)
+>         alter_cred_subscribers(old, -1);
+>
+>         kdebug("override_creds() = %p{%d,%d}", old,
+> -              atomic_read(&old->usage),
+> +              refcount_read(&old->usage),
+>                read_cred_subscribers(old));
+>         return old;
+>  }
+> @@ -553,7 +553,7 @@ void revert_creds(const struct cred *old)
+>         const struct cred *override = current->cred;
+>
+>         kdebug("revert_creds(%p{%d,%d})", old,
+> -              atomic_read(&old->usage),
+> +              refcount_read(&old->usage),
+>                read_cred_subscribers(old));
+>
+>         validate_creds(old);
+> @@ -612,7 +612,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
+>         validate_creds(old);
+>
+>         *new = *old;
+> -       atomic_set(&new->usage, 1);
+> +       refcount_set(&new->usage, 1);
+>         set_cred_subscribers(new, 0);
+>         get_uid(new->user);
+>         get_user_ns(new->user_ns);
+> @@ -736,7 +736,7 @@ static void dump_invalid_creds(const struct cred *cred, const char *label,
+>         printk(KERN_ERR "CRED: ->magic=%x, put_addr=%p\n",
+>                cred->magic, cred->put_addr);
+>         printk(KERN_ERR "CRED: ->usage=%d, subscr=%d\n",
+> -              atomic_read(&cred->usage),
+> +              refcount_read(&cred->usage),
+>                read_cred_subscribers(cred));
+>         printk(KERN_ERR "CRED: ->*uid = { %d,%d,%d,%d }\n",
+>                 from_kuid_munged(&init_user_ns, cred->uid),
+> @@ -810,7 +810,7 @@ void validate_creds_for_do_exit(struct task_struct *tsk)
+>  {
+>         kdebug("validate_creds_for_do_exit(%p,%p{%d,%d})",
+>                tsk->real_cred, tsk->cred,
+> -              atomic_read(&tsk->cred->usage),
+> +              refcount_read(&tsk->cred->usage),
+>                read_cred_subscribers(tsk->cred));
+>
+>         __validate_process_creds(tsk, __FILE__, __LINE__);
+> --
+> 2.7.4
+>
 
 
-Oh well, here's the incremental patch:
 
---- a/lib/dma-debug.c~dma-debug-fix-incorrect-pfn-calculation-v4
-+++ a/lib/dma-debug.c
-@@ -1495,15 +1495,22 @@ void debug_dma_alloc_coherent(struct dev
- 	if (!entry)
- 		return;
- 
-+	/* handle vmalloc and linear addresses */
-+	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
-+		return;
-+
- 	entry->type      = dma_debug_coherent;
- 	entry->dev       = dev;
--	entry->pfn	 = is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
--						page_to_pfn(virt_to_page(virt));
- 	entry->offset	 = offset_in_page(virt);
- 	entry->size      = size;
- 	entry->dev_addr  = dma_addr;
- 	entry->direction = DMA_BIDIRECTIONAL;
- 
-+	if (is_vmalloc_addr(virt))
-+		entry->pfn = vmalloc_to_pfn(virt);
-+	else
-+		entry->pfn = page_to_pfn(virt_to_page(virt));
-+
- 	add_dma_entry(entry);
- }
- EXPORT_SYMBOL(debug_dma_alloc_coherent);
-@@ -1514,14 +1521,21 @@ void debug_dma_free_coherent(struct devi
- 	struct dma_debug_entry ref = {
- 		.type           = dma_debug_coherent,
- 		.dev            = dev,
--		.pfn		= is_vmalloc_addr(virt) ? vmalloc_to_pfn(virt) :
--						page_to_pfn(virt_to_page(virt)),
- 		.offset		= offset_in_page(virt),
- 		.dev_addr       = addr,
- 		.size           = size,
- 		.direction      = DMA_BIDIRECTIONAL,
- 	};
- 
-+	/* handle vmalloc and linear addresses */
-+	if (!is_vmalloc_addr(virt) && !virt_to_page(virt))
-+		return;
-+
-+	if (is_vmalloc_addr(virt))
-+		ref.pfn = vmalloc_to_pfn(virt);
-+	else
-+		ref.pfn = page_to_pfn(virt_to_page(virt));
-+
- 	if (unlikely(dma_debug_disabled()))
- 		return;
- 
-_
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
