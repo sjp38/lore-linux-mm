@@ -1,46 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 212E36B025F
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 13:37:01 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v2so3020995pfa.10
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 10:37:01 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF8686B0069
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 14:13:00 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id b6so3061649pff.18
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 11:13:00 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id j18si3109724pgn.474.2017.11.17.10.36.57
+        by mx.google.com with ESMTPS id n9si3200928pgc.688.2017.11.17.11.12.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Nov 2017 10:36:58 -0800 (PST)
-Date: Fri, 17 Nov 2017 10:36:49 -0800
-From: Christoph Hellwig <hch@infradead.org>
-Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
-Message-ID: <20171117183649.GA14157@infradead.org>
-References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171117173521.GA21692@infradead.org>
- <CALvZod7Mrs8=5A2j=x96vaUcjCMSxVYi6RVLaKF23UENcAPLvw@mail.gmail.com>
+        Fri, 17 Nov 2017 11:12:59 -0800 (PST)
+Date: Fri, 17 Nov 2017 11:12:51 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC PATCH 1/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171117191251.GA1601@bombadil.infradead.org>
+References: <20171116101900.13621-1-mhocko@kernel.org>
+ <20171116101900.13621-2-mhocko@kernel.org>
+ <CAGXu5jKssQCcYcZujvQeFy5LTzhXSW=f-a0riB=4+caT1i38BQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod7Mrs8=5A2j=x96vaUcjCMSxVYi6RVLaKF23UENcAPLvw@mail.gmail.com>
+In-Reply-To: <CAGXu5jKssQCcYcZujvQeFy5LTzhXSW=f-a0riB=4+caT1i38BQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Christoph Hellwig <hch@infradead.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Greg Thelen <gthelen@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Fri, Nov 17, 2017 at 09:41:46AM -0800, Shakeel Butt wrote:
-> On Fri, Nov 17, 2017 at 9:35 AM, Christoph Hellwig <hch@infradead.org> wrote:
-> > On Tue, Nov 14, 2017 at 06:37:42AM +0900, Tetsuo Handa wrote:
-> >> Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
-> >> using one RCU section. But using atomic_inc()/atomic_dec() for each
-> >> do_shrink_slab() call will not impact so much.
+On Thu, Nov 16, 2017 at 04:27:36PM -0800, Kees Cook wrote:
+> On Thu, Nov 16, 2017 at 2:18 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > >
-> > But you could use SRCU..
+> > MAP_FIXED is used quite often to enforce mapping at the particular
+> > range. The main problem of this flag is, however, that it is inherently
+> > dangerous because it unmaps existing mappings covered by the requested
+> > range. This can cause silent memory corruptions. Some of them even with
+> > serious security implications. While the current semantic might be
+> > really desiderable in many cases there are others which would want to
+> > enforce the given range but rather see a failure than a silent memory
+> > corruption on a clashing range. Please note that there is no guarantee
+> > that a given range is obeyed by the mmap even when it is free - e.g.
+> > arch specific code is allowed to apply an alignment.
+> >
+> > Introduce a new MAP_FIXED_SAFE flag for mmap to achieve this behavior.
+> > It has the same semantic as MAP_FIXED wrt. the given address request
+> > with a single exception that it fails with ENOMEM if the requested
+> > address is already covered by an existing mapping. We still do rely on
+> > get_unmaped_area to handle all the arch specific MAP_FIXED treatment and
+> > check for a conflicting vma after it returns.
 > 
-> I looked into that but was advised to not go through that route due to
-> SRCU behind the CONFIG_SRCU. However now I see the precedence of
-> "#ifdef CONFIG_SRCU" in drivers/base/core.c and I think if we can take
-> that route if even after Minchan's patch the issue persists.
+> I like this much more than special-casing the ELF loader. It is an
+> unusual property that MAP_FIXED does _two_ things, so I like having
+> this split out.
+> 
+> Bikeshedding: maybe call this MAP_NO_CLOBBER? It's a modifier to
+> MAP_FIXED, really...
 
-To be honest, I'd rather always require RCU then have core kernel
-code reinvent it.
+Way back when, I proposed a new flag called MAP_FIXED_WEAK.  I was
+dissuaded from it when userspace people said it was just as easy for
+them to provide the address hint, then run fixups on their data if the
+address they were assigned wasn't the one they asked for.
+
+The real problem is that MAP_FIXED should have been called MAP_FORCE.
+
+So ... do we really have users that want failure instead of success at
+a different address?  And if so, is it really a hardship for them to
+make a call to unmap on success-at-the-wrong-address?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
