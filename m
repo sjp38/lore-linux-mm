@@ -1,138 +1,186 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 77AC9280255
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 21:29:36 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id n134so5085258itg.3
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 18:29:36 -0800 (PST)
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 627366B0253
+	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 23:45:05 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id s28so2030982uag.6
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 20:45:05 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f75sor2305770ioe.156.2017.11.17.18.29.34
+        by mx.google.com with SMTPS id 45sor2052392uar.243.2017.11.17.20.45.03
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 17 Nov 2017 18:29:34 -0800 (PST)
+        Fri, 17 Nov 2017 20:45:04 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CALvZod6=-dxhaeQMEBwJ5o6iyVhvQ_jdNck-yWncFVRvkb1YXQ@mail.gmail.com>
-References: <1510888199-5886-1-git-send-email-laoar.shao@gmail.com>
- <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
- <20171117155509.GA920@castle> <CALOAHbAWvYKve4eB9+zissgi24cNKeFih1=avfSi_dH5upQVOg@mail.gmail.com>
- <20171117164531.GA23745@castle> <CALOAHbABr5gVL0f5LX5M2NstZ=FqzaFxrohu8B97uhrSo6Jp2Q@mail.gmail.com>
- <CALvZod77t3FWgO+rNLHDGU9TZUH-_3qBpzt86BC6R8JJK2ZZ=g@mail.gmail.com>
- <CALOAHbB6+uGNm_RdMiLNCzu+NwZLYcqYJmAZ0FcE8HZts8=JdA@mail.gmail.com> <CALvZod6=-dxhaeQMEBwJ5o6iyVhvQ_jdNck-yWncFVRvkb1YXQ@mail.gmail.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sat, 18 Nov 2017 10:29:33 +0800
-Message-ID: <CALOAHbBtb8T1QiADvcs5cgKTgAU_Ktc8obHyt+FViGBpXaO4oA@mail.gmail.com>
-Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
+References: <20171101053244.5218-1-slandden@gmail.com> <20171103063544.13383-1-slandden@gmail.com>
+ <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
+From: Shawn Landden <slandden@gmail.com>
+Date: Fri, 17 Nov 2017 20:45:03 -0800
+Message-ID: <CA+49okqZ8CME0EN1xS_cCTc5Q-fGRreg0makhzNNuRpGs3mjfw@mail.gmail.com>
+Subject: Re: [RFC v2] prctl: prctl(PR_SET_IDLE, PR_IDLE_MODE_KILLME), for
+ stateless idle loops
+Content-Type: multipart/alternative; boundary="f403045f90d041d9e7055e3a84a0"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@suse.com>, Tejun Heo <tj@kernel.org>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-2017-11-18 1:49 GMT+08:00 Shakeel Butt <shakeelb@google.com>:
-> On Fri, Nov 17, 2017 at 9:41 AM, Yafang Shao <laoar.shao@gmail.com> wrote:
->> 2017-11-18 1:35 GMT+08:00 Shakeel Butt <shakeelb@google.com>:
->>> On Fri, Nov 17, 2017 at 9:09 AM, Yafang Shao <laoar.shao@gmail.com> wrote:
->>>> 2017-11-18 0:45 GMT+08:00 Roman Gushchin <guro@fb.com>:
->>>>> On Sat, Nov 18, 2017 at 12:20:40AM +0800, Yafang Shao wrote:
->>>>>> 2017-11-17 23:55 GMT+08:00 Roman Gushchin <guro@fb.com>:
->>>>>> > On Thu, Nov 16, 2017 at 08:43:17PM -0800, Shakeel Butt wrote:
->>>>>> >> On Thu, Nov 16, 2017 at 7:09 PM, Yafang Shao <laoar.shao@gmail.com> wrote:
->>>>>> >> > Currently the default tmpfs size is totalram_pages / 2 if mount tmpfs
->>>>>> >> > without "-o size=XXX".
->>>>>> >> > When we mount tmpfs in a container(i.e. docker), it is also
->>>>>> >> > totalram_pages / 2 regardless of the memory limit on this container.
->>>>>> >> > That may easily cause OOM if tmpfs occupied too much memory when swap is
->>>>>> >> > off.
->>>>>> >> > So when we mount tmpfs in a memcg, the default size should be limited by
->>>>>> >> > the memcg memory.limit.
->>>>>> >> >
->>>>>> >>
->>>>>> >> The pages of the tmpfs files are charged to the memcg of allocators
->>>>>> >> which can be in memcg different from the memcg in which the mount
->>>>>> >> operation happened. So, tying the size of a tmpfs mount where it was
->>>>>> >> mounted does not make much sense.
->>>>>> >
->>>>>> > Also, memory limit is adjustable,
->>>>>>
->>>>>> Yes. But that's irrelevant.
->>>>>>
->>>>>> > and using a particular limit value
->>>>>> > at a moment of tmpfs mounting doesn't provide any warranties further.
->>>>>> >
->>>>>>
->>>>>> I can not agree.
->>>>>> The default size of tmpfs is totalram / 2, the reason we do this is to
->>>>>> provide any warranties further IMHO.
->>>>>>
->>>>>> > Is there a reason why the userspace app which is mounting tmpfs can't
->>>>>> > set the size based on memory.limit?
->>>>>>
->>>>>> That's because of misuse.
->>>>>> The application should set size with "-o size=" when mount tmpfs, but
->>>>>> not all applications do this.
->>>>>> As we can't guarantee that all applications will do this, we should
->>>>>> give them a proper default value.
->>>>>
->>>>> The value you're suggesting is proper only if an app which is mounting
->>>>> tmpfs resides in the same memcg
->>>>
->>>> Yes.
->>>> But maybe that's mostly used today?
->>>>
->>>>> and the memory limit will not be adjusted
->>>>> significantly later.
->>>>
->>>> There's a similar issue for physical memory adjusted by memory hotplug.
->>>> So what will happen if the physical memory adjusted significantly later ?
->>>>
->>>>> Otherwise you can end up with a default value, which
->>>>> is worse than totalram/2, for instance, if tmpfs is mounted by some helper,
->>>>> which is located in a separate and very limited memcg.
->>>>
->>>> That may happen.
->>>> Maybe we could improve the solution to handle this issue ?
->>>>
->>>>
->>>
->>> Let's backtrack, what is the actual concern? If a user/process inside
->>> a memcg is allocating pages for a file on a tmpfs mounted without size
->>> parameter, you want the OS to return ENOSPC (if allocation is done by
->>> write syscall) earlier to not cause the user/process's memcg to OOM.
->>> Is that right?
->>>
->>
->> Right.
->>
->>> First, there is no guarantee to not cause OOM by restricting tmpfs to
->>> half the size of memcg limit due to the presence of other memory
->>> charged to that memcg. The memcg can OOM even before the tmpfs hits
->>> its size.
->>>
->>
->> Just guarantee that the OOM not caused by misuse of tmpfs.
->>
->>> Second, the users who really care to avoid such scenario should just
->>> set the size parameter of tmpfs.
->>
->> Of couse that is the best way.
->> But we can not ensue all applications will do it.
->> That's why I introduce a proper defalut value for them.
->>
+--f403045f90d041d9e7055e3a84a0
+Content-Type: text/plain; charset="UTF-8"
+
+On Fri, Nov 3, 2017 at 2:09 AM, Michal Hocko <mhocko@kernel.org> wrote:
+
+> On Thu 02-11-17 23:35:44, Shawn Landden wrote:
+> > It is common for services to be stateless around their main event loop.
+> > If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it
+> > signals to the kernel that epoll_wait() and friends may not complete,
+> > and the kernel may send SIGKILL if resources get tight.
+> >
+> > See my systemd patch: https://github.com/shawnl/systemd/tree/prctl
+> >
+> > Android uses this memory model for all programs, and having it in the
+> > kernel will enable integration with the page cache (not in this
+> > series).
+> >
+> > 16 bytes per process is kinda spendy, but I want to keep
+> > lru behavior, which mem_score_adj does not allow. When a supervisor,
+> > like Android's user input is keeping track this can be done in
+> user-space.
+> > It could be pulled out of task_struct if an cross-indexing additional
+> > red-black tree is added to support pid-based lookup.
 >
-> I think we disagree on the how to get proper default value. Unless you
-> can restrict that all the memory allocated for a tmpfs mount will be
-> charged to a specific memcg, you should not just pick limit of the
-> memcg of the process mounting the tmpfs to set the default of tmpfs
-> mount. If you can restrict tmpfs charging to a specific memcg then the
-> limit of that memcg should be used to set the default of the tmpfs
-> mount. However this feature is not present in the upstream kernel at
-> the moment (We have this feature in our local kernel and I am planning
-> to upstream that).
+> This is still an abuse and the patch is wrong. We really do have an API
+> to use I fail to see why you do not use it.
+>
+When I looked at wait_queue_head_t it was 20 byes.
 
-That will be fine if you could upstream this feature ASAP :)
+>
+> [...]
+> > @@ -1018,6 +1060,24 @@ bool out_of_memory(struct oom_control *oc)
+> >                       return true;
+> >       }
+> >
+> > +     /*
+> > +      * Check death row for current memcg or global.
+> > +      */
+> > +     l = oom_target_get_queue(current);
+> > +     if (!list_empty(l)) {
+> > +             struct task_struct *ts = list_first_entry(l,
+> > +                             struct task_struct, se.oom_target_queue);
+> > +
+> > +             pr_debug("Killing pid %u from EPOLL_KILLME death row.",
+> > +                      ts->pid);
+> > +
+> > +             /* We use SIGKILL instead of the oom killer
+> > +              * so as to cleanly interrupt ep_poll()
+> > +              */
+> > +             send_sig(SIGKILL, ts, 1);
+> > +             return true;
+> > +     }
+>
+> Still not NUMA aware and completely backwards. If this is a memcg OOM
+> then it is _memcg_ to evaluate not the current. The oom might happen up
+> the hierarchy due to hard limit.
+>
+> But still, you should be very clear _why_ the existing oom tuning is not
+> appropropriate and we can think of a way to hanle it better but cramming
+> the oom selection this way is simply not acceptable.
+> --
+> Michal Hocko
+> SUSE Labs
+>
 
+--f403045f90d041d9e7055e3a84a0
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Thanks
-Yafang
+<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On F=
+ri, Nov 3, 2017 at 2:09 AM, Michal Hocko <span dir=3D"ltr">&lt;<a href=3D"m=
+ailto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt;</span>=
+ wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bor=
+der-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Thu 02-11-17 =
+23:35:44, Shawn Landden wrote:<br>
+&gt; It is common for services to be stateless around their main event loop=
+.<br>
+&gt; If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it<br>
+&gt; signals to the kernel that epoll_wait() and friends may not complete,<=
+br>
+&gt; and the kernel may send SIGKILL if resources get tight.<br>
+&gt;<br>
+&gt; See my systemd patch: <a href=3D"https://github.com/shawnl/systemd/tre=
+e/prctl" rel=3D"noreferrer" target=3D"_blank">https://github.com/shawnl/<wb=
+r>systemd/tree/prctl</a><br>
+&gt;<br>
+&gt; Android uses this memory model for all programs, and having it in the<=
+br>
+&gt; kernel will enable integration with the page cache (not in this<br>
+&gt; series).<br>
+&gt;<br>
+&gt; 16 bytes per process is kinda spendy, but I want to keep<br>
+&gt; lru behavior, which mem_score_adj does not allow. When a supervisor,<b=
+r>
+&gt; like Android&#39;s user input is keeping track this can be done in use=
+r-space.<br>
+&gt; It could be pulled out of task_struct if an cross-indexing additional<=
+br>
+&gt; red-black tree is added to support pid-based lookup.<br>
+<br>
+</span>This is still an abuse and the patch is wrong. We really do have an =
+API<br>
+to use I fail to see why you do not use it.<br></blockquote><div>When I loo=
+ked at wait_queue_head_t it was 20 byes.<br></div><blockquote class=3D"gmai=
+l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
+:1ex">
+<br>
+[...]<br>
+<span class=3D"">&gt; @@ -1018,6 +1060,24 @@ bool out_of_memory(struct oom_=
+control *oc)<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 =C2=A0return true;<br>
+&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0}<br>
+&gt;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0/*<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 * Check death row for current memcg or global.<b=
+r>
+&gt; +=C2=A0 =C2=A0 =C2=A0 */<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0l =3D oom_target_get_queue(current);<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0if (!list_empty(l)) {<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct task_struct *t=
+s =3D list_first_entry(l,<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct task_struct, se.oom_target_queue)=
+;<br>
+&gt; +<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pr_debug(&quot;Killin=
+g pid %u from EPOLL_KILLME death row.&quot;,<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 ts-&gt;pid);<br>
+&gt; +<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* We use SIGKILL ins=
+tead of the oom killer<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so as to cleanly i=
+nterrupt ep_poll()<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0send_sig(SIGKILL, ts,=
+ 1);<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return true;<br>
+&gt; +=C2=A0 =C2=A0 =C2=A0}<br>
+<br>
+</span>Still not NUMA aware and completely backwards. If this is a memcg OO=
+M<br>
+then it is _memcg_ to evaluate not the current. The oom might happen up<br>
+the hierarchy due to hard limit.<br>
+<br>
+But still, you should be very clear _why_ the existing oom tuning is not<br=
+>
+appropropriate and we can think of a way to hanle it better but cramming<br=
+>
+the oom selection this way is simply not acceptable.<br>
+<span class=3D"HOEnZb"><font color=3D"#888888">--<br>
+Michal Hocko<br>
+SUSE Labs<br>
+</font></span></blockquote></div><br></div></div>
+
+--f403045f90d041d9e7055e3a84a0--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
