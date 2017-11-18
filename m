@@ -1,186 +1,153 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 627366B0253
-	for <linux-mm@kvack.org>; Fri, 17 Nov 2017 23:45:05 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id s28so2030982uag.6
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 20:45:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 45sor2052392uar.243.2017.11.17.20.45.03
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D29F6B025F
+	for <linux-mm@kvack.org>; Sat, 18 Nov 2017 00:22:34 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 26so4028658pfs.22
+        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 21:22:34 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id k189si3921045pgc.133.2017.11.17.21.22.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 17 Nov 2017 20:45:04 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 17 Nov 2017 21:22:33 -0800 (PST)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [virtio-dev] Re: [PATCH v17 6/6] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_VQ
+Date: Sat, 18 Nov 2017 05:22:28 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
+ <1509696786-1597-7-git-send-email-wei.w.wang@intel.com>
+ <20171115220743-mutt-send-email-mst@kernel.org> <5A0D923C.4020807@intel.com>
+ <5A0EC967.5090407@intel.com> <20171117144253-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171117144253-mutt-send-email-mst@kernel.org>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-In-Reply-To: <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
-References: <20171101053244.5218-1-slandden@gmail.com> <20171103063544.13383-1-slandden@gmail.com>
- <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
-From: Shawn Landden <slandden@gmail.com>
-Date: Fri, 17 Nov 2017 20:45:03 -0800
-Message-ID: <CA+49okqZ8CME0EN1xS_cCTc5Q-fGRreg0makhzNNuRpGs3mjfw@mail.gmail.com>
-Subject: Re: [RFC v2] prctl: prctl(PR_SET_IDLE, PR_IDLE_MODE_KILLME), for
- stateless idle loops
-Content-Type: multipart/alternative; boundary="f403045f90d041d9e7055e3a84a0"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
---f403045f90d041d9e7055e3a84a0
-Content-Type: text/plain; charset="UTF-8"
-
-On Fri, Nov 3, 2017 at 2:09 AM, Michal Hocko <mhocko@kernel.org> wrote:
-
-> On Thu 02-11-17 23:35:44, Shawn Landden wrote:
-> > It is common for services to be stateless around their main event loop.
-> > If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it
-> > signals to the kernel that epoll_wait() and friends may not complete,
-> > and the kernel may send SIGKILL if resources get tight.
+On Friday, November 17, 2017 8:45 PM, Michael S. Tsirkin wrote:
+> On Fri, Nov 17, 2017 at 07:35:03PM +0800, Wei Wang wrote:
+> > On 11/16/2017 09:27 PM, Wei Wang wrote:
+> > > On 11/16/2017 04:32 AM, Michael S. Tsirkin wrote:
+> > > > On Fri, Nov 03, 2017 at 04:13:06PM +0800, Wei Wang wrote:
+> > > > > Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_VQ feature
+> > > > > indicates the support of reporting hints of guest free pages to
+> > > > > the host via virtio-balloon. The host requests the guest to
+> > > > > report the free pages by sending commands via the virtio-balloon
+> configuration registers.
+> > > > >
+> > > > > When the guest starts to report, the first element added to the
+> > > > > free page vq is a sequence id of the start reporting command.
+> > > > > The id is given by the host, and it indicates whether the
+> > > > > following free pages correspond to the command. For example, the
+> > > > > host may stop the report and start again with a new command id.
+> > > > > The obsolete pages for the previous start command can be
+> > > > > detected by the id dismatching on the host. The id is added to
+> > > > > the vq using an output buffer, and the free pages are added to
+> > > > > the vq using input buffer.
+> > > > >
+> > > > > Here are some explainations about the added configuration registe=
+rs:
+> > > > > - host2guest_cmd: a register used by the host to send commands
+> > > > > to the guest.
+> > > > > - guest2host_cmd: written by the guest to ACK to the host about
+> > > > > the commands that have been received. The host will clear the
+> > > > > corresponding bits on the host2guest_cmd register. The guest
+> > > > > also uses this register to send commands to the host (e.g. when f=
+inish
+> free page reporting).
+> > > > > - free_page_cmd_id: the sequence id of the free page report
+> > > > > command given by the host.
+> > > > >
+> > > > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > > > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > > > > Cc: Michael S. Tsirkin <mst@redhat.com>
+> > > > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > > > ---
+> > > > >
+> > > > > +
+> > > > > +static void report_free_page(struct work_struct *work) {
+> > > > > +    struct virtio_balloon *vb;
+> > > > > +
+> > > > > +    vb =3D container_of(work, struct virtio_balloon,
+> > > > > report_free_page_work);
+> > > > > +    report_free_page_cmd_id(vb);
+> > > > > +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+> > > > > +    /*
+> > > > > +     * The last few free page blocks that were added may not rea=
+ch the
+> > > > > +     * batch size, but need a kick to notify the device to
+> > > > > handle them.
+> > > > > +     */
+> > > > > +    virtqueue_kick(vb->free_page_vq);
+> > > > > +    report_free_page_end(vb);
+> > > > > +}
+> > > > > +
+> > > > I think there's an issue here: if pages are poisoned and
+> > > > hypervisor subsequently drops them, testing them after allocation
+> > > > will trigger a false positive.
+> > > >
+> > > > The specific configuration:
+> > > >
+> > > > PAGE_POISONING on
+> > > > PAGE_POISONING_NO_SANITY off
+> > > > PAGE_POISONING_ZERO off
+> > > >
+> > > >
+> > > > Solutions:
+> > > > 1. disable the feature in that configuration
+> > > >     suggested as an initial step
+> > >
+> > > Thanks for the finding.
+> > > Similar to this option: I'm thinking could we make
+> > > walk_free_mem_block() simply return if that option is on?
+> > > That is, at the beginning of the function:
+> > >     if (!page_poisoning_enabled())
+> > >                 return;
+> > >
 > >
-> > See my systemd patch: https://github.com/shawnl/systemd/tree/prctl
 > >
-> > Android uses this memory model for all programs, and having it in the
-> > kernel will enable integration with the page cache (not in this
-> > series).
+> > Thought about it more, I think it would be better to put this logic to
+> > virtio_balloon:
 > >
-> > 16 bytes per process is kinda spendy, but I want to keep
-> > lru behavior, which mem_score_adj does not allow. When a supervisor,
-> > like Android's user input is keeping track this can be done in
-> user-space.
-> > It could be pulled out of task_struct if an cross-indexing additional
-> > red-black tree is added to support pid-based lookup.
->
-> This is still an abuse and the patch is wrong. We really do have an API
-> to use I fail to see why you do not use it.
->
-When I looked at wait_queue_head_t it was 20 byes.
-
->
-> [...]
-> > @@ -1018,6 +1060,24 @@ bool out_of_memory(struct oom_control *oc)
-> >                       return true;
-> >       }
+> >         send_free_page_cmd_id(vb, &vb->start_cmd_id);
+> >         if (page_poisoning_enabled() &&
+> >             !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+> >                 walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pa=
+ges);
+> >         send_free_page_cmd_id(vb, &vb->stop_cmd_id);
 > >
-> > +     /*
-> > +      * Check death row for current memcg or global.
-> > +      */
-> > +     l = oom_target_get_queue(current);
-> > +     if (!list_empty(l)) {
-> > +             struct task_struct *ts = list_first_entry(l,
-> > +                             struct task_struct, se.oom_target_queue);
-> > +
-> > +             pr_debug("Killing pid %u from EPOLL_KILLME death row.",
-> > +                      ts->pid);
-> > +
-> > +             /* We use SIGKILL instead of the oom killer
-> > +              * so as to cleanly interrupt ep_poll()
-> > +              */
-> > +             send_sig(SIGKILL, ts, 1);
-> > +             return true;
-> > +     }
->
-> Still not NUMA aware and completely backwards. If this is a memcg OOM
-> then it is _memcg_ to evaluate not the current. The oom might happen up
-> the hierarchy due to hard limit.
->
-> But still, you should be very clear _why_ the existing oom tuning is not
-> appropropriate and we can think of a way to hanle it better but cramming
-> the oom selection this way is simply not acceptable.
-> --
-> Michal Hocko
-> SUSE Labs
->
+> >
+> > walk_free_mem_block() should be a more generic API, and this potential
+> > page poisoning issue is specific to live migration which is only one
+> > use case of this function, so I think it is better to handle it in the
+> > special use case itself.
+> >
+> > Best,
+> > Wei
+> >
+>=20
+> It's a quick work-around but it doesn't make me very happy.
+>=20
+> AFAIK e.g. RHEL has a debug kernel with poisoning enabled.
+> If this never uses free page hinting at all, it will be much less useful =
+for
+> debugging guests.
+>=20
 
---f403045f90d041d9e7055e3a84a0
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I understand your concern. I think people who use debugging guests don't re=
+gard performance as the first priority, and most vendors usually wouldn't u=
+se debugging guests for their products.
 
-<div dir=3D"ltr"><div class=3D"gmail_extra"><div class=3D"gmail_quote">On F=
-ri, Nov 3, 2017 at 2:09 AM, Michal Hocko <span dir=3D"ltr">&lt;<a href=3D"m=
-ailto:mhocko@kernel.org" target=3D"_blank">mhocko@kernel.org</a>&gt;</span>=
- wrote:<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bor=
-der-left:1px #ccc solid;padding-left:1ex"><span class=3D"">On Thu 02-11-17 =
-23:35:44, Shawn Landden wrote:<br>
-&gt; It is common for services to be stateless around their main event loop=
-.<br>
-&gt; If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it<br>
-&gt; signals to the kernel that epoll_wait() and friends may not complete,<=
-br>
-&gt; and the kernel may send SIGKILL if resources get tight.<br>
-&gt;<br>
-&gt; See my systemd patch: <a href=3D"https://github.com/shawnl/systemd/tre=
-e/prctl" rel=3D"noreferrer" target=3D"_blank">https://github.com/shawnl/<wb=
-r>systemd/tree/prctl</a><br>
-&gt;<br>
-&gt; Android uses this memory model for all programs, and having it in the<=
-br>
-&gt; kernel will enable integration with the page cache (not in this<br>
-&gt; series).<br>
-&gt;<br>
-&gt; 16 bytes per process is kinda spendy, but I want to keep<br>
-&gt; lru behavior, which mem_score_adj does not allow. When a supervisor,<b=
-r>
-&gt; like Android&#39;s user input is keeping track this can be done in use=
-r-space.<br>
-&gt; It could be pulled out of task_struct if an cross-indexing additional<=
-br>
-&gt; red-black tree is added to support pid-based lookup.<br>
-<br>
-</span>This is still an abuse and the patch is wrong. We really do have an =
-API<br>
-to use I fail to see why you do not use it.<br></blockquote><div>When I loo=
-ked at wait_queue_head_t it was 20 byes.<br></div><blockquote class=3D"gmai=
-l_quote" style=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left=
-:1ex">
-<br>
-[...]<br>
-<span class=3D"">&gt; @@ -1018,6 +1060,24 @@ bool out_of_memory(struct oom_=
-control *oc)<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =
-=C2=A0 =C2=A0return true;<br>
-&gt;=C2=A0 =C2=A0 =C2=A0 =C2=A0}<br>
-&gt;<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0/*<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 * Check death row for current memcg or global.<b=
-r>
-&gt; +=C2=A0 =C2=A0 =C2=A0 */<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0l =3D oom_target_get_queue(current);<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0if (!list_empty(l)) {<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct task_struct *t=
-s =3D list_first_entry(l,<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0struct task_struct, se.oom_target_queue)=
-;<br>
-&gt; +<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0pr_debug(&quot;Killin=
-g pid %u from EPOLL_KILLME death row.&quot;,<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0 ts-&gt;pid);<br>
-&gt; +<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0/* We use SIGKILL ins=
-tead of the oom killer<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 * so as to cleanly i=
-nterrupt ep_poll()<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 */<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0send_sig(SIGKILL, ts,=
- 1);<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0return true;<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0}<br>
-<br>
-</span>Still not NUMA aware and completely backwards. If this is a memcg OO=
-M<br>
-then it is _memcg_ to evaluate not the current. The oom might happen up<br>
-the hierarchy due to hard limit.<br>
-<br>
-But still, you should be very clear _why_ the existing oom tuning is not<br=
->
-appropropriate and we can think of a way to hanle it better but cramming<br=
->
-the oom selection this way is simply not acceptable.<br>
-<span class=3D"HOEnZb"><font color=3D"#888888">--<br>
-Michal Hocko<br>
-SUSE Labs<br>
-</font></span></blockquote></div><br></div></div>
+How about taking it as the initial solution? We can exploit more solutions =
+after this series is done.
 
---f403045f90d041d9e7055e3a84a0--
+Best,
+Wei
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
