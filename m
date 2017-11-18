@@ -1,152 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D29F6B025F
-	for <linux-mm@kvack.org>; Sat, 18 Nov 2017 00:22:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 26so4028658pfs.22
-        for <linux-mm@kvack.org>; Fri, 17 Nov 2017 21:22:34 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id k189si3921045pgc.133.2017.11.17.21.22.32
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 34D256B0261
+	for <linux-mm@kvack.org>; Sat, 18 Nov 2017 05:46:02 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id w205so2268197oig.7
+        for <linux-mm@kvack.org>; Sat, 18 Nov 2017 02:46:02 -0800 (PST)
+Received: from szxga03-in.huawei.com (szxga03-in.huawei.com. [45.249.212.189])
+        by mx.google.com with ESMTPS id t62si1973969oij.133.2017.11.18.02.45.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 17 Nov 2017 21:22:33 -0800 (PST)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [virtio-dev] Re: [PATCH v17 6/6] virtio-balloon:
- VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Date: Sat, 18 Nov 2017 05:22:28 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
- <1509696786-1597-7-git-send-email-wei.w.wang@intel.com>
- <20171115220743-mutt-send-email-mst@kernel.org> <5A0D923C.4020807@intel.com>
- <5A0EC967.5090407@intel.com> <20171117144253-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20171117144253-mutt-send-email-mst@kernel.org>
-Content-Language: en-US
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 18 Nov 2017 02:46:00 -0800 (PST)
+From: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+Date: Sat, 18 Nov 2017 10:40:08 +0000
+Message-ID: <B8AC3E80E903784988AB3003E3E97330C00638D4@dggemm510-mbs.china.huawei.com>
+References: <8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
+ <87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
+ <bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
+ <87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
+ <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063816@dggemm510-mbs.china.huawei.com>
+ <20171117073556.GB28855@cbox>
+In-Reply-To: <20171117073556.GB28855@cbox>
+Content-Language: zh-CN
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
+To: Christoffer Dall <cdall@linaro.org>
+Cc: Marc Zyngier <marc.zyngier@arm.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
 
-On Friday, November 17, 2017 8:45 PM, Michael S. Tsirkin wrote:
-> On Fri, Nov 17, 2017 at 07:35:03PM +0800, Wei Wang wrote:
-> > On 11/16/2017 09:27 PM, Wei Wang wrote:
-> > > On 11/16/2017 04:32 AM, Michael S. Tsirkin wrote:
-> > > > On Fri, Nov 03, 2017 at 04:13:06PM +0800, Wei Wang wrote:
-> > > > > Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_VQ feature
-> > > > > indicates the support of reporting hints of guest free pages to
-> > > > > the host via virtio-balloon. The host requests the guest to
-> > > > > report the free pages by sending commands via the virtio-balloon
-> configuration registers.
-> > > > >
-> > > > > When the guest starts to report, the first element added to the
-> > > > > free page vq is a sequence id of the start reporting command.
-> > > > > The id is given by the host, and it indicates whether the
-> > > > > following free pages correspond to the command. For example, the
-> > > > > host may stop the report and start again with a new command id.
-> > > > > The obsolete pages for the previous start command can be
-> > > > > detected by the id dismatching on the host. The id is added to
-> > > > > the vq using an output buffer, and the free pages are added to
-> > > > > the vq using input buffer.
-> > > > >
-> > > > > Here are some explainations about the added configuration registe=
-rs:
-> > > > > - host2guest_cmd: a register used by the host to send commands
-> > > > > to the guest.
-> > > > > - guest2host_cmd: written by the guest to ACK to the host about
-> > > > > the commands that have been received. The host will clear the
-> > > > > corresponding bits on the host2guest_cmd register. The guest
-> > > > > also uses this register to send commands to the host (e.g. when f=
-inish
-> free page reporting).
-> > > > > - free_page_cmd_id: the sequence id of the free page report
-> > > > > command given by the host.
-> > > > >
-> > > > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > > > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > > > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > > > ---
-> > > > >
-> > > > > +
-> > > > > +static void report_free_page(struct work_struct *work) {
-> > > > > +    struct virtio_balloon *vb;
-> > > > > +
-> > > > > +    vb =3D container_of(work, struct virtio_balloon,
-> > > > > report_free_page_work);
-> > > > > +    report_free_page_cmd_id(vb);
-> > > > > +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> > > > > +    /*
-> > > > > +     * The last few free page blocks that were added may not rea=
-ch the
-> > > > > +     * batch size, but need a kick to notify the device to
-> > > > > handle them.
-> > > > > +     */
-> > > > > +    virtqueue_kick(vb->free_page_vq);
-> > > > > +    report_free_page_end(vb);
-> > > > > +}
-> > > > > +
-> > > > I think there's an issue here: if pages are poisoned and
-> > > > hypervisor subsequently drops them, testing them after allocation
-> > > > will trigger a false positive.
-> > > >
-> > > > The specific configuration:
-> > > >
-> > > > PAGE_POISONING on
-> > > > PAGE_POISONING_NO_SANITY off
-> > > > PAGE_POISONING_ZERO off
-> > > >
-> > > >
-> > > > Solutions:
-> > > > 1. disable the feature in that configuration
-> > > >     suggested as an initial step
-> > >
-> > > Thanks for the finding.
-> > > Similar to this option: I'm thinking could we make
-> > > walk_free_mem_block() simply return if that option is on?
-> > > That is, at the beginning of the function:
-> > >     if (!page_poisoning_enabled())
-> > >                 return;
-> > >
-> >
-> >
-> > Thought about it more, I think it would be better to put this logic to
-> > virtio_balloon:
-> >
-> >         send_free_page_cmd_id(vb, &vb->start_cmd_id);
-> >         if (page_poisoning_enabled() &&
-> >             !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
-> >                 walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pa=
-ges);
-> >         send_free_page_cmd_id(vb, &vb->stop_cmd_id);
-> >
-> >
-> > walk_free_mem_block() should be a more generic API, and this potential
-> > page poisoning issue is specific to live migration which is only one
-> > use case of this function, so I think it is better to handle it in the
-> > special use case itself.
-> >
-> > Best,
-> > Wei
-> >
->=20
-> It's a quick work-around but it doesn't make me very happy.
->=20
-> AFAIK e.g. RHEL has a debug kernel with poisoning enabled.
-> If this never uses free page hinting at all, it will be much less useful =
-for
-> debugging guests.
->=20
+On Nov 17, 2017  15:36 Christoffer Dall [mailto:cdall@linaro.org]  wrote:
+>If your processor does support LPAE (like a Cortex-A15 for example),
+>then you have both the 32-bit accessors (MRC and MCR) and the 64-bit
+>accessors (MRRC, MCRR), and using the 32-bit accessor will simply access
+>the lower 32-bits of the 64-bit register.
+>
+>Hope this helps,
+>-Christoffer
 
-I understand your concern. I think people who use debugging guests don't re=
-gard performance as the first priority, and most vendors usually wouldn't u=
-se debugging guests for their products.
+If you know the higher 32-bits of the 64-bits cp15's register is not useful=
+ for your system,
+then you can use the 32-bit accessor to get or set the 64-bit cp15's regist=
+er.
+But if the higher 32-bits of the 64-bits cp15's register is useful for your=
+ system,
+then you can't use the 32-bit accessor to get or set the 64-bit cp15's regi=
+ster.
 
-How about taking it as the initial solution? We can exploit more solutions =
-after this series is done.
+TTBR0/TTBR1/PAR's higher 32-bits is useful for CPU supporting LPAE.
+The following description which comes from ARM(r) Architecture Reference
+Manual ARMv7-A and ARMv7-R edition tell us the reason:
 
-Best,
-Wei
+64-bit TTBR0 and TTBR1 format:
+...
+BADDR, bits[39:x] :=20
+Translation table base address, bits[39:x]. Defining the translation table =
+base address width on
+page B4-1698 describes how x is defined.
+The value of x determines the required alignment of the translation table, =
+which must be aligned to
+2x bytes.
+
+Abbott Liu: Because BADDR on CPU supporting LPAE may be bigger than max val=
+ue of 32-bit, so bits[39:32] may=20
+be valid value which is useful for the system.
+
+64-bit PAR format
+...
+PA[39:12]
+Physical Address. The physical address corresponding to the supplied virtua=
+l address. This field
+returns address bits[39:12].
+
+Abbott Liu: Because Physical Address on CPU supporting LPAE may be bigger t=
+han max value of 32-bit,=20
+so bits[39:32] may be valid value which is useful for the system.
+
+Conclusion: Don't use 32-bit accessor to get or set TTBR0/TTBR1/PAR on CPU =
+supporting LPAE,
+if you do that, your system may run error.
 
 
 --
