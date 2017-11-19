@@ -1,163 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 557276B0038
-	for <linux-mm@kvack.org>; Sun, 19 Nov 2017 10:12:31 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id o126so3446842oif.21
-        for <linux-mm@kvack.org>; Sun, 19 Nov 2017 07:12:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u65si2701914oia.21.2017.11.19.07.12.29
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BA846B0038
+	for <linux-mm@kvack.org>; Sun, 19 Nov 2017 15:36:40 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id j190so1030256qka.18
+        for <linux-mm@kvack.org>; Sun, 19 Nov 2017 12:36:40 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t82sor6090191qkl.91.2017.11.19.12.36.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 19 Nov 2017 07:12:29 -0800 (PST)
-Date: Sun, 19 Nov 2017 17:11:24 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [virtio-dev] Re: [PATCH v17 6/6] virtio-balloon:
- VIRTIO_BALLOON_F_FREE_PAGE_VQ
-Message-ID: <20171119170319-mutt-send-email-mst@kernel.org>
-References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
- <1509696786-1597-7-git-send-email-wei.w.wang@intel.com>
- <20171115220743-mutt-send-email-mst@kernel.org>
- <5A0D923C.4020807@intel.com>
- <5A0EC967.5090407@intel.com>
- <20171117144253-mutt-send-email-mst@kernel.org>
- <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
+        (Google Transport Security);
+        Sun, 19 Nov 2017 12:36:38 -0800 (PST)
+Date: Sun, 19 Nov 2017 15:36:36 -0500 (EST)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct pcpu_alloc_info
+ (crisv32 hang)
+In-Reply-To: <20171118182542.GA23928@roeck-us.net>
+Message-ID: <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr>
+References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr> <20171118182542.GA23928@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On Sat, Nov 18, 2017 at 05:22:28AM +0000, Wang, Wei W wrote:
-> On Friday, November 17, 2017 8:45 PM, Michael S. Tsirkin wrote:
-> > On Fri, Nov 17, 2017 at 07:35:03PM +0800, Wei Wang wrote:
-> > > On 11/16/2017 09:27 PM, Wei Wang wrote:
-> > > > On 11/16/2017 04:32 AM, Michael S. Tsirkin wrote:
-> > > > > On Fri, Nov 03, 2017 at 04:13:06PM +0800, Wei Wang wrote:
-> > > > > > Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_VQ feature
-> > > > > > indicates the support of reporting hints of guest free pages to
-> > > > > > the host via virtio-balloon. The host requests the guest to
-> > > > > > report the free pages by sending commands via the virtio-balloon
-> > configuration registers.
-> > > > > >
-> > > > > > When the guest starts to report, the first element added to the
-> > > > > > free page vq is a sequence id of the start reporting command.
-> > > > > > The id is given by the host, and it indicates whether the
-> > > > > > following free pages correspond to the command. For example, the
-> > > > > > host may stop the report and start again with a new command id.
-> > > > > > The obsolete pages for the previous start command can be
-> > > > > > detected by the id dismatching on the host. The id is added to
-> > > > > > the vq using an output buffer, and the free pages are added to
-> > > > > > the vq using input buffer.
-> > > > > >
-> > > > > > Here are some explainations about the added configuration registers:
-> > > > > > - host2guest_cmd: a register used by the host to send commands
-> > > > > > to the guest.
-> > > > > > - guest2host_cmd: written by the guest to ACK to the host about
-> > > > > > the commands that have been received. The host will clear the
-> > > > > > corresponding bits on the host2guest_cmd register. The guest
-> > > > > > also uses this register to send commands to the host (e.g. when finish
-> > free page reporting).
-> > > > > > - free_page_cmd_id: the sequence id of the free page report
-> > > > > > command given by the host.
-> > > > > >
-> > > > > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> > > > > > Signed-off-by: Liang Li <liang.z.li@intel.com>
-> > > > > > Cc: Michael S. Tsirkin <mst@redhat.com>
-> > > > > > Cc: Michal Hocko <mhocko@kernel.org>
-> > > > > > ---
-> > > > > >
-> > > > > > +
-> > > > > > +static void report_free_page(struct work_struct *work) {
-> > > > > > +    struct virtio_balloon *vb;
-> > > > > > +
-> > > > > > +    vb = container_of(work, struct virtio_balloon,
-> > > > > > report_free_page_work);
-> > > > > > +    report_free_page_cmd_id(vb);
-> > > > > > +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> > > > > > +    /*
-> > > > > > +     * The last few free page blocks that were added may not reach the
-> > > > > > +     * batch size, but need a kick to notify the device to
-> > > > > > handle them.
-> > > > > > +     */
-> > > > > > +    virtqueue_kick(vb->free_page_vq);
-> > > > > > +    report_free_page_end(vb);
-> > > > > > +}
-> > > > > > +
-> > > > > I think there's an issue here: if pages are poisoned and
-> > > > > hypervisor subsequently drops them, testing them after allocation
-> > > > > will trigger a false positive.
-> > > > >
-> > > > > The specific configuration:
-> > > > >
-> > > > > PAGE_POISONING on
-> > > > > PAGE_POISONING_NO_SANITY off
-> > > > > PAGE_POISONING_ZERO off
-> > > > >
-> > > > >
-> > > > > Solutions:
-> > > > > 1. disable the feature in that configuration
-> > > > >     suggested as an initial step
-> > > >
-> > > > Thanks for the finding.
-> > > > Similar to this option: I'm thinking could we make
-> > > > walk_free_mem_block() simply return if that option is on?
-> > > > That is, at the beginning of the function:
-> > > >     if (!page_poisoning_enabled())
-> > > >                 return;
-> > > >
-> > >
-> > >
-> > > Thought about it more, I think it would be better to put this logic to
-> > > virtio_balloon:
-> > >
-> > >         send_free_page_cmd_id(vb, &vb->start_cmd_id);
-> > >         if (page_poisoning_enabled() &&
-> > >             !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
-> > >                 walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> > >         send_free_page_cmd_id(vb, &vb->stop_cmd_id);
-> > >
-> > >
-> > > walk_free_mem_block() should be a more generic API, and this potential
-> > > page poisoning issue is specific to live migration which is only one
-> > > use case of this function, so I think it is better to handle it in the
-> > > special use case itself.
-> > >
-> > > Best,
-> > > Wei
-> > >
-> > 
-> > It's a quick work-around but it doesn't make me very happy.
-> > 
-> > AFAIK e.g. RHEL has a debug kernel with poisoning enabled.
-> > If this never uses free page hinting at all, it will be much less useful for
-> > debugging guests.
-> > 
+On Sat, 18 Nov 2017, Guenter Roeck wrote:
+
+> Hi,
 > 
-> I understand your concern. I think people who use debugging guests
-> don't regard performance as the first priority, and most vendors
-> usually wouldn't use debugging guests for their products.
-
-And when one of these crashes but only after migration what do you do?  A
-very common step is for Red Hat support is to ask people to try
-reproducing with a debug build.
-
-IOT being able to debug guests is important, if a debugging guest takes
-a significantly different path from non-debug one, we have a problem.
-
+> On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
+> > On Tue, 3 Oct 2017, Tejun Heo wrote:
+> > 
+> > > On Tue, Oct 03, 2017 at 04:57:44PM -0400, Nicolas Pitre wrote:
+> > > > This can be much smaller than a page on very small memory systems. 
+> > > > Always rounding up the size to a page is wasteful in that case, and 
+> > > > required alignment is smaller than the memblock default. Let's round 
+> > > > things up to a page size only when the actual size is >= page size, and 
+> > > > then it makes sense to page-align for a nicer allocation pattern.
+> > > 
+> > > Isn't that a temporary area which gets freed later during boot?
+> > 
+> > Hmmm...
+> > 
+> > It may get freed through 3 different paths where 2 of them are error 
+> > paths. What looks like a non-error path is in pcpu_embed_first_chunk() 
+> > called from setup_per_cpu_areas(). But there are two versions of 
+> > setup_per_cpu_areas(): one for SMP and one for !SMP. And the !SMP case 
+> > never calls pcpu_free_alloc_info() currently.
+> > 
+> > I'm not sure i understand that code fully, but maybe the following patch 
+> > could be a better fit:
+> > 
+> > ----- >8
+> > Subject: [PATCH] percpu: don't forget to free the temporary struct pcpu_alloc_info
+> > 
+> > Unlike the SMP case, the !SMP case does not free the memory for struct 
+> > pcpu_alloc_info allocated in setup_per_cpu_areas(). And to give it a 
+> > chance of being reused by the page allocator later, align it to a page 
+> > boundary just like its size.
+> > 
+> > Signed-off-by: Nicolas Pitre <nico@linaro.org>
 > 
-> How about taking it as the initial solution? We can exploit more
-> solutions after this series is done.
+> This patch causes my crisv32 qemu emulation to hang with no console output.
 > 
-> Best,
-> Wei
+> > 
+> > diff --git a/mm/percpu.c b/mm/percpu.c
+> > index 434844415d..caab63375b 100644
+> > --- a/mm/percpu.c
+> > +++ b/mm/percpu.c
+> > @@ -1416,7 +1416,7 @@ struct pcpu_alloc_info * __init pcpu_alloc_alloc_info(int nr_groups,
+> >  			  __alignof__(ai->groups[0].cpu_map[0]));
+> >  	ai_size = base_size + nr_units * sizeof(ai->groups[0].cpu_map[0]);
+> >  
+> > -	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), 0);
+> > +	ptr = memblock_virt_alloc_nopanic(PFN_ALIGN(ai_size), PAGE_SIZE);
+> >  	if (!ptr)
+> >  		return NULL;
+> >  	ai = ptr;
+> > @@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
+> >  
+> >  	if (pcpu_setup_first_chunk(ai, fc) < 0)
+> >  		panic("Failed to initialize percpu areas.");
+> > +	pcpu_free_alloc_info(ai);
+> 
+> This is the culprit. Everything works fine if I remove this line.
 
-I think it's fine as a separate patch.
+Without this line, the memory at the ai pointer is leaked. Maybe this is 
+modifying the memory allocation pattern and that triggers a bug later on 
+in your case.
 
--- 
-MST
+At that point the console driver is not yet initialized and any error 
+message won't be printed. You should enable the early console mechanism 
+in your kernel (see arch/cris/arch-v32/kernel/debugport.c) and see what 
+that might tell you.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
