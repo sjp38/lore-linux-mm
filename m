@@ -1,51 +1,163 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 03F586B0038
-	for <linux-mm@kvack.org>; Sat, 18 Nov 2017 23:19:57 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id p2so5838041pfk.13
-        for <linux-mm@kvack.org>; Sat, 18 Nov 2017 20:19:56 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g5si4308275plk.466.2017.11.18.20.19.55
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 557276B0038
+	for <linux-mm@kvack.org>; Sun, 19 Nov 2017 10:12:31 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id o126so3446842oif.21
+        for <linux-mm@kvack.org>; Sun, 19 Nov 2017 07:12:31 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u65si2701914oia.21.2017.11.19.07.12.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 18 Nov 2017 20:19:55 -0800 (PST)
-Date: Sat, 18 Nov 2017 20:19:54 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC v2] prctl: prctl(PR_SET_IDLE, PR_IDLE_MODE_KILLME), for
- stateless idle loops
-Message-ID: <20171119041954.GA12039@bombadil.infradead.org>
-References: <20171101053244.5218-1-slandden@gmail.com>
- <20171103063544.13383-1-slandden@gmail.com>
- <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
- <CA+49okqZ8CME0EN1xS_cCTc5Q-fGRreg0makhzNNuRpGs3mjfw@mail.gmail.com>
+        Sun, 19 Nov 2017 07:12:29 -0800 (PST)
+Date: Sun, 19 Nov 2017 17:11:24 +0200
+From: "Michael S. Tsirkin" <mst@redhat.com>
+Subject: Re: [virtio-dev] Re: [PATCH v17 6/6] virtio-balloon:
+ VIRTIO_BALLOON_F_FREE_PAGE_VQ
+Message-ID: <20171119170319-mutt-send-email-mst@kernel.org>
+References: <1509696786-1597-1-git-send-email-wei.w.wang@intel.com>
+ <1509696786-1597-7-git-send-email-wei.w.wang@intel.com>
+ <20171115220743-mutt-send-email-mst@kernel.org>
+ <5A0D923C.4020807@intel.com>
+ <5A0EC967.5090407@intel.com>
+ <20171117144253-mutt-send-email-mst@kernel.org>
+ <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+49okqZ8CME0EN1xS_cCTc5Q-fGRreg0makhzNNuRpGs3mjfw@mail.gmail.com>
+In-Reply-To: <286AC319A985734F985F78AFA26841F73936A8E7@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shawn Landden <slandden@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
+To: "Wang, Wei W" <wei.w.wang@intel.com>
+Cc: "aarcange@redhat.com" <aarcange@redhat.com>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "penguin-kernel@I-love.SAKURA.ne.jp" <penguin-kernel@I-love.SAKURA.ne.jp>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "willy@infradead.org" <willy@infradead.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>
 
-On Fri, Nov 17, 2017 at 08:45:03PM -0800, Shawn Landden wrote:
-> On Fri, Nov 3, 2017 at 2:09 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Thu 02-11-17 23:35:44, Shawn Landden wrote:
-> > > 16 bytes per process is kinda spendy, but I want to keep
-> > > lru behavior, which mem_score_adj does not allow. When a supervisor,
-> > > like Android's user input is keeping track this can be done in
-> > user-space.
-> > > It could be pulled out of task_struct if an cross-indexing additional
-> > > red-black tree is added to support pid-based lookup.
-> >
-> > This is still an abuse and the patch is wrong. We really do have an API
-> > to use I fail to see why you do not use it.
-> >
-> When I looked at wait_queue_head_t it was 20 byes.
+On Sat, Nov 18, 2017 at 05:22:28AM +0000, Wang, Wei W wrote:
+> On Friday, November 17, 2017 8:45 PM, Michael S. Tsirkin wrote:
+> > On Fri, Nov 17, 2017 at 07:35:03PM +0800, Wei Wang wrote:
+> > > On 11/16/2017 09:27 PM, Wei Wang wrote:
+> > > > On 11/16/2017 04:32 AM, Michael S. Tsirkin wrote:
+> > > > > On Fri, Nov 03, 2017 at 04:13:06PM +0800, Wei Wang wrote:
+> > > > > > Negotiation of the VIRTIO_BALLOON_F_FREE_PAGE_VQ feature
+> > > > > > indicates the support of reporting hints of guest free pages to
+> > > > > > the host via virtio-balloon. The host requests the guest to
+> > > > > > report the free pages by sending commands via the virtio-balloon
+> > configuration registers.
+> > > > > >
+> > > > > > When the guest starts to report, the first element added to the
+> > > > > > free page vq is a sequence id of the start reporting command.
+> > > > > > The id is given by the host, and it indicates whether the
+> > > > > > following free pages correspond to the command. For example, the
+> > > > > > host may stop the report and start again with a new command id.
+> > > > > > The obsolete pages for the previous start command can be
+> > > > > > detected by the id dismatching on the host. The id is added to
+> > > > > > the vq using an output buffer, and the free pages are added to
+> > > > > > the vq using input buffer.
+> > > > > >
+> > > > > > Here are some explainations about the added configuration registers:
+> > > > > > - host2guest_cmd: a register used by the host to send commands
+> > > > > > to the guest.
+> > > > > > - guest2host_cmd: written by the guest to ACK to the host about
+> > > > > > the commands that have been received. The host will clear the
+> > > > > > corresponding bits on the host2guest_cmd register. The guest
+> > > > > > also uses this register to send commands to the host (e.g. when finish
+> > free page reporting).
+> > > > > > - free_page_cmd_id: the sequence id of the free page report
+> > > > > > command given by the host.
+> > > > > >
+> > > > > > Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+> > > > > > Signed-off-by: Liang Li <liang.z.li@intel.com>
+> > > > > > Cc: Michael S. Tsirkin <mst@redhat.com>
+> > > > > > Cc: Michal Hocko <mhocko@kernel.org>
+> > > > > > ---
+> > > > > >
+> > > > > > +
+> > > > > > +static void report_free_page(struct work_struct *work) {
+> > > > > > +    struct virtio_balloon *vb;
+> > > > > > +
+> > > > > > +    vb = container_of(work, struct virtio_balloon,
+> > > > > > report_free_page_work);
+> > > > > > +    report_free_page_cmd_id(vb);
+> > > > > > +    walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+> > > > > > +    /*
+> > > > > > +     * The last few free page blocks that were added may not reach the
+> > > > > > +     * batch size, but need a kick to notify the device to
+> > > > > > handle them.
+> > > > > > +     */
+> > > > > > +    virtqueue_kick(vb->free_page_vq);
+> > > > > > +    report_free_page_end(vb);
+> > > > > > +}
+> > > > > > +
+> > > > > I think there's an issue here: if pages are poisoned and
+> > > > > hypervisor subsequently drops them, testing them after allocation
+> > > > > will trigger a false positive.
+> > > > >
+> > > > > The specific configuration:
+> > > > >
+> > > > > PAGE_POISONING on
+> > > > > PAGE_POISONING_NO_SANITY off
+> > > > > PAGE_POISONING_ZERO off
+> > > > >
+> > > > >
+> > > > > Solutions:
+> > > > > 1. disable the feature in that configuration
+> > > > >     suggested as an initial step
+> > > >
+> > > > Thanks for the finding.
+> > > > Similar to this option: I'm thinking could we make
+> > > > walk_free_mem_block() simply return if that option is on?
+> > > > That is, at the beginning of the function:
+> > > >     if (!page_poisoning_enabled())
+> > > >                 return;
+> > > >
+> > >
+> > >
+> > > Thought about it more, I think it would be better to put this logic to
+> > > virtio_balloon:
+> > >
+> > >         send_free_page_cmd_id(vb, &vb->start_cmd_id);
+> > >         if (page_poisoning_enabled() &&
+> > >             !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY))
+> > >                 walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+> > >         send_free_page_cmd_id(vb, &vb->stop_cmd_id);
+> > >
+> > >
+> > > walk_free_mem_block() should be a more generic API, and this potential
+> > > page poisoning issue is specific to live migration which is only one
+> > > use case of this function, so I think it is better to handle it in the
+> > > special use case itself.
+> > >
+> > > Best,
+> > > Wei
+> > >
+> > 
+> > It's a quick work-around but it doesn't make me very happy.
+> > 
+> > AFAIK e.g. RHEL has a debug kernel with poisoning enabled.
+> > If this never uses free page hinting at all, it will be much less useful for
+> > debugging guests.
+> > 
+> 
+> I understand your concern. I think people who use debugging guests
+> don't regard performance as the first priority, and most vendors
+> usually wouldn't use debugging guests for their products.
 
-24 bytes actually; the compiler will add 4 bytes of padding between
-the spinlock and the list_head.  But there's one for the entire system.
-Then you add a 40 byte structure (wait_queue_entry) on the stack for each
-sleeping process.  There's no per-process cost.
+And when one of these crashes but only after migration what do you do?  A
+very common step is for Red Hat support is to ask people to try
+reproducing with a debug build.
+
+IOT being able to debug guests is important, if a debugging guest takes
+a significantly different path from non-debug one, we have a problem.
+
+> 
+> How about taking it as the initial solution? We can exploit more
+> solutions after this series is done.
+> 
+> Best,
+> Wei
+
+I think it's fine as a separate patch.
+
+-- 
+MST
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
