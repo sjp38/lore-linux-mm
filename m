@@ -1,285 +1,251 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CB4936B026B
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 14:41:02 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id p44so9348241qtj.17
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 11:41:02 -0800 (PST)
-Received: from alln-iport-7.cisco.com (alln-iport-7.cisco.com. [173.37.142.94])
-        by mx.google.com with ESMTPS id p49si1709658qtb.212.2017.11.20.11.41.01
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 574766B0033
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 14:56:13 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id j58so9397076qtj.18
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 11:56:13 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id d55si2137230qte.83.2017.11.20.11.56.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Nov 2017 11:41:01 -0800 (PST)
-Subject: Re: Detecting page cache trashing state
-From: "Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC INC at Cisco)"
- <rruslich@cisco.com>
-References: <150543458765.3781.10192373650821598320@takondra-t460s>
- <20170915143619.2ifgex2jxck2xt5u@dhcp22.suse.cz>
- <150549651001.4512.15084374619358055097@takondra-t460s>
- <20170918163434.GA11236@cmpxchg.org>
- <acbf4417-4ded-fa03-7b8d-34dc0803027c@cisco.com>
- <20171025175424.GA14039@cmpxchg.org>
- <d7bc14d7-5ae4-f16d-da38-2bc36d9deae8@cisco.com>
-Message-ID: <bfbfaaa1-2b12-f26f-218a-ff6804f47eae@cisco.com>
-Date: Mon, 20 Nov 2017 21:40:56 +0200
+        Mon, 20 Nov 2017 11:56:11 -0800 (PST)
+Subject: Re: [PATCH 0/5] mm/kasan: advanced check
+References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
+ <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
+ <20171120015000.GA13507@js1304-P5Q-DELUXE>
+From: Wengang <wen.gang.wang@oracle.com>
+Message-ID: <8bdd114f-4bf1-e60d-eb78-af67f6c74abc@oracle.com>
+Date: Mon, 20 Nov 2017 11:56:05 -0800
 MIME-Version: 1.0
-In-Reply-To: <d7bc14d7-5ae4-f16d-da38-2bc36d9deae8@cisco.com>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171120015000.GA13507@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
 Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Taras Kondratiuk <takondra@cisco.com>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, xe-linux-external@cisco.com, linux-kernel@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-Hi Johannes,
 
-I tested with your patches but situation is still mostly the same.
 
-Spend some time for debugging and found that the problem is squashfs 
-specific (probably some others fs's too).
-The point is that iowait for squashfs reads will be awaited inside 
-squashfs readpage() callback.
-Here is some backtrace for page fault handling to illustrate this:
-
-  1)               |  handle_mm_fault() {
-  1)               |    filemap_fault() {
-  1)               |      __do_page_cache_readahead()
-  1)               |        add_to_page_cache_lru()
-  1)               |        squashfs_readpage() {
-  1)               |          squashfs_readpage_block() {
-  1)               |            squashfs_get_datablock() {
-  1)               |              squashfs_cache_get() {
-  1)               |                squashfs_read_data() {
-  1)               |                  ll_rw_block() {
-  1)               |                    submit_bh_wbc.isra.42()
-  1)               |                  __wait_on_buffer() {
-  1)               |                    io_schedule() {
-  ------------------------------------------
-  0)   kworker-79   =>    <idle>-0
-  ------------------------------------------
-  0)   0.382 us    |  blk_complete_request();
-  0)               |  blk_done_softirq() {
-  0)               |    blk_update_request() {
-  0)               |      end_buffer_read_sync()
-  0) + 38.559 us   |    }
-  0) + 48.367 us   |  }
-  ------------------------------------------
-  0)   kworker-79   =>  memhog-781
-  ------------------------------------------
-  0) ! 278.848 us  |                    }
-  0) ! 279.612 us  |                  }
-  0)               |                  squashfs_decompress() {
-  0) # 4919.082 us |                    squashfs_xz_uncompress();
-  0) # 4919.864 us |                  }
-  0) # 5479.212 us |                } /* squashfs_read_data */
-  0) # 5479.749 us |              } /* squashfs_cache_get */
-  0) # 5480.177 us |            } /* squashfs_get_datablock */
-  0)               |            squashfs_copy_cache() {
-  0)   0.057 us    |              unlock_page();
-  0) ! 142.773 us  |            }
-  0) # 5624.113 us |          } /* squashfs_readpage_block */
-  0) # 5628.814 us |        } /* squashfs_readpage */
-  0) # 5665.097 us |      } /* __do_page_cache_readahead */
-  0) # 5667.437 us |    } /* filemap_fault */
-  0) # 5672.880 us |  } /* handle_mm_fault */
-
-As you can see squashfs_read_data() schedules IO by ll_rw_block() and 
-then it waits for IO to finish inside wait_on_buffer().
-After that read buffer is decompressed and page is unlocked inside 
-squashfs_readpage() handler.
-
-Thus by the the time when filemap_fault() calls lock_page_or_retry() 
-page will be uptodate and unlocked,
-wait_on_page_bit() is not called at all, and time spent for 
-read/decompress is not accounted.
-
-Tried to apply quick workaround for test:
-
-diff --git a/mm/readahead.c b/mm/readahead.c
-index c4ca702..5e2be2b 100644
---- a/mm/readahead.c
-+++ b/mm/readahead.c
-@@ -126,9 +126,21 @@ static int read_pages(struct address_space 
-*mapping, struct file *filp,
-
-      for (page_idx = 0; page_idx < nr_pages; page_idx++) {
-          struct page *page = lru_to_page(pages);
-+        bool refault = false;
-+        unsigned long mdflags;
-+
-          list_del(&page->lru);
--        if (!add_to_page_cache_lru(page, mapping, page->index, gfp))
-+        if (!add_to_page_cache_lru(page, mapping, page->index, gfp)) {
-+            if (!PageUptodate(page) && PageWorkingset(page)) {
-+                memdelay_enter(&mdflags);
-+                refault = true;
-+            }
-+
-              mapping->a_ops->readpage(filp, page);
-+
-+            if (refault)
-+                memdelay_leave(&mdflags);
-+        }
-          put_page(page);
-
-But found that situation is not much different.
-The reason is that at least in my synthetic tests I'm exhausting whole 
-memory leaving almost no place for page cache:
-
-Active(anon):   15901788 kB
-Inactive(anon):    44844 kB
-Active(file):        488 kB
-Inactive(file):      612 kB
-
-As result refault distance is always higher that LRU_ACTIVE_FILE size 
-and Workingset flag is not set for refaulting page
-even if it were active during it's lifecycle before eviction:
-
-         workingset_refault   7773
-        workingset_activate   250
-         workingset_restore   233
-     workingset_nodereclaim   49
-
-Tried to apply following workaround:
-
-diff --git a/mm/workingset.c b/mm/workingset.c
-index 264f049..8035ef6 100644
---- a/mm/workingset.c
-+++ b/mm/workingset.c
-@@ -305,6 +305,11 @@ void workingset_refault(struct page *page, void 
-*shadow)
-
-      inc_lruvec_state(lruvec, WORKINGSET_REFAULT);
-
-+    /* Page was active prior to eviction */
-+    if (workingset) {
-+        SetPageWorkingset(page);
-+        inc_lruvec_state(lruvec, WORKINGSET_RESTORE);
-+    }
-      /*
-       * Compare the distance to the existing workingset size. We
-       * don't act on pages that couldn't stay resident even if all
-@@ -314,13 +319,9 @@ void workingset_refault(struct page *page, void 
-*shadow)
-          goto out;
-
-      SetPageActive(page);
--    SetPageWorkingset(page);
-      atomic_long_inc(&lruvec->inactive_age);
-      inc_lruvec_state(lruvec, WORKINGSET_ACTIVATE);
-
--    /* Page was active prior to eviction */
--    if (workingset)
--        inc_lruvec_state(lruvec, WORKINGSET_RESTORE);
-  out:
-      rcu_read_unlock();
-  }
-
-Now I see that refaults for pages a indeed accounted:
-
-         workingset_refault   4987
-        workingset_activate   590
-         workingset_restore   4358
-     workingset_nodereclaim   944
-
-And memdelay counters are actively incrementing too indicating the 
-trashing state:
-
-[:~]$ cat /proc/memdelay
-7539897381
-63.22 63.19 44.58
-14.36 15.11 11.80
-
-So do you know what is the proper way to fix both issues?
-
---
-Thanks,
-Ruslan
-
-On 10/27/2017 11:19 PM, Ruslan Ruslichenko -X (rruslich - GLOBALLOGIC 
-INC at Cisco) wrote:
-> Hi Johannes,
+On 11/19/2017 05:50 PM, Joonsoo Kim wrote:
+> On Fri, Nov 17, 2017 at 11:56:21PM +0100, Dmitry Vyukov wrote:
+>> On Fri, Nov 17, 2017 at 11:30 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
+>>> Kasan advanced check, I'm going to add this feature.
+>>> Currently Kasan provide the detection of use-after-free and out-of-bounds
+>>> problems. It is not able to find the overwrite-on-allocated-memory issue.
+>>> We sometimes hit this kind of issue: We have a messed up structure
+>>> (usually dynamially allocated), some of the fields in the structure were
+>>> overwritten with unreasaonable values. And kernel may panic due to those
+>>> overeritten values. We know those fields were overwritten somehow, but we
+>>> have no easy way to find out which path did the overwritten. The advanced
+>>> check wants to help in this scenario.
+>>>
+>>> The idea is to define the memory owner. When write accesses come from
+>>> non-owner, error should be reported. Normally the write accesses on a given
+>>> structure happen in only several or a dozen of functions if the structure
+>>> is not that complicated. We call those functions "allowed functions".
+>>> The work of defining the owner and binding memory to owner is expected to
+>>> be done by the memory consumer. In the above case, memory consume register
+>>> the owner as the functions which have write accesses to the structure then
+>>> bind all the structures to the owner. Then kasan will do the "owner check"
+>>> after the basic checks.
+>>>
+>>> As implementation, kasan provides a API to it's user to register their
+>>> allowed functions. The API returns a token to users.  At run time, users
+>>> bind the memory ranges they are interested in to the check they registered.
+>>> Kasan then checks the bound memory ranges with the allowed functions.
+>>>
+>>>
+>>> Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+> Hello, Wengang.
 >
-> On 10/25/2017 08:54 PM, Johannes Weiner wrote:
->> Hi Ruslan,
->>
->> sorry about the delayed response, I missed the new activity in this
->> older thread.
->>
->> On Thu, Sep 28, 2017 at 06:49:07PM +0300, Ruslan Ruslichenko -X 
->> (rruslich - GLOBALLOGIC INC at Cisco) wrote:
->>> Hi Johannes,
->>>
->>> Hopefully I was able to rebase the patch on top v4.9.26 (latest 
->>> supported
->>> version by us right now)
->>> and test a bit.
->>> The overall idea definitely looks promising, although I have one 
->>> question on
->>> usage.
->>> Will it be able to account the time which processes spend on 
->>> handling major
->>> page faults
->>> (including fs and iowait time) of refaulting page?
->> That's the main thing it should measure! :)
->>
->> The lock_page() and wait_on_page_locked() calls are where iowaits
->> happen on a cache miss. If those are refaults, they'll be counted.
->>
->>> As we have one big application which code space occupies big amount 
->>> of place
->>> in page cache,
->>> when the system under heavy memory usage will reclaim some of it, the
->>> application will
->>> start constantly thrashing. Since it code is placed on squashfs it 
->>> spends
->>> whole CPU time
->>> decompressing the pages and seem memdelay counters are not detecting 
->>> this
->>> situation.
->>> Here are some counters to indicate this:
->>>
->>> 19:02:44        CPU     %user     %nice   %system   %iowait 
->>> %steal     %idle
->>> 19:02:45        all      0.00      0.00    100.00      0.00 
->>> 0.00      0.00
->>>
->>> 19:02:44     pgpgin/s pgpgout/s   fault/s  majflt/s  pgfree/s pgscank/s
->>> pgscand/s pgsteal/s    %vmeff
->>> 19:02:45     15284.00      0.00    428.00    352.00  19990.00 
->>> 0.00      0.00
->>> 15802.00      0.00
->>>
->>> And as nobody actively allocating memory anymore looks like memdelay
->>> counters are not
->>> actively incremented:
->>>
->>> [:~]$ cat /proc/memdelay
->>> 268035776
->>> 6.13 5.43 3.58
->>> 1.90 1.89 1.26
->> How does it correlate with /proc/vmstat::workingset_activate during
->> that time? It only counts thrashing time of refaults it can actively
->> detect.
-> The workingset counters are growing quite actively too. Here are
-> some numbers per second:
+> Nice idea. I also think that we need this kind of debugging tool. It's very
+> hard to detect overwritten bugs.
 >
-> workingset_refault   8201
-> workingset_activate   389
-> workingset_restore   187
-> workingset_nodereclaim   313
+> In fact, I made a quite similar tool, valid access checker (A.K.A.
+> vchecker). See the following link.
 >
->> Btw, how many CPUs does this system have? There is a bug in this
->> version on how idle time is aggregated across multiple CPUs. The error
->> compounds with the number of CPUs in the system.
-> The system has 2 CPU cores.
->> I'm attaching 3 bugfixes that go on top of what you have. There might
->> be some conflicts, but they should be minor variable naming issues.
->>
-> I will test with your patches and get back to you.
+> https://github.com/JoonsooKim/linux/tree/vchecker-master-v0.3-next-20170106
 >
-> Thanks,
-> Ruslan
+> Vchecker has some advanced features compared to yours.
+>
+> 1. Target object can be choosen at runtime by debugfs. It doesn't
+> require re-compile to register the target object.
+Hi Joonsoo, good to know you are also interested in this!
+
+Yes, if can be choosen via debugfs, it doesn't need re-compile.
+Well, I wonder what do you expect to be chosen from use space?
+
+>
+> 2. It has another feature that checks the value stored in the object.
+> Usually, invalid writer stores odd value into the object and vchecker
+> can detect this case.
+It's good to do the check. Well, as I understand, it tells something bad 
+(overwitten) happened.
+But it can't tell who did the overwritten, right?  (I didn't look at 
+your patch yet,) do you recall the last write somewhere?
+
+>
+> 3. It has a callstack checker (memory owner checker in yours). It
+> checks all the callstack rather than just the caller. It's important
+> since invalid writer could call the parent function of owner function
+> and it would not be catched by checking just the caller.
+>
+> 4. The callstack checker is more automated. vchecker collects the valid
+> callstack by running the system.
+I think we can merge the above two into one.
+So you are doing full stack check.  Well, finding out the all the paths 
+which have the write access may be not a very easy thing.
+Missing some paths may cause dmesg flooding, and those log won't help at 
+all. Finding out all the (owning) caller only is relatively much easier.
+There do is the case you pointed out here. In this case, the debugger 
+can make slight change to the calling path. And as I understand,
+most of the overwritten are happening in quite different call paths, 
+they are not calling the (owning) caller.
+
+>
+> FYI, I attach some commit descriptions of the vchecker.
+>
+>      vchecker: store/report callstack of value writer
+>      
+>      The purpose of the value checker is finding invalid user writing
+>      invalid value at the moment that the value is written. However, there is
+>      a missing infrastructure that passes writing value to the checker
+>      since we temporarilly piggyback on the KASAN. So, we cannot easily
+>      detect this case in time.
+>      
+>      However, by following way, we can emulate similar effect.
+>      
+>      1. Store callstack when memory is written.
+
+Oh, seems you are storing the callstack for each write. -- I am not sure 
+if that would too heavy.
+Actually I was thinking to have a check on the new value. But seems 
+compiler doesn't provide that.
+>      2. If check is failed in next access, report previous write-access
+>      callstack
+>      
+>      It will caught offending user properly.
+>      
+>      
+>      Following output "Call trace: Invalid writer" part is the result
+>      of this patch. We find the invalid value at workfn+0x71 but report
+>      writer at workfn+0x61.
+>      
+>      [  133.024076] ==================================================================
+>      [  133.025576] BUG: VCHECKER: invalid access in workfn+0x71/0xc0 at addr ffff8800683dd6c8
+>      [  133.027196] Read of size 8 by task kworker/1:1/48
+>      [  133.028020] 0x8 0x10 value
+>      [  133.028020] 0xffff 4
+>      [  133.028020] Call trace: Invalid writer
+>      [  133.028020]
+>      [  133.028020] [<ffffffff81043b1b>] save_stack_trace+0x1b/0x20
+>      [  133.028020]
+>      [  133.028020] [<ffffffff812c0db9>] save_stack+0x39/0x70
+>      [  133.028020]
+>      [  133.028020] [<ffffffff812c0fe3>] check_value+0x43/0x80
+>      [  133.028020]
+>      [  133.028020] [<ffffffff812c1762>] vchecker_check+0x1c2/0x380
+>      [  133.028020]
+>      [  133.028020] [<ffffffff812be49d>] __asan_store8+0x8d/0xc0
+>      [  133.028020]
+>      [  133.028020] [<ffffffff815eadd1>] workfn+0x61/0xc0
+>      [  133.028020]
+>      [  133.028020] [<ffffffff810be3df>] process_one_work+0x28f/0x680
+>      [  133.028020]
+>      [  133.028020] [<ffffffff810bf272>] worker_thread+0xa2/0x870
+>      [  133.028020]
+>      [  133.028020] [<ffffffff810c86a5>] kthread+0x195/0x1e0
+>      [  133.028020]
+>      [  133.028020] [<ffffffff81b9d3d2>] ret_from_fork+0x22/0x30
+>      [  133.028020] CPU: 1 PID: 48 Comm: kworker/1:1 Not tainted 4.10.0-rc2-next-20170106+ #1179
+>      [  133.028020] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>      [  133.028020] Workqueue: events workfn
+>      [  133.028020] Call Trace:
+>      [  133.028020]  dump_stack+0x4d/0x63
+>      [  133.028020]  kasan_object_err+0x21/0x80
+>      [  133.028020]  vchecker_check+0x2af/0x380
+>      [  133.028020]  ? workfn+0x71/0xc0
+>      [  133.028020]  ? workfn+0x71/0xc0
+>      [  133.028020]  __asan_load8+0x87/0xb0
+>      [  133.028020]  workfn+0x71/0xc0
+>      [  133.028020]  process_one_work+0x28f/0x680
+>      [  133.028020]  worker_thread+0xa2/0x870
+>      [  133.028020]  kthread+0x195/0x1e0
+>      [  133.028020]  ? put_pwq_unlocked+0xc0/0xc0
+>      [  133.028020]  ? kthread_park+0xd0/0xd0
+>      [  133.028020]  ret_from_fork+0x22/0x30
+>      [  133.028020] Object at ffff8800683dd6c0, in cache vchecker_test size: 24
+>      [  133.028020] Allocated:
+>      [  133.028020] PID = 48
+>
+>
+>      vchecker: Add 'callstack' checker
+>      
+>      The callstack checker is to find invalid code paths accessing to a
+>      certain field in an object.  Currently it only saves all stack traces at
+>      the given offset.  Reporting will be added in the next patch.
+>      
+>      The below example checks callstack of anon_vma:
+>      
+>        # cd /sys/kernel/debug/vchecker
+>        # echo 0 8 > anon_vma/callstack  # offset 0, size 8
+>        # echo 1 > anon_vma/enable
+an echo "anon_vma" > <something> first?
+How do you define and path the valid (owning) full stack to kasan?
+
+>      
+>        # cat anon_vma/callstack        # show saved callstacks
+>        0x0 0x8 callstack
+>        total: 42
+>        callstack #0
+>          anon_vma_fork+0x101/0x280
+>          copy_process.part.10+0x15ff/0x2a40
+>          _do_fork+0x155/0x7d0
+>          SyS_clone+0x19/0x20
+>          do_syscall_64+0xdf/0x460
+>          return_from_SYSCALL_64+0x0/0x7a
+>        ...
+>
+>
+>      vchecker: Support toggle on/off of callstack check
+>      
+>      By default, callstack checker only collects callchains.  When a user
+>      writes 'on' to the callstack file in debugfs, it checks and reports new
+>      callstacks.  Writing 'off' to disable it again.
+>      
+>        # cd /sys/kernel/debug/vchecker
+>        # echo 0 8 > anon_vma/callstack
+>        # echo 1 > anon_vma/enable
+>      
+>        ... (do some work to collect enough callstacks) ...
+How to define "enough" here?
+>      
+>        # echo on > anon_vma/callstack
+>      
+>
+> The reason I didn't submit the vchecker to mainline is that I didn't find
+> the case that this tool is useful in real life. Most of the system broken case
+> can be debugged by other ways. Do you see the real case that this tool is
+> helpful? If so, I think that vchecker is more appropriate to be upstreamed.
+> Could you share your opinion?
+Yes, people find other ways to solve overwritten issue (so did I) in the 
+past. If kasan doesn't provide this functionality, developers have no 
+way to choose it.
+Though people have other ways to find the root cause, the other ways 
+maybe take (maybe much) longer. I didn't solve problems with the owner 
+check yet since I just make available recently.  But considering the 
+overwritten issues I have ever hit, the owner check definitely helps and 
+I definitely will try the owner check when I have a new overwritten issue!
+
+Why not send your patch for review?
+
+thanks,
+wengang
+
+>
+> Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
