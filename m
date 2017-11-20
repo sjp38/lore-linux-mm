@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9286B6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 08:27:14 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id d14so6034177wrg.15
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 05:27:14 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c91si4082532edd.155.2017.11.20.05.27.13
+	by kanga.kvack.org (Postfix) with ESMTP id 90E7E6B0038
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 09:06:25 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y42so5923843wrd.23
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 06:06:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t16sor6242002edi.43.2017.11.20.06.06.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 05:27:13 -0800 (PST)
-Date: Mon, 20 Nov 2017 14:25:16 +0100
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH 3/8] fs: btrfs: remove unused hardirq.h
-Message-ID: <20171120132516.GY28899@twin.jikos.cz>
-Reply-To: dsterba@suse.cz
-References: <1510959741-31109-1-git-send-email-yang.s@alibaba-inc.com>
- <1510959741-31109-3-git-send-email-yang.s@alibaba-inc.com>
+        (Google Transport Security);
+        Mon, 20 Nov 2017 06:06:23 -0800 (PST)
+Date: Mon, 20 Nov 2017 15:06:19 +0100
+From: =?UTF-8?B?VG9tw6HFoSBHb2xlbWJpb3Zza8O9?= <tgolembi@redhat.com>
+Subject: Re: [PATCH v3] virtio_balloon: include disk/file caches memory
+ statistics
+Message-ID: <20171120150619.456c56f0@fiorina>
+In-Reply-To: <2e8c12f5242bcf755a33ee3a0e9ef94339d1808c.1510487579.git.tgolembi@redhat.com>
+References: <2e8c12f5242bcf755a33ee3a0e9ef94339d1808c.1510487579.git.tgolembi@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1510959741-31109-3-git-send-email-yang.s@alibaba-inc.com>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, netdev@vger.kernel.org, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
+To: linux-mm@kvack.org, virtio-dev@lists.oasis-open.org, qemu-devel@nongnu.org, kvm@vger.kernel.org, virtualization@lists.linux-foundation.org
+Cc: Huang Ying <ying.huang@intel.com>, Gal Hammer <ghammer@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>, Jason Wang <jasowang@redhat.com>, Amnon Ilan <ailan@redhat.com>, Wei Wang <wei.w.wang@intel.com>, Shaohua Li <shli@fb.com>, Rik van Riel <riel@redhat.com>
 
-On Sat, Nov 18, 2017 at 07:02:16AM +0800, Yang Shi wrote:
-> Preempt counter APIs have been split out, currently, hardirq.h just
-> includes irq_enter/exit APIs which are not used by btrfs at all.
-> 
-> So, remove the unused hardirq.h.
-> 
-> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
-> Cc: Chris Mason <clm@fb.com>
-> Cc: Josef Bacik <jbacik@fb.com>
-> Cc: David Sterba <dsterba@suse.com>
-> Cc: linux-btrfs@vger.kernel.org
+On Sun, 12 Nov 2017 13:05:38 +0100
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com> wrote:
 
-Acked-by: David Sterba <dsterba@suse.com>
+> Add a new field VIRTIO_BALLOON_S_CACHES to virtio_balloon memory
+> statistics protocol. The value represents all disk/file caches.
+>=20
+> In this case it corresponds to the sum of values
+> Buffers+Cached+SwapCached from /proc/meminfo.
+>=20
+> Signed-off-by: Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
+> ---
+>  drivers/virtio/virtio_balloon.c     | 4 ++++
+>  include/uapi/linux/virtio_balloon.h | 3 ++-
+>  2 files changed, 6 insertions(+), 1 deletion(-)
+>=20
+=20
+ping
+
+
+--=20
+Tom=C3=A1=C5=A1 Golembiovsk=C3=BD <tgolembi@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
