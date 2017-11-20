@@ -1,43 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE0F6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 04:38:53 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v8so5655504wrd.21
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 01:38:53 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AA056B0038
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 04:42:40 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id c82so1387054wme.8
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 01:42:40 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w10si2057401edj.349.2017.11.20.01.38.52
+        by mx.google.com with ESMTPS id y11si7500874edh.158.2017.11.20.01.42.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 01:38:52 -0800 (PST)
-Date: Mon, 20 Nov 2017 10:38:51 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,page_alloc: Use min watermark for last second
- allocation attempt.
-Message-ID: <20171120093851.gs3zqpmmyacxplor@dhcp22.suse.cz>
-References: <1510915081-3768-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        Mon, 20 Nov 2017 01:42:39 -0800 (PST)
+Date: Mon, 20 Nov 2017 10:42:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20171120094237.z6h3kx3ne5ld64pl@dhcp22.suse.cz>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171117173521.GA21692@infradead.org>
+ <20171120092526.llj2q3lqbbxwn4g4@dhcp22.suse.cz>
+ <20171120093309.GA19627@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1510915081-3768-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171120093309.GA19627@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrea Arcangeli <aarcange@redhat.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>
+To: Christoph Hellwig <hch@infradead.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 17-11-17 19:38:01, Tetsuo Handa wrote:
-[...]
-> [ 1792.835056] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
-> [ 1792.836073] Killed process 14458 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
+On Mon 20-11-17 01:33:09, Christoph Hellwig wrote:
+> On Mon, Nov 20, 2017 at 10:25:26AM +0100, Michal Hocko wrote:
+> > On Fri 17-11-17 09:35:21, Christoph Hellwig wrote:
+> > > On Tue, Nov 14, 2017 at 06:37:42AM +0900, Tetsuo Handa wrote:
+> > > > Since do_shrink_slab() can reschedule, we cannot protect shrinker_list
+> > > > using one RCU section. But using atomic_inc()/atomic_dec() for each
+> > > > do_shrink_slab() call will not impact so much.
+> > > 
+> > > But you could use SRCU..
+> > 
+> > Davidlohr has tried that already http://lkml.kernel.org/r/1434398602.1903.15.camel@stgolabs.net
+> > and failed. Doing SRCU inside core kernel is not seen with a great
+> > support...
+> 
+> I can't actually find any objection in that thread.  What's the problem
+> Davidlohr ran into?
 
-Wen you are in a situation when you are killing 88kB process then you
-are most probably going to suffer more oom kills anyway. Optimizing for
-this case is thus questionable at best. You would need to come up with
-a reasonable explanation why the livelock as described by Andrea is not
-possible with the current MM reclaim retry implementation. I am not
-saying the patch is wrong but your justification _is_ wrong.
+The patch has been dropped because allnoconfig failed to compile back
+then http://lkml.kernel.org/r/CAP=VYLr0rPWi1aeuk4w1On9CYRNmnEWwJgGtaX=wEvGaBURtrg@mail.gmail.com
+I have problem to find the follow up discussion though. The main
+argument was that SRC is not generally available and so the core
+kernel should rely on it.
 -- 
-Michal Hocko
-SUSE Labs
+Michal Hocko SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
