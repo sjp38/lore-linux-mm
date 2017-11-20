@@ -1,81 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E1E796B025F
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 13:28:44 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id 78so5193657qkz.13
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 10:28:44 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id v23si3579432qkl.430.2017.11.20.10.28.43
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 42FA46B0261
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 13:51:42 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id u3so10276899pgn.11
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 10:51:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 84sor2991569pgc.32.2017.11.20.10.51.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Nov 2017 10:28:43 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAKIPX3h009905
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 13:28:42 -0500
-Received: from e15.ny.us.ibm.com (e15.ny.us.ibm.com [129.33.205.205])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ec16qbjqv-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 13:28:42 -0500
-Received: from localhost
-	by e15.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 20 Nov 2017 13:28:41 -0500
-Date: Mon, 20 Nov 2017 10:28:38 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20171117173521.GA21692@infradead.org>
- <20171120092526.llj2q3lqbbxwn4g4@dhcp22.suse.cz>
- <20171120093309.GA19627@infradead.org>
- <20171120094237.z6h3kx3ne5ld64pl@dhcp22.suse.cz>
- <20171120104129.GA25042@infradead.org>
- <201711201956.IIB86978.OFMVFFOJLtOSHQ@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Mon, 20 Nov 2017 10:51:41 -0800 (PST)
+Date: Mon, 20 Nov 2017 10:51:38 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info (crisv32 hang)
+Message-ID: <20171120185138.GB23789@roeck-us.net>
+References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+ <20171118182542.GA23928@roeck-us.net>
+ <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr>
+ <a4fd87d4-c183-682d-9fd9-a9ff6d04f63e@roeck-us.net>
+ <nycvar.YSQ.7.76.1711192230000.16045@knanqh.ubzr>
+ <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201711201956.IIB86978.OFMVFFOJLtOSHQ@I-love.SAKURA.ne.jp>
-Message-Id: <20171120182838.GU3624@linux.vnet.ibm.com>
+In-Reply-To: <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hch@infradead.org, mhocko@kernel.org, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, vdavydov.dev@gmail.com, hannes@cmpxchg.org, akpm@linux-foundation.org, shakeelb@google.com, gthelen@google.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On Mon, Nov 20, 2017 at 07:56:28PM +0900, Tetsuo Handa wrote:
-> Christoph Hellwig wrote:
-> > On Mon, Nov 20, 2017 at 10:42:37AM +0100, Michal Hocko wrote:
-> > > The patch has been dropped because allnoconfig failed to compile back
-> > > then http://lkml.kernel.org/r/CAP=VYLr0rPWi1aeuk4w1On9CYRNmnEWwJgGtaX=wEvGaBURtrg@mail.gmail.com
-> > > I have problem to find the follow up discussion though. The main
-> > > argument was that SRC is not generally available and so the core
-> > > kernel should rely on it.
-> > 
-> > Paul,
-> > 
-> > isthere any good reason to not use SRCU in the core kernel and
-> > instead try to reimplement it using atomic counters?
+On Mon, Nov 20, 2017 at 01:18:38PM -0500, Nicolas Pitre wrote:
+> On Sun, 19 Nov 2017, Guenter Roeck wrote:
 > 
-> CONFIG_SRCU was added in order to save system size. There are users who run Linux on very
-> small systems ( https://www.elinux.org/images/5/52/Status-of-embedded-Linux-2017-09-JJ62.pdf ).
+> > On 11/19/2017 08:08 PM, Nicolas Pitre wrote:
+> > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
+> > > > On 11/19/2017 12:36 PM, Nicolas Pitre wrote:
+> > > > > On Sat, 18 Nov 2017, Guenter Roeck wrote:
+> > > > > > On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
+> > > > > > > @@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
+> > > > > > >      	if (pcpu_setup_first_chunk(ai, fc) < 0)
+> > > > > > >    		panic("Failed to initialize percpu areas.");
+> > > > > > > +	pcpu_free_alloc_info(ai);
+> > > > > > 
+> > > > > > This is the culprit. Everything works fine if I remove this line.
+> > > > > 
+> > > > > Without this line, the memory at the ai pointer is leaked. Maybe this is
+> > > > > modifying the memory allocation pattern and that triggers a bug later on
+> > > > > in your case.
+> > > > > 
+> > > > > At that point the console driver is not yet initialized and any error
+> > > > > message won't be printed. You should enable the early console mechanism
+> > > > > in your kernel (see arch/cris/arch-v32/kernel/debugport.c) and see what
+> > > > > that might tell you.
+> > > > > 
+> > > > 
+> > > > The problem is that BUG() on crisv32 does not yield useful output.
+> > > > Anyway, here is the culprit.
+> > > > 
+> > > > diff --git a/mm/bootmem.c b/mm/bootmem.c
+> > > > index 6aef64254203..2bcc8901450c 100644
+> > > > --- a/mm/bootmem.c
+> > > > +++ b/mm/bootmem.c
+> > > > @@ -382,7 +382,8 @@ static int __init mark_bootmem(unsigned long start,
+> > > > unsigned long end,
+> > > >                          return 0;
+> > > >                  pos = bdata->node_low_pfn;
+> > > >          }
+> > > > -       BUG();
+> > > > +       WARN(1, "mark_bootmem(): memory range 0x%lx-0x%lx not found\n",
+> > > > start,
+> > > > end);
+> > > > +       return -ENOMEM;
+> > > >   }
+> > > > 
+> > > >   /**
+> > > > diff --git a/mm/percpu.c b/mm/percpu.c
+> > > > index 79e3549cab0f..c75622d844f1 100644
+> > > > --- a/mm/percpu.c
+> > > > +++ b/mm/percpu.c
+> > > > @@ -1881,6 +1881,7 @@ struct pcpu_alloc_info * __init
+> > > > pcpu_alloc_alloc_info(int nr_groups,
+> > > >    */
+> > > >   void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
+> > > >   {
+> > > > +       printk("pcpu_free_alloc_info(%p (0x%lx))\n", ai, __pa(ai));
+> > > >          memblock_free_early(__pa(ai), ai->__ai_size);
+> > > 
+> > > The problem here is that there is two possibilities for
+> > > memblock_free_early(). From include/linux/bootmem.h:
+> > > 
+> > > #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
+> > > 
+> > > static inline void __init memblock_free_early(
+> > >                                          phys_addr_t base, phys_addr_t size)
+> > > {
+> > >          __memblock_free_early(base, size);
+> > > }
+> > > 
+> > > #else
+> > > 
+> > > static inline void __init memblock_free_early(
+> > >                                          phys_addr_t base, phys_addr_t size)
+> > > {
+> > >          free_bootmem(base, size);
+> > > }
+> > > 
+> > > #endif
+> > > 
+> > > It looks like most architectures use the memblock variant, including all
+> > > the ones I have access to.
+> > > 
+> > > > results in:
+> > > > 
+> > > > pcpu_free_alloc_info(c0534000 (0x40534000))
+> > > > ------------[ cut here ]------------
+> > > > WARNING: CPU: 0 PID: 0 at mm/bootmem.c:385 mark_bootmem+0x9a/0xaa
+> > > > mark_bootmem(): memory range 0x2029a-0x2029b not found
+> > > 
+> > > Well... PFN_UP(0x40534000) should give 0x40534. How you might end up
+> > > with 0x2029a in mark_bootmem(), let alone not exit on the first "if (max
+> > > == end) return 0;" within the loop is rather weird.
+> > > 
+> > pcpu_free_alloc_info: ai=c0536000, __pa(ai)=0x40536000,
+> > PFN_UP(__pa(ai))=0x2029b, PFN_UP(ai)=0x6029b
+> > 
+> > bootmem range is 0x60000..0x61000. It doesn't get to "if (max == end)"
+> > because "pos (=0x2029b) < bdata->node_min_pfn (=0x60000)".
 > 
-> Also, atomic counters are not mandatory for shrinker case; e.g.
-> http://lkml.kernel.org/r/201711161956.EBF57883.QFFMOLOVSOHJFt@I-love.SAKURA.ne.jp .
+> OK. the 0x2029b is the result of PAGE_SIZE being 8192 in your case.
+> However the bootmem allocator deals with physical addresses not virtual 
+> ones. So it shouldn't give you a 0x60000..0x61000 range.
+> 
+> Would be interesting to see what result you get on line 860 of 
+> mm/bootmem.c.
+> 
+Nothing; __alloc_bootmem_low_node() is not called.
 
-CONFIG_SRCU was indeed added in order to shrink single-CPU systems.
-But many architectures are now requiring SRCU for one reason or another,
-in more and more situations.
+Call chain is:
+  pcpu_alloc_alloc_info
+    memblock_virt_alloc_nopanic
+      __alloc_bootmem_nopanic
+        ___alloc_bootmem_nopanic
 
-So I recently implemented a UP-only Tiny SRCU, which is quite a bit
-smaller than its scalable counterpart, Tree SRCU:
+and returns 0xc0536000.
 
-   text	   data	    bss	    dec	    hex	filename
-    983	     64	      0	   1047	    417	/tmp/c/kernel/rcu/srcutiny.o
-
-   text	   data	    bss	    dec	    hex	filename
-   6844	    193	      0	   7037	   1b7d	/tmp/b/kernel/rcu/srcutree.o
-
-So perhaps it is time to unconditionally enable SRCU?
-
-							Thanx, Paul
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
