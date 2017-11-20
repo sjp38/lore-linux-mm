@@ -1,115 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3929F6B0038
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 07:17:57 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id y41so5817461wrc.22
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 04:17:57 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t84si6107441wmt.58.2017.11.20.04.17.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CC226B0038
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 07:39:38 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id c123so9455990pga.17
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 04:39:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u86si9043499pfg.173.2017.11.20.04.39.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 04:17:55 -0800 (PST)
-Date: Mon, 20 Nov 2017 13:17:52 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 05/30] x86, kaiser: prepare assembly for entry/exit CR3
- switching
-In-Reply-To: <20171110193107.67B798C3@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1711201226370.1734@nanos>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193107.67B798C3@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 20 Nov 2017 04:39:37 -0800 (PST)
+Date: Mon, 20 Nov 2017 13:39:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/shmem: set default tmpfs size according to memcg limit
+Message-ID: <20171120123933.fh5mnslggk4kys7d@dhcp22.suse.cz>
+References: <CALvZod7AY=J3i0NL-VuWWOxjdVmWh7VnpcQhdx7+Jt-Hnqrk+g@mail.gmail.com>
+ <20171117155509.GA920@castle>
+ <CALOAHbAWvYKve4eB9+zissgi24cNKeFih1=avfSi_dH5upQVOg@mail.gmail.com>
+ <20171117164531.GA23745@castle>
+ <CALOAHbABr5gVL0f5LX5M2NstZ=FqzaFxrohu8B97uhrSo6Jp2Q@mail.gmail.com>
+ <CALvZod77t3FWgO+rNLHDGU9TZUH-_3qBpzt86BC6R8JJK2ZZ=g@mail.gmail.com>
+ <CALOAHbB6+uGNm_RdMiLNCzu+NwZLYcqYJmAZ0FcE8HZts8=JdA@mail.gmail.com>
+ <CALvZod6=-dxhaeQMEBwJ5o6iyVhvQ_jdNck-yWncFVRvkb1YXQ@mail.gmail.com>
+ <20171120120422.a6r4govoyxjbgp7w@dhcp22.suse.cz>
+ <CALOAHbCRdPSQ8RNZxYY292fsgBTGf92PWPjvnXpbbVVv5LeL6A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALOAHbCRdPSQ8RNZxYY292fsgBTGf92PWPjvnXpbbVVv5LeL6A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Shakeel Butt <shakeelb@google.com>, Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tejun Heo <tj@kernel.org>, khlebnikov@yandex-team.ru, mka@chromium.org, Hugh Dickins <hughd@google.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 10 Nov 2017, Dave Hansen wrote:
-> From: Dave Hansen <dave.hansen@linux.intel.com>
+On Mon 20-11-17 20:16:15, Yafang Shao wrote:
+> 2017-11-20 20:04 GMT+08:00 Michal Hocko <mhocko@kernel.org>:
+> > On Fri 17-11-17 09:49:54, Shakeel Butt wrote:
+> >> On Fri, Nov 17, 2017 at 9:41 AM, Yafang Shao <laoar.shao@gmail.com> wrote:
+> > [...]
+> >> > Of couse that is the best way.
+> >> > But we can not ensue all applications will do it.
+> >> > That's why I introduce a proper defalut value for them.
+> >> >
+> >>
+> >> I think we disagree on the how to get proper default value. Unless you
+> >> can restrict that all the memory allocated for a tmpfs mount will be
+> >> charged to a specific memcg, you should not just pick limit of the
+> >> memcg of the process mounting the tmpfs to set the default of tmpfs
+> >> mount. If you can restrict tmpfs charging to a specific memcg then the
+> >> limit of that memcg should be used to set the default of the tmpfs
+> >> mount. However this feature is not present in the upstream kernel at
+> >> the moment (We have this feature in our local kernel and I am planning
+> >> to upstream that).
+> >
+> > I think the whole problem is that containers pretend to be independent
+> > while they share a non-reclaimable resource. Fix this and you will not
+> > have a problem. I am afraid that the only real fix is to make tmpfs
+> > private per container instance and that is something you can easily
+> > achieve in the userspace.
+> >
 > 
-> This is largely code from Andy Lutomirski.  I fixed a few bugs
-> in it, and added a few SWITCH_TO_* spots.
+> Agree with you.
+
+I suspect you misunderstood...
+
+> Introduce tmpfs stat in memory cgroup, something like
+> memory.tmpfs.limit
+> memory.tmpfs.usage
 > 
-> KAISER needs to switch to a different CR3 value when it enters
-> the kernel and switch back when it exits.  This essentially
-> needs to be done before leaving assembly code.
-> 
-> This is extra challenging because the switching context is
-> tricky: the registers that can be clobbered can vary.  It is also
-> hard to store things on the stack because there is an established
-> ABI (ptregs) or the stack is entirely unsafe to use.
+> IMHO this is the best solution.
 
-Changelog nitpicking starts here
+No, you misunderstood. I do not think that we want to split tmpfs out of
+the regular limit. We used to have something like that for user vs.
+kernel memory accounting  in v1 and that turned to be not working well.
 
-> This patch establishes a set of macros that allow changing to
-
-s/This patch establishes/Establish/
-
-> the user and kernel CR3 values.
-> 
-> Interactions with SWAPGS: previous versions of the KAISER code
-> relied on having per-cpu scratch space to save/restore a register
-> that can be used for the CR3 MOV.  The %GS register is used to
-> index into our per-cpu space, so SWAPGS *had* to be done before
-
-s/our/the/
-
-> the CR3 switch.  That scratch space is gone now, but the semantic
-> that SWAPGS must be done before the CR3 MOV is retained.  This is
-> good to keep because it is not that hard to do and it allows us
-
-s/us//
-
-> to do things like add per-cpu debugging information to help us
-> figure out what goes wrong sometimes.
-
-the part after 'information' is fairy tale mode and redundant. Debugging
-information says it all, right?
-
-> What this does in the NMI code is worth pointing out.  NMIs
-> can interrupt *any* context and they can also be nested with
-> NMIs interrupting other NMIs.  The comments below
-> ".Lnmi_from_kernel" explain the format of the stack during this
-> situation.  Changing the format of this stack is not a fun
-> exercise: I tried.  Instead of storing the old CR3 value on the
-> stack, this patch depend on the *regular* register save/restore
-> mechanism and then uses %r14 to keep CR3 during the NMI.  It is
-> callee-saved and will not be clobbered by the C NMI handlers that
-> get called.
-
-  The comments below ".Lnmi_from_kernel" explain the format of the stack
-  during this situation. Changing this stack format is too complex and
-  risky, so the following solution has been used:
-
-  Instead of storing the old CR3 value on the stack, depend on the regular
-  register save/restore mechanism and use %r14 to hold CR3 during the
-  NMI. r14 is callee-saved and will not be clobbered by the C NMI handlers
-  that get called.
-
-End of nitpicking
-
-> +.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
-> +	movq	%cr3, %r\scratch_reg
-> +	movq	%r\scratch_reg, \save_reg
-> +	/*
-> +	 * Is the switch bit zero?  This means the address is
-> +	 * up in real KAISER patches in a moment.
-
-  	 * If the switch bit is zero, CR3 points at the kernel page tables
-	 * already.
-Hmm?
-
->  /*
-> @@ -1189,6 +1201,7 @@ ENTRY(paranoid_exit)
->  	testl	%ebx, %ebx			/* swapgs needed? */
->  	jnz	.Lparanoid_exit_no_swapgs
->  	TRACE_IRQS_IRETQ
-> +	RESTORE_CR3	%r14
-
-You have the named macro arguments everywhere, just not here.
-
-Other than that.
-
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+What you really want to do is to make a private mount per container to
+ensure that the resource is really _yours_
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
