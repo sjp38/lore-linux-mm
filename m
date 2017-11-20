@@ -1,53 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B5C956B0033
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:47:08 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y42so6529249wrd.23
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:47:08 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u10si5675589wru.237.2017.11.20.12.47.07
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C70F86B0069
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:47:17 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id j16so10528568pgn.14
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:47:17 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id d124si5061854pgc.520.2017.11.20.12.47.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 12:47:07 -0800 (PST)
-Date: Mon, 20 Nov 2017 21:47:04 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 20/30] x86, mm: remove hard-coded ASID limit checks
-In-Reply-To: <20171110193144.0376C2CC@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1711202144360.2348@nanos>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193144.0376C2CC@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Nov 2017 12:47:16 -0800 (PST)
+Received: from mail-it0-f49.google.com (mail-it0-f49.google.com [209.85.214.49])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7D84E21986
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 20:47:16 +0000 (UTC)
+Received: by mail-it0-f49.google.com with SMTP id n134so13587675itg.1
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:47:16 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <alpine.DEB.2.20.1711202115190.2348@nanos>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193125.EBF58596@viggo.jf.intel.com>
+ <alpine.DEB.2.20.1711202115190.2348@nanos>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 20 Nov 2017 12:46:55 -0800
+Message-ID: <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
+Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Fri, 10 Nov 2017, Dave Hansen wrote:
->  
-> +/* There are 12 bits of space for ASIDS in CR3 */
-> +#define CR3_HW_ASID_BITS 12
-> +/* When enabled, KAISER consumes a single bit for user/kernel switches */
-> +#define KAISER_CONSUMED_ASID_BITS 0
-> +
-> +#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS-KAISER_CONSUMED_ASID_BITS)
+On Mon, Nov 20, 2017 at 12:22 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> On Fri, 10 Nov 2017, Dave Hansen wrote:
+>>       __set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
+>> +
+>> +     /* CPU 0's mapping is done in kaiser_init() */
+>> +     if (cpu) {
+>> +             int ret;
+>> +
+>> +             ret = kaiser_add_mapping((unsigned long) get_cpu_gdt_ro(cpu),
+>> +                                      PAGE_SIZE, __PAGE_KERNEL_RO);
+>> +             /*
+>> +              * We do not have a good way to fail CPU bringup.
+>> +              * Just WARN about it and hope we boot far enough
+>> +              * to get a good log out.
+>> +              */
+>
+> The GDT fixmap can be set up before the CPU is started. There is no reason
+> to do that in cpu_init().
+>
+>> +
+>> +     /*
+>> +      * We could theoretically do this in setup_fixmap_gdt().
+>> +      * But, we would need to rewrite the above page table
+>> +      * allocation code to use the bootmem allocator.  The
+>> +      * buddy allocator is not available at the time that we
+>> +      * call setup_fixmap_gdt() for CPU 0.
+>> +      */
+>> +     kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
+>> +                               __PAGE_KERNEL_RO | _PAGE_GLOBAL);
+>
+> This one is needs to stay.
 
-Spaces around '-' please. Same for other operators.
+When you rebase on to my latest version, this should change to mapping
+the entire cpu_entry_area.
 
-> +/*
-> + * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below
-> + * to account for them being zero-absed.  Another -1 is because ASID 0
-
-s/absed/based/
-
-> + * is reserved for use by non-PCID-aware users.
-> + */
-> +#define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
-> +
->  /*
-
-Thanks,
-
-	tglx
+--Andy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
