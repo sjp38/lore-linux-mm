@@ -1,51 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D6DB6B0033
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:44:58 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id v2so9739002pfa.10
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:44:58 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n8si5399553pll.619.2017.11.20.12.44.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B5C956B0033
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:47:08 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id y42so6529249wrd.23
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:47:08 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id u10si5675589wru.237.2017.11.20.12.47.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Nov 2017 12:44:57 -0800 (PST)
-Received: from mail-it0-f52.google.com (mail-it0-f52.google.com [209.85.214.52])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id ADDE221986
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 20:44:56 +0000 (UTC)
-Received: by mail-it0-f52.google.com with SMTP id x13so5117684iti.4
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:44:56 -0800 (PST)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 20 Nov 2017 12:47:07 -0800 (PST)
+Date: Mon, 20 Nov 2017 21:47:04 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 20/30] x86, mm: remove hard-coded ASID limit checks
+In-Reply-To: <20171110193144.0376C2CC@viggo.jf.intel.com>
+Message-ID: <alpine.DEB.2.20.1711202144360.2348@nanos>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193144.0376C2CC@viggo.jf.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171110193138.1185728D@viggo.jf.intel.com>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193138.1185728D@viggo.jf.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Mon, 20 Nov 2017 12:44:35 -0800
-Message-ID: <CALCETrUgi-q1S82Btjjhk7tpPim+M1QzicGu7a6hAva-tbBVzQ@mail.gmail.com>
-Subject: Re: [PATCH 17/30] x86, kaiser: map debug IDT tables
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Fri, Nov 10, 2017 at 11:31 AM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
->
-> From: Dave Hansen <dave.hansen@linux.intel.com>
->
-> The IDT is another structure which the CPU references via a
-> virtual address.  It also obviously needs these to handle an
-> interrupt in userspace, so these need to be mapped into the user
-> copy of the page tables.
+On Fri, 10 Nov 2017, Dave Hansen wrote:
+>  
+> +/* There are 12 bits of space for ASIDS in CR3 */
+> +#define CR3_HW_ASID_BITS 12
+> +/* When enabled, KAISER consumes a single bit for user/kernel switches */
+> +#define KAISER_CONSUMED_ASID_BITS 0
+> +
+> +#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS-KAISER_CONSUMED_ASID_BITS)
 
-Why would the debug IDT ever be used in user mode?  IIRC it's a total
-turd related to avoiding crap nesting inside NMI.  Or am I wrong?
+Spaces around '-' please. Same for other operators.
 
-If it *is* used in user mode, then we have a bug and it should be in
-the IDT to avoid address leaks just like the normal IDT.
+> +/*
+> + * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below
+> + * to account for them being zero-absed.  Another -1 is because ASID 0
 
---Andy
+s/absed/based/
+
+> + * is reserved for use by non-PCID-aware users.
+> + */
+> +#define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
+> +
+>  /*
+
+Thanks,
+
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
