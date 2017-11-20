@@ -1,61 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE3F6B0268
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:22:57 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id 5so6993581wmk.8
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:22:57 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 189si8019638wmr.24.2017.11.20.12.22.56
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2420C6B0033
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:29:16 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id t126so5395679qkb.6
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:29:16 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l57si1348376qtk.219.2017.11.20.12.29.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 12:22:56 -0800 (PST)
-Date: Mon, 20 Nov 2017 21:22:53 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
-In-Reply-To: <20171110193125.EBF58596@viggo.jf.intel.com>
-Message-ID: <alpine.DEB.2.20.1711202115190.2348@nanos>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193125.EBF58596@viggo.jf.intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Nov 2017 12:29:15 -0800 (PST)
+Subject: Re: [PATCH 0/5] mm/kasan: advanced check
+References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
+ <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
+ <20171120015000.GA13507@js1304-P5Q-DELUXE>
+ <CACT4Y+Zi9bNdnei_kXWu_3BHOobbhOgRKJ6Vk9QGs3c6NCdqXw@mail.gmail.com>
+ <37111d5b-7042-dfff-9ac7-8733b77930e8@oracle.com>
+ <CACT4Y+ZEvLJbM_b6nWqLPvVJgWjAp-eYsmbO5vT2qQ3_zH-2+A@mail.gmail.com>
+From: Wengang <wen.gang.wang@oracle.com>
+Message-ID: <de1e0f95-4daa-0b00-a7bf-0ce2e9a3371b@oracle.com>
+Date: Mon, 20 Nov 2017 12:29:11 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <CACT4Y+ZEvLJbM_b6nWqLPvVJgWjAp-eYsmbO5vT2qQ3_zH-2+A@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Fri, 10 Nov 2017, Dave Hansen wrote:
->  	__set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
-> +
-> +	/* CPU 0's mapping is done in kaiser_init() */
-> +	if (cpu) {
-> +		int ret;
-> +
-> +		ret = kaiser_add_mapping((unsigned long) get_cpu_gdt_ro(cpu),
-> +					 PAGE_SIZE, __PAGE_KERNEL_RO);
-> +		/*
-> +		 * We do not have a good way to fail CPU bringup.
-> +		 * Just WARN about it and hope we boot far enough
-> +		 * to get a good log out.
-> +		 */
 
-The GDT fixmap can be set up before the CPU is started. There is no reason
-to do that in cpu_init().
 
-> +
-> +	/*
-> +	 * We could theoretically do this in setup_fixmap_gdt().
-> +	 * But, we would need to rewrite the above page table
-> +	 * allocation code to use the bootmem allocator.  The
-> +	 * buddy allocator is not available at the time that we
-> +	 * call setup_fixmap_gdt() for CPU 0.
-> +	 */
-> +	kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
-> +				  __PAGE_KERNEL_RO | _PAGE_GLOBAL);
+On 11/20/2017 12:20 PM, Dmitry Vyukov wrote:
+> On Mon, Nov 20, 2017 at 9:05 PM, Wengang <wen.gang.wang@oracle.com> wrote:
+>>
+>> On 11/20/2017 12:41 AM, Dmitry Vyukov wrote:
+>>>
+>>>> The reason I didn't submit the vchecker to mainline is that I didn't find
+>>>> the case that this tool is useful in real life. Most of the system broken
+>>>> case
+>>>> can be debugged by other ways. Do you see the real case that this tool is
+>>>> helpful?
+>>> Hi,
+>>>
+>>> Yes, this is the main question here.
+>>> How is it going to be used in real life? How widely?
+>>>
+>> I think the owner check can be enabled in the cases where KASAN is used. --
+>> That is that we found there is memory issue, but don't know how it happened.
+>
+> But KASAN generally pinpoints the corruption as it happens. Why do we
+> need something else?
 
-This one is needs to stay.
+Currently (without this patch set) kasan can't detect the overwritten 
+issues that happen on allocated memory.
 
-Thanks,
+Say, A allocated a 128 bytes memory and B write to that memory at offset 
+0 with length 100 unexpectedly.  Currently kasan won't report error for 
+any writing to the offset 0 with len <= 128 including the B writting.  
+This patch lets kasan report the B writing to offset 0 with length 100.
 
-	tglx
+thanks,
+wengang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
