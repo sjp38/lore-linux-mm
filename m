@@ -1,64 +1,165 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 740E56B0069
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 15:55:25 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 4so6555505wrt.8
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 12:55:25 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id f145si2764668wmf.16.2017.11.20.12.55.24
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A1A8D6B0033
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 16:11:18 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id c83so9791555pfj.11
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 13:11:18 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v38sor3028155pgn.296.2017.11.20.13.11.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 12:55:24 -0800 (PST)
-Date: Mon, 20 Nov 2017 21:55:21 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
-In-Reply-To: <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1711202154540.2348@nanos>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193125.EBF58596@viggo.jf.intel.com> <alpine.DEB.2.20.1711202115190.2348@nanos> <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 20 Nov 2017 13:11:17 -0800 (PST)
+Date: Mon, 20 Nov 2017 13:11:14 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info (crisv32 hang)
+Message-ID: <20171120211114.GA25984@roeck-us.net>
+References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+ <20171118182542.GA23928@roeck-us.net>
+ <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr>
+ <a4fd87d4-c183-682d-9fd9-a9ff6d04f63e@roeck-us.net>
+ <nycvar.YSQ.7.76.1711192230000.16045@knanqh.ubzr>
+ <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
+ <20171120185138.GB23789@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On Mon, 20 Nov 2017, Andy Lutomirski wrote:
-> On Mon, Nov 20, 2017 at 12:22 PM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > On Fri, 10 Nov 2017, Dave Hansen wrote:
-> >>       __set_fixmap(get_cpu_gdt_ro_index(cpu), get_cpu_gdt_paddr(cpu), prot);
-> >> +
-> >> +     /* CPU 0's mapping is done in kaiser_init() */
-> >> +     if (cpu) {
-> >> +             int ret;
-> >> +
-> >> +             ret = kaiser_add_mapping((unsigned long) get_cpu_gdt_ro(cpu),
-> >> +                                      PAGE_SIZE, __PAGE_KERNEL_RO);
-> >> +             /*
-> >> +              * We do not have a good way to fail CPU bringup.
-> >> +              * Just WARN about it and hope we boot far enough
-> >> +              * to get a good log out.
-> >> +              */
-> >
-> > The GDT fixmap can be set up before the CPU is started. There is no reason
-> > to do that in cpu_init().
-> >
-> >> +
-> >> +     /*
-> >> +      * We could theoretically do this in setup_fixmap_gdt().
-> >> +      * But, we would need to rewrite the above page table
-> >> +      * allocation code to use the bootmem allocator.  The
-> >> +      * buddy allocator is not available at the time that we
-> >> +      * call setup_fixmap_gdt() for CPU 0.
-> >> +      */
-> >> +     kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
-> >> +                               __PAGE_KERNEL_RO | _PAGE_GLOBAL);
-> >
-> > This one is needs to stay.
+On Mon, Nov 20, 2017 at 03:21:32PM -0500, Nicolas Pitre wrote:
+> On Mon, 20 Nov 2017, Guenter Roeck wrote:
 > 
-> When you rebase on to my latest version, this should change to mapping
-> the entire cpu_entry_area.
+> > On Mon, Nov 20, 2017 at 01:18:38PM -0500, Nicolas Pitre wrote:
+> > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
+> > > 
+> > > > On 11/19/2017 08:08 PM, Nicolas Pitre wrote:
+> > > > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
+> > > > > > On 11/19/2017 12:36 PM, Nicolas Pitre wrote:
+> > > > > > > On Sat, 18 Nov 2017, Guenter Roeck wrote:
+> > > > > > > > On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
+> > > > > > > > > @@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
+> > > > > > > > >      	if (pcpu_setup_first_chunk(ai, fc) < 0)
+> > > > > > > > >    		panic("Failed to initialize percpu areas.");
+> > > > > > > > > +	pcpu_free_alloc_info(ai);
+> > > > > > > > 
+> > > > > > > > This is the culprit. Everything works fine if I remove this line.
+> > > > > > > 
+> > > > > > > Without this line, the memory at the ai pointer is leaked. Maybe this is
+> > > > > > > modifying the memory allocation pattern and that triggers a bug later on
+> > > > > > > in your case.
+> > > > > > > 
+> > > > > > > At that point the console driver is not yet initialized and any error
+> > > > > > > message won't be printed. You should enable the early console mechanism
+> > > > > > > in your kernel (see arch/cris/arch-v32/kernel/debugport.c) and see what
+> > > > > > > that might tell you.
+> > > > > > > 
+> > > > > > 
+> > > > > > The problem is that BUG() on crisv32 does not yield useful output.
+> > > > > > Anyway, here is the culprit.
+> > > > > > 
+> > > > > > diff --git a/mm/bootmem.c b/mm/bootmem.c
+> > > > > > index 6aef64254203..2bcc8901450c 100644
+> > > > > > --- a/mm/bootmem.c
+> > > > > > +++ b/mm/bootmem.c
+> > > > > > @@ -382,7 +382,8 @@ static int __init mark_bootmem(unsigned long start,
+> > > > > > unsigned long end,
+> > > > > >                          return 0;
+> > > > > >                  pos = bdata->node_low_pfn;
+> > > > > >          }
+> > > > > > -       BUG();
+> > > > > > +       WARN(1, "mark_bootmem(): memory range 0x%lx-0x%lx not found\n",
+> > > > > > start,
+> > > > > > end);
+> > > > > > +       return -ENOMEM;
+> > > > > >   }
+> > > > > > 
+> > > > > >   /**
+> > > > > > diff --git a/mm/percpu.c b/mm/percpu.c
+> > > > > > index 79e3549cab0f..c75622d844f1 100644
+> > > > > > --- a/mm/percpu.c
+> > > > > > +++ b/mm/percpu.c
+> > > > > > @@ -1881,6 +1881,7 @@ struct pcpu_alloc_info * __init
+> > > > > > pcpu_alloc_alloc_info(int nr_groups,
+> > > > > >    */
+> > > > > >   void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
+> > > > > >   {
+> > > > > > +       printk("pcpu_free_alloc_info(%p (0x%lx))\n", ai, __pa(ai));
+> > > > > >          memblock_free_early(__pa(ai), ai->__ai_size);
+> > > > > 
+> > > > > The problem here is that there is two possibilities for
+> > > > > memblock_free_early(). From include/linux/bootmem.h:
+> > > > > 
+> > > > > #if defined(CONFIG_HAVE_MEMBLOCK) && defined(CONFIG_NO_BOOTMEM)
+> > > > > 
+> > > > > static inline void __init memblock_free_early(
+> > > > >                                          phys_addr_t base, phys_addr_t size)
+> > > > > {
+> > > > >          __memblock_free_early(base, size);
+> > > > > }
+> > > > > 
+> > > > > #else
+> > > > > 
+> > > > > static inline void __init memblock_free_early(
+> > > > >                                          phys_addr_t base, phys_addr_t size)
+> > > > > {
+> > > > >          free_bootmem(base, size);
+> > > > > }
+> > > > > 
+> > > > > #endif
+> > > > > 
+> > > > > It looks like most architectures use the memblock variant, including all
+> > > > > the ones I have access to.
+> > > > > 
+> > > > > > results in:
+> > > > > > 
+> > > > > > pcpu_free_alloc_info(c0534000 (0x40534000))
+> > > > > > ------------[ cut here ]------------
+> > > > > > WARNING: CPU: 0 PID: 0 at mm/bootmem.c:385 mark_bootmem+0x9a/0xaa
+> > > > > > mark_bootmem(): memory range 0x2029a-0x2029b not found
+> > > > > 
+> > > > > Well... PFN_UP(0x40534000) should give 0x40534. How you might end up
+> > > > > with 0x2029a in mark_bootmem(), let alone not exit on the first "if (max
+> > > > > == end) return 0;" within the loop is rather weird.
+> > > > > 
+> > > > pcpu_free_alloc_info: ai=c0536000, __pa(ai)=0x40536000,
+> > > > PFN_UP(__pa(ai))=0x2029b, PFN_UP(ai)=0x6029b
+> > > > 
+> > > > bootmem range is 0x60000..0x61000. It doesn't get to "if (max == end)"
+> > > > because "pos (=0x2029b) < bdata->node_min_pfn (=0x60000)".
+> > > 
+> > > OK. the 0x2029b is the result of PAGE_SIZE being 8192 in your case.
+> > > However the bootmem allocator deals with physical addresses not virtual 
+> > > ones. So it shouldn't give you a 0x60000..0x61000 range.
+> > > 
+> > > Would be interesting to see what result you get on line 860 of 
+> > > mm/bootmem.c.
+> > > 
+> > Nothing; __alloc_bootmem_low_node() is not called.
+> > 
+> > Call chain is:
+> >   pcpu_alloc_alloc_info
+> >     memblock_virt_alloc_nopanic
+> >       __alloc_bootmem_nopanic
+> >         ___alloc_bootmem_nopanic
+> 
+> But from there it should continue with: 
+> 
+> 	alloc_bootmem_core() -->
+> 	  alloc_bootmem_bdata() -->
+> 	    [...]
+> 	    region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) + start_off);
+> 
+> That's line 585, not 860 as I mentioned. Sorry for the confusion.
+> 
+bdata->node_min_pfn=60000 PFN_PHYS(bdata->node_min_pfn)=c0000000 start_off=536000 region=c0536000
 
-Too much flux left and right :)
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
