@@ -1,76 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 21A626B0033
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 11:32:26 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id o196so7844799vkf.4
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 08:32:26 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id y130si3799716vkd.134.2017.11.21.08.32.24
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A6746B0253
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 12:13:06 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id z34so8475873wrz.0
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 09:13:06 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n7sor1551455wrh.18.2017.11.21.09.13.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 08:32:24 -0800 (PST)
-Message-ID: <1511281935.14446.3.camel@oracle.com>
-Subject: Re: [RFC PATCH 0/3] restructure memfd code
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Date: Tue, 21 Nov 2017 09:32:15 -0700
-In-Reply-To: <20171109014109.21077-1-mike.kravetz@oracle.com>
-References: <20171109014109.21077-1-mike.kravetz@oracle.com>
+        (Google Transport Security);
+        Tue, 21 Nov 2017 09:13:04 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171121150632.GA23460@cmpxchg.org>
+References: <20171104224312.145616-1-shakeelb@google.com> <577ab7e8-b079-125b-80ca-6168dd24720a@suse.cz>
+ <20171121150632.GA23460@cmpxchg.org>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 21 Nov 2017 09:13:02 -0800
+Message-ID: <CALvZod5rpLkkGOwJ9qdG3ODjsTN4KSRB5GmEdJE=HqJ7jm3WpA@mail.gmail.com>
+Subject: Re: [PATCH] mm, mlock, vmscan: no more skipping pagevecs
 Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, =?ISO-8859-1?Q?Marc-Andr=E9?= Lureau <marcandre.lureau@redhat.com>, David Herrmann <dh.herrmann@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed, 2017-11-08 at 17:41 -0800, Mike Kravetz wrote:
-> With the addition of memfd hugetlbfs support, we now have the
-> situation
-> where memfd depends on TMPFS -or- HUGETLBFS.=C2=A0=C2=A0Previously, memfd=
- was
-> only
-> supported on tmpfs, so it made sense that the code resides in
-> shmem.c.
->=20
-> This patch series moves the memfd code to separate files (memfd.c and
-> memfd.h).=C2=A0=C2=A0It creates a new config option MEMFD_CREATE that is
-> defined
-> if either TMPFS or HUGETLBFS is defined.
->=20
-> In the current code, memfd is only functional if TMPFS is
-> defined.=C2=A0=C2=A0If
-> HUGETLFS is defined and TMPFS is not defined, then memfd
-> functionality
-> will not be available for hugetlbfs.=C2=A0=C2=A0This does not cause BUGs,=
- just
-> a
-> potential lack of desired functionality.
->=20
-> Another way to approach this issue would be to simply make HUGETLBFS
-> depend on TMPFS.
->=20
-> This patch series is built on top of the Marc-Andr=C3=A9 Lureau v3 series
-> "memfd: add sealing to hugetlb-backed memory":
-> http://lkml.kernel.org/r/20171107122800.25517-1-marcandre.lureau@redh
-> at.com
->=20
-> Mike Kravetz (3):
-> =C2=A0 mm: hugetlbfs: move HUGETLBFS_I outside #ifdef CONFIG_HUGETLBFS
-> =C2=A0 mm: memfd: split out memfd for use by multiple filesystems
-> =C2=A0 mm: memfd: remove memfd code from shmem files and use new memfd
-> files
->=20
+On Tue, Nov 21, 2017 at 7:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> On Tue, Nov 21, 2017 at 01:39:57PM +0100, Vlastimil Babka wrote:
+>> On 11/04/2017 11:43 PM, Shakeel Butt wrote:
+>> > When a thread mlocks an address space backed by file, a new
+>> > page is allocated (assuming file page is not in memory), added
+>> > to the local pagevec (lru_add_pvec), I/O is triggered and the
+>> > thread then sleeps on the page. On I/O completion, the thread
+>> > can wake on a different CPU, the mlock syscall will then sets
+>> > the PageMlocked() bit of the page but will not be able to put
+>> > that page in unevictable LRU as the page is on the pagevec of
+>> > a different CPU. Even on drain, that page will go to evictable
+>> > LRU because the PageMlocked() bit is not checked on pagevec
+>> > drain.
+>> >
+>> > The page will eventually go to right LRU on reclaim but the
+>> > LRU stats will remain skewed for a long time.
+>> >
+>> > However, this issue does not happen for anon pages on swap
+>> > because unlike file pages, anon pages are not added to pagevec
+>> > until they have been fully swapped in. Also the fault handler
+>> > uses vm_flags to set the PageMlocked() bit of such anon pages
+>> > even before returning to mlock() syscall and mlocked pages will
+>> > skip pagevecs and directly be put into unevictable LRU. No such
+>> > luck for file pages.
+>> >
+>> > One way to resolve this issue, is to somehow plumb vm_flags from
+>> > filemap_fault() to add_to_page_cache_lru() which will then skip
+>> > the pagevec for pages of VM_LOCKED vma and directly put them to
+>> > unevictable LRU. However this patch took a different approach.
+>> >
+>> > All the pages, even unevictable, will be added to the pagevecs
+>> > and on the drain, the pages will be added on their LRUs correctly
+>> > by checking their evictability. This resolves the mlocked file
+>> > pages on pagevec of other CPUs issue because when those pagevecs
+>> > will be drained, the mlocked file pages will go to unevictable
+>> > LRU. Also this makes the race with munlock easier to resolve
+>> > because the pagevec drains happen in LRU lock.
+>> >
+>> > There is one (good) side effect though. Without this patch, the
+>> > pages allocated for System V shared memory segment are added to
+>> > evictable LRUs even after shmctl(SHM_LOCK) on that segment. This
+>> > patch will correctly put such pages to unevictable LRU.
+>> >
+>> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+>>
+>> I like the approach in general, as it seems to make the code simpler,
+>> and the diffstats support that. I found no bugs, but I can't say that
+>> with certainty that there aren't any, though. This code is rather
+>> tricky. But it should be enough for an ack, so.
+>>
+>> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+>>
+>> A question below, though.
+>>
+>> ...
+>>
+>> > @@ -883,15 +855,41 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+>> >  static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+>> >                              void *arg)
+>> >  {
+>> > -   int file = page_is_file_cache(page);
+>> > -   int active = PageActive(page);
+>> > -   enum lru_list lru = page_lru(page);
+>> > +   enum lru_list lru;
+>> > +   int was_unevictable = TestClearPageUnevictable(page);
+>> >
+>> >     VM_BUG_ON_PAGE(PageLRU(page), page);
+>> >
+>> >     SetPageLRU(page);
+>> > +   /*
+>> > +    * Page becomes evictable in two ways:
+>> > +    * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
+>> > +    * 2) Before acquiring LRU lock to put the page to correct LRU and then
+>> > +    *   a) do PageLRU check with lock [check_move_unevictable_pages]
+>> > +    *   b) do PageLRU check before lock [isolate_lru_page]
+>> > +    *
+>> > +    * (1) & (2a) are ok as LRU lock will serialize them. For (2b), if the
+>> > +    * other thread does not observe our setting of PG_lru and fails
+>> > +    * isolation, the following page_evictable() check will make us put
+>> > +    * the page in correct LRU.
+>> > +    */
+>> > +   smp_mb();
+>>
+>> Could you elaborate on the purpose of smp_mb() here? Previously there
+>> was "The other side is TestClearPageMlocked() or shmem_lock()" in
+>> putback_lru_page(), which seems rather unclear to me (neither has an
+>> explicit barrier?).
+>
+> The TestClearPageMlocked() is an RMW operation with return value, and
+> thus an implicit full barrier (see Documentation/atomic_bitops.txt).
+>
+> The ordering is between putback and munlock:
+>
+> #0                         #1
+> list_add(&page->lru,...)   if (TestClearPageMlock())
+> SetPageLRU()                 __munlock_isolate_lru_page()
+> smp_mb()
+> if (page_evictable())
+>   rescue
+>
+> The scenario that the barrier prevents from happening is:
+>
+> list_add(&page->lru,...)
+> if (page_evictable())
+>    rescue
+>                            if (TestClearPageMlock())
+>                                __munlock_isolate_lru_page() // FAILS on !PageLRU
+> SetPageLRU()
+>
+> and now an evictable page is stranded on the unevictable LRU.
+>
+> The barrier guarantees that if #0 doesn't see the page evictable yet,
+> #1 WILL see the PageLRU and succeed in isolation and rescue.
+>
+> Shakeel, please don't drop that "the other side" comment. You mention
+> the places that make the page evictable - which is great, and please
+> keep that as well - but for barriers it's always good to know exactly
+> which operation guarantees the ordering on the other side. In fact, it
+> would be great if you could add comments to the TestClearPageMlocked()
+> sites that mention how they order against the smp_mb() in LRU putback.
 
-Hi Mike,
-
-This looks like a useful change. After applying patch 2, you end up
-with duplicate definitions of number of symbols though. Although those
-duplicates will not cause compilation problems since memfd.c is not
-compiled until after patch 3 has been applied, would it make more sense
-to combine moving of all code in one patch?
-
---
-Khalid
+Ack, will update and send the next version.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
