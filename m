@@ -1,168 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3BBBC6B0253
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:34:20 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id 124so956146wmv.2
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 13:34:20 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s14si1603523edk.451.2017.11.21.13.34.18
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C45AA6B0253
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:40:11 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 4so8615297wrt.8
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 13:40:11 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a8si7149708wrh.3.2017.11.21.13.40.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 Nov 2017 13:34:18 -0800 (PST)
-Date: Tue, 21 Nov 2017 16:34:00 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, mlock, vmscan: no more skipping pagevecs
-Message-ID: <20171121213400.GA1503@cmpxchg.org>
-References: <20171104224312.145616-1-shakeelb@google.com>
- <577ab7e8-b079-125b-80ca-6168dd24720a@suse.cz>
- <20171121150632.GA23460@cmpxchg.org>
- <CALvZod5f9oC97OJBZuHypFn1nuyYKF77TpNSyPs31mAGFc=4Ag@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALvZod5f9oC97OJBZuHypFn1nuyYKF77TpNSyPs31mAGFc=4Ag@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Nov 2017 13:40:10 -0800 (PST)
+Date: Tue, 21 Nov 2017 13:40:07 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+Message-Id: <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
+In-Reply-To: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, Dave Chinner <david@fromorbit.com>, Al Viro <viro@zeniv.linux.org.uk>, Jan Kara <jack@suse.com>, Paolo Bonzini <pbonzini@redhat.com>, David Airlie <airlied@linux.ie>, Alex Deucher <alexander.deucher@amd.com>, Shaohua Li <shli@fb.com>, Mike Snitzer <snitzer@redhat.com>
 
-On Tue, Nov 21, 2017 at 10:22:23AM -0800, Shakeel Butt wrote:
-> On Tue, Nov 21, 2017 at 7:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
-> > On Tue, Nov 21, 2017 at 01:39:57PM +0100, Vlastimil Babka wrote:
-> >> On 11/04/2017 11:43 PM, Shakeel Butt wrote:
-> >> > When a thread mlocks an address space backed by file, a new
-> >> > page is allocated (assuming file page is not in memory), added
-> >> > to the local pagevec (lru_add_pvec), I/O is triggered and the
-> >> > thread then sleeps on the page. On I/O completion, the thread
-> >> > can wake on a different CPU, the mlock syscall will then sets
-> >> > the PageMlocked() bit of the page but will not be able to put
-> >> > that page in unevictable LRU as the page is on the pagevec of
-> >> > a different CPU. Even on drain, that page will go to evictable
-> >> > LRU because the PageMlocked() bit is not checked on pagevec
-> >> > drain.
-> >> >
-> >> > The page will eventually go to right LRU on reclaim but the
-> >> > LRU stats will remain skewed for a long time.
-> >> >
-> >> > However, this issue does not happen for anon pages on swap
-> >> > because unlike file pages, anon pages are not added to pagevec
-> >> > until they have been fully swapped in. Also the fault handler
-> >> > uses vm_flags to set the PageMlocked() bit of such anon pages
-> >> > even before returning to mlock() syscall and mlocked pages will
-> >> > skip pagevecs and directly be put into unevictable LRU. No such
-> >> > luck for file pages.
-> >> >
-> >> > One way to resolve this issue, is to somehow plumb vm_flags from
-> >> > filemap_fault() to add_to_page_cache_lru() which will then skip
-> >> > the pagevec for pages of VM_LOCKED vma and directly put them to
-> >> > unevictable LRU. However this patch took a different approach.
-> >> >
-> >> > All the pages, even unevictable, will be added to the pagevecs
-> >> > and on the drain, the pages will be added on their LRUs correctly
-> >> > by checking their evictability. This resolves the mlocked file
-> >> > pages on pagevec of other CPUs issue because when those pagevecs
-> >> > will be drained, the mlocked file pages will go to unevictable
-> >> > LRU. Also this makes the race with munlock easier to resolve
-> >> > because the pagevec drains happen in LRU lock.
-> >> >
-> >> > There is one (good) side effect though. Without this patch, the
-> >> > pages allocated for System V shared memory segment are added to
-> >> > evictable LRUs even after shmctl(SHM_LOCK) on that segment. This
-> >> > patch will correctly put such pages to unevictable LRU.
-> >> >
-> >> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> >>
-> >> I like the approach in general, as it seems to make the code simpler,
-> >> and the diffstats support that. I found no bugs, but I can't say that
-> >> with certainty that there aren't any, though. This code is rather
-> >> tricky. But it should be enough for an ack, so.
-> >>
-> >> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> >>
-> >> A question below, though.
-> >>
-> >> ...
-> >>
-> >> > @@ -883,15 +855,41 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
-> >> >  static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
-> >> >                              void *arg)
-> >> >  {
-> >> > -   int file = page_is_file_cache(page);
-> >> > -   int active = PageActive(page);
-> >> > -   enum lru_list lru = page_lru(page);
-> >> > +   enum lru_list lru;
-> >> > +   int was_unevictable = TestClearPageUnevictable(page);
-> >> >
-> >> >     VM_BUG_ON_PAGE(PageLRU(page), page);
-> >> >
-> >> >     SetPageLRU(page);
-> >> > +   /*
-> >> > +    * Page becomes evictable in two ways:
-> >> > +    * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
-> >> > +    * 2) Before acquiring LRU lock to put the page to correct LRU and then
-> >> > +    *   a) do PageLRU check with lock [check_move_unevictable_pages]
-> >> > +    *   b) do PageLRU check before lock [isolate_lru_page]
-> >> > +    *
-> >> > +    * (1) & (2a) are ok as LRU lock will serialize them. For (2b), if the
-> >> > +    * other thread does not observe our setting of PG_lru and fails
-> >> > +    * isolation, the following page_evictable() check will make us put
-> >> > +    * the page in correct LRU.
-> >> > +    */
-> >> > +   smp_mb();
-> >>
-> >> Could you elaborate on the purpose of smp_mb() here? Previously there
-> >> was "The other side is TestClearPageMlocked() or shmem_lock()" in
-> >> putback_lru_page(), which seems rather unclear to me (neither has an
-> >> explicit barrier?).
-> >
-> > The TestClearPageMlocked() is an RMW operation with return value, and
-> > thus an implicit full barrier (see Documentation/atomic_bitops.txt).
-> >
-> > The ordering is between putback and munlock:
-> >
-> > #0                         #1
-> > list_add(&page->lru,...)   if (TestClearPageMlock())
-> > SetPageLRU()                 __munlock_isolate_lru_page()
-> > smp_mb()
-> > if (page_evictable())
-> >   rescue
-> >
-> > The scenario that the barrier prevents from happening is:
-> >
-> > list_add(&page->lru,...)
-> > if (page_evictable())
-> >    rescue
-> >                            if (TestClearPageMlock())
-> >                                __munlock_isolate_lru_page() // FAILS on !PageLRU
-> > SetPageLRU()
-> >
-> > and now an evictable page is stranded on the unevictable LRU.
-> >
-> > The barrier guarantees that if #0 doesn't see the page evictable yet,
-> > #1 WILL see the PageLRU and succeed in isolation and rescue.
-> >
-> > Shakeel, please don't drop that "the other side" comment. You mention
-> > the places that make the page evictable - which is great, and please
-> > keep that as well - but for barriers it's always good to know exactly
-> > which operation guarantees the ordering on the other side. In fact, it
-> > would be great if you could add comments to the TestClearPageMlocked()
-> > sites that mention how they order against the smp_mb() in LRU putback.
-> 
-> Johannes, I have a question. The example you presented is valid before
-> this patch as '#0' was happening outside LRU lock. This patch moves
-> '#0' inside LRU lock and '#1' was already in LRU lock therefore no
-> issue for this particular scenario. However there is still a
-> TestClearPageMlocked() in clear_page_mlock() which happens outside LRU
-> lock and same issue which you have explained can happen even with this
-> patch (but without smp_mb()).
-> 
-> So, "the other side" for smp_mb() after this patch will only be the
-> TestClearPageMlock() in clear_page_mlock() because all other
-> TestClearPageMlocked() instances are serialized by LRU lock. Please
-> let me know if I missed something.
+On Tue, 21 Nov 2017 21:02:37 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
 
-You are right, I overlooked the lru lock in __munlock_pagevec(). It's
-really only clear_page_mlock() that needs the ordering.
+> There are users not checking for register_shrinker() failure.
+> Continuing with ignoring failure can lead to later oops at
+> unregister_shrinker().
+> 
+> ...
+>
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -75,6 +75,6 @@ struct shrinker {
+>  #define SHRINKER_NUMA_AWARE	(1 << 0)
+>  #define SHRINKER_MEMCG_AWARE	(1 << 1)
+>  
+> -extern int register_shrinker(struct shrinker *);
+> +extern __must_check int register_shrinker(struct shrinker *);
+>  extern void unregister_shrinker(struct shrinker *);
+>  #endif
+
+hm, well, OK, it's a small kmalloc(GFP_KERNEL).  That won't be
+failing.
+
+Affected code seems to be fs/xfs, fs/super.c, fs/quota,
+arch/x86/kvm/mmu, drivers/gpu/drm/ttm, drivers/md and a bunch of
+staging stuff.
+
+I'm not sure this is worth bothering about?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
