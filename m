@@ -1,144 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 19AE96B0261
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 20:09:45 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v8so7001079wrd.21
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 17:09:45 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id n21si1015095edn.262.2017.11.20.17.09.43
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A63566B0268
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 20:48:22 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id u3so11233734pgn.3
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 17:48:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bi10sor3800810plb.55.2017.11.20.17.48.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Nov 2017 17:09:43 -0800 (PST)
-Subject: Re: [PATCH v2] mm: show total hugetlb memory consumption in
- /proc/meminfo
-References: <20171115231409.12131-1-guro@fb.com>
- <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <a63311cd-5e29-951a-dcac-a96ddbc2662b@oracle.com>
-Date: Mon, 20 Nov 2017 17:09:30 -0800
+        (Google Transport Security);
+        Mon, 20 Nov 2017 17:48:21 -0800 (PST)
+Date: Mon, 20 Nov 2017 17:48:18 -0800
+From: Guenter Roeck <linux@roeck-us.net>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info (crisv32 hang)
+Message-ID: <20171121014818.GA360@roeck-us.net>
+References: <20171118182542.GA23928@roeck-us.net>
+ <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr>
+ <a4fd87d4-c183-682d-9fd9-a9ff6d04f63e@roeck-us.net>
+ <nycvar.YSQ.7.76.1711192230000.16045@knanqh.ubzr>
+ <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
+ <20171120185138.GB23789@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr>
+ <20171120211114.GA25984@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
 MIME-Version: 1.0
-In-Reply-To: <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>
-Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On 11/20/2017 04:51 PM, Andrew Morton wrote:
-> On Wed, 15 Nov 2017 23:14:09 +0000 Roman Gushchin <guro@fb.com> wrote:
+On Mon, Nov 20, 2017 at 07:28:21PM -0500, Nicolas Pitre wrote:
+> On Mon, 20 Nov 2017, Guenter Roeck wrote:
 > 
->> Currently we display some hugepage statistics (total, free, etc)
->> in /proc/meminfo, but only for default hugepage size (e.g. 2Mb).
->>
->> If hugepages of different sizes are used (like 2Mb and 1Gb on x86-64),
->> /proc/meminfo output can be confusing, as non-default sized hugepages
->> are not reflected at all, and there are no signs that they are
->> existing and consuming system memory.
->>
->> To solve this problem, let's display the total amount of memory,
->> consumed by hugetlb pages of all sized (both free and used).
->> Let's call it "Hugetlb", and display size in kB to match generic
->> /proc/meminfo style.
->>
->> For example, (1024 2Mb pages and 2 1Gb pages are pre-allocated):
->>   $ cat /proc/meminfo
->>   MemTotal:        8168984 kB
->>   MemFree:         3789276 kB
->>   <...>
->>   CmaFree:               0 kB
->>   HugePages_Total:    1024
->>   HugePages_Free:     1024
->>   HugePages_Rsvd:        0
->>   HugePages_Surp:        0
->>   Hugepagesize:       2048 kB
->>   Hugetlb:         4194304 kB
->>   DirectMap4k:       32632 kB
->>   DirectMap2M:     4161536 kB
->>   DirectMap1G:     6291456 kB
->>
->> Also, this patch updates corresponding docs to reflect
->> Hugetlb entry meaning and difference between Hugetlb and
->> HugePages_Total * Hugepagesize.
->>
->> ...
->>
->> --- a/mm/hugetlb.c
->> +++ b/mm/hugetlb.c
->> @@ -2973,20 +2973,32 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
->>  
->>  void hugetlb_report_meminfo(struct seq_file *m)
->>  {
->> -	struct hstate *h = &default_hstate;
->> +	struct hstate *h;
->> +	unsigned long total = 0;
->> +
->>  	if (!hugepages_supported())
->>  		return;
->> -	seq_printf(m,
->> -			"HugePages_Total:   %5lu\n"
->> -			"HugePages_Free:    %5lu\n"
->> -			"HugePages_Rsvd:    %5lu\n"
->> -			"HugePages_Surp:    %5lu\n"
->> -			"Hugepagesize:   %8lu kB\n",
->> -			h->nr_huge_pages,
->> -			h->free_huge_pages,
->> -			h->resv_huge_pages,
->> -			h->surplus_huge_pages,
->> -			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
->> +
->> +	for_each_hstate(h) {
->> +		unsigned long count = h->nr_huge_pages;
->> +
->> +		total += (PAGE_SIZE << huge_page_order(h)) * count;
->> +
->> +		if (h == &default_hstate)
+> > On Mon, Nov 20, 2017 at 03:21:32PM -0500, Nicolas Pitre wrote:
+> > > On Mon, 20 Nov 2017, Guenter Roeck wrote:
+> > > 
+> > > > On Mon, Nov 20, 2017 at 01:18:38PM -0500, Nicolas Pitre wrote:
+> > > > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
+> > > > > 
+> > > > > > On 11/19/2017 08:08 PM, Nicolas Pitre wrote:
+> > > > > > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
+> > > > > > > > On 11/19/2017 12:36 PM, Nicolas Pitre wrote:
+> > > > > > > > > On Sat, 18 Nov 2017, Guenter Roeck wrote:
+> > > > > > > > > > On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
+> > > > > > > > > > > @@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
+> > > > > > > > > > >      	if (pcpu_setup_first_chunk(ai, fc) < 0)
+> > > > > > > > > > >    		panic("Failed to initialize percpu areas.");
+> > > > > > > > > > > +	pcpu_free_alloc_info(ai);
+> > > > > > > > > > 
+> > > > > > > > > > This is the culprit. Everything works fine if I remove this line.
+> > > > > > > > > 
+> > > > > > > > > Without this line, the memory at the ai pointer is leaked. Maybe this is
+> > > > > > > > > modifying the memory allocation pattern and that triggers a bug later on
+> > > > > > > > > in your case.
+> > > > > > > > > 
+> > > > > > > > > At that point the console driver is not yet initialized and any error
+> > > > > > > > > message won't be printed. You should enable the early console mechanism
+> > > > > > > > > in your kernel (see arch/cris/arch-v32/kernel/debugport.c) and see what
+> > > > > > > > > that might tell you.
+> > > > > > > > > 
+> > > > > > > > 
+> > > > > > > > The problem is that BUG() on crisv32 does not yield useful output.
+> > > > > > > > Anyway, here is the culprit.
+> > > > > > > > 
+> > > > > > > > diff --git a/mm/bootmem.c b/mm/bootmem.c
+> > > > > > > > index 6aef64254203..2bcc8901450c 100644
+> > > > > > > > --- a/mm/bootmem.c
+> > > > > > > > +++ b/mm/bootmem.c
+> > > > > > > > @@ -382,7 +382,8 @@ static int __init mark_bootmem(unsigned long start,
+> > > > > > > > unsigned long end,
+> > > > > > > >                          return 0;
+> > > > > > > >                  pos = bdata->node_low_pfn;
+> > > > > > > >          }
+> > > > > > > > -       BUG();
+> > > > > > > > +       WARN(1, "mark_bootmem(): memory range 0x%lx-0x%lx not found\n",
+> > > > > > > > start,
+> > > > > > > > end);
+> > > > > > > > +       return -ENOMEM;
+> > > > > > > >   }
+> > > > > > > > 
+> > > > > > > >   /**
+> > > > > > > > diff --git a/mm/percpu.c b/mm/percpu.c
+> > > > > > > > index 79e3549cab0f..c75622d844f1 100644
+> > > > > > > > --- a/mm/percpu.c
+> > > > > > > > +++ b/mm/percpu.c
+> > > > > > > > @@ -1881,6 +1881,7 @@ struct pcpu_alloc_info * __init
+> > > > > > > > pcpu_alloc_alloc_info(int nr_groups,
+> > > > > > > >    */
+> > > > > > > >   void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
+> > > > > > > >   {
+> > > > > > > > +       printk("pcpu_free_alloc_info(%p (0x%lx))\n", ai, __pa(ai));
+> > > > > > > >          memblock_free_early(__pa(ai), ai->__ai_size);
+> > > > > > > >
+> > > > > > > > results in:
+> > > > > > > > 
+> > > > > > > > pcpu_free_alloc_info(c0534000 (0x40534000))
+> > > > > > > > ------------[ cut here ]------------
+> > > > > > > > WARNING: CPU: 0 PID: 0 at mm/bootmem.c:385 mark_bootmem+0x9a/0xaa
+> > > > > > > > mark_bootmem(): memory range 0x2029a-0x2029b not found
+> > > > > > > 
+> > > > > > > Well... PFN_UP(0x40534000) should give 0x40534. How you might end up
+> > > > > > > with 0x2029a in mark_bootmem(), let alone not exit on the first "if (max
+> > > > > > > == end) return 0;" within the loop is rather weird.
+> > > > > > > 
+> > > > > > pcpu_free_alloc_info: ai=c0536000, __pa(ai)=0x40536000,
+> > > > > > PFN_UP(__pa(ai))=0x2029b, PFN_UP(ai)=0x6029b
+> > > > > > 
+> > > > > > bootmem range is 0x60000..0x61000. It doesn't get to "if (max == end)"
+> > > > > > because "pos (=0x2029b) < bdata->node_min_pfn (=0x60000)".
+> > > > > 
+> > > > > OK. the 0x2029b is the result of PAGE_SIZE being 8192 in your case.
+> > > > > However the bootmem allocator deals with physical addresses not virtual 
+> > > > > ones. So it shouldn't give you a 0x60000..0x61000 range.
+> > > > > 
+> > > > > Would be interesting to see what result you get on line 860 of 
+> > > > > mm/bootmem.c.
+> > > > > 
+> > > > Nothing; __alloc_bootmem_low_node() is not called.
+> > > > 
+> > > > Call chain is:
+> > > >   pcpu_alloc_alloc_info
+> > > >     memblock_virt_alloc_nopanic
+> > > >       __alloc_bootmem_nopanic
+> > > >         ___alloc_bootmem_nopanic
+> > > 
+> > > But from there it should continue with: 
+> > > 
+> > > 	alloc_bootmem_core() -->
+> > > 	  alloc_bootmem_bdata() -->
+> > > 	    [...]
+> > > 	    region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) + start_off);
+> > > 
+> > > That's line 585, not 860 as I mentioned. Sorry for the confusion.
+> > > 
+> > bdata->node_min_pfn=60000 PFN_PHYS(bdata->node_min_pfn)=c0000000 start_off=536000 region=c0536000
 > 
-> I'm not understanding this test.  Are we assuming that default_hstate
-> always refers to the highest-index hstate?  If so why, and is that
-> valid?
-
-Actually default_hstate is defined as:
-
-#define default_hstate (hstates[default_hstate_idx])
-
-default_hstate_idx is set during hugetlb_init based upon default_hstate_size
-which defaults to HPAGE_SIZE.  However, it can be overridden by the kernel
-command line argument "default_hugepagesz=<size>".
-
-By definition and history /proc/meminfo lists information on the default
-huge page size.  This code is looping through all hstates to get the total
-memory consumed by hugetlb pages for the new "Hugetlb" field.  When it gets
-to the default huge page size, it prints the historic fields.
-
-Hope that helps,
--- 
-Mike Kravetz
-
+> If PFN_PHYS(bdata->node_min_pfn)=c0000000 and
+> region=c0536000 that means phys_to_virt() is a no-op.
 > 
->> +			seq_printf(m,
->> +				   "HugePages_Total:   %5lu\n"
->> +				   "HugePages_Free:    %5lu\n"
->> +				   "HugePages_Rsvd:    %5lu\n"
->> +				   "HugePages_Surp:    %5lu\n"
->> +				   "Hugepagesize:   %8lu kB\n",
->> +				   count,
->> +				   h->free_huge_pages,
->> +				   h->resv_huge_pages,
->> +				   h->surplus_huge_pages,
->> +				   (PAGE_SIZE << huge_page_order(h)) / 1024);
->> +	}
->> +
->> +	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
->>  }
+No, it is |= 0x80000000
+
+> However, from your result above, __pa(0xc0534000) = 0x40534000.
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> So, why is it that phys_to_virt() is a no-op and __pa() is not?
 > 
+> virt_to_phys() and __pa() are meant to be the reverse of phys_to_virt() 
+> and __va().
+> 
+I think the problem is the 0x60000 in bdata->node_min_pfn. It is shifted
+left by PFN_PHYS, making it 0xc0000000, which in my understanding is
+a virtual address. So something is wrong ... presumably node_min_pfn
+should be 0x20000, not 0x60000. init_bootmem_node() definitely passes
+virtual pfns as parameters.
+
+That doesn't seem to be easy to fix. It seems there is a mixup of physical
+and  virtual addresses in the architecture.
+
+Guenter
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
