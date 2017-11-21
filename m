@@ -1,58 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B6AD66B0033
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 10:33:16 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id k126so666227wmd.5
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 07:33:16 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id t2si3523748edf.176.2017.11.21.07.33.14
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3327F6B0033
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 10:45:32 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id r23so3949726pfg.17
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 07:45:32 -0800 (PST)
+Received: from mail1.windriver.com (mail1.windriver.com. [147.11.146.13])
+        by mx.google.com with ESMTPS id f5si11151071pgn.126.2017.11.21.07.45.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 Nov 2017 07:33:15 -0800 (PST)
-Date: Tue, 21 Nov 2017 10:32:57 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, mlock, vmscan: no more skipping pagevecs
-Message-ID: <20171121153257.GA23920@cmpxchg.org>
-References: <20171104224312.145616-1-shakeelb@google.com>
+        (version=TLS1_1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 21 Nov 2017 07:45:30 -0800 (PST)
+Message-ID: <5A144A17.8010909@windriver.com>
+Date: Tue, 21 Nov 2017 09:45:27 -0600
+From: Chris Friesen <chris.friesen@windriver.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171104224312.145616-1-shakeelb@google.com>
+Subject: Re: "swap_free: Bad swap file entry" and "BUG: Bad page map in process"
+ but no swap configured
+References: <57F6BB8F.7070208@windriver.com> <018601d2213a$bb0e44e0$312acea0$@alibaba-inc.com> <57FD0CF8.2030208@windriver.com> <CAAuJbeJPw9AeuDrO=q8Y+VkUoq1XQLWcbEYVQXywiP5nR=qaVg@mail.gmail.com>
+In-Reply-To: <CAAuJbeJPw9AeuDrO=q8Y+VkUoq1XQLWcbEYVQXywiP5nR=qaVg@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Huaitong Han <oenhan@gmail.com>, lkml <linux-kernel@vger.kernel.org>
+Cc: linux-mm@kvack.org
 
-On Sat, Nov 04, 2017 at 03:43:12PM -0700, Shakeel Butt wrote:
-> When a thread mlocks an address space backed by file, a new
-> page is allocated (assuming file page is not in memory), added
-> to the local pagevec (lru_add_pvec), I/O is triggered and the
-> thread then sleeps on the page. On I/O completion, the thread
-> can wake on a different CPU, the mlock syscall will then sets
-> the PageMlocked() bit of the page but will not be able to put
-> that page in unevictable LRU as the page is on the pagevec of
-> a different CPU. Even on drain, that page will go to evictable
-> LRU because the PageMlocked() bit is not checked on pagevec
-> drain.
-> 
-> The page will eventually go to right LRU on reclaim but the
-> LRU stats will remain skewed for a long time.
-> 
-> However, this issue does not happen for anon pages on swap
-> because unlike file pages, anon pages are not added to pagevec
-> until they have been fully swapped in.
+I think we tracked it down to the "eptad" kernel option on Broadwell processors. 
+  Setting "kvm-intel.eptad=0" turned it off.
 
-How so? __read_swap_cache_async() is the core function that allocates
-the page, and that always puts the page on the pagevec before IO is
-initiated.
+Chris
 
-> Also the fault handler uses vm_flags to set the PageMlocked() bit of
-> such anon pages even before returning to mlock() syscall and mlocked
-> pages will skip pagevecs and directly be put into unevictable LRU.
-
-Where does the swap fault path set PageMlocked()?
-
-I might just be missing something.
+On 11/20/2017 03:07 AM, Huaitong Han wrote:
+> Hi, Chris
+>
+> I have met the same issue too, did you have found out the root cause ?
+>
+> Thanks a lot.
+>
+> Huaitong Han
+>
+>
+> 2016-10-12 0:02 GMT+08:00 Chris Friesen <chris.friesen@windriver.com>:
+>> On 10/08/2016 02:05 AM, Hillf Danton wrote:
+>>>
+>>> On Friday, October 07, 2016 5:01 AM Chris Friesen
+>>>>
+>>>>
+>>>> I have Linux host running as a kvm hypervisor.  It's running CentOS.  (So
+>>>> the
+>>>> kernel is based on 3.10 but with loads of stuff backported by RedHat.)  I
+>>>> realize this is not a mainline kernel, but I was wondering if anyone is
+>>>> aware of
+>>>> similar issues that had been fixed in mainline.
+>>>>
+>>> Hey, dunno if you're looking for commit
+>>>          6dec97dc929 ("mm: move_ptes -- Set soft dirty bit depending on pte
+>>> type")
+>>> Hillf
+>>
+>>
+>> CONFIG_MEM_SOFT_DIRTY doesn't exist in our kernel so I don't think this is
+>> the issue.  Thanks for the suggestion though.
+>>
+>> Chris
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
