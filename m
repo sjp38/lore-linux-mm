@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E43886B026B
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 21:18:56 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id d125so5935788qkc.22
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 18:18:56 -0800 (PST)
-Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
-        by mx.google.com with ESMTPS id g27si11434384qtb.187.2017.11.20.18.18.56
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 509F66B026D
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 22:50:50 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id 136so6099589qkd.1
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 19:50:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z36sor8943086qtz.138.2017.11.20.19.50.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 20 Nov 2017 18:18:56 -0800 (PST)
-From: Zi Yan <zi.yan@sent.com>
-Subject: [PATCH] mm: migrate: fix an incorrect call of prep_transhuge_page()
-Date: Mon, 20 Nov 2017 21:18:55 -0500
-Message-Id: <20171121021855.50525-1-zi.yan@sent.com>
+        (Google Transport Security);
+        Mon, 20 Nov 2017 19:50:49 -0800 (PST)
+Date: Mon, 20 Nov 2017 22:50:46 -0500 (EST)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct pcpu_alloc_info
+ (crisv32 hang)
+In-Reply-To: <20171121014818.GA360@roeck-us.net>
+Message-ID: <nycvar.YSQ.7.76.1711202224490.16045@knanqh.ubzr>
+References: <20171118182542.GA23928@roeck-us.net> <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr> <a4fd87d4-c183-682d-9fd9-a9ff6d04f63e@roeck-us.net> <nycvar.YSQ.7.76.1711192230000.16045@knanqh.ubzr> <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
+ <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr> <20171120185138.GB23789@roeck-us.net> <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr> <20171120211114.GA25984@roeck-us.net> <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
+ <20171121014818.GA360@roeck-us.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Reale <ar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, stable@vger.kernel.org
+To: Guenter Roeck <linux@roeck-us.net>
+Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-From: Zi Yan <zi.yan@cs.rutgers.edu>
+On Mon, 20 Nov 2017, Guenter Roeck wrote:
 
-In [1], Andrea reported that during memory hotplug/hot remove
-prep_transhuge_page() is called incorrectly on non-THP pages for
-migration, when THP is on but THP migration is not enabled.
-This leads to a bad state of target pages for migration.
+> On Mon, Nov 20, 2017 at 07:28:21PM -0500, Nicolas Pitre wrote:
+> > On Mon, 20 Nov 2017, Guenter Roeck wrote:
+> > 
+> > > bdata->node_min_pfn=60000 PFN_PHYS(bdata->node_min_pfn)=c0000000 start_off=536000 region=c0536000
+> > 
+> > If PFN_PHYS(bdata->node_min_pfn)=c0000000 and
+> > region=c0536000 that means phys_to_virt() is a no-op.
+> > 
+> No, it is |= 0x80000000
 
-This patch fixes it by only calling prep_transhuge_page() when we are
-certain that the target page is THP.
+Then the bootmem registration looks very fishy. If you have:
 
-[1] https://lkml.org/lkml/2017/11/20/411
+> I think the problem is the 0x60000 in bdata->node_min_pfn. It is shifted
+> left by PFN_PHYS, making it 0xc0000000, which in my understanding is
+> a virtual address.
 
-Cc: stable@vger.kernel.org # v4.14
-Fixes: 8135d8926c08 ("mm: memory_hotplug: memory hotremove supports thp migration")
-Reported-by: Andrea Reale <ar@linux.vnet.ibm.com>
-Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
----
- include/linux/migrate.h | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Exact.
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 895ec0c4942e..a2246cf670ba 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
- 	new_page = __alloc_pages_nodemask(gfp_mask, order,
- 				preferred_nid, nodemask);
- 
--	if (new_page && PageTransHuge(page))
-+	if (new_page && PageTransHuge(new_page))
- 		prep_transhuge_page(new_page);
- 
- 	return new_page;
--- 
-2.14.2
+#define __pa(x)                 ((unsigned long)(x) & 0x7fffffff)
+#define __va(x)                 ((void *)((unsigned long)(x) | 0x80000000))
+
+With that, the only possible physical address range you may have is 
+0x40000000 - 0x7fffffff, and it better start at 0x40000000. If that's 
+not where your RAM is then something is wrong.
+
+This is in fact a very bad idea to define __va() and __pa() using 
+bitwise operations as this hides mistakes like defining physical RAM 
+address at 0xc0000000. Instead, it should look like:
+
+#define __pa(x)                 ((unsigned long)(x) - 0x80000000)
+#define __va(x)                 ((void *)((unsigned long)(x) + 0x80000000))
+
+This way, bad physical RAM address definitions will be caught 
+immediately.
+
+> That doesn't seem to be easy to fix. It seems there is a mixup of physical
+> and  virtual addresses in the architecture.
+
+Well... I don't think there is much else to say other than this needs 
+fixing.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
