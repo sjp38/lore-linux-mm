@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9ACFA6B0253
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:16:03 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id g75so12428137pfg.4
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 11:16:03 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id c26si197486pfj.132.2017.11.21.11.16.02
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 603786B025E
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:16:09 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id z184so13704182pgd.0
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 11:16:09 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f3si1614315plb.92.2017.11.21.11.16.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 11:16:02 -0800 (PST)
-Subject: [PATCH v3 2/5] mm: switch to 'define pmd_write' instead of
- __HAVE_ARCH_PMD_WRITE
+        Tue, 21 Nov 2017 11:16:08 -0800 (PST)
+Subject: [PATCH v3 3/5] mm: replace pud_write with pud_access_permitted in
+ fault + gup paths
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 21 Nov 2017 11:07:47 -0800
-Message-ID: <151129126721.37405.13339850900081557813.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 21 Nov 2017 11:07:52 -0800
+Message-ID: <151129127237.37405.16073414520854722485.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <151129125625.37405.15953656230804875212.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <151129125625.37405.15953656230804875212.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,176 +22,86 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Chris Metcalf <cmetcalf@mellanox.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, x86@kernel.org, Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>
+Cc: linux-nvdimm@lists.01.org, Heiko Carstens <heiko.carstens@de.ibm.com>, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Martin Schwidefsky <schwidefsky@de.ibm.com>, "David S. Miller" <davem@davemloft.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-In response to compile breakage introduced by a series that added the
-pud_write helper to x86, Stephen notes:
+The 'access_permitted' helper is used in the gup-fast path and goes
+beyond the simple _PAGE_RW check to also:
 
-    did you consider using the other paradigm:
+* validate that the mapping is writable from a protection keys
+  standpoint
 
-    In arch include files:
-    #define pud_write       pud_write
-    static inline int pud_write(pud_t pud)
-     .....
+* validate that the pte has _PAGE_USER set since all fault paths where
+  pud_write is must be referencing user-memory.
 
-    Then in include/asm-generic/pgtable.h:
-
-    #ifndef pud_write
-    tatic inline int pud_write(pud_t pud)
-    {
-            ....
-    }
-    #endif
-
-    If you had, then the powerpc code would have worked ... ;-) and many
-    of the other interfaces in include/asm-generic/pgtable.h are
-    protected that way ...
-
-Given that some architecture already define pmd_write() as a macro,
-it's a net reduction to drop the definition of
-__HAVE_ARCH_PMD_WRITE.
-
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Chris Metcalf <cmetcalf@mellanox.com>
-Cc: Russell King <linux@armlinux.org.uk>
-Cc: Ralf Baechle <ralf@linux-mips.org>
-Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: <x86@kernel.org>
-Suggested-by: Stephen Rothwell <sfr@canb.auug.org.au>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: "David S. Miller" <davem@davemloft.net>
+Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Heiko Carstens <heiko.carstens@de.ibm.com>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/arm/include/asm/pgtable-3level.h        |    1 -
- arch/arm64/include/asm/pgtable.h             |    1 -
- arch/mips/include/asm/pgtable.h              |    2 +-
- arch/powerpc/include/asm/book3s/64/pgtable.h |    1 -
- arch/s390/include/asm/pgtable.h              |    2 +-
- arch/sparc/include/asm/pgtable_64.h          |    2 +-
- arch/tile/include/asm/pgtable.h              |    1 -
- arch/x86/include/asm/pgtable.h               |    2 +-
- include/asm-generic/pgtable.h                |    4 ++--
- 9 files changed, 6 insertions(+), 10 deletions(-)
+ arch/s390/include/asm/pgtable.h |    6 ++++++
+ arch/sparc/mm/gup.c             |    2 +-
+ mm/huge_memory.c                |    2 +-
+ mm/memory.c                     |    2 +-
+ 4 files changed, 9 insertions(+), 3 deletions(-)
 
-diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
-index 2a029bceaf2f..1a7a17b2a1ba 100644
---- a/arch/arm/include/asm/pgtable-3level.h
-+++ b/arch/arm/include/asm/pgtable-3level.h
-@@ -221,7 +221,6 @@ static inline pte_t pte_mkspecial(pte_t pte)
- }
- #define	__HAVE_ARCH_PTE_SPECIAL
- 
--#define __HAVE_ARCH_PMD_WRITE
- #define pmd_write(pmd)		(pmd_isclear((pmd), L_PMD_SECT_RDONLY))
- #define pmd_dirty(pmd)		(pmd_isset((pmd), L_PMD_SECT_DIRTY))
- #define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index c9530b5b5ca8..149d05fb9421 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -345,7 +345,6 @@ static inline int pmd_protnone(pmd_t pmd)
- 
- #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
- 
--#define __HAVE_ARCH_PMD_WRITE
- #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
- 
- #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
-diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
-index 9e9e94415d08..1a508a74d48d 100644
---- a/arch/mips/include/asm/pgtable.h
-+++ b/arch/mips/include/asm/pgtable.h
-@@ -552,7 +552,7 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
- extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 		       pmd_t *pmdp, pmd_t pmd);
- 
--#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write pmd_write
- static inline int pmd_write(pmd_t pmd)
- {
- 	return !!(pmd_val(pmd) & _PAGE_WRITE);
-diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
-index 9a677cd5997f..44697817ccc6 100644
---- a/arch/powerpc/include/asm/book3s/64/pgtable.h
-+++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
-@@ -1005,7 +1005,6 @@ static inline int pmd_protnone(pmd_t pmd)
- }
- #endif /* CONFIG_NUMA_BALANCING */
- 
--#define __HAVE_ARCH_PMD_WRITE
- #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
- #define __pmd_write(pmd)	__pte_write(pmd_pte(pmd))
- #define pmd_savedwrite(pmd)	pte_savedwrite(pmd_pte(pmd))
 diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
-index d7fe9838084d..0a6b0286c32e 100644
+index 0a6b0286c32e..57d7bc92e0b8 100644
 --- a/arch/s390/include/asm/pgtable.h
 +++ b/arch/s390/include/asm/pgtable.h
-@@ -709,7 +709,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
- 	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
+@@ -1264,6 +1264,12 @@ static inline pud_t pud_mkwrite(pud_t pud)
+ 	return pud;
  }
  
--#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write pmd_write
- static inline int pmd_write(pmd_t pmd)
++#define pud_write pud_write
++static inline int pud_write(pud_t pud)
++{
++	return (pud_val(pud) & _REGION3_ENTRY_WRITE) != 0;
++}
++
+ static inline pud_t pud_mkclean(pud_t pud)
  {
- 	return (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) != 0;
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 5a9e96be1665..9937c5ff94a9 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -715,7 +715,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
- 	return pte_pfn(pte);
- }
+ 	if (pud_large(pud)) {
+diff --git a/arch/sparc/mm/gup.c b/arch/sparc/mm/gup.c
+index 5335ba3c850e..5ae2d0a01a70 100644
+--- a/arch/sparc/mm/gup.c
++++ b/arch/sparc/mm/gup.c
+@@ -114,7 +114,7 @@ static int gup_huge_pud(pud_t *pudp, pud_t pud, unsigned long addr,
+ 	if (!(pud_val(pud) & _PAGE_VALID))
+ 		return 0;
  
--#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write pmd_write
- static inline unsigned long pmd_write(pmd_t pmd)
- {
- 	pte_t pte = __pte(pmd_val(pmd));
-diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
-index 2a26cc4fefc2..adfa21b18488 100644
---- a/arch/tile/include/asm/pgtable.h
-+++ b/arch/tile/include/asm/pgtable.h
-@@ -475,7 +475,6 @@ static inline void pmd_clear(pmd_t *pmdp)
- #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
- #define pmd_huge_page(pmd)	pte_huge(pmd_pte(pmd))
- #define pmd_mkhuge(pmd)		pte_pmd(pte_mkhuge(pmd_pte(pmd)))
--#define __HAVE_ARCH_PMD_WRITE
+-	if (write && !pud_write(pud))
++	if (!pud_access_permitted(pud, write))
+ 		return 0;
  
- #define pfn_pmd(pfn, pgprot)	pte_pmd(pfn_pte((pfn), (pgprot)))
- #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
-diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index dcce76ee4aa7..95e2dfd75521 100644
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -1061,7 +1061,7 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
- 				  unsigned long address, pmd_t *pmdp);
+ 	refs = 0;
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 86fe697e8bfb..9583f035ccb0 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -1022,7 +1022,7 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
  
+ 	assert_spin_locked(pud_lockptr(mm, pud));
  
--#define __HAVE_ARCH_PMD_WRITE
-+#define pmd_write pmd_write
- static inline int pmd_write(pmd_t pmd)
- {
- 	return pmd_flags(pmd) & _PAGE_RW;
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 1ac457511f4e..b234d54f2cb6 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -805,13 +805,13 @@ static inline int pmd_trans_huge(pmd_t pmd)
- {
- 	return 0;
- }
--#ifndef __HAVE_ARCH_PMD_WRITE
-+#ifndef pmd_write
- static inline int pmd_write(pmd_t pmd)
- {
- 	BUG();
- 	return 0;
- }
--#endif /* __HAVE_ARCH_PMD_WRITE */
-+#endif /* pmd_write */
- #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+-	if (flags & FOLL_WRITE && !pud_write(*pud))
++	if (!pud_access_permitted(*pud, flags & FOLL_WRITE))
+ 		return NULL;
  
- #ifndef pud_write
+ 	if (pud_present(*pud) && pud_devmap(*pud))
+diff --git a/mm/memory.c b/mm/memory.c
+index 85e7a87da79f..24fbd60eb2b0 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -4013,7 +4013,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
+ 
+ 			/* NUMA case for anonymous PUDs would go here */
+ 
+-			if (dirty && !pud_write(orig_pud)) {
++			if (dirty && !pud_access_permitted(orig_pud, WRITE)) {
+ 				ret = wp_huge_pud(&vmf, orig_pud);
+ 				if (!(ret & VM_FAULT_FALLBACK))
+ 					return ret;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
