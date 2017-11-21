@@ -1,166 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A63566B0268
-	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 20:48:22 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id u3so11233734pgn.3
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 17:48:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bi10sor3800810plb.55.2017.11.20.17.48.21
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E43886B026B
+	for <linux-mm@kvack.org>; Mon, 20 Nov 2017 21:18:56 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id d125so5935788qkc.22
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 18:18:56 -0800 (PST)
+Received: from out4-smtp.messagingengine.com (out4-smtp.messagingengine.com. [66.111.4.28])
+        by mx.google.com with ESMTPS id g27si11434384qtb.187.2017.11.20.18.18.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 20 Nov 2017 17:48:21 -0800 (PST)
-Date: Mon, 20 Nov 2017 17:48:18 -0800
-From: Guenter Roeck <linux@roeck-us.net>
-Subject: Re: mm/percpu.c: use smarter memory allocation for struct
- pcpu_alloc_info (crisv32 hang)
-Message-ID: <20171121014818.GA360@roeck-us.net>
-References: <20171118182542.GA23928@roeck-us.net>
- <nycvar.YSQ.7.76.1711191525450.16045@knanqh.ubzr>
- <a4fd87d4-c183-682d-9fd9-a9ff6d04f63e@roeck-us.net>
- <nycvar.YSQ.7.76.1711192230000.16045@knanqh.ubzr>
- <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
- <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
- <20171120185138.GB23789@roeck-us.net>
- <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr>
- <20171120211114.GA25984@roeck-us.net>
- <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 20 Nov 2017 18:18:56 -0800 (PST)
+From: Zi Yan <zi.yan@sent.com>
+Subject: [PATCH] mm: migrate: fix an incorrect call of prep_transhuge_page()
+Date: Mon, 20 Nov 2017 21:18:55 -0500
+Message-Id: <20171121021855.50525-1-zi.yan@sent.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
+To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Reale <ar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, stable@vger.kernel.org
 
-On Mon, Nov 20, 2017 at 07:28:21PM -0500, Nicolas Pitre wrote:
-> On Mon, 20 Nov 2017, Guenter Roeck wrote:
-> 
-> > On Mon, Nov 20, 2017 at 03:21:32PM -0500, Nicolas Pitre wrote:
-> > > On Mon, 20 Nov 2017, Guenter Roeck wrote:
-> > > 
-> > > > On Mon, Nov 20, 2017 at 01:18:38PM -0500, Nicolas Pitre wrote:
-> > > > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
-> > > > > 
-> > > > > > On 11/19/2017 08:08 PM, Nicolas Pitre wrote:
-> > > > > > > On Sun, 19 Nov 2017, Guenter Roeck wrote:
-> > > > > > > > On 11/19/2017 12:36 PM, Nicolas Pitre wrote:
-> > > > > > > > > On Sat, 18 Nov 2017, Guenter Roeck wrote:
-> > > > > > > > > > On Tue, Oct 03, 2017 at 06:29:49PM -0400, Nicolas Pitre wrote:
-> > > > > > > > > > > @@ -2295,6 +2295,7 @@ void __init setup_per_cpu_areas(void)
-> > > > > > > > > > >      	if (pcpu_setup_first_chunk(ai, fc) < 0)
-> > > > > > > > > > >    		panic("Failed to initialize percpu areas.");
-> > > > > > > > > > > +	pcpu_free_alloc_info(ai);
-> > > > > > > > > > 
-> > > > > > > > > > This is the culprit. Everything works fine if I remove this line.
-> > > > > > > > > 
-> > > > > > > > > Without this line, the memory at the ai pointer is leaked. Maybe this is
-> > > > > > > > > modifying the memory allocation pattern and that triggers a bug later on
-> > > > > > > > > in your case.
-> > > > > > > > > 
-> > > > > > > > > At that point the console driver is not yet initialized and any error
-> > > > > > > > > message won't be printed. You should enable the early console mechanism
-> > > > > > > > > in your kernel (see arch/cris/arch-v32/kernel/debugport.c) and see what
-> > > > > > > > > that might tell you.
-> > > > > > > > > 
-> > > > > > > > 
-> > > > > > > > The problem is that BUG() on crisv32 does not yield useful output.
-> > > > > > > > Anyway, here is the culprit.
-> > > > > > > > 
-> > > > > > > > diff --git a/mm/bootmem.c b/mm/bootmem.c
-> > > > > > > > index 6aef64254203..2bcc8901450c 100644
-> > > > > > > > --- a/mm/bootmem.c
-> > > > > > > > +++ b/mm/bootmem.c
-> > > > > > > > @@ -382,7 +382,8 @@ static int __init mark_bootmem(unsigned long start,
-> > > > > > > > unsigned long end,
-> > > > > > > >                          return 0;
-> > > > > > > >                  pos = bdata->node_low_pfn;
-> > > > > > > >          }
-> > > > > > > > -       BUG();
-> > > > > > > > +       WARN(1, "mark_bootmem(): memory range 0x%lx-0x%lx not found\n",
-> > > > > > > > start,
-> > > > > > > > end);
-> > > > > > > > +       return -ENOMEM;
-> > > > > > > >   }
-> > > > > > > > 
-> > > > > > > >   /**
-> > > > > > > > diff --git a/mm/percpu.c b/mm/percpu.c
-> > > > > > > > index 79e3549cab0f..c75622d844f1 100644
-> > > > > > > > --- a/mm/percpu.c
-> > > > > > > > +++ b/mm/percpu.c
-> > > > > > > > @@ -1881,6 +1881,7 @@ struct pcpu_alloc_info * __init
-> > > > > > > > pcpu_alloc_alloc_info(int nr_groups,
-> > > > > > > >    */
-> > > > > > > >   void __init pcpu_free_alloc_info(struct pcpu_alloc_info *ai)
-> > > > > > > >   {
-> > > > > > > > +       printk("pcpu_free_alloc_info(%p (0x%lx))\n", ai, __pa(ai));
-> > > > > > > >          memblock_free_early(__pa(ai), ai->__ai_size);
-> > > > > > > >
-> > > > > > > > results in:
-> > > > > > > > 
-> > > > > > > > pcpu_free_alloc_info(c0534000 (0x40534000))
-> > > > > > > > ------------[ cut here ]------------
-> > > > > > > > WARNING: CPU: 0 PID: 0 at mm/bootmem.c:385 mark_bootmem+0x9a/0xaa
-> > > > > > > > mark_bootmem(): memory range 0x2029a-0x2029b not found
-> > > > > > > 
-> > > > > > > Well... PFN_UP(0x40534000) should give 0x40534. How you might end up
-> > > > > > > with 0x2029a in mark_bootmem(), let alone not exit on the first "if (max
-> > > > > > > == end) return 0;" within the loop is rather weird.
-> > > > > > > 
-> > > > > > pcpu_free_alloc_info: ai=c0536000, __pa(ai)=0x40536000,
-> > > > > > PFN_UP(__pa(ai))=0x2029b, PFN_UP(ai)=0x6029b
-> > > > > > 
-> > > > > > bootmem range is 0x60000..0x61000. It doesn't get to "if (max == end)"
-> > > > > > because "pos (=0x2029b) < bdata->node_min_pfn (=0x60000)".
-> > > > > 
-> > > > > OK. the 0x2029b is the result of PAGE_SIZE being 8192 in your case.
-> > > > > However the bootmem allocator deals with physical addresses not virtual 
-> > > > > ones. So it shouldn't give you a 0x60000..0x61000 range.
-> > > > > 
-> > > > > Would be interesting to see what result you get on line 860 of 
-> > > > > mm/bootmem.c.
-> > > > > 
-> > > > Nothing; __alloc_bootmem_low_node() is not called.
-> > > > 
-> > > > Call chain is:
-> > > >   pcpu_alloc_alloc_info
-> > > >     memblock_virt_alloc_nopanic
-> > > >       __alloc_bootmem_nopanic
-> > > >         ___alloc_bootmem_nopanic
-> > > 
-> > > But from there it should continue with: 
-> > > 
-> > > 	alloc_bootmem_core() -->
-> > > 	  alloc_bootmem_bdata() -->
-> > > 	    [...]
-> > > 	    region = phys_to_virt(PFN_PHYS(bdata->node_min_pfn) + start_off);
-> > > 
-> > > That's line 585, not 860 as I mentioned. Sorry for the confusion.
-> > > 
-> > bdata->node_min_pfn=60000 PFN_PHYS(bdata->node_min_pfn)=c0000000 start_off=536000 region=c0536000
-> 
-> If PFN_PHYS(bdata->node_min_pfn)=c0000000 and
-> region=c0536000 that means phys_to_virt() is a no-op.
-> 
-No, it is |= 0x80000000
+From: Zi Yan <zi.yan@cs.rutgers.edu>
 
-> However, from your result above, __pa(0xc0534000) = 0x40534000.
-> 
-> So, why is it that phys_to_virt() is a no-op and __pa() is not?
-> 
-> virt_to_phys() and __pa() are meant to be the reverse of phys_to_virt() 
-> and __va().
-> 
-I think the problem is the 0x60000 in bdata->node_min_pfn. It is shifted
-left by PFN_PHYS, making it 0xc0000000, which in my understanding is
-a virtual address. So something is wrong ... presumably node_min_pfn
-should be 0x20000, not 0x60000. init_bootmem_node() definitely passes
-virtual pfns as parameters.
+In [1], Andrea reported that during memory hotplug/hot remove
+prep_transhuge_page() is called incorrectly on non-THP pages for
+migration, when THP is on but THP migration is not enabled.
+This leads to a bad state of target pages for migration.
 
-That doesn't seem to be easy to fix. It seems there is a mixup of physical
-and  virtual addresses in the architecture.
+This patch fixes it by only calling prep_transhuge_page() when we are
+certain that the target page is THP.
 
-Guenter
+[1] https://lkml.org/lkml/2017/11/20/411
+
+Cc: stable@vger.kernel.org # v4.14
+Fixes: 8135d8926c08 ("mm: memory_hotplug: memory hotremove supports thp migration")
+Reported-by: Andrea Reale <ar@linux.vnet.ibm.com>
+Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: "JA(C)rA'me Glisse" <jglisse@redhat.com>
+---
+ include/linux/migrate.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index 895ec0c4942e..a2246cf670ba 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
+ 	new_page = __alloc_pages_nodemask(gfp_mask, order,
+ 				preferred_nid, nodemask);
+ 
+-	if (new_page && PageTransHuge(page))
++	if (new_page && PageTransHuge(new_page))
+ 		prep_transhuge_page(new_page);
+ 
+ 	return new_page;
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
