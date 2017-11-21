@@ -1,65 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A316B0038
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 17:45:32 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 4so8695763wrt.8
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:45:32 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id s14si8919192wrb.284.2017.11.21.14.45.31
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB8736B0069
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 17:46:08 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id b17so7626592oth.6
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:46:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s3sor4906432otd.76.2017.11.21.14.46.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 14:45:31 -0800 (PST)
-Date: Tue, 21 Nov 2017 14:45:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH 01/10] remove mapping from balance_dirty_pages*()
-Message-Id: <20171121144528.c44458f50738d73cab3aca4b@linux-foundation.org>
-In-Reply-To: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
-References: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Tue, 21 Nov 2017 14:46:07 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <f71ce70f-ea43-d22f-1a2a-fdf4e9dab6af@linux.intel.com>
+Date: Tue, 21 Nov 2017 15:46:05 -0700
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <CBD89E9B-C146-42AE-A117-507C01CBF885@amacapital.net>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193125.EBF58596@viggo.jf.intel.com> <alpine.DEB.2.20.1711202115190.2348@nanos> <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com> <f71ce70f-ea43-d22f-1a2a-fdf4e9dab6af@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-On Tue, 14 Nov 2017 16:56:47 -0500 Josef Bacik <josef@toxicpanda.com> wrote:
 
-> From: Josef Bacik <jbacik@fb.com>
-> 
-> The only reason we pass in the mapping is to get the inode in order to see if
-> writeback cgroups is enabled, and even then it only checks the bdi and a super
-> block flag.  balance_dirty_pages() doesn't even use the mapping.  Since
-> balance_dirty_pages*() works on a bdi level, just pass in the bdi and super
-> block directly so we can avoid using mapping.  This will allow us to still use
-> balance_dirty_pages for dirty metadata pages that are not backed by an
-> address_mapping.
->
-> ...
-> 
-> @@ -71,7 +72,8 @@ static int _block2mtd_erase(struct block2mtd_dev *dev, loff_t to, size_t len)
->  				memset(page_address(page), 0xff, PAGE_SIZE);
->  				set_page_dirty(page);
->  				unlock_page(page);
-> -				balance_dirty_pages_ratelimited(mapping);
-> +				balance_dirty_pages_ratelimited(inode_to_bdi(inode),
-> +								inode->i_sb);
->  				break;
->  			}
 
-So we do a bunch more work in each caller and we pass two args rather
-than one.  That doesn't make things better!
+> On Nov 21, 2017, at 2:19 PM, Dave Hansen <dave.hansen@linux.intel.com> wro=
+te:
+>=20
+> On 11/20/2017 12:46 PM, Andy Lutomirski wrote:
+>>>> +     /*
+>>>> +      * We could theoretically do this in setup_fixmap_gdt().
+>>>> +      * But, we would need to rewrite the above page table
+>>>> +      * allocation code to use the bootmem allocator.  The
+>>>> +      * buddy allocator is not available at the time that we
+>>>> +      * call setup_fixmap_gdt() for CPU 0.
+>>>> +      */
+>>>> +     kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
+>>>> +                               __PAGE_KERNEL_RO | _PAGE_GLOBAL);
+>>> This one is needs to stay.
+>> When you rebase on to my latest version, this should change to mapping
+>> the entire cpu_entry_area.
+>=20
+> I did this, but unfortunately it ends up having to individually map all
+> four pieces of cpu_entry_area.  They all need different permissions and
+> while theoretically we could do TSS+exception-stacks in the same call,
+> they're not next to each other:
+>=20
+> GDT: R/O
+> TSS: R/W at least because of trampoline stack
+> entry code: EXEC+R/O
+> exception stacks: R/W
 
-I see that this is enablement for "dirty metadata pages that are not
-backed by an address_mapping" (address_space) so I look into [7/10] and
-the changelog doesn't tell me much.
+Can you avoid code duplication by adding some logic right after the kernel c=
+pu_entry_area is set up to iterate page by page over the PTEs in the cpu_ent=
+ry_area for that CPU and just install exactly the same PTEs into the kaiser t=
+able?  E.g. just call kaiser_add_mapping once per page but with the paramete=
+rs read out from the fixmap PTEs instead of hard coded?
 
-So color me confused.  What is this patchset actually *for*?  Is there
-some filesystem which has non-address_space-backed metadata?  Or will
-there be so soon?  Or what.
+As a fancier but maybe better option, we could fiddle with the fixmap indice=
+s so that the whole cpu_entry_area range is aligned to a PMD boundary or hig=
+her.  We'd preallocate all the page tables for this range before booting any=
+ APs.  Then the kaiser tables could just reference the same page tables, and=
+ we don't need any AP kaiser setup at all.
 
-I think we need a [0/n] email please.  One which fully describes the
-intent of the patchset.
+This should be a wee bit faster, too, since we reduce the number of cache li=
+nes needed to refill the TLB when needed.
+
+I'm really hoping we can get rid of kaiser_add_mapping entirely.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
