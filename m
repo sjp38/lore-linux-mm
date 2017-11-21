@@ -1,125 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1EE6B027A
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 02:01:53 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 4so7262092wrt.8
-        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 23:01:53 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E613C6B027C
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 02:05:10 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n8so449517wmg.4
+        for <linux-mm@kvack.org>; Mon, 20 Nov 2017 23:05:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o44si2717421edo.401.2017.11.20.23.01.51
+        by mx.google.com with ESMTPS id j10si322793edj.200.2017.11.20.23.05.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 20 Nov 2017 23:01:52 -0800 (PST)
-Date: Tue, 21 Nov 2017 08:01:50 +0100
+        Mon, 20 Nov 2017 23:05:09 -0800 (PST)
+Date: Tue, 21 Nov 2017 08:05:08 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: show total hugetlb memory consumption in
- /proc/meminfo
-Message-ID: <20171121070150.dpwj6gkhx4jcpr6z@dhcp22.suse.cz>
-References: <20171115231409.12131-1-guro@fb.com>
- <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
+Subject: Re: [RFC v2] prctl: prctl(PR_SET_IDLE, PR_IDLE_MODE_KILLME), for
+ stateless idle loops
+Message-ID: <20171121070508.iapcp5lg3zjpfimi@dhcp22.suse.cz>
+References: <20171101053244.5218-1-slandden@gmail.com>
+ <20171103063544.13383-1-slandden@gmail.com>
+ <20171103090915.uuaqo56phdbt6gnf@dhcp22.suse.cz>
+ <CA+49okqZ8CME0EN1xS_cCTc5Q-fGRreg0makhzNNuRpGs3mjfw@mail.gmail.com>
+ <20171120083548.stupram6kpi5iu7i@dhcp22.suse.cz>
+ <CA+49okomOyRy1Av_cAv38xJuX+TstVe6jWWuitmr3XCBx8mU_g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
+In-Reply-To: <CA+49okomOyRy1Av_cAv38xJuX+TstVe6jWWuitmr3XCBx8mU_g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
+To: Shawn Landden <slandden@gmail.com>
+Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-api@vger.kernel.org
 
-On Mon 20-11-17 16:51:10, Andrew Morton wrote:
-> On Wed, 15 Nov 2017 23:14:09 +0000 Roman Gushchin <guro@fb.com> wrote:
-> 
-> > Currently we display some hugepage statistics (total, free, etc)
-> > in /proc/meminfo, but only for default hugepage size (e.g. 2Mb).
-> > 
-> > If hugepages of different sizes are used (like 2Mb and 1Gb on x86-64),
-> > /proc/meminfo output can be confusing, as non-default sized hugepages
-> > are not reflected at all, and there are no signs that they are
-> > existing and consuming system memory.
-> > 
-> > To solve this problem, let's display the total amount of memory,
-> > consumed by hugetlb pages of all sized (both free and used).
-> > Let's call it "Hugetlb", and display size in kB to match generic
-> > /proc/meminfo style.
-> > 
-> > For example, (1024 2Mb pages and 2 1Gb pages are pre-allocated):
-> >   $ cat /proc/meminfo
-> >   MemTotal:        8168984 kB
-> >   MemFree:         3789276 kB
-> >   <...>
-> >   CmaFree:               0 kB
-> >   HugePages_Total:    1024
-> >   HugePages_Free:     1024
-> >   HugePages_Rsvd:        0
-> >   HugePages_Surp:        0
-> >   Hugepagesize:       2048 kB
-> >   Hugetlb:         4194304 kB
-> >   DirectMap4k:       32632 kB
-> >   DirectMap2M:     4161536 kB
-> >   DirectMap1G:     6291456 kB
-> > 
-> > Also, this patch updates corresponding docs to reflect
-> > Hugetlb entry meaning and difference between Hugetlb and
-> > HugePages_Total * Hugepagesize.
-> > 
-> > ...
+On Mon 20-11-17 20:48:10, Shawn Landden wrote:
+> On Mon, Nov 20, 2017 at 12:35 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Fri 17-11-17 20:45:03, Shawn Landden wrote:
+> >> On Fri, Nov 3, 2017 at 2:09 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >>
+> >> > On Thu 02-11-17 23:35:44, Shawn Landden wrote:
+> >> > > It is common for services to be stateless around their main event loop.
+> >> > > If a process sets PR_SET_IDLE to PR_IDLE_MODE_KILLME then it
+> >> > > signals to the kernel that epoll_wait() and friends may not complete,
+> >> > > and the kernel may send SIGKILL if resources get tight.
+> >> > >
+> >> > > See my systemd patch: https://github.com/shawnl/systemd/tree/prctl
+> >> > >
+> >> > > Android uses this memory model for all programs, and having it in the
+> >> > > kernel will enable integration with the page cache (not in this
+> >> > > series).
+> >> > >
+> >> > > 16 bytes per process is kinda spendy, but I want to keep
+> >> > > lru behavior, which mem_score_adj does not allow. When a supervisor,
+> >> > > like Android's user input is keeping track this can be done in
+> >> > user-space.
+> >> > > It could be pulled out of task_struct if an cross-indexing additional
+> >> > > red-black tree is added to support pid-based lookup.
+> >> >
+> >> > This is still an abuse and the patch is wrong. We really do have an API
+> >> > to use I fail to see why you do not use it.
+> >> >
+> >> When I looked at wait_queue_head_t it was 20 byes.
 > >
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -2973,20 +2973,32 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
-> >  
-> >  void hugetlb_report_meminfo(struct seq_file *m)
-> >  {
-> > -	struct hstate *h = &default_hstate;
-> > +	struct hstate *h;
-> > +	unsigned long total = 0;
-> > +
-> >  	if (!hugepages_supported())
-> >  		return;
-> > -	seq_printf(m,
-> > -			"HugePages_Total:   %5lu\n"
-> > -			"HugePages_Free:    %5lu\n"
-> > -			"HugePages_Rsvd:    %5lu\n"
-> > -			"HugePages_Surp:    %5lu\n"
-> > -			"Hugepagesize:   %8lu kB\n",
-> > -			h->nr_huge_pages,
-> > -			h->free_huge_pages,
-> > -			h->resv_huge_pages,
-> > -			h->surplus_huge_pages,
-> > -			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
-> > +
-> > +	for_each_hstate(h) {
-> > +		unsigned long count = h->nr_huge_pages;
-> > +
-> > +		total += (PAGE_SIZE << huge_page_order(h)) * count;
-> > +
-> > +		if (h == &default_hstate)
-> 
-> I'm not understanding this test.  Are we assuming that default_hstate
-> always refers to the highest-index hstate?  If so why, and is that
-> valid?
+> > I do not understand. What I meant to say is that we do have a proper
+> > user api to hint OOM killer decisions.
+> This is a FIFO queue, rather than a heuristic, which is all you get
+> with the current API.
 
-The whole point of this checks is to provide hugetlb detailed stats _only_
-for the default hstate because that is what we have been doing
-traditionally. The loop is there only to gather total amount and display
-it separately.
+Yes I can read the code. All I am saing is that we already have an API
+to achieve what you want or at least very similar.
 
-> > +			seq_printf(m,
-> > +				   "HugePages_Total:   %5lu\n"
-> > +				   "HugePages_Free:    %5lu\n"
-> > +				   "HugePages_Rsvd:    %5lu\n"
-> > +				   "HugePages_Surp:    %5lu\n"
-> > +				   "Hugepagesize:   %8lu kB\n",
-> > +				   count,
-> > +				   h->free_huge_pages,
-> > +				   h->resv_huge_pages,
-> > +				   h->surplus_huge_pages,
-> > +				   (PAGE_SIZE << huge_page_order(h)) / 1024);
-> > +	}
-> > +
-> > +	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
-> >  }
-> 
-
+Let me be explicit.
+Nacked-by: Michal Hocko <mhocko@suse.com>
+until it is sufficiently explained that the oom_score_adj is not
+suitable and there are no other means to achieve what you need.
 -- 
 Michal Hocko
 SUSE Labs
