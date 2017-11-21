@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E6F6B025E
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 18:05:06 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id v186so1880392wma.9
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 15:05:06 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9838B6B025E
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 18:11:18 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 107so8803011wra.7
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 15:11:18 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z1si11483899wre.339.2017.11.21.15.05.05
+        by mx.google.com with ESMTPS id k7si11693340wrg.112.2017.11.21.15.11.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 15:05:05 -0800 (PST)
-Date: Tue, 21 Nov 2017 15:05:01 -0800
+        Tue, 21 Nov 2017 15:11:17 -0800 (PST)
+Date: Tue, 21 Nov 2017 15:11:14 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
 Subject: Re: [PATCH v2 1/4] mm: introduce get_user_pages_longterm
-Message-Id: <20171121150501.d4d811a66444cb5c9cb85bf2@linux-foundation.org>
+Message-Id: <20171121151114.de95a3eb730ce602e52e891d@linux-foundation.org>
 In-Reply-To: <151068939435.7446.13560129395419350737.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <151068938905.7446.12333914805308312313.stgit@dwillia2-desk3.amr.corp.intel.com>
 	<151068939435.7446.13560129395419350737.stgit@dwillia2-desk3.amr.corp.intel.com>
@@ -34,11 +34,63 @@ On Tue, 14 Nov 2017 11:56:34 -0800 Dan Williams <dan.j.williams@intel.com> wrote
 > This is temporary until a "memory registration with layout-lease"
 > mechanism can be implemented for the affected sub-systems (RDMA and
 > V4L2).
+> 
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -1095,6 +1095,70 @@ long get_user_pages(unsigned long start, unsigned long nr_pages,
+>  }
+>  EXPORT_SYMBOL(get_user_pages);
+>  
+> +#ifdef CONFIG_FS_DAX
+> +/*
+> + * This is the same as get_user_pages() in that it assumes we are
+> + * operating on the current task's mm, but it goes further to validate
+> + * that the vmas associated with the address range are suitable for
+> + * longterm elevated page reference counts. For example, filesystem-dax
+> + * mappings are subject to the lifetime enforced by the filesystem and
+> + * we need guarantees that longterm users like RDMA and V4L2 only
+> + * establish mappings that have a kernel enforced revocation mechanism.
+> + *
+> + * "longterm" == userspace controlled elevated page count lifetime.
+> + * Contrast this to iov_iter_get_pages() usages which are transient.
+> + */
+> +long get_user_pages_longterm(unsigned long start, unsigned long nr_pages,
+> +		unsigned int gup_flags, struct page **pages,
+> +		struct vm_area_struct **vmas_arg)
+> +{
+> +	struct vm_area_struct **vmas = vmas_arg;
+> +	struct vm_area_struct *vma_prev = NULL;
+> +	long rc, i;
+> +
+> +	if (!pages)
+> +		return -EINVAL;
+> +
+> +	if (!vmas) {
+> +		vmas = kzalloc(sizeof(struct vm_area_struct *) * nr_pages,
+> +				GFP_KERNEL);
+> +		if (!vmas)
+> +			return -ENOMEM;
+> +	}
+>
+> ...
+>
 
-Sounds like that will be unpleasant.  Do we really need it to be that
-complex?  Can we get away with simply failing the get_user_pages()
-request?  Or are there significant usecases for RDMA and V4L to play
-with DAX memory?
+I'll do this:
+
+--- a/mm/gup.c~mm-introduce-get_user_pages_longterm-fix
++++ a/mm/gup.c
+@@ -1120,8 +1120,8 @@ long get_user_pages_longterm(unsigned lo
+ 		return -EINVAL;
+ 
+ 	if (!vmas) {
+-		vmas = kzalloc(sizeof(struct vm_area_struct *) * nr_pages,
+-				GFP_KERNEL);
++		vmas = kcalloc(nr_pages, sizeof(struct vm_area_struct *),
++			       GFP_KERNEL);
+ 		if (!vmas)
+ 			return -ENOMEM;
+ 	}
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
