@@ -1,156 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC396B0033
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 04:46:19 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id b10so266382oif.22
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 01:46:19 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id c37si5077415otb.309.2017.11.21.01.46.17
-        for <linux-mm@kvack.org>;
-        Tue, 21 Nov 2017 01:46:17 -0800 (PST)
-Subject: =?UTF-8?Q?Re:_=e7=ad=94=e5=a4=8d:_[PATCH_01/11]_Initialize_the_mapp?=
- =?UTF-8?Q?ing_of_KASan_shadow_memory?=
-References: <8e959f69-a578-793b-6c32-18b5b0cd08c2@arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0063545@dggemm510-mbs.china.huawei.com>
- <87a7znsubp.fsf@on-the-bus.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0063587@dggemm510-mbs.china.huawei.com>
- <bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
- <B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
- <87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
- <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0063816@dggemm510-mbs.china.huawei.com>
- <20171117073556.GB28855@cbox>
- <B8AC3E80E903784988AB3003E3E97330C00638D4@dggemm510-mbs.china.huawei.com>
- <20171118134841.3f6c9183@why.wild-wind.fr.eu.org>
- <B8AC3E80E903784988AB3003E3E97330C0068F12@dggemm510-mbx.china.huawei.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Message-ID: <3e7590d7-dca2-335a-581c-94da0caa9475@arm.com>
-Date: Tue, 21 Nov 2017 09:46:08 +0000
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6046B0253
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 04:54:35 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id w2so11313035pfi.20
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 01:54:35 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z8sor4797851plk.79.2017.11.21.01.54.33
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 21 Nov 2017 01:54:34 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0068F12@dggemm510-mbx.china.huawei.com>
-Content-Type: text/plain; charset=gbk
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <de1e0f95-4daa-0b00-a7bf-0ce2e9a3371b@oracle.com>
+References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
+ <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
+ <20171120015000.GA13507@js1304-P5Q-DELUXE> <CACT4Y+Zi9bNdnei_kXWu_3BHOobbhOgRKJ6Vk9QGs3c6NCdqXw@mail.gmail.com>
+ <37111d5b-7042-dfff-9ac7-8733b77930e8@oracle.com> <CACT4Y+ZEvLJbM_b6nWqLPvVJgWjAp-eYsmbO5vT2qQ3_zH-2+A@mail.gmail.com>
+ <de1e0f95-4daa-0b00-a7bf-0ce2e9a3371b@oracle.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 21 Nov 2017 10:54:12 +0100
+Message-ID: <CACT4Y+aOOkm6aqPKaNmi-aBU4-F8SQTZe=-UkAQry-eQWxsS8w@mail.gmail.com>
+Subject: Re: [PATCH 0/5] mm/kasan: advanced check
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
-Cc: Christoffer Dall <cdall@linaro.org>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "labbott@redhat.com" <labbott@redhat.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>, "mhocko@suse.com" <mhocko@suse.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "thgarnie@google.com" <thgarnie@google.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "mingo@kernel.org" <mingo@kernel.org>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "glider@google.com" <glider@google.com>, "dvyukov@google.com" <dvyukov@google.com>, "opendmb@gmail.com" <opendmb@gmail.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Jiazhenghua <jiazhenghua@huawei.com>, Dailei <dylix.dailei@huawei.com>, Zengweilin <zengweilin@huawei.com>, Heshaoliang <heshaoliang@huawei.com>
+To: Wengang <wen.gang.wang@oracle.com>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-On 21/11/17 07:59, Liuwenliang (Abbott Liu) wrote:
-> On Nov 17, 2017  21:49  Marc Zyngier [mailto:marc.zyngier@arm.com]  wrote:
->> On Sat, 18 Nov 2017 10:40:08 +0000
->> "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com> wrote:
-> 
->>> On Nov 17, 2017  15:36 Christoffer Dall [mailto:cdall@linaro.org]  wrote:
->>>> If your processor does support LPAE (like a Cortex-A15 for example),
->>>> then you have both the 32-bit accessors (MRC and MCR) and the 64-bit
->>>> accessors (MRRC, MCRR), and using the 32-bit accessor will simply access
->>>> the lower 32-bits of the 64-bit register.
+On Mon, Nov 20, 2017 at 9:29 PM, Wengang <wen.gang.wang@oracle.com> wrote:
+>
+>
+> On 11/20/2017 12:20 PM, Dmitry Vyukov wrote:
+>>
+>> On Mon, Nov 20, 2017 at 9:05 PM, Wengang <wen.gang.wang@oracle.com> wrote:
+>>>
+>>>
+>>> On 11/20/2017 12:41 AM, Dmitry Vyukov wrote:
 >>>>
->>>> Hope this helps,
->>>> -Christoffer
->>>
->>> If you know the higher 32-bits of the 64-bits cp15's register is not useful for your system,
->>> then you can use the 32-bit accessor to get or set the 64-bit cp15's register.
->>> But if the higher 32-bits of the 64-bits cp15's register is useful for your system,
->>> then you can't use the 32-bit accessor to get or set the 64-bit cp15's register.
->>>
->>> TTBR0/TTBR1/PAR's higher 32-bits is useful for CPU supporting LPAE.
->>> The following description which comes from ARM(r) Architecture Reference
->>> Manual ARMv7-A and ARMv7-R edition tell us the reason:
->>>
->>> 64-bit TTBR0 and TTBR1 format:
->>> ...
->>> BADDR, bits[39:x] :
->>> Translation table base address, bits[39:x]. Defining the translation table base address width on
->>> page B4-1698 describes how x is defined.
->>> The value of x determines the required alignment of the translation table, which must be aligned to
->>> 2x bytes.
->>>
->>> Abbott Liu: Because BADDR on CPU supporting LPAE may be bigger than max value of 32-bit, so bits[39:32] may
->>> be valid value which is useful for the system.
->>>
->>> 64-bit PAR format
->>> ...
->>> PA[39:12]
->>> Physical Address. The physical address corresponding to the supplied virtual address. This field
->>> returns address bits[39:12].
->>>
->>> Abbott Liu: Because Physical Address on CPU supporting LPAE may be bigger than max value of 32-bit,
->>> so bits[39:32] may be valid value which is useful for the system.
->>>
->>> Conclusion: Don't use 32-bit accessor to get or set TTBR0/TTBR1/PAR on CPU supporting LPAE,
->>> if you do that, your system may run error.
-> 
->> That's not really true. You can run an non-LPAE kernel that uses the
->> 32bit accessors an a Cortex-A15 that supports LPAE. You're just limited
->> to 4GB of physical space. And you're pretty much guaranteed to have
->> some memory below 4GB (one way or another), or you'd have a slight
->> problem setting up your page tables.
-> 
->>       M.
->> --
->> Without deviation from the norm, progress is not possible.
-> 
+>>>>
+>>>>> The reason I didn't submit the vchecker to mainline is that I didn't
+>>>>> find
+>>>>> the case that this tool is useful in real life. Most of the system
+>>>>> broken
+>>>>> case
+>>>>> can be debugged by other ways. Do you see the real case that this tool
+>>>>> is
+>>>>> helpful?
+>>>>
+>>>> Hi,
+>>>>
+>>>> Yes, this is the main question here.
+>>>> How is it going to be used in real life? How widely?
+>>>>
+>>> I think the owner check can be enabled in the cases where KASAN is used.
+>>> --
+>>> That is that we found there is memory issue, but don't know how it
+>>> happened.
+>>
+>>
+>> But KASAN generally pinpoints the corruption as it happens. Why do we
+>> need something else?
+>
+>
+> Currently (without this patch set) kasan can't detect the overwritten issues
+> that happen on allocated memory.
+>
+> Say, A allocated a 128 bytes memory and B write to that memory at offset 0
+> with length 100 unexpectedly.  Currently kasan won't report error for any
+> writing to the offset 0 with len <= 128 including the B writting.  This
+> patch lets kasan report the B writing to offset 0 with length 100.
 
-> Thanks for your review.
-> Please don't ask people to limit to 4GB of physical space on CPU
-> supporting LPAE, please don't ask people to guaranteed to have some
-> memory below 4GB on CPU supporting LPAE.
 
-Please tell me how you enable LPAE if you don't. I've truly curious.
-Because otherwise, you should really take a step back and seriously
-reconsider what you're writing. Hint: where do you think the page tables
-required to enable LPAE will be? How do you even *boot*?
+So this will be used for manual debugging and you don't have plans to
+annotate kernel code with additional tags, right?
 
-> Why people select CPU supporting LPAE(just like cortex A15)? 
-> Because some of people think 4GB physical space is not enough for their 
-> system, maybe they want to use 8GB/16GB DDR space.
-> Then you tell them that they must guaranteed to have some memory below 4GB,
-> just only because you think the code as follow:
-> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
-> 
-> is better than the code like this:
-> 
-> +#ifdef CONFIG_ARM_LPAE
-> +#define TTBR0           __ACCESS_CP15_64(0, c2)
-> +#define TTBR1           __ACCESS_CP15_64(1, c2)
-> +#define PAR             __ACCESS_CP15_64(0, c7)
-> +#else
-> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
-> +#endif
-> 
-> 
-> So,I think the following code: 
-> +#ifdef CONFIG_ARM_LPAE
-> +#define TTBR0           __ACCESS_CP15_64(0, c2)
-> +#define TTBR1           __ACCESS_CP15_64(1, c2)
-> +#define PAR             __ACCESS_CP15_64(0, c7)
-> +#else
-> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
-> +#endif
-> 
-> is better because it's not necessary to ask people to guaranteed to
-> have some memory below 4GB on CPU supporting LPAE. 
+If this meant to be used by kernel developers during debugging, this
+feature needs to be documented in Documentation/dev-tools/kasan.rst
+including an example. It's hard to spread knowledge about such
+features especially if there are no mentions in docs. Documentation
+can then be quickly referenced e.g. as a suggestion of how to tackle a
+particular bug.
 
-NAK.
+General comments:
 
-> If we want to ask people to guaranteed to have some memory below 4GB 
-> on CPU supporting LPAE, there need to modify some other code.
-> I think it makes the simple problem more complex to modify some other code for this.
+1. The check must not affect fast-path. I think we need to move it
+into kasan_report (and then rename kasan_report to something else).
+Closer to what Joonsoo did in his version, but move then check even
+further. This will also make inline instrumentation work because it
+calls kasan_report, then kasan_report will do the additional check and
+potentially return without actually reporting a bug.
+The idea is that the check reserves some range of bad values in shadow
+and poison the object with that special value. Then all accesses to
+the protected memory will be detected as bad and go into kasan_report.
+Then kasan_report will do the additional check and potentially return
+without reporting.
+This has 0 overhead when the feature is not used, enables inline
+instrumentation and is less intrusive.
 
-At this stage, you've proven that you don't understand the problem at hand.
+2. Moving this to a separate .c/.h files sounds like a good idea.
+kasan.c is a bit of a mess already. If we do (1), changes to kasan.c
+will be minimal. Again closer to what Joonsoo did.
 
-	M.
--- 
-Jazz is not dead. It just smells funny...
+3. We need to rename it from "advanced" to something else (owner
+check?). Features must be named based on what they do, rather then how
+advanced they are. If we add other complex checks, how should we name
+them? even_more_advanced?
+
+I am fine with adding such feature provided that it does not affect
+performance/memory consumption if not used, works with inline
+instrumentation and is separated into separate files. But it also
+needs to be advertised somehow among kernel developers, otherwise only
+you guys will use it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
