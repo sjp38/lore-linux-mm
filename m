@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BADD6B0069
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:15:58 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id k190so13672366pga.10
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 11:15:58 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id x5si11433725plo.24.2017.11.21.11.15.56
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ACFA6B0253
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:16:03 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id g75so12428137pfg.4
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 11:16:03 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id c26si197486pfj.132.2017.11.21.11.16.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 11:15:56 -0800 (PST)
-Subject: [PATCH v3 1/5] mm: fix device-dax pud write-faults triggered by
- get_user_pages()
+        Tue, 21 Nov 2017 11:16:02 -0800 (PST)
+Subject: [PATCH v3 2/5] mm: switch to 'define pmd_write' instead of
+ __HAVE_ARCH_PMD_WRITE
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Tue, 21 Nov 2017 11:07:41 -0800
-Message-ID: <151129126165.37405.16031785266675461397.stgit@dwillia2-desk3.amr.corp.intel.com>
+Date: Tue, 21 Nov 2017 11:07:47 -0800
+Message-ID: <151129126721.37405.13339850900081557813.stgit@dwillia2-desk3.amr.corp.intel.com>
 In-Reply-To: <151129125625.37405.15953656230804875212.stgit@dwillia2-desk3.amr.corp.intel.com>
 References: <151129125625.37405.15953656230804875212.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
@@ -22,109 +22,176 @@ Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, x86@kernel.org, stable@vger.kernel.org, linux-mm@kvack.org, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Chris Metcalf <cmetcalf@mellanox.com>, Arnd Bergmann <arnd@arndb.de>, linux-nvdimm@lists.01.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, x86@kernel.org, Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, linux-mm@kvack.org, "H. Peter Anvin" <hpa@zytor.com>
 
-Currently only get_user_pages_fast() can safely handle the writable gup
-case due to its use of pud_access_permitted() to check whether the pud
-entry is writable. In the gup slow path pud_write() is used instead of
-pud_access_permitted() and to date it has been unimplemented, just calls
-BUG_ON().
+In response to compile breakage introduced by a series that added the
+pud_write helper to x86, Stephen notes:
 
-    kernel BUG at ./include/linux/hugetlb.h:244!
-    [..]
-    RIP: 0010:follow_devmap_pud+0x482/0x490
-    [..]
-    Call Trace:
-     follow_page_mask+0x28c/0x6e0
-     __get_user_pages+0xe4/0x6c0
-     get_user_pages_unlocked+0x130/0x1b0
-     get_user_pages_fast+0x89/0xb0
-     iov_iter_get_pages_alloc+0x114/0x4a0
-     nfs_direct_read_schedule_iovec+0xd2/0x350
-     ? nfs_start_io_direct+0x63/0x70
-     nfs_file_direct_read+0x1e0/0x250
-     nfs_file_read+0x90/0xc0
+    did you consider using the other paradigm:
 
-For now this just implements a simple check for the _PAGE_RW bit similar
-to pmd_write. However, this implies that the gup-slow-path check is
-missing the extra checks that the gup-fast-path performs with
-pud_access_permitted. Later patches will align all checks to use the
-'access_permitted' helper if the architecture provides it. Note that the
-generic 'access_permitted' helper fallback is the simple _PAGE_RW check
-on architectures that do not define the 'access_permitted' helper(s).
+    In arch include files:
+    #define pud_write       pud_write
+    static inline int pud_write(pud_t pud)
+     .....
 
-Fixes: a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent hugepages")
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reported-by: Stephen Rothwell <sfr@canb.auug.org.au>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
+    Then in include/asm-generic/pgtable.h:
+
+    #ifndef pud_write
+    tatic inline int pud_write(pud_t pud)
+    {
+            ....
+    }
+    #endif
+
+    If you had, then the powerpc code would have worked ... ;-) and many
+    of the other interfaces in include/asm-generic/pgtable.h are
+    protected that way ...
+
+Given that some architecture already define pmd_write() as a macro,
+it's a net reduction to drop the definition of
+__HAVE_ARCH_PMD_WRITE.
+
+Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
+Cc: Russell King <linux@armlinux.org.uk>
+Cc: Ralf Baechle <ralf@linux-mips.org>
 Cc: "H. Peter Anvin" <hpa@zytor.com>
-Cc: Ingo Molnar <mingo@redhat.com>
 Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: <stable@vger.kernel.org>
 Cc: <x86@kernel.org>
+Suggested-by: Stephen Rothwell <sfr@canb.auug.org.au>
 Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 ---
- arch/x86/include/asm/pgtable.h |    6 ++++++
- include/asm-generic/pgtable.h  |    8 ++++++++
- include/linux/hugetlb.h        |    8 --------
- 3 files changed, 14 insertions(+), 8 deletions(-)
+ arch/arm/include/asm/pgtable-3level.h        |    1 -
+ arch/arm64/include/asm/pgtable.h             |    1 -
+ arch/mips/include/asm/pgtable.h              |    2 +-
+ arch/powerpc/include/asm/book3s/64/pgtable.h |    1 -
+ arch/s390/include/asm/pgtable.h              |    2 +-
+ arch/sparc/include/asm/pgtable_64.h          |    2 +-
+ arch/tile/include/asm/pgtable.h              |    1 -
+ arch/x86/include/asm/pgtable.h               |    2 +-
+ include/asm-generic/pgtable.h                |    4 ++--
+ 9 files changed, 6 insertions(+), 10 deletions(-)
 
+diff --git a/arch/arm/include/asm/pgtable-3level.h b/arch/arm/include/asm/pgtable-3level.h
+index 2a029bceaf2f..1a7a17b2a1ba 100644
+--- a/arch/arm/include/asm/pgtable-3level.h
++++ b/arch/arm/include/asm/pgtable-3level.h
+@@ -221,7 +221,6 @@ static inline pte_t pte_mkspecial(pte_t pte)
+ }
+ #define	__HAVE_ARCH_PTE_SPECIAL
+ 
+-#define __HAVE_ARCH_PMD_WRITE
+ #define pmd_write(pmd)		(pmd_isclear((pmd), L_PMD_SECT_RDONLY))
+ #define pmd_dirty(pmd)		(pmd_isset((pmd), L_PMD_SECT_DIRTY))
+ #define pud_page(pud)		pmd_page(__pmd(pud_val(pud)))
+diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
+index c9530b5b5ca8..149d05fb9421 100644
+--- a/arch/arm64/include/asm/pgtable.h
++++ b/arch/arm64/include/asm/pgtable.h
+@@ -345,7 +345,6 @@ static inline int pmd_protnone(pmd_t pmd)
+ 
+ #define pmd_thp_or_huge(pmd)	(pmd_huge(pmd) || pmd_trans_huge(pmd))
+ 
+-#define __HAVE_ARCH_PMD_WRITE
+ #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
+ 
+ #define pmd_mkhuge(pmd)		(__pmd(pmd_val(pmd) & ~PMD_TABLE_BIT))
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 9e9e94415d08..1a508a74d48d 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -552,7 +552,7 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
+ extern void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+ 		       pmd_t *pmdp, pmd_t pmd);
+ 
+-#define __HAVE_ARCH_PMD_WRITE
++#define pmd_write pmd_write
+ static inline int pmd_write(pmd_t pmd)
+ {
+ 	return !!(pmd_val(pmd) & _PAGE_WRITE);
+diff --git a/arch/powerpc/include/asm/book3s/64/pgtable.h b/arch/powerpc/include/asm/book3s/64/pgtable.h
+index 9a677cd5997f..44697817ccc6 100644
+--- a/arch/powerpc/include/asm/book3s/64/pgtable.h
++++ b/arch/powerpc/include/asm/book3s/64/pgtable.h
+@@ -1005,7 +1005,6 @@ static inline int pmd_protnone(pmd_t pmd)
+ }
+ #endif /* CONFIG_NUMA_BALANCING */
+ 
+-#define __HAVE_ARCH_PMD_WRITE
+ #define pmd_write(pmd)		pte_write(pmd_pte(pmd))
+ #define __pmd_write(pmd)	__pte_write(pmd_pte(pmd))
+ #define pmd_savedwrite(pmd)	pte_savedwrite(pmd_pte(pmd))
+diff --git a/arch/s390/include/asm/pgtable.h b/arch/s390/include/asm/pgtable.h
+index d7fe9838084d..0a6b0286c32e 100644
+--- a/arch/s390/include/asm/pgtable.h
++++ b/arch/s390/include/asm/pgtable.h
+@@ -709,7 +709,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return (pmd_val(pmd) & origin_mask) >> PAGE_SHIFT;
+ }
+ 
+-#define __HAVE_ARCH_PMD_WRITE
++#define pmd_write pmd_write
+ static inline int pmd_write(pmd_t pmd)
+ {
+ 	return (pmd_val(pmd) & _SEGMENT_ENTRY_WRITE) != 0;
+diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
+index 5a9e96be1665..9937c5ff94a9 100644
+--- a/arch/sparc/include/asm/pgtable_64.h
++++ b/arch/sparc/include/asm/pgtable_64.h
+@@ -715,7 +715,7 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
+ 	return pte_pfn(pte);
+ }
+ 
+-#define __HAVE_ARCH_PMD_WRITE
++#define pmd_write pmd_write
+ static inline unsigned long pmd_write(pmd_t pmd)
+ {
+ 	pte_t pte = __pte(pmd_val(pmd));
+diff --git a/arch/tile/include/asm/pgtable.h b/arch/tile/include/asm/pgtable.h
+index 2a26cc4fefc2..adfa21b18488 100644
+--- a/arch/tile/include/asm/pgtable.h
++++ b/arch/tile/include/asm/pgtable.h
+@@ -475,7 +475,6 @@ static inline void pmd_clear(pmd_t *pmdp)
+ #define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
+ #define pmd_huge_page(pmd)	pte_huge(pmd_pte(pmd))
+ #define pmd_mkhuge(pmd)		pte_pmd(pte_mkhuge(pmd_pte(pmd)))
+-#define __HAVE_ARCH_PMD_WRITE
+ 
+ #define pfn_pmd(pfn, pgprot)	pte_pmd(pfn_pte((pfn), (pgprot)))
+ #define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
 diff --git a/arch/x86/include/asm/pgtable.h b/arch/x86/include/asm/pgtable.h
-index 09f9e1e00e3b..dcce76ee4aa7 100644
+index dcce76ee4aa7..95e2dfd75521 100644
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -1088,6 +1088,12 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
- 	clear_bit(_PAGE_BIT_RW, (unsigned long *)pmdp);
- }
+@@ -1061,7 +1061,7 @@ extern int pmdp_clear_flush_young(struct vm_area_struct *vma,
+ 				  unsigned long address, pmd_t *pmdp);
  
-+#define pud_write pud_write
-+static inline int pud_write(pud_t pud)
-+{
-+	return pud_flags(pud) & _PAGE_RW;
-+}
-+
- /*
-  * clone_pgd_range(pgd_t *dst, pgd_t *src, int count);
-  *
+ 
+-#define __HAVE_ARCH_PMD_WRITE
++#define pmd_write pmd_write
+ static inline int pmd_write(pmd_t pmd)
+ {
+ 	return pmd_flags(pmd) & _PAGE_RW;
 diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 757dc6ffc7ba..1ac457511f4e 100644
+index 1ac457511f4e..b234d54f2cb6 100644
 --- a/include/asm-generic/pgtable.h
 +++ b/include/asm-generic/pgtable.h
-@@ -814,6 +814,14 @@ static inline int pmd_write(pmd_t pmd)
- #endif /* __HAVE_ARCH_PMD_WRITE */
+@@ -805,13 +805,13 @@ static inline int pmd_trans_huge(pmd_t pmd)
+ {
+ 	return 0;
+ }
+-#ifndef __HAVE_ARCH_PMD_WRITE
++#ifndef pmd_write
+ static inline int pmd_write(pmd_t pmd)
+ {
+ 	BUG();
+ 	return 0;
+ }
+-#endif /* __HAVE_ARCH_PMD_WRITE */
++#endif /* pmd_write */
  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
-+#ifndef pud_write
-+static inline int pud_write(pud_t pud)
-+{
-+	BUG();
-+	return 0;
-+}
-+#endif /* pud_write */
-+
- #if !defined(CONFIG_TRANSPARENT_HUGEPAGE) || \
- 	(defined(CONFIG_TRANSPARENT_HUGEPAGE) && \
- 	 !defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD))
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index fbf5b31d47ee..82a25880714a 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -239,14 +239,6 @@ static inline int pgd_write(pgd_t pgd)
- }
- #endif
- 
--#ifndef pud_write
--static inline int pud_write(pud_t pud)
--{
--	BUG();
--	return 0;
--}
--#endif
--
- #define HUGETLB_ANON_FILE "anon_hugepage"
- 
- enum {
+ #ifndef pud_write
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
