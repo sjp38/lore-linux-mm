@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 607906B0260
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BFB636B0261
 	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 13:26:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id k3so1510164wmg.6
+Received: by mail-wr0-f199.google.com with SMTP id k100so8574863wrc.9
         for <linux-mm@kvack.org>; Tue, 21 Nov 2017 10:26:44 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x128sor548978wmg.61.2017.11.21.10.26.41
+        by mx.google.com with SMTPS id p202sor551994wmd.56.2017.11.21.10.26.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 21 Nov 2017 10:26:41 -0800 (PST)
+        Tue, 21 Nov 2017 10:26:43 -0800 (PST)
 From: Salvatore Mesoraca <s.mesoraca16@gmail.com>
-Subject: [RFC v4 05/10] S.A.R.A. WX Protection
-Date: Tue, 21 Nov 2017 19:26:07 +0100
-Message-Id: <1511288772-19308-6-git-send-email-s.mesoraca16@gmail.com>
+Subject: [RFC v4 06/10] Creation of "pagefault_handler" LSM hook
+Date: Tue, 21 Nov 2017 19:26:08 +0100
+Message-Id: <1511288772-19308-7-git-send-email-s.mesoraca16@gmail.com>
 In-Reply-To: <1511288772-19308-1-git-send-email-s.mesoraca16@gmail.com>
 References: <1511288772-19308-1-git-send-email-s.mesoraca16@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,959 +20,181 @@ List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: linux-security-module@vger.kernel.org, kernel-hardening@lists.openwall.com, linux-mm@kvack.org, Salvatore Mesoraca <s.mesoraca16@gmail.com>, Alexander Viro <viro@zeniv.linux.org.uk>, Brad Spengler <spender@grsecurity.net>, Casey Schaufler <casey@schaufler-ca.com>, Christoph Hellwig <hch@infradead.org>, James Morris <james.l.morris@oracle.com>, Jann Horn <jannh@google.com>, Kees Cook <keescook@chromium.org>, PaX Team <pageexec@freemail.hu>, Thomas Gleixner <tglx@linutronix.de>, "Serge E. Hallyn" <serge@hallyn.com>
 
-Introduction of S.A.R.A. WX Protection.
-It aims to improve user-space programs security by applying:
-- W^X enforcement
-- W!->X (once writable never executable) mprotect restriction
-- Executable MMAP prevention
-
-All of the above features can be enabled or disabled both system wide
-or on a per executable basis through the use of configuration.
-W^X enforcement works by blocking any memory allocation or mprotect
-invocation with both the WRITE and the EXEC flags enabled.
-W!->X restriction works by preventing any mprotect invocation that makes
-executable any page that is flagged VM_MAYWRITE.
-This feature can be configured separately for stack, heap and other
-allocations.
-Executable MMAP prevention works by preventing any new executable
-allocation after the dynamic libraries have been loaded. It works under the
-assumption that, when the dynamic libraries have been finished loading, the
-RELRO section will be marked read only.
-
-Parts of WX Protection are inspired by some of the features available in
-PaX according to my understanding of the code. Changes or omissions from
-the original code are mine and don't reflect the original grsecurity/PaX
-code.
+Creation of a new hook to let LSM modules handle user-space pagefaults on
+x86.
+It can be used to avoid segfaulting the originating process.
+If it's the case it can modify process registers before returning.
+This is not a security feature by itself, it's a way to soften some
+unwanted side-effects of restrictive security features.
+In particular this is used by S.A.R.A. to implement what PaX call
+"trampoline emulation" that, in practice, allows for some specific
+code sequences to be executed even if they are in non executable memory.
+This may look like a bad thing at first, but you have to consider
+that:
+- This allows for strict memory restrictions (e.g. W^X) to stay on even
+  when they should be turned off. And, even if this emulation
+  makes those features less effective, it's still better than having
+  them turned off completely.
+- The only code sequences emulated are trampolines used to make
+  function calls. In many cases, when you have the chance to
+  make arbitrary memory writes, you can already manipulate the
+  control flow of the program by overwriting function pointers or
+  return values. So, in many cases, "trampoline emulation"
+  doesn't introduce new exploit vectors.
+- It's a feature that can be turned on only if needed, on a per
+  executable file basis.
 
 Signed-off-by: Salvatore Mesoraca <s.mesoraca16@gmail.com>
 ---
- security/sara/Kconfig          |  74 ++++
- security/sara/Makefile         |   1 +
- security/sara/include/utils.h  |  11 +
- security/sara/include/wxprot.h |  27 ++
- security/sara/main.c           |   6 +
- security/sara/wxprot.c         | 741 +++++++++++++++++++++++++++++++++++++++++
- 6 files changed, 860 insertions(+)
- create mode 100644 security/sara/include/wxprot.h
- create mode 100644 security/sara/wxprot.c
+ arch/Kconfig              |  6 ++++++
+ arch/x86/Kconfig          |  1 +
+ arch/x86/mm/fault.c       |  6 ++++++
+ include/linux/lsm_hooks.h | 12 ++++++++++++
+ include/linux/security.h  | 11 +++++++++++
+ security/security.c       | 11 +++++++++++
+ 6 files changed, 47 insertions(+)
 
-diff --git a/security/sara/Kconfig b/security/sara/Kconfig
-index 0456220..62dfe4f 100644
---- a/security/sara/Kconfig
-+++ b/security/sara/Kconfig
-@@ -38,3 +38,77 @@ config SECURITY_SARA_NO_RUNTIME_ENABLE
+diff --git a/arch/Kconfig b/arch/Kconfig
+index 400b9e1..5481cc6 100644
+--- a/arch/Kconfig
++++ b/arch/Kconfig
+@@ -230,6 +230,12 @@ config ARCH_HAS_FORTIFY_SOURCE
+ 	  An architecture should select this when it can successfully
+ 	  build and run with CONFIG_FORTIFY_SOURCE.
  
- 	  If unsure, answer Y.
- 
-+config SECURITY_SARA_WXPROT
-+	bool "WX Protection: W^X and W!->X protections"
-+	depends on SECURITY_SARA
-+	default y
++config ARCH_HAS_LSM_PAGEFAULT
++	bool
 +	help
-+	  WX Protection aims to improve user-space programs security by applying:
-+	    - W^X memory restriction
-+	    - W!->X (once writable never executable) mprotect restriction
-+	    - Executable MMAP prevention
-+	  See Documentation/admin-guide/LSM/SARA.rst. for further information.
++	  An architecture should select this if it supports
++	  "pagefault_handler" LSM hook.
 +
-+	  If unsure, answer Y.
-+
-+choice
-+	prompt "Default action for W^X and W!->X protections"
-+	depends on SECURITY_SARA
-+	depends on SECURITY_SARA_WXPROT
-+	default SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_COMPLAIN_VERBOSE
-+
-+        help
-+	  Choose the default behaviour of WX Protection when no config
-+	  rule matches or no rule is loaded.
-+	  For further information on available flags and their meaning
-+	  see Documentation/admin-guide/LSM/SARA.rst.
-+
-+	config SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_COMPLAIN_VERBOSE
-+		bool "Protections enabled but not enforced."
-+		help
-+		  All features enabled except "Executable MMAP prevention",
-+		  verbose reporting, but no actual enforce: it just complains.
-+		  Its numeric value is 0x3f, for more information see
-+		  Documentation/admin-guide/LSM/SARA.rst.
-+
-+        config SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_ENFORCE_VERBOSE
-+		bool "Full protection, verbose."
-+		help
-+		  All features enabled except "Executable MMAP prevention".
-+		  The enabled features will be enforced with verbose reporting.
-+		  Its numeric value is 0x2f, for more information see
-+		  Documentation/admin-guide/LSM/SARA.rst.
-+
-+        config SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_ENFORCE
-+		bool "Full protection, quiet."
-+		help
-+		  All features enabled except "Executable MMAP prevention".
-+		  The enabled features will be enforced quietly.
-+		  Its numeric value is 0xf, for more information see
-+		  Documentation/admin-guide/LSM/SARA.rst.
-+
-+	config SECURITY_SARA_WXPROT_DEFAULT_FLAGS_NONE
-+		bool "No protection at all."
-+		help
-+		  All features disabled.
-+		  Its numeric value is 0, for more information see
-+		  Documentation/admin-guide/LSM/SARA.rst.
-+endchoice
-+
-+config SECURITY_SARA_WXPROT_DISABLED
-+	bool "WX protection will be disabled at boot."
-+	depends on SECURITY_SARA_WXPROT
-+	default n
-+	help
-+	  If you say Y here WX protection won't be enabled at startup. You can
-+	  override this option via user-space utilities or at boot time via
-+	  "sara.wxprot_enabled=[0|1]" kernel parameter.
-+
-+	  If unsure, answer N.
-+
-+config SECURITY_SARA_WXPROT_DEFAULT_FLAGS
-+	hex
-+	default "0x3f" if SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_COMPLAIN_VERBOSE
-+	default "0x2f" if SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_ENFORCE_VERBOSE
-+	default "0xf" if SECURITY_SARA_WXPROT_DEFAULT_FLAGS_ALL_ENFORCE
-+	default "0" if SECURITY_SARA_WXPROT_DEFAULT_FLAGS_NONE
-diff --git a/security/sara/Makefile b/security/sara/Makefile
-index 14bf7a8..74a3338 100644
---- a/security/sara/Makefile
-+++ b/security/sara/Makefile
-@@ -1,3 +1,4 @@
- obj-$(CONFIG_SECURITY_SARA) := sara.o
+ # Select if arch has all set_memory_ro/rw/x/nx() functions in asm/cacheflush.h
+ config ARCH_HAS_SET_MEMORY
+ 	bool
+diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+index df3276d..3f52f3d 100644
+--- a/arch/x86/Kconfig
++++ b/arch/x86/Kconfig
+@@ -54,6 +54,7 @@ config X86
+ 	select ARCH_HAS_FORTIFY_SOURCE
+ 	select ARCH_HAS_GCOV_PROFILE_ALL
+ 	select ARCH_HAS_KCOV			if X86_64
++	select ARCH_HAS_LSM_PAGEFAULT
+ 	select ARCH_HAS_PMEM_API		if X86_64
+ 	# Causing hangs/crashes, see the commit that added this change for details.
+ 	select ARCH_HAS_REFCOUNT
+diff --git a/arch/x86/mm/fault.c b/arch/x86/mm/fault.c
+index 78ca9a8..5443170 100644
+--- a/arch/x86/mm/fault.c
++++ b/arch/x86/mm/fault.c
+@@ -16,6 +16,7 @@
+ #include <linux/prefetch.h>		/* prefetchw			*/
+ #include <linux/context_tracking.h>	/* exception_enter(), ...	*/
+ #include <linux/uaccess.h>		/* faulthandler_disabled()	*/
++#include <linux/security.h>		/* security_pagefault_handler	*/
  
- sara-y := main.o securityfs.o utils.o sara_data.o
-+sara-$(CONFIG_SECURITY_SARA_WXPROT) += wxprot.o
-diff --git a/security/sara/include/utils.h b/security/sara/include/utils.h
-index 166b9ed..579287f 100644
---- a/security/sara/include/utils.h
-+++ b/security/sara/include/utils.h
-@@ -26,6 +26,17 @@ static inline void release_entry(struct kref *ref)
- 	/* All work is done after the return from kref_put(). */
- }
- 
-+
-+/*
-+ * The following macros must be used to access S.A.R.A. configuration
-+ * structures.
-+ * They are thread-safe under the assumption that a configuration
-+ * won't ever be deleted but just replaced using SARA_CONFIG_REPLACE,
-+ * possibly using an empty configuration.
-+ * i.e. every call to SARA_CONFIG_PUT *must* be preceded by a matching
-+ * SARA_CONFIG_GET invocation.
-+ */
-+
- #define SARA_CONFIG_GET_RCU(DEST, CONFIG) do {	\
- 	rcu_read_lock();			\
- 	DEST = rcu_dereference(CONFIG);		\
-diff --git a/security/sara/include/wxprot.h b/security/sara/include/wxprot.h
-new file mode 100644
-index 0000000..23b8a7b
---- /dev/null
-+++ b/security/sara/include/wxprot.h
-@@ -0,0 +1,27 @@
-+/*
-+ * S.A.R.A. Linux Security Module
-+ *
-+ * Copyright (C) 2017 Salvatore Mesoraca <s.mesoraca16@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2, as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#ifndef __SARA_WXPROT_H
-+#define __SARA_WXPROT_H
-+
-+#ifdef CONFIG_SECURITY_SARA_WXPROT
-+
-+#include <linux/init.h>
-+int sara_wxprot_init(void) __init;
-+
-+#else /* CONFIG_SECURITY_SARA_WXPROT */
-+inline int sara_wxprot_init(void)
-+{
-+	return 0;
-+}
-+#endif /* CONFIG_SECURITY_SARA_WXPROT */
-+
-+#endif /* __SARA_WXPROT_H */
-diff --git a/security/sara/main.c b/security/sara/main.c
-index 0fc1761..728c859 100644
---- a/security/sara/main.c
-+++ b/security/sara/main.c
-@@ -17,6 +17,7 @@
- #include "include/sara.h"
- #include "include/sara_data.h"
- #include "include/securityfs.h"
-+#include "include/wxprot.h"
- 
- static const int sara_version = SARA_VERSION;
- 
-@@ -96,6 +97,11 @@ void __init sara_init(void)
- 		goto error;
+ #include <asm/cpufeature.h>		/* boot_cpu_has, ...		*/
+ #include <asm/traps.h>			/* dotraplinkage, ...		*/
+@@ -1332,6 +1333,11 @@ static inline bool smap_violation(int error_code, struct pt_regs *regs)
+ 			local_irq_enable();
  	}
  
-+	if (sara_wxprot_init()) {
-+		pr_crit("impossible to initialize WX protections.\n");
-+		goto error;
-+	}
++	if (unlikely(security_pagefault_handler(regs,
++						error_code,
++						address)))
++		return;
 +
- 	pr_debug("initialized.\n");
+ 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, address);
  
- 	if (sara_enabled)
-diff --git a/security/sara/wxprot.c b/security/sara/wxprot.c
-new file mode 100644
-index 0000000..46600f0
---- /dev/null
-+++ b/security/sara/wxprot.c
-@@ -0,0 +1,741 @@
-+/*
-+ * S.A.R.A. Linux Security Module
-+ *
-+ * Copyright (C) 2017 Salvatore Mesoraca <s.mesoraca16@gmail.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License version 2, as
-+ * published by the Free Software Foundation.
-+ *
-+ */
-+
-+#ifdef CONFIG_SECURITY_SARA_WXPROT
-+
-+#include <linux/binfmts.h>
-+#include <linux/cred.h>
-+#include <linux/elf.h>
-+#include <linux/kref.h>
-+#include <linux/lsm_hooks.h>
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include <linux/module.h>
-+#include <linux/printk.h>
-+#include <linux/ratelimit.h>
-+#include <linux/spinlock.h>
-+
-+#include "include/sara.h"
-+#include "include/sara_data.h"
-+#include "include/utils.h"
-+#include "include/securityfs.h"
-+#include "include/wxprot.h"
-+
-+#define SARA_WXPROT_CONFIG_VERSION 0
-+
-+#define SARA_WXP_HEAP		0x0001
-+#define SARA_WXP_STACK		0x0002
-+#define SARA_WXP_OTHER		0x0004
-+#define SARA_WXP_WXORX		0x0008
-+#define SARA_WXP_COMPLAIN	0x0010
-+#define SARA_WXP_VERBOSE	0x0020
-+#define SARA_WXP_MMAP		0x0040
-+#define SARA_WXP_TRANSFER	0x0200
-+#define SARA_WXP_NONE		0x0000
-+#define SARA_WXP_MPROTECT	(SARA_WXP_HEAP	| \
-+				SARA_WXP_STACK	| \
-+				SARA_WXP_OTHER)
-+#define __SARA_WXP_ALL		(SARA_WXP_MPROTECT	| \
-+				SARA_WXP_MMAP		| \
-+				SARA_WXP_WXORX		| \
-+				SARA_WXP_COMPLAIN	| \
-+				SARA_WXP_VERBOSE)
-+#define SARA_WXP_ALL		__SARA_WXP_ALL
-+
-+struct wxprot_rule {
-+	char *path;
-+	u16 flags;
-+	bool exact;
-+};
-+
-+struct wxprot_config_container {
-+	u32 rules_size;
-+	struct wxprot_rule *rules;
-+	size_t buf_len;
-+	struct kref refcount;
-+	char hash[SARA_CONFIG_HASH_LEN];
-+};
-+
-+static struct wxprot_config_container __rcu *wxprot_config;
-+
-+static const int wxprot_config_version = SARA_WXPROT_CONFIG_VERSION;
-+static bool wxprot_enabled __read_mostly = true;
-+static DEFINE_SPINLOCK(wxprot_config_lock);
-+
-+static u16 default_flags __ro_after_init =
-+				CONFIG_SECURITY_SARA_WXPROT_DEFAULT_FLAGS;
-+
-+static const bool wxprot_emutramp;
-+
-+static void pr_wxp(char *msg)
+ 	if (error_code & X86_PF_WRITE)
+diff --git a/include/linux/lsm_hooks.h b/include/linux/lsm_hooks.h
+index 8d7ccbd..1ca405d 100644
+--- a/include/linux/lsm_hooks.h
++++ b/include/linux/lsm_hooks.h
+@@ -489,6 +489,14 @@
+  *	@vmflags contains the requested vmflags.
+  *	Return 0 if the operation is allowed to continue otherwise return
+  *	the appropriate error code.
++ * @pagefault_handler:
++ *	Handle pagefaults on supported architectures, that is any architecture
++ *	which defines CONFIG_ARCH_HAS_LSM_PAGEFAULT.
++ *	@regs contains process' registers.
++ *	@error_code contains error code for the pagefault.
++ *	@address contains the address that caused the pagefault.
++ *	Return 0 to let the kernel handle the pagefault as usually, any other
++ *	value to let the process continue its execution.
+  * @file_lock:
+  *	Check permission before performing file locking operations.
+  *	Note: this hook mediates both flock and fcntl style locks.
+@@ -1531,6 +1539,9 @@
+ 	int (*file_mprotect)(struct vm_area_struct *vma, unsigned long reqprot,
+ 				unsigned long prot);
+ 	int (*check_vmflags)(vm_flags_t vmflags);
++	int (*pagefault_handler)(struct pt_regs *regs,
++				 unsigned long error_code,
++				 unsigned long address);
+ 	int (*file_lock)(struct file *file, unsigned int cmd);
+ 	int (*file_fcntl)(struct file *file, unsigned int cmd,
+ 				unsigned long arg);
+@@ -1819,6 +1830,7 @@ struct security_hook_heads {
+ 	struct list_head mmap_file;
+ 	struct list_head file_mprotect;
+ 	struct list_head check_vmflags;
++	struct list_head pagefault_handler;
+ 	struct list_head file_lock;
+ 	struct list_head file_fcntl;
+ 	struct list_head file_set_fowner;
+diff --git a/include/linux/security.h b/include/linux/security.h
+index ac16262..ba018a3 100644
+--- a/include/linux/security.h
++++ b/include/linux/security.h
+@@ -312,6 +312,9 @@ int security_mmap_file(struct file *file, unsigned long prot,
+ int security_file_mprotect(struct vm_area_struct *vma, unsigned long reqprot,
+ 			   unsigned long prot);
+ int security_check_vmflags(vm_flags_t vmflags);
++int __maybe_unused security_pagefault_handler(struct pt_regs *regs,
++					      unsigned long error_code,
++					      unsigned long address);
+ int security_file_lock(struct file *file, unsigned int cmd);
+ int security_file_fcntl(struct file *file, unsigned int cmd, unsigned long arg);
+ void security_file_set_fowner(struct file *file);
+@@ -851,6 +854,14 @@ static inline int security_check_vmflags(vm_flags_t vmflags)
+ 	return 0;
+ }
+ 
++static inline int __maybe_unused security_pagefault_handler(
++						struct pt_regs *regs,
++						unsigned long error_code,
++						unsigned long address)
 +{
-+	char *buf, *path;
-+
-+	path = get_current_path(&buf);
-+	pr_notice_ratelimited("WXP: %s in '%s' (%d).\n",
-+			      msg, path, current->pid);
-+	kvfree(buf);
-+}
-+
-+/**
-+ * are_flags_valid - check whether the given combination of flags is valid
-+ * @flags: the flags to be checked
-+ *
-+ * Returns true if flags are valid, false otherwise.
-+ *
-+ * Rules checked:
-+ *   - Unused bits must be set to 0.
-+ *   - Any feature in the "MPROTECT" group require "WXORX".
-+ *   - "COMPLAIN" and "VERBOSE" can only be used if some other feature is
-+ *     enabled.
-+ *   - Trampoline emulation can only be used when all "MPROTECT"
-+ *     features are active.
-+ *   - "MMAP" protection requires SARA_WXP_OTHER
-+ */
-+static bool are_flags_valid(u16 flags)
-+{
-+	flags &= ~SARA_WXP_TRANSFER;
-+	if (unlikely((flags & SARA_WXP_ALL) != flags))
-+		return false;
-+	if (unlikely(flags & SARA_WXP_MPROTECT &&
-+		     !(flags & SARA_WXP_WXORX)))
-+		return false;
-+	if (unlikely(flags & (SARA_WXP_COMPLAIN | SARA_WXP_VERBOSE) &&
-+		     !(flags & (SARA_WXP_MPROTECT |
-+				SARA_WXP_WXORX |
-+				SARA_WXP_MMAP))))
-+		return false;
-+	if (unlikely(flags & SARA_WXP_MMAP &&
-+		     !(flags & SARA_WXP_OTHER)))
-+		return false;
-+	return true;
-+}
-+
-+module_param(wxprot_enabled, bool, 0);
-+MODULE_PARM_DESC(wxprot_enabled, "Disable or enable S.A.R.A. WX Protection at boot time.");
-+
-+static int param_set_wxpflags(const char *val, const struct kernel_param *kp)
-+{
-+	u16 flags;
-+
-+	if (!val || kstrtou16(val, 0, &flags) != 0 || !are_flags_valid(flags))
-+		return -EINVAL;
-+	*(u16 *) kp->arg = flags;
 +	return 0;
 +}
 +
-+static struct kernel_param_ops param_ops_wxpflags = {
-+	.set = param_set_wxpflags,
-+};
-+
-+#define param_check_wxpflags(name, p) __param_check(name, p, u16)
-+
-+module_param_named(wxprot_default_flags, default_flags, wxpflags, 0);
-+MODULE_PARM_DESC(wxprot_default_flags, "Disable or enable S.A.R.A. WX Protection at boot time.");
-+
-+/*
-+ * MMAP exec restriction
-+ */
-+#define PT_GNU_RELRO (PT_LOOS + 0x474e552)
-+
-+union elfh {
-+	struct elf32_hdr c32;
-+	struct elf64_hdr c64;
-+};
-+
-+union elfp {
-+	struct elf32_phdr c32;
-+	struct elf64_phdr c64;
-+};
-+
-+#define find_relro_section(ELFH, ELFP, FILE, RELRO, FOUND) do {		\
-+	unsigned long i;						\
-+	int _tmp;							\
-+	loff_t _pos = 0;						\
-+	if (ELFH.e_type == ET_DYN || ELFH.e_type == ET_EXEC) {		\
-+		for (i = 0; i < ELFH.e_phnum; ++i) {			\
-+			_pos = ELFH.e_phoff + i*sizeof(ELFP);		\
-+			_tmp = kernel_read(FILE, &ELFP, sizeof(ELFP),	\
-+					   &_pos);			\
-+			if (_tmp != sizeof(ELFP))			\
-+				break;					\
-+			if (ELFP.p_type == PT_GNU_RELRO) {		\
-+				RELRO = ELFP.p_offset >> PAGE_SHIFT;	\
-+				FOUND = true;				\
-+				break;					\
-+			}						\
-+		}							\
-+	}								\
-+} while (0)
-+
-+static int set_relro_page(struct linux_binprm *bprm)
+ static inline int security_file_lock(struct file *file, unsigned int cmd)
+ {
+ 	return 0;
+diff --git a/security/security.c b/security/security.c
+index 0df8988..21cd07e 100644
+--- a/security/security.c
++++ b/security/security.c
+@@ -944,6 +944,17 @@ int security_check_vmflags(vm_flags_t vmflags)
+ 	return call_int_hook(check_vmflags, 0, vmflags);
+ }
+ 
++int __maybe_unused security_pagefault_handler(struct pt_regs *regs,
++					      unsigned long error_code,
++					      unsigned long address)
 +{
-+	union elfh elf_h;
-+	union elfp elf_p;
-+	unsigned long relro_page = 0;
-+	bool relro_page_found = false;
-+	int ret;
-+	loff_t pos = 0;
-+
-+	ret = kernel_read(bprm->file, &elf_h, sizeof(elf_h), &pos);
-+	if (ret == sizeof(elf_h) &&
-+	    strncmp(elf_h.c32.e_ident, ELFMAG, SELFMAG) == 0) {
-+		if (elf_h.c32.e_ident[EI_CLASS] == ELFCLASS32) {
-+			find_relro_section(elf_h.c32,
-+					   elf_p.c32,
-+					   bprm->file,
-+					   relro_page,
-+					   relro_page_found);
-+		} else if (IS_ENABLED(CONFIG_64BIT) &&
-+			   elf_h.c64.e_ident[EI_CLASS] == ELFCLASS64) {
-+			find_relro_section(elf_h.c64,
-+					   elf_p.c64,
-+					   bprm->file,
-+					   relro_page,
-+					   relro_page_found);
-+		}
-+	} else
-+		return 2; /* It isn't an ELF */
-+
-+	if (relro_page_found) {
-+		get_sara_relro_page(bprm->cred) = relro_page;
-+		get_sara_relro_page_found(bprm->cred) = relro_page_found;
-+		get_sara_relro_file(bprm->cred) = bprm->file;
-+		return 0;
-+	} else
-+		return 1; /* It's an ELF without a RELRO section */
++	return call_int_hook(pagefault_handler,
++			     0,
++			     regs,
++			     error_code,
++			     address);
 +}
 +
-+static inline int is_relro_page(const struct vm_area_struct *vma)
-+{
-+	if (get_current_sara_relro_page_found() &&
-+	    get_current_sara_relro_page() == vma->vm_pgoff &&
-+	    get_current_sara_relro_file() == vma->vm_file)
-+		return 1;
-+	return 0;
-+}
-+
-+/*
-+ * LSM hooks
-+ */
-+static int sara_bprm_set_creds(struct linux_binprm *bprm)
-+{
-+	int i;
-+	struct wxprot_config_container *c;
-+	u16 sara_wxp_flags = default_flags;
-+	char *buf = NULL;
-+	char *path = NULL;
-+	struct cred *current_new;
-+
-+	sara_wxp_flags = get_sara_wxp_flags(bprm->cred);
-+	get_sara_mmap_blocked(bprm->cred) = false;
-+	get_sara_relro_page_found(bprm->cred) = false;
-+	get_sara_relro_page(bprm->cred) = 0;
-+	get_sara_relro_file(bprm->cred) = NULL;
-+	get_sara_wxp_flags(bprm->cred) = SARA_WXP_NONE;
-+	get_sara_execve_flags(bprm->cred) = SARA_WXP_NONE;
-+
-+	if (!sara_enabled || !wxprot_enabled)
-+		return 0;
-+
-+	/*
-+	 * SARA_WXP_TRANSFER means that the parent
-+	 * wants this child to inherit its flags.
-+	 */
-+	if (!(sara_wxp_flags & SARA_WXP_TRANSFER)) {
-+		sara_wxp_flags = default_flags;
-+		path = get_absolute_path(&bprm->file->f_path, &buf);
-+		if (IS_ERR(path)) {
-+			path = (char *) bprm->interp;
-+			if (PTR_ERR(path) == -ENAMETOOLONG)
-+				pr_warn_ratelimited("WXP: path too long for '%s'. Default flags will be used.\n",
-+						path);
-+			else
-+				pr_warn_ratelimited("WXP: can't find path for '%s'. Default flags will be used.\n",
-+						path);
-+			goto skip_flags;
-+		}
-+		SARA_CONFIG_GET_RCU(c, wxprot_config);
-+		for (i = 0; i < c->rules_size; ++i) {
-+			if ((c->rules[i].exact &&
-+			     strcmp(c->rules[i].path, path) == 0) ||
-+			    (!c->rules[i].exact &&
-+			     strncmp(c->rules[i].path, path,
-+				     strlen(c->rules[i].path)) == 0)) {
-+				sara_wxp_flags = c->rules[i].flags;
-+				/* most specific path always come first */
-+				break;
-+			}
-+		}
-+		SARA_CONFIG_PUT_RCU(c);
-+	} else
-+		path = (char *) bprm->interp;
-+
-+	if (sara_wxp_flags != default_flags &&
-+	    sara_wxp_flags & SARA_WXP_VERBOSE)
-+		pr_debug_ratelimited("WXP: '%s' run with flags '0x%x'.\n",
-+				     path, sara_wxp_flags);
-+
-+skip_flags:
-+	i = set_relro_page(bprm);
-+	/*
-+	 * i != 0 means no relro segment
-+	 * i == 1 means the file wasn't an ELF
-+	 *
-+	 * We want to disable SARA_WXP_MMAP when the file is missing
-+	 * the RELRO segment.
-+	 * We want to verbosely report this case only if the file
-+	 * was an ELF.
-+	 *
-+	 */
-+	if (i != 0) {
-+		if (sara_wxp_flags & SARA_WXP_VERBOSE &&
-+		    sara_wxp_flags & SARA_WXP_MMAP &&
-+		    i == 1)
-+			pr_notice_ratelimited("WXP: failed to find RELRO section in '%s'.\n",
-+					      path);
-+		sara_wxp_flags &= ~SARA_WXP_MMAP;
-+	}
-+	kvfree(buf);
-+	get_sara_wxp_flags(bprm->cred) = sara_wxp_flags;
-+
-+	/*
-+	 * Set the flags to be used for validation
-+	 * during the execve and discard SARA_WXP_MMAP:
-+	 * it doesn't make sense to prevent executable
-+	 * mmap during execve.
-+	 */
-+	current_new = prepare_creds();
-+	if (unlikely(current_new == NULL))
-+		return -ENOMEM;
-+	get_sara_execve_flags(current_new) = sara_wxp_flags & ~SARA_WXP_MMAP;
-+	commit_creds(current_new);
-+
-+	return 0;
-+}
-+
-+#define sara_warn_or_return(err, msg) do {		\
-+	if ((sara_wxp_flags & SARA_WXP_VERBOSE))	\
-+		pr_wxp(msg);				\
-+	if (!(sara_wxp_flags & SARA_WXP_COMPLAIN))	\
-+		return -err;				\
-+} while (0)
-+
-+static int sara_check_vmflags(vm_flags_t vm_flags)
-+{
-+	u16 sara_wxp_flags;
-+
-+	if (!sara_enabled || !wxprot_enabled)
-+		return 0;
-+
-+	/*
-+	 * Memory allocations done during an execve should be
-+	 * checked against the rules of the new executable,
-+	 * instead of those of the current one.
-+	 */
-+	if (current->in_execve)
-+		sara_wxp_flags = get_current_sara_execve_flags();
-+	else
-+		sara_wxp_flags = get_current_sara_wxp_flags();
-+
-+	/*
-+	 * Be quiet when using security_check_vmflags to decide
-+	 * what to do with a PT_GNU_STACK header
-+	 */
-+	if (current->in_execve && vm_flags == (VM_EXEC|VM_READ|VM_WRITE))
-+		sara_wxp_flags &= ~SARA_WXP_VERBOSE;
-+
-+	/*
-+	 * If "W xor X" is active for the current thread
-+	 * this function must not allow new allocations that
-+	 * have both the VM_WRITE and the VM_EXEC flags.
-+	 */
-+	if (sara_wxp_flags & SARA_WXP_WXORX &&
-+	    vm_flags & VM_WRITE &&
-+	    vm_flags & VM_EXEC)
-+		sara_warn_or_return(EPERM, "W^X");
-+	/*
-+	 * When the "MMAP" protection is on and shared libraries have
-+	 * been already loaded (i.e. get_current_sara_mmap_blocked
-+	 * returns true), this function must not allow:
-+	 *    - new executable allocations
-+	 *    - new non-executable allocations that may become
-+	 *      executable bypassing the "MPROTECT" restriction;
-+	 *      the "MPROTECT" protection will prevent a non-executable
-+	 *      area to became executable only if it has the
-+	 *      "VM_MAYWRITE" flag on.
-+	 */
-+	if (sara_wxp_flags & SARA_WXP_MMAP &&
-+	    (vm_flags & VM_EXEC ||
-+	     (!(vm_flags & VM_MAYWRITE) && (vm_flags & VM_MAYEXEC))) &&
-+	    get_current_sara_mmap_blocked())
-+		sara_warn_or_return(EPERM, "executable mmap");
-+
-+	return 0;
-+}
-+
-+static int sara_file_mprotect(struct vm_area_struct *vma,
-+				unsigned long reqprot,
-+				unsigned long prot)
-+{
-+	u16 sara_wxp_flags;
-+
-+	if (!sara_enabled || !wxprot_enabled)
-+		return 0;
-+
-+	if (current->in_execve)
-+		sara_wxp_flags = get_current_sara_execve_flags();
-+	else
-+		sara_wxp_flags = get_current_sara_wxp_flags();
-+
-+	/*
-+	 * vmas that may have been writable at some time in the past
-+	 * (i.e. have the VM_MAYWRITE flag on) shouldn't be allowed
-+	 * to be marked executable, unless they already are.
-+	 */
-+	if (sara_wxp_flags & SARA_WXP_MPROTECT &&
-+	    prot & PROT_EXEC &&
-+	    !(vma->vm_flags & VM_EXEC) &&
-+	    vma->vm_flags & VM_MAYWRITE) {
-+		/*
-+		 * If every MPROTECT flag is on and verbose reporting
-+		 * isn't needed, skip checking where the vma points to.
-+		 * Otherwise check if it points to a file mapping,
-+		 * to heap, to stack or to anywhere else.
-+		 */
-+		if ((sara_wxp_flags & SARA_WXP_MPROTECT) == SARA_WXP_MPROTECT &&
-+		    !(sara_wxp_flags & SARA_WXP_COMPLAIN) &&
-+		    !(sara_wxp_flags & SARA_WXP_VERBOSE))
-+			return -EACCES;
-+		else if (vma->vm_file) {
-+			if (sara_wxp_flags & SARA_WXP_OTHER)
-+				sara_warn_or_return(EACCES,
-+						    "mprotect on file mmap");
-+		} else if (vma->vm_start >= vma->vm_mm->start_brk &&
-+			vma->vm_end <= vma->vm_mm->brk) {
-+			if (sara_wxp_flags & SARA_WXP_HEAP)
-+				sara_warn_or_return(EACCES,
-+						    "mprotect on heap");
-+		} else if ((vma->vm_start <= vma->vm_mm->start_stack &&
-+			    vma->vm_end >= vma->vm_mm->start_stack) ||
-+			   vma_is_stack_for_current(vma)) {
-+			if (sara_wxp_flags & SARA_WXP_STACK)
-+				sara_warn_or_return(EACCES,
-+						    "mprotect on stack");
-+		} else if (sara_wxp_flags & SARA_WXP_OTHER)
-+			sara_warn_or_return(EACCES,
-+					    "mprotect on anon mmap");
-+	}
-+
-+	/*
-+	 * If "W xor X" is active for the current thread
-+	 * VM_EXEC and VM_WRITE can't be turned on at
-+	 * the same time, unless they already are.
-+	 */
-+	if (sara_wxp_flags & SARA_WXP_WXORX &&
-+	    prot & PROT_EXEC &&
-+	    prot & PROT_WRITE &&
-+	    (!(vma->vm_flags & VM_EXEC) ||
-+	     !(vma->vm_flags & VM_WRITE)))
-+		sara_warn_or_return(EACCES, "W^X");
-+
-+	/*
-+	 * If the dynamic loader marks the "relro section" as
-+	 * read-only then it has finished loading shared libraries
-+	 * and, if the SARA_WXP_MMAP flag is on, new executable
-+	 * mmaps will be blocked from now on.
-+	 */
-+	if (vma->vm_flags & VM_WRITE &&
-+	    !(prot & PROT_WRITE) &&
-+	    is_relro_page(vma))
-+		get_current_sara_mmap_blocked() = true;
-+
-+	return 0;
-+}
-+
-+static struct security_hook_list wxprot_hooks[] __ro_after_init = {
-+	LSM_HOOK_INIT(bprm_set_creds, sara_bprm_set_creds),
-+	LSM_HOOK_INIT(check_vmflags, sara_check_vmflags),
-+	LSM_HOOK_INIT(file_mprotect, sara_file_mprotect),
-+};
-+
-+struct binary_config_header {
-+	char magic[8];
-+	__le32 version;
-+	__le32 rules_size;
-+	char hash[SARA_CONFIG_HASH_LEN];
-+} __packed;
-+
-+struct binary_config_rule {
-+	__le16 path_len;
-+	__le16 flags;
-+	u8 exact;
-+} __packed;
-+
-+static void config_free(struct wxprot_config_container *data)
-+{
-+	int i;
-+
-+	for (i = 0; i < data->rules_size; ++i)
-+		kfree(data->rules[i].path);
-+	kvfree(data->rules);
-+	kfree(data);
-+}
-+
-+static int config_load(const char *buf, size_t buf_len)
-+{
-+	int ret;
-+	int i;
-+	int path_len;
-+	size_t inc;
-+	size_t last_path_len = SARA_PATH_MAX;
-+	bool last_exact = true;
-+	const char *pos;
-+	struct wxprot_config_container *new;
-+	struct binary_config_header *h;
-+	struct binary_config_rule *r;
-+
-+	ret = -EINVAL;
-+	if (unlikely(buf_len < sizeof(*h)))
-+		goto out;
-+
-+	h = (struct binary_config_header *) buf;
-+	pos = buf + sizeof(*h);
-+
-+	ret = -EINVAL;
-+	if (unlikely(memcmp(h->magic, "SARAWXPR", 8) != 0))
-+		goto out;
-+	if (unlikely(le32_to_cpu(h->version) != wxprot_config_version))
-+		goto out;
-+
-+	ret = -ENOMEM;
-+	new = kmalloc(sizeof(*new), GFP_KERNEL);
-+	if (unlikely(new == NULL))
-+		goto out;
-+	kref_init(&new->refcount);
-+	new->rules_size = le32_to_cpu(h->rules_size);
-+	BUILD_BUG_ON(sizeof(new->hash) != sizeof(h->hash));
-+	memcpy(new->hash, h->hash, sizeof(new->hash));
-+	if (unlikely(new->rules_size == 0)) {
-+		new->rules = NULL;
-+		goto replace;
-+	}
-+
-+	ret = -ENOMEM;
-+	new->rules = sara_kvcalloc(new->rules_size,
-+				   sizeof(*new->rules));
-+	if (unlikely(new->rules == NULL))
-+		goto out_new;
-+	for (i = 0; i < new->rules_size; ++i) {
-+		r = (struct binary_config_rule *) pos;
-+		pos += sizeof(*r);
-+		inc = pos-buf;
-+		path_len = le16_to_cpu(r->path_len);
-+		new->rules[i].flags = le16_to_cpu(r->flags);
-+		new->rules[i].exact = r->exact;
-+
-+		ret = -EINVAL;
-+		if (unlikely(inc + path_len > buf_len))
-+			goto out_rules;
-+		if (unlikely(path_len > last_path_len))
-+			goto out_rules;
-+		if (unlikely((int) new->rules[i].exact != 0 &&
-+			     (int) new->rules[i].exact != 1))
-+			goto out_rules;
-+		if (unlikely(path_len == last_path_len &&
-+			     new->rules[i].exact &&
-+			     !last_exact))
-+			goto out_rules;
-+		if (!are_flags_valid(new->rules[i].flags))
-+			goto out_rules;
-+
-+		ret = -ENOMEM;
-+		new->rules[i].path = kmalloc(path_len+1, GFP_KERNEL);
-+		if (unlikely(new->rules[i].path == NULL))
-+			goto out_rules;
-+		memcpy(new->rules[i].path, pos, path_len);
-+		new->rules[i].path[path_len] = '\0';
-+		if (i > 0 &&
-+		    unlikely(new->rules[i].exact == new->rules[i-1].exact &&
-+			     strcmp(new->rules[i].path,
-+				    new->rules[i-1].path) == 0))
-+			goto out_rules;
-+		pos += path_len;
-+		last_path_len = path_len;
-+		last_exact = new->rules[i].exact;
-+	}
-+	new->buf_len = (size_t) (pos-buf);
-+
-+replace:
-+	SARA_CONFIG_REPLACE(wxprot_config,
-+			    new,
-+			    config_free,
-+			    &wxprot_config_lock);
-+	pr_notice("WXP: new rules loaded.\n");
-+	return 0;
-+
-+out_rules:
-+	for (i = 0; i < new->rules_size; ++i)
-+		kfree(new->rules[i].path);
-+	kvfree(new->rules);
-+out_new:
-+	kfree(new);
-+out:
-+	pr_notice("WXP: failed to load rules.\n");
-+	return ret;
-+}
-+
-+static ssize_t config_dump(char **buf)
-+{
-+	int i;
-+	ssize_t ret;
-+	size_t buf_len;
-+	char *pos;
-+	char *mybuf;
-+	u16 path_len;
-+	int rulen;
-+	struct wxprot_config_container *c;
-+	struct wxprot_rule *rc;
-+	struct binary_config_header *h;
-+	struct binary_config_rule *r;
-+
-+	ret = -ENOMEM;
-+	SARA_CONFIG_GET(c, wxprot_config);
-+	buf_len = c->buf_len;
-+	mybuf = sara_kvmalloc(buf_len);
-+	if (unlikely(mybuf == NULL))
-+		goto out;
-+	rulen = c->rules_size;
-+	h = (struct binary_config_header *) mybuf;
-+	memcpy(h->magic, "SARAWXPR", 8);
-+	h->version = cpu_to_le32(SARA_WXPROT_CONFIG_VERSION);
-+	h->rules_size = cpu_to_le32(rulen);
-+	BUILD_BUG_ON(sizeof(c->hash) != sizeof(h->hash));
-+	memcpy(h->hash, c->hash, sizeof(h->hash));
-+	pos = mybuf + sizeof(*h);
-+	for (i = 0; i < rulen; ++i) {
-+		r = (struct binary_config_rule *) pos;
-+		pos += sizeof(*r);
-+		if (buf_len < (pos - mybuf))
-+			goto out;
-+		rc = &c->rules[i];
-+		r->flags = cpu_to_le16(rc->flags);
-+		r->exact = (u8) rc->exact;
-+		path_len = strlen(rc->path);
-+		r->path_len = cpu_to_le16(path_len);
-+		if (buf_len < ((pos - mybuf) + path_len))
-+			goto out;
-+		memcpy(pos, rc->path, path_len);
-+		pos += path_len;
-+	}
-+	ret = (ssize_t) (pos - mybuf);
-+	*buf = mybuf;
-+out:
-+	SARA_CONFIG_PUT(c, config_free);
-+	return ret;
-+}
-+
-+static int config_hash(char **buf)
-+{
-+	int ret;
-+	struct wxprot_config_container *config;
-+
-+	ret = -ENOMEM;
-+	*buf = kzalloc(sizeof(config->hash), GFP_KERNEL);
-+	if (unlikely(*buf == NULL))
-+		goto out;
-+
-+	SARA_CONFIG_GET_RCU(config, wxprot_config);
-+	memcpy(*buf, config->hash, sizeof(config->hash));
-+	SARA_CONFIG_PUT_RCU(config);
-+
-+	ret = 0;
-+out:
-+	return ret;
-+}
-+
-+static DEFINE_SARA_SECFS_BOOL_FLAG(wxprot_enabled_data,
-+				   wxprot_enabled);
-+
-+static struct sara_secfs_fptrs fptrs __ro_after_init = {
-+	.load = config_load,
-+	.dump = config_dump,
-+	.hash = config_hash,
-+};
-+
-+static const struct sara_secfs_node wxprot_fs[] __initconst = {
-+	{
-+		.name = "enabled",
-+		.type = SARA_SECFS_BOOL,
-+		.data = (void *) &wxprot_enabled_data,
-+	},
-+	{
-+		.name = "version",
-+		.type = SARA_SECFS_READONLY_INT,
-+		.data = (int *) &wxprot_config_version,
-+	},
-+	{
-+		.name = "default_flags",
-+		.type = SARA_SECFS_READONLY_INT,
-+		.data = &default_flags,
-+	},
-+	{
-+		.name = "emutramp_available",
-+		.type = SARA_SECFS_READONLY_INT,
-+		.data = (int *) &wxprot_emutramp,
-+	},
-+	{
-+		.name = ".load",
-+		.type = SARA_SECFS_CONFIG_LOAD,
-+		.data = &fptrs,
-+	},
-+	{
-+		.name = ".dump",
-+		.type = SARA_SECFS_CONFIG_DUMP,
-+		.data = &fptrs,
-+	},
-+	{
-+		.name = "hash",
-+		.type = SARA_SECFS_CONFIG_HASH,
-+		.data = &fptrs,
-+	},
-+};
-+
-+
-+int __init sara_wxprot_init(void)
-+{
-+	int ret;
-+	struct wxprot_config_container *tmpc = NULL;
-+
-+	ret = -EINVAL;
-+	if (!are_flags_valid(default_flags))
-+		goto out_fail;
-+	ret = -ENOMEM;
-+	tmpc = kzalloc(sizeof(*tmpc), GFP_KERNEL);
-+	if (unlikely(tmpc == NULL))
-+		goto out_fail;
-+	tmpc->buf_len = sizeof(struct binary_config_header);
-+	kref_init(&tmpc->refcount);
-+	wxprot_config = (struct wxprot_config_container __rcu *) tmpc;
-+	ret = sara_secfs_subtree_register("wxprot",
-+					  wxprot_fs,
-+					  ARRAY_SIZE(wxprot_fs));
-+	if (unlikely(ret))
-+		goto out_fail;
-+	security_add_hooks(wxprot_hooks, ARRAY_SIZE(wxprot_hooks), "sara");
-+	return 0;
-+
-+out_fail:
-+	kfree(tmpc);
-+	return ret;
-+}
-+
-+#endif /* CONFIG_SECURITY_SARA_WXPROT */
+ int security_file_lock(struct file *file, unsigned int cmd)
+ {
+ 	return call_int_hook(file_lock, 0, file, cmd);
 -- 
 1.9.1
 
