@@ -1,55 +1,168 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F02ED6B0253
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:20:01 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id t76so6291071pfk.7
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 13:20:01 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id c41si11932778plj.293.2017.11.21.13.20.00
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BBBC6B0253
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:34:20 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id 124so956146wmv.2
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 13:34:20 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s14si1603523edk.451.2017.11.21.13.34.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 13:20:00 -0800 (PST)
-Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
-References: <20171110193058.BECA7D88@viggo.jf.intel.com>
- <20171110193125.EBF58596@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711202115190.2348@nanos>
- <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <f71ce70f-ea43-d22f-1a2a-fdf4e9dab6af@linux.intel.com>
-Date: Tue, 21 Nov 2017 13:19:57 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 21 Nov 2017 13:34:18 -0800 (PST)
+Date: Tue, 21 Nov 2017 16:34:00 -0500
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, mlock, vmscan: no more skipping pagevecs
+Message-ID: <20171121213400.GA1503@cmpxchg.org>
+References: <20171104224312.145616-1-shakeelb@google.com>
+ <577ab7e8-b079-125b-80ca-6168dd24720a@suse.cz>
+ <20171121150632.GA23460@cmpxchg.org>
+ <CALvZod5f9oC97OJBZuHypFn1nuyYKF77TpNSyPs31mAGFc=4Ag@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod5f9oC97OJBZuHypFn1nuyYKF77TpNSyPs31mAGFc=4Ag@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/20/2017 12:46 PM, Andy Lutomirski wrote:
->>> +     /*
->>> +      * We could theoretically do this in setup_fixmap_gdt().
->>> +      * But, we would need to rewrite the above page table
->>> +      * allocation code to use the bootmem allocator.  The
->>> +      * buddy allocator is not available at the time that we
->>> +      * call setup_fixmap_gdt() for CPU 0.
->>> +      */
->>> +     kaiser_add_user_map_early(get_cpu_gdt_ro(0), PAGE_SIZE,
->>> +                               __PAGE_KERNEL_RO | _PAGE_GLOBAL);
->> This one is needs to stay.
-> When you rebase on to my latest version, this should change to mapping
-> the entire cpu_entry_area.
+On Tue, Nov 21, 2017 at 10:22:23AM -0800, Shakeel Butt wrote:
+> On Tue, Nov 21, 2017 at 7:06 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
+> > On Tue, Nov 21, 2017 at 01:39:57PM +0100, Vlastimil Babka wrote:
+> >> On 11/04/2017 11:43 PM, Shakeel Butt wrote:
+> >> > When a thread mlocks an address space backed by file, a new
+> >> > page is allocated (assuming file page is not in memory), added
+> >> > to the local pagevec (lru_add_pvec), I/O is triggered and the
+> >> > thread then sleeps on the page. On I/O completion, the thread
+> >> > can wake on a different CPU, the mlock syscall will then sets
+> >> > the PageMlocked() bit of the page but will not be able to put
+> >> > that page in unevictable LRU as the page is on the pagevec of
+> >> > a different CPU. Even on drain, that page will go to evictable
+> >> > LRU because the PageMlocked() bit is not checked on pagevec
+> >> > drain.
+> >> >
+> >> > The page will eventually go to right LRU on reclaim but the
+> >> > LRU stats will remain skewed for a long time.
+> >> >
+> >> > However, this issue does not happen for anon pages on swap
+> >> > because unlike file pages, anon pages are not added to pagevec
+> >> > until they have been fully swapped in. Also the fault handler
+> >> > uses vm_flags to set the PageMlocked() bit of such anon pages
+> >> > even before returning to mlock() syscall and mlocked pages will
+> >> > skip pagevecs and directly be put into unevictable LRU. No such
+> >> > luck for file pages.
+> >> >
+> >> > One way to resolve this issue, is to somehow plumb vm_flags from
+> >> > filemap_fault() to add_to_page_cache_lru() which will then skip
+> >> > the pagevec for pages of VM_LOCKED vma and directly put them to
+> >> > unevictable LRU. However this patch took a different approach.
+> >> >
+> >> > All the pages, even unevictable, will be added to the pagevecs
+> >> > and on the drain, the pages will be added on their LRUs correctly
+> >> > by checking their evictability. This resolves the mlocked file
+> >> > pages on pagevec of other CPUs issue because when those pagevecs
+> >> > will be drained, the mlocked file pages will go to unevictable
+> >> > LRU. Also this makes the race with munlock easier to resolve
+> >> > because the pagevec drains happen in LRU lock.
+> >> >
+> >> > There is one (good) side effect though. Without this patch, the
+> >> > pages allocated for System V shared memory segment are added to
+> >> > evictable LRUs even after shmctl(SHM_LOCK) on that segment. This
+> >> > patch will correctly put such pages to unevictable LRU.
+> >> >
+> >> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> >>
+> >> I like the approach in general, as it seems to make the code simpler,
+> >> and the diffstats support that. I found no bugs, but I can't say that
+> >> with certainty that there aren't any, though. This code is rather
+> >> tricky. But it should be enough for an ack, so.
+> >>
+> >> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> >>
+> >> A question below, though.
+> >>
+> >> ...
+> >>
+> >> > @@ -883,15 +855,41 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
+> >> >  static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
+> >> >                              void *arg)
+> >> >  {
+> >> > -   int file = page_is_file_cache(page);
+> >> > -   int active = PageActive(page);
+> >> > -   enum lru_list lru = page_lru(page);
+> >> > +   enum lru_list lru;
+> >> > +   int was_unevictable = TestClearPageUnevictable(page);
+> >> >
+> >> >     VM_BUG_ON_PAGE(PageLRU(page), page);
+> >> >
+> >> >     SetPageLRU(page);
+> >> > +   /*
+> >> > +    * Page becomes evictable in two ways:
+> >> > +    * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
+> >> > +    * 2) Before acquiring LRU lock to put the page to correct LRU and then
+> >> > +    *   a) do PageLRU check with lock [check_move_unevictable_pages]
+> >> > +    *   b) do PageLRU check before lock [isolate_lru_page]
+> >> > +    *
+> >> > +    * (1) & (2a) are ok as LRU lock will serialize them. For (2b), if the
+> >> > +    * other thread does not observe our setting of PG_lru and fails
+> >> > +    * isolation, the following page_evictable() check will make us put
+> >> > +    * the page in correct LRU.
+> >> > +    */
+> >> > +   smp_mb();
+> >>
+> >> Could you elaborate on the purpose of smp_mb() here? Previously there
+> >> was "The other side is TestClearPageMlocked() or shmem_lock()" in
+> >> putback_lru_page(), which seems rather unclear to me (neither has an
+> >> explicit barrier?).
+> >
+> > The TestClearPageMlocked() is an RMW operation with return value, and
+> > thus an implicit full barrier (see Documentation/atomic_bitops.txt).
+> >
+> > The ordering is between putback and munlock:
+> >
+> > #0                         #1
+> > list_add(&page->lru,...)   if (TestClearPageMlock())
+> > SetPageLRU()                 __munlock_isolate_lru_page()
+> > smp_mb()
+> > if (page_evictable())
+> >   rescue
+> >
+> > The scenario that the barrier prevents from happening is:
+> >
+> > list_add(&page->lru,...)
+> > if (page_evictable())
+> >    rescue
+> >                            if (TestClearPageMlock())
+> >                                __munlock_isolate_lru_page() // FAILS on !PageLRU
+> > SetPageLRU()
+> >
+> > and now an evictable page is stranded on the unevictable LRU.
+> >
+> > The barrier guarantees that if #0 doesn't see the page evictable yet,
+> > #1 WILL see the PageLRU and succeed in isolation and rescue.
+> >
+> > Shakeel, please don't drop that "the other side" comment. You mention
+> > the places that make the page evictable - which is great, and please
+> > keep that as well - but for barriers it's always good to know exactly
+> > which operation guarantees the ordering on the other side. In fact, it
+> > would be great if you could add comments to the TestClearPageMlocked()
+> > sites that mention how they order against the smp_mb() in LRU putback.
+> 
+> Johannes, I have a question. The example you presented is valid before
+> this patch as '#0' was happening outside LRU lock. This patch moves
+> '#0' inside LRU lock and '#1' was already in LRU lock therefore no
+> issue for this particular scenario. However there is still a
+> TestClearPageMlocked() in clear_page_mlock() which happens outside LRU
+> lock and same issue which you have explained can happen even with this
+> patch (but without smp_mb()).
+> 
+> So, "the other side" for smp_mb() after this patch will only be the
+> TestClearPageMlock() in clear_page_mlock() because all other
+> TestClearPageMlocked() instances are serialized by LRU lock. Please
+> let me know if I missed something.
 
-I did this, but unfortunately it ends up having to individually map all
-four pieces of cpu_entry_area.  They all need different permissions and
-while theoretically we could do TSS+exception-stacks in the same call,
-they're not next to each other:
-
- GDT: R/O
- TSS: R/W at least because of trampoline stack
- entry code: EXEC+R/O
- exception stacks: R/W
+You are right, I overlooked the lru lock in __munlock_pagevec(). It's
+really only clear_page_mlock() that needs the ordering.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
