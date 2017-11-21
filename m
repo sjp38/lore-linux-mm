@@ -1,148 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B55D96B0033
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 10:06:56 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j6so5945133wre.16
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 07:06:56 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id m21si933229edb.415.2017.11.21.07.06.54
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B79146B0033
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 10:16:24 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id s11so13127417pgc.15
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 07:16:24 -0800 (PST)
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id k13si9686737pfb.37.2017.11.21.07.16.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 21 Nov 2017 07:06:54 -0800 (PST)
-Date: Tue, 21 Nov 2017 10:06:32 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH] mm, mlock, vmscan: no more skipping pagevecs
-Message-ID: <20171121150632.GA23460@cmpxchg.org>
-References: <20171104224312.145616-1-shakeelb@google.com>
- <577ab7e8-b079-125b-80ca-6168dd24720a@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Nov 2017 07:16:23 -0800 (PST)
+Date: Tue, 21 Nov 2017 15:15:55 +0000
+From: Roman Gushchin <guro@fb.com>
+Subject: Re: [PATCH v2] mm: show total hugetlb memory consumption in
+ /proc/meminfo
+Message-ID: <20171121151545.GA23974@castle>
+References: <20171115231409.12131-1-guro@fb.com>
+ <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
-In-Reply-To: <577ab7e8-b079-125b-80ca-6168dd24720a@suse.cz>
+In-Reply-To: <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Shakeel Butt <shakeelb@google.com>, Huang Ying <ying.huang@intel.com>, Tim Chen <tim.c.chen@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Minchan Kim <minchan@kernel.org>, Shaohua Li <shli@fb.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Jan Kara <jack@suse.cz>, Nicholas Piggin <npiggin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Mel Gorman <mgorman@suse.de>, Hugh Dickins <hughd@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, "Aneesh Kumar
+ K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Tue, Nov 21, 2017 at 01:39:57PM +0100, Vlastimil Babka wrote:
-> On 11/04/2017 11:43 PM, Shakeel Butt wrote:
-> > When a thread mlocks an address space backed by file, a new
-> > page is allocated (assuming file page is not in memory), added
-> > to the local pagevec (lru_add_pvec), I/O is triggered and the
-> > thread then sleeps on the page. On I/O completion, the thread
-> > can wake on a different CPU, the mlock syscall will then sets
-> > the PageMlocked() bit of the page but will not be able to put
-> > that page in unevictable LRU as the page is on the pagevec of
-> > a different CPU. Even on drain, that page will go to evictable
-> > LRU because the PageMlocked() bit is not checked on pagevec
-> > drain.
-> > 
-> > The page will eventually go to right LRU on reclaim but the
-> > LRU stats will remain skewed for a long time.
-> > 
-> > However, this issue does not happen for anon pages on swap
-> > because unlike file pages, anon pages are not added to pagevec
-> > until they have been fully swapped in. Also the fault handler
-> > uses vm_flags to set the PageMlocked() bit of such anon pages
-> > even before returning to mlock() syscall and mlocked pages will
-> > skip pagevecs and directly be put into unevictable LRU. No such
-> > luck for file pages.
-> > 
-> > One way to resolve this issue, is to somehow plumb vm_flags from
-> > filemap_fault() to add_to_page_cache_lru() which will then skip
-> > the pagevec for pages of VM_LOCKED vma and directly put them to
-> > unevictable LRU. However this patch took a different approach.
-> > 
-> > All the pages, even unevictable, will be added to the pagevecs
-> > and on the drain, the pages will be added on their LRUs correctly
-> > by checking their evictability. This resolves the mlocked file
-> > pages on pagevec of other CPUs issue because when those pagevecs
-> > will be drained, the mlocked file pages will go to unevictable
-> > LRU. Also this makes the race with munlock easier to resolve
-> > because the pagevec drains happen in LRU lock.
-> > 
-> > There is one (good) side effect though. Without this patch, the
-> > pages allocated for System V shared memory segment are added to
-> > evictable LRUs even after shmctl(SHM_LOCK) on that segment. This
-> > patch will correctly put such pages to unevictable LRU.
-> > 
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
+On Mon, Nov 20, 2017 at 04:51:10PM -0800, Andrew Morton wrote:
+> On Wed, 15 Nov 2017 23:14:09 +0000 Roman Gushchin <guro@fb.com> wrote:
 > 
-> I like the approach in general, as it seems to make the code simpler,
-> and the diffstats support that. I found no bugs, but I can't say that
-> with certainty that there aren't any, though. This code is rather
-> tricky. But it should be enough for an ack, so.
-> 
-> Acked-by: Vlastimil Babka <vbabka@suse.cz>
-> 
-> A question below, though.
-> 
-> ...
-> 
-> > @@ -883,15 +855,41 @@ void lru_add_page_tail(struct page *page, struct page *page_tail,
-> >  static void __pagevec_lru_add_fn(struct page *page, struct lruvec *lruvec,
-> >  				 void *arg)
+> > Currently we display some hugepage statistics (total, free, etc)
+> > in /proc/meminfo, but only for default hugepage size (e.g. 2Mb).
+> > 
+> > If hugepages of different sizes are used (like 2Mb and 1Gb on x86-64),
+> > /proc/meminfo output can be confusing, as non-default sized hugepages
+> > are not reflected at all, and there are no signs that they are
+> > existing and consuming system memory.
+> > 
+> > To solve this problem, let's display the total amount of memory,
+> > consumed by hugetlb pages of all sized (both free and used).
+> > Let's call it "Hugetlb", and display size in kB to match generic
+> > /proc/meminfo style.
+> > 
+> > For example, (1024 2Mb pages and 2 1Gb pages are pre-allocated):
+> >   $ cat /proc/meminfo
+> >   MemTotal:        8168984 kB
+> >   MemFree:         3789276 kB
+> >   <...>
+> >   CmaFree:               0 kB
+> >   HugePages_Total:    1024
+> >   HugePages_Free:     1024
+> >   HugePages_Rsvd:        0
+> >   HugePages_Surp:        0
+> >   Hugepagesize:       2048 kB
+> >   Hugetlb:         4194304 kB
+> >   DirectMap4k:       32632 kB
+> >   DirectMap2M:     4161536 kB
+> >   DirectMap1G:     6291456 kB
+> > 
+> > Also, this patch updates corresponding docs to reflect
+> > Hugetlb entry meaning and difference between Hugetlb and
+> > HugePages_Total * Hugepagesize.
+> > 
+> > ...
+> >
+> > --- a/mm/hugetlb.c
+> > +++ b/mm/hugetlb.c
+> > @@ -2973,20 +2973,32 @@ int hugetlb_overcommit_handler(struct ctl_table *table, int write,
+> >  
+> >  void hugetlb_report_meminfo(struct seq_file *m)
 > >  {
-> > -	int file = page_is_file_cache(page);
-> > -	int active = PageActive(page);
-> > -	enum lru_list lru = page_lru(page);
-> > +	enum lru_list lru;
-> > +	int was_unevictable = TestClearPageUnevictable(page);
-> >  
-> >  	VM_BUG_ON_PAGE(PageLRU(page), page);
-> >  
-> >  	SetPageLRU(page);
-> > +	/*
-> > +	 * Page becomes evictable in two ways:
-> > +	 * 1) Within LRU lock [munlock_vma_pages() and __munlock_pagevec()].
-> > +	 * 2) Before acquiring LRU lock to put the page to correct LRU and then
-> > +	 *   a) do PageLRU check with lock [check_move_unevictable_pages]
-> > +	 *   b) do PageLRU check before lock [isolate_lru_page]
-> > +	 *
-> > +	 * (1) & (2a) are ok as LRU lock will serialize them. For (2b), if the
-> > +	 * other thread does not observe our setting of PG_lru and fails
-> > +	 * isolation, the following page_evictable() check will make us put
-> > +	 * the page in correct LRU.
-> > +	 */
-> > +	smp_mb();
+> > -	struct hstate *h = &default_hstate;
+> > +	struct hstate *h;
+> > +	unsigned long total = 0;
+> > +
+> >  	if (!hugepages_supported())
+> >  		return;
+> > -	seq_printf(m,
+> > -			"HugePages_Total:   %5lu\n"
+> > -			"HugePages_Free:    %5lu\n"
+> > -			"HugePages_Rsvd:    %5lu\n"
+> > -			"HugePages_Surp:    %5lu\n"
+> > -			"Hugepagesize:   %8lu kB\n",
+> > -			h->nr_huge_pages,
+> > -			h->free_huge_pages,
+> > -			h->resv_huge_pages,
+> > -			h->surplus_huge_pages,
+> > -			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+> > +
+> > +	for_each_hstate(h) {
+> > +		unsigned long count = h->nr_huge_pages;
+> > +
+> > +		total += (PAGE_SIZE << huge_page_order(h)) * count;
+> > +
+> > +		if (h == &default_hstate)
 > 
-> Could you elaborate on the purpose of smp_mb() here? Previously there
-> was "The other side is TestClearPageMlocked() or shmem_lock()" in
-> putback_lru_page(), which seems rather unclear to me (neither has an
-> explicit barrier?).
+> I'm not understanding this test.  Are we assuming that default_hstate
+> always refers to the highest-index hstate?  If so why, and is that
+> valid?
 
-The TestClearPageMlocked() is an RMW operation with return value, and
-thus an implicit full barrier (see Documentation/atomic_bitops.txt).
+As Mike and Michal pointed, default_hstate is defined as
+  #define default_hstate (hstates[default_hstate_idx]),
+where default_hstate_idx can be altered by a boot argument.
 
-The ordering is between putback and munlock:
+We're iterating over all states to calculate total and also
+print some additional info for the default size. Having a single
+loop guarantees consistency of these numbers.
 
-#0                         #1
-list_add(&page->lru,...)   if (TestClearPageMlock())
-SetPageLRU()                 __munlock_isolate_lru_page()
-smp_mb()
-if (page_evictable())
-  rescue
-
-The scenario that the barrier prevents from happening is:
-
-list_add(&page->lru,...)
-if (page_evictable())
-   rescue
-                           if (TestClearPageMlock())
-                               __munlock_isolate_lru_page() // FAILS on !PageLRU
-SetPageLRU()
-
-and now an evictable page is stranded on the unevictable LRU.
-
-The barrier guarantees that if #0 doesn't see the page evictable yet,
-#1 WILL see the PageLRU and succeed in isolation and rescue.
-
-Shakeel, please don't drop that "the other side" comment. You mention
-the places that make the page evictable - which is great, and please
-keep that as well - but for barriers it's always good to know exactly
-which operation guarantees the ordering on the other side. In fact, it
-would be great if you could add comments to the TestClearPageMlocked()
-sites that mention how they order against the smp_mb() in LRU putback.
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
