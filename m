@@ -1,43 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A2AE6B0069
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 17:16:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id s11so14093713pgc.13
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:16:33 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id j12si7220461pgf.678.2017.11.21.14.16.32
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D89D26B0038
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 17:35:53 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id p19so7907338qke.5
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 14:35:53 -0800 (PST)
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-bl2nam02on0107.outbound.protection.outlook.com. [104.47.38.107])
+        by mx.google.com with ESMTPS id x66si2359163qkg.333.2017.11.21.14.35.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 14:16:32 -0800 (PST)
-Subject: Re: [PATCH 17/30] x86, kaiser: map debug IDT tables
-References: <20171110193058.BECA7D88@viggo.jf.intel.com>
- <20171110193138.1185728D@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711202139240.2348@nanos>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <f755f175-308b-7d7e-d3bb-3f538cdf075c@linux.intel.com>
-Date: Tue, 21 Nov 2017 14:16:27 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 21 Nov 2017 14:35:53 -0800 (PST)
+From: "Zi Yan" <zi.yan@cs.rutgers.edu>
+Subject: Re: [PATCH] mm: migrate: fix an incorrect call of
+ prep_transhuge_page()
+Date: Tue, 21 Nov 2017 17:35:45 -0500
+Message-ID: <73A54AD9-33E0-4C82-8C9F-6E1786ED6132@cs.rutgers.edu>
+In-Reply-To: <20171121141213.89db86bfbd75c22fc0209990@linux-foundation.org>
+References: <20171121021855.50525-1-zi.yan@sent.com>
+ <20171121141213.89db86bfbd75c22fc0209990@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711202139240.2348@nanos>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: multipart/signed;
+ boundary="=_MailMate_819C1EF7-A389-4F67-8072-1326F8F2CD40_=";
+ micalg=pgp-sha512; protocol="application/pgp-signature"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Reale <ar@linux.vnet.ibm.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, =?utf-8?b?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org
 
-On 11/20/2017 12:40 PM, Thomas Gleixner wrote:
-> On Fri, 10 Nov 2017, Dave Hansen wrote:
->>  
->> +static int kaiser_user_map_ptr_early(const void *start_addr, unsigned long size,
->> +				 unsigned long flags)
->> +{
->> +	int ret = kaiser_add_user_map(start_addr, size, flags);
->> +	WARN_ON(ret);
->> +	return ret;
-> What's the point of the return value when it is ignored at the call site?
+This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
 
-I'm dropping this patch, btw.  It was unnecessary.
+--=_MailMate_819C1EF7-A389-4F67-8072-1326F8F2CD40_=
+Content-Type: text/plain; charset=utf-8; markup=markdown
+Content-Transfer-Encoding: quoted-printable
+
+On 21 Nov 2017, at 17:12, Andrew Morton wrote:
+
+> On Mon, 20 Nov 2017 21:18:55 -0500 Zi Yan <zi.yan@sent.com> wrote:
+>
+>> In [1], Andrea reported that during memory hotplug/hot remove
+>> prep_transhuge_page() is called incorrectly on non-THP pages for
+>> migration, when THP is on but THP migration is not enabled.
+>> This leads to a bad state of target pages for migration.
+>>
+>> This patch fixes it by only calling prep_transhuge_page() when we are
+>> certain that the target page is THP.
+>
+> What are the user-visible effects of the bug?
+
+By inspecting the code, if called on a non-THP, prep_transhuge_page() wil=
+l
+1) change the value of the mapping of (page + 2), since it is used for TH=
+P deferred list;
+2) change the lru value of (page + 1), since it is used for THP=E2=80=99s=
+ dtor.
+
+Both can lead to data corruption of these two pages.
+
+=E2=80=94
+Best Regards,
+Yan Zi
+
+--=_MailMate_819C1EF7-A389-4F67-8072-1326F8F2CD40_=
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename=signature.asc
+Content-Type: application/pgp-signature; name=signature.asc
+
+-----BEGIN PGP SIGNATURE-----
+Comment: GPGTools - https://gpgtools.org
+
+iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAloUqkEWHHppLnlhbkBj
+cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzAyhB/4vCvTpuOhBfIZDM4XJ+NMYvtW8
+UgIOaah2kd2dnfTdBcTFR1xrLHpdlcyPWrMbn/JYKQ4+qdBzb9aEBIx1jyF7Ncly
+GodIw9ahPgAorSmrDaD1rlhbeAlrMkBVz8UQ/YQVyOXn3Ps7xx2Hfjixu2JhJEaX
+tEr2JpF8/fSz9GbzoPztdG67LYqvBsrbrL8UeS0xTzI34QUq38omXN8nyo7ilkTv
+j/XZUYc0jjrOa5L+SCnACQZrlJNrS981AUPCcQgybIP9hJ61A+mku+0wvFaU256s
+Hgg1hqntwbYWEGsj/JLFDMmvu1xTfsO2XHzCFphho2piXMAXSD6kcSNvAWfo
+=R6Og
+-----END PGP SIGNATURE-----
+
+--=_MailMate_819C1EF7-A389-4F67-8072-1326F8F2CD40_=--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
