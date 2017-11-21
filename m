@@ -1,59 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FD436B025E
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 18:17:19 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id m4so1581320pgc.23
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 15:17:19 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id e14si12034403pga.447.2017.11.21.15.17.17
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C20616B0038
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 18:26:27 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id f28so7660638otd.12
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 15:26:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w79sor4889053oiw.296.2017.11.21.15.26.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 15:17:17 -0800 (PST)
-Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
-References: <20171110193058.BECA7D88@viggo.jf.intel.com>
- <20171110193125.EBF58596@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711202115190.2348@nanos>
- <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
- <f71ce70f-ea43-d22f-1a2a-fdf4e9dab6af@linux.intel.com>
- <CBD89E9B-C146-42AE-A117-507C01CBF885@amacapital.net>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <02e48e97-5842-6a19-1ea2-cee4ed5910f4@linux.intel.com>
-Date: Tue, 21 Nov 2017 15:17:15 -0800
+        (Google Transport Security);
+        Tue, 21 Nov 2017 15:26:26 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CBD89E9B-C146-42AE-A117-507C01CBF885@amacapital.net>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171121150501.d4d811a66444cb5c9cb85bf2@linux-foundation.org>
+References: <151068938905.7446.12333914805308312313.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151068939435.7446.13560129395419350737.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171121150501.d4d811a66444cb5c9cb85bf2@linux-foundation.org>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 21 Nov 2017 15:26:26 -0800
+Message-ID: <CAPcyv4jRqkwdVZrRnMcvAq1OJ0+DpHFQ6yhXhgN-ts1HMF1Nfw@mail.gmail.com>
+Subject: Re: [PATCH v2 1/4] mm: introduce get_user_pages_longterm
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@amacapital.net>
-Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On 11/21/2017 02:46 PM, Andy Lutomirski wrote:
->> GDT: R/O TSS: R/W at least because of trampoline stack entry code:
->> EXEC+R/O exception stacks: R/W
-> Can you avoid code duplication by adding some logic right after the
-> kernel cpu_entry_area is set up to iterate page by page over the PTEs
-> in the cpu_entry_area for that CPU and just install exactly the same
-> PTEs into the kaiser table?  E.g. just call kaiser_add_mapping once
-> per page but with the parameters read out from the fixmap PTEs
-> instead of hard coded?
+On Tue, Nov 21, 2017 at 3:05 PM, Andrew Morton
+<akpm@linux-foundation.org> wrote:
+>
+> On Tue, 14 Nov 2017 11:56:34 -0800 Dan Williams <dan.j.williams@intel.com> wrote:
+>
+> > Until there is a solution to the dma-to-dax vs truncate problem it is
+> > not safe to allow long standing memory registrations against
+> > filesytem-dax vmas. Device-dax vmas do not have this problem and are
+> > explicitly allowed.
+> >
+> > This is temporary until a "memory registration with layout-lease"
+> > mechanism can be implemented for the affected sub-systems (RDMA and
+> > V4L2).
+>
+> Sounds like that will be unpleasant.  Do we really need it to be that
+> complex?  Can we get away with simply failing the get_user_pages()
+> request?  Or are there significant usecases for RDMA and V4L to play
+> with DAX memory?
 
-Yes, we could do that.  But, what's the gain?  We end up removing
-effectively three (long) lines of code from three kaiser_add_mapping()
-calls.
+V4L plus DAX is indeed dubious, but RDMA to persistent memory is
+something the RDMA community is interested in supporting [1].
 
-To do this, we need to special-case the kernel page table walker to deal
-with PTEs only since we can't just grab PMD or PUD flags and stick them
-in a PTE.  We would only be able to use this path when populating things
-that we know are 4k-mapped in the kernel.
-
-I guess the upside is that we don't open-code the permissions in the
-KAISER code that *have* to match the permissions that the kernel itself
-established.
-
-It also means that theoretically you could not touch the KAISER code the
-next time we expand the cpu entry area.
+[1]: http://www.snia.org/sites/default/files/SDC15_presentations/persistant_mem/ChetDouglas_RDMA_with_PM.pdf
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
