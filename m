@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 726596B0069
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 89EE96B0253
 	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:07:49 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b77so2188856pfl.2
+Received: by mail-pg0-f69.google.com with SMTP id 70so17280869pgf.5
         for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:07:49 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v6si15670027pfa.316.2017.11.22.13.07.47
+        by mx.google.com with ESMTPS id u6si14261267pgn.325.2017.11.22.13.07.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 22 Nov 2017 13:07:48 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 03/62] radix tree test suite: Check reclaim bit
-Date: Wed, 22 Nov 2017 13:06:40 -0800
-Message-Id: <20171122210739.29916-4-willy@infradead.org>
+Subject: [PATCH 08/62] Explicitly include radix-tree.h
+Date: Wed, 22 Nov 2017 13:06:45 -0800
+Message-Id: <20171122210739.29916-9-willy@infradead.org>
 In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,30 +22,52 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-In order to test the memory allocation failure paths, the radix tree
-test suite fails allocations if __GFP_NOWARN is set.  That happens to work
-for the radix tree implementation, but the semantics we really want are
-that we want to fail allocations which are not GFP_KERNEL.  Do this
-by failing allocations which don't have the DIRECT_RECLAIM bit set.
+These three files use the radix tree, but rely on an implicit include
+of radix-tree.h through fs.h.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/linux.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ drivers/usb/host/xhci.h | 1 +
+ include/linux/fscache.h | 1 +
+ lib/dma-debug.c         | 1 +
+ 3 files changed, 3 insertions(+)
 
-diff --git a/tools/testing/radix-tree/linux.c b/tools/testing/radix-tree/linux.c
-index 6903ccf35595..f7f3caed3650 100644
---- a/tools/testing/radix-tree/linux.c
-+++ b/tools/testing/radix-tree/linux.c
-@@ -29,7 +29,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, int flags)
- {
- 	struct radix_tree_node *node;
+diff --git a/drivers/usb/host/xhci.h b/drivers/usb/host/xhci.h
+index 99a014a920d3..054ce74524af 100644
+--- a/drivers/usb/host/xhci.h
++++ b/drivers/usb/host/xhci.h
+@@ -15,6 +15,7 @@
+ #include <linux/usb.h>
+ #include <linux/timer.h>
+ #include <linux/kernel.h>
++#include <linux/radix-tree.h>
+ #include <linux/usb/hcd.h>
+ #include <linux/io-64-nonatomic-lo-hi.h>
  
--	if (flags & __GFP_NOWARN)
-+	if (!(flags & __GFP_DIRECT_RECLAIM))
- 		return NULL;
+diff --git a/include/linux/fscache.h b/include/linux/fscache.h
+index f4ff47d4a893..6a2f631a913f 100644
+--- a/include/linux/fscache.h
++++ b/include/linux/fscache.h
+@@ -22,6 +22,7 @@
+ #include <linux/list.h>
+ #include <linux/pagemap.h>
+ #include <linux/pagevec.h>
++#include <linux/radix-tree.h>
  
- 	pthread_mutex_lock(&cachep->lock);
+ #if defined(CONFIG_FSCACHE) || defined(CONFIG_FSCACHE_MODULE)
+ #define fscache_available() (1)
+diff --git a/lib/dma-debug.c b/lib/dma-debug.c
+index 1b34d210452c..fb4af570ce04 100644
+--- a/lib/dma-debug.c
++++ b/lib/dma-debug.c
+@@ -22,6 +22,7 @@
+ #include <linux/dma-mapping.h>
+ #include <linux/sched/task.h>
+ #include <linux/stacktrace.h>
++#include <linux/radix-tree.h>
+ #include <linux/dma-debug.h>
+ #include <linux/spinlock.h>
+ #include <linux/vmalloc.h>
 -- 
 2.15.0
 
