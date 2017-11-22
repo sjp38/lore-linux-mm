@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D4066B0277
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:08:20 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id h28so15483468pfh.16
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:08:20 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 259CD6B0281
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:08:21 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c23so10879160pfl.1
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:08:21 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 33si14352812plt.597.2017.11.22.13.08.19
+        by mx.google.com with ESMTPS id u91si9080026plb.50.2017.11.22.13.08.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 13:08:19 -0800 (PST)
+        Wed, 22 Nov 2017 13:08:20 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 42/62] vmalloc: Convert to xarray
-Date: Wed, 22 Nov 2017 13:07:19 -0800
-Message-Id: <20171122210739.29916-43-willy@infradead.org>
+Subject: [PATCH 48/62] block: Remove IDR preloading
+Date: Wed, 22 Nov 2017 13:07:25 -0800
+Message-Id: <20171122210739.29916-49-willy@infradead.org>
 In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,108 +22,77 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The radix tree of vmap blocks is simpler to express as an XArray.
-Saves a couple of hundred bytes of text and eliminates a user of the
-radix tree preload API.
+The IDR now handles its own locking, so if we remove the locking in
+genhd, we can also remove the memory preloading.  The genhd needs to
+protect the object retrieved from the IDR against removal until its
+refcount has been elevated, so hold the IDR's lock during lookup.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/vmalloc.c | 37 ++++++++++++-------------------------
- 1 file changed, 12 insertions(+), 25 deletions(-)
+ block/genhd.c | 23 +++++------------------
+ 1 file changed, 5 insertions(+), 18 deletions(-)
 
-diff --git a/mm/vmalloc.c b/mm/vmalloc.c
-index 673942094328..cc5de1ee6520 100644
---- a/mm/vmalloc.c
-+++ b/mm/vmalloc.c
-@@ -821,12 +821,11 @@ struct vmap_block {
- static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
+diff --git a/block/genhd.c b/block/genhd.c
+index c2223f12a805..d50bd99e8ce2 100644
+--- a/block/genhd.c
++++ b/block/genhd.c
+@@ -30,10 +30,7 @@ struct kobject *block_depr;
+ /* for extended dynamic devt allocation, currently only one major is used */
+ #define NR_EXT_DEVT		(1 << MINORBITS)
  
- /*
-- * Radix tree of vmap blocks, indexed by address, to quickly find a vmap block
-+ * XArray of vmap blocks, indexed by address, to quickly find a vmap block
-  * in the free path. Could get rid of this if we change the API to return a
-  * "cookie" from alloc, to be passed to free. But no big deal yet.
-  */
--static DEFINE_SPINLOCK(vmap_block_tree_lock);
--static RADIX_TREE(vmap_block_tree, GFP_ATOMIC);
-+static DEFINE_XARRAY(vmap_block_tree);
+-/* For extended devt allocation.  ext_devt_lock prevents look up
+- * results from going away underneath its user.
+- */
+-static DEFINE_SPINLOCK(ext_devt_lock);
++/* For extended devt allocation. */
+ static DEFINE_IDR(ext_devt_idr);
  
- /*
-  * We should probably have a fallback mechanism to allocate virtual memory
-@@ -865,8 +864,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 	struct vmap_block *vb;
- 	struct vmap_area *va;
- 	unsigned long vb_idx;
--	int node, err;
--	void *vaddr;
-+	int node;
-+	void *ret, *vaddr;
- 
- 	node = numa_node_id();
- 
-@@ -883,13 +882,6 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 		return ERR_CAST(va);
+ static const struct device_type disk_type;
+@@ -467,14 +464,7 @@ int blk_alloc_devt(struct hd_struct *part, dev_t *devt)
+ 		return 0;
  	}
  
--	err = radix_tree_preload(gfp_mask);
--	if (unlikely(err)) {
--		kfree(vb);
--		free_vmap_area(va);
--		return ERR_PTR(err);
--	}
+-	/* allocate ext devt */
+-	idr_preload(GFP_KERNEL);
 -
- 	vaddr = vmap_block_vaddr(va->va_start, 0);
- 	spin_lock_init(&vb->lock);
- 	vb->va = va;
-@@ -902,11 +894,12 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
- 	INIT_LIST_HEAD(&vb->free_list);
+-	spin_lock_bh(&ext_devt_lock);
+-	idx = idr_alloc(&ext_devt_idr, part, 0, NR_EXT_DEVT, GFP_NOWAIT);
+-	spin_unlock_bh(&ext_devt_lock);
+-
+-	idr_preload_end();
++	idx = idr_alloc(&ext_devt_idr, part, 0, NR_EXT_DEVT, GFP_KERNEL);
+ 	if (idx < 0)
+ 		return idx == -ENOSPC ? -EBUSY : idx;
  
- 	vb_idx = addr_to_vb_idx(va->va_start);
--	spin_lock(&vmap_block_tree_lock);
--	err = radix_tree_insert(&vmap_block_tree, vb_idx, vb);
--	spin_unlock(&vmap_block_tree_lock);
--	BUG_ON(err);
--	radix_tree_preload_end();
-+	ret = xa_store(&vmap_block_tree, vb_idx, vb, gfp_mask);
-+	if (IS_ERR(ret)) {
-+		kfree(vb);
-+		free_vmap_area(va);
-+		return ret;
-+	}
+@@ -496,11 +486,8 @@ void blk_free_devt(dev_t devt)
+ 	if (devt == MKDEV(0, 0))
+ 		return;
  
- 	vbq = &get_cpu_var(vmap_block_queue);
- 	spin_lock(&vbq->lock);
-@@ -923,9 +916,7 @@ static void free_vmap_block(struct vmap_block *vb)
- 	unsigned long vb_idx;
+-	if (MAJOR(devt) == BLOCK_EXT_MAJOR) {
+-		spin_lock_bh(&ext_devt_lock);
++	if (MAJOR(devt) == BLOCK_EXT_MAJOR)
+ 		idr_remove(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
+-		spin_unlock_bh(&ext_devt_lock);
+-	}
+ }
  
- 	vb_idx = addr_to_vb_idx(vb->va->va_start);
--	spin_lock(&vmap_block_tree_lock);
--	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
--	spin_unlock(&vmap_block_tree_lock);
-+	tmp = xa_store(&vmap_block_tree, vb_idx, NULL, GFP_NOWAIT);
- 	BUG_ON(tmp != vb);
+ static char *bdevt_str(dev_t devt, char *buf)
+@@ -789,13 +776,13 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
+ 	} else {
+ 		struct hd_struct *part;
  
- 	free_vmap_area_noflush(vb->va);
-@@ -1031,7 +1022,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
- static void vb_free(const void *addr, unsigned long size)
- {
- 	unsigned long offset;
--	unsigned long vb_idx;
- 	unsigned int order;
- 	struct vmap_block *vb;
+-		spin_lock_bh(&ext_devt_lock);
++		idr_lock_bh(&ext_devt_idr);
+ 		part = idr_find(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
+ 		if (part && get_disk(part_to_disk(part))) {
+ 			*partno = part->partno;
+ 			disk = part_to_disk(part);
+ 		}
+-		spin_unlock_bh(&ext_devt_lock);
++		idr_unlock_bh(&ext_devt_idr);
+ 	}
  
-@@ -1045,10 +1035,7 @@ static void vb_free(const void *addr, unsigned long size)
- 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
- 	offset >>= PAGE_SHIFT;
- 
--	vb_idx = addr_to_vb_idx((unsigned long)addr);
--	rcu_read_lock();
--	vb = radix_tree_lookup(&vmap_block_tree, vb_idx);
--	rcu_read_unlock();
-+	vb = xa_load(&vmap_block_tree, addr_to_vb_idx((unsigned long)addr));
- 	BUG_ON(!vb);
- 
- 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
+ 	if (disk && unlikely(disk->flags & GENHD_FL_HIDDEN)) {
 -- 
 2.15.0
 
