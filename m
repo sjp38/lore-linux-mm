@@ -1,98 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3925A6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 15:47:44 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id d15so15470055pfl.0
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 12:47:44 -0800 (PST)
-Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
-        by mx.google.com with ESMTP id j21si15376825pfh.202.2017.11.22.12.47.42
-        for <linux-mm@kvack.org>;
-        Wed, 22 Nov 2017 12:47:43 -0800 (PST)
-Date: Thu, 23 Nov 2017 07:39:07 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-Message-ID: <20171122203907.GI4094@dastard>
-References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
- <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
- <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 680916B0038
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:07:49 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id m188so17244943pga.22
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:07:49 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id z29si8360942pfj.340.2017.11.22.13.07.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 13:07:48 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH 02/62] radix tree test suite: Remove ARRAY_SIZE
+Date: Wed, 22 Nov 2017 13:06:39 -0800
+Message-Id: <20171122210739.29916-3-willy@infradead.org>
+In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
+References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, glauber@scylladb.com, mhocko@kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, pbonzini@redhat.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
-On Wed, Nov 22, 2017 at 07:53:59PM +0900, Tetsuo Handa wrote:
-> Tetsuo Handa wrote:
-> > Andrew Morton wrote:
-> > > On Tue, 21 Nov 2017 21:02:37 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> > > 
-> > > > There are users not checking for register_shrinker() failure.
-> > > > Continuing with ignoring failure can lead to later oops at
-> > > > unregister_shrinker().
-> > > > 
-> > > > ...
-> > > >
-> > > > --- a/include/linux/shrinker.h
-> > > > +++ b/include/linux/shrinker.h
-> > > > @@ -75,6 +75,6 @@ struct shrinker {
-> > > >  #define SHRINKER_NUMA_AWARE	(1 << 0)
-> > > >  #define SHRINKER_MEMCG_AWARE	(1 << 1)
-> > > >  
-> > > > -extern int register_shrinker(struct shrinker *);
-> > > > +extern __must_check int register_shrinker(struct shrinker *);
-> > > >  extern void unregister_shrinker(struct shrinker *);
-> > > >  #endif
-> > > 
-> > > hm, well, OK, it's a small kmalloc(GFP_KERNEL).  That won't be
-> > > failing.
-> > 
-> > It failed by fault injection and resulted in a report at
-> > http://lkml.kernel.org/r/001a113f996099503a055e793dd3@google.com .
-> 
-> Since kzalloc() can become > 32KB allocation if CONFIG_NODES_SHIFT > 12
-> (which might not be impossible in near future), register_shrinker() can
-> potentially become a costly allocation which might fail without invoking
-> the OOM killer. It is a good opportunity to think whether we should allow
-> register_shrinker() to fail.
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Just fix the numa aware shrinkers, as they are the only ones that
-will have this problem. There are only 6 of them, and only the 3
-that existed at the time that register_shrinker() was changed to
-return an error fail to check for an error. i.e. the superblock
-shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
+This is now defined in tools/include/linux/kernel.h, so our
+definition generates a warning.
 
-Seems pretty straight forward to me....
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ tools/testing/radix-tree/linux/kernel.h | 2 --
+ 1 file changed, 2 deletions(-)
 
-> > > Affected code seems to be fs/xfs, fs/super.c, fs/quota,
-> > > arch/x86/kvm/mmu, drivers/gpu/drm/ttm, drivers/md and a bunch of
-> > > staging stuff.
-> > > 
-> > > I'm not sure this is worth bothering about?
-> > > 
-> > 
-> > Continuing with failed register_shrinker() is almost always wrong.
-> > Though I don't know whether mm/zsmalloc.c case can make sense.
-> > 
-> 
-> Thinking from the fact that register_shrinker() had been "void" until Linux 3.11
-> and we did not take appropriate precautions when changing to "int" in Linux 3.12,
-> we need to consider making register_shrinker() "void" again.
-> 
-> If we could agree with opening up the use of __GFP_NOFAIL for allocating a few
-> non-contiguous pages on large systems, we can make register_shrinker() "void"
-> again. (Draft patch is shown below. I choose array of kmalloc(PAGE_SIZE)
-> rather than kvmalloc() in order to use __GFP_NOFAIL.)
-
-That's insane. NACK.
-
--Dave.
+diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
+index c3bc3f364f68..426f32f28547 100644
+--- a/tools/testing/radix-tree/linux/kernel.h
++++ b/tools/testing/radix-tree/linux/kernel.h
+@@ -17,6 +17,4 @@
+ #define pr_debug printk
+ #define pr_cont printk
+ 
+-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+-
+ #endif /* _KERNEL_H */
 -- 
-Dave Chinner
-david@fromorbit.com
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
