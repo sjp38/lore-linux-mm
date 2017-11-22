@@ -1,85 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 865776B025E
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:54:18 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w95so9683604wrc.20
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:54:18 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B25D86B0069
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 04:11:01 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id p9so15664855pgc.6
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 01:11:01 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j61si199029edb.190.2017.11.22.00.54.17
+        by mx.google.com with ESMTPS id a14si12915047pgv.479.2017.11.22.01.11.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 00:54:17 -0800 (PST)
-Date: Wed, 22 Nov 2017 09:54:16 +0100
+        Wed, 22 Nov 2017 01:11:00 -0800 (PST)
+Date: Wed, 22 Nov 2017 10:10:56 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: migrate: fix an incorrect call of
- prep_transhuge_page()
-Message-ID: <20171122085416.ycrvahu2bznlx37s@dhcp22.suse.cz>
-References: <20171121021855.50525-1-zi.yan@sent.com>
+Subject: Re: [PATCH v2] mm: show total hugetlb memory consumption in
+ /proc/meminfo
+Message-ID: <20171122091056.axzpd7tb3mxif4sg@dhcp22.suse.cz>
+References: <20171115231409.12131-1-guro@fb.com>
+ <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
+ <20171121151545.GA23974@castle>
+ <20171121111907.6952d50adcbe435b1b6b4576@linux-foundation.org>
+ <20171121195947.GA12709@castle>
+ <bafb4396-858a-bbbc-743d-43c7312da868@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171121021855.50525-1-zi.yan@sent.com>
+In-Reply-To: <bafb4396-858a-bbbc-743d-43c7312da868@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@sent.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Reale <ar@linux.vnet.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Mon 20-11-17 21:18:55, Zi Yan wrote:
-> From: Zi Yan <zi.yan@cs.rutgers.edu>
+On Tue 21-11-17 16:27:38, Mike Kravetz wrote:
+> On 11/21/2017 11:59 AM, Roman Gushchin wrote:
+[...]
+> > What we can do, is to rename "count" into "nr_huge_pages", like:
+> > 
+> > 	for_each_hstate(h) {
+> > 		unsigned long nr_huge_pages = h->nr_huge_pages;
+> > 
+> > 		total += (PAGE_SIZE << huge_page_order(h)) * nr_huge_pages;
+> > 
+> > 		if (h == &default_hstate)
+> > 			seq_printf(m,
+> > 				   "HugePages_Total:   %5lu\n"
+> > 				   "HugePages_Free:    %5lu\n"
+> > 				   "HugePages_Rsvd:    %5lu\n"
+> > 				   "HugePages_Surp:    %5lu\n"
+> > 				   "Hugepagesize:   %8lu kB\n",
+> > 				   nr_huge_pages,
+> > 				   h->free_huge_pages,
+> > 				   h->resv_huge_pages,
+> > 				   h->surplus_huge_pages,
+> > 				   (PAGE_SIZE << huge_page_order(h)) / 1024);
+> > 	}
+> > 
+> > 	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
+> > 
+> > But maybe taking a lock is not a bad idea, because it will also
+> > guarantee consistency between other numbers (like HugePages_Free) as well,
+> > which is not true right now.
 > 
-> In [1], Andrea reported that during memory hotplug/hot remove
-> prep_transhuge_page() is called incorrectly on non-THP pages for
-> migration, when THP is on but THP migration is not enabled.
-> This leads to a bad state of target pages for migration.
-> 
-> This patch fixes it by only calling prep_transhuge_page() when we are
-> certain that the target page is THP.
-> 
-> [1] https://lkml.org/lkml/2017/11/20/411
+> You are correct in that there is no consistency guarantee for the numbers
+> with the default huge page size today.  However, I am not really a fan of
+> taking the lock for that guarantee.  IMO, the above code is fine.
 
-lkml.org tends to be quite unstable so a
-http://lkml.kernel.org/r/$msg-id is usually a preferred way.
+I agree
 
-> 
-> Cc: stable@vger.kernel.org # v4.14
-> Fixes: 8135d8926c08 ("mm: memory_hotplug: memory hotremove supports thp migration")
-> Reported-by: Andrea Reale <ar@linux.vnet.ibm.com>
-> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: "Jerome Glisse" <jglisse@redhat.com>
-> ---
->  include/linux/migrate.h | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index 895ec0c4942e..a2246cf670ba 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
->  	new_page = __alloc_pages_nodemask(gfp_mask, order,
->  				preferred_nid, nodemask);
->  
-> -	if (new_page && PageTransHuge(page))
-> +	if (new_page && PageTransHuge(new_page))
->  		prep_transhuge_page(new_page);
+> This discussion reminds me that ideally there should be a per-hstate lock.
+> My guess is that the global lock is a carry over from the days when only
+> a single huge page size was supported.  In practice, I don't think this is
+> much of an issue as people typically only use a single huge page size.  But,
+> if anyone thinks is/may be an issue I am happy to make the changes.
 
-I would keep the two checks consistent. But that leads to a more
-interesting question. new_page_nodemask does
-
-	if (thp_migration_supported() && PageTransHuge(page)) {
-		order = HPAGE_PMD_ORDER;
-		gfp_mask |= GFP_TRANSHUGE;
-	}
-
-How come it is safe to allocate an order-0 page if
-!thp_migration_supported() when we are about to migrate THP? This
-doesn't make any sense to me. Are we working around this somewhere else?
-Why shouldn't we simply return NULL here?
-
-Nayoa, could you explain please? 8135d8926c08 ("mm: memory_hotplug:
-memory hotremove supports thp migration") changelog is less than
-satisfactory.
+Well, it kind of makes sense but I am not sure it is worth bothering.
 
 -- 
 Michal Hocko
