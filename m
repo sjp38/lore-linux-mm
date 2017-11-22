@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 416FF6B02DC
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:16:14 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j58so13800490qtj.18
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:16:14 -0800 (PST)
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CC06F6B02DE
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:16:15 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id c123so9947407qkf.14
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:16:15 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f27sor5849524qkf.72.2017.11.22.13.16.13
+        by mx.google.com with SMTPS id d20sor12645025qte.56.2017.11.22.13.16.15
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 Nov 2017 13:16:13 -0800 (PST)
+        Wed, 22 Nov 2017 13:16:15 -0800 (PST)
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH v2 03/11] lib: make the fprop batch size a multiple of PAGE_SIZE
-Date: Wed, 22 Nov 2017 16:15:58 -0500
-Message-Id: <1511385366-20329-4-git-send-email-josef@toxicpanda.com>
+Subject: [PATCH v2 04/11] lib: add a __fprop_add_percpu_max
+Date: Wed, 22 Nov 2017 16:15:59 -0500
+Message-Id: <1511385366-20329-5-git-send-email-josef@toxicpanda.com>
 In-Reply-To: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
 References: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,29 +22,67 @@ Cc: Josef Bacik <jbacik@fb.com>
 
 From: Josef Bacik <jbacik@fb.com>
 
-We are converting the writeback counters to use bytes instead of pages,
-so we need to make the batch size for the percpu modifications align
-properly with the new units.  Since we used pages before, just multiply
-by PAGE_SIZE to get the equivalent bytes for the batch size.
+This helper allows us to add an arbitrary amount to the fprop
+structures.
 
 Signed-off-by: Josef Bacik <jbacik@fb.com>
 ---
- lib/flex_proportions.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ include/linux/flex_proportions.h | 11 +++++++++--
+ lib/flex_proportions.c           |  9 +++++----
+ 2 files changed, 14 insertions(+), 6 deletions(-)
 
+diff --git a/include/linux/flex_proportions.h b/include/linux/flex_proportions.h
+index 0d348e011a6e..9f88684bf0a0 100644
+--- a/include/linux/flex_proportions.h
++++ b/include/linux/flex_proportions.h
+@@ -83,8 +83,8 @@ struct fprop_local_percpu {
+ int fprop_local_init_percpu(struct fprop_local_percpu *pl, gfp_t gfp);
+ void fprop_local_destroy_percpu(struct fprop_local_percpu *pl);
+ void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl);
+-void __fprop_inc_percpu_max(struct fprop_global *p, struct fprop_local_percpu *pl,
+-			    int max_frac);
++void __fprop_add_percpu_max(struct fprop_global *p, struct fprop_local_percpu *pl,
++			    unsigned long nr, int max_frac);
+ void fprop_fraction_percpu(struct fprop_global *p,
+ 	struct fprop_local_percpu *pl, unsigned long *numerator,
+ 	unsigned long *denominator);
+@@ -99,4 +99,11 @@ void fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
+ 	local_irq_restore(flags);
+ }
+ 
++static inline
++void __fprop_inc_percpu_max(struct fprop_global *p,
++			    struct fprop_local_percpu *pl, int max_frac)
++{
++	__fprop_add_percpu_max(p, pl, 1, max_frac);
++}
++
+ #endif
 diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
-index 2cc1f94e03a1..b0343ae71f5e 100644
+index b0343ae71f5e..fd95791a2c93 100644
 --- a/lib/flex_proportions.c
 +++ b/lib/flex_proportions.c
-@@ -166,7 +166,7 @@ void fprop_fraction_single(struct fprop_global *p,
- /*
-  * ---- PERCPU ----
+@@ -255,8 +255,9 @@ void fprop_fraction_percpu(struct fprop_global *p,
+  * Like __fprop_inc_percpu() except that event is counted only if the given
+  * type has fraction smaller than @max_frac/FPROP_FRAC_BASE
   */
--#define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
-+#define PROP_BATCH (8*PAGE_SIZE*(1+ilog2(nr_cpu_ids)))
- 
- int fprop_local_init_percpu(struct fprop_local_percpu *pl, gfp_t gfp)
+-void __fprop_inc_percpu_max(struct fprop_global *p,
+-			    struct fprop_local_percpu *pl, int max_frac)
++void __fprop_add_percpu_max(struct fprop_global *p,
++			    struct fprop_local_percpu *pl, unsigned long nr,
++			    int max_frac)
  {
+ 	if (unlikely(max_frac < FPROP_FRAC_BASE)) {
+ 		unsigned long numerator, denominator;
+@@ -267,6 +268,6 @@ void __fprop_inc_percpu_max(struct fprop_global *p,
+ 			return;
+ 	} else
+ 		fprop_reflect_period_percpu(p, pl);
+-	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
+-	percpu_counter_add(&p->events, 1);
++	percpu_counter_add_batch(&pl->events, nr, PROP_BATCH);
++	percpu_counter_add(&p->events, nr);
+ }
 -- 
 2.7.5
 
