@@ -1,87 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A18F6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 15:43:54 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i17so3694909wmb.7
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 12:43:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b17sor9489598edj.10.2017.11.22.12.43.52
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Nov 2017 12:43:52 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3925A6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 15:47:44 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id d15so15470055pfl.0
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 12:47:44 -0800 (PST)
+Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
+        by mx.google.com with ESMTP id j21si15376825pfh.202.2017.11.22.12.47.42
+        for <linux-mm@kvack.org>;
+        Wed, 22 Nov 2017 12:47:43 -0800 (PST)
+Date: Thu, 23 Nov 2017 07:39:07 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+Message-ID: <20171122203907.GI4094@dastard>
+References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
+ <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
+ <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Wed, 22 Nov 2017 21:43:31 +0100
-Message-ID: <CAKgNAkhtm0JqxeKXovoXPbApogMsGtMR=1td_NhT3AMv_Ot1Ng@mail.gmail.com>
-Subject: Re: [PATCH v3 0/4] vm: add a syscall to map a process memory into a pipe
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Yossi Kuperman <yossiku@il.ibm.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, glauber@scylladb.com, mhocko@kernel.org, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, pbonzini@redhat.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
 
-Hi Mike,
+On Wed, Nov 22, 2017 at 07:53:59PM +0900, Tetsuo Handa wrote:
+> Tetsuo Handa wrote:
+> > Andrew Morton wrote:
+> > > On Tue, 21 Nov 2017 21:02:37 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+> > > 
+> > > > There are users not checking for register_shrinker() failure.
+> > > > Continuing with ignoring failure can lead to later oops at
+> > > > unregister_shrinker().
+> > > > 
+> > > > ...
+> > > >
+> > > > --- a/include/linux/shrinker.h
+> > > > +++ b/include/linux/shrinker.h
+> > > > @@ -75,6 +75,6 @@ struct shrinker {
+> > > >  #define SHRINKER_NUMA_AWARE	(1 << 0)
+> > > >  #define SHRINKER_MEMCG_AWARE	(1 << 1)
+> > > >  
+> > > > -extern int register_shrinker(struct shrinker *);
+> > > > +extern __must_check int register_shrinker(struct shrinker *);
+> > > >  extern void unregister_shrinker(struct shrinker *);
+> > > >  #endif
+> > > 
+> > > hm, well, OK, it's a small kmalloc(GFP_KERNEL).  That won't be
+> > > failing.
+> > 
+> > It failed by fault injection and resulted in a report at
+> > http://lkml.kernel.org/r/001a113f996099503a055e793dd3@google.com .
+> 
+> Since kzalloc() can become > 32KB allocation if CONFIG_NODES_SHIFT > 12
+> (which might not be impossible in near future), register_shrinker() can
+> potentially become a costly allocation which might fail without invoking
+> the OOM killer. It is a good opportunity to think whether we should allow
+> register_shrinker() to fail.
 
-On 22 November 2017 at 20:36, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> From: Yossi Kuperman <yossiku@il.ibm.com>
->
-> Hi,
->
-> This patches introduces new process_vmsplice system call that combines
-> functionality of process_vm_read and vmsplice.
->
-> It allows to map the memory of another process into a pipe, similarly to
-> what vmsplice does for its own address space.
->
-> The patch 2/4 ("vm: add a syscall to map a process memory into a pipe")
-> actually adds the new system call and provides its elaborate description.
+Just fix the numa aware shrinkers, as they are the only ones that
+will have this problem. There are only 6 of them, and only the 3
+that existed at the time that register_shrinker() was changed to
+return an error fail to check for an error. i.e. the superblock
+shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
 
-Where is the man page for this new syscall?
+Seems pretty straight forward to me....
 
-Cheers,
+> > > Affected code seems to be fs/xfs, fs/super.c, fs/quota,
+> > > arch/x86/kvm/mmu, drivers/gpu/drm/ttm, drivers/md and a bunch of
+> > > staging stuff.
+> > > 
+> > > I'm not sure this is worth bothering about?
+> > > 
+> > 
+> > Continuing with failed register_shrinker() is almost always wrong.
+> > Though I don't know whether mm/zsmalloc.c case can make sense.
+> > 
+> 
+> Thinking from the fact that register_shrinker() had been "void" until Linux 3.11
+> and we did not take appropriate precautions when changing to "int" in Linux 3.12,
+> we need to consider making register_shrinker() "void" again.
+> 
+> If we could agree with opening up the use of __GFP_NOFAIL for allocating a few
+> non-contiguous pages on large systems, we can make register_shrinker() "void"
+> again. (Draft patch is shown below. I choose array of kmalloc(PAGE_SIZE)
+> rather than kvmalloc() in order to use __GFP_NOFAIL.)
 
-Michael
+That's insane. NACK.
 
-> The patchset is against -mm tree.
->
-> v3: minor refactoring to reduce code duplication
-> v2: move this syscall under CONFIG_CROSS_MEMORY_ATTACH
->     give correct flags to get_user_pages_remote()
->
-> Andrei Vagin (3):
->   vm: add a syscall to map a process memory into a pipe
->   x86: wire up the process_vmsplice syscall
->   test: add a test for the process_vmsplice syscall
->
-> Mike Rapoport (1):
->   fs/splice: introduce pages_to_pipe helper
->
->  arch/x86/entry/syscalls/syscall_32.tbl             |   1 +
->  arch/x86/entry/syscalls/syscall_64.tbl             |   2 +
->  fs/splice.c                                        | 262 +++++++++++++++++++--
->  include/linux/compat.h                             |   3 +
->  include/linux/syscalls.h                           |   4 +
->  include/uapi/asm-generic/unistd.h                  |   5 +-
->  kernel/sys_ni.c                                    |   2 +
->  tools/testing/selftests/process_vmsplice/Makefile  |   5 +
->  .../process_vmsplice/process_vmsplice_test.c       | 188 +++++++++++++++
->  9 files changed, 450 insertions(+), 22 deletions(-)
->  create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
->  create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
->
-> --
-> 2.7.4
->
-
-
-
+-Dave.
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
