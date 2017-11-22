@@ -1,98 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B3B46B029C
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:52:59 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y42so9993500wrd.23
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:52:59 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F3386B029E
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:53:09 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n8so3196948wmg.4
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:53:09 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h9si3698585edi.414.2017.11.22.06.52.57
+        by mx.google.com with ESMTPS id v15si5963192edm.114.2017.11.22.06.53.08
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 06:52:57 -0800 (PST)
-Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
- direct compaction
-References: <20171122143321.29501-1-hannes@cmpxchg.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <32b5f1b6-e3aa-4f15-4ec6-5cbb5fe158d0@suse.cz>
-Date: Wed, 22 Nov 2017 15:52:55 +0100
+        Wed, 22 Nov 2017 06:53:08 -0800 (PST)
+Date: Wed, 22 Nov 2017 15:53:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: migrate: fix an incorrect call of
+ prep_transhuge_page()
+Message-ID: <20171122145307.52klaq4ouorngsss@dhcp22.suse.cz>
+References: <20171121021855.50525-1-zi.yan@sent.com>
+ <20171122085416.ycrvahu2bznlx37s@dhcp22.suse.cz>
+ <20171122134059.fmyambktkel4e3zq@dhcp22.suse.cz>
+ <5A158D22.3040609@cs.rutgers.edu>
 MIME-Version: 1.0
-In-Reply-To: <20171122143321.29501-1-hannes@cmpxchg.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5A158D22.3040609@cs.rutgers.edu>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Zi Yan <zi.yan@cs.rutgers.edu>
+Cc: Zi Yan <zi.yan@sent.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Reale <ar@linux.vnet.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org
 
-On 11/22/2017 03:33 PM, Johannes Weiner wrote:
-> From: Vlastimil Babka <vbabka@suse.cz>
+On Wed 22-11-17 09:43:46, Zi Yan wrote:
 > 
-> The goal of direct compaction is to quickly make a high-order page available
-> for the pending allocation. The free page scanner can add significant latency
-> when searching for migration targets, although to succeed the compaction, the
-> only important limit on the target free pages is that they must not come from
-> the same order-aligned block as the migrated pages.
 > 
-> This patch therefore makes direct async compaction allocate freepages directly
-> from freelists. Pages that do come from the same block (which we cannot simply
-> exclude from the freelist allocation) are put on separate list and released
-> only after migration to allow them to merge.
+> Michal Hocko wrote:
+> > On Wed 22-11-17 09:54:16, Michal Hocko wrote:
+> >> On Mon 20-11-17 21:18:55, Zi Yan wrote:
+> > [...]
+> >>> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> >>> index 895ec0c4942e..a2246cf670ba 100644
+> >>> --- a/include/linux/migrate.h
+> >>> +++ b/include/linux/migrate.h
+> >>> @@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
+> >>>  	new_page = __alloc_pages_nodemask(gfp_mask, order,
+> >>>  				preferred_nid, nodemask);
+> >>>  
+> >>> -	if (new_page && PageTransHuge(page))
+> >>> +	if (new_page && PageTransHuge(new_page))
+> >>>  		prep_transhuge_page(new_page);
+> >> I would keep the two checks consistent. But that leads to a more
+> >> interesting question. new_page_nodemask does
+> >>
+> >> 	if (thp_migration_supported() && PageTransHuge(page)) {
+> >> 		order = HPAGE_PMD_ORDER;
+> >> 		gfp_mask |= GFP_TRANSHUGE;
+> >> 	}
+> > 
+> > And one more question/note. Why do we need thp_migration_supported
+> > in the first place? 9c670ea37947 ("mm: thp: introduce
+> > CONFIG_ARCH_ENABLE_THP_MIGRATION") says
+> > : Introduce CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+> > : functionality to x86_64, which should be safer at the first step.
+> > 
+> > but why is unsafe to enable the feature on other arches which support
+> > THP? Is there any plan to do the next step and remove this config
+> > option?
 > 
-> In addition to reduced stall, another advantage is that we split larger free
-> pages for migration targets only when smaller pages are depleted, while the
-> free scanner can split pages up to (order - 1) as it encouters them. However,
-> this approach likely sacrifices some of the long-term anti-fragmentation
-> features of a thorough compaction, so we limit the direct allocation approach
-> to direct async compaction.
-> 
-> For observational purposes, the patch introduces two new counters to
-> /proc/vmstat. compact_free_direct_alloc counts how many pages were allocated
-> directly without scanning, and compact_free_direct_miss counts the subset of
-> these allocations that were from the wrong range and had to be held on the
-> separate list.
-> 
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
-> 
-> Hi. I'm resending this because we've been struggling with the cost of
-> compaction in our fleet, and this patch helps substantially.
-> 
-> On 128G+ machines, we have seen isolate_freepages_block() eat up 40%
-> of the CPU cycles and scanning up to a billion PFNs per minute. Not in
-> a spike, but continuously, to service higher-order allocations from
-> the network stack, fork (non-vmap stacks), THP, etc. during regular
-> operation.
-> 
-> I've been running this patch on a handful of less-affected but still
-> pretty bad machines for a week, and the results look pretty great:
-> 
-> 	http://cmpxchg.org/compactdirectalloc/compactdirectalloc.png
+> Because different architectures have their own way of specifying a swap
+> entry. This means, to support THP migration, each architecture needs to
+> add its own __pmd_to_swp_entry() and __swp_entry_to_pmd(), which are
+> used for arch-independent pmd_to_swp_entry() and swp_entry_to_pmd().
 
-Thanks a lot, that's very encouraging!
+I understand that part. But this smells like a matter of coding, no?
+I was suprised to see the note about safety which didn't make much sense
+to me.
+-- 
+Michal Hocko
+SUSE Labs
 
-> 
-> Note the two different scales - otherwise the compact_free_direct
-> lines wouldn't be visible. The free scanner peaks close to 10M pages
-> checked per minute, whereas the direct allocations peak at under 180
-> per minute, direct misses at 50.
-> 
-> The work doesn't increase over this period, which is a good sign that
-> long-term we're not trending toward worse fragmentation.
-> 
-> There was an outstanding concern from Joonsoo regarding this patch -
-> https://marc.info/?l=linux-mm&m=146035962702122&w=2 - although that
-> didn't seem to affect us much in practice.
-
-That concern would be easy to fix, but I was also concerned that if there
-are multiple direct compactions in parallel, they might keep too many free
-pages isolated away. Recently I resumed work on this and come up with a
-different approach, where I put the pages immediately back on tail of
-free lists. There might be some downside in more "direct misses".
-Also I didn't plan to restrict this to async compaction anymore, because
-if it's a better way, we should use it everywhere. So here's how it
-looks like now (only briefly tested), we could compare and pick the better
-approach, or go with the older one for now and potentially change it later.
-
-----8<----
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
