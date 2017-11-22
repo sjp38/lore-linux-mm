@@ -1,71 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8964B6B02BE
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:52:39 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id s75so16865803pgs.12
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 10:52:39 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id o5si15673955pfh.412.2017.11.22.10.52.37
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C08A56B02BF
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:11:48 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id q45so13615544qtq.21
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 11:11:48 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m22si11199941qtc.44.2017.11.22.11.11.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 10:52:38 -0800 (PST)
+        Wed, 22 Nov 2017 11:11:47 -0800 (PST)
+Subject: Re: hugetlb page migration vs. overcommit
+References: <20171122152832.iayefrlxbugphorp@dhcp22.suse.cz>
 From: Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2] mm/cma: fix alloc_contig_range ret code/potential leak
-Date: Wed, 22 Nov 2017 10:52:14 -0800
-Message-Id: <20171122185214.25285-1-mike.kravetz@oracle.com>
-In-Reply-To: <15cf0f39-43f9-8287-fcfe-f2502af59e8a@oracle.com>
-References: <15cf0f39-43f9-8287-fcfe-f2502af59e8a@oracle.com>
+Message-ID: <91969714-5256-e96f-a48b-43af756a2686@oracle.com>
+Date: Wed, 22 Nov 2017 11:11:38 -0800
+MIME-Version: 1.0
+In-Reply-To: <20171122152832.iayefrlxbugphorp@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-If the call __alloc_contig_migrate_range() in alloc_contig_range
-returns -EBUSY, processing continues so that test_pages_isolated()
-is called where there is a tracepoint to identify the busy pages.
-However, it is possible for busy pages to become available between
-the calls to these two routines.  In this case, the range of pages
-may be allocated.   Unfortunately, the original return code (ret
-== -EBUSY) is still set and returned to the caller.  Therefore,
-the caller believes the pages were not allocated and they are leaked.
+On 11/22/2017 07:28 AM, Michal Hocko wrote:
+> Hi,
+> is there any reason why we enforce the overcommit limit during hugetlb
+> pages migration? It's in alloc_huge_page_node->__alloc_buddy_huge_page
+> path. I am wondering whether this is really an intentional behavior.
 
-Update comment to indicate that allocation is still possible even if
-__alloc_contig_migrate_range returns -EBUSY.  Also, clear return code
-in this case so that it is not accidentally used or returned to caller.
+I do not think it was intentional.  But, I was not around when that
+code was added.
 
-Fixes: 8ef5849fa8a2 ("mm/cma: always check which page caused allocation failure")
-Cc: <stable@vger.kernel.org>
-Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
----
- mm/page_alloc.c | 9 ++++++++-
- 1 file changed, 8 insertions(+), 1 deletion(-)
+> The page migration allocates a page just temporarily so we should be
+> able to go over the overcommit limit for the migration duration. The
+> reason I am asking is that hugetlb pages tend to be utilized usually
+> (otherwise the memory would be just wasted and pool shrunk) but then
+> the migration simply fails which breaks memory hotplug and other
+> migration dependent functionality which is quite suboptimal. You can
+> workaround that by increasing the overcommit limit.
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 77e4d3c5c57b..25e81844d1aa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -7582,11 +7582,18 @@ int alloc_contig_range(unsigned long start, unsigned long end,
- 
- 	/*
- 	 * In case of -EBUSY, we'd like to know which page causes problem.
--	 * So, just fall through. We will check it in test_pages_isolated().
-+	 * So, just fall through. test_pages_isolated() has a tracepoint
-+	 * which will report the busy page.
-+	 *
-+	 * It is possible that busy pages could become available before
-+	 * the call to test_pages_isolated, and the range will actually be
-+	 * allocated.  So, if we fall through be sure to clear ret so that
-+	 * -EBUSY is not accidentally used or returned to caller.
- 	 */
- 	ret = __alloc_contig_migrate_range(&cc, start, end);
- 	if (ret && ret != -EBUSY)
- 		goto done;
-+	ret =0;
- 
- 	/*
- 	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
+Yes.  In an environment making optimal use of huge pages, you are unlikely
+to have 'spare pages' set aside for a potential migration operation.  So
+I agree that it would make sense to try and allocate overcommit pages for
+this purpose.
+
+> Why don't we simply migrate as long as we are able to allocate the
+> target hugetlb page? I have a half baked patch to remove this
+> restriction, would there be an opposition to do something like that?
+
+I would not be opposed and would help with this effort.  My concern would
+be any subtle hugetlb accounting issues once you start messing with
+additional overcommit pages.
+
+Since Naoya was originally involved in huge page migration, I would welcome
+his comments.
 -- 
-2.13.6
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
