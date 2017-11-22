@@ -1,308 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AA586B0292
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:26:20 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id m4so3724680pgc.23
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:26:20 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id m12si13834994pgn.415.2017.11.22.06.26.18
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 585EB6B0294
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:31:25 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id r55so8577235otc.23
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:31:25 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 31si6404720oti.243.2017.11.22.06.31.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 06:26:18 -0800 (PST)
-Date: Wed, 22 Nov 2017 22:25:31 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master] BUILD REGRESSION
- f5ef1cb6700e8b570adae945b1e0bd4ab95d8a26
-Message-ID: <5a1588db.3mvsfOfqb5sFz4uO%fengguang.wu@intel.com>
+        Wed, 22 Nov 2017 06:31:24 -0800 (PST)
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
+ <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
+ <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
+ <20171122124551.tjxt7td5fmfqifnc@dhcp22.suse.cz>
+ <201711222206.JGF73535.OFFQSLOJFtHMVO@I-love.SAKURA.ne.jp>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <b04f6093-3b22-e57f-a276-bfaaf3b0ba1e@redhat.com>
+Date: Wed, 22 Nov 2017 15:31:14 +0100
 MIME-Version: 1.0
+In-Reply-To: <201711222206.JGF73535.OFFQSLOJFtHMVO@I-love.SAKURA.ne.jp>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, mhocko@suse.com
+Cc: akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, david@fromorbit.com, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
 
-tree/branch: git://git.cmpxchg.org/linux-mmotm.git  master
-branch HEAD: f5ef1cb6700e8b570adae945b1e0bd4ab95d8a26  pci: test for unexpectedly disabled bridges
+On 22/11/2017 14:06, Tetsuo Handa wrote:
+>> I am not sure we want to overcomplicate the code too much. Most
+>> architectures do not have that many numa nodes to care. If we really
+>> need to care maybe we should rethink and get rid of the per numa
+>> deferred count altogether.
+> the amount of changes needed for checking for an error will exceed the amount of
+> changes needed for making register_shrinker() not to return an error.
+> Do we want to overcomplicate register_shrinker() callers?
 
-Regressions in current branch:
+For KVM it's not a big deal, fixing kvm_mmu_module_init to check the
+return value is trivial.
 
-arch/x86/kvm/mmu.c:5485:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers//android/binder_alloc.c:1008:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/gpu/drm/ttm/ttm_page_alloc.c:451:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/gpu/drm/ttm/ttm_page_alloc_dma.c:1185:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/md/bcache/btree.c:810:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/md/dm-bufio.c:1752:19: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/md/dm-bufio.c:1752:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/staging/android/ashmem.c:865:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-drivers/staging/android/ion/ion_heap.c:315:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-fs/cramfs/inode.c:641: undefined reference to `mtd_point'
-fs/cramfs/inode.c:658: undefined reference to `mtd_unpoint'
-fs/cramfs/inode.c:959: undefined reference to `mount_mtd'
-fs/quota/dquot.c:2988:19: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-fs//quota/dquot.c:2988:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-fs/quota/dquot.c:2988:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-fs/super.c:521:2: warning: ignoring return value of 'register_shrinker', declared with attribute warn_unused_result [-Wunused-result]
-
-Error ids grouped by kconfigs:
-
-recent_errors
-a??a??a?? arm64-defconfig
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? arm-at91_dt_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? arm-exynos_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? arm-multi_v5_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? arm-multi_v7_defconfig
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? arm-sunxi_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? i386-allmodconfig
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-bcache-btree.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? i386-randconfig-i0-201747
-a??A A  a??a??a?? drivers-md-bcache-btree.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? i386-randconfig-i1-201747
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-cramfs-inode.c:undefined-reference-to-mount_mtd
-a??A A  a??a??a?? fs-cramfs-inode.c:undefined-reference-to-mtd_point
-a??A A  a??a??a?? fs-cramfs-inode.c:undefined-reference-to-mtd_unpoint
-a??a??a?? i386-randconfig-n0-201747
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? ia64-defconfig
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m32r-m32104ut_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m32r-mappi3.smp_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m32r-opsput_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m32r-usrv_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m68k-multi_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? m68k-sun3_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? microblaze-mmu_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? microblaze-nommu_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? nios2-10m50_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? parisc-c3000_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? powerpc-defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? powerpc-ppc64_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? s390-default_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? score-spct6600_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? sparc64-defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? sparc-defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? tile-tilegx_defconfig
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? um-i386_defconfig
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? um-x86_64_defconfig
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-allmodconfig
-a??A A  a??a??a?? drivers-android-binder_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-bcache-btree.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-staging-android-ashmem.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-staging-android-ion-ion_heap.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-allyesdebian
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-kexec
-a??A A  a??a??a?? arch-x86-kvm-mmu.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-nfsroot
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-rhel
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? x86_64-rhel-7.2
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-gpu-drm-ttm-ttm_page_alloc_dma.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? drivers-md-dm-bufio.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??A A  a??a??a?? fs-quota-dquot.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? xtensa-common_defconfig
-a??A A  a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-a??a??a?? xtensa-iss_defconfig
-    a??a??a?? fs-super.c:warning:ignoring-return-value-of-register_shrinker-declared-with-attribute-warn_unused_result
-
-elapsed time: 725m
-
-configs tested: 131
-
-parisc                        c3000_defconfig
-parisc                         b180_defconfig
-parisc                              defconfig
-alpha                               defconfig
-parisc                            allnoconfig
-x86_64                             acpi-redef
-x86_64                           allyesdebian
-x86_64                                nfsroot
-i386                   randconfig-x019-201747
-i386                   randconfig-x015-201747
-i386                   randconfig-x014-201747
-i386                   randconfig-x013-201747
-i386                   randconfig-x011-201747
-i386                   randconfig-x018-201747
-i386                   randconfig-x010-201747
-i386                   randconfig-x012-201747
-i386                   randconfig-x017-201747
-i386                   randconfig-x016-201747
-microblaze                      mmu_defconfig
-microblaze                    nommu_defconfig
-i386                     randconfig-n0-201747
-ia64                              allnoconfig
-ia64                                defconfig
-ia64                             alldefconfig
-powerpc                             defconfig
-s390                        default_defconfig
-powerpc                       ppc64_defconfig
-i386                     randconfig-i1-201747
-i386                     randconfig-i0-201747
-x86_64                 randconfig-x018-201747
-x86_64                 randconfig-x011-201747
-x86_64                 randconfig-x013-201747
-x86_64                 randconfig-x019-201747
-x86_64                 randconfig-x012-201747
-x86_64                 randconfig-x017-201747
-x86_64                 randconfig-x016-201747
-x86_64                 randconfig-x014-201747
-x86_64                 randconfig-x015-201747
-x86_64                 randconfig-x010-201747
-i386                     randconfig-a0-201747
-i386                     randconfig-a1-201747
-i386                              allnoconfig
-i386                                defconfig
-i386                             alldefconfig
-i386                     randconfig-s0-201747
-i386                     randconfig-s1-201747
-i386                               tinyconfig
-x86_64                   randconfig-i0-201747
-sparc                               defconfig
-sparc64                           allnoconfig
-sparc64                             defconfig
-c6x                        evmc6678_defconfig
-xtensa                       common_defconfig
-m32r                       m32104ut_defconfig
-score                      spct6600_defconfig
-xtensa                          iss_defconfig
-m32r                         opsput_defconfig
-m32r                           usrv_defconfig
-m32r                     mappi3.smp_defconfig
-nios2                         10m50_defconfig
-h8300                    h8300h-sim_defconfig
-mn10300                     asb2364_defconfig
-openrisc                    or1ksim_defconfig
-um                           x86_64_defconfig
-um                             i386_defconfig
-frv                                 defconfig
-tile                         tilegx_defconfig
-m68k                           sun3_defconfig
-m68k                          multi_defconfig
-m68k                       m5475evb_defconfig
-sh                            titan_defconfig
-sh                          rsk7269_defconfig
-sh                  sh7785lcr_32bit_defconfig
-sh                                allnoconfig
-x86_64                           allmodconfig
-mips                                   jz4740
-mips                      malta_kvm_defconfig
-mips                         64r6el_defconfig
-mips                           32r2_defconfig
-mips                              allnoconfig
-mips                      fuloong2e_defconfig
-mips                                     txx9
-x86_64                                  kexec
-x86_64                                   rhel
-x86_64                               rhel-7.2
-cris                 etrax-100lx_v2_defconfig
-blackfin                  TCM-BF537_defconfig
-blackfin            BF561-EZKIT-SMP_defconfig
-blackfin                BF533-EZKIT_defconfig
-blackfin                BF526-EZBRD_defconfig
-arm                         at91_dt_defconfig
-arm                               allnoconfig
-arm                           efm32_defconfig
-arm64                               defconfig
-arm                        multi_v5_defconfig
-arm                           sunxi_defconfig
-arm64                             allnoconfig
-arm                          exynos_defconfig
-arm                        shmobile_defconfig
-arm                        multi_v7_defconfig
-i386                   randconfig-x074-201747
-i386                   randconfig-x077-201747
-i386                   randconfig-x076-201747
-i386                   randconfig-x071-201747
-i386                   randconfig-x073-201747
-i386                   randconfig-x078-201747
-i386                   randconfig-x072-201747
-i386                   randconfig-x079-201747
-i386                   randconfig-x070-201747
-i386                   randconfig-x075-201747
-x86_64                 randconfig-x000-201747
-x86_64                 randconfig-x001-201747
-x86_64                 randconfig-x008-201747
-x86_64                 randconfig-x004-201747
-x86_64                 randconfig-x005-201747
-x86_64                 randconfig-x007-201747
-x86_64                 randconfig-x006-201747
-x86_64                 randconfig-x003-201747
-x86_64                 randconfig-x009-201747
-x86_64                 randconfig-x002-201747
-i386                             allmodconfig
-i386                   randconfig-x001-201747
-i386                   randconfig-x008-201747
-i386                   randconfig-x002-201747
-i386                   randconfig-x003-201747
-i386                   randconfig-x004-201747
-i386                   randconfig-x006-201747
-i386                   randconfig-x007-201747
-i386                   randconfig-x005-201747
-i386                   randconfig-x000-201747
-i386                   randconfig-x009-201747
-
-Thanks,
-Fengguang
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
