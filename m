@@ -1,192 +1,347 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D03B6B0038
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 05:56:04 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id g73so22116602ioj.0
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 02:56:04 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id x144si3950894itc.153.2017.11.22.02.56.02
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A3C116B0038
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:36:40 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id w95so9942797wrc.20
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:36:40 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id d18si7795113edj.346.2017.11.22.03.36.38
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 02:56:02 -0800 (PST)
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
-	<201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
-Message-Id: <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
-Date: Wed, 22 Nov 2017 19:53:59 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 03:36:38 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAMBY1bM114560
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:36:37 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2ed88ygucy-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:36:36 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 22 Nov 2017 11:36:34 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCHv3 2/2] x86/selftests: Add test for mapping placement for 5-level paging
+In-Reply-To: <20171122081147.5gjushlstmnnmlev@node.shutemov.name>
+References: <20171115143607.81541-1-kirill.shutemov@linux.intel.com> <20171115143607.81541-2-kirill.shutemov@linux.intel.com> <87y3myzx7z.fsf@linux.vnet.ibm.com> <20171122081147.5gjushlstmnnmlev@node.shutemov.name>
+Date: Wed, 22 Nov 2017 17:06:27 +0530
+MIME-Version: 1.0
+Content-Type: text/plain
+Message-Id: <87vai2zgsk.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, glauber@scylladb.com, mhocko@kernel.org
-Cc: linux-mm@kvack.org, david@fromorbit.com, viro@zeniv.linux.org.uk, jack@suse.com, pbonzini@redhat.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Tetsuo Handa wrote:
-> Andrew Morton wrote:
-> > On Tue, 21 Nov 2017 21:02:37 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
-> > 
-> > > There are users not checking for register_shrinker() failure.
-> > > Continuing with ignoring failure can lead to later oops at
-> > > unregister_shrinker().
-> > > 
-> > > ...
-> > >
-> > > --- a/include/linux/shrinker.h
-> > > +++ b/include/linux/shrinker.h
-> > > @@ -75,6 +75,6 @@ struct shrinker {
-> > >  #define SHRINKER_NUMA_AWARE	(1 << 0)
-> > >  #define SHRINKER_MEMCG_AWARE	(1 << 1)
-> > >  
-> > > -extern int register_shrinker(struct shrinker *);
-> > > +extern __must_check int register_shrinker(struct shrinker *);
-> > >  extern void unregister_shrinker(struct shrinker *);
-> > >  #endif
-> > 
-> > hm, well, OK, it's a small kmalloc(GFP_KERNEL).  That won't be
-> > failing.
-> 
-> It failed by fault injection and resulted in a report at
-> http://lkml.kernel.org/r/001a113f996099503a055e793dd3@google.com .
+"Kirill A. Shutemov" <kirill@shutemov.name> writes:
 
-Since kzalloc() can become > 32KB allocation if CONFIG_NODES_SHIFT > 12
-(which might not be impossible in near future), register_shrinker() can
-potentially become a costly allocation which might fail without invoking
-the OOM killer. It is a good opportunity to think whether we should allow
-register_shrinker() to fail.
+> On Wed, Nov 22, 2017 at 11:11:36AM +0530, Aneesh Kumar K.V wrote:
+>> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+>> 
+>> > With 5-level paging, we have 56-bit virtual address space available for
+>> > userspace. But we don't want to expose userspace to addresses above
+>> > 47-bits, unless it asked specifically for it.
+>> >
+>> > We use mmap(2) hint address as a way for kernel to know if it's okay to
+>> > allocate virtual memory above 47-bit.
+>> >
+>> > Let's add a self-test that covers few corner cases of the interface.
+>> >
+>> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+>> 
+>> Can we move this to selftest/vm/ ? I had a variant which i was using to
+>> test issues on ppc64. One change we did recently was to use >=128TB as
+>> the hint addr value to select larger address space. I also would like to
+>> check for exact mmap return addr in some case. Attaching below the test
+>> i was using. I will check whether this patch can be updated to test what
+>> is converted in my selftest. I also want to do the boundary check twice.
+>> The hash trasnslation mode in POWER require us to track addr limit and
+>> we had bugs around address space slection before and after updating the
+>> addr limit.
+>
+> Feel free to move it to selftest/vm. I don't have time to test setup and
+> test it on Power myself, but this would be great.
+>
 
-> 
-> > 
-> > Affected code seems to be fs/xfs, fs/super.c, fs/quota,
-> > arch/x86/kvm/mmu, drivers/gpu/drm/ttm, drivers/md and a bunch of
-> > staging stuff.
-> > 
-> > I'm not sure this is worth bothering about?
-> > 
-> 
-> Continuing with failed register_shrinker() is almost always wrong.
-> Though I don't know whether mm/zsmalloc.c case can make sense.
-> 
+How about the below? Do you want me to send this as a patch to the list? 
 
-Thinking from the fact that register_shrinker() had been "void" until Linux 3.11
-and we did not take appropriate precautions when changing to "int" in Linux 3.12,
-we need to consider making register_shrinker() "void" again.
+#include <stdio.h>
+#include <sys/mman.h>
+#include <string.h>
 
-If we could agree with opening up the use of __GFP_NOFAIL for allocating a few
-non-contiguous pages on large systems, we can make register_shrinker() "void"
-again. (Draft patch is shown below. I choose array of kmalloc(PAGE_SIZE)
-rather than kvmalloc() in order to use __GFP_NOFAIL.)
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
+#ifdef __powerpc64__
+#define PAGE_SIZE	64*1024
+/*
+ * This will work with 16M and 2M hugepage size
+ */
+#define HUGETLB_SIZE	16*1024*1024
+#else
+#define PAGE_SIZE	4096
+#define HUGETLB_SIZE	2*1024*1024
+#endif
 
- include/linux/shrinker.h |    4 +++-
- mm/vmscan.c              |   31 ++++++++++++++++++++++---------
- 2 files changed, 25 insertions(+), 10 deletions(-)
+/*
+ * >= 128TB is the hint addr value we used to select
+ * large address space.
+ */
+#define ADDR_SWITCH_HINT (1UL << 47)
+#define LOW_ADDR	((void *) (1UL << 30))
+#define HIGH_ADDR	((void *) (1UL << 48))
 
-diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
-index 388ff29..362a871 100644
---- a/include/linux/shrinker.h
-+++ b/include/linux/shrinker.h
-@@ -34,6 +34,8 @@ struct shrink_control {
- };
- 
- #define SHRINK_STOP (~0UL)
-+#define SHRINKER_SLOTS_PER_PAGE (PAGE_SIZE / sizeof(atomic_long_t))
-+#define SHRINKER_SLOT_PAGES DIV_ROUND_UP(MAX_NUMNODES, SHRINKER_SLOTS_PER_PAGE)
- /*
-  * A callback you can register to apply pressure to ageable caches.
-  *
-@@ -67,7 +69,7 @@ struct shrinker {
- 	/* These are for internal use */
- 	struct list_head list;
- 	/* objs pending delete, per node */
--	atomic_long_t *nr_deferred;
-+	atomic_long_t *nr_deferred[SHRINKER_SLOT_PAGES];
- };
- #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
- 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 1c1bc95..da1f633 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -276,14 +276,19 @@ unsigned long lruvec_lru_size(struct lruvec *lruvec, enum lru_list lru, int zone
-  */
- int register_shrinker(struct shrinker *shrinker)
- {
--	size_t size = sizeof(*shrinker->nr_deferred);
-+	int i;
-+	size_t size = sizeof(atomic_long_t);
- 
- 	if (shrinker->flags & SHRINKER_NUMA_AWARE)
- 		size *= nr_node_ids;
- 
--	shrinker->nr_deferred = kzalloc(size, GFP_KERNEL);
--	if (!shrinker->nr_deferred)
--		return -ENOMEM;
-+	for (i = 0; i < SHRINKER_SLOT_PAGES; i++) {
-+		const size_t s = size >= PAGE_SIZE ? PAGE_SIZE : size;
-+
-+		size -= s;
-+		shrinker->nr_deferred[i] = kzalloc(s,
-+						   GFP_KERNEL | __GFP_NOFAIL);
-+	}
- 
- 	down_write(&shrinker_rwsem);
- 	list_add_tail(&shrinker->list, &shrinker_list);
-@@ -297,10 +302,12 @@ int register_shrinker(struct shrinker *shrinker)
-  */
- void unregister_shrinker(struct shrinker *shrinker)
- {
-+	int i;
- 	down_write(&shrinker_rwsem);
- 	list_del(&shrinker->list);
- 	up_write(&shrinker_rwsem);
--	kfree(shrinker->nr_deferred);
-+	for (i = 0; i < SHRINKER_SLOT_PAGES; i++)
-+		kfree(shrinker->nr_deferred[i]);
- }
- EXPORT_SYMBOL(unregister_shrinker);
- 
-@@ -321,17 +328,24 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	long batch_size = shrinker->batch ? shrinker->batch
- 					  : SHRINK_BATCH;
- 	long scanned = 0, next_deferred;
-+	atomic_long_t *nr_deferred;
- 
- 	freeable = shrinker->count_objects(shrinker, shrinkctl);
- 	if (freeable == 0)
- 		return 0;
- 
-+	if (SHRINKER_SLOT_PAGES > 1)
-+		nr_deferred = &shrinker->nr_deferred
-+			[nid / SHRINKER_SLOTS_PER_PAGE]
-+			[nid % SHRINKER_SLOTS_PER_PAGE];
-+	else
-+		nr_deferred = &shrinker->nr_deferred[0][nid];
- 	/*
- 	 * copy the current shrinker scan count into a local variable
- 	 * and zero it so that other concurrent shrinker invocations
- 	 * don't also do this scanning work.
- 	 */
--	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
-+	nr = atomic_long_xchg(nr_deferred, 0);
- 
- 	total_scan = nr;
- 	delta = (4 * nr_scanned) / shrinker->seeks;
-@@ -417,10 +431,9 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	 * scan, there is no need to do an update.
- 	 */
- 	if (next_deferred > 0)
--		new_nr = atomic_long_add_return(next_deferred,
--						&shrinker->nr_deferred[nid]);
-+		new_nr = atomic_long_add_return(next_deferred, nr_deferred);
- 	else
--		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
-+		new_nr = atomic_long_read(nr_deferred);
- 
- 	trace_mm_shrink_slab_end(shrinker, nid, freed, nr, new_nr, total_scan);
- 	return freed;
+struct testcase {
+	void *addr;
+	unsigned long size;
+	unsigned long flags;
+	const char *msg;
+	unsigned int addr_check_cond;
+	unsigned int low_addr_required:1;
+	unsigned int keep_mapped:1;
+};
+
+static struct testcase testcases[] = {
+	{
+		/*
+		 * If stack is moved, we could possibly allocate
+		 * this at the requested address.
+		 */
+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
+		.size = PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
+		.low_addr_required = 1,
+	},
+	{
+		/*
+		 * We should never allocate at the requested address or above it
+		 * The len cross the 128TB boundary. Without MAP_FIXED
+		 * we will always search in the lower address space.
+		 */
+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, (2 * PAGE_SIZE))",
+		.low_addr_required = 1,
+	},
+	{
+		/*
+		 * Exact mapping at 128TB, the area is free we should get that
+		 * even without MAP_FIXED.
+		 */
+		.addr = ((void *)(ADDR_SWITCH_HINT)),
+		.size = PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT),
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
+	},
+	{
+		.addr = NULL,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(NULL)",
+		.low_addr_required = 1,
+	},
+	{
+		.addr = LOW_ADDR,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(LOW_ADDR)",
+		.low_addr_required = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(HIGH_ADDR)",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(HIGH_ADDR) again",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
+	},
+	{
+		.addr = (void*) -1,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(-1)",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = (void*) -1,
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(-1) again",
+	},
+	{
+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
+		.size = PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
+		.low_addr_required = 1,
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, 2 * PAGE_SIZE)",
+		.low_addr_required = 1,
+		.keep_mapped = 1,
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE / 2),
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE/2 , 2 * PAGE_SIZE)",
+		.low_addr_required = 1,
+		.keep_mapped = 1,
+	},
+	{
+		.addr = ((void *)(ADDR_SWITCH_HINT)),
+		.size = PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT),
+		.size = 2 * PAGE_SIZE,
+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
+	},
+};
+
+static struct testcase hugetlb_testcases[] = {
+	{
+		.addr = NULL,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(NULL, MAP_HUGETLB)",
+		.low_addr_required = 1,
+	},
+	{
+		.addr = LOW_ADDR,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(LOW_ADDR, MAP_HUGETLB)",
+		.low_addr_required = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = HIGH_ADDR,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
+	},
+	{
+		.addr = (void*) -1,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(-1, MAP_HUGETLB)",
+		.keep_mapped = 1,
+	},
+	{
+		.addr = (void*) -1,
+		.size = HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap(-1, MAP_HUGETLB) again",
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
+		.size = 2 * HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+		.msg = "mmap((1UL << 47), 4UL << 20, MAP_HUGETLB)",
+		.low_addr_required = 1,
+		.keep_mapped = 1,
+	},
+	{
+		.addr = (void *)(ADDR_SWITCH_HINT),
+		.size = 2 * HUGETLB_SIZE,
+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+		.msg = "mmap(ADDR_SWITCH_HINT , 2 * HUGETLB_SIZE, MAP_FIXED | MAP_HUGETLB)",
+	},
+};
+
+static void run_test(struct testcase *test, int count)
+{
+	int i;
+	void *p;
+
+	for (i = 0; i < count; i++) {
+		struct testcase *t = test + i;
+
+		p = mmap(t->addr, t->size, PROT_READ | PROT_WRITE, t->flags, -1, 0);
+
+		printf("%s: %p - ", t->msg, p);
+
+		if (p == MAP_FAILED) {
+			printf("FAILED\n");
+			continue;
+		}
+
+		if (t->low_addr_required && p >= (void *)(1UL << 47))
+			printf("FAILED\n");
+		else {
+			/*
+			 * Do a dereference of the address returned so that we catch
+			 * bugs in page fault handling
+			 */
+			*(int *)p = 10;
+			printf("OK\n");
+		}
+		if (!t->keep_mapped)
+			munmap(p, t->size);
+	}
+}
+
+static int supported_arch(void)
+{
+#if defined(__powerpc64__)
+	return 1;
+#elif defined(__x86_64__)
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+int main(int argc, char **argv)
+{
+	if (!supported_arch())
+		return 0;
+
+	run_test(testcases, ARRAY_SIZE(testcases));
+	if (argc == 2 && !strcmp(argv[1], "--run_hugetlb"))
+		run_test(hugetlb_testcases, ARRAY_SIZE(hugetlb_testcases));
+	return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
