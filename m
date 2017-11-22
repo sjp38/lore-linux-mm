@@ -1,66 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB6AF6B02A9
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 10:39:36 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z4so8964667pgo.7
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 07:39:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g71si15278241pfg.124.2017.11.22.07.39.35
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0FEBF6B02AC
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 11:10:16 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id s28so14921201pfg.6
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 08:10:16 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id t10si7712824plh.272.2017.11.22.08.10.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 07:39:35 -0800 (PST)
-Date: Wed, 22 Nov 2017 16:39:32 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: migrate: fix an incorrect call of
- prep_transhuge_page()
-Message-ID: <20171122153932.xu3hfodgj2oy3kyd@dhcp22.suse.cz>
-References: <20171121021855.50525-1-zi.yan@sent.com>
- <20171122085416.ycrvahu2bznlx37s@dhcp22.suse.cz>
- <20171122134059.fmyambktkel4e3zq@dhcp22.suse.cz>
- <5A158D22.3040609@cs.rutgers.edu>
- <20171122145307.52klaq4ouorngsss@dhcp22.suse.cz>
- <5A159319.6070403@cs.rutgers.edu>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 08:10:14 -0800 (PST)
+Subject: Re: MPK: removing a pkey
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+ <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
+ <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
+Date: Wed, 22 Nov 2017 08:10:10 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5A159319.6070403@cs.rutgers.edu>
+In-Reply-To: <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zi Yan <zi.yan@cs.rutgers.edu>
-Cc: Zi Yan <zi.yan@sent.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Reale <ar@linux.vnet.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed 22-11-17 10:09:13, Zi Yan wrote:
+On 11/22/2017 04:15 AM, Florian Weimer wrote:
+> On 11/22/2017 09:18 AM, Vlastimil Babka wrote:
+>> And, was the pkey == -1 internal wiring supposed to be exposed to the
+>> pkey_mprotect() signal, or should there have been a pre-check returning
+>> EINVAL in SYSCALL_DEFINE4(pkey_mprotect), before calling
+>> do_mprotect_pkey())? I assume it's too late to change it now anyway (or
+>> not?), so should we also document it?
 > 
-> 
-> Michal Hocko wrote:
-> > On Wed 22-11-17 09:43:46, Zi Yan wrote:
-> >>
-> >> Michal Hocko wrote:
-[...]
-> >>> but why is unsafe to enable the feature on other arches which support
-> >>> THP? Is there any plan to do the next step and remove this config
-> >>> option?
-> >> Because different architectures have their own way of specifying a swap
-> >> entry. This means, to support THP migration, each architecture needs to
-> >> add its own __pmd_to_swp_entry() and __swp_entry_to_pmd(), which are
-> >> used for arch-independent pmd_to_swp_entry() and swp_entry_to_pmd().
-> > 
-> > I understand that part. But this smells like a matter of coding, no?
-> > I was suprised to see the note about safety which didn't make much sense
-> > to me.
-> 
-> And testing as well. I had powerpc book3s support in my initial patch
-> submission, but removed it because I do not have access to the powerpc
-> machine any more. I also tried ARM64, which seems working by adding the
-> code, but I have no hardware to test it now.
-> 
-> Any suggestions?
+> I think the -1 case to the set the default key is useful because it
+> allows you to use a key value of -1 to mean a??MPK is not supporteda??, and
+> still call pkey_mprotect.
 
-Cc arch maintainers and mailing lists?
-
--- 
-Michal Hocko
-SUSE Labs
+The behavior to not allow 0 to be set was unintentional and is a bug.
+We should fix that.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
