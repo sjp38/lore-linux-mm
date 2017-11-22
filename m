@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 680916B0038
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 65E036B0033
 	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:07:49 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m188so17244943pga.22
+Received: by mail-pf0-f197.google.com with SMTP id d6so15506773pfb.3
         for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:07:49 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z29si8360942pfj.340.2017.11.22.13.07.47
+        by mx.google.com with ESMTPS id t25si13940801pgv.644.2017.11.22.13.07.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 22 Nov 2017 13:07:48 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 02/62] radix tree test suite: Remove ARRAY_SIZE
-Date: Wed, 22 Nov 2017 13:06:39 -0800
-Message-Id: <20171122210739.29916-3-willy@infradead.org>
+Subject: [PATCH 04/62] idr test suite: Fix ida_test_random()
+Date: Wed, 22 Nov 2017 13:06:41 -0800
+Message-Id: <20171122210739.29916-5-willy@infradead.org>
 In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,25 +22,38 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is now defined in tools/include/linux/kernel.h, so our
-definition generates a warning.
+The test was checking the wrong errno; ida_get_new_above() returns
+EAGAIN, not ENOMEM on memory allocation failure.  Double the number of
+threads to increase the chance that we actually exercise this path
+during the test suite (it was a bit sporadic before).
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- tools/testing/radix-tree/linux/kernel.h | 2 --
- 1 file changed, 2 deletions(-)
+ tools/testing/radix-tree/idr-test.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index c3bc3f364f68..426f32f28547 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -17,6 +17,4 @@
- #define pr_debug printk
- #define pr_cont printk
+diff --git a/tools/testing/radix-tree/idr-test.c b/tools/testing/radix-tree/idr-test.c
+index 30cd0b296f1a..193450b29bf0 100644
+--- a/tools/testing/radix-tree/idr-test.c
++++ b/tools/testing/radix-tree/idr-test.c
+@@ -380,7 +380,7 @@ void ida_check_random(void)
+ 			do {
+ 				ida_pre_get(&ida, GFP_KERNEL);
+ 				err = ida_get_new_above(&ida, bit, &id);
+-			} while (err == -ENOMEM);
++			} while (err == -EAGAIN);
+ 			assert(!err);
+ 			assert(id == bit);
+ 		}
+@@ -489,7 +489,7 @@ static void *ida_random_fn(void *arg)
  
--#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
--
- #endif /* _KERNEL_H */
+ void ida_thread_tests(void)
+ {
+-	pthread_t threads[10];
++	pthread_t threads[20];
+ 	int i;
+ 
+ 	for (i = 0; i < ARRAY_SIZE(threads); i++)
 -- 
 2.15.0
 
