@@ -1,293 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 415796B0038
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 23:24:54 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id z184so15000836pgd.0
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 20:24:54 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id s3si12178244plp.18.2017.11.21.20.24.51
-        for <linux-mm@kvack.org>;
-        Tue, 21 Nov 2017 20:24:52 -0800 (PST)
-Date: Wed, 22 Nov 2017 13:30:27 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 0/5] mm/kasan: advanced check
-Message-ID: <20171122043027.GA24912@js1304-P5Q-DELUXE>
-References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
- <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
- <20171120015000.GA13507@js1304-P5Q-DELUXE>
- <8bdd114f-4bf1-e60d-eb78-af67f6c74abc@oracle.com>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A61EA6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:41:49 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id j12so373310qtc.20
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 21:41:49 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i193si11678155qke.20.2017.11.21.21.41.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 21 Nov 2017 21:41:48 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAM5efXR131875
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:41:47 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ecyf08gnn-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:41:46 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Wed, 22 Nov 2017 05:41:44 -0000
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: Re: [PATCHv3 2/2] x86/selftests: Add test for mapping placement for 5-level paging
+In-Reply-To: <20171115143607.81541-2-kirill.shutemov@linux.intel.com>
+References: <20171115143607.81541-1-kirill.shutemov@linux.intel.com> <20171115143607.81541-2-kirill.shutemov@linux.intel.com>
+Date: Wed, 22 Nov 2017 11:11:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <8bdd114f-4bf1-e60d-eb78-af67f6c74abc@oracle.com>
+Content-Type: text/plain
+Message-Id: <87y3myzx7z.fsf@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wengang <wen.gang.wang@oracle.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Nov 20, 2017 at 11:56:05AM -0800, Wengang wrote:
-> 
-> 
-> On 11/19/2017 05:50 PM, Joonsoo Kim wrote:
-> >On Fri, Nov 17, 2017 at 11:56:21PM +0100, Dmitry Vyukov wrote:
-> >>On Fri, Nov 17, 2017 at 11:30 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
-> >>>Kasan advanced check, I'm going to add this feature.
-> >>>Currently Kasan provide the detection of use-after-free and out-of-bounds
-> >>>problems. It is not able to find the overwrite-on-allocated-memory issue.
-> >>>We sometimes hit this kind of issue: We have a messed up structure
-> >>>(usually dynamially allocated), some of the fields in the structure were
-> >>>overwritten with unreasaonable values. And kernel may panic due to those
-> >>>overeritten values. We know those fields were overwritten somehow, but we
-> >>>have no easy way to find out which path did the overwritten. The advanced
-> >>>check wants to help in this scenario.
-> >>>
-> >>>The idea is to define the memory owner. When write accesses come from
-> >>>non-owner, error should be reported. Normally the write accesses on a given
-> >>>structure happen in only several or a dozen of functions if the structure
-> >>>is not that complicated. We call those functions "allowed functions".
-> >>>The work of defining the owner and binding memory to owner is expected to
-> >>>be done by the memory consumer. In the above case, memory consume register
-> >>>the owner as the functions which have write accesses to the structure then
-> >>>bind all the structures to the owner. Then kasan will do the "owner check"
-> >>>after the basic checks.
-> >>>
-> >>>As implementation, kasan provides a API to it's user to register their
-> >>>allowed functions. The API returns a token to users.  At run time, users
-> >>>bind the memory ranges they are interested in to the check they registered.
-> >>>Kasan then checks the bound memory ranges with the allowed functions.
-> >>>
-> >>>
-> >>>Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
-> >Hello, Wengang.
-> >
-> >Nice idea. I also think that we need this kind of debugging tool. It's very
-> >hard to detect overwritten bugs.
-> >
-> >In fact, I made a quite similar tool, valid access checker (A.K.A.
-> >vchecker). See the following link.
-> >
-> >https://github.com/JoonsooKim/linux/tree/vchecker-master-v0.3-next-20170106
-> >
-> >Vchecker has some advanced features compared to yours.
-> >
-> >1. Target object can be choosen at runtime by debugfs. It doesn't
-> >require re-compile to register the target object.
-> Hi Joonsoo, good to know you are also interested in this!
-> 
-> Yes, if can be choosen via debugfs, it doesn't need re-compile.
-> Well, I wonder what do you expect to be chosen from use space?
+"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
 
-As you mentioned somewhere, this tool can be used when we find the
-overwritten happend on some particular victims. I assumes that most of
-the problem would happen on slab objects and userspace can choose the
-target slab cache via debugfs interface of the vchecker.
+> With 5-level paging, we have 56-bit virtual address space available for
+> userspace. But we don't want to expose userspace to addresses above
+> 47-bits, unless it asked specifically for it.
+>
+> We use mmap(2) hint address as a way for kernel to know if it's okay to
+> allocate virtual memory above 47-bit.
+>
+> Let's add a self-test that covers few corner cases of the interface.
+>
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-> 
-> >
-> >2. It has another feature that checks the value stored in the object.
-> >Usually, invalid writer stores odd value into the object and vchecker
-> >can detect this case.
-> It's good to do the check. Well, as I understand, it tells something
-> bad (overwitten) happened.
-> But it can't tell who did the overwritten, right?  (I didn't look at
-> your patch yet,) do you recall the last write somewhere?
-
-Yes, it stores the callstack of the last write and report it when
-the error is found.
-
-> 
-> >
-> >3. It has a callstack checker (memory owner checker in yours). It
-> >checks all the callstack rather than just the caller. It's important
-> >since invalid writer could call the parent function of owner function
-> >and it would not be catched by checking just the caller.
-> >
-> >4. The callstack checker is more automated. vchecker collects the valid
-> >callstack by running the system.
-> I think we can merge the above two into one.
-> So you are doing full stack check.  Well, finding out the all the
-> paths which have the write access may be not a very easy thing.
-> Missing some paths may cause dmesg flooding, and those log won't
-> help at all. Finding out all the (owning) caller only is relatively
-> much easier.
-
-Vchecker can be easily modified to store only the caller. It just
-requires modifying callstack depth parameter so it's so easy.
-Moreover, it can be accomplished by adding debugfs interface.
-
-Anyway, I don't think that finding out all the (owning) caller only
-is much easier. Think about dentry or inode object. It is accessed by
-various code path and it's not easy to cover all the owning caller by
-manual approach.
-
-
-> There do is the case you pointed out here. In this case, the
-> debugger can make slight change to the calling path. And as I
-> understand,
-> most of the overwritten are happening in quite different call paths,
-> they are not calling the (owning) caller.
-
-Agreed.
-
-> 
-> >
-> >FYI, I attach some commit descriptions of the vchecker.
-> >
-> >     vchecker: store/report callstack of value writer
-> >     The purpose of the value checker is finding invalid user writing
-> >     invalid value at the moment that the value is written. However, there is
-> >     a missing infrastructure that passes writing value to the checker
-> >     since we temporarilly piggyback on the KASAN. So, we cannot easily
-> >     detect this case in time.
-> >     However, by following way, we can emulate similar effect.
-> >     1. Store callstack when memory is written.
-> 
-> Oh, seems you are storing the callstack for each write. -- I am not
-> sure if that would too heavy.
-
-Unlike KASAN that checks all type of the objects, this debugging
-feature is only enabled on the specific type of the objects so
-overhead would not be too heavy in terms of system overall
-performance.
-
-> Actually I was thinking to have a check on the new value. But seems
-> compiler doesn't provide that.
-
-Yes, look like we have a similar idea. I have some another ideas if
-ASAN hook provides the value to be written. However, it's not
-supported by compiler yet.
-
-> >     2. If check is failed in next access, report previous write-access
-> >     callstack
-> >     It will caught offending user properly.
-> >     Following output "Call trace: Invalid writer" part is the result
-> >     of this patch. We find the invalid value at workfn+0x71 but report
-> >     writer at workfn+0x61.
-> >     [  133.024076] ==================================================================
-> >     [  133.025576] BUG: VCHECKER: invalid access in workfn+0x71/0xc0 at addr ffff8800683dd6c8
-> >     [  133.027196] Read of size 8 by task kworker/1:1/48
-> >     [  133.028020] 0x8 0x10 value
-> >     [  133.028020] 0xffff 4
-> >     [  133.028020] Call trace: Invalid writer
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff81043b1b>] save_stack_trace+0x1b/0x20
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff812c0db9>] save_stack+0x39/0x70
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff812c0fe3>] check_value+0x43/0x80
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff812c1762>] vchecker_check+0x1c2/0x380
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff812be49d>] __asan_store8+0x8d/0xc0
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff815eadd1>] workfn+0x61/0xc0
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff810be3df>] process_one_work+0x28f/0x680
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff810bf272>] worker_thread+0xa2/0x870
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff810c86a5>] kthread+0x195/0x1e0
-> >     [  133.028020]
-> >     [  133.028020] [<ffffffff81b9d3d2>] ret_from_fork+0x22/0x30
-> >     [  133.028020] CPU: 1 PID: 48 Comm: kworker/1:1 Not tainted 4.10.0-rc2-next-20170106+ #1179
-> >     [  133.028020] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-> >     [  133.028020] Workqueue: events workfn
-> >     [  133.028020] Call Trace:
-> >     [  133.028020]  dump_stack+0x4d/0x63
-> >     [  133.028020]  kasan_object_err+0x21/0x80
-> >     [  133.028020]  vchecker_check+0x2af/0x380
-> >     [  133.028020]  ? workfn+0x71/0xc0
-> >     [  133.028020]  ? workfn+0x71/0xc0
-> >     [  133.028020]  __asan_load8+0x87/0xb0
-> >     [  133.028020]  workfn+0x71/0xc0
-> >     [  133.028020]  process_one_work+0x28f/0x680
-> >     [  133.028020]  worker_thread+0xa2/0x870
-> >     [  133.028020]  kthread+0x195/0x1e0
-> >     [  133.028020]  ? put_pwq_unlocked+0xc0/0xc0
-> >     [  133.028020]  ? kthread_park+0xd0/0xd0
-> >     [  133.028020]  ret_from_fork+0x22/0x30
-> >     [  133.028020] Object at ffff8800683dd6c0, in cache vchecker_test size: 24
-> >     [  133.028020] Allocated:
-> >     [  133.028020] PID = 48
-> >
-> >
-> >     vchecker: Add 'callstack' checker
-> >     The callstack checker is to find invalid code paths accessing to a
-> >     certain field in an object.  Currently it only saves all stack traces at
-> >     the given offset.  Reporting will be added in the next patch.
-> >     The below example checks callstack of anon_vma:
-> >       # cd /sys/kernel/debug/vchecker
-> >       # echo 0 8 > anon_vma/callstack  # offset 0, size 8
-> >       # echo 1 > anon_vma/enable
-> an echo "anon_vma" > <something> first?
-> How do you define and path the valid (owning) full stack to kasan?
-
-This interface only enables to store all the callstacks. No validation
-check here. I think that this feature would also be helpful to debug.
-If error happens, we can check all the previous callstacks and track
-the buggy caller.
-
-> >       # cat anon_vma/callstack        # show saved callstacks
-> >       0x0 0x8 callstack
-> >       total: 42
-> >       callstack #0
-> >         anon_vma_fork+0x101/0x280
-> >         copy_process.part.10+0x15ff/0x2a40
-> >         _do_fork+0x155/0x7d0
-> >         SyS_clone+0x19/0x20
-> >         do_syscall_64+0xdf/0x460
-> >         return_from_SYSCALL_64+0x0/0x7a
-> >       ...
-> >
-> >
-> >     vchecker: Support toggle on/off of callstack check
-> >     By default, callstack checker only collects callchains.  When a user
-> >     writes 'on' to the callstack file in debugfs, it checks and reports new
-> >     callstacks.  Writing 'off' to disable it again.
-> >       # cd /sys/kernel/debug/vchecker
-> >       # echo 0 8 > anon_vma/callstack
-> >       # echo 1 > anon_vma/enable
-> >       ... (do some work to collect enough callstacks) ...
-> How to define "enough" here?
-
-The bug usually doesn't happen immediately since it usually happens on
-the corner case. When debugging, we run the workload that causes the
-bug and then wait for some time until the bug happens. "Enough" can
-be defined as the middle of this waiting time. After some warm-up
-time, all the common callstack would be collected. Then,
-switching on this feature that reports a new callstack. If the corner
-case that is on a new callstack happens, this new callstack will be
-reported and we can check whether it is a true bug or not.
-
-> >       # echo on > anon_vma/callstack
-> >
-> >The reason I didn't submit the vchecker to mainline is that I didn't find
-> >the case that this tool is useful in real life. Most of the system broken case
-> >can be debugged by other ways. Do you see the real case that this tool is
-> >helpful? If so, I think that vchecker is more appropriate to be upstreamed.
-> >Could you share your opinion?
-> Yes, people find other ways to solve overwritten issue (so did I) in
-> the past. If kasan doesn't provide this functionality, developers
-> have no way to choose it.
-> Though people have other ways to find the root cause, the other ways
-> maybe take (maybe much) longer. I didn't solve problems with the
-> owner check yet since I just make available recently.  But
-> considering the overwritten issues I have ever hit, the owner check
-> definitely helps and I definitely will try the owner check when I
-> have a new overwritten issue!
-> 
-> Why not send your patch for review?
-
-Okay! I hope to find more people that have interest on this feature
-and it seems that you are the one of them. :)
-
-I will send my patches soon. I think that we can be cooperative to
-improve this feature.
-
-Thanks.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Can we move this to selftest/vm/ ? I had a variant which i was using to
+test issues on ppc64. One change we did recently was to use >=128TB as
+the hint addr value to select larger address space. I also would like to
+check for exact mmap return addr in some case. Attaching below the test
+i was using. I will check whether this patch can be updated to test what
+is converted in my selftest. I also want to do the boundary check twice.
+The hash trasnslation mode in POWER require us to track addr limit and
+we had bugs around address space slection before and after updating the
+addr limit.
