@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 01F1F6B02AC
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:09:58 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id r23so7462322pfg.17
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:09:57 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 105246B02B0
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:10:01 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id s28so15499422pfg.6
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:10:01 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id f15si14437287plr.601.2017.11.22.13.08.21
+        by mx.google.com with ESMTPS id x1si9262458pln.678.2017.11.22.13.08.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 13:08:21 -0800 (PST)
+        Wed, 22 Nov 2017 13:08:19 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 62/62] mm: Convert page-writeback to XArray
-Date: Wed, 22 Nov 2017 13:07:39 -0800
-Message-Id: <20171122210739.29916-63-willy@infradead.org>
+Subject: [PATCH 37/62] shmem: Convert replace to xarray
+Date: Wed, 22 Nov 2017 13:07:14 -0800
+Message-Id: <20171122210739.29916-38-willy@infradead.org>
 In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,188 +22,77 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Includes moving mapping_tagged() to fs.h as a static inline, and
-changing it to return bool.
+shmem_radix_tree_replace() is renamed to shmem_xa_replace() and
+converted to use the XArray API.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/fs.h  | 17 +++++++++------
- mm/page-writeback.c | 63 +++++++++++++++++++----------------------------------
- 2 files changed, 33 insertions(+), 47 deletions(-)
+ mm/shmem.c | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index a5c105d292a7..14b7406e03e0 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -470,15 +470,18 @@ struct block_device {
- 	struct mutex		bd_fsfreeze_mutex;
- } __randomize_layout;
- 
-+/* XArray tags, for tagging dirty and writeback pages in the pagecache. */
-+#define PAGECACHE_TAG_DIRTY	XA_TAG_0
-+#define PAGECACHE_TAG_WRITEBACK	XA_TAG_1
-+#define PAGECACHE_TAG_TOWRITE	XA_TAG_2
-+
- /*
-- * Radix-tree tags, for tagging dirty and writeback pages within the pagecache
-- * radix trees
-+ * Returns true if any of the pages in the mapping are marked with the tag.
-  */
--#define PAGECACHE_TAG_DIRTY	0
--#define PAGECACHE_TAG_WRITEBACK	1
--#define PAGECACHE_TAG_TOWRITE	2
--
--int mapping_tagged(struct address_space *mapping, int tag);
-+static inline bool mapping_tagged(struct address_space *mapping, xa_tag_t tag)
-+{
-+	return xa_tagged(&mapping->pages, tag);
-+}
- 
- static inline void i_mmap_lock_write(struct address_space *mapping)
- {
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 6a5b92629727..28175cba7e72 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2100,33 +2100,26 @@ void __init page_writeback_init(void)
-  * dirty pages in the file (thus it is important for this function to be quick
-  * so that it can tag pages faster than a dirtying process can create them).
-  */
--/*
-- * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce xa_lock latency.
-- */
- void tag_pages_for_writeback(struct address_space *mapping,
- 			     pgoff_t start, pgoff_t end)
- {
--#define WRITEBACK_TAG_BATCH 4096
--	unsigned long tagged = 0;
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, start);
-+	struct xarray *xa = &mapping->pages;
-+	unsigned int tagged = 0;
-+	void *page;
- 
--	xa_lock_irq(&mapping->pages);
--	radix_tree_for_each_tagged(slot, &mapping->pages, &iter, start,
--							PAGECACHE_TAG_DIRTY) {
--		if (iter.index > end)
--			break;
--		radix_tree_iter_tag_set(&mapping->pages, &iter,
--							PAGECACHE_TAG_TOWRITE);
--		tagged++;
--		if ((tagged % WRITEBACK_TAG_BATCH) != 0)
-+	xa_lock_irq(xa);
-+	xas_for_each_tag(xa, &xas, page, end, PAGECACHE_TAG_DIRTY) {
-+		xas_set_tag(xa, &xas, PAGECACHE_TAG_TOWRITE);
-+		if (++tagged % XA_CHECK_SCHED)
- 			continue;
--		slot = radix_tree_iter_resume(slot, &iter);
--		xa_unlock_irq(&mapping->pages);
-+
-+		xas_pause(&xas);
-+		xa_unlock_irq(xa);
- 		cond_resched();
--		xa_lock_irq(&mapping->pages);
-+		xa_lock_irq(xa);
- 	}
--	xa_unlock_irq(&mapping->pages);
-+	xa_unlock_irq(xa);
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 21bf42f14ee2..f16afa03cfb0 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -321,24 +321,20 @@ void shmem_uncharge(struct inode *inode, long pages)
  }
- EXPORT_SYMBOL(tag_pages_for_writeback);
- 
-@@ -2166,7 +2159,7 @@ int write_cache_pages(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int cycled;
- 	int range_whole = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	pagevec_init(&pvec);
- 	if (wbc->range_cyclic) {
-@@ -2447,7 +2440,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
  
  /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-- * its radix tree.
-+ * the xarray.
-  *
-  * This is also used when a single buffer is being dirtied: we want to set the
-  * page dirty in that case, but not all the buffers.  This is a "bottom-up"
-@@ -2473,7 +2466,7 @@ int __set_page_dirty_nobuffers(struct page *page)
- 		BUG_ON(page_mapping(page) != mapping);
- 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
- 		account_page_dirtied(page, mapping);
--		radix_tree_tag_set(&mapping->pages, page_index(page),
-+		__xa_set_tag(&mapping->pages, page_index(page),
- 				   PAGECACHE_TAG_DIRTY);
- 		xa_unlock_irqrestore(&mapping->pages, flags);
- 		unlock_page_memcg(page);
-@@ -2636,13 +2629,13 @@ EXPORT_SYMBOL(__cancel_dirty_page);
-  * Returns true if the page was previously dirty.
-  *
-  * This is for preparing to put the page under writeout.  We leave the page
-- * tagged as dirty in the radix tree so that a concurrent write-for-sync
-+ * tagged as dirty in the xarray so that a concurrent write-for-sync
-  * can discover it via a PAGECACHE_TAG_DIRTY walk.  The ->writepage
-  * implementation will run either set_page_writeback() or set_page_dirty(),
-- * at which stage we bring the page's dirty flag and radix-tree dirty tag
-+ * at which stage we bring the page's dirty flag and xarray dirty tag
-  * back into sync.
-  *
-- * This incoherency between the page's dirty flag and radix-tree tag is
-+ * This incoherency between the page's dirty flag and xarray tag is
-  * unfortunate, but it only exists while the page is locked.
+- * Replace item expected in radix tree by a new item, while holding tree lock.
++ * Replace item expected in xarray by a new item, while holding xa_lock.
   */
- int clear_page_dirty_for_io(struct page *page)
-@@ -2723,7 +2716,7 @@ int test_clear_page_writeback(struct page *page)
- 		xa_lock_irqsave(&mapping->pages, flags);
- 		ret = TestClearPageWriteback(page);
- 		if (ret) {
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi)) {
- 				struct bdi_writeback *wb = inode_to_wb(inode);
-@@ -2775,7 +2768,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 			on_wblist = mapping_tagged(mapping,
- 						   PAGECACHE_TAG_WRITEBACK);
+-static int shmem_radix_tree_replace(struct address_space *mapping,
++static int shmem_xa_replace(struct address_space *mapping,
+ 			pgoff_t index, void *expected, void *replacement)
+ {
+-	struct radix_tree_node *node;
+-	void **pslot;
++	XA_STATE(xas, index);
+ 	void *item;
  
--			radix_tree_tag_set(&mapping->pages, page_index(page),
-+			__xa_set_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi))
- 				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
-@@ -2789,10 +2782,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 				sb_mark_inode_writeback(mapping->host);
- 		}
- 		if (!PageDirty(page))
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_DIRTY);
- 		if (!keep_write)
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_TOWRITE);
- 		xa_unlock_irqrestore(&mapping->pages, flags);
+ 	VM_BUG_ON(!expected);
+ 	VM_BUG_ON(!replacement);
+-	item = __radix_tree_lookup(&mapping->pages, index, &node, &pslot);
+-	if (!item)
+-		return -ENOENT;
++	item = xas_load(&mapping->pages, &xas);
+ 	if (item != expected)
+ 		return -ENOENT;
+-	__radix_tree_replace(&mapping->pages, node, pslot,
+-			     replacement, NULL);
++	xas_store(&mapping->pages, &xas, replacement);
+ 	return 0;
+ }
+ 
+@@ -605,8 +601,7 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	} else if (!expected) {
+ 		error = radix_tree_insert(&mapping->pages, index, page);
  	} else {
-@@ -2808,16 +2801,6 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- }
- EXPORT_SYMBOL(__test_set_page_writeback);
+-		error = shmem_radix_tree_replace(mapping, index, expected,
+-								 page);
++		error = shmem_xa_replace(mapping, index, expected, page);
+ 	}
  
--/*
-- * Return true if any of the pages in the mapping are marked with the
-- * passed tag.
-- */
--int mapping_tagged(struct address_space *mapping, int tag)
--{
--	return radix_tree_tagged(&mapping->pages, tag);
--}
--EXPORT_SYMBOL(mapping_tagged);
--
- /**
-  * wait_for_stable_page() - wait for writeback to finish, if necessary.
-  * @page:	The page to wait on.
+ 	if (!error) {
+@@ -635,7 +630,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+ 	VM_BUG_ON_PAGE(PageCompound(page), page);
+ 
+ 	xa_lock_irq(&mapping->pages);
+-	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
++	error = shmem_xa_replace(mapping, page->index, page, radswap);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_node_page_state(page, NR_FILE_PAGES);
+@@ -1550,8 +1545,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ 	 * a nice clean interface for us to replace oldpage by newpage there.
+ 	 */
+ 	xa_lock_irq(&swap_mapping->pages);
+-	error = shmem_radix_tree_replace(swap_mapping, swap_index, oldpage,
+-								   newpage);
++	error = shmem_xa_replace(swap_mapping, swap_index, oldpage, newpage);
+ 	if (!error) {
+ 		__inc_node_page_state(newpage, NR_FILE_PAGES);
+ 		__dec_node_page_state(oldpage, NR_FILE_PAGES);
 -- 
 2.15.0
 
