@@ -1,47 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D9A886B026C
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 17:35:10 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 4so10654465wrt.8
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:35:10 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y14sor10236780ede.42.2017.11.22.14.35.09
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA4A06B026C
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 17:45:58 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id c23so11047337pfl.1
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:45:58 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id a13si14357277pgq.440.2017.11.22.14.45.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Nov 2017 14:35:09 -0800 (PST)
-Date: Wed, 22 Nov 2017 23:35:03 +0100
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH 05/62] radix tree: Add a missing cast to gfp_t
-Message-ID: <20171122223501.6qtgsyy5ixpuel4d@ltop.local>
-References: <20171122210739.29916-1-willy@infradead.org>
- <20171122210739.29916-6-willy@infradead.org>
- <20171122212847.axib6ito23sldlbe@ltop.local>
- <20171122222402.GA13634@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 14:45:57 -0800 (PST)
+Subject: Re: [PATCH 08/30] x86, kaiser: unmap kernel from userspace page
+ tables (core patch)
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+ <20171110193112.6A962D6A@viggo.jf.intel.com>
+ <alpine.DEB.2.20.1711201518490.1734@nanos>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <82d2d82f-32a0-64e6-03b2-3ca0a9f97de6@linux.intel.com>
+Date: Wed, 22 Nov 2017 14:45:54 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171122222402.GA13634@bombadil.infradead.org>
+In-Reply-To: <alpine.DEB.2.20.1711201518490.1734@nanos>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Wed, Nov 22, 2017 at 02:24:02PM -0800, Matthew Wilcox wrote:
-> On Wed, Nov 22, 2017 at 10:28:48PM +0100, Luc Van Oostenryck wrote:
-> > > -	root->gfp_mask &= (1 << ROOT_TAG_SHIFT) - 1;
-> > > +	root->gfp_mask &= (__force gfp_t)((1 << ROOT_TAG_SHIFT) - 1);
-> > 
-> > IMO, it would be better to define something for that in radix-tree.h,
-> > like it has been done for ROOT_IS_IDR.
+On 11/20/2017 09:21 AM, Thomas Gleixner wrote:
+>> +	pgd = native_get_shadow_pgd(pgd_offset_k(0UL));
+>> +	for (i = PTRS_PER_PGD / 2; i < PTRS_PER_PGD; i++) {
+>> +		unsigned long addr = PAGE_OFFSET + i * PGDIR_SIZE;
+> This looks wrong. The kernel address space gets incremented by PGDIR_SIZE
+> and does not make a jump from PAGE_OFFSET to PAGE_OFFSET + 256 * PGDIR_SIZE
 > 
-> If we were keeping the radix tree around, I'd agree, but the point of
-> the rest of this patch set is replacing it ;-)  I should probably have
-> just dropped this patch, to be honest.
+> 	int i, j;
+> 
+> 	for (i = PTRS_PER_PGD / 2, j = 0; i < PTRS_PER_PGD; i++, j++) {
+> 		unsigned long addr = PAGE_OFFSET + j * PGDIR_SIZE;
+> 
+> Not that is has any effect right now. Neither p4d_alloc_one() nor
+> pud_alloc_one() are using the 'addr' argument.
 
-Ah OK, sure.
-I confess I didn't saw the whole series, just this patch.
+Ahh, you're saying that 'i' is effectively starting *at* PAGE_OFFSET
+since it's halfway up the address space already doing PTRS_PER_PGD/2.
+Adding PAGE_OFFSET to PAGE_OFFSET is nonsense.
 
--- Luc
+Would it just be simpler to do:
+
+>         for (i = PTRS_PER_PGD / 2; i < PTRS_PER_PGD; i++) {
+>                 unsigned long addr = i * PGDIR_SIZE;
+
+?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
