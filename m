@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6FA6B02BE
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:10:11 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id s11so17282421pgc.13
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:10:11 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 93C9E6B02C1
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:10:12 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id q7so2745484pgr.10
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:10:12 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 92si14578575plw.30.2017.11.22.13.08.20
+        by mx.google.com with ESMTPS id q75si15564392pfg.61.2017.11.22.13.08.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 13:08:20 -0800 (PST)
+        Wed, 22 Nov 2017 13:08:17 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 56/62] drm: Remove drm_minor_lock and idr_preload
-Date: Wed, 22 Nov 2017 13:07:33 -0800
-Message-Id: <20171122210739.29916-57-willy@infradead.org>
+Subject: [PATCH 20/62] xarray: Add xa_load
+Date: Wed, 22 Nov 2017 13:06:57 -0800
+Message-Id: <20171122210739.29916-21-willy@infradead.org>
 In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,383 +22,536 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The IDR now has its own lock; use it to protect the lookup too.
+This first function in the XArray API brings with it a lot of support
+infrastructure.  The advanced API is based around the xa_state which is
+a more capable version of the radix_tree_iter.
+
+As the test-suite demonstrates, it is possible to use the xarray and
+radix tree APIs on the same data structure.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c      |  8 ++++----
- drivers/gpu/drm/drm_drv.c                    | 25 +++----------------------
- drivers/gpu/drm/drm_gem.c                    | 27 ++++-----------------------
- drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c |  6 +++---
- drivers/gpu/drm/i915/i915_debugfs.c          |  4 ++--
- drivers/gpu/drm/msm/msm_gem_submit.c         | 10 +++++-----
- drivers/gpu/drm/vc4/vc4_gem.c                |  4 ++--
- include/drm/drm_file.h                       |  5 +----
- 8 files changed, 24 insertions(+), 65 deletions(-)
+ include/linux/xarray.h                      | 165 ++++++++++++++++++++++++++++
+ lib/Makefile                                |   2 +-
+ lib/xarray.c                                | 137 +++++++++++++++++++++++
+ tools/testing/radix-tree/.gitignore         |   2 +
+ tools/testing/radix-tree/Makefile           |  12 +-
+ tools/testing/radix-tree/linux/radix-tree.h |   1 -
+ tools/testing/radix-tree/linux/rcupdate.h   |   1 +
+ tools/testing/radix-tree/linux/xarray.h     |   2 +
+ tools/testing/radix-tree/xarray-test.c      |  56 ++++++++++
+ 9 files changed, 373 insertions(+), 5 deletions(-)
+ create mode 100644 lib/xarray.c
+ create mode 100644 tools/testing/radix-tree/linux/xarray.h
+ create mode 100644 tools/testing/radix-tree/xarray-test.c
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-index a418df1b9422..25ee4eef3279 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c
-@@ -89,13 +89,13 @@ void amdgpu_gem_force_release(struct amdgpu_device *adev)
- 		int handle;
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 1513a9e85580..0e736d2db049 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -46,7 +46,10 @@
+  * The advanced API is more flexible but has fewer safeguards.
+  */
  
- 		WARN_ONCE(1, "Still active user space clients!\n");
--		spin_lock(&file->table_lock);
-+		idr_lock(&file->object_idr);
- 		idr_for_each_entry(&file->object_idr, gobj, handle) {
- 			WARN_ONCE(1, "And also active allocations!\n");
- 			drm_gem_object_put_unlocked(gobj);
- 		}
-+		idr_unlock(&file->object_idr);
- 		idr_destroy(&file->object_idr);
--		spin_unlock(&file->table_lock);
- 	}
++#include <linux/bug.h>
+ #include <linux/compiler.h>
++#include <linux/kernel.h>
++#include <linux/rcupdate.h>
+ #include <linux/spinlock.h>
+ #include <linux/types.h>
  
- 	mutex_unlock(&ddev->filelist_mutex);
-@@ -824,9 +824,9 @@ static int amdgpu_debugfs_gem_info(struct seq_file *m, void *data)
- 			   task ? task->comm : "<unknown>");
- 		rcu_read_unlock();
+@@ -77,6 +80,8 @@ struct xarray {
  
--		spin_lock(&file->table_lock);
-+		idr_lock(&file->object_idr);
- 		idr_for_each(&file->object_idr, amdgpu_debugfs_gem_bo_info, m);
--		spin_unlock(&file->table_lock);
-+		idr_unlock(&file->object_idr);
- 	}
+ #define DEFINE_XARRAY(name) struct xarray name = XARRAY_INIT(name)
  
- 	mutex_unlock(&dev->filelist_mutex);
-diff --git a/drivers/gpu/drm/drm_drv.c b/drivers/gpu/drm/drm_drv.c
-index a934fd5e7e55..df51db70ea39 100644
---- a/drivers/gpu/drm/drm_drv.c
-+++ b/drivers/gpu/drm/drm_drv.c
-@@ -61,7 +61,6 @@ MODULE_PARM_DESC(debug, "Enable debug output, where each bit enables a debug cat
- "\t\tBit 7 (0x80) will enable LEASE messages (leasing code)");
- module_param_named(debug, drm_debug, int, 0600);
- 
--static DEFINE_SPINLOCK(drm_minor_lock);
- static struct idr drm_minors_idr;
- 
- /*
-@@ -153,7 +152,6 @@ static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
- static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
- {
- 	struct drm_minor *minor;
--	unsigned long flags;
- 	int r;
- 
- 	minor = kzalloc(sizeof(*minor), GFP_KERNEL);
-@@ -163,15 +161,11 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
- 	minor->type = type;
- 	minor->dev = dev;
- 
--	idr_preload(GFP_KERNEL);
--	spin_lock_irqsave(&drm_minor_lock, flags);
- 	r = idr_alloc(&drm_minors_idr,
- 		      NULL,
- 		      64 * type,
- 		      64 * (type + 1),
--		      GFP_NOWAIT);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
--	idr_preload_end();
-+		      GFP_KERNEL);
- 
- 	if (r < 0)
- 		goto err_free;
-@@ -188,9 +182,7 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
- 	return 0;
- 
- err_index:
--	spin_lock_irqsave(&drm_minor_lock, flags);
- 	idr_remove(&drm_minors_idr, minor->index);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
- err_free:
- 	kfree(minor);
- 	return r;
-@@ -199,7 +191,6 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
- static void drm_minor_free(struct drm_device *dev, unsigned int type)
- {
- 	struct drm_minor **slot, *minor;
--	unsigned long flags;
- 
- 	slot = drm_minor_get_slot(dev, type);
- 	minor = *slot;
-@@ -207,11 +198,7 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
- 		return;
- 
- 	put_device(minor->kdev);
--
--	spin_lock_irqsave(&drm_minor_lock, flags);
- 	idr_remove(&drm_minors_idr, minor->index);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
--
- 	kfree(minor);
- 	*slot = NULL;
- }
-@@ -219,7 +206,6 @@ static void drm_minor_free(struct drm_device *dev, unsigned int type)
- static int drm_minor_register(struct drm_device *dev, unsigned int type)
- {
- 	struct drm_minor *minor;
--	unsigned long flags;
- 	int ret;
- 
- 	DRM_DEBUG("\n");
-@@ -239,9 +225,7 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
- 		goto err_debugfs;
- 
- 	/* replace NULL with @minor so lookups will succeed from now on */
--	spin_lock_irqsave(&drm_minor_lock, flags);
- 	idr_replace(&drm_minors_idr, minor, minor->index);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
- 
- 	DRM_DEBUG("new minor registered %d\n", minor->index);
- 	return 0;
-@@ -254,16 +238,13 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
- static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
- {
- 	struct drm_minor *minor;
--	unsigned long flags;
- 
- 	minor = *drm_minor_get_slot(dev, type);
- 	if (!minor || !device_is_registered(minor->kdev))
- 		return;
- 
- 	/* replace @minor with NULL so lookups will fail from now on */
--	spin_lock_irqsave(&drm_minor_lock, flags);
- 	idr_replace(&drm_minors_idr, NULL, minor->index);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
- 
- 	device_del(minor->kdev);
- 	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
-@@ -284,11 +265,11 @@ struct drm_minor *drm_minor_acquire(unsigned int minor_id)
- 	struct drm_minor *minor;
- 	unsigned long flags;
- 
--	spin_lock_irqsave(&drm_minor_lock, flags);
-+	idr_lock_irqsave(&drm_minors_idr, flags);
- 	minor = idr_find(&drm_minors_idr, minor_id);
- 	if (minor)
- 		drm_dev_get(minor->dev);
--	spin_unlock_irqrestore(&drm_minor_lock, flags);
-+	idr_unlock_irqrestore(&drm_minors_idr, flags);
- 
- 	if (!minor) {
- 		return ERR_PTR(-ENODEV);
-diff --git a/drivers/gpu/drm/drm_gem.c b/drivers/gpu/drm/drm_gem.c
-index 55d6182555c7..7d45b3ef4dd6 100644
---- a/drivers/gpu/drm/drm_gem.c
-+++ b/drivers/gpu/drm/drm_gem.c
-@@ -282,11 +282,8 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
- {
- 	struct drm_gem_object *obj;
- 
--	spin_lock(&filp->table_lock);
--
- 	/* Check if we currently have a reference on the object */
- 	obj = idr_replace(&filp->object_idr, NULL, handle);
--	spin_unlock(&filp->table_lock);
- 	if (IS_ERR_OR_NULL(obj))
- 		return -EINVAL;
- 
-@@ -294,9 +291,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
- 	drm_gem_object_release_handle(handle, obj, filp);
- 
- 	/* And finally make the handle available for future allocations. */
--	spin_lock(&filp->table_lock);
- 	idr_remove(&filp->object_idr, handle);
--	spin_unlock(&filp->table_lock);
- 
- 	return 0;
- }
-@@ -387,17 +382,8 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
- 	if (obj->handle_count++ == 0)
- 		drm_gem_object_get(obj);
- 
--	/*
--	 * Get the user-visible handle using idr.  Preload and perform
--	 * allocation under our spinlock.
--	 */
--	idr_preload(GFP_KERNEL);
--	spin_lock(&file_priv->table_lock);
--
--	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_NOWAIT);
--
--	spin_unlock(&file_priv->table_lock);
--	idr_preload_end();
-+	/* Get the user-visible handle using idr. */
-+	ret = idr_alloc(&file_priv->object_idr, obj, 1, 0, GFP_KERNEL);
- 
- 	mutex_unlock(&dev->object_name_lock);
- 	if (ret < 0)
-@@ -421,9 +407,7 @@ drm_gem_handle_create_tail(struct drm_file *file_priv,
- err_revoke:
- 	drm_vma_node_revoke(&obj->vma_node, file_priv);
- err_remove:
--	spin_lock(&file_priv->table_lock);
- 	idr_remove(&file_priv->object_idr, handle);
--	spin_unlock(&file_priv->table_lock);
- err_unref:
- 	drm_gem_object_handle_put_unlocked(obj);
- 	return ret;
-@@ -634,14 +618,12 @@ drm_gem_object_lookup(struct drm_file *filp, u32 handle)
- {
- 	struct drm_gem_object *obj;
- 
--	spin_lock(&filp->table_lock);
--
- 	/* Check if we currently have a reference on the object */
-+	idr_lock(&filp->object_idr);
- 	obj = idr_find(&filp->object_idr, handle);
- 	if (obj)
- 		drm_gem_object_get(obj);
--
--	spin_unlock(&filp->table_lock);
-+	idr_unlock(&filp->object_idr);
- 
- 	return obj;
- }
-@@ -776,7 +758,6 @@ void
- drm_gem_open(struct drm_device *dev, struct drm_file *file_private)
- {
- 	idr_init(&file_private->object_idr);
--	spin_lock_init(&file_private->table_lock);
- }
++void *xa_load(struct xarray *, unsigned long index);
++
+ #define BITS_PER_XA_VALUE	(BITS_PER_LONG - 1)
  
  /**
-diff --git a/drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c b/drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c
-index ff911541a190..5298d9e78523 100644
---- a/drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c
-+++ b/drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c
-@@ -61,7 +61,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
- 	unsigned i;
- 	int ret = 0;
+@@ -128,6 +133,18 @@ static inline bool xa_is_value(void *entry)
+ 				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
+ #define xa_lock_held(xa)	lockdep_is_held(&(xa)->xa_lock)
  
--	spin_lock(&file->table_lock);
-+	idr_lock(&file->object_idr);
++#ifdef XA_DEBUG
++void xa_dump(const struct xarray *);
++void xa_dump_node(const struct xa_node *);
++#define XA_BUG_ON(node, x) do { \
++		if ((x) && (node)) \
++			xa_dump_node(node); \
++		BUG_ON(x); \
++	} while (0)
++#else
++#define XA_BUG_ON(node, x)	do { } while (0)
++#endif
++
+ /*
+  * The xarray is constructed out of a set of 'chunks' of pointers.  Choosing
+  * the best chunk size requires some tradeoffs.  A power of two recommends
+@@ -168,6 +185,30 @@ struct xa_node {
+ 	unsigned long	tags[XA_MAX_TAGS][XA_TAG_LONGS];
+ };
  
- 	for (i = 0, bo = submit_bos; i < nr_bos; i++, bo++) {
- 		struct drm_gem_object *obj;
-@@ -75,7 +75,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
- 		submit->bos[i].flags = bo->flags;
- 
- 		/* normally use drm_gem_object_lookup(), but for bulk lookup
--		 * all under single table_lock just hit object_idr directly:
-+		 * all under single lock just hit object_idr directly:
- 		 */
- 		obj = idr_find(&file->object_idr, bo->handle);
- 		if (!obj) {
-@@ -96,7 +96,7 @@ static int submit_lookup_objects(struct etnaviv_gem_submit *submit,
- 
- out_unlock:
- 	submit->nr_bos = i;
--	spin_unlock(&file->table_lock);
-+	idr_unlock(&file->object_idr);
- 
- 	return ret;
++static inline void *xa_head(struct xarray *xa)
++{
++	return rcu_dereference_check(xa->xa_head, xa_lock_held(xa));
++}
++
++static inline void *xa_head_locked(struct xarray *xa)
++{
++	return rcu_dereference_protected(xa->xa_head, xa_lock_held(xa));
++}
++
++static inline void *xa_entry(struct xarray *xa,
++				const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(node, offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_check(node->slots[offset], xa_lock_held(xa));
++}
++
++static inline void *xa_entry_locked(struct xarray *xa,
++				const struct xa_node *node, unsigned int offset)
++{
++	XA_BUG_ON(node, offset >= XA_CHUNK_SIZE);
++	return rcu_dereference_protected(node->slots[offset], xa_lock_held(xa));
++}
++
+ /*
+  * Internal entries have the bottom two bits set to the value 10b.  Most
+  * internal entries are pointers to the next node in the tree.  Since the
+@@ -190,6 +231,11 @@ static inline bool xa_is_internal(void *entry)
+ 	return ((unsigned long)entry & 3) == 2;
  }
-diff --git a/drivers/gpu/drm/i915/i915_debugfs.c b/drivers/gpu/drm/i915/i915_debugfs.c
-index c65e381b85f3..1d88bd0852c3 100644
---- a/drivers/gpu/drm/i915/i915_debugfs.c
-+++ b/drivers/gpu/drm/i915/i915_debugfs.c
-@@ -544,9 +544,9 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
  
- 		memset(&stats, 0, sizeof(stats));
- 		stats.file_priv = file->driver_priv;
--		spin_lock(&file->table_lock);
-+		idr_lock(&file->object_idr);
- 		idr_for_each(&file->object_idr, per_file_stats, &stats);
--		spin_unlock(&file->table_lock);
-+		idr_unlock(&file->object_idr);
- 		/*
- 		 * Although we have a valid reference on file->pid, that does
- 		 * not guarantee that the task_struct who called get_pid() is
-diff --git a/drivers/gpu/drm/msm/msm_gem_submit.c b/drivers/gpu/drm/msm/msm_gem_submit.c
-index b8dc8f96caf2..aa8d0d6e40cc 100644
---- a/drivers/gpu/drm/msm/msm_gem_submit.c
-+++ b/drivers/gpu/drm/msm/msm_gem_submit.c
-@@ -88,7 +88,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
- 	unsigned i;
- 	int ret = 0;
++static inline struct xa_node *xa_to_node(void *entry)
++{
++	return (struct xa_node *)((unsigned long)entry & ~3UL);
++}
++
+ static inline bool xa_is_node(void *entry)
+ {
+ 	return xa_is_internal(entry) && (unsigned long)entry > 4096;
+@@ -214,4 +260,123 @@ static inline bool xa_is_sibling(void *entry)
  
--	spin_lock(&file->table_lock);
-+	idr_lock(&file->object_idr);
- 	pagefault_disable();
+ #define XA_RETRY_ENTRY		xa_mk_internal(256)
  
- 	for (i = 0; i < args->nr_bos; i++) {
-@@ -105,12 +105,12 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
++static inline bool xa_is_retry(void *entry)
++{
++	return unlikely(entry == XA_RETRY_ENTRY);
++}
++
++typedef void (*xa_update_node_t)(struct xa_node *);
++
++/*
++ * The xa_state is opaque to its users.  It contains various different pieces
++ * of state involved in the current operation on the XArray.  It should be
++ * declared on the stack and passed between the various internal routines.
++ * The various elements in it should not be accessed directly, but only
++ * through the provided accessor functions.  The below documentation is for
++ * the benefit of those working on the code, not for users of the XArray.
++ *
++ * @xa_node usually points to the xa_node containing the slot we're operating
++ * on (and @xa_offset is the offset in the slots array).  However, it can
++ * also have the value NULL if there is a single entry at index 0; it can
++ * have the value XAS_RESTART if the xa_state has not yet been walked to
++ * the correct position in the tree, and it can have an XAS_ERROR value to
++ * encode any error which may have occurred during the operation.
++ */
++struct xa_state {
++	unsigned long xa_index;
++	unsigned char xa_shift;
++	unsigned char xa_sibs;
++	unsigned char xa_offset;
++	struct xa_node *xa_node;
++	struct xa_node *xa_alloc;
++	xa_update_node_t xa_update;
++};
++
++/*
++ * We encode errnos in the xas->xa_node.  If an error has happened, we need to
++ * drop the lock to fix it, and once we've done so the xa_state is invalid.
++ */
++#define XAS_ERROR(errno)	((struct xa_node *)((errno << 1) | 1))
++#define XAS_RESTART		XAS_ERROR(0)
++
++#define __XA_STATE(index)	(struct xa_state) {	\
++	.xa_index = index,				\
++	.xa_shift = 0,					\
++	.xa_sibs = 0,					\
++	.xa_offset = 0,					\
++	.xa_node = XAS_RESTART,				\
++	.xa_alloc = NULL,				\
++	.xa_update = NULL				\
++}
++
++#define XA_STATE(name, index)				\
++	struct xa_state name = __XA_STATE(index)
++
++static inline int xas_error(const struct xa_state *xas)
++{
++	unsigned long v = (unsigned long)xas->xa_node;
++	return (v & 1) ? -(v >> 1) : 0;
++}
++
++static inline void xas_set_err(struct xa_state *xas, unsigned long err)
++{
++	XA_BUG_ON(NULL, err > MAX_ERRNO || !err);
++	xas->xa_node = XAS_ERROR(err);
++}
++
++static inline bool xas_invalid(const struct xa_state *xas)
++{
++	return (unsigned long)xas->xa_node & 1;
++}
++
++static inline bool xas_valid(const struct xa_state *xas)
++{
++	return !xas_invalid(xas);
++}
++
++/**
++ * xas_retry() - Handle a retry entry.
++ * @xas: XArray operation state.
++ * @entry: Entry from xarray.
++ *
++ * An RCU-protected read may see a retry entry as a side-effect of a
++ * simultaneous modification.  This function sets up the @xas to retry
++ * the walk from the head of the array.
++ *
++ * Return: true if the operation needs to be retried.
++ */
++static inline bool xas_retry(struct xa_state *xas, void *entry)
++{
++	if (!xa_is_retry(entry))
++		return false;
++	xas->xa_node = XAS_RESTART;
++	return true;
++}
++
++void *xas_load(struct xarray *, struct xa_state *);
++
++/**
++ * xas_reload() - Refetch an entry from the xarray.
++ * @xa: XArray.
++ * @xas: XArray operation state.
++ *
++ * Use this function to check that a previously loaded entry still has
++ * the same value.  This is useful for the lockless pagecache lookup where
++ * we walk the array with only the RCU lock to protect us, lock the page,
++ * then check that the page hasn't moved since we looked it up.
++ *
++ * The caller guarantees that @xas is still valid.  If it may be in an
++ * error or restart state, call xas_load() instead.
++ *
++ * Return: The entry at this location in the xarray.
++ */
++static inline void *xas_reload(struct xarray *xa, struct xa_state *xas)
++{
++	struct xa_node *node = xas->xa_node;
++
++	if (node)
++		return xa_entry(xa, node, xas->xa_offset);
++	return xa_head(xa);
++}
++
+ #endif /* _LINUX_XARRAY_H */
+diff --git a/lib/Makefile b/lib/Makefile
+index d11c48ec8ffd..6aa523acc7c1 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -18,7 +18,7 @@ KCOV_INSTRUMENT_debugobjects.o := n
+ KCOV_INSTRUMENT_dynamic_debug.o := n
  
- 		if (copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo))) {
- 			pagefault_enable();
--			spin_unlock(&file->table_lock);
-+			idr_unlock(&file->object_idr);
- 			if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
- 				ret = -EFAULT;
- 				goto out;
- 			}
--			spin_lock(&file->table_lock);
-+			idr_lock(&file->object_idr);
- 			pagefault_disable();
- 		}
+ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+-	 rbtree.o radix-tree.o dump_stack.o timerqueue.o\
++	 rbtree.o radix-tree.o dump_stack.o timerqueue.o xarray.o \
+ 	 idr.o int_sqrt.o extable.o \
+ 	 sha1.o chacha20.o irq_regs.o argv_split.o \
+ 	 flex_proportions.o ratelimit.o show_mem.o \
+diff --git a/lib/xarray.c b/lib/xarray.c
+new file mode 100644
+index 000000000000..1f7d30a8b61f
+--- /dev/null
++++ b/lib/xarray.c
+@@ -0,0 +1,137 @@
++/*
++ * XArray implementation
++ * Copyright (c) 2017 Microsoft Corporation
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++
++#include <linux/export.h>
++#include <linux/gfp.h>
++#include <linux/radix-tree.h>
++#include <linux/xarray.h>
++
++/*
++ * Coding conventions in this file:
++ *
++ * @xa is used to refer to the entire xarray.
++ * @xas is the 'xarray operation state'.  It may be either a pointer to
++ * an xa_state, or an xa_state stored on the stack.  This is an unfortunate
++ * ambiguity.
++ * @index is the index of the entry being operated on
++ * @tag is an xa_tag_t; a small number indicating one of the tag bits.
++ * @node refers to an xa_node; usually the primary one being operated on by
++ * this function.
++ * @offset is the index into the slots array inside an xa_node.
++ * @parent refers to the @xa_node closer to the head than @node.
++ * @entry refers to something stored in a slot in the xarray
++ */
++
++/* extracts the offset within this node from the index */
++static unsigned int get_offset(unsigned long index, struct xa_node *node)
++{
++	return (index >> node->shift) & XA_CHUNK_MASK;
++}
++
++/*
++ * Starts a walk.  If the @xas is already valid, we assume that it's on
++ * the right path and just return where we've got to.  If we're in an
++ * error state, return NULL.  If the index is outside the current scope
++ * of the xarray, return NULL without changing @xas->xa_node.  Otherwise
++ * set @xas->xa_node to NULL and return the current head of the array.
++ */
++static void *xas_start(struct xarray *xa, struct xa_state *xas)
++{
++	void *entry;
++
++	if (xas_valid(xas))
++		return xas_reload(xa, xas);
++	if (xas_error(xas))
++		return NULL;
++
++	entry = xa_head(xa);
++	if (!xa_is_node(entry)) {
++		if (xas->xa_index)
++			return NULL;
++	} else {
++		if ((xas->xa_index >> xa_to_node(entry)->shift) > XA_CHUNK_MASK)
++			return NULL;
++	}
++
++	xas->xa_node = NULL;
++	return entry;
++}
++
++static void *xas_descend(struct xarray *xa, struct xa_state *xas,
++			struct xa_node *node)
++{
++	unsigned int offset = get_offset(xas->xa_index, node);
++	void *entry = xa_entry(xa, node, offset);
++
++	if (xa_is_sibling(entry)) {
++		offset = xa_to_sibling(entry);
++		entry = xa_entry(xa, node, offset);
++	}
++
++	xas->xa_node = node;
++	xas->xa_offset = offset;
++	return entry;
++}
++
++/**
++ * xas_load() - Load an entry from the XArray (advanced).
++ * @xa: XArray.
++ * @xas: XArray operation state.
++ *
++ * Usually walks the @xas to the appropriate state to load the entry stored
++ * at xa_index.  However, it will do nothing and return NULL  if @xas is
++ * holding an error.  If the xa_shift indicates we're operating on a
++ * multislot entry, it will terminate early and potentially return an
++ * internal entry.  xas_load() will never expand the tree (see xas_create()).
++ *
++ * The caller should hold the xa_lock or the RCU lock.
++ *
++ * Return: Usually an entry in the XArray, but see description for exceptions.
++ */
++void *xas_load(struct xarray *xa, struct xa_state *xas)
++{
++	void *entry = xas_start(xa, xas);
++
++	while (xa_is_node(entry)) {
++		struct xa_node *node = xa_to_node(entry);
++
++		if (xas->xa_shift > node->shift)
++			break;
++		entry = xas_descend(xa, xas, node);
++	}
++	return entry;
++}
++EXPORT_SYMBOL_GPL(xas_load);
++
++/**
++ * xa_load() - Load an entry from an XArray.
++ * @xa: XArray.
++ * @index: index into array.
++ *
++ * Return: The entry at @index in @xa.
++ */
++void *xa_load(struct xarray *xa, unsigned long index)
++{
++	XA_STATE(xas, index);
++	void *entry;
++
++	rcu_read_lock();
++	do {
++		entry = xas_load(xa, &xas);
++	} while (xas_retry(&xas, entry));
++	rcu_read_unlock();
++
++	return entry;
++}
++EXPORT_SYMBOL(xa_load);
+diff --git a/tools/testing/radix-tree/.gitignore b/tools/testing/radix-tree/.gitignore
+index d4706c0ffceb..833136896b91 100644
+--- a/tools/testing/radix-tree/.gitignore
++++ b/tools/testing/radix-tree/.gitignore
+@@ -4,3 +4,5 @@ idr-test
+ main
+ multiorder
+ radix-tree.c
++xarray.c
++xarray-test
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index ebb12224e258..d0ef117941e6 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -3,10 +3,11 @@
+ CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
+ LDFLAGS += -fsanitize=address
+ LDLIBS+= -lpthread -lurcu
+-TARGETS = main idr-test multiorder
+-CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
++TARGETS = main idr-test multiorder xarray-test
++CORE_OFILES := radix-tree.o idr.o xarray.o linux.o test.o find_bit.o
+ OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
+-	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
++	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o \
++	 xarray-test.o
  
-@@ -126,7 +126,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
- 		submit->bos[i].iova  = submit_bo.presumed;
+ ifndef SHIFT
+ 	SHIFT=3
+@@ -23,6 +24,8 @@ main:	$(OFILES)
  
- 		/* normally use drm_gem_object_lookup(), but for bulk lookup
--		 * all under single table_lock just hit object_idr directly:
-+		 * all under single lock just hit object_idr directly:
- 		 */
- 		obj = idr_find(&file->object_idr, submit_bo.handle);
- 		if (!obj) {
-@@ -153,7 +153,7 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
+ idr-test: idr-test.o $(CORE_OFILES)
  
- out_unlock:
- 	pagefault_enable();
--	spin_unlock(&file->table_lock);
-+	idr_unlock(&file->object_idr);
++xarray-test: idr-test.o $(CORE_OFILES)
++
+ multiorder: multiorder.o $(CORE_OFILES)
  
- out:
- 	submit->nr_bos = i;
-diff --git a/drivers/gpu/drm/vc4/vc4_gem.c b/drivers/gpu/drm/vc4/vc4_gem.c
-index e00ac2f3a264..3dfd4fa103c3 100644
---- a/drivers/gpu/drm/vc4/vc4_gem.c
-+++ b/drivers/gpu/drm/vc4/vc4_gem.c
-@@ -713,7 +713,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
- 		goto fail;
- 	}
+ clean:
+@@ -42,6 +45,9 @@ radix-tree.c: ../../../lib/radix-tree.c
+ idr.c: ../../../lib/idr.c
+ 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
  
--	spin_lock(&file_priv->table_lock);
-+	idr_lock(&file_priv->object_idr);
- 	for (i = 0; i < exec->bo_count; i++) {
- 		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
- 						     handles[i]);
-@@ -727,7 +727,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
- 		drm_gem_object_get(bo);
- 		exec->bo[i] = (struct drm_gem_cma_object *)bo;
- 	}
--	spin_unlock(&file_priv->table_lock);
-+	idr_unlock(&file_priv->object_idr);
++xarray.c: ../../../lib/xarray.c
++	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
++
+ .PHONY: mapshift
  
- 	if (ret)
- 		goto fail_put_bo;
-diff --git a/include/drm/drm_file.h b/include/drm/drm_file.h
-index 0e0c868451a5..dd3520d8ce60 100644
---- a/include/drm/drm_file.h
-+++ b/include/drm/drm_file.h
-@@ -225,13 +225,10 @@ struct drm_file {
- 	 * @object_idr:
- 	 *
- 	 * Mapping of mm object handles to object pointers. Used by the GEM
--	 * subsystem. Protected by @table_lock.
-+	 * subsystem.
- 	 */
- 	struct idr object_idr;
+ mapshift:
+diff --git a/tools/testing/radix-tree/linux/radix-tree.h b/tools/testing/radix-tree/linux/radix-tree.h
+index de3f655caca3..24f13d27a8da 100644
+--- a/tools/testing/radix-tree/linux/radix-tree.h
++++ b/tools/testing/radix-tree/linux/radix-tree.h
+@@ -4,7 +4,6 @@
  
--	/** @table_lock: Protects @object_idr. */
--	spinlock_t table_lock;
--
- 	/** @syncobj_idr: Mapping of sync object handles to object pointers. */
- 	struct idr syncobj_idr;
- 	/** @syncobj_table_lock: Protects @syncobj_idr. */
+ #include "generated/map-shift.h"
+ #include "../../../../include/linux/radix-tree.h"
+-#include <linux/xarray.h>
+ 
+ extern int kmalloc_verbose;
+ extern int test_verbose;
+diff --git a/tools/testing/radix-tree/linux/rcupdate.h b/tools/testing/radix-tree/linux/rcupdate.h
+index 73ed33658203..25010bf86c1d 100644
+--- a/tools/testing/radix-tree/linux/rcupdate.h
++++ b/tools/testing/radix-tree/linux/rcupdate.h
+@@ -6,5 +6,6 @@
+ 
+ #define rcu_dereference_raw(p) rcu_dereference(p)
+ #define rcu_dereference_protected(p, cond) rcu_dereference(p)
++#define rcu_dereference_check(p, cond) rcu_dereference(p)
+ 
+ #endif
+diff --git a/tools/testing/radix-tree/linux/xarray.h b/tools/testing/radix-tree/linux/xarray.h
+new file mode 100644
+index 000000000000..4440878501c4
+--- /dev/null
++++ b/tools/testing/radix-tree/linux/xarray.h
+@@ -0,0 +1,2 @@
++#include "../generated/map-shift.h"
++#include "../../../../include/linux/xarray.h"
+diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
+new file mode 100644
+index 000000000000..3f8f19cb3739
+--- /dev/null
++++ b/tools/testing/radix-tree/xarray-test.c
+@@ -0,0 +1,56 @@
++/*
++ * xarray-test.c: Test the XArray API
++ * Copyright (c) 2017 Microsoft Corporation <mawilcox@microsoft.com>
++ *
++ * This program is free software; you can redistribute it and/or modify it
++ * under the terms and conditions of the GNU General Public License,
++ * version 2, as published by the Free Software Foundation.
++ *
++ * This program is distributed in the hope it will be useful, but WITHOUT
++ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
++ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
++ * more details.
++ */
++#include <linux/bitmap.h>
++#include <linux/xarray.h>
++#include <linux/slab.h>
++#include <linux/kernel.h>
++#include <linux/errno.h>
++
++#include "test.h"
++
++void check_xa_load(struct xarray *xa)
++{
++	unsigned long i, j;
++
++	for (i = 0; i < 1024; i++) {
++		for (j = 0; j < 1024; j++) {
++			void *entry = xa_load(xa, j);
++			if (j < i)
++				assert(xa_to_value(entry) == j);
++			else
++				assert(!entry);
++		}
++		radix_tree_insert(xa, i, xa_mk_value(i));
++	}
++}
++
++void xarray_checks(void)
++{
++	RADIX_TREE(array, GFP_KERNEL);
++
++	check_xa_load(&array);
++
++	item_kill_tree(&array);
++}
++
++int __weak main(void)
++{
++	radix_tree_init();
++	xarray_checks();
++	radix_tree_cpu_dead(1);
++	rcu_barrier();
++	if (nr_allocated)
++		printf("nr_allocated = %d\n", nr_allocated);
++	return 0;
++}
 -- 
 2.15.0
 
