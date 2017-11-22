@@ -1,71 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1958A6B0038
-	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 19:17:26 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id d15so13015800pfl.0
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:17:26 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e190si12867671pfe.409.2017.11.21.16.17.24
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 011AD6B0038
+	for <linux-mm@kvack.org>; Tue, 21 Nov 2017 19:27:58 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id v8so8997818wrd.21
+        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:27:57 -0800 (PST)
+Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
+        by mx.google.com with ESMTPS id z18si11755099eda.277.2017.11.21.16.27.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 21 Nov 2017 16:17:24 -0800 (PST)
-Received: from mail-io0-f173.google.com (mail-io0-f173.google.com [209.85.223.173])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 05A1621921
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:17:24 +0000 (UTC)
-Received: by mail-io0-f173.google.com with SMTP id g73so21348885ioj.8
-        for <linux-mm@kvack.org>; Tue, 21 Nov 2017 16:17:24 -0800 (PST)
+        Tue, 21 Nov 2017 16:27:56 -0800 (PST)
+Subject: Re: [PATCH v2] mm: show total hugetlb memory consumption in
+ /proc/meminfo
+References: <20171115231409.12131-1-guro@fb.com>
+ <20171120165110.587918bf75ffecb8144da66c@linux-foundation.org>
+ <20171121151545.GA23974@castle>
+ <20171121111907.6952d50adcbe435b1b6b4576@linux-foundation.org>
+ <20171121195947.GA12709@castle>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <bafb4396-858a-bbbc-743d-43c7312da868@oracle.com>
+Date: Tue, 21 Nov 2017 16:27:38 -0800
 MIME-Version: 1.0
-In-Reply-To: <62d71c5c-515e-c3be-e8f0-4f640251d20c@linux.intel.com>
-References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193125.EBF58596@viggo.jf.intel.com>
- <alpine.DEB.2.20.1711202115190.2348@nanos> <CALCETrVtXQbcTx6ZAjZGL3D8Z0OootVuP7saUdheBsW+mN6cvw@mail.gmail.com>
- <f71ce70f-ea43-d22f-1a2a-fdf4e9dab6af@linux.intel.com> <CBD89E9B-C146-42AE-A117-507C01CBF885@amacapital.net>
- <02e48e97-5842-6a19-1ea2-cee4ed5910f4@linux.intel.com> <CALCETrXk=qk=aeaXT+bZWoA2teEtavNnFNTE+o9kh7_As9bmpQ@mail.gmail.com>
- <62d71c5c-515e-c3be-e8f0-4f640251d20c@linux.intel.com>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Tue, 21 Nov 2017 16:17:02 -0800
-Message-ID: <CALCETrWqWBMzC_a2bRiTd+dxZQaK+ubhDof-nL06_RG3O1W4gQ@mail.gmail.com>
-Subject: Re: [PATCH 12/30] x86, kaiser: map GDT into user page tables
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171121195947.GA12709@castle>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
+To: Roman Gushchin <guro@fb.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Johannes Weiner <hannes@cmpxchg.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Dave Hansen <dave.hansen@intel.com>, David Rientjes <rientjes@google.com>, kernel-team@fb.com, linux-kernel@vger.kernel.org
 
-On Tue, Nov 21, 2017 at 3:42 PM, Dave Hansen
-<dave.hansen@linux.intel.com> wrote:
-> On 11/21/2017 03:32 PM, Andy Lutomirski wrote:
->>> To do this, we need to special-case the kernel page table walker to deal
->>> with PTEs only since we can't just grab PMD or PUD flags and stick them
->>> in a PTE.  We would only be able to use this path when populating things
->>> that we know are 4k-mapped in the kernel.
->> I'm not sure I'm understanding the issue.  We'd promise to map the
->> cpu_entry_area without using large pages, but I'm not sure I know what
->> you're referring to.  The only issue I see is that we'd have to be
->> quite careful when tearing down the user tables to avoid freeing the
->> shared part.
->
-> It's just that it currently handles large and small pages in the kernel
-> mapping that it's copying.  If we want to have it just copy the PTE,
-> we've got to refactor things a bit to separate out the PTE flags from
-> the paddr being targeted, and also make sure we don't munge the flags
-> conversion from the large-page entries to 4k PTEs.  The PAT and PSE bits
-> cause a bit of trouble here.
+On 11/21/2017 11:59 AM, Roman Gushchin wrote:
+> On Tue, Nov 21, 2017 at 11:19:07AM -0800, Andrew Morton wrote:
+>>
+>> Why not
+>>
+>> 	seq_printf(m,
+>> 			"HugePages_Total:   %5lu\n"
+>> 			"HugePages_Free:    %5lu\n"
+>> 			"HugePages_Rsvd:    %5lu\n"
+>> 			"HugePages_Surp:    %5lu\n"
+>> 			"Hugepagesize:   %8lu kB\n",
+>> 			h->nr_huge_pages,
+>> 			h->free_huge_pages,
+>> 			h->resv_huge_pages,
+>> 			h->surplus_huge_pages,
+>> 			1UL << (huge_page_order(h) + PAGE_SHIFT - 10));
+>>
+>> 	for_each_hstate(h)
+>> 		total += (PAGE_SIZE << huge_page_order(h)) * h->nr_huge_pages;
+>> 	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
+>> 	
+>> ?
+> 
+> The idea was that the local variable guarantees the consistency
+> between Hugetlb and HugePages_Total numbers. Otherwise we have
+> to take hugetlb_lock.
 
-I'm confused.  I mean something like:
+Most important it prevents HugePages_Total from being larger than 
+Hugetlb.
 
-unsigned long start = (unsigned long)get_cpu_entry_area(cpu);
-for (unsigned long addr = start; addr < start + sizeof(struct
-cpu_entry_area); addr += PAGE_SIZE) {
-  pte_t pte = *pte_offset_k(addr);  /* or however you do this */
-  kaiser_add_mapping(pte_pfn(pte), pte_prot(pte));
-}
+> What we can do, is to rename "count" into "nr_huge_pages", like:
+> 
+> 	for_each_hstate(h) {
+> 		unsigned long nr_huge_pages = h->nr_huge_pages;
+> 
+> 		total += (PAGE_SIZE << huge_page_order(h)) * nr_huge_pages;
+> 
+> 		if (h == &default_hstate)
+> 			seq_printf(m,
+> 				   "HugePages_Total:   %5lu\n"
+> 				   "HugePages_Free:    %5lu\n"
+> 				   "HugePages_Rsvd:    %5lu\n"
+> 				   "HugePages_Surp:    %5lu\n"
+> 				   "Hugepagesize:   %8lu kB\n",
+> 				   nr_huge_pages,
+> 				   h->free_huge_pages,
+> 				   h->resv_huge_pages,
+> 				   h->surplus_huge_pages,
+> 				   (PAGE_SIZE << huge_page_order(h)) / 1024);
+> 	}
+> 
+> 	seq_printf(m, "Hugetlb:        %8lu kB\n", total / 1024);
+> 
+> But maybe taking a lock is not a bad idea, because it will also
+> guarantee consistency between other numbers (like HugePages_Free) as well,
+> which is not true right now.
 
-modulo the huge pile of typos in there that surely exist.
+You are correct in that there is no consistency guarantee for the numbers
+with the default huge page size today.  However, I am not really a fan of
+taking the lock for that guarantee.  IMO, the above code is fine.
 
-But I still prefer my approach of just sharing the cpu_entry_area pmd
-entries between the user and kernel tables.
+This discussion reminds me that ideally there should be a per-hstate lock.
+My guess is that the global lock is a carry over from the days when only
+a single huge page size was supported.  In practice, I don't think this is
+much of an issue as people typically only use a single huge page size.  But,
+if anyone thinks is/may be an issue I am happy to make the changes.
+
+-- 
+Mike Kravetz
+
+> 
+> Thanks!
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
