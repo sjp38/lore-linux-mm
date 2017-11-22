@@ -1,148 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 214ED6B0253
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:54:11 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v69so6001196wrb.3
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:54:11 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 865776B025E
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:54:18 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id w95so9683604wrc.20
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:54:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d1si2002470edc.404.2017.11.22.00.54.09
+        by mx.google.com with ESMTPS id j61si199029edb.190.2017.11.22.00.54.17
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 00:54:09 -0800 (PST)
-Date: Wed, 22 Nov 2017 09:54:08 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 03/10] lib: add a batch size to fprop_global
-Message-ID: <20171122085408.GB11233@quack2.suse.cz>
-References: <1510696616-8489-1-git-send-email-josef@toxicpanda.com>
- <1510696616-8489-3-git-send-email-josef@toxicpanda.com>
- <20171122084716.GA11233@quack2.suse.cz>
+        Wed, 22 Nov 2017 00:54:17 -0800 (PST)
+Date: Wed, 22 Nov 2017 09:54:16 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: migrate: fix an incorrect call of
+ prep_transhuge_page()
+Message-ID: <20171122085416.ycrvahu2bznlx37s@dhcp22.suse.cz>
+References: <20171121021855.50525-1-zi.yan@sent.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <20171122084716.GA11233@quack2.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171121021855.50525-1-zi.yan@sent.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Zi Yan <zi.yan@sent.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Zi Yan <zi.yan@cs.rutgers.edu>, Andrea Reale <ar@linux.vnet.ibm.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, stable@vger.kernel.org
 
-On Wed 22-11-17 09:47:16, Jan Kara wrote:
-> On Tue 14-11-17 16:56:49, Josef Bacik wrote:
-> > From: Josef Bacik <jbacik@fb.com>
-> > 
-> > The flexible proportion stuff has been used to track how many pages we
-> > are writing out over a period of time, so counts everything in single
-> > increments.  If we wanted to use another base value we need to be able
-> > to adjust the batch size to fit our the units we'll be using for the
-> > proportions.
-> > 
-> > Signed-off-by: Josef Bacik <jbacik@fb.com>
+On Mon 20-11-17 21:18:55, Zi Yan wrote:
+> From: Zi Yan <zi.yan@cs.rutgers.edu>
 > 
-> Frankly, I had to look into the code to understand what the patch is about.
-> Can we rephrase the changelog like:
+> In [1], Andrea reported that during memory hotplug/hot remove
+> prep_transhuge_page() is called incorrectly on non-THP pages for
+> migration, when THP is on but THP migration is not enabled.
+> This leads to a bad state of target pages for migration.
 > 
-> Currently flexible proportion code is using fixed per-cpu counter batch size
-> since all the counters use only increment / decrement to track number of
-> pages which completed writeback. When we start tracking amount of done
-> writeback in different units, we need to update per-cpu counter batch size
-> accordingly. Make counter batch size configurable on a per-proportion
-> domain basis to allow for this.
+> This patch fixes it by only calling prep_transhuge_page() when we are
+> certain that the target page is THP.
+> 
+> [1] https://lkml.org/lkml/2017/11/20/411
 
-Actually, now that I'm looking at other patches: Since fprop code is only
-used for bdi writeback tracking, I guess there's no good reason to make
-this configurable on a per-proportion basis. Just drop this patch and
-bump PROP_BATCH in the following patch and we are done. Am I missing
-something?
+lkml.org tends to be quite unstable so a
+http://lkml.kernel.org/r/$msg-id is usually a preferred way.
 
-								Honza
+> 
+> Cc: stable@vger.kernel.org # v4.14
+> Fixes: 8135d8926c08 ("mm: memory_hotplug: memory hotremove supports thp migration")
+> Reported-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> Signed-off-by: Zi Yan <zi.yan@cs.rutgers.edu>
+> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+> Cc: "Jerome Glisse" <jglisse@redhat.com>
+> ---
+>  include/linux/migrate.h | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+> index 895ec0c4942e..a2246cf670ba 100644
+> --- a/include/linux/migrate.h
+> +++ b/include/linux/migrate.h
+> @@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct page *page,
+>  	new_page = __alloc_pages_nodemask(gfp_mask, order,
+>  				preferred_nid, nodemask);
+>  
+> -	if (new_page && PageTransHuge(page))
+> +	if (new_page && PageTransHuge(new_page))
+>  		prep_transhuge_page(new_page);
 
-> > ---
-> >  include/linux/flex_proportions.h |  4 +++-
-> >  lib/flex_proportions.c           | 11 +++++------
-> >  2 files changed, 8 insertions(+), 7 deletions(-)
-> > 
-> > diff --git a/include/linux/flex_proportions.h b/include/linux/flex_proportions.h
-> > index 0d348e011a6e..853f4305d1b2 100644
-> > --- a/include/linux/flex_proportions.h
-> > +++ b/include/linux/flex_proportions.h
-> > @@ -20,7 +20,7 @@
-> >   */
-> >  #define FPROP_FRAC_SHIFT 10
-> >  #define FPROP_FRAC_BASE (1UL << FPROP_FRAC_SHIFT)
-> > -
-> > +#define FPROP_BATCH_SIZE (8*(1+ilog2(nr_cpu_ids)))
-> >  /*
-> >   * ---- Global proportion definitions ----
-> >   */
-> > @@ -31,6 +31,8 @@ struct fprop_global {
-> >  	unsigned int period;
-> >  	/* Synchronization with period transitions */
-> >  	seqcount_t sequence;
-> > +	/* batch size */
-> > +	s32 batch_size;
-> >  };
-> >  
-> >  int fprop_global_init(struct fprop_global *p, gfp_t gfp);
-> > diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
-> > index 2cc1f94e03a1..5552523b663a 100644
-> > --- a/lib/flex_proportions.c
-> > +++ b/lib/flex_proportions.c
-> > @@ -44,6 +44,7 @@ int fprop_global_init(struct fprop_global *p, gfp_t gfp)
-> >  	if (err)
-> >  		return err;
-> >  	seqcount_init(&p->sequence);
-> > +	p->batch_size = FPROP_BATCH_SIZE;
-> >  	return 0;
-> >  }
-> >  
-> > @@ -166,8 +167,6 @@ void fprop_fraction_single(struct fprop_global *p,
-> >  /*
-> >   * ---- PERCPU ----
-> >   */
-> > -#define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
-> > -
-> >  int fprop_local_init_percpu(struct fprop_local_percpu *pl, gfp_t gfp)
-> >  {
-> >  	int err;
-> > @@ -204,11 +203,11 @@ static void fprop_reflect_period_percpu(struct fprop_global *p,
-> >  	if (period - pl->period < BITS_PER_LONG) {
-> >  		s64 val = percpu_counter_read(&pl->events);
-> >  
-> > -		if (val < (nr_cpu_ids * PROP_BATCH))
-> > +		if (val < (nr_cpu_ids * p->batch_size))
-> >  			val = percpu_counter_sum(&pl->events);
-> >  
-> >  		percpu_counter_add_batch(&pl->events,
-> > -			-val + (val >> (period-pl->period)), PROP_BATCH);
-> > +			-val + (val >> (period-pl->period)), p->batch_size);
-> >  	} else
-> >  		percpu_counter_set(&pl->events, 0);
-> >  	pl->period = period;
-> > @@ -219,7 +218,7 @@ static void fprop_reflect_period_percpu(struct fprop_global *p,
-> >  void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
-> >  {
-> >  	fprop_reflect_period_percpu(p, pl);
-> > -	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
-> > +	percpu_counter_add_batch(&pl->events, 1, p->batch_size);
-> >  	percpu_counter_add(&p->events, 1);
-> >  }
-> >  
-> > @@ -267,6 +266,6 @@ void __fprop_inc_percpu_max(struct fprop_global *p,
-> >  			return;
-> >  	} else
-> >  		fprop_reflect_period_percpu(p, pl);
-> > -	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
-> > +	percpu_counter_add_batch(&pl->events, 1, p->batch_size);
-> >  	percpu_counter_add(&p->events, 1);
-> >  }
-> > -- 
-> > 2.7.5
-> > 
-> -- 
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+I would keep the two checks consistent. But that leads to a more
+interesting question. new_page_nodemask does
+
+	if (thp_migration_supported() && PageTransHuge(page)) {
+		order = HPAGE_PMD_ORDER;
+		gfp_mask |= GFP_TRANSHUGE;
+	}
+
+How come it is safe to allocate an order-0 page if
+!thp_migration_supported() when we are about to migrate THP? This
+doesn't make any sense to me. Are we working around this somewhere else?
+Why shouldn't we simply return NULL here?
+
+Nayoa, could you explain please? 8135d8926c08 ("mm: memory_hotplug:
+memory hotremove supports thp migration") changelog is less than
+satisfactory.
+
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
