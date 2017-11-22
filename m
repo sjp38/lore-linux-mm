@@ -1,257 +1,316 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4821F6B02B9
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:37:57 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id u15so8907011qtu.11
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 11:37:57 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id f3si750110qte.217.2017.11.22.11.37.56
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 29B5C6B0038
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:44:04 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id b80so22201431iob.23
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 11:44:04 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m10si4242741iti.44.2017.11.22.11.44.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 11:37:56 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAMJYGIj036702
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:37:55 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2edevrj5t1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:37:55 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Wed, 22 Nov 2017 19:37:52 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v3 4/4] test: add a test for the process_vmsplice syscall
-Date: Wed, 22 Nov 2017 21:36:31 +0200
-In-Reply-To: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1511379391-988-5-git-send-email-rppt@linux.vnet.ibm.com>
+        Wed, 22 Nov 2017 11:44:02 -0800 (PST)
+Subject: Re: [PATCH 0/5] mm/kasan: advanced check
+References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
+ <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
+ <20171120015000.GA13507@js1304-P5Q-DELUXE>
+ <8bdd114f-4bf1-e60d-eb78-af67f6c74abc@oracle.com>
+ <20171122043027.GA24912@js1304-P5Q-DELUXE>
+From: Wengang Wang <wen.gang.wang@oracle.com>
+Message-ID: <bc1b210e-8a95-39ac-fafb-852409bdebd4@oracle.com>
+Date: Wed, 22 Nov 2017 11:43:00 -0800
+MIME-Version: 1.0
+In-Reply-To: <20171122043027.GA24912@js1304-P5Q-DELUXE>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Andrei Vagin <avagin@openvz.org>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-From: Andrei Vagin <avagin@openvz.org>
 
-This test checks that process_vmsplice() can splice pages from a remote
-process and returns EFAULT, if process_vmsplice() tries to splice pages
-by an unaccessiable address.
 
-Signed-off-by: Andrei Vagin <avagin@openvz.org>
----
- tools/testing/selftests/process_vmsplice/Makefile  |   5 +
- .../process_vmsplice/process_vmsplice_test.c       | 188 +++++++++++++++++++++
- 2 files changed, 193 insertions(+)
- create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
- create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+On 2017/11/21 20:30, Joonsoo Kim wrote:
+> On Mon, Nov 20, 2017 at 11:56:05AM -0800, Wengang wrote:
+>>
+>> On 11/19/2017 05:50 PM, Joonsoo Kim wrote:
+>>> On Fri, Nov 17, 2017 at 11:56:21PM +0100, Dmitry Vyukov wrote:
+>>>> On Fri, Nov 17, 2017 at 11:30 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
+>>>>> Kasan advanced check, I'm going to add this feature.
+>>>>> Currently Kasan provide the detection of use-after-free and out-of-bounds
+>>>>> problems. It is not able to find the overwrite-on-allocated-memory issue.
+>>>>> We sometimes hit this kind of issue: We have a messed up structure
+>>>>> (usually dynamially allocated), some of the fields in the structure were
+>>>>> overwritten with unreasaonable values. And kernel may panic due to those
+>>>>> overeritten values. We know those fields were overwritten somehow, but we
+>>>>> have no easy way to find out which path did the overwritten. The advanced
+>>>>> check wants to help in this scenario.
+>>>>>
+>>>>> The idea is to define the memory owner. When write accesses come from
+>>>>> non-owner, error should be reported. Normally the write accesses on a given
+>>>>> structure happen in only several or a dozen of functions if the structure
+>>>>> is not that complicated. We call those functions "allowed functions".
+>>>>> The work of defining the owner and binding memory to owner is expected to
+>>>>> be done by the memory consumer. In the above case, memory consume register
+>>>>> the owner as the functions which have write accesses to the structure then
+>>>>> bind all the structures to the owner. Then kasan will do the "owner check"
+>>>>> after the basic checks.
+>>>>>
+>>>>> As implementation, kasan provides a API to it's user to register their
+>>>>> allowed functions. The API returns a token to users.  At run time, users
+>>>>> bind the memory ranges they are interested in to the check they registered.
+>>>>> Kasan then checks the bound memory ranges with the allowed functions.
+>>>>>
+>>>>>
+>>>>> Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+>>> Hello, Wengang.
+>>>
+>>> Nice idea. I also think that we need this kind of debugging tool. It's very
+>>> hard to detect overwritten bugs.
+>>>
+>>> In fact, I made a quite similar tool, valid access checker (A.K.A.
+>>> vchecker). See the following link.
+>>>
+>>> https://github.com/JoonsooKim/linux/tree/vchecker-master-v0.3-next-20170106
+>>>
+>>> Vchecker has some advanced features compared to yours.
+>>>
+>>> 1. Target object can be choosen at runtime by debugfs. It doesn't
+>>> require re-compile to register the target object.
+>> Hi Joonsoo, good to know you are also interested in this!
+>>
+>> Yes, if can be choosen via debugfs, it doesn't need re-compile.
+>> Well, I wonder what do you expect to be chosen from use space?
+> As you mentioned somewhere, this tool can be used when we find the
+> overwritten happend on some particular victims. I assumes that most of
+> the problem would happen on slab objects and userspace can choose the
+> target slab cache via debugfs interface of the vchecker.
+Yes, I agree it would be slab objects.
+If there is a way to set the slab objects to be subject of check via 
+name, it is good.
+One question is how about common kmalloc slabs?A  They are widely used 
+and many
+problems happens with them.
 
-diff --git a/tools/testing/selftests/process_vmsplice/Makefile b/tools/testing/selftests/process_vmsplice/Makefile
-new file mode 100644
-index 0000000..246d5a7
---- /dev/null
-+++ b/tools/testing/selftests/process_vmsplice/Makefile
-@@ -0,0 +1,5 @@
-+CFLAGS += -I../../../../usr/include/
-+
-+TEST_GEN_PROGS := process_vmsplice_test
-+
-+include ../lib.mk
-diff --git a/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
-new file mode 100644
-index 0000000..8abf59b
---- /dev/null
-+++ b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
-@@ -0,0 +1,188 @@
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <sys/mman.h>
-+#include <sys/syscall.h>
-+#include <fcntl.h>
-+#include <sys/uio.h>
-+#include <errno.h>
-+#include <signal.h>
-+#include <sys/prctl.h>
-+#include <sys/wait.h>
-+
-+#include "../kselftest.h"
-+
-+#ifndef __NR_process_vmsplice
-+#define __NR_process_vmsplice 333
-+#endif
-+
-+#define pr_err(fmt, ...) \
-+		({ \
-+			fprintf(stderr, "%s:%d:" fmt, \
-+				__func__, __LINE__, ##__VA_ARGS__); \
-+			KSFT_FAIL; \
-+		})
-+#define pr_perror(fmt, ...) pr_err(fmt ": %m\n", ##__VA_ARGS__)
-+#define fail(fmt, ...) pr_err("FAIL:" fmt, ##__VA_ARGS__)
-+
-+static ssize_t process_vmsplice(pid_t pid, int fd, const struct iovec *iov,
-+			unsigned long nr_segs, unsigned int flags)
-+{
-+	return syscall(__NR_process_vmsplice, pid, fd, iov, nr_segs, flags);
-+
-+}
-+
-+#define MEM_SIZE (4096 * 100)
-+#define MEM_WRONLY_SIZE (4096 * 10)
-+
-+int main(int argc, char **argv)
-+{
-+	char *addr, *addr_wronly;
-+	int p[2];
-+	struct iovec iov[2];
-+	char buf[4096];
-+	int status, ret;
-+	pid_t pid;
-+
-+	ksft_print_header();
-+
-+	addr = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE,
-+					MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-+	if (addr == MAP_FAILED)
-+		return pr_perror("Unable to create a mapping");
-+
-+	addr_wronly = mmap(0, MEM_WRONLY_SIZE, PROT_WRITE,
-+				MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-+	if (addr_wronly == MAP_FAILED)
-+		return pr_perror("Unable to create a write-only mapping");
-+
-+	if (pipe(p))
-+		return pr_perror("Unable to create a pipe");
-+
-+	pid = fork();
-+	if (pid < 0)
-+		return pr_perror("Unable to fork");
-+
-+	if (pid == 0) {
-+		addr[0] = 'C';
-+		addr[4096 + 128] = 'A';
-+		addr[4096 + 128 + 4096 - 1] = 'B';
-+
-+		if (prctl(PR_SET_PDEATHSIG, SIGKILL))
-+			return pr_perror("Unable to set PR_SET_PDEATHSIG");
-+		if (write(p[1], "c", 1) != 1)
-+			return pr_perror("Unable to write data into pipe");
-+
-+		while (1)
-+			sleep(1);
-+		return 1;
-+	}
-+	if (read(p[0], buf, 1) != 1) {
-+		pr_perror("Unable to read data from pipe");
-+		kill(pid, SIGKILL);
-+		wait(&status);
-+		return 1;
-+	}
-+
-+	munmap(addr, MEM_SIZE);
-+	munmap(addr_wronly, MEM_WRONLY_SIZE);
-+
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr + 4096 + 128;
-+	iov[1].iov_len = 4096;
-+
-+	/* check one iovec */
-+	if (process_vmsplice(pid, p[1], iov, 1, SPLICE_F_GIFT) != 1)
-+		return pr_perror("Unable to splice pages");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read from pipe");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("Check process_vmsplice with one vec\n");
-+
-+	/* check two iovec-s */
-+	if (process_vmsplice(pid, p[1], iov, 2, SPLICE_F_GIFT) != 4097)
-+		return pr_perror("Unable to spice pages\n");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read from pipe\n");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+
-+	if (read(p[0], buf, 4096) != 4096)
-+		return pr_perror("Unable to read from pipe\n");
-+
-+	if (buf[0] != 'A' || buf[4095] != 'B')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("check process_vmsplice with two vecs\n");
-+
-+	/* check how an unreadable region in a second vec is handled */
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr_wronly + 5;
-+	iov[1].iov_len = 1;
-+
-+	if (process_vmsplice(pid, p[1], iov, 2, SPLICE_F_GIFT) != 1)
-+		return pr_perror("Unable to splice data");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read form pipe");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("unreadable region in a second vec\n");
-+
-+	/* check how an unreadable region in a first vec is handled */
-+	errno = 0;
-+	if (process_vmsplice(pid, p[1], iov + 1, 1, SPLICE_F_GIFT) != -1 ||
-+	    errno != EFAULT)
-+		ksft_test_result_fail("Got anexpected errno %d\n", errno);
-+	else
-+		ksft_test_result_pass("splice as much as possible\n");
-+
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr;
-+	iov[1].iov_len = MEM_SIZE;
-+
-+	/* splice as much as possible */
-+	ret = process_vmsplice(pid, p[1], iov, 2,
-+				SPLICE_F_GIFT | SPLICE_F_NONBLOCK);
-+	if (ret != 4096 * 15 + 1) /* by default a pipe can fit 16 pages */
-+		return pr_perror("Unable to splice pages");
-+
-+	while (ret > 0) {
-+		int len;
-+
-+		len = read(p[0], buf, 4096);
-+		if (len < 0)
-+			return pr_perror("Unable to read data");
-+		if (len > ret)
-+			return pr_err("Read more than expected\n");
-+		ret -= len;
-+	}
-+	ksft_test_result_pass("splice as much as possible\n");
-+
-+	if (kill(pid, SIGTERM))
-+		return pr_perror("Unable to kill a child process");
-+	status = -1;
-+	if (wait(&status) < 0)
-+		return pr_perror("Unable to wait a child process");
-+	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGTERM)
-+		return pr_err("The child exited with an unexpected code %d\n",
-+									status);
-+
-+	if (ksft_get_fail_cnt())
-+		return ksft_exit_fail();
-+	return ksft_exit_pass();
-+}
--- 
-2.7.4
+>
+>>> 2. It has another feature that checks the value stored in the object.
+>>> Usually, invalid writer stores odd value into the object and vchecker
+>>> can detect this case.
+>> It's good to do the check. Well, as I understand, it tells something
+>> bad (overwitten) happened.
+>> But it can't tell who did the overwritten, right?  (I didn't look at
+>> your patch yet,) do you recall the last write somewhere?
+> Yes, it stores the callstack of the last write and report it when
+> the error is found.
+>
+>>> 3. It has a callstack checker (memory owner checker in yours). It
+>>> checks all the callstack rather than just the caller. It's important
+>>> since invalid writer could call the parent function of owner function
+>>> and it would not be catched by checking just the caller.
+>>>
+>>> 4. The callstack checker is more automated. vchecker collects the valid
+>>> callstack by running the system.
+>> I think we can merge the above two into one.
+>> So you are doing full stack check.  Well, finding out the all the
+>> paths which have the write access may be not a very easy thing.
+>> Missing some paths may cause dmesg flooding, and those log won't
+>> help at all. Finding out all the (owning) caller only is relatively
+>> much easier.
+> Vchecker can be easily modified to store only the caller. It just
+> requires modifying callstack depth parameter so it's so easy.
+> Moreover, it can be accomplished by adding debugfs interface.
+
+That's good.
+> Anyway, I don't think that finding out all the (owning) caller only
+> is much easier. Think about dentry or inode object. It is accessed by
+> various code path and it's not easy to cover all the owning caller by
+> manual approach.
+Comparing to finding out full stack, it's much easier.A  If we take 
+dentry as example,
+I agree dentries are widely accessed and maybe finding out all the 
+owning caller is not that
+easy, but comparing to finding out the full stack, it's easier.
+
+>
+>
+>> There do is the case you pointed out here. In this case, the
+>> debugger can make slight change to the calling path. And as I
+>> understand,
+>> most of the overwritten are happening in quite different call paths,
+>> they are not calling the (owning) caller.
+> Agreed.
+>
+>>> FYI, I attach some commit descriptions of the vchecker.
+>>>
+>>>      vchecker: store/report callstack of value writer
+>>>      The purpose of the value checker is finding invalid user writing
+>>>      invalid value at the moment that the value is written. However, there is
+>>>      a missing infrastructure that passes writing value to the checker
+>>>      since we temporarilly piggyback on the KASAN. So, we cannot easily
+>>>      detect this case in time.
+>>>      However, by following way, we can emulate similar effect.
+>>>      1. Store callstack when memory is written.
+>> Oh, seems you are storing the callstack for each write. -- I am not
+>> sure if that would too heavy.
+> Unlike KASAN that checks all type of the objects, this debugging
+> feature is only enabled on the specific type of the objects so
+> overhead would not be too heavy in terms of system overall
+> performance.
+Yes, only specific type of objects do the extra stuff, but I am not sure 
+if the overall
+performance to be affected. Actually I was thinking of tracking last 
+write stack.
+At that time, I had two concerns: one is the performance affect; the 
+other is if it's safe
+since memory access can happen in any context -- process context, soft 
+irq and irq..
+
+BTW, how much extra memory is needed for each objects?
+
+>
+>> Actually I was thinking to have a check on the new value. But seems
+>> compiler doesn't provide that.
+> Yes, look like we have a similar idea. I have some another ideas if
+> ASAN hook provides the value to be written. However, it's not
+> supported by compiler yet.
+
+Right!
+
+>
+>>>      2. If check is failed in next access, report previous write-access
+>>>      callstack
+>>>      It will caught offending user properly.
+>>>      Following output "Call trace: Invalid writer" part is the result
+>>>      of this patch. We find the invalid value at workfn+0x71 but report
+>>>      writer at workfn+0x61.
+>>>      [  133.024076] ==================================================================
+>>>      [  133.025576] BUG: VCHECKER: invalid access in workfn+0x71/0xc0 at addr ffff8800683dd6c8
+>>>      [  133.027196] Read of size 8 by task kworker/1:1/48
+>>>      [  133.028020] 0x8 0x10 value
+>>>      [  133.028020] 0xffff 4
+>>>      [  133.028020] Call trace: Invalid writer
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff81043b1b>] save_stack_trace+0x1b/0x20
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff812c0db9>] save_stack+0x39/0x70
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff812c0fe3>] check_value+0x43/0x80
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff812c1762>] vchecker_check+0x1c2/0x380
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff812be49d>] __asan_store8+0x8d/0xc0
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff815eadd1>] workfn+0x61/0xc0
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff810be3df>] process_one_work+0x28f/0x680
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff810bf272>] worker_thread+0xa2/0x870
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff810c86a5>] kthread+0x195/0x1e0
+>>>      [  133.028020]
+>>>      [  133.028020] [<ffffffff81b9d3d2>] ret_from_fork+0x22/0x30
+>>>      [  133.028020] CPU: 1 PID: 48 Comm: kworker/1:1 Not tainted 4.10.0-rc2-next-20170106+ #1179
+>>>      [  133.028020] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>>>      [  133.028020] Workqueue: events workfn
+>>>      [  133.028020] Call Trace:
+>>>      [  133.028020]  dump_stack+0x4d/0x63
+>>>      [  133.028020]  kasan_object_err+0x21/0x80
+>>>      [  133.028020]  vchecker_check+0x2af/0x380
+>>>      [  133.028020]  ? workfn+0x71/0xc0
+>>>      [  133.028020]  ? workfn+0x71/0xc0
+>>>      [  133.028020]  __asan_load8+0x87/0xb0
+>>>      [  133.028020]  workfn+0x71/0xc0
+>>>      [  133.028020]  process_one_work+0x28f/0x680
+>>>      [  133.028020]  worker_thread+0xa2/0x870
+>>>      [  133.028020]  kthread+0x195/0x1e0
+>>>      [  133.028020]  ? put_pwq_unlocked+0xc0/0xc0
+>>>      [  133.028020]  ? kthread_park+0xd0/0xd0
+>>>      [  133.028020]  ret_from_fork+0x22/0x30
+>>>      [  133.028020] Object at ffff8800683dd6c0, in cache vchecker_test size: 24
+>>>      [  133.028020] Allocated:
+>>>      [  133.028020] PID = 48
+>>>
+>>>
+>>>      vchecker: Add 'callstack' checker
+>>>      The callstack checker is to find invalid code paths accessing to a
+>>>      certain field in an object.  Currently it only saves all stack traces at
+>>>      the given offset.  Reporting will be added in the next patch.
+>>>      The below example checks callstack of anon_vma:
+>>>        # cd /sys/kernel/debug/vchecker
+>>>        # echo 0 8 > anon_vma/callstack  # offset 0, size 8
+>>>        # echo 1 > anon_vma/enable
+>> an echo "anon_vma" > <something> first?
+>> How do you define and path the valid (owning) full stack to kasan?
+> This interface only enables to store all the callstacks. No validation
+> check here. I think that this feature would also be helpful to debug.
+> If error happens, we can check all the previous callstacks and track
+> the buggy caller.
+Too much extra memory needed for each object? or you stores in just one 
+global copy.
+
+>
+>>>        # cat anon_vma/callstack        # show saved callstacks
+>>>        0x0 0x8 callstack
+>>>        total: 42
+>>>        callstack #0
+>>>          anon_vma_fork+0x101/0x280
+>>>          copy_process.part.10+0x15ff/0x2a40
+>>>          _do_fork+0x155/0x7d0
+>>>          SyS_clone+0x19/0x20
+>>>          do_syscall_64+0xdf/0x460
+>>>          return_from_SYSCALL_64+0x0/0x7a
+>>>        ...
+>>>
+>>>
+>>>      vchecker: Support toggle on/off of callstack check
+>>>      By default, callstack checker only collects callchains.  When a user
+>>>      writes 'on' to the callstack file in debugfs, it checks and reports new
+>>>      callstacks.  Writing 'off' to disable it again.
+>>>        # cd /sys/kernel/debug/vchecker
+>>>        # echo 0 8 > anon_vma/callstack
+>>>        # echo 1 > anon_vma/enable
+>>>        ... (do some work to collect enough callstacks) ...
+>> How to define "enough" here?
+> The bug usually doesn't happen immediately since it usually happens on
+> the corner case. When debugging, we run the workload that causes the
+> bug and then wait for some time until the bug happens. "Enough" can
+> be defined as the middle of this waiting time. After some warm-up
+> time, all the common callstack would be collected. Then,
+> switching on this feature that reports a new callstack. If the corner
+> case that is on a new callstack happens, this new callstack will be
+> reported and we can check whether it is a true bug or not.
+What if it's not?
+I am still not convinced on if we can get "enough". We may never have a 
+workload that
+make sure it covers all call stacks.
+
+>
+>>>        # echo on > anon_vma/callstack
+>>>
+>>> The reason I didn't submit the vchecker to mainline is that I didn't find
+>>> the case that this tool is useful in real life. Most of the system broken case
+>>> can be debugged by other ways. Do you see the real case that this tool is
+>>> helpful? If so, I think that vchecker is more appropriate to be upstreamed.
+>>> Could you share your opinion?
+>> Yes, people find other ways to solve overwritten issue (so did I) in
+>> the past. If kasan doesn't provide this functionality, developers
+>> have no way to choose it.
+>> Though people have other ways to find the root cause, the other ways
+>> maybe take (maybe much) longer. I didn't solve problems with the
+>> owner check yet since I just make available recently.  But
+>> considering the overwritten issues I have ever hit, the owner check
+>> definitely helps and I definitely will try the owner check when I
+>> have a new overwritten issue!
+>>
+>> Why not send your patch for review?
+> Okay! I hope to find more people that have interest on this feature
+> and it seems that you are the one of them. :)
+Right!
+
+> I will send my patches soon. I think that we can be cooperative to
+> improve this feature.
+>
+> Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
