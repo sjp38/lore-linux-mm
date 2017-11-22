@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1186B0253
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:11:53 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k100so9633425wrc.9
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:11:53 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v11sor8376971edb.25.2017.11.22.00.11.49
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7DE326B025F
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:18:47 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id z14so5331678wrb.12
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:18:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y93si475918edy.358.2017.11.22.00.18.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Nov 2017 00:11:50 -0800 (PST)
-Date: Wed, 22 Nov 2017 11:11:47 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv3 2/2] x86/selftests: Add test for mapping placement for
- 5-level paging
-Message-ID: <20171122081147.5gjushlstmnnmlev@node.shutemov.name>
-References: <20171115143607.81541-1-kirill.shutemov@linux.intel.com>
- <20171115143607.81541-2-kirill.shutemov@linux.intel.com>
- <87y3myzx7z.fsf@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Nov 2017 00:18:46 -0800 (PST)
+Subject: Re: MPK: removing a pkey (was: pkey_free and key reuse)
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
+Date: Wed, 22 Nov 2017 09:18:44 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87y3myzx7z.fsf@linux.vnet.ibm.com>
+In-Reply-To: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Nicholas Piggin <npiggin@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Nov 22, 2017 at 11:11:36AM +0530, Aneesh Kumar K.V wrote:
-> "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> writes:
+On 11/05/2017 11:35 AM, Florian Weimer wrote:
+> I'm working on adding memory protection key support to glibc.
 > 
-> > With 5-level paging, we have 56-bit virtual address space available for
-> > userspace. But we don't want to expose userspace to addresses above
-> > 47-bits, unless it asked specifically for it.
-> >
-> > We use mmap(2) hint address as a way for kernel to know if it's okay to
-> > allocate virtual memory above 47-bit.
-> >
-> > Let's add a self-test that covers few corner cases of the interface.
-> >
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> I don't think pkey_free, as it is implemented today, is very safe due to 
+> key reuse by a subsequent pkey_alloc.  I see two problems:
 > 
-> Can we move this to selftest/vm/ ? I had a variant which i was using to
-> test issues on ppc64. One change we did recently was to use >=128TB as
-> the hint addr value to select larger address space. I also would like to
-> check for exact mmap return addr in some case. Attaching below the test
-> i was using. I will check whether this patch can be updated to test what
-> is converted in my selftest. I also want to do the boundary check twice.
-> The hash trasnslation mode in POWER require us to track addr limit and
-> we had bugs around address space slection before and after updating the
-> addr limit.
+> (A) pkey_free allows reuse for they key while there are still mappings 
+> that use it.
+> 
+> (B) If a key is reused, existing threads retain their access rights, 
+> while there is an expectation that pkey_alloc denies access for the 
+> threads except the current one.
 
-Feel free to move it to selftest/vm. I don't have time to test setup and
-test it on Power myself, but this would be great.
+I have a somewhat related question to API/documentation of pkeys, that
+came up from a customer interested in using the feature. The man page of
+mprotect/pkey_mprotect doesn't say how to remove a pkey from a set of
+pages, i.e. reset it to the default 0 (or the exec-only pkey), so
+initially they thought there's no way to do that.
 
--- 
- Kirill A. Shutemov
+Calling pkey_mprotect() with pkey==0 will fail with EINVAL, because 0
+was not allocated by pkey_alloc(). That's fair I guess.
+
+What seems to work to reset the pkey is either calling plain mprotect(),
+or calling pkey_mprotect() with pkey == -1, as the former is just wired
+to the latter.
+
+So, is plain mprotect() the intended way to reset a pkey and should it
+be explicitly documented in the man page?
+
+And, was the pkey == -1 internal wiring supposed to be exposed to the
+pkey_mprotect() signal, or should there have been a pre-check returning
+EINVAL in SYSCALL_DEFINE4(pkey_mprotect), before calling
+do_mprotect_pkey())? I assume it's too late to change it now anyway (or
+not?), so should we also document it?
+
+Thanks,
+Vlastimil
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
