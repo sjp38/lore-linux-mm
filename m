@@ -1,268 +1,298 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C7486B0038
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:48:55 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z184so15624581pgd.0
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:48:55 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h188sor4044515pgc.376.2017.11.22.00.48.53
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6AA306B0253
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 03:51:34 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 27so13993657pft.8
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 00:51:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c62sor3740222pga.47.2017.11.22.00.51.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 22 Nov 2017 00:48:53 -0800 (PST)
+        Wed, 22 Nov 2017 00:51:33 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <71bad1f0-2526-e873-8507-bd1cbceb4e93@oracle.com>
+In-Reply-To: <20171122043027.GA24912@js1304-P5Q-DELUXE>
 References: <20171117223043.7277-1-wen.gang.wang@oracle.com>
  <CACT4Y+ZkC8R1vL+=j4Ordr2-4BWAc8Um+hdxPPWS6_DFi58ZJA@mail.gmail.com>
- <20171120015000.GA13507@js1304-P5Q-DELUXE> <CACT4Y+Zi9bNdnei_kXWu_3BHOobbhOgRKJ6Vk9QGs3c6NCdqXw@mail.gmail.com>
- <37111d5b-7042-dfff-9ac7-8733b77930e8@oracle.com> <CACT4Y+ZEvLJbM_b6nWqLPvVJgWjAp-eYsmbO5vT2qQ3_zH-2+A@mail.gmail.com>
- <de1e0f95-4daa-0b00-a7bf-0ce2e9a3371b@oracle.com> <CACT4Y+aOOkm6aqPKaNmi-aBU4-F8SQTZe=-UkAQry-eQWxsS8w@mail.gmail.com>
- <71bad1f0-2526-e873-8507-bd1cbceb4e93@oracle.com>
+ <20171120015000.GA13507@js1304-P5Q-DELUXE> <8bdd114f-4bf1-e60d-eb78-af67f6c74abc@oracle.com>
+ <20171122043027.GA24912@js1304-P5Q-DELUXE>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 22 Nov 2017 09:48:32 +0100
-Message-ID: <CACT4Y+bNtciGdDhkbNv=dQ6W4-fiNe5cYa2V_Z6YSLe+YDOxQw@mail.gmail.com>
+Date: Wed, 22 Nov 2017 09:51:11 +0100
+Message-ID: <CACT4Y+ZawvvJFBu7J2EXz8tWpcavMhKWGvuGcYow91WxAPM+Og@mail.gmail.com>
 Subject: Re: [PATCH 0/5] mm/kasan: advanced check
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wengang Wang <wen.gang.wang@oracle.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Wengang <wen.gang.wang@oracle.com>, Linux-MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>
 
-On Tue, Nov 21, 2017 at 8:17 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
->>>> On Mon, Nov 20, 2017 at 9:05 PM, Wengang <wen.gang.wang@oracle.com>
->>>> wrote:
->>>>>
->>>>>
->>>>> On 11/20/2017 12:41 AM, Dmitry Vyukov wrote:
->>>>>>
->>>>>>
->>>>>>> The reason I didn't submit the vchecker to mainline is that I didn't
->>>>>>> find
->>>>>>> the case that this tool is useful in real life. Most of the system
->>>>>>> broken
->>>>>>> case
->>>>>>> can be debugged by other ways. Do you see the real case that this
->>>>>>> tool
->>>>>>> is
->>>>>>> helpful?
->>>>>>
->>>>>> Hi,
->>>>>>
->>>>>> Yes, this is the main question here.
->>>>>> How is it going to be used in real life? How widely?
->>>>>>
->>>>> I think the owner check can be enabled in the cases where KASAN is
->>>>> used.
->>>>> --
->>>>> That is that we found there is memory issue, but don't know how it
->>>>> happened.
->>>>
->>>>
->>>> But KASAN generally pinpoints the corruption as it happens. Why do we
->>>> need something else?
->>>
->>>
->>> Currently (without this patch set) kasan can't detect the overwritten
->>> issues
->>> that happen on allocated memory.
->>>
->>> Say, A allocated a 128 bytes memory and B write to that memory at offset
->>> 0
->>> with length 100 unexpectedly.  Currently kasan won't report error for any
->>> writing to the offset 0 with len <= 128 including the B writting.  This
->>> patch lets kasan report the B writing to offset 0 with length 100.
+On Wed, Nov 22, 2017 at 5:30 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Mon, Nov 20, 2017 at 11:56:05AM -0800, Wengang wrote:
 >>
 >>
->> So this will be used for manual debugging and you don't have plans to
->> annotate kernel code with additional tags, right?
->
-> I am not sure what do you mean by "manual debugging". What is needed to use
-> the owner check is:
-> The memory user needs to do:
-> 1)  code change: register the checker with the allowed functions
-> 2)  code change: bind the memory to the checker
-> 3)  recompile the kernel
-> 4)  run with the recompiled kernel and reproduce the issue
-
-Yes, I meant exactly this -- developer does manual work, including
-code changes, on a per-bug basis.
-This is not the current usage model for KASAN, hence I am asking.
-
-
-> By "additional tags", if you meant "add some explanation comment", I think
-> one can refer to the commit message about the code change;
-> if you meant "additional kernel config item to enable/disable code", I have
-> no such plan.  If no "owner checker" is registered, it just acts like the
-> basic kasan (without this patch) with almost same performance. Even with
-> "owner checker" registered,  and memories are bound to the checker,  it's
-> still the rare case to do the owner check. So the overheard caused by owner
-> check is slight. I don't find the reason we need an additional kernel
-> config.
-
-I meant committing some registration of allowed functions and binding
-of objects to tags into mainline kernel.
-
-
-
-
->> If this meant to be used by kernel developers during debugging, this
->> feature needs to be documented in Documentation/dev-tools/kasan.rst
->> including an example. It's hard to spread knowledge about such
->> features especially if there are no mentions in docs. Documentation
->> can then be quickly referenced e.g. as a suggestion of how to tackle a
->> particular bug.
->
-> Yes, this is a good idea. I was/am thinking so.
->
->> General comments:
+>> On 11/19/2017 05:50 PM, Joonsoo Kim wrote:
+>> >On Fri, Nov 17, 2017 at 11:56:21PM +0100, Dmitry Vyukov wrote:
+>> >>On Fri, Nov 17, 2017 at 11:30 PM, Wengang Wang <wen.gang.wang@oracle.com> wrote:
+>> >>>Kasan advanced check, I'm going to add this feature.
+>> >>>Currently Kasan provide the detection of use-after-free and out-of-bounds
+>> >>>problems. It is not able to find the overwrite-on-allocated-memory issue.
+>> >>>We sometimes hit this kind of issue: We have a messed up structure
+>> >>>(usually dynamially allocated), some of the fields in the structure were
+>> >>>overwritten with unreasaonable values. And kernel may panic due to those
+>> >>>overeritten values. We know those fields were overwritten somehow, but we
+>> >>>have no easy way to find out which path did the overwritten. The advanced
+>> >>>check wants to help in this scenario.
+>> >>>
+>> >>>The idea is to define the memory owner. When write accesses come from
+>> >>>non-owner, error should be reported. Normally the write accesses on a given
+>> >>>structure happen in only several or a dozen of functions if the structure
+>> >>>is not that complicated. We call those functions "allowed functions".
+>> >>>The work of defining the owner and binding memory to owner is expected to
+>> >>>be done by the memory consumer. In the above case, memory consume register
+>> >>>the owner as the functions which have write accesses to the structure then
+>> >>>bind all the structures to the owner. Then kasan will do the "owner check"
+>> >>>after the basic checks.
+>> >>>
+>> >>>As implementation, kasan provides a API to it's user to register their
+>> >>>allowed functions. The API returns a token to users.  At run time, users
+>> >>>bind the memory ranges they are interested in to the check they registered.
+>> >>>Kasan then checks the bound memory ranges with the allowed functions.
+>> >>>
+>> >>>
+>> >>>Signed-off-by: Wengang Wang <wen.gang.wang@oracle.com>
+>> >Hello, Wengang.
+>> >
+>> >Nice idea. I also think that we need this kind of debugging tool. It's very
+>> >hard to detect overwritten bugs.
+>> >
+>> >In fact, I made a quite similar tool, valid access checker (A.K.A.
+>> >vchecker). See the following link.
+>> >
+>> >https://github.com/JoonsooKim/linux/tree/vchecker-master-v0.3-next-20170106
+>> >
+>> >Vchecker has some advanced features compared to yours.
+>> >
+>> >1. Target object can be choosen at runtime by debugfs. It doesn't
+>> >require re-compile to register the target object.
+>> Hi Joonsoo, good to know you are also interested in this!
 >>
->> 1. The check must not affect fast-path. I think we need to move it
->> into kasan_report (and then rename kasan_report to something else).
->> Closer to what Joonsoo did in his version, but move then check even
->> further. This will also make inline instrumentation work because it
->> calls kasan_report, then kasan_report will do the additional check and
->> potentially return without actually reporting a bug.
->> The idea is that the check reserves some range of bad values in shadow
->> and poison the object with that special value. Then all accesses to
->> the protected memory will be detected as bad and go into kasan_report.
->> Then kasan_report will do the additional check and potentially return
->> without reporting.
->> This has 0 overhead when the feature is not used, enables inline
->> instrumentation and is less intrusive.
+>> Yes, if can be choosen via debugfs, it doesn't need re-compile.
+>> Well, I wonder what do you expect to be chosen from use space?
 >
-> The owner check can be moved to kasan_report() by letting the poison check
-> routine return "possible violation" when the memory is bound to a owner
-> and then kasan_report() will get the chance to do further (owner) check.
->
-> Well I wonder how that moving would benefit.
-> If the purpose is to remove overhead,   the moving didn't remove of any run
-> of
-> owner check. It would just move it to a different place and it will run just
-> a bit later.
-> I think even current implementation, it has almost 0 overhead when no memory
-> is
-> bound to owners.  The owner check is performed only when the memory is bound
-> (the
-> bound check is light), if memory is not bound, no owner check is performed.
-
-3 main goals as I outlined:
- - removing _all_ overhead when the feature is not used
- - making inline instrumentation work
- - code separation
+> As you mentioned somewhere, this tool can be used when we find the
+> overwritten happend on some particular victims. I assumes that most of
+> the problem would happen on slab objects and userspace can choose the
+> target slab cache via debugfs interface of the vchecker.
 
 
-> I am predicting the code that has owner check routine moved to
-> kasan_report(), it
-> should be like this:
-> (fake code)
-> in poison check routines:
->        ...
->        after all case that returns "Yes",
->        if bound check returns true (memory is bound):    --> bound check is
-> here
->              return "possible"
-
-/\/\/\/\
-
-No, just return "possible". Main routine won't know anything about
-bounds and owners.
+Most objects are allocated from kmalloc slabs. And this feature can't
+work for all objects allocated from a kmalloc slab. I think checks
+needs to be tied to allocation sites.
 
 
->        ...
-> in the caller of poison check routines:
->        ...
->        if poison check routine returns "yes" or "possible":
->              calls kasan_report()
->
-> in kasan_report():
->        ....
->        if no basic violation found:
->            run owner check
-> --> owner check is here
->        ...
->
-> Current code is like this:
-> in poison check routines:
->        ...
->        after all case that returns "yes",
->        if bound check returns true (memory is bound):  --> bound check is
-> here
->                run owner check
-> --> owner check is here
->
-> Comparing to current implementation,
-> anyway the "bound check" is done either in the poison check routines or in
-> kasan_report().
-> anyway the "owner check" is done either in the poison check routines or in
-> kasan_report().
-> I don't see we have reduced number of calls of "bound check" and/or "owner
-> check".
-> Can you pinpoint which part will be reduced?
->
-> If the purpose is to make inline instrumentation work for owner check, it
-> interests
-> me!  This implementation only works fine in outline instrumentation and
-> seems the
-> poison checks are not called at all with inline compile type. Could you
-> share more on this?
->
-> The badness of moving owner check to kasan_report() is that it breaks the
-> function
-> clearness in the code.  From this point of view, check is just check, it
-> should say "yes" or
-> "no", not "possible";  report is just report, no checks should be performed
-> in report.
->
->> 2. Moving this to a separate .c/.h files sounds like a good idea.
->> kasan.c is a bit of a mess already. If we do (1), changes to kasan.c
->> will be minimal. Again closer to what Joonsoo did.
->
-> If the owner checks would remain in the poison check routines, it would be
-> in kasan.c.
-> If we have enough points to support the moving, say that makes inline
-> instrumentation
-> work, it can be in a separated .c/.h and yes that would be better then.
->
->> 3. We need to rename it from "advanced" to something else (owner
->> check?). Features must be named based on what they do, rather then how
->> advanced they are. If we add other complex checks, how should we name
->> them? even_more_advanced?
->
->
-> LoL,  No and Yes.
-> The feature I am adding is "owner check" and I define it as one of the
-> "advanced check",
-> By looking at the patch its self (especially enum kasan_adv_chk_type in
-> patch 4/5)  , you
-> can see, I was leaving spaces for other kind of "advanced checks". And
-> (future) different
-> "advanced checks" can be added -- say "old value validation", "new value
-> validation"
->  -- though the new value is not  supported by compiler yet.  But yes the
-> name "advanced"
-> is really not what I want, but I failed to find an accurate one. How do you
-> think?
->
 >
 >>
->> I am fine with adding such feature provided that it does not affect
->> performance/memory consumption if not used, works with inline
->> instrumentation and is separated into separate files. But it also
->> needs to be advertised somehow among kernel developers, otherwise only
->> you guys will use it.
+>> >
+>> >2. It has another feature that checks the value stored in the object.
+>> >Usually, invalid writer stores odd value into the object and vchecker
+>> >can detect this case.
+>> It's good to do the check. Well, as I understand, it tells something
+>> bad (overwitten) happened.
+>> But it can't tell who did the overwritten, right?  (I didn't look at
+>> your patch yet,) do you recall the last write somewhere?
 >
-> So far it should has almost same performance if feature is not used;
-> definitely
-> no more memory consumption.  Now it doesn't work with inline
-> instrumentation,
-> could you share more information on how to make it also work with inline
-> mode?
-
-Move the check into kasan_report and leave the rest of the code as is.
-
-> It technically can be moved to separated files. I will add the doc.
+> Yes, it stores the callstack of the last write and report it when
+> the error is found.
 >
-> thanks,
-> wengang
+>>
+>> >
+>> >3. It has a callstack checker (memory owner checker in yours). It
+>> >checks all the callstack rather than just the caller. It's important
+>> >since invalid writer could call the parent function of owner function
+>> >and it would not be catched by checking just the caller.
+>> >
+>> >4. The callstack checker is more automated. vchecker collects the valid
+>> >callstack by running the system.
+>> I think we can merge the above two into one.
+>> So you are doing full stack check.  Well, finding out the all the
+>> paths which have the write access may be not a very easy thing.
+>> Missing some paths may cause dmesg flooding, and those log won't
+>> help at all. Finding out all the (owning) caller only is relatively
+>> much easier.
+>
+> Vchecker can be easily modified to store only the caller. It just
+> requires modifying callstack depth parameter so it's so easy.
+> Moreover, it can be accomplished by adding debugfs interface.
+>
+> Anyway, I don't think that finding out all the (owning) caller only
+> is much easier. Think about dentry or inode object. It is accessed by
+> various code path and it's not easy to cover all the owning caller by
+> manual approach.
+>
+>
+>> There do is the case you pointed out here. In this case, the
+>> debugger can make slight change to the calling path. And as I
+>> understand,
+>> most of the overwritten are happening in quite different call paths,
+>> they are not calling the (owning) caller.
+>
+> Agreed.
+>
+>>
+>> >
+>> >FYI, I attach some commit descriptions of the vchecker.
+>> >
+>> >     vchecker: store/report callstack of value writer
+>> >     The purpose of the value checker is finding invalid user writing
+>> >     invalid value at the moment that the value is written. However, there is
+>> >     a missing infrastructure that passes writing value to the checker
+>> >     since we temporarilly piggyback on the KASAN. So, we cannot easily
+>> >     detect this case in time.
+>> >     However, by following way, we can emulate similar effect.
+>> >     1. Store callstack when memory is written.
+>>
+>> Oh, seems you are storing the callstack for each write. -- I am not
+>> sure if that would too heavy.
+>
+> Unlike KASAN that checks all type of the objects, this debugging
+> feature is only enabled on the specific type of the objects so
+> overhead would not be too heavy in terms of system overall
+> performance.
+>
+>> Actually I was thinking to have a check on the new value. But seems
+>> compiler doesn't provide that.
+>
+> Yes, look like we have a similar idea. I have some another ideas if
+> ASAN hook provides the value to be written. However, it's not
+> supported by compiler yet.
+>
+>> >     2. If check is failed in next access, report previous write-access
+>> >     callstack
+>> >     It will caught offending user properly.
+>> >     Following output "Call trace: Invalid writer" part is the result
+>> >     of this patch. We find the invalid value at workfn+0x71 but report
+>> >     writer at workfn+0x61.
+>> >     [  133.024076] ==================================================================
+>> >     [  133.025576] BUG: VCHECKER: invalid access in workfn+0x71/0xc0 at addr ffff8800683dd6c8
+>> >     [  133.027196] Read of size 8 by task kworker/1:1/48
+>> >     [  133.028020] 0x8 0x10 value
+>> >     [  133.028020] 0xffff 4
+>> >     [  133.028020] Call trace: Invalid writer
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff81043b1b>] save_stack_trace+0x1b/0x20
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff812c0db9>] save_stack+0x39/0x70
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff812c0fe3>] check_value+0x43/0x80
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff812c1762>] vchecker_check+0x1c2/0x380
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff812be49d>] __asan_store8+0x8d/0xc0
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff815eadd1>] workfn+0x61/0xc0
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff810be3df>] process_one_work+0x28f/0x680
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff810bf272>] worker_thread+0xa2/0x870
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff810c86a5>] kthread+0x195/0x1e0
+>> >     [  133.028020]
+>> >     [  133.028020] [<ffffffff81b9d3d2>] ret_from_fork+0x22/0x30
+>> >     [  133.028020] CPU: 1 PID: 48 Comm: kworker/1:1 Not tainted 4.10.0-rc2-next-20170106+ #1179
+>> >     [  133.028020] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
+>> >     [  133.028020] Workqueue: events workfn
+>> >     [  133.028020] Call Trace:
+>> >     [  133.028020]  dump_stack+0x4d/0x63
+>> >     [  133.028020]  kasan_object_err+0x21/0x80
+>> >     [  133.028020]  vchecker_check+0x2af/0x380
+>> >     [  133.028020]  ? workfn+0x71/0xc0
+>> >     [  133.028020]  ? workfn+0x71/0xc0
+>> >     [  133.028020]  __asan_load8+0x87/0xb0
+>> >     [  133.028020]  workfn+0x71/0xc0
+>> >     [  133.028020]  process_one_work+0x28f/0x680
+>> >     [  133.028020]  worker_thread+0xa2/0x870
+>> >     [  133.028020]  kthread+0x195/0x1e0
+>> >     [  133.028020]  ? put_pwq_unlocked+0xc0/0xc0
+>> >     [  133.028020]  ? kthread_park+0xd0/0xd0
+>> >     [  133.028020]  ret_from_fork+0x22/0x30
+>> >     [  133.028020] Object at ffff8800683dd6c0, in cache vchecker_test size: 24
+>> >     [  133.028020] Allocated:
+>> >     [  133.028020] PID = 48
+>> >
+>> >
+>> >     vchecker: Add 'callstack' checker
+>> >     The callstack checker is to find invalid code paths accessing to a
+>> >     certain field in an object.  Currently it only saves all stack traces at
+>> >     the given offset.  Reporting will be added in the next patch.
+>> >     The below example checks callstack of anon_vma:
+>> >       # cd /sys/kernel/debug/vchecker
+>> >       # echo 0 8 > anon_vma/callstack  # offset 0, size 8
+>> >       # echo 1 > anon_vma/enable
+>> an echo "anon_vma" > <something> first?
+>> How do you define and path the valid (owning) full stack to kasan?
+>
+> This interface only enables to store all the callstacks. No validation
+> check here. I think that this feature would also be helpful to debug.
+> If error happens, we can check all the previous callstacks and track
+> the buggy caller.
+>
+>> >       # cat anon_vma/callstack        # show saved callstacks
+>> >       0x0 0x8 callstack
+>> >       total: 42
+>> >       callstack #0
+>> >         anon_vma_fork+0x101/0x280
+>> >         copy_process.part.10+0x15ff/0x2a40
+>> >         _do_fork+0x155/0x7d0
+>> >         SyS_clone+0x19/0x20
+>> >         do_syscall_64+0xdf/0x460
+>> >         return_from_SYSCALL_64+0x0/0x7a
+>> >       ...
+>> >
+>> >
+>> >     vchecker: Support toggle on/off of callstack check
+>> >     By default, callstack checker only collects callchains.  When a user
+>> >     writes 'on' to the callstack file in debugfs, it checks and reports new
+>> >     callstacks.  Writing 'off' to disable it again.
+>> >       # cd /sys/kernel/debug/vchecker
+>> >       # echo 0 8 > anon_vma/callstack
+>> >       # echo 1 > anon_vma/enable
+>> >       ... (do some work to collect enough callstacks) ...
+>> How to define "enough" here?
+>
+> The bug usually doesn't happen immediately since it usually happens on
+> the corner case. When debugging, we run the workload that causes the
+> bug and then wait for some time until the bug happens. "Enough" can
+> be defined as the middle of this waiting time. After some warm-up
+> time, all the common callstack would be collected. Then,
+> switching on this feature that reports a new callstack. If the corner
+> case that is on a new callstack happens, this new callstack will be
+> reported and we can check whether it is a true bug or not.
+>
+>> >       # echo on > anon_vma/callstack
+>> >
+>> >The reason I didn't submit the vchecker to mainline is that I didn't find
+>> >the case that this tool is useful in real life. Most of the system broken case
+>> >can be debugged by other ways. Do you see the real case that this tool is
+>> >helpful? If so, I think that vchecker is more appropriate to be upstreamed.
+>> >Could you share your opinion?
+>> Yes, people find other ways to solve overwritten issue (so did I) in
+>> the past. If kasan doesn't provide this functionality, developers
+>> have no way to choose it.
+>> Though people have other ways to find the root cause, the other ways
+>> maybe take (maybe much) longer. I didn't solve problems with the
+>> owner check yet since I just make available recently.  But
+>> considering the overwritten issues I have ever hit, the owner check
+>> definitely helps and I definitely will try the owner check when I
+>> have a new overwritten issue!
+>>
+>> Why not send your patch for review?
+>
+> Okay! I hope to find more people that have interest on this feature
+> and it seems that you are the one of them. :)
+>
+> I will send my patches soon. I think that we can be cooperative to
+> improve this feature.
+>
+> Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
