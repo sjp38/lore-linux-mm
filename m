@@ -1,134 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A2CFD6B0287
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 08:06:28 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id p43so8604745otd.15
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 05:06:28 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id 10si6512042otb.41.2017.11.22.05.06.27
-        for <linux-mm@kvack.org>;
-        Wed, 22 Nov 2017 05:06:27 -0800 (PST)
-Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
-References: <bbf43f92-3d0c-940d-b66b-68f92eb9b282@arm.com>
- <B8AC3E80E903784988AB3003E3E97330C00635F3@dggemm510-mbs.china.huawei.com>
- <87po8ir1kg.fsf@on-the-bus.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C006371B@dggemm510-mbs.china.huawei.com>
- <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0063816@dggemm510-mbs.china.huawei.com>
- <20171117073556.GB28855@cbox>
- <B8AC3E80E903784988AB3003E3E97330C00638D4@dggemm510-mbs.china.huawei.com>
- <20171118134841.3f6c9183@why.wild-wind.fr.eu.org>
- <B8AC3E80E903784988AB3003E3E97330C0068F12@dggemm510-mbx.china.huawei.com>
- <20171121122938.sydii3i36jbzi7x4@lakrids.cambridge.arm.com>
- <B8AC3E80E903784988AB3003E3E97330C0069032@dggemm510-mbx.china.huawei.com>
-From: Marc Zyngier <marc.zyngier@arm.com>
-Message-ID: <757534e5-fcea-3eb4-3c8d-b8c7e709f555@arm.com>
-Date: Wed, 22 Nov 2017 13:06:18 +0000
-MIME-Version: 1.0
-In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0069032@dggemm510-mbx.china.huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5F96B0289
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 08:08:04 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id g202so3363779ita.4
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 05:08:04 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z133si2683952iod.121.2017.11.22.05.08.02
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 22 Nov 2017 05:08:02 -0800 (PST)
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
+	<201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
+	<201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
+	<20171122124551.tjxt7td5fmfqifnc@dhcp22.suse.cz>
+In-Reply-To: <20171122124551.tjxt7td5fmfqifnc@dhcp22.suse.cz>
+Message-Id: <201711222206.JGF73535.OFFQSLOJFtHMVO@I-love.SAKURA.ne.jp>
+Date: Wed, 22 Nov 2017 22:06:10 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>, Mark Rutland <mark.rutland@arm.com>
-Cc: "tixy@linaro.org" <tixy@linaro.org>, "mhocko@suse.com" <mhocko@suse.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "glider@google.com" <glider@google.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "mingo@kernel.org" <mingo@kernel.org>, Christoffer Dall <cdall@linaro.org>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "linux@armlinux.org.uk" <linux@armlinux.org.uk>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, Dailei <dylix.dailei@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "labbott@redhat.com" <labbott@redhat.com>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, Zengweilin <zengweilin@huawei.com>, "opendmb@gmail.com" <opendmb@gmail.com>, Heshaoliang <heshaoliang@huawei.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "dvyukov@google.com" <dvyukov@google.com>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jiazhenghua <jiazhenghua@huawei.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "thgarnie@google.com" <thgarnie@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, david@fromorbit.com, viro@zeniv.linux.org.uk, jack@suse.com, pbonzini@redhat.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
 
-On 22/11/17 12:56, Liuwenliang (Abbott Liu) wrote:
-> On Nov 22, 2017  20:30  Mark Rutland [mailto:mark.rutland@arm.com] wrote:
->> On Tue, Nov 21, 2017 at 07:59:01AM +0000, Liuwenliang (Abbott Liu) wrote:
->>> On Nov 17, 2017  21:49  Marc Zyngier [mailto:marc.zyngier@arm.com]  wrote:
->>>> On Sat, 18 Nov 2017 10:40:08 +0000
->>>> "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com> wrote:
->>>>> On Nov 17, 2017  15:36 Christoffer Dall [mailto:cdall@linaro.org]  wrote:
+Michal Hocko wrote:
+> On Wed 22-11-17 19:53:59, Tetsuo Handa wrote:
+> > Tetsuo Handa wrote:
+> > > Andrew Morton wrote:
+> > > > On Tue, 21 Nov 2017 21:02:37 +0900 Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+> > > > 
+> > > > > There are users not checking for register_shrinker() failure.
+> > > > > Continuing with ignoring failure can lead to later oops at
+> > > > > unregister_shrinker().
+> > > > > 
+> > > > > ...
+> > > > >
+> > > > > --- a/include/linux/shrinker.h
+> > > > > +++ b/include/linux/shrinker.h
+> > > > > @@ -75,6 +75,6 @@ struct shrinker {
+> > > > >  #define SHRINKER_NUMA_AWARE	(1 << 0)
+> > > > >  #define SHRINKER_MEMCG_AWARE	(1 << 1)
+> > > > >  
+> > > > > -extern int register_shrinker(struct shrinker *);
+> > > > > +extern __must_check int register_shrinker(struct shrinker *);
+> > > > >  extern void unregister_shrinker(struct shrinker *);
+> > > > >  #endif
+> > > > 
+> > > > hm, well, OK, it's a small kmalloc(GFP_KERNEL).  That won't be
+> > > > failing.
+> > > 
+> > > It failed by fault injection and resulted in a report at
+> > > http://lkml.kernel.org/r/001a113f996099503a055e793dd3@google.com .
+> > 
+> > Since kzalloc() can become > 32KB allocation if CONFIG_NODES_SHIFT > 12
+> > (which might not be impossible in near future), register_shrinker() can
+> > potentially become a costly allocation which might fail without invoking
+> > the OOM killer. It is a good opportunity to think whether we should allow
+> > register_shrinker() to fail.
 > 
->>> Please don't ask people to limit to 4GB of physical space on CPU
->>> supporting LPAE, please don't ask people to guaranteed to have some
->>> memory below 4GB on CPU supporting LPAE.
-> 
->> I don't think that Marc is suggesting that you'd always use the 32-bit
->> accessors on an LPAE system, just that all the definitions should exist
->> regardless of configuration.
-> 
->> So rather than this:
-> 
->>> +#ifdef CONFIG_ARM_LPAE
->>> +#define TTBR0           __ACCESS_CP15_64(0, c2)
->>> +#define TTBR1           __ACCESS_CP15_64(1, c2)
->>> +#define PAR             __ACCESS_CP15_64(0, c7)
->>> +#else
->>> +#define TTBR0           __ACCESS_CP15(c2, 0, c0, 0)
->>> +#define TTBR1           __ACCESS_CP15(c2, 0, c0, 1)
->>> +#define PAR             __ACCESS_CP15(c7, 0, c4, 0)
->>> +#endif
-> 
->> ... you'd have the following in cp15.h:
-> 
->> #define TTBR0_64       __ACCESS_CP15_64(0, c2)
->> #define TTBR1_64       __ACCESS_CP15_64(1, c2)
->> #define PAR_64         __ACCESS_CP15_64(0, c7)
-> 
->> #define TTBR0_32       __ACCESS_CP15(c2, 0, c0, 0)
->> #define TTBR1_32       __ACCESS_CP15(c2, 0, c0, 1)
->> #define PAR_32         __ACCESS_CP15(c7, 0, c4, 0)
-> 
->> ... and elsewhere, where it matters, we choose which to use depending on
->> the kernel configuration, e.g.
-> 
->> void set_ttbr0(u64 val)
->> {
->>       if (IS_ENABLED(CONFIG_ARM_LPAE))
->>               write_sysreg(val, TTBR0_64);
->>       else
->>               write_sysreg(val, TTBR0_32);
->> }
-> 
->> Thanks,
->> Mark.
-> 
-> Thanks for your solution.
-> I didn't know there was a IS_ENABLED macro that I can use, so I can't write a function 
-> like:
-> void set_ttbr0(u64 val)
-> {
->        if (IS_ENABLED(CONFIG_ARM_LPAE))
->                write_sysreg(val, TTBR0_64);
->        else
->                write_sysreg(val, TTBR0_32);
-> }
-> 
-> 
-> Here is the code I tested on vexpress_a9 and vexpress_a15:
-> diff --git a/arch/arm/include/asm/cp15.h b/arch/arm/include/asm/cp15.h
-> index dbdbce1..5eb0185 100644
-> --- a/arch/arm/include/asm/cp15.h
-> +++ b/arch/arm/include/asm/cp15.h
-> @@ -2,6 +2,7 @@
->  #define __ASM_ARM_CP15_H
-> 
->  #include <asm/barrier.h>
-> +#include <linux/stringify.h>
-> 
->  /*
->   * CR1 bits (CP#15 CR1)
-> @@ -64,8 +65,93 @@
->  #define __write_sysreg(v, r, w, c, t)  asm volatile(w " " c : : "r" ((t)(v)))
->  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS__)
-> 
-> +#define TTBR0_32           __ACCESS_CP15(c2, 0, c0, 0)
-> +#define TTBR1_32           __ACCESS_CP15(c2, 0, c0, 1)
-> +#define TTBR0_64           __ACCESS_CP15_64(0, c2)
-> +#define TTBR1_64           __ACCESS_CP15_64(1, c2)
-> +#define PAR             __ACCESS_CP15_64(0, c7)
+> Is it really that hard to fix callers to handle the error?
 
-Please define both PAR accessors. Yes, I know the 32bit version is not
-used yet, but it doesn't hurt to make it visible.
+At least adding __must_check will encourage callers to check for an error.
+But
 
-Thanks,
+> 
+> > > > Affected code seems to be fs/xfs, fs/super.c, fs/quota,
+> > > > arch/x86/kvm/mmu, drivers/gpu/drm/ttm, drivers/md and a bunch of
+> > > > staging stuff.
+> > > > 
+> > > > I'm not sure this is worth bothering about?
+> > > > 
+> > > 
+> > > Continuing with failed register_shrinker() is almost always wrong.
+> > > Though I don't know whether mm/zsmalloc.c case can make sense.
+> > > 
+> > 
+> > Thinking from the fact that register_shrinker() had been "void" until Linux 3.11
+> > and we did not take appropriate precautions when changing to "int" in Linux 3.12,
+> > we need to consider making register_shrinker() "void" again.
+> > 
+> > If we could agree with opening up the use of __GFP_NOFAIL for allocating a few
+> > non-contiguous pages on large systems, we can make register_shrinker() "void"
+> > again. (Draft patch is shown below. I choose array of kmalloc(PAGE_SIZE)
+> > rather than kvmalloc() in order to use __GFP_NOFAIL.)
+> 
+> I am not sure we want to overcomplicate the code too much. Most
+> architectures do not have that many numa nodes to care. If we really
+> need to care maybe we should rethink and get rid of the per numa
+> deferred count altogether.
 
-	M.
--- 
-Jazz is not dead. It just smells funny...
+the amount of changes needed for checking for an error will exceed the amount of
+changes needed for making register_shrinker() not to return an error.
+Do we want to overcomplicate register_shrinker() callers?
+
+I think that making register_shrinker() not to fail is less error-prone than
+updating register_shrinker() callers to check for failure. Thus, I appreciate
+if we could agree with __GFP_NOFAIL for register_shrinker().
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
