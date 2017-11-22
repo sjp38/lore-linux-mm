@@ -1,54 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6516D6B0298
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:36:38 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id r2so5349015wra.4
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:36:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r17si1463505edl.492.2017.11.22.06.36.36
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 070E66B029A
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 09:44:04 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 192so16301539pgd.18
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 06:44:03 -0800 (PST)
+Received: from NAM01-BY2-obe.outbound.protection.outlook.com (mail-by2nam01on0137.outbound.protection.outlook.com. [104.47.34.137])
+        by mx.google.com with ESMTPS id m3si13596513pgs.471.2017.11.22.06.44.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 22 Nov 2017 06:36:37 -0800 (PST)
-Date: Wed, 22 Nov 2017 15:36:35 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-Message-ID: <20171122143635.agyx5ceflalysjlb@dhcp22.suse.cz>
-References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
- <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
- <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
- <20171122124551.tjxt7td5fmfqifnc@dhcp22.suse.cz>
- <201711222206.JGF73535.OFFQSLOJFtHMVO@I-love.SAKURA.ne.jp>
- <b04f6093-3b22-e57f-a276-bfaaf3b0ba1e@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 22 Nov 2017 06:44:02 -0800 (PST)
+Message-ID: <5A158D22.3040609@cs.rutgers.edu>
+Date: Wed, 22 Nov 2017 09:43:46 -0500
+From: Zi Yan <zi.yan@cs.rutgers.edu>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b04f6093-3b22-e57f-a276-bfaaf3b0ba1e@redhat.com>
+Subject: Re: [PATCH] mm: migrate: fix an incorrect call of prep_transhuge_page()
+References: <20171121021855.50525-1-zi.yan@sent.com> <20171122085416.ycrvahu2bznlx37s@dhcp22.suse.cz> <20171122134059.fmyambktkel4e3zq@dhcp22.suse.cz>
+In-Reply-To: <20171122134059.fmyambktkel4e3zq@dhcp22.suse.cz>
+Content-Type: multipart/signed; micalg=pgp-sha256;
+ protocol="application/pgp-signature";
+ boundary="------------enig97BB13ED2DB5359A2AEE3BB8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, david@fromorbit.com, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Zi Yan <zi.yan@sent.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Andrea Reale <ar@linux.vnet.ibm.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, stable@vger.kernel.org
 
-On Wed 22-11-17 15:31:14, Paolo Bonzini wrote:
-> On 22/11/2017 14:06, Tetsuo Handa wrote:
-> >> I am not sure we want to overcomplicate the code too much. Most
-> >> architectures do not have that many numa nodes to care. If we really
-> >> need to care maybe we should rethink and get rid of the per numa
-> >> deferred count altogether.
-> > the amount of changes needed for checking for an error will exceed the amount of
-> > changes needed for making register_shrinker() not to return an error.
-> > Do we want to overcomplicate register_shrinker() callers?
-> 
-> For KVM it's not a big deal, fixing kvm_mmu_module_init to check the
-> return value is trivial.
+This is an OpenPGP/MIME signed message (RFC 2440 and 3156)
+--------------enig97BB13ED2DB5359A2AEE3BB8
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
 
-I suspect others will be in a similar situation. I've tried to do so for
-sget_userns [1] and it didn't look terrible either.
 
-[1] http://lkml.kernel.org/r/20171121140500.bgkpwcdk2dxesao4@dhcp22.suse.cz
--- 
-Michal Hocko
-SUSE Labs
+
+Michal Hocko wrote:
+> On Wed 22-11-17 09:54:16, Michal Hocko wrote:
+>> On Mon 20-11-17 21:18:55, Zi Yan wrote:
+> [...]
+>>> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+>>> index 895ec0c4942e..a2246cf670ba 100644
+>>> --- a/include/linux/migrate.h
+>>> +++ b/include/linux/migrate.h
+>>> @@ -54,7 +54,7 @@ static inline struct page *new_page_nodemask(struct=
+ page *page,
+>>>  	new_page =3D __alloc_pages_nodemask(gfp_mask, order,
+>>>  				preferred_nid, nodemask);
+>>> =20
+>>> -	if (new_page && PageTransHuge(page))
+>>> +	if (new_page && PageTransHuge(new_page))
+>>>  		prep_transhuge_page(new_page);
+>> I would keep the two checks consistent. But that leads to a more
+>> interesting question. new_page_nodemask does
+>>
+>> 	if (thp_migration_supported() && PageTransHuge(page)) {
+>> 		order =3D HPAGE_PMD_ORDER;
+>> 		gfp_mask |=3D GFP_TRANSHUGE;
+>> 	}
+>=20
+> And one more question/note. Why do we need thp_migration_supported
+> in the first place? 9c670ea37947 ("mm: thp: introduce
+> CONFIG_ARCH_ENABLE_THP_MIGRATION") says
+> : Introduce CONFIG_ARCH_ENABLE_THP_MIGRATION to limit thp migration
+> : functionality to x86_64, which should be safer at the first step.
+>=20
+> but why is unsafe to enable the feature on other arches which support
+> THP? Is there any plan to do the next step and remove this config
+> option?
+
+Because different architectures have their own way of specifying a swap
+entry. This means, to support THP migration, each architecture needs to
+add its own __pmd_to_swp_entry() and __swp_entry_to_pmd(), which are
+used for arch-independent pmd_to_swp_entry() and swp_entry_to_pmd().
+
+We need this CONFIG_ARCH_ENABLE_THP_MIGRATION before archs that support
+THP add code for pmd swap entry.
+
+--=20
+Best Regards,
+Yan Zi
+
+
+--------------enig97BB13ED2DB5359A2AEE3BB8
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: OpenPGP digital signature
+Content-Disposition: attachment; filename="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v2
+Comment: Using GnuPG with Mozilla - http://enigmail.mozdev.org/
+
+iQEcBAEBCAAGBQJaFY05AAoJEEGLLxGcTqbMgIMH+gL5yfMn4qjZ61tXon+Pd5SZ
+2V6ZBz6hHrUr0m/BUleXwaKs6Y6t+9V8VjOz/fEkWLRDxd/IwPKiiJNHJcwjl1Wl
+l2kM8gGyhiK/zynZM0l+m70yvxCgKwn5alVbUHutokDWYsAW7w4maghFBYdlnojh
+2DwdPcqt5AQkFU9MHFvoWKgYSGlCgQq0vVYbleZ91EbokU+rrsvTig94QuU5qH/V
+Cqdgxrof6U5c0yupjYg+yrt3+W/pfe4IRbVzjHKv7QkeWBq8fUSKiOEM/WolGZ1a
+2el2/dasgXJGtyf9OoKZ4mI6T/DUKEn4fx4W80zSLKpcAxz5e7m2HQgKPKQ3c1w=
+=2We7
+-----END PGP SIGNATURE-----
+
+--------------enig97BB13ED2DB5359A2AEE3BB8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
