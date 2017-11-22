@@ -1,20 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 919A06B025E
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:07:50 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 199so11234754pgg.20
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:07:50 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF5E6B0268
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:07:54 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id b77so2189043pfl.2
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:07:54 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 91si14266625ply.498.2017.11.22.13.07.48
+        by mx.google.com with ESMTPS id e3si15617626pfg.23.2017.11.22.13.07.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 22 Nov 2017 13:07:48 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 07/62] idr: Rewrite extended IDR API
-Date: Wed, 22 Nov 2017 13:06:44 -0800
-Message-Id: <20171122210739.29916-8-willy@infradead.org>
-In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
-References: <20171122210739.29916-1-willy@infradead.org>
+Subject: [PATCH 00/62] XArray November 2017 Edition
+Date: Wed, 22 Nov 2017 13:06:37 -0800
+Message-Id: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
@@ -22,848 +20,279 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Rename the API to be 'ul' for unsigned long instead of 'ext'.  This fits
-better with other usage in the Linux kernel.
+I've lost count of the number of times I've posted the XArray before,
+so time for a new numbering scheme.  Here're two earlier versions,
+https://lkml.org/lkml/2017/3/17/724
+https://lwn.net/Articles/715948/ (this one's more loquacious in its
+description of things that are better about the radix tree API than the
+XArray).
 
- - idr_replace(), idr_remove() and idr_find() can simply take an unsigned
-   long index instead of an int.
- - idr_alloc() turns back into a regular function.
- - idr_alloc_ul() takes 'nextid' as an in-out parameter like idr_get_next(),
-   instead of having 'index' as an out-only parameter.
- - idr_alloc_ul() needs a __must_check to ensure that users don't look at
-   the result without checking whether the function succeeded.
- - idr_alloc_ul() takes 'max' rather than 'end', or it is impossible to
-   allocate the ULONG_MAX id.  This differs from idr_alloc(), but so do
-   many other things.
- - We don't need separate idr_get_free() and idr_get_free_ext().
- - Add kerneldoc for idr_alloc_ul().
- - Add an idr_alloc_u32() helper for the majority of existing users.
+This time around, I've gone for an approach of many small changes.
+Unfortunately, that means you get 62 moderate patches instead of dozens
+of big ones.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- include/linux/idr.h        |  80 ++++++++----------------------------
- include/linux/radix-tree.h |  17 +-------
- lib/idr.c                  | 100 +++++++++++++++++++++++++++++++++------------
- lib/radix-tree.c           |   2 +-
- net/sched/act_api.c        |  60 +++++++++++++--------------
- net/sched/cls_basic.c      |  20 ++++-----
- net/sched/cls_bpf.c        |  20 ++++-----
- net/sched/cls_flower.c     |  32 ++++++---------
- net/sched/cls_u32.c        |  44 +++++++++-----------
- 9 files changed, 171 insertions(+), 204 deletions(-)
+Some of these can and should go in independently of whether the XArray
+is a good idea.  The first four fix some things in the test-suite.
+Patch 6 changes the API for the IDR cyclic allocation.  Patch 7 changes
+the API for the IDR 'extended' API that was recently added without my
+review.
 
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 10bfe62423df..87ae635fcee6 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -54,73 +54,30 @@ struct idr {
- 
- void idr_preload(gfp_t gfp_mask);
- 
--int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
--		  unsigned long start, unsigned long end, gfp_t gfp,
--		  bool ext);
--
--/**
-- * idr_alloc - allocate an id
-- * @idr: idr handle
-- * @ptr: pointer to be associated with the new id
-- * @start: the minimum id (inclusive)
-- * @end: the maximum id (exclusive)
-- * @gfp: memory allocation flags
-- *
-- * Allocates an unused ID in the range [start, end).  Returns -ENOSPC
-- * if there are no unused IDs in that range.
-- *
-- * Note that @end is treated as max when <= 0.  This is to always allow
-- * using @start + N as @end as long as N is inside integer range.
-- *
-- * Simultaneous modifications to the @idr are not allowed and should be
-- * prevented by the user, usually with a lock.  idr_alloc() may be called
-- * concurrently with read-only accesses to the @idr, such as idr_find() and
-- * idr_for_each_entry().
-- */
--static inline int idr_alloc(struct idr *idr, void *ptr,
--			    int start, int end, gfp_t gfp)
--{
--	unsigned long id;
--	int ret;
--
--	if (WARN_ON_ONCE(start < 0))
--		return -EINVAL;
--
--	ret = idr_alloc_cmn(idr, ptr, &id, start, end, gfp, false);
--
--	if (ret)
--		return ret;
--
--	return id;
--}
--
--static inline int idr_alloc_ext(struct idr *idr, void *ptr,
--				unsigned long *index,
--				unsigned long start,
--				unsigned long end,
--				gfp_t gfp)
--{
--	return idr_alloc_cmn(idr, ptr, index, start, end, gfp, true);
--}
--
-+int idr_alloc(struct idr *, void *, int start, int end, gfp_t);
-+int __must_check idr_alloc_ul(struct idr *, void *, unsigned long *nextid,
-+			unsigned long max, gfp_t);
- int idr_alloc_cyclic(struct idr *, int *cursor, void *entry,
- 			int start, int end, gfp_t);
- int idr_for_each(const struct idr *,
- 		 int (*fn)(int id, void *p, void *data), void *data);
- void *idr_get_next(struct idr *, int *nextid);
--void *idr_get_next_ext(struct idr *idr, unsigned long *nextid);
--void *idr_replace(struct idr *, void *, int id);
--void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id);
-+void *idr_get_next_ul(struct idr *, unsigned long *nextid);
-+void *idr_replace(struct idr *, void *, unsigned long id);
- void idr_destroy(struct idr *);
- 
--static inline void *idr_remove_ext(struct idr *idr, unsigned long id)
-+static inline int __must_check idr_alloc_u32(struct idr *idr, void *ptr,
-+				u32 *nextid, unsigned long max, gfp_t gfp)
- {
--	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
-+	unsigned long tmp = *nextid;
-+	int ret = idr_alloc_ul(idr, ptr, &tmp, max, gfp);
-+	*nextid = tmp;
-+	return ret;
- }
- 
--static inline void *idr_remove(struct idr *idr, int id)
-+static inline void *idr_remove(struct idr *idr, unsigned long id)
- {
--	return idr_remove_ext(idr, id);
-+	return radix_tree_delete_item(&idr->idr_rt, id, NULL);
- }
- 
- static inline void idr_init(struct idr *idr)
-@@ -157,16 +114,11 @@ static inline void idr_preload_end(void)
-  * This function can be called under rcu_read_lock(), given that the leaf
-  * pointers lifetimes are correctly managed.
-  */
--static inline void *idr_find_ext(const struct idr *idr, unsigned long id)
-+static inline void *idr_find(const struct idr *idr, unsigned long id)
- {
- 	return radix_tree_lookup(&idr->idr_rt, id);
- }
- 
--static inline void *idr_find(const struct idr *idr, int id)
--{
--	return idr_find_ext(idr, id);
--}
--
- /**
-  * idr_for_each_entry - iterate over an idr's elements of a given type
-  * @idr:     idr handle
-@@ -179,8 +131,8 @@ static inline void *idr_find(const struct idr *idr, int id)
-  */
- #define idr_for_each_entry(idr, entry, id)			\
- 	for (id = 0; ((entry) = idr_get_next(idr, &(id))) != NULL; ++id)
--#define idr_for_each_entry_ext(idr, entry, id)			\
--	for (id = 0; ((entry) = idr_get_next_ext(idr, &(id))) != NULL; ++id)
-+#define idr_for_each_entry_ul(idr, entry, id)			\
-+	for (id = 0; ((entry) = idr_get_next_ul(idr, &(id))) != NULL; ++id)
- 
- /**
-  * idr_for_each_entry_continue - continue iteration over an idr's elements of a given type
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index 23a9c89c7ad9..fc55ff31eca7 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -356,24 +356,9 @@ int radix_tree_split(struct radix_tree_root *, unsigned long index,
- int radix_tree_join(struct radix_tree_root *, unsigned long index,
- 			unsigned new_order, void *);
- 
--void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
-+void __rcu **idr_get_free(struct radix_tree_root *root,
- 			      struct radix_tree_iter *iter, gfp_t gfp,
- 			      unsigned long max);
--static inline void __rcu **idr_get_free(struct radix_tree_root *root,
--					struct radix_tree_iter *iter,
--					gfp_t gfp,
--					int end)
--{
--	return idr_get_free_cmn(root, iter, gfp, end > 0 ? end - 1 : INT_MAX);
--}
--
--static inline void __rcu **idr_get_free_ext(struct radix_tree_root *root,
--					    struct radix_tree_iter *iter,
--					    gfp_t gfp,
--					    unsigned long end)
--{
--	return idr_get_free_cmn(root, iter, gfp, end - 1);
--}
- 
- enum {
- 	RADIX_TREE_ITER_TAG_MASK = 0x0f,	/* tag index in lower nybble */
-diff --git a/lib/idr.c b/lib/idr.c
-index 26cb99412b8f..35678388e134 100644
---- a/lib/idr.c
-+++ b/lib/idr.c
-@@ -7,9 +7,26 @@
- DEFINE_PER_CPU(struct ida_bitmap *, ida_bitmap);
- static DEFINE_SPINLOCK(simple_ida_lock);
- 
--int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
--		  unsigned long start, unsigned long end, gfp_t gfp,
--		  bool ext)
-+/**
-+ * idr_alloc_ul() - allocate a large ID
-+ * @idr: idr handle
-+ * @ptr: pointer to be associated with the new ID
-+ * @nextid: Pointer to minimum ID to allocate
-+ * @max: the maximum ID (inclusive)
-+ * @gfp: memory allocation flags
-+ *
-+ * Allocates an unused ID in the range [*nextid, end] and stores it in
-+ * @nextid.  Note that @max differs from the @end parameter to idr_alloc().
-+ *
-+ * Simultaneous modifications to the @idr are not allowed and should be
-+ * prevented by the user, usually with a lock.  idr_alloc_ul() may be called
-+ * concurrently with read-only accesses to the @idr, such as idr_find() and
-+ * idr_for_each_entry().
-+ *
-+ * Return: 0 on success or a negative errno on failure (ENOMEM or ENOSPC)
-+ */
-+int idr_alloc_ul(struct idr *idr, void *ptr, unsigned long *nextid,
-+			unsigned long max, gfp_t gfp)
- {
- 	struct radix_tree_iter iter;
- 	void __rcu **slot;
-@@ -20,22 +37,54 @@ int idr_alloc_cmn(struct idr *idr, void *ptr, unsigned long *index,
- 	if (WARN_ON_ONCE(!(idr->idr_rt.gfp_mask & ROOT_IS_IDR)))
- 		idr->idr_rt.gfp_mask |= IDR_RT_MARKER;
- 
--	radix_tree_iter_init(&iter, start);
--	if (ext)
--		slot = idr_get_free_ext(&idr->idr_rt, &iter, gfp, end);
--	else
--		slot = idr_get_free(&idr->idr_rt, &iter, gfp, end);
-+	radix_tree_iter_init(&iter, *nextid);
-+	slot = idr_get_free(&idr->idr_rt, &iter, gfp, max);
- 	if (IS_ERR(slot))
- 		return PTR_ERR(slot);
- 
- 	radix_tree_iter_replace(&idr->idr_rt, &iter, slot, ptr);
- 	radix_tree_iter_tag_clear(&idr->idr_rt, &iter, IDR_FREE);
- 
--	if (index)
--		*index = iter.index;
-+	*nextid = iter.index;
- 	return 0;
- }
--EXPORT_SYMBOL_GPL(idr_alloc_cmn);
-+EXPORT_SYMBOL_GPL(idr_alloc_ul);
-+
-+/**
-+ * idr_alloc - allocate an id
-+ * @idr: idr handle
-+ * @ptr: pointer to be associated with the new id
-+ * @start: the minimum id (inclusive)
-+ * @end: the maximum id (exclusive)
-+ * @gfp: memory allocation flags
-+ *
-+ * Allocates an unused ID in the range [start, end).  Returns -ENOSPC
-+ * if there are no unused IDs in that range.
-+ *
-+ * Note that @end is treated as max when <= 0.  This is to always allow
-+ * using @start + N as @end as long as N is inside integer range.
-+ *
-+ * Simultaneous modifications to the @idr are not allowed and should be
-+ * prevented by the user, usually with a lock.  idr_alloc() may be called
-+ * concurrently with read-only accesses to the @idr, such as idr_find() and
-+ * idr_for_each_entry().
-+ */
-+int idr_alloc(struct idr *idr, void *ptr, int start, int end, gfp_t gfp)
-+{
-+	unsigned long id = start;
-+	int ret;
-+
-+	if (WARN_ON_ONCE(start < 0))
-+		return -EINVAL;
-+
-+	ret = idr_alloc_ul(idr, ptr, &id, end > 0 ? end - 1 : INT_MAX, gfp);
-+
-+	if (ret)
-+		return ret;
-+
-+	return id;
-+}
-+EXPORT_SYMBOL_GPL(idr_alloc);
- 
- /**
-  * idr_alloc_cyclic() - Allocate new idr entry in a cyclical fashion.
-@@ -126,7 +175,17 @@ void *idr_get_next(struct idr *idr, int *nextid)
- }
- EXPORT_SYMBOL(idr_get_next);
- 
--void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
-+/**
-+ * idr_get_next_ul - Find next populated entry
-+ * @idr: idr handle
-+ * @nextid: Pointer to lowest possible ID to return
-+ *
-+ * Returns the next populated entry in the tree with an ID greater than
-+ * or equal to the value pointed to by @nextid.  On exit, @nextid is updated
-+ * to the ID of the found value.  To use in a loop, the value pointed to by
-+ * nextid must be incremented by the user.
-+ */
-+void *idr_get_next_ul(struct idr *idr, unsigned long *nextid)
- {
- 	struct radix_tree_iter iter;
- 	void __rcu **slot;
-@@ -138,7 +197,7 @@ void *idr_get_next_ext(struct idr *idr, unsigned long *nextid)
- 	*nextid = iter.index;
- 	return rcu_dereference_raw(*slot);
- }
--EXPORT_SYMBOL(idr_get_next_ext);
-+EXPORT_SYMBOL(idr_get_next_ul);
- 
- /**
-  * idr_replace - replace pointer for given id
-@@ -154,16 +213,7 @@ EXPORT_SYMBOL(idr_get_next_ext);
-  * Returns: the old value on success.  %-ENOENT indicates that @id was not
-  * found.  %-EINVAL indicates that @id or @ptr were not valid.
-  */
--void *idr_replace(struct idr *idr, void *ptr, int id)
--{
--	if (id < 0)
--		return ERR_PTR(-EINVAL);
--
--	return idr_replace_ext(idr, ptr, id);
--}
--EXPORT_SYMBOL(idr_replace);
--
--void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
-+void *idr_replace(struct idr *idr, void *ptr, unsigned long id)
- {
- 	struct radix_tree_node *node;
- 	void __rcu **slot = NULL;
-@@ -180,7 +230,7 @@ void *idr_replace_ext(struct idr *idr, void *ptr, unsigned long id)
- 
- 	return entry;
- }
--EXPORT_SYMBOL(idr_replace_ext);
-+EXPORT_SYMBOL(idr_replace);
- 
- /**
-  * DOC: IDA description
-@@ -240,7 +290,7 @@ EXPORT_SYMBOL(idr_replace_ext);
-  * bitmap, which is excessive.
-  */
- 
--#define IDA_MAX (0x80000000U / IDA_BITMAP_BITS)
-+#define IDA_MAX (0x80000000U / IDA_BITMAP_BITS - 1)
- 
- /**
-  * ida_get_new_above - allocate new ID above or equal to a start id
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index f00303e0b216..6d29ca4c8db0 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -2135,7 +2135,7 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
- }
- EXPORT_SYMBOL(ida_pre_get);
- 
--void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
-+void __rcu **idr_get_free(struct radix_tree_root *root,
- 			      struct radix_tree_iter *iter, gfp_t gfp,
- 			      unsigned long max)
- {
-diff --git a/net/sched/act_api.c b/net/sched/act_api.c
-index 4d33a50a8a6d..a6aa606b5e99 100644
---- a/net/sched/act_api.c
-+++ b/net/sched/act_api.c
-@@ -78,7 +78,7 @@ static void free_tcf(struct tc_action *p)
- static void tcf_idr_remove(struct tcf_idrinfo *idrinfo, struct tc_action *p)
- {
- 	spin_lock_bh(&idrinfo->lock);
--	idr_remove_ext(&idrinfo->action_idr, p->tcfa_index);
-+	idr_remove(&idrinfo->action_idr, p->tcfa_index);
- 	spin_unlock_bh(&idrinfo->lock);
- 	gen_kill_estimator(&p->tcfa_rate_est);
- 	free_tcf(p);
-@@ -124,7 +124,7 @@ static int tcf_dump_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
- 
- 	s_i = cb->args[0];
- 
--	idr_for_each_entry_ext(idr, p, id) {
-+	idr_for_each_entry_ul(idr, p, id) {
- 		index++;
- 		if (index < s_i)
- 			continue;
-@@ -181,7 +181,7 @@ static int tcf_del_walker(struct tcf_idrinfo *idrinfo, struct sk_buff *skb,
- 	if (nla_put_string(skb, TCA_KIND, ops->kind))
- 		goto nla_put_failure;
- 
--	idr_for_each_entry_ext(idr, p, id) {
-+	idr_for_each_entry_ul(idr, p, id) {
- 		ret = __tcf_idr_release(p, false, true);
- 		if (ret == ACT_P_DELETED) {
- 			module_put(ops->owner);
-@@ -219,10 +219,10 @@ EXPORT_SYMBOL(tcf_generic_walker);
- 
- static struct tc_action *tcf_idr_lookup(u32 index, struct tcf_idrinfo *idrinfo)
- {
--	struct tc_action *p = NULL;
-+	struct tc_action *p;
- 
- 	spin_lock_bh(&idrinfo->lock);
--	p = idr_find_ext(&idrinfo->action_idr, index);
-+	p = idr_find(&idrinfo->action_idr, index);
- 	spin_unlock_bh(&idrinfo->lock);
- 
- 	return p;
-@@ -274,7 +274,6 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
- 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
- 	struct idr *idr = &idrinfo->action_idr;
- 	int err = -ENOMEM;
--	unsigned long idr_index;
- 
- 	if (unlikely(!p))
- 		return -ENOMEM;
-@@ -284,45 +283,34 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
- 
- 	if (cpustats) {
- 		p->cpu_bstats = netdev_alloc_pcpu_stats(struct gnet_stats_basic_cpu);
--		if (!p->cpu_bstats) {
--err1:
--			kfree(p);
--			return err;
--		}
--		p->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
--		if (!p->cpu_qstats) {
--err2:
--			free_percpu(p->cpu_bstats);
-+		if (!p->cpu_bstats)
- 			goto err1;
--		}
-+		p->cpu_qstats = alloc_percpu(struct gnet_stats_queue);
-+		if (!p->cpu_qstats)
-+			goto err2;
- 	}
- 	spin_lock_init(&p->tcfa_lock);
- 	/* user doesn't specify an index */
- 	if (!index) {
-+		index = 1;
- 		idr_preload(GFP_KERNEL);
- 		spin_lock_bh(&idrinfo->lock);
--		err = idr_alloc_ext(idr, NULL, &idr_index, 1, 0,
--				    GFP_ATOMIC);
-+		err = idr_alloc_u32(idr, NULL, &index, UINT_MAX, GFP_ATOMIC);
- 		spin_unlock_bh(&idrinfo->lock);
- 		idr_preload_end();
--		if (err) {
--err3:
--			free_percpu(p->cpu_qstats);
--			goto err2;
--		}
--		p->tcfa_index = idr_index;
-+		if (err)
-+			goto err3;
- 	} else {
- 		idr_preload(GFP_KERNEL);
- 		spin_lock_bh(&idrinfo->lock);
--		err = idr_alloc_ext(idr, NULL, NULL, index, index + 1,
--				    GFP_ATOMIC);
-+		err = idr_alloc_u32(idr, NULL, &index, index, GFP_ATOMIC);
- 		spin_unlock_bh(&idrinfo->lock);
- 		idr_preload_end();
- 		if (err)
- 			goto err3;
--		p->tcfa_index = index;
- 	}
- 
-+	p->tcfa_index = index;
- 	p->tcfa_tm.install = jiffies;
- 	p->tcfa_tm.lastuse = jiffies;
- 	p->tcfa_tm.firstuse = 0;
-@@ -330,9 +318,8 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
- 		err = gen_new_estimator(&p->tcfa_bstats, p->cpu_bstats,
- 					&p->tcfa_rate_est,
- 					&p->tcfa_lock, NULL, est);
--		if (err) {
--			goto err3;
--		}
-+		if (err)
-+			goto err4;
- 	}
- 
- 	p->idrinfo = idrinfo;
-@@ -340,6 +327,15 @@ int tcf_idr_create(struct tc_action_net *tn, u32 index, struct nlattr *est,
- 	INIT_LIST_HEAD(&p->list);
- 	*a = p;
- 	return 0;
-+err4:
-+	idr_remove(idr, index);
-+err3:
-+	free_percpu(p->cpu_qstats);
-+err2:
-+	free_percpu(p->cpu_bstats);
-+err1:
-+	kfree(p);
-+	return err;
- }
- EXPORT_SYMBOL(tcf_idr_create);
- 
-@@ -348,7 +344,7 @@ void tcf_idr_insert(struct tc_action_net *tn, struct tc_action *a)
- 	struct tcf_idrinfo *idrinfo = tn->idrinfo;
- 
- 	spin_lock_bh(&idrinfo->lock);
--	idr_replace_ext(&idrinfo->action_idr, a, a->tcfa_index);
-+	idr_replace(&idrinfo->action_idr, a, a->tcfa_index);
- 	spin_unlock_bh(&idrinfo->lock);
- }
- EXPORT_SYMBOL(tcf_idr_insert);
-@@ -361,7 +357,7 @@ void tcf_idrinfo_destroy(const struct tc_action_ops *ops,
- 	int ret;
- 	unsigned long id = 1;
- 
--	idr_for_each_entry_ext(idr, p, id) {
-+	idr_for_each_entry_ul(idr, p, id) {
- 		ret = __tcf_idr_release(p, false, true);
- 		if (ret == ACT_P_DELETED)
- 			module_put(ops->owner);
-diff --git a/net/sched/cls_basic.c b/net/sched/cls_basic.c
-index 5f169ded347e..c2ff835639ed 100644
---- a/net/sched/cls_basic.c
-+++ b/net/sched/cls_basic.c
-@@ -120,7 +120,7 @@ static void basic_destroy(struct tcf_proto *tp)
- 	list_for_each_entry_safe(f, n, &head->flist, link) {
- 		list_del_rcu(&f->link);
- 		tcf_unbind_filter(tp, &f->res);
--		idr_remove_ext(&head->handle_idr, f->handle);
-+		idr_remove(&head->handle_idr, f->handle);
- 		if (tcf_exts_get_net(&f->exts))
- 			call_rcu(&f->rcu, basic_delete_filter);
- 		else
-@@ -137,7 +137,7 @@ static int basic_delete(struct tcf_proto *tp, void *arg, bool *last)
- 
- 	list_del_rcu(&f->link);
- 	tcf_unbind_filter(tp, &f->res);
--	idr_remove_ext(&head->handle_idr, f->handle);
-+	idr_remove(&head->handle_idr, f->handle);
- 	tcf_exts_get_net(&f->exts);
- 	call_rcu(&f->rcu, basic_delete_filter);
- 	*last = list_empty(&head->flist);
-@@ -182,7 +182,6 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
- 	struct nlattr *tb[TCA_BASIC_MAX + 1];
- 	struct basic_filter *fold = (struct basic_filter *) *arg;
- 	struct basic_filter *fnew;
--	unsigned long idr_index;
- 
- 	if (tca[TCA_OPTIONS] == NULL)
- 		return -EINVAL;
-@@ -208,30 +207,29 @@ static int basic_change(struct net *net, struct sk_buff *in_skb,
- 	if (handle) {
- 		fnew->handle = handle;
- 		if (!fold) {
--			err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
--					    handle, handle + 1, GFP_KERNEL);
-+			err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
-+						handle, GFP_KERNEL);
- 			if (err)
- 				goto errout;
- 		}
- 	} else {
--		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
--				    1, 0x7FFFFFFF, GFP_KERNEL);
--		if (err)
-+		err = idr_alloc(&head->handle_idr, fnew, 1, 0, GFP_KERNEL);
-+		if (err < 0)
- 			goto errout;
--		fnew->handle = idr_index;
-+		fnew->handle = err;
- 	}
- 
- 	err = basic_set_parms(net, tp, fnew, base, tb, tca[TCA_RATE], ovr);
- 	if (err < 0) {
- 		if (!fold)
--			idr_remove_ext(&head->handle_idr, fnew->handle);
-+			idr_remove(&head->handle_idr, fnew->handle);
- 		goto errout;
- 	}
- 
- 	*arg = fnew;
- 
- 	if (fold) {
--		idr_replace_ext(&head->handle_idr, fnew, fnew->handle);
-+		idr_replace(&head->handle_idr, fnew, fnew->handle);
- 		list_replace_rcu(&fold->link, &fnew->link);
- 		tcf_unbind_filter(tp, &fold->res);
- 		tcf_exts_get_net(&fold->exts);
-diff --git a/net/sched/cls_bpf.c b/net/sched/cls_bpf.c
-index fb680dafac5a..b575d41543df 100644
---- a/net/sched/cls_bpf.c
-+++ b/net/sched/cls_bpf.c
-@@ -294,7 +294,7 @@ static void __cls_bpf_delete(struct tcf_proto *tp, struct cls_bpf_prog *prog)
- {
- 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
- 
--	idr_remove_ext(&head->handle_idr, prog->handle);
-+	idr_remove(&head->handle_idr, prog->handle);
- 	cls_bpf_stop_offload(tp, prog);
- 	list_del_rcu(&prog->link);
- 	tcf_unbind_filter(tp, &prog->res);
-@@ -469,7 +469,6 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
- 	struct cls_bpf_prog *oldprog = *arg;
- 	struct nlattr *tb[TCA_BPF_MAX + 1];
- 	struct cls_bpf_prog *prog;
--	unsigned long idr_index;
- 	int ret;
- 
- 	if (tca[TCA_OPTIONS] == NULL)
-@@ -496,15 +495,14 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
- 	}
- 
- 	if (handle == 0) {
--		ret = idr_alloc_ext(&head->handle_idr, prog, &idr_index,
--				    1, 0x7FFFFFFF, GFP_KERNEL);
--		if (ret)
-+		ret = idr_alloc(&head->handle_idr, prog, 1, 0, GFP_KERNEL);
-+		if (ret < 0)
- 			goto errout;
--		prog->handle = idr_index;
-+		prog->handle = ret;
- 	} else {
- 		if (!oldprog) {
--			ret = idr_alloc_ext(&head->handle_idr, prog, &idr_index,
--					    handle, handle + 1, GFP_KERNEL);
-+			ret = idr_alloc_u32(&head->handle_idr, prog, &handle,
-+						handle, GFP_KERNEL);
- 			if (ret)
- 				goto errout;
- 		}
-@@ -518,7 +516,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
- 	ret = cls_bpf_offload(tp, prog, oldprog);
- 	if (ret) {
- 		if (!oldprog)
--			idr_remove_ext(&head->handle_idr, prog->handle);
-+			idr_remove(&head->handle_idr, prog->handle);
- 		__cls_bpf_delete_prog(prog);
- 		return ret;
- 	}
-@@ -527,7 +525,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
- 		prog->gen_flags |= TCA_CLS_FLAGS_NOT_IN_HW;
- 
- 	if (oldprog) {
--		idr_replace_ext(&head->handle_idr, prog, handle);
-+		idr_replace(&head->handle_idr, prog, handle);
- 		list_replace_rcu(&oldprog->link, &prog->link);
- 		tcf_unbind_filter(tp, &oldprog->res);
- 		tcf_exts_get_net(&oldprog->exts);
-@@ -541,7 +539,7 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
- 
- errout_idr:
- 	if (!oldprog)
--		idr_remove_ext(&head->handle_idr, prog->handle);
-+		idr_remove(&head->handle_idr, prog->handle);
- errout:
- 	tcf_exts_destroy(&prog->exts);
- 	kfree(prog);
-diff --git a/net/sched/cls_flower.c b/net/sched/cls_flower.c
-index 543a3e875d05..0867fa7bef5b 100644
---- a/net/sched/cls_flower.c
-+++ b/net/sched/cls_flower.c
-@@ -283,7 +283,7 @@ static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)
- {
- 	struct cls_fl_head *head = rtnl_dereference(tp->root);
- 
--	idr_remove_ext(&head->handle_idr, f->handle);
-+	idr_remove(&head->handle_idr, f->handle);
- 	list_del_rcu(&f->list);
- 	if (!tc_skip_hw(f->flags))
- 		fl_hw_destroy_filter(tp, f);
-@@ -329,7 +329,7 @@ static void *fl_get(struct tcf_proto *tp, u32 handle)
- {
- 	struct cls_fl_head *head = rtnl_dereference(tp->root);
- 
--	return idr_find_ext(&head->handle_idr, handle);
-+	return idr_find(&head->handle_idr, handle);
- }
- 
- static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
-@@ -858,7 +858,6 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
- 	struct cls_fl_filter *fnew;
- 	struct nlattr **tb;
- 	struct fl_flow_mask mask = {};
--	unsigned long idr_index;
- 	int err;
- 
- 	if (!tca[TCA_OPTIONS])
-@@ -889,21 +888,15 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
- 		goto errout;
- 
- 	if (!handle) {
--		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
--				    1, 0x80000000, GFP_KERNEL);
--		if (err)
--			goto errout;
--		fnew->handle = idr_index;
--	}
--
--	/* user specifies a handle and it doesn't exist */
--	if (handle && !fold) {
--		err = idr_alloc_ext(&head->handle_idr, fnew, &idr_index,
--				    handle, handle + 1, GFP_KERNEL);
--		if (err)
--			goto errout;
--		fnew->handle = idr_index;
-+		err = idr_alloc(&head->handle_idr, fnew, 1, 0, GFP_KERNEL);
-+	} else if (!fold) {
-+		/* user specifies a handle and it doesn't exist */
-+		err = idr_alloc_u32(&head->handle_idr, fnew, &handle,
-+				    handle, GFP_KERNEL);
- 	}
-+	if (err < 0)
-+		goto errout;
-+	fnew->handle = handle;
- 
- 	if (tb[TCA_FLOWER_FLAGS]) {
- 		fnew->flags = nla_get_u32(tb[TCA_FLOWER_FLAGS]);
-@@ -957,8 +950,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
- 	*arg = fnew;
- 
- 	if (fold) {
--		fnew->handle = handle;
--		idr_replace_ext(&head->handle_idr, fnew, fnew->handle);
-+		idr_replace(&head->handle_idr, fnew, fnew->handle);
- 		list_replace_rcu(&fold->list, &fnew->list);
- 		tcf_unbind_filter(tp, &fold->res);
- 		tcf_exts_get_net(&fold->exts);
-@@ -972,7 +964,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
- 
- errout_idr:
- 	if (fnew->handle)
--		idr_remove_ext(&head->handle_idr, fnew->handle);
-+		idr_remove(&head->handle_idr, fnew->handle);
- errout:
- 	tcf_exts_destroy(&fnew->exts);
- 	kfree(fnew);
-diff --git a/net/sched/cls_u32.c b/net/sched/cls_u32.c
-index ac152b4f4247..9260f7d14ab9 100644
---- a/net/sched/cls_u32.c
-+++ b/net/sched/cls_u32.c
-@@ -316,19 +316,16 @@ static void *u32_get(struct tcf_proto *tp, u32 handle)
- 	return u32_lookup_key(ht, handle);
- }
- 
-+/*
-+ * This is only used inside rtnl lock it is safe to increment
-+ * without read _copy_ update semantics
-+ */
- static u32 gen_new_htid(struct tc_u_common *tp_c, struct tc_u_hnode *ptr)
- {
--	unsigned long idr_index;
--	int err;
--
--	/* This is only used inside rtnl lock it is safe to increment
--	 * without read _copy_ update semantics
--	 */
--	err = idr_alloc_ext(&tp_c->handle_idr, ptr, &idr_index,
--			    1, 0x7FF, GFP_KERNEL);
--	if (err)
-+	int id = idr_alloc(&tp_c->handle_idr, ptr, 1, 0x7FF, GFP_KERNEL);
-+	if (id < 0)
- 		return 0;
--	return (u32)(idr_index | 0x800) << 20;
-+	return ((u32)id | 0x800) << 20;
- }
- 
- static struct hlist_head *tc_u_common_hash;
-@@ -591,7 +588,7 @@ static void u32_clear_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
- 					 rtnl_dereference(n->next));
- 			tcf_unbind_filter(tp, &n->res);
- 			u32_remove_hw_knode(tp, n->handle);
--			idr_remove_ext(&ht->handle_idr, n->handle);
-+			idr_remove(&ht->handle_idr, n->handle);
- 			if (tcf_exts_get_net(&n->exts))
- 				call_rcu(&n->rcu, u32_delete_key_freepf_rcu);
- 			else
-@@ -617,7 +614,7 @@ static int u32_destroy_hnode(struct tcf_proto *tp, struct tc_u_hnode *ht)
- 		if (phn == ht) {
- 			u32_clear_hw_hnode(tp, ht);
- 			idr_destroy(&ht->handle_idr);
--			idr_remove_ext(&tp_c->handle_idr, ht->handle);
-+			idr_remove(&tp_c->handle_idr, ht->handle);
- 			RCU_INIT_POINTER(*hn, ht->next);
- 			kfree_rcu(ht, rcu);
- 			return 0;
-@@ -736,15 +733,15 @@ static int u32_delete(struct tcf_proto *tp, void *arg, bool *last)
- 
- static u32 gen_new_kid(struct tc_u_hnode *ht, u32 htid)
- {
--	unsigned long idr_index;
- 	u32 start = htid | 0x800;
- 	u32 max = htid | 0xFFF;
- 	u32 min = htid;
-+	unsigned long idr_index = start;
- 
--	if (idr_alloc_ext(&ht->handle_idr, NULL, &idr_index,
--			  start, max + 1, GFP_KERNEL)) {
--		if (idr_alloc_ext(&ht->handle_idr, NULL, &idr_index,
--				  min + 1, max + 1, GFP_KERNEL))
-+	if (idr_alloc_ul(&ht->handle_idr, NULL, &idr_index, max, GFP_KERNEL)) {
-+		idr_index = min + 1;
-+		if (idr_alloc_ul(&ht->handle_idr, NULL, &idr_index, max,
-+					GFP_KERNEL))
- 			return max;
- 	}
- 
-@@ -833,7 +830,7 @@ static void u32_replace_knode(struct tcf_proto *tp, struct tc_u_common *tp_c,
- 		if (pins->handle == n->handle)
- 			break;
- 
--	idr_replace_ext(&ht->handle_idr, n, n->handle);
-+	idr_replace(&ht->handle_idr, n, n->handle);
- 	RCU_INIT_POINTER(n->next, pins->next);
- 	rcu_assign_pointer(*ins, n);
- }
-@@ -976,8 +973,8 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
- 				return -ENOMEM;
- 			}
- 		} else {
--			err = idr_alloc_ext(&tp_c->handle_idr, ht, NULL,
--					    handle, handle + 1, GFP_KERNEL);
-+			err = idr_alloc_u32(&tp_c->handle_idr, ht, &handle,
-+						handle, GFP_KERNEL);
- 			if (err) {
- 				kfree(ht);
- 				return err;
-@@ -992,7 +989,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
- 
- 		err = u32_replace_hw_hnode(tp, ht, flags);
- 		if (err) {
--			idr_remove_ext(&tp_c->handle_idr, handle);
-+			idr_remove(&tp_c->handle_idr, handle);
- 			kfree(ht);
- 			return err;
- 		}
-@@ -1026,8 +1023,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
- 		if (TC_U32_HTID(handle) && TC_U32_HTID(handle^htid))
- 			return -EINVAL;
- 		handle = htid | TC_U32_NODE(handle);
--		err = idr_alloc_ext(&ht->handle_idr, NULL, NULL,
--				    handle, handle + 1,
-+		err = idr_alloc_u32(&ht->handle_idr, NULL, &handle, handle,
- 				    GFP_KERNEL);
- 		if (err)
- 			return err;
-@@ -1120,7 +1116,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
- #endif
- 	kfree(n);
- erridr:
--	idr_remove_ext(&ht->handle_idr, handle);
-+	idr_remove(&ht->handle_idr, handle);
- 	return err;
- }
- 
+Patch 15 is messy and breaks any time anybody touches the page cache.
+I'd like it to go in soon.  All it's doing is removing the page cache's
+private spinlock and having it explicitly use the spinlock now embedded
+in the xarray.
+
+Patches 16-30 are all the fun infrastructure, adding pieces of the
+xarray API.  This is probably a good place to focus review, particularly
+if you're intent on critiquing the API.
+
+Patches 31 onwards start actually using the new API, taking advantage of
+the built-in locking and memory allocation to get rid of the preload
+API.  There's probably the most scope for bugs here; I've tried to
+understand the locking schemes used in thirty different places, and
+maybe I got some of them wrong.
+
+There will need to be many more patches.  Dozens, maybe hundreds.  Once
+we've converted all the calls to radix_tree_insert() over to
+xa_store(), we can get rid of the GFP flags stored in the xarray head.
+That'll make the mm people a little happier.  Once we've got rid of
+idr_preload(), we can get rid of the per-CPU cache of radix_tree_nodes.
+I have a lot more enhancements on my todo list, but I'd like to get
+something merged in the next cycle, and if I wait until my todo list is
+empty, I will get nothing merged.
+
+If you looked at earlier iterations, there was much more support for
+huge pages.  That's not in this revision; I couldn't debug the problems
+I was seeing.  I still have all that code, and I'm intending to put it
+back in; it's just a bit down the todo list right now.
+
+Matthew Wilcox (62):
+  tools: Make __test_and_clear_bit available
+  radix tree test suite: Remove ARRAY_SIZE
+  radix tree test suite: Check reclaim bit
+  idr test suite: Fix ida_test_random()
+  radix tree: Add a missing cast to gfp_t
+  idr: Make cursor explicit for cyclic allocation
+  idr: Rewrite extended IDR API
+  Explicitly include radix-tree.h
+  arm64: Turn flush_dcache_mmap_lock into a no-op
+  unicore32: Turn flush_dcache_mmap_lock into a no-op
+  Export __set_page_dirty
+  xfs: Rename xa_ elements to ail_
+  fscache: Use appropriate radix tree accessors
+  xarray: Add the xa_lock to the radix_tree_root
+  page cache: Use xa_lock
+  xarray: Replace exceptional entries
+  xarray: Change definition of sibling entries
+  xarray: Add definition of struct xarray
+  xarray: Define struct xa_node
+  xarray: Add xa_load
+  xarray: Add xa_get_tag, xa_set_tag and xa_clear_tag
+  xarray: Add xa_store
+  xarray: Add xa_cmpxchg
+  xarray: Add xa_for_each
+  xarray: Add xa_init
+  xarray: Add xas_for_each_tag
+  xarray: Add xa_get_entries and xa_get_tagged
+  xarray: Add xa_destroy
+  xarray: Add xas_prev_any
+  xarray: Add xas_find_any / xas_next_any
+  Convert IDR to use xarray
+  ida: Convert to using xarray
+  page cache: Convert page_cache_next_hole to XArray
+  page cache: Use xarray for adding pages
+  page cache: Convert page_cache_tree_delete to xarray
+  page cache: Convert find_get_entry to xarray
+  shmem: Convert replace to xarray
+  shmem: Convert shmem_confirm_swap to XArray
+  shmem: Convert find_swap_entry to XArray
+  shmem: Convert shmem_tag_pins to XArray
+  shmem: Convert shmem_wait_for_pins to XArray
+  vmalloc: Convert to xarray
+  brd: Convert to XArray
+  xfs: Convert m_perag_tree to XArray
+  xfs: Convert pag_ici_root to XArray
+  xfs: Convert xfs dquot to XArray
+  xfs: Convert mru cache to XArray
+  block: Remove IDR preloading
+  rxrpc: Remove IDR preloading
+  cgroup: Remove IDR wrappers
+  dca: Remove idr_preload calls
+  ipc: Remove call to idr_preload
+  irq: Remove call to idr_preload
+  scsi: Remove idr_preload in st driver
+  firewire: Remove call to idr_preload
+  drm: Remove drm_minor_lock and idr_preload
+  drm: Remove drm_syncobj_fd_to_handle
+  drm: Remove qxl driver IDR locks
+  drm: Replace virtio IDRs with IDAs
+  drm: Replace vmwgfx IDRs with IDAs
+  net: Redesign act_api use of IDR
+  mm: Convert page-writeback to XArray
+
+ Documentation/cgroup-v1/memory.txt              |    2 +-
+ Documentation/vm/page_migration                 |   14 +-
+ arch/arm/include/asm/cacheflush.h               |    6 +-
+ arch/arm64/include/asm/cacheflush.h             |    6 +-
+ arch/nios2/include/asm/cacheflush.h             |    6 +-
+ arch/parisc/include/asm/cacheflush.h            |    6 +-
+ arch/powerpc/include/asm/book3s/64/pgtable.h    |    4 +-
+ arch/powerpc/include/asm/nohash/64/pgtable.h    |    4 +-
+ arch/powerpc/platforms/cell/spufs/sched.c       |    2 +-
+ arch/unicore32/include/asm/cacheflush.h         |    6 +-
+ block/genhd.c                                   |   23 +-
+ drivers/block/brd.c                             |   87 +-
+ drivers/dca/dca-sysfs.c                         |   22 +-
+ drivers/firewire/core-cdev.c                    |   20 +-
+ drivers/gpu/drm/amd/amdgpu/amdgpu_gem.c         |    8 +-
+ drivers/gpu/drm/drm_dp_aux_dev.c                |    5 +-
+ drivers/gpu/drm/drm_drv.c                       |   25 +-
+ drivers/gpu/drm/drm_gem.c                       |   27 +-
+ drivers/gpu/drm/drm_syncobj.c                   |   23 +-
+ drivers/gpu/drm/etnaviv/etnaviv_gem_submit.c    |    6 +-
+ drivers/gpu/drm/i915/i915_debugfs.c             |    4 +-
+ drivers/gpu/drm/i915/i915_gem.c                 |   17 +-
+ drivers/gpu/drm/msm/msm_gem_submit.c            |   10 +-
+ drivers/gpu/drm/qxl/qxl_cmd.c                   |   26 +-
+ drivers/gpu/drm/qxl/qxl_drv.h                   |    2 -
+ drivers/gpu/drm/qxl/qxl_kms.c                   |    2 -
+ drivers/gpu/drm/qxl/qxl_release.c               |   12 +-
+ drivers/gpu/drm/vc4/vc4_gem.c                   |    4 +-
+ drivers/gpu/drm/virtio/virtgpu_drv.h            |    6 +-
+ drivers/gpu/drm/virtio/virtgpu_kms.c            |   18 +-
+ drivers/gpu/drm/virtio/virtgpu_vq.c             |   12 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_drv.c             |    6 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_drv.h             |    2 +-
+ drivers/gpu/drm/vmwgfx/vmwgfx_resource.c        |   28 +-
+ drivers/infiniband/core/cm.c                    |    5 +-
+ drivers/infiniband/hw/mlx4/cm.c                 |    3 +-
+ drivers/infiniband/hw/mlx4/mlx4_ib.h            |    1 +
+ drivers/rapidio/rio_cm.c                        |    3 +-
+ drivers/rpmsg/qcom_glink_native.c               |    7 +-
+ drivers/scsi/st.c                               |   18 +-
+ drivers/staging/lustre/lustre/llite/glimpse.c   |    2 +-
+ drivers/staging/lustre/lustre/mdc/mdc_request.c |   10 +-
+ drivers/target/target_core_device.c             |    4 +-
+ drivers/usb/host/xhci.h                         |    1 +
+ fs/afs/write.c                                  |    2 +-
+ fs/btrfs/compression.c                          |    4 +-
+ fs/btrfs/extent_io.c                            |    8 +-
+ fs/btrfs/inode.c                                |    4 +-
+ fs/buffer.c                                     |   13 +-
+ fs/cifs/file.c                                  |    2 +-
+ fs/dax.c                                        |  204 ++--
+ fs/f2fs/data.c                                  |    6 +-
+ fs/f2fs/dir.c                                   |    6 +-
+ fs/f2fs/gc.c                                    |    2 +-
+ fs/f2fs/inline.c                                |    6 +-
+ fs/f2fs/node.c                                  |    8 +-
+ fs/fs-writeback.c                               |   18 +-
+ fs/fscache/cookie.c                             |    2 +-
+ fs/fscache/object.c                             |    2 +-
+ fs/inode.c                                      |   11 +-
+ fs/kernfs/dir.c                                 |    5 +-
+ fs/nfsd/nfs4state.c                             |    4 +-
+ fs/nfsd/state.h                                 |    1 +
+ fs/nilfs2/btnode.c                              |   20 +-
+ fs/nilfs2/page.c                                |   22 +-
+ fs/notify/inotify/inotify_user.c                |   15 +-
+ fs/proc/loadavg.c                               |    2 +-
+ fs/proc/task_mmu.c                              |    2 +-
+ fs/xfs/libxfs/xfs_sb.c                          |   11 +-
+ fs/xfs/libxfs/xfs_sb.h                          |    2 +-
+ fs/xfs/xfs_aops.c                               |   15 +-
+ fs/xfs/xfs_buf_item.c                           |   10 +-
+ fs/xfs/xfs_dquot.c                              |   37 +-
+ fs/xfs/xfs_dquot_item.c                         |   11 +-
+ fs/xfs/xfs_icache.c                             |  142 +--
+ fs/xfs/xfs_icache.h                             |   10 +-
+ fs/xfs/xfs_inode.c                              |   24 +-
+ fs/xfs/xfs_inode_item.c                         |   22 +-
+ fs/xfs/xfs_log.c                                |    6 +-
+ fs/xfs/xfs_log_recover.c                        |   80 +-
+ fs/xfs/xfs_mount.c                              |   22 +-
+ fs/xfs/xfs_mount.h                              |    6 +-
+ fs/xfs/xfs_mru_cache.c                          |   71 +-
+ fs/xfs/xfs_qm.c                                 |   32 +-
+ fs/xfs/xfs_qm.h                                 |   18 +-
+ fs/xfs/xfs_trans.c                              |   18 +-
+ fs/xfs/xfs_trans_ail.c                          |  152 +--
+ fs/xfs/xfs_trans_buf.c                          |    4 +-
+ fs/xfs/xfs_trans_priv.h                         |   42 +-
+ include/drm/drm_file.h                          |    7 +-
+ include/linux/backing-dev.h                     |   12 +-
+ include/linux/fs.h                              |   68 +-
+ include/linux/fscache.h                         |    1 +
+ include/linux/fsnotify_backend.h                |    1 +
+ include/linux/idr.h                             |  204 ++--
+ include/linux/kernfs.h                          |    1 +
+ include/linux/mm.h                              |    3 +-
+ include/linux/pagemap.h                         |    4 +-
+ include/linux/pid_namespace.h                   |    1 +
+ include/linux/radix-tree.h                      |  111 +-
+ include/linux/swapops.h                         |   19 +-
+ include/linux/xarray.h                          |  717 +++++++++++
+ include/net/act_api.h                           |   27 +-
+ include/net/sctp/sctp.h                         |    1 +
+ ipc/util.c                                      |   28 +-
+ kernel/bpf/syscall.c                            |    8 +-
+ kernel/cgroup/cgroup.c                          |   63 +-
+ kernel/irq/timings.c                            |    4 +-
+ kernel/pid.c                                    |    6 +-
+ kernel/pid_namespace.c                          |   12 +-
+ lib/Makefile                                    |    2 +-
+ lib/dma-debug.c                                 |    1 +
+ lib/idr.c                                       |  470 ++++----
+ lib/radix-tree.c                                |  348 ++----
+ lib/xarray.c                                    | 1444 +++++++++++++++++++++++
+ mm/filemap.c                                    |  306 ++---
+ mm/huge_memory.c                                |   10 +-
+ mm/khugepaged.c                                 |   51 +-
+ mm/madvise.c                                    |    2 +-
+ mm/memcontrol.c                                 |    4 +-
+ mm/migrate.c                                    |   31 +-
+ mm/mincore.c                                    |    2 +-
+ mm/page-writeback.c                             |   79 +-
+ mm/readahead.c                                  |    4 +-
+ mm/rmap.c                                       |    4 +-
+ mm/shmem.c                                      |  196 ++-
+ mm/swap.c                                       |    2 +-
+ mm/swap_state.c                                 |   17 +-
+ mm/truncate.c                                   |   34 +-
+ mm/vmalloc.c                                    |   37 +-
+ mm/vmscan.c                                     |   12 +-
+ mm/workingset.c                                 |   34 +-
+ net/rxrpc/af_rxrpc.c                            |    2 +-
+ net/rxrpc/ar-internal.h                         |    1 +
+ net/rxrpc/conn_client.c                         |   21 +-
+ net/sched/act_api.c                             |  135 +--
+ net/sched/cls_basic.c                           |   20 +-
+ net/sched/cls_bpf.c                             |   20 +-
+ net/sched/cls_flower.c                          |   32 +-
+ net/sched/cls_u32.c                             |   44 +-
+ net/sctp/associola.c                            |    3 +-
+ net/sctp/protocol.c                             |    1 +
+ tools/include/asm-generic/bitops.h              |    1 +
+ tools/include/asm-generic/bitops/atomic.h       |    9 -
+ tools/include/asm-generic/bitops/non-atomic.h   |  109 ++
+ tools/include/linux/spinlock.h                  |    2 +
+ tools/testing/radix-tree/.gitignore             |    2 +
+ tools/testing/radix-tree/Makefile               |   14 +-
+ tools/testing/radix-tree/idr-test.c             |   28 +-
+ tools/testing/radix-tree/linux.c                |    2 +-
+ tools/testing/radix-tree/linux/kernel.h         |    2 -
+ tools/testing/radix-tree/linux/rcupdate.h       |    2 +
+ tools/testing/radix-tree/linux/xarray.h         |    2 +
+ tools/testing/radix-tree/multiorder.c           |   53 +-
+ tools/testing/radix-tree/test.c                 |    8 +-
+ tools/testing/radix-tree/xarray-test.c          |  122 ++
+ 156 files changed, 4178 insertions(+), 2454 deletions(-)
+ create mode 100644 include/linux/xarray.h
+ create mode 100644 lib/xarray.c
+ create mode 100644 tools/include/asm-generic/bitops/non-atomic.h
+ create mode 100644 tools/testing/radix-tree/linux/xarray.h
+ create mode 100644 tools/testing/radix-tree/xarray-test.c
+
 -- 
 2.15.0
 
