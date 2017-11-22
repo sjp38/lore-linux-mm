@@ -1,73 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 555C56B027F
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:37:10 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 72so8056637oik.6
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 13:37:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h195sor5667464oib.243.2017.11.22.13.37.09
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EA836B026C
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 17:20:28 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id u98so5871531wrb.17
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 14:20:28 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id b18si11757364wrb.250.2017.11.22.14.20.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Nov 2017 13:37:09 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 14:20:26 -0800 (PST)
+Date: Wed, 22 Nov 2017 23:20:25 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH] mm: replace FSF address with web source in license
+ notices
+Message-ID: <20171122222025.GA3623@amd>
+References: <20171114094438.28224-1-martink@posteo.de>
 MIME-Version: 1.0
-In-Reply-To: <201711230046.iK2mFk89%fengguang.wu@intel.com>
-References: <201711230046.iK2mFk89%fengguang.wu@intel.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 22 Nov 2017 13:37:08 -0800
-Message-ID: <CAPcyv4jspX-_a_0Pvw2TKgn6Op0h=Yq5EMi-1xvHDeDDJ_Xn-g@mail.gmail.com>
-Subject: Re: [linux-next:master 13808/14071] arch/arm/include/asm/pgtable-3level.h:228:25:
- note: in expansion of macro 'pmd_write'
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="BXVAT5kNtrzKuDFl"
+Content-Disposition: inline
+In-Reply-To: <20171114094438.28224-1-martink@posteo.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: kbuild-all@01.org, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Martin Kepplinger <martink@posteo.de>
+Cc: catalin.marinas@arm.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 22, 2017 at 8:44 AM, kbuild test robot
-<fengguang.wu@intel.com> wrote:
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   aa1fbe633d3034f9f838ff13387af04771e68e31
-> commit: 5292abe86ee6b74a475d33d38bf5a266dacece0b [13808/14071] mm: fix device-dax pud write-faults triggered by get_user_pages()
-> config: arm-axm55xx_defconfig (attached as .config)
-> compiler: arm-linux-gnueabi-gcc (Debian 7.2.0-11) 7.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout 5292abe86ee6b74a475d33d38bf5a266dacece0b
->         # save the attached .config to linux build tree
->         make.cross ARCH=arm
->
-> All error/warnings (new ones prefixed by >>):
->
->    In file included from arch/arm/include/asm/pgtable.h:32:0,
->                     from include/linux/memremap.h:8,
->                     from include/linux/mm.h:27,
->                     from arch/arm/kernel/asm-offsets.c:15:
->>> arch/arm/include/asm/pgtable-3level.h:212:32: error: expected identifier or '(' before '!' token
->     #define pmd_isclear(pmd, val) (!(pmd_val(pmd) & (val)))
->                                    ^
->>> arch/arm/include/asm/pgtable-3level.h:225:26: note: in expansion of macro 'pmd_isclear'
->     #define pmd_write(pmd)  (pmd_isclear((pmd), L_PMD_SECT_RDONLY))
->                              ^~~~~~~~~~~
->>> arch/arm/include/asm/pgtable-3level.h:228:25: note: in expansion of macro 'pmd_write'
->     #define pud_write(pud)  pmd_write(__pmd(pud_val(pud)))
->                             ^~~~~~~~~
->    include/asm-generic/pgtable.h:817:19: note: in expansion of macro 'pud_write'
->     static inline int pud_write(pud_t pud)
->                       ^~~~~~~~~
->    make[2]: *** [arch/arm/kernel/asm-offsets.s] Error 1
->    make[2]: Target '__build' not remade because of errors.
->    make[1]: *** [prepare0] Error 2
->    make[1]: Target 'prepare' not remade because of errors.
->    make: *** [sub-make] Error 2
 
-The build succeeds for me when this commit is based on top of mainline
-at commit:
+--BXVAT5kNtrzKuDFl
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-    a3841f94c7ec Merge tag 'libnvdimm-for-4.15' of
-git://git.kernel.org/pub/scm/linux/kernel/git/nvdimm/nvdimm
+On Tue 2017-11-14 10:44:38, Martin Kepplinger wrote:
+> A few years ago the FSF moved and "59 Temple Place" is wrong. Having this
+> still in our source files feels old and unmaintained.
+>=20
+> Let's take the license statement serious and not confuse users.
+>=20
+> As https://www.gnu.org/licenses/gpl-howto.html suggests, we replace the
+> postal address with "<http://www.gnu.org/licenses/>" in the mm directory.
+>=20
+> Signed-off-by: Martin Kepplinger <martink@posteo.de>
+> ---
+>  mm/kmemleak-test.c | 3 +--
+>  mm/kmemleak.c      | 3 +--
+>  2 files changed, 2 insertions(+), 4 deletions(-)
+>=20
+> diff --git a/mm/kmemleak-test.c b/mm/kmemleak-test.c
+> index dd3c23a801b1..9a13ad2c0cca 100644
+> --- a/mm/kmemleak-test.c
+> +++ b/mm/kmemleak-test.c
+> @@ -14,8 +14,7 @@
+>   * GNU General Public License for more details.
+>   *
+>   * You should have received a copy of the GNU General Public License
+> - * along with this program; if not, write to the Free Software
+> - * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 U=
+SA
+> + * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+>   */
+> =20
 
-...so something in -next causes this to fail. I'll take a look.
+With all the SPDX work, I don't think this is useful. Talk to Greg?
+
+We do ship copy of GPL, so perhaps the paragraph can be just deleted?
+
+If not, maybe it should be http_s_?
+									Pavel
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--BXVAT5kNtrzKuDFl
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAloV+CkACgkQMOfwapXb+vLfUgCdHX2qPf5x4V6TU6i5NFymL8Z1
+aTUAoILnDIHTItGC8I0PDqaTXwx/5wNF
+=DTKY
+-----END PGP SIGNATURE-----
+
+--BXVAT5kNtrzKuDFl--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
