@@ -1,58 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 176D06B0261
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:02:22 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id s18so18591445pge.19
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:02:22 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e29si15326993pgn.215.2017.11.23.02.02.20
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D999D6B0268
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:14:26 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id p65so2352647wma.1
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:14:26 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d12sor10191745edh.37.2017.11.23.02.14.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 02:02:20 -0800 (PST)
-Date: Thu, 23 Nov 2017 11:02:18 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-Message-ID: <20171123100218.vf4zc47pmy3f67ey@dhcp22.suse.cz>
-References: <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
- <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
- <20171122203907.GI4094@dastard>
- <201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
- <2178e42e-9600-4f9a-4b91-22d2ba6f98c0@redhat.com>
- <201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Thu, 23 Nov 2017 02:14:25 -0800 (PST)
+Date: Thu, 23 Nov 2017 13:14:23 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH V2] selftest/vm: Add test case for mmap across 128TB
+ boundary.
+Message-ID: <20171123101422.6fu7ehvjuw2v5jjh@node.shutemov.name>
+References: <20171123030313.6418-1-aneesh.kumar@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171123030313.6418-1-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: pbonzini@redhat.com, david@fromorbit.com, akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu 23-11-17 18:56:53, Tetsuo Handa wrote:
-> Paolo Bonzini wrote:
-> > On 23/11/2017 07:34, Tetsuo Handa wrote:
-> > >> Just fix the numa aware shrinkers, as they are the only ones that
-> > >> will have this problem. There are only 6 of them, and only the 3
-> > >> that existed at the time that register_shrinker() was changed to
-> > >> return an error fail to check for an error. i.e. the superblock
-> > >> shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
-> > >
-> > > You are assuming the "too small to fail" memory-allocation rule
-> > > by ignoring that this problem is caused by fault injection.
-> > 
-> > Fault injection should also obey the too small to fail rule, at least by
-> > default.
-> > 
+On Thu, Nov 23, 2017 at 08:33:13AM +0530, Aneesh Kumar K.V wrote:
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 > 
-> Pardon? Most allocation requests in the kernel are <= 32KB.
-> Such change makes fault injection useless. ;-)
+> This patch add a self-test that covers a few corner cases of the interface.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> ---
+> 
+> Changes from V1:
+> * Add the test to run_vmtests script
+> 
+>  tools/testing/selftests/vm/Makefile         |   1 +
+>  tools/testing/selftests/vm/run_vmtests      |  11 ++
+>  tools/testing/selftests/vm/va_128TBswitch.c | 297 ++++++++++++++++++++++++++++
+>  3 files changed, 309 insertions(+)
+>  create mode 100644 tools/testing/selftests/vm/va_128TBswitch.c
 
-Agreed! All we need is to fix the shrinker registration callers. It is
-that simple. The rest is just a distraction.
+Patch with my selftest is already in -tip tree. I think this selftest
+should replace it, not add another one.
+
+> diff --git a/tools/testing/selftests/vm/va_128TBswitch.c b/tools/testing/selftests/vm/va_128TBswitch.c
+> new file mode 100644
+> index 000000000000..2fdb84ab94b1
+> --- /dev/null
+> +++ b/tools/testing/selftests/vm/va_128TBswitch.c
+> @@ -0,0 +1,297 @@
+> +/*
+> + *
+> + * Authors: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> + * Authors: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+> + *
+> + * This program is free software; you can redistribute it and/or modify it
+> + * under the terms of version 2.1 of the GNU Lesser General Public License
+> + * as published by the Free Software Foundation.
+
+LGPL? Why?
+
+> + *
+> + * This program is distributed in the hope that it would be useful, but
+> + * WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+> + *
+> + */
+> +
+> +static int run_test(struct testcase *test, int count)
+> +{
+> +	void *p;
+> +	int i, ret = 0;
+> +
+> +	for (i = 0; i < count; i++) {
+> +		struct testcase *t = test + i;
+> +
+> +		p = mmap(t->addr, t->size, PROT_READ | PROT_WRITE, t->flags, -1, 0);
+> +
+> +		printf("%s: %p - ", t->msg, p);
+> +
+> +		if (p == MAP_FAILED) {
+> +			printf("FAILED\n");
+> +			ret = 1;
+> +			continue;
+> +		}
+> +
+> +		if (t->low_addr_required && p >= (void *)(1UL << 47)) {
+> +			printf("FAILED\n");
+> +			ret = 1;
+> +		} else {
+> +			/*
+> +			 * Do a dereference of the address returned so that we catch
+> +			 * bugs in page fault handling
+> +			 */
+> +			*(int *)p = 10;
+
+If we are going to touch memory, maybe not just first page, but whole
+range? memset()?
+
+> +			printf("OK\n");
+> +		}
+> +		if (!t->keep_mapped)
+> +			munmap(p, t->size);
+> +	}
+> +
+> +	return ret;
+> +}
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
