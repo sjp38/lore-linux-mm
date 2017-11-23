@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E6706B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 09:01:30 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n8so4981574wmg.4
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:01:30 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x9si9401353edh.429.2017.11.23.06.01.28
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 67D086B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 09:07:39 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id y41so11889658wrc.22
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:07:39 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id t5si5095289edb.424.2017.11.23.06.07.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 06:01:28 -0800 (PST)
-Date: Thu, 23 Nov 2017 15:01:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Add slowpath enter/exit trace events
-Message-ID: <20171123140127.7z5z6awj2ti6lozh@dhcp22.suse.cz>
-References: <20171123104336.25855-1-peter.enderborg@sony.com>
- <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
- <20171123133629.5sgmapfg7gix7pu3@techsingularity.net>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Nov 2017 06:07:38 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vANE4OLj028918
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 09:07:36 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2edx7nv7bf-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 09:07:36 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 23 Nov 2017 14:07:34 -0000
+Date: Thu, 23 Nov 2017 16:07:25 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 4/4] test: add a test for the process_vmsplice syscall
+References: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1511379391-988-5-git-send-email-rppt@linux.vnet.ibm.com>
+ <20171123080103.GA490@kroah.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171123133629.5sgmapfg7gix7pu3@techsingularity.net>
+In-Reply-To: <20171123080103.GA490@kroah.com>
+Message-Id: <20171123140725.GC2303@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: peter.enderborg@sony.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: Greg KH <gregkh@linuxfoundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Andrei Vagin <avagin@openvz.org>
 
-On Thu 23-11-17 13:36:29, Mel Gorman wrote:
-> On Thu, Nov 23, 2017 at 01:25:30PM +0100, Michal Hocko wrote:
-> > On Thu 23-11-17 11:43:36, peter.enderborg@sony.com wrote:
-> > > From: Peter Enderborg <peter.enderborg@sony.com>
-> > > 
-> > > The warning of slow allocation has been removed, this is
-> > > a other way to fetch that information. But you need
-> > > to enable the trace. The exit function also returns
-> > > information about the number of retries, how long
-> > > it was stalled and failure reason if that happened.
+On Thu, Nov 23, 2017 at 09:01:03AM +0100, Greg KH wrote:
+> On Wed, Nov 22, 2017 at 09:36:31PM +0200, Mike Rapoport wrote:
+> > From: Andrei Vagin <avagin@openvz.org>
 > > 
-> > I think this is just too excessive. We already have a tracepoint for the
-> > allocation exit. All we need is an entry to have a base to compare with.
-> > Another usecase would be to measure allocation latency. Information you
-> > are adding can be (partially) covered by existing tracepoints.
+> > This test checks that process_vmsplice() can splice pages from a remote
+> > process and returns EFAULT, if process_vmsplice() tries to splice pages
+> > by an unaccessiable address.
 > > 
+> > Signed-off-by: Andrei Vagin <avagin@openvz.org>
+> > ---
+> >  tools/testing/selftests/process_vmsplice/Makefile  |   5 +
+> >  .../process_vmsplice/process_vmsplice_test.c       | 188 +++++++++++++++++++++
+> >  2 files changed, 193 insertions(+)
+> >  create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
+> >  create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+> > 
+
+[ ... ]
+
 > 
-> You can gather that by simply adding a probe to __alloc_pages_slowpath
-> (like what perf probe does) and matching the trigger with the existing
-> mm_page_alloc points.
+> Shouldn't you check to see if the syscall is even present?  You should
+> not error if it is not, as this test will then "fail" on kernels/arches
+> without the syscall enabled, which isn't the nicest.
 
-I am not sure adding a probe on a production system will fly in many
-cases. A static tracepoint would be much easier in that case. But I
-agree there are other means to accomplish the same thing. My main point
-was to have an easy out-of-the-box way to check latencies. But that is
-not something I would really insist on.
+Sure, will fix.
+
+> thanks,
+> 
+> greg k-h
+> 
 
 -- 
-Michal Hocko
-SUSE Labs
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
