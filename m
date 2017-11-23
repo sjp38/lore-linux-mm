@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 069556B026F
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C14B46B0270
 	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 17:17:20 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id k100so12748681wrc.9
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 14:17:19 -0800 (PST)
+Received: by mail-wr0-f197.google.com with SMTP id t92so12748055wrc.13
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 14:17:20 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u126sor1673292wmd.77.2017.11.23.14.17.18
+        by mx.google.com with SMTPS id f9sor1724525wmf.89.2017.11.23.14.17.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 23 Nov 2017 14:17:18 -0800 (PST)
+        Thu, 23 Nov 2017 14:17:19 -0800 (PST)
 From: Alexey Dobriyan <adobriyan@gmail.com>
-Subject: [PATCH 11/23] slub: make ->reserved unsigned int
-Date: Fri, 24 Nov 2017 01:16:16 +0300
-Message-Id: <20171123221628.8313-11-adobriyan@gmail.com>
+Subject: [PATCH 12/23] slub: make ->align unsigned int
+Date: Fri, 24 Nov 2017 01:16:17 +0300
+Message-Id: <20171123221628.8313-12-adobriyan@gmail.com>
 In-Reply-To: <20171123221628.8313-1-adobriyan@gmail.com>
 References: <20171123221628.8313-1-adobriyan@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,7 +20,7 @@ List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com, Alexey Dobriyan <adobriyan@gmail.com>
 
-->reserved is either 0 or sizeof(struct rcu_head), can't be negative.
+Kmem cache alignment can't be negative.
 
 Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
 ---
@@ -29,30 +29,30 @@ Signed-off-by: Alexey Dobriyan <adobriyan@gmail.com>
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/slub_def.h b/include/linux/slub_def.h
-index a7019a4c713d..09ca236ce102 100644
+index 09ca236ce102..ff2d3f513d15 100644
 --- a/include/linux/slub_def.h
 +++ b/include/linux/slub_def.h
-@@ -100,7 +100,7 @@ struct kmem_cache {
+@@ -99,7 +99,7 @@ struct kmem_cache {
+ 	int refcount;		/* Refcount for slab cache destroy */
  	void (*ctor)(void *);
  	int inuse;		/* Offset to metadata */
- 	int align;		/* Alignment */
--	int reserved;		/* Reserved bytes at the end of slabs */
-+	unsigned int reserved;	/* Reserved bytes at the end of slabs */
+-	int align;		/* Alignment */
++	unsigned int align;	/* Alignment */
+ 	unsigned int reserved;	/* Reserved bytes at the end of slabs */
  	unsigned int red_left_pad;	/* Left redzone padding size */
  	const char *name;	/* Name (only for display!) */
- 	struct list_head list;	/* List of slab caches */
 diff --git a/mm/slub.c b/mm/slub.c
-index 45d8f0cbfb28..2ca7463c72c2 100644
+index 2ca7463c72c2..ddfeb1d5c512 100644
 --- a/mm/slub.c
 +++ b/mm/slub.c
-@@ -5069,7 +5069,7 @@ SLAB_ATTR_RO(destroy_by_rcu);
+@@ -4877,7 +4877,7 @@ SLAB_ATTR_RO(slab_size);
  
- static ssize_t reserved_show(struct kmem_cache *s, char *buf)
+ static ssize_t align_show(struct kmem_cache *s, char *buf)
  {
--	return sprintf(buf, "%d\n", s->reserved);
-+	return sprintf(buf, "%u\n", s->reserved);
+-	return sprintf(buf, "%d\n", s->align);
++	return sprintf(buf, "%u\n", s->align);
  }
- SLAB_ATTR_RO(reserved);
+ SLAB_ATTR_RO(align);
  
 -- 
 2.13.6
