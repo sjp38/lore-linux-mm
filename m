@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 695356B0273
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:03 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id x202so17674597pgx.1
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:03 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id o33si2575102plb.749.2017.11.22.16.36.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 519BC6B0275
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:05 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id c83so15845952pfj.11
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:05 -0800 (PST)
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id b89si16201850pfc.304.2017.11.22.16.36.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 16:36:02 -0800 (PST)
-Subject: [PATCH 09/23] x86, kaiser: map dynamically-allocated LDTs
+        Wed, 22 Nov 2017 16:36:04 -0800 (PST)
+Subject: [PATCH 10/23] x86, kaiser: map espfix structures
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:34:55 -0800
+Date: Wed, 22 Nov 2017 16:34:57 -0800
 References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
 In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003455.275397F7@viggo.jf.intel.com>
+Message-Id: <20171123003457.EB854D0D@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,10 +23,24 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Normally, a process has a NULL mm->context.ldt.  But, there is a
-syscall for a process to set a new one.  If a process does that,
-the LDT be mapped into the user page tables, just like the
-default copy.
+There is some rather arcane code to help when an IRET returns
+to 16-bit segments.  It is referred to as the "espfix" code.
+This consists of a few per-cpu variables:
+
+	espfix_stack: tells us where the stack is allocated
+	  	      (the bottom)
+	espfix_waddr: tells us to where %rsp may be pointed
+		      (the top)
+
+These are in addition to the stack itself.  All three things must
+be mapped for the espfix code to function.
+
+Note: the espfix code runs with a kernel GSBASE, but user
+(shadow) page tables.  A switch to the kernel page tables could
+be performed instead of mapping these structures, but mapping
+them is simpler and less likely to break the assembly.  To switch
+over to the kernel copy, additional temporary storage would be
+required which is in short supply in this context.
 
 The original KAISER patch missed this case.
 
@@ -42,71 +56,50 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/kernel/ldt.c |   25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ b/arch/x86/kernel/espfix_64.c |   12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
-diff -puN arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts arch/x86/kernel/ldt.c
---- a/arch/x86/kernel/ldt.c~kaiser-user-map-new-ldts	2017-11-22 15:45:49.059619739 -0800
-+++ b/arch/x86/kernel/ldt.c	2017-11-22 15:45:49.062619739 -0800
-@@ -11,6 +11,7 @@
- #include <linux/gfp.h>
- #include <linux/sched.h>
- #include <linux/string.h>
+diff -puN arch/x86/kernel/espfix_64.c~kaiser-user-map-espfix arch/x86/kernel/espfix_64.c
+--- a/arch/x86/kernel/espfix_64.c~kaiser-user-map-espfix	2017-11-22 15:45:49.592619738 -0800
++++ b/arch/x86/kernel/espfix_64.c	2017-11-22 15:45:49.596619738 -0800
+@@ -33,6 +33,7 @@
+ 
+ #include <linux/init.h>
+ #include <linux/init_task.h>
 +#include <linux/kaiser.h>
- #include <linux/mm.h>
- #include <linux/smp.h>
- #include <linux/syscalls.h>
-@@ -57,11 +58,21 @@ static void flush_ldt(void *__mm)
- 	refresh_ldt_segments();
- }
- 
-+static void __free_ldt_struct(struct ldt_struct *ldt)
-+{
-+	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
-+		vfree_atomic(ldt->entries);
-+	else
-+		free_page((unsigned long)ldt->entries);
-+	kfree(ldt);
-+}
-+
- /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
- static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
- {
- 	struct ldt_struct *new_ldt;
- 	unsigned int alloc_size;
-+	int ret;
- 
- 	if (num_entries > LDT_ENTRIES)
- 		return NULL;
-@@ -89,6 +100,12 @@ static struct ldt_struct *alloc_ldt_stru
- 		return NULL;
- 	}
- 
-+	ret = kaiser_add_mapping((unsigned long)new_ldt->entries, alloc_size,
-+				 __PAGE_KERNEL | _PAGE_GLOBAL);
-+	if (ret) {
-+		__free_ldt_struct(new_ldt);
-+		return NULL;
-+	}
- 	new_ldt->nr_entries = num_entries;
- 	return new_ldt;
- }
-@@ -115,12 +132,10 @@ static void free_ldt_struct(struct ldt_s
- 	if (likely(!ldt))
- 		return;
- 
-+	kaiser_remove_mapping((unsigned long)ldt->entries,
-+			      ldt->nr_entries * LDT_ENTRY_SIZE);
- 	paravirt_free_ldt(ldt->entries, ldt->nr_entries);
--	if (ldt->nr_entries * LDT_ENTRY_SIZE > PAGE_SIZE)
--		vfree_atomic(ldt->entries);
--	else
--		free_page((unsigned long)ldt->entries);
--	kfree(ldt);
-+	__free_ldt_struct(ldt);
- }
+ #include <linux/kernel.h>
+ #include <linux/percpu.h>
+ #include <linux/gfp.h>
+@@ -41,7 +42,6 @@
+ #include <asm/pgalloc.h>
+ #include <asm/setup.h>
+ #include <asm/espfix.h>
+-#include <asm/kaiser.h>
  
  /*
+  * Note: we only need 6*8 = 48 bytes for the espfix stack, but round
+@@ -61,8 +61,8 @@
+ #define PGALLOC_GFP (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+ 
+ /* This contains the *bottom* address of the espfix stack */
+-DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_stack);
+-DEFINE_PER_CPU_READ_MOSTLY(unsigned long, espfix_waddr);
++DEFINE_PER_CPU_USER_MAPPED(unsigned long, espfix_stack);
++DEFINE_PER_CPU_USER_MAPPED(unsigned long, espfix_waddr);
+ 
+ /* Initialization mutex - should this be a spinlock? */
+ static DEFINE_MUTEX(espfix_init_mutex);
+@@ -225,4 +225,10 @@ done:
+ 	per_cpu(espfix_stack, cpu) = addr;
+ 	per_cpu(espfix_waddr, cpu) = (unsigned long)stack_page
+ 				      + (addr & ~PAGE_MASK);
++	/*
++	 * _PAGE_GLOBAL is not really required.  This is not a hot
++	 * path, but we do it here for consistency.
++	 */
++	kaiser_add_mapping((unsigned long)stack_page, PAGE_SIZE,
++			__PAGE_KERNEL | _PAGE_GLOBAL);
+ }
 _
 
 --
