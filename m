@@ -1,51 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 969AB6B027B
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:08 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m188so17636872pga.22
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:08 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id e6si14583112pls.579.2017.11.22.16.36.07
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C5C26B0284
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:12 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id q84so15762841pfl.12
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:12 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id b6si1365002pgt.534.2017.11.22.16.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 16:36:07 -0800 (PST)
-Subject: [PATCH 12/23] x86, kaiser: map virtually-addressed performance monitoring buffers
+        Wed, 22 Nov 2017 16:36:11 -0800 (PST)
+Subject: [PATCH 14/23] x86, mm: remove hard-coded ASID limit checks
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:35:00 -0800
+Date: Wed, 22 Nov 2017 16:35:04 -0800
 References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
 In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003500.7EC0DB4E@viggo.jf.intel.com>
+Message-Id: <20171123003504.57EDB845@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, hughd@google.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, x86@kernel.org
+Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
 
-From: Hugh Dickins <hughd@google.com>
-[Dave] Add explicit _PAGE_GLOBAL
-[Dave] remove KAISER #ifdefs by moving kmalloc() to plain page allocator
-[Dave] reword the commit message a bit to be consistent with other patches
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The BTS and PEBS buffers both have their virtual addresses
-programmed into the hardware.  This means that any access to them
-is performed via the page tables.  The times that the hardware
-accesses these are entirely dependent on how the performance
-monitoring hardware events are set up.  In other words, there is
-no way for the kernel to tell when the hardware might access
-these buffers.
+First, it's nice to remove the magic numbers.
 
-To avoid perf crashes, place 'debug_store' in the user-mapped
-per-cpu area instead of dynamically allocating.  Also use the
-page allocator plus kaiser_add_mapping() to keep the BTS and PEBS
-buffers user-mapped (that is, present in the user mapping, though
-visible only to kernel and hardware).  The PEBS fixup buffer does
-not need this treatment.
+Second, KAISER is going to consume half of the available ASID
+space.  The space is currently unused, but add a comment to spell
+out this new restriction.
 
-The need for a user-mapped struct debug_store showed up before doing
-any conscious perf testing: in a couple of kernel paging oopses on
-Westmere, implicating the debug_store offset of the per-cpu area.
-
-Signed-off-by: Hugh Dickins <hughd@google.com>
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
 Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
@@ -58,128 +41,50 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/events/intel/ds.c |   49 ++++++++++++++++++++++++++++++++-----------
- 1 file changed, 37 insertions(+), 12 deletions(-)
+ b/arch/x86/include/asm/tlbflush.h |   17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
-diff -puN arch/x86/events/intel/ds.c~kaiser-user-map-virtually-addressed-performance-monitoring-buffers arch/x86/events/intel/ds.c
---- a/arch/x86/events/intel/ds.c~kaiser-user-map-virtually-addressed-performance-monitoring-buffers	2017-11-22 15:45:50.691619735 -0800
-+++ b/arch/x86/events/intel/ds.c	2017-11-22 15:45:50.695619735 -0800
-@@ -3,11 +3,15 @@
- #include <linux/types.h>
- #include <linux/slab.h>
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-asids-macros arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-asids-macros	2017-11-22 15:45:51.814619732 -0800
++++ b/arch/x86/include/asm/tlbflush.h	2017-11-22 15:45:51.818619732 -0800
+@@ -75,6 +75,19 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return new_tlb_gen;
+ }
  
-+#include <asm/kaiser.h>
- #include <asm/perf_event.h>
- #include <asm/insn.h>
- 
- #include "../perf_event.h"
- 
-+static
-+DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store, cpu_debug_store);
++/* There are 12 bits of space for ASIDS in CR3 */
++#define CR3_HW_ASID_BITS 12
++/* When enabled, KAISER consumes a single bit for user/kernel switches */
++#define KAISER_CONSUMED_ASID_BITS 0
 +
- /* The size of a BTS record in bytes: */
- #define BTS_RECORD_SIZE		24
- 
-@@ -279,6 +283,31 @@ void fini_debug_store_on_cpu(int cpu)
- 
- static DEFINE_PER_CPU(void *, insn_buffer);
- 
-+static void *dsalloc(size_t size, gfp_t flags, int node)
-+{
-+	unsigned int order = get_order(size);
-+	struct page *page;
-+	unsigned long addr;
++#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS - KAISER_CONSUMED_ASID_BITS)
++/*
++ * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below
++ * to account for them being zero-based.  Another -1 is because ASID 0
++ * is reserved for use by non-PCID-aware users.
++ */
++#define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
 +
-+	page = __alloc_pages_node(node, flags | __GFP_ZERO, order);
-+	if (!page)
-+		return NULL;
-+	addr = (unsigned long)page_address(page);
-+	if (kaiser_add_mapping(addr, size, __PAGE_KERNEL | _PAGE_GLOBAL) < 0) {
-+		__free_pages(page, order);
-+		addr = 0;
-+	}
-+	return (void *)addr;
-+}
-+
-+static void dsfree(const void *buffer, size_t size)
-+{
-+	if (!buffer)
-+		return;
-+	kaiser_remove_mapping((unsigned long)buffer, size);
-+	free_pages((unsigned long)buffer, get_order(size));
-+}
-+
- static int alloc_pebs_buffer(int cpu)
+ /*
+  * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+  * bits.  This serves two purposes.  It prevents a nasty situation in
+@@ -88,7 +101,7 @@ struct pgd_t;
+ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
  {
- 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-@@ -289,7 +318,7 @@ static int alloc_pebs_buffer(int cpu)
- 	if (!x86_pmu.pebs)
- 		return 0;
+ 	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
++		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+ 		return __sme_pa(pgd) | (asid + 1);
+ 	} else {
+ 		VM_WARN_ON_ONCE(asid != 0);
+@@ -98,7 +111,7 @@ static inline unsigned long build_cr3(pg
  
--	buffer = kzalloc_node(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
-+	buffer = dsalloc(x86_pmu.pebs_buffer_size, GFP_KERNEL, node);
- 	if (unlikely(!buffer))
- 		return -ENOMEM;
- 
-@@ -300,7 +329,7 @@ static int alloc_pebs_buffer(int cpu)
- 	if (x86_pmu.intel_cap.pebs_format < 2) {
- 		ibuffer = kzalloc_node(PEBS_FIXUP_SIZE, GFP_KERNEL, node);
- 		if (!ibuffer) {
--			kfree(buffer);
-+			dsfree(buffer, x86_pmu.pebs_buffer_size);
- 			return -ENOMEM;
- 		}
- 		per_cpu(insn_buffer, cpu) = ibuffer;
-@@ -326,7 +355,8 @@ static void release_pebs_buffer(int cpu)
- 	kfree(per_cpu(insn_buffer, cpu));
- 	per_cpu(insn_buffer, cpu) = NULL;
- 
--	kfree((void *)(unsigned long)ds->pebs_buffer_base);
-+	dsfree((void *)(unsigned long)ds->pebs_buffer_base,
-+			x86_pmu.pebs_buffer_size);
- 	ds->pebs_buffer_base = 0;
- }
- 
-@@ -340,7 +370,7 @@ static int alloc_bts_buffer(int cpu)
- 	if (!x86_pmu.bts)
- 		return 0;
- 
--	buffer = kzalloc_node(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
-+	buffer = dsalloc(BTS_BUFFER_SIZE, GFP_KERNEL | __GFP_NOWARN, node);
- 	if (unlikely(!buffer)) {
- 		WARN_ONCE(1, "%s: BTS buffer allocation failure\n", __func__);
- 		return -ENOMEM;
-@@ -366,19 +396,15 @@ static void release_bts_buffer(int cpu)
- 	if (!ds || !x86_pmu.bts)
- 		return;
- 
--	kfree((void *)(unsigned long)ds->bts_buffer_base);
-+	dsfree((void *)(unsigned long)ds->bts_buffer_base, BTS_BUFFER_SIZE);
- 	ds->bts_buffer_base = 0;
- }
- 
- static int alloc_ds_buffer(int cpu)
+ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
  {
--	int node = cpu_to_node(cpu);
--	struct debug_store *ds;
--
--	ds = kzalloc_node(sizeof(*ds), GFP_KERNEL, node);
--	if (unlikely(!ds))
--		return -ENOMEM;
-+	struct debug_store *ds = per_cpu_ptr(&cpu_debug_store, cpu);
- 
-+	memset(ds, 0, sizeof(*ds));
- 	per_cpu(cpu_hw_events, cpu).ds = ds;
- 
- 	return 0;
-@@ -392,7 +418,6 @@ static void release_ds_buffer(int cpu)
- 		return;
- 
- 	per_cpu(cpu_hw_events, cpu).ds = NULL;
--	kfree(ds);
+-	VM_WARN_ON_ONCE(asid > 4094);
++	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+ 	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
  }
  
- void release_ds_buffers(void)
 _
 
 --
