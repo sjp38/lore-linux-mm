@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F61D6B026F
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:35:57 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id b77so2544944pfl.2
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:35:57 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id ACF5D6B0271
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:35:59 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id u3so17642613pgn.11
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:35:59 -0800 (PST)
 Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id v10si14392895plz.525.2017.11.22.16.35.55
+        by mx.google.com with ESMTPS id h8si14062415pgc.1.2017.11.22.16.35.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 16:35:55 -0800 (PST)
-Subject: [PATCH 06/23] x86, kaiser: allow NX poison to be set in p4d/pgd
+        Wed, 22 Nov 2017 16:35:58 -0800 (PST)
+Subject: [PATCH 07/23] x86, kaiser: make sure static PGDs are 8k in size
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:34:48 -0800
+Date: Wed, 22 Nov 2017 16:34:50 -0800
 References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
 In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003448.C6AB3575@viggo.jf.intel.com>
+Message-Id: <20171123003450.76492124@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,9 +23,12 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-The user portion of the kernel page tables use the NX bit to
-poison them for userspace.  But, that trips the p4d/pgd_bad()
-checks.  Make sure it does not do that.
+A few PGDs come out of the kernel binary instead of being
+allocated dynamically.  Before this patch, they are all
+8k-aligned, but they must also be 8k in *size*.
+
+The original KAISER patch did not do this.  It probably just
+lucked out that it did not trample over data after the last PGD.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -39,40 +42,61 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/include/asm/pgtable.h |   14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ b/arch/x86/kernel/head_64.S |   16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
 
-diff -puN arch/x86/include/asm/pgtable.h~kaiser-p4d-allow-nx arch/x86/include/asm/pgtable.h
---- a/arch/x86/include/asm/pgtable.h~kaiser-p4d-allow-nx	2017-11-22 15:45:47.382619743 -0800
-+++ b/arch/x86/include/asm/pgtable.h	2017-11-22 15:45:47.386619743 -0800
-@@ -846,7 +846,12 @@ static inline pud_t *pud_offset(p4d_t *p
+diff -puN arch/x86/kernel/head_64.S~kaiser-head_S-pgds-need-8k-too arch/x86/kernel/head_64.S
+--- a/arch/x86/kernel/head_64.S~kaiser-head_S-pgds-need-8k-too	2017-11-22 15:45:47.913619742 -0800
++++ b/arch/x86/kernel/head_64.S	2017-11-22 15:45:47.916619742 -0800
+@@ -342,11 +342,24 @@ GLOBAL(early_recursion_flag)
+ GLOBAL(name)
  
- static inline int p4d_bad(p4d_t p4d)
- {
--	return (p4d_flags(p4d) & ~(_KERNPG_TABLE | _PAGE_USER)) != 0;
-+	unsigned long ignore_flags = _KERNPG_TABLE | _PAGE_USER;
-+
-+	if (IS_ENABLED(CONFIG_KAISER))
-+		ignore_flags |= _PAGE_NX;
-+
-+	return (p4d_flags(p4d) & ~ignore_flags) != 0;
- }
- #endif  /* CONFIG_PGTABLE_LEVELS > 3 */
+ #ifdef CONFIG_KAISER
++/*
++ * Each PGD needs to be 8k long and 8k aligned.  We do not
++ * ever go out to userspace with these, so we do not
++ * strictly *need* the second page, but this allows us to
++ * have a single set_pgd() implementation that does not
++ * need to worry about whether it has 4k or 8k to work
++ * with.
++ *
++ * This ensures PGDs are 8k long:
++ */
++#define KAISER_USER_PGD_FILL	512
++/* This ensures they are 8k-aligned: */
+ #define NEXT_PGD_PAGE(name) \
+ 	.balign 2 * PAGE_SIZE; \
+ GLOBAL(name)
+ #else
+ #define NEXT_PGD_PAGE(name) NEXT_PAGE(name)
++#define KAISER_USER_PGD_FILL	0
+ #endif
  
-@@ -880,7 +885,12 @@ static inline p4d_t *p4d_offset(pgd_t *p
+ /* Automate the creation of 1 to 1 mapping pmd entries */
+@@ -365,6 +378,7 @@ NEXT_PGD_PAGE(early_top_pgt)
+ #else
+ 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
+ #endif
++	.fill	KAISER_USER_PGD_FILL,8,0
  
- static inline int pgd_bad(pgd_t pgd)
- {
--	return (pgd_flags(pgd) & ~_PAGE_USER) != _KERNPG_TABLE;
-+	unsigned long ignore_flags = _PAGE_USER;
-+
-+	if (IS_ENABLED(CONFIG_KAISER))
-+		ignore_flags |= _PAGE_NX;
-+
-+	return (pgd_flags(pgd) & ~ignore_flags) != _KERNPG_TABLE;
- }
+ NEXT_PAGE(early_dynamic_pgts)
+ 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
+@@ -379,6 +393,7 @@ NEXT_PGD_PAGE(init_top_pgt)
+ 	.org    init_top_pgt + PGD_START_KERNEL*8, 0
+ 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
+ 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE_NOENC
++	.fill	KAISER_USER_PGD_FILL,8,0
  
- static inline int pgd_none(pgd_t pgd)
+ NEXT_PAGE(level3_ident_pgt)
+ 	.quad	level2_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE_NOENC
+@@ -391,6 +406,7 @@ NEXT_PAGE(level2_ident_pgt)
+ #else
+ NEXT_PGD_PAGE(init_top_pgt)
+ 	.fill	512,8,0
++	.fill	KAISER_USER_PGD_FILL,8,0
+ #endif
+ 
+ #ifdef CONFIG_X86_5LEVEL
 _
 
 --
