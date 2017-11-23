@@ -1,99 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DB38F6B0038
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:18:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c83so16361856pfj.11
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 22:18:34 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id h1si8213102pgf.354.2017.11.22.22.18.33
-        for <linux-mm@kvack.org>;
-        Wed, 22 Nov 2017 22:18:33 -0800 (PST)
-Date: Thu, 23 Nov 2017 15:18:31 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_lazy
-Message-ID: <20171123061831.GA12898@bbox>
-References: <20171107095453.179940-1-wangnan0@huawei.com>
- <20171110001933.GA12421@bbox>
- <20171110101529.op6yaxtdke2p4bsh@dhcp22.suse.cz>
- <20171110122635.q26xdxytgdfjy5q3@dhcp22.suse.cz>
- <20171115173332.GL19071@arm.com>
- <20171116092042.esxqtnfxdrozfwey@dhcp22.suse.cz>
- <20171120142444.GA32488@arm.com>
- <20171120160422.5ieustt5ovbyelyx@dhcp22.suse.cz>
- <20171122193049.GI22648@arm.com>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E56B36B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:29:21 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id z75so11459681wrc.5
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 22:29:21 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id h7si2857079edj.339.2017.11.22.22.29.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 22:29:20 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAN6TFS3132623
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:29:19 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2edrv08gwk-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:29:18 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Thu, 23 Nov 2017 06:29:17 -0000
+Date: Thu, 23 Nov 2017 08:29:10 +0200
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 0/4] vm: add a syscall to map a process memory into a
+ pipe
+References: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <CAKgNAkhtm0JqxeKXovoXPbApogMsGtMR=1td_NhT3AMv_Ot1Ng@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171122193049.GI22648@arm.com>
+In-Reply-To: <CAKgNAkhtm0JqxeKXovoXPbApogMsGtMR=1td_NhT3AMv_Ot1Ng@mail.gmail.com>
+Message-Id: <20171123062909.GB2303@rapoport-lnx>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Wang Nan <wangnan0@huawei.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Bob Liu <liubo95@huawei.com>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Roman Gushchin <guro@fb.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrea Arcangeli <aarcange@redhat.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, lkml <linux-kernel@vger.kernel.org>, Linux API <linux-api@vger.kernel.org>, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Yossi Kuperman <yossiku@il.ibm.com>
 
-On Wed, Nov 22, 2017 at 07:30:50PM +0000, Will Deacon wrote:
-> Hi Michal,
+On Wed, Nov 22, 2017 at 09:43:31PM +0100, Michael Kerrisk (man-pages) wrote:
+> Hi Mike,
 > 
-> On Mon, Nov 20, 2017 at 05:04:22PM +0100, Michal Hocko wrote:
-> > On Mon 20-11-17 14:24:44, Will Deacon wrote:
-> > > On Thu, Nov 16, 2017 at 10:20:42AM +0100, Michal Hocko wrote:
-> > > > On Wed 15-11-17 17:33:32, Will Deacon wrote:
-> > [...]
-> > > > > > diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-> > > > > > index ffdaea7954bb..7adde19b2bcc 100644
-> > > > > > --- a/arch/arm64/include/asm/tlb.h
-> > > > > > +++ b/arch/arm64/include/asm/tlb.h
-> > > > > > @@ -43,7 +43,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
-> > > > > >  	 * The ASID allocator will either invalidate the ASID or mark
-> > > > > >  	 * it as used.
-> > > > > >  	 */
-> > > > > > -	if (tlb->fullmm)
-> > > > > > +	if (tlb->lazy)
-> > > > > >  		return;
-> > > > > 
-> > > > > This looks like the right idea, but I'd rather make this check:
-> > > > > 
-> > > > > 	if (tlb->fullmm && tlb->lazy)
-> > > > > 
-> > > > > since the optimisation doesn't work for anything than tearing down the
-> > > > > entire address space.
-> > > > 
-> > > > OK, that makes sense.
-> > > > 
-> > > > > Alternatively, I could actually go check MMF_UNSTABLE in tlb->mm, which
-> > > > > would save you having to add an extra flag in the first place, e.g.:
-> > > > > 
-> > > > > 	if (tlb->fullmm && !test_bit(MMF_UNSTABLE, &tlb->mm->flags))
-> > > > > 
-> > > > > which is a nice one-liner.
-> > > > 
-> > > > But that would make it oom_reaper specific. What about the softdirty
-> > > > case Minchan has mentioned earlier?
-> > > 
-> > > We don't (yet) support that on arm64, so we're ok for now. If we do grow
-> > > support for it, then I agree that we want a flag to identify the case where
-> > > the address space is going away and only elide the invalidation then.
-> > 
-> > What do you think about the following patch instead? I have to confess
-> > I do not really understand the fullmm semantic so I might introduce some
-> > duplication by this flag. If you think this is a good idea, I will post
-> > it in a separate thread.
+> On 22 November 2017 at 20:36, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+> > Hi,
+> >
+> > This patches introduces new process_vmsplice system call that combines
+> > functionality of process_vm_read and vmsplice.
+> >
+> > It allows to map the memory of another process into a pipe, similarly to
+> > what vmsplice does for its own address space.
+> >
+> > The patch 2/4 ("vm: add a syscall to map a process memory into a pipe")
+> > actually adds the new system call and provides its elaborate description.
 > 
+> Where is the man page for this new syscall?
+
+It's still WIP, I'll send it out soon.
+ 
+> Cheers,
 > 
-> Please do! My only suggestion would be s/lazy/exit/, since I don't think the
-> optimisation works in any other situation than the address space going away
-> for good.
+> Michael
+> 
+> > The patchset is against -mm tree.
+> >
+> > v3: minor refactoring to reduce code duplication
+> > v2: move this syscall under CONFIG_CROSS_MEMORY_ATTACH
+> >     give correct flags to get_user_pages_remote()
+> >
+> > Andrei Vagin (3):
+> >   vm: add a syscall to map a process memory into a pipe
+> >   x86: wire up the process_vmsplice syscall
+> >   test: add a test for the process_vmsplice syscall
+> >
+> > Mike Rapoport (1):
+> >   fs/splice: introduce pages_to_pipe helper
+> >
+> >  arch/x86/entry/syscalls/syscall_32.tbl             |   1 +
+> >  arch/x86/entry/syscalls/syscall_64.tbl             |   2 +
+> >  fs/splice.c                                        | 262 +++++++++++++++++++--
+> >  include/linux/compat.h                             |   3 +
+> >  include/linux/syscalls.h                           |   4 +
+> >  include/uapi/asm-generic/unistd.h                  |   5 +-
+> >  kernel/sys_ni.c                                    |   2 +
+> >  tools/testing/selftests/process_vmsplice/Makefile  |   5 +
+> >  .../process_vmsplice/process_vmsplice_test.c       | 188 +++++++++++++++
+> >  9 files changed, 450 insertions(+), 22 deletions(-)
+> >  create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
+> >  create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+> >
+> > --
+> > 2.7.4
+> >
+> 
+> -- 
+> Michael Kerrisk
+> Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+> Linux/UNIX System Programming Training: http://man7.org/training/
+> 
 
-Yes, address space going. That's why I wanted to add additional check that
-address space going without adding new flags.
-
-http://lkml.kernel.org/r/<20171113002833.GA18301@bbox>
-
-However, if you guys love to add new flag to distinguish, I prefer
-"exit" to "lazy". It also would be better to add WARN_ON to catch
-future potential wrong use case like OOM reaper.
-Anyway, I'm not strong against so it up to you, Michal.
-
-        WARN_ON_ONCE(exit == true && atomic_read(&mm->mm_users) > 0);
+-- 
+Sincerely yours,
+Mike.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
