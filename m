@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A94406B028F
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:24 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id h21so13752028pfk.14
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:24 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id l18si14561881pgc.353.2017.11.22.16.36.23
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F37D6B0293
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:27 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 26so15838609pfs.22
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:27 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id p89si16145686pfj.113.2017.11.22.16.36.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 16:36:23 -0800 (PST)
-Subject: [PATCH 19/23] x86, kaiser: add debugfs file to turn KAISER on/off at runtime
+        Wed, 22 Nov 2017 16:36:26 -0800 (PST)
+Subject: [PATCH 20/23] x86, kaiser: add a function to check for KAISER being enabled
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:35:17 -0800
+Date: Wed, 22 Nov 2017 16:35:18 -0800
 References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
 In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003517.8EAB76E0@viggo.jf.intel.com>
+Message-Id: <20171123003518.B7D81B14@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,8 +23,11 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-This will be used in a few patches.  Right now, it's not wired up
-to do anything useful.
+Currently, all of the checks for KAISER are compile-time checks.
+
+Runtime checks are needed for turning it on/off at runtime.
+
+Add a function to do that.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -38,71 +41,39 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/mm/kaiser.c |   48 ++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 48 insertions(+)
+ b/arch/x86/include/asm/kaiser.h |    5 +++++
+ b/include/linux/kaiser.h        |    5 +++++
+ 2 files changed, 10 insertions(+)
 
-diff -puN arch/x86/mm/kaiser.c~kaiser-dynamic-debugfs arch/x86/mm/kaiser.c
---- a/arch/x86/mm/kaiser.c~kaiser-dynamic-debugfs	2017-11-22 15:45:54.726619725 -0800
-+++ b/arch/x86/mm/kaiser.c	2017-11-22 15:45:54.730619725 -0800
-@@ -29,6 +29,7 @@
- #include <linux/string.h>
- #include <linux/types.h>
- #include <linux/bug.h>
-+#include <linux/debugfs.h>
- #include <linux/init.h>
- #include <linux/spinlock.h>
- #include <linux/mm.h>
-@@ -470,3 +471,50 @@ void kaiser_remove_mapping(unsigned long
- 	 */
- 	__native_flush_tlb_global();
+diff -puN arch/x86/include/asm/kaiser.h~kaiser-dynamic-check-func arch/x86/include/asm/kaiser.h
+--- a/arch/x86/include/asm/kaiser.h~kaiser-dynamic-check-func	2017-11-22 15:45:55.262619723 -0800
++++ b/arch/x86/include/asm/kaiser.h	2017-11-22 15:45:55.267619723 -0800
+@@ -56,6 +56,11 @@ extern void kaiser_remove_mapping(unsign
+  */
+ extern void kaiser_init(void);
+ 
++static inline bool kaiser_active(void)
++{
++	extern int kaiser_enabled;
++	return kaiser_enabled;
++}
+ #endif
+ 
+ #endif /* __ASSEMBLY__ */
+diff -puN include/linux/kaiser.h~kaiser-dynamic-check-func include/linux/kaiser.h
+--- a/include/linux/kaiser.h~kaiser-dynamic-check-func	2017-11-22 15:45:55.264619723 -0800
++++ b/include/linux/kaiser.h	2017-11-22 15:45:55.268619723 -0800
+@@ -28,5 +28,10 @@ static inline int kaiser_add_mapping(uns
+ static inline void kaiser_add_mapping_cpu_entry(int cpu)
+ {
  }
 +
-+int kaiser_enabled = 1;
-+static ssize_t kaiser_enabled_read_file(struct file *file, char __user *user_buf,
-+			     size_t count, loff_t *ppos)
++static inline bool kaiser_active(void)
 +{
-+	char buf[32];
-+	unsigned int len;
-+
-+	len = sprintf(buf, "%d\n", kaiser_enabled);
-+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
-+}
-+
-+static ssize_t kaiser_enabled_write_file(struct file *file,
-+		 const char __user *user_buf, size_t count, loff_t *ppos)
-+{
-+	char buf[32];
-+	ssize_t len;
-+	unsigned int enable;
-+
-+	len = min(count, sizeof(buf) - 1);
-+	if (copy_from_user(buf, user_buf, len))
-+		return -EFAULT;
-+
-+	buf[len] = '\0';
-+	if (kstrtoint(buf, 0, &enable))
-+		return -EINVAL;
-+
-+	if (enable > 1)
-+		return -EINVAL;
-+
-+	WRITE_ONCE(kaiser_enabled, enable);
-+	return count;
-+}
-+
-+static const struct file_operations fops_kaiser_enabled = {
-+	.read = kaiser_enabled_read_file,
-+	.write = kaiser_enabled_write_file,
-+	.llseek = default_llseek,
-+};
-+
-+static int __init create_kaiser_enabled(void)
-+{
-+	debugfs_create_file("kaiser-enabled", S_IRUSR | S_IWUSR,
-+			    arch_debugfs_dir, NULL, &fops_kaiser_enabled);
 +	return 0;
 +}
-+late_initcall(create_kaiser_enabled);
+ #endif /* !CONFIG_KAISER */
+ #endif /* _INCLUDE_KAISER_H */
 _
 
 --
