@@ -1,345 +1,581 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 81ED76B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:28:39 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 11so9738028wrb.18
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:28:39 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h90si3315149edd.454.2017.11.23.08.28.37
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CBD36B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:43 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id 136so11378698qkd.1
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:52:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id i38si1163790qte.179.2017.11.23.08.52.41
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 08:28:38 -0800 (PST)
-Date: Thu, 23 Nov 2017 17:28:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/1] stackdepot: interface to check entries and size of
- stackdepot.
-Message-ID: <20171123162835.6prpgrz3qkdexx56@dhcp22.suse.cz>
-References: <CGME20171122105142epcas5p173b7205da12e1fc72e16ec74c49db665@epcas5p1.samsung.com>
- <1511347661-38083-1-git-send-email-maninder1.s@samsung.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1511347661-38083-1-git-send-email-maninder1.s@samsung.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Nov 2017 08:52:41 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vANGmxZW066592
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:40 -0500
+Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ee1bctv2c-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:39 -0500
+Received: from localhost
+	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
+	Thu, 23 Nov 2017 09:52:39 -0700
+From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+Subject: [PATCH V3] selftest/vm: Move 128TB mmap boundary test to generic directory
+Date: Thu, 23 Nov 2017 22:22:26 +0530
+Message-Id: <20171123165226.32582-1-aneesh.kumar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maninder Singh <maninder1.s@samsung.com>
-Cc: kstewart@linuxfoundation.org, gregkh@linuxfoundation.org, jkosina@suse.cz, pombredanne@nexb.com, jpoimboe@redhat.com, akpm@linux-foundation.org, vbabka@suse.cz, guptap@codeaurora.org, vinmenon@codeaurora.org, a.sahrawat@samsung.com, pankaj.m@samsung.com, lalit.mohan@samsung.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Vaneet Narang <v.narang@samsung.com>
+To: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H . Peter Anvin" <hpa@zytor.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
 
-On Wed 22-11-17 16:17:41, Maninder Singh wrote:
-> This patch provides interface to check all the stack enteries
-> saved in stackdepot so far as well as memory consumed by stackdepot.
-> 
-> 1) Take current depot_index and offset to calculate end address for one
-> 	iteration of (/sys/kernel/debug/depot_stack/depot_entries).
-> 
-> 2) Fill end marker in every slab to point its end, and then use it while
-> 	traversing all the slabs of stackdepot.
-> 
-> "debugfs code inspired from page_onwer's way of printing BT"
-> 
-> checked on ARM and x86_64.
-> $cat /sys/kernel/debug/depot_stack/depot_size
-> Memory consumed by Stackdepot:208 KB
-> 
-> $ cat /sys/kernel/debug/depot_stack/depot_entries
-> stack count 1 backtrace
->  init_page_owner+0x1e/0x210
->  start_kernel+0x310/0x3cd
->  secondary_startup_64+0xa5/0xb0
->  0xffffffffffffffff
+Architectures like ppc64 do support mmap hint addr based large address space
+selection. This test can be run on those architectures too. Move the test to
+selftest/vm so that other archs can use the same.
 
-Why do we need this? Who is goging to use this information and what for?
-I haven't looked at the code but just the diffstat looks like this
-should better have a _very_ good justification to be considered for
-merging. To be honest with you I have hard time imagine how this can be
-useful other than debugging stack depot...
+We also add a few new test scenarios in this patch. We do test few boundary
+condition before we do a high address mmap. ppc64 use the addr limit to validate
+addr in the fault path. We had bugs in this area w.r.t slb fault handling
+before we updated the addr limit.
 
-> Signed-off-by: Vaneet Narang <v.narang@samsung.com>
-> Signed-off-by: Maninder Singh <maninder1.s@samsung.com>
-> ---
->  include/linux/stackdepot.h |   13 +++
->  include/linux/stacktrace.h |    6 ++
->  lib/stackdepot.c           |  183 ++++++++++++++++++++++++++++++++++++++++++++
->  mm/page_owner.c            |    6 --
->  4 files changed, 202 insertions(+), 6 deletions(-)
-> 
-> diff --git a/include/linux/stackdepot.h b/include/linux/stackdepot.h
-> index 7978b3e..dd95b11 100644
-> --- a/include/linux/stackdepot.h
-> +++ b/include/linux/stackdepot.h
-> @@ -23,6 +23,19 @@
->  
->  typedef u32 depot_stack_handle_t;
->  
-> +/*
-> + * structure to store markers which
-> + * will be used while printing entries
-> + * stored in stackdepot.
-> + */
-> +struct depot_stack_data {
-> +	int print_offset;
-> +	int print_counter;
-> +	int print_index;
-> +	unsigned long end_marker;
-> +	void *end_address;
-> +};
-> +
->  struct stack_trace;
->  
->  depot_stack_handle_t depot_save_stack(struct stack_trace *trace, gfp_t flags);
-> diff --git a/include/linux/stacktrace.h b/include/linux/stacktrace.h
-> index ba29a06..1cfd27d 100644
-> --- a/include/linux/stacktrace.h
-> +++ b/include/linux/stacktrace.h
-> @@ -4,6 +4,12 @@
->  
->  #include <linux/types.h>
->  
-> +/*
-> + * TODO: teach PAGE_OWNER_STACK_DEPTH (__dump_page_owner and save_stack)
-> + * to use off stack temporal storage
-> + */
-> +#define PAGE_OWNER_STACK_DEPTH (16)
-> +
->  struct task_struct;
->  struct pt_regs;
->  
-> diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-> index f87d138..3067fcb 100644
-> --- a/lib/stackdepot.c
-> +++ b/lib/stackdepot.c
-> @@ -39,6 +39,8 @@
->  #include <linux/stackdepot.h>
->  #include <linux/string.h>
->  #include <linux/types.h>
-> +#include <linux/debugfs.h>
-> +#include <linux/uaccess.h>
->  
->  #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
->  
-> @@ -111,6 +113,7 @@ static bool init_stack_slab(void **prealloc)
->  	int required_size = offsetof(struct stack_record, entries) +
->  		sizeof(unsigned long) * size;
->  	struct stack_record *stack;
-> +	void *address;
->  
->  	required_size = ALIGN(required_size, 1 << STACK_ALLOC_ALIGN);
->  
-> @@ -119,6 +122,17 @@ static bool init_stack_slab(void **prealloc)
->  			WARN_ONCE(1, "Stack depot reached limit capacity");
->  			return NULL;
->  		}
-> +
-> +		/*
-> +		 * write POSION_END if any space left in
-> +		 * current slab to represent its end.
-> +		 * later used while printing all the stacks.
-> +		 */
-> +		if (depot_offset < STACK_ALLOC_SIZE) {
-> +			address = stack_slabs[depot_index] + depot_offset;
-> +			memset(address, POISON_END, sizeof(unsigned long));
-> +		}
-> +
->  		depot_index++;
->  		depot_offset = 0;
->  		/*
-> @@ -285,3 +299,172 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
->  	return retval;
->  }
->  EXPORT_SYMBOL_GPL(depot_save_stack);
-> +
-> +#define DEPOT_SIZE 64
-> +
-> +static ssize_t read_depot_stack_size(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-> +{
-> +	char kbuf[DEPOT_SIZE];
-> +	ssize_t ret = 0;
-> +	unsigned long size = depot_index * (1 << STACK_ALLOC_ORDER) * PAGE_SIZE;
-> +
-> +	ret = snprintf(kbuf, count, "Memory consumed by Stackdepot:%lu KB\n", size >> 10);
-> +	if (ret >= count)
-> +		return -ENOMEM;
-> +
-> +	return simple_read_from_buffer(buf, count, ppos, kbuf, ret);
-> +}
-> +
-> +static ssize_t print_depot_stack(char __user *buf, size_t count, struct stack_trace *trace, loff_t *ppos)
-> +{
-> +	char *kbuf;
-> +	int ret = 0;
-> +
-> +	kbuf = kvmalloc(count, GFP_KERNEL);
-> +	if (!kbuf)
-> +		return -ENOMEM;
-> +
-> +	ret = snprintf(kbuf, count, "stack count %d backtrace\n", (int)*ppos);
-> +	ret += snprint_stack_trace(kbuf + ret, count - ret, trace, 0);
-> +	ret += snprintf(kbuf + ret, count - ret, "\n");
-> +
-> +	if (ret >= count) {
-> +		ret = -ENOMEM;
-> +		goto err;
-> +	}
-> +
-> +	if (copy_to_user(buf, kbuf, ret))
-> +		ret = -EFAULT;
-> +
-> +err:
-> +	kvfree(kbuf);
-> +	return ret;
-> +}
-> +
-> +/*
-> + * read_depot_stack()
-> + *
-> + * function to print all the entries present
-> + * in depot_stack database currently in system.
-> + */
-> +static ssize_t read_depot_stack(struct file *file, char __user *buf, size_t count, loff_t *ppos)
-> +{
-> +	struct stack_record *stack;
-> +	void *address;
-> +	struct depot_stack_data *debugfs_data;
-> +
-> +	debugfs_data  = (struct depot_stack_data *)file->private_data;
-> +
-> +	if (!debugfs_data)
-> +		return -EINVAL;
-> +
-> +	while (debugfs_data->print_counter <= debugfs_data->print_index) {
-> +		unsigned long entries[PAGE_OWNER_STACK_DEPTH];
-> +		struct stack_trace trace = {
-> +			.nr_entries = 0,
-> +			.entries = entries,
-> +			.max_entries = PAGE_OWNER_STACK_DEPTH,
-> +			.skip = 0
-> +		};
-> +
-> +		address = stack_slabs[debugfs_data->print_counter] + debugfs_data->print_offset;
-> +		if (address == debugfs_data->end_address)
-> +			break;
-> +
-> +		if (*((unsigned long *)address) == debugfs_data->end_marker) {
-> +			debugfs_data->print_counter++;
-> +			debugfs_data->print_offset = 0;
-> +			continue;
-> +		}
-> +
-> +		stack = address;
-> +		trace.nr_entries = trace.max_entries = stack->size;
-> +		trace.entries = stack->entries;
-> +
-> +		debugfs_data->print_offset += offsetof(struct stack_record, entries) +
-> +				(stack->size * sizeof(unsigned long));
-> +		debugfs_data->print_offset = ALIGN(debugfs_data->print_offset, 1 << STACK_ALLOC_ALIGN);
-> +		if (debugfs_data->print_offset >= STACK_ALLOC_SIZE) {
-> +			debugfs_data->print_counter++;
-> +			debugfs_data->print_offset = 0;
-> +		}
-> +
-> +		*ppos = *ppos + 1; /* one stack found, print it */
-> +		return print_depot_stack(buf, count, &trace, ppos);
-> +	}
-> +
-> +	return 0;
-> +}
-> +
-> +int read_depot_open(struct inode *inode, struct file *file)
-> +{
-> +	struct depot_stack_data *debugfs_data;
-> +	unsigned long flags;
-> +
-> +	debugfs_data  = kzalloc(sizeof(struct depot_stack_data), GFP_KERNEL);
-> +	if (!debugfs_data)
-> +		return -ENOMEM;
-> +	/*
-> +	 * First time depot_stack/depot_entries is called.
-> +	 * (/sys/kernel/debug/depot_stack/depot_entries)
-> +	 * initialise print depot_index and stopping address.
-> +	 */
-> +	memset(&(debugfs_data->end_marker), POISON_END, sizeof(unsigned long));
-> +
-> +	spin_lock_irqsave(&depot_lock, flags);
-> +	debugfs_data->print_index = depot_index;
-> +	debugfs_data->end_address = stack_slabs[depot_index] + depot_offset;
-> +	spin_unlock_irqrestore(&depot_lock, flags);
-> +
-> +	file->private_data = debugfs_data;
-> +	return 0;
-> +}
-> +
-> +int read_depot_release(struct inode *inode, struct file *file)
-> +{
-> +	void *debugfs_data = file->private_data;
-> +
-> +	kfree(debugfs_data);
-> +	return 0;
-> +}
-> +
-> +static const struct file_operations proc_depot_stack_operations = {
-> +	.open       = read_depot_open,
-> +	.read		= read_depot_stack,
-> +	.release    = read_depot_release,
-> +};
-> +
-> +static const struct file_operations proc_depot_stack_size_operations = {
-> +	.read		= read_depot_stack_size,
-> +};
-> +
-> +static int __init depot_stack_init(void)
-> +{
-> +	struct dentry *dentry, *dentry_root;
-> +
-> +	dentry_root = debugfs_create_dir("depot_stack", NULL);
-> +
-> +	if (!dentry_root) {
-> +		pr_warn("debugfs 'depot_stack' dir creation failed\n");
-> +		return -ENOMEM;
-> +	}
-> +
-> +	dentry = debugfs_create_file("depot_entries", 0400, dentry_root,
-> +			NULL, &proc_depot_stack_operations);
-> +
-> +	if (IS_ERR(dentry))
-> +		goto err;
-> +
-> +	dentry = debugfs_create_file("depot_size", 0400, dentry_root,
-> +			NULL, &proc_depot_stack_size_operations);
-> +
-> +	if (IS_ERR(dentry))
-> +		goto err;
-> +
-> +	return 0;
-> +
-> +err:
-> +	debugfs_remove_recursive(dentry_root);
-> +	return PTR_ERR(dentry);
-> +}
-> +late_initcall(depot_stack_init)
-> diff --git a/mm/page_owner.c b/mm/page_owner.c
-> index 4f44b95..341b326 100644
-> --- a/mm/page_owner.c
-> +++ b/mm/page_owner.c
-> @@ -13,12 +13,6 @@
->  
->  #include "internal.h"
->  
-> -/*
-> - * TODO: teach PAGE_OWNER_STACK_DEPTH (__dump_page_owner and save_stack)
-> - * to use off stack temporal storage
-> - */
-> -#define PAGE_OWNER_STACK_DEPTH (16)
-> -
->  struct page_owner {
->  	unsigned int order;
->  	gfp_t gfp_mask;
-> -- 
-> 1.7.1
-> 
+We also touch the allocated space to make sure we don't have any bugs in the
+fault handling path.
 
+Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+---
+Changes from V2:
+* Rebase on top of -tip tree.
+* update the correct license
+* use memset to touch the full mmap range.
+
+ tools/testing/selftests/vm/Makefile         |   1 +
+ tools/testing/selftests/vm/run_vmtests      |  11 ++
+ tools/testing/selftests/vm/va_128TBswitch.c | 297 ++++++++++++++++++++++++++++
+ tools/testing/selftests/x86/5lvl.c          | 177 -----------------
+ 4 files changed, 309 insertions(+), 177 deletions(-)
+ create mode 100644 tools/testing/selftests/vm/va_128TBswitch.c
+ delete mode 100644 tools/testing/selftests/x86/5lvl.c
+
+diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
+index e49eca1915f8..f33f2d6d5014 100644
+--- a/tools/testing/selftests/vm/Makefile
++++ b/tools/testing/selftests/vm/Makefile
+@@ -18,6 +18,7 @@ TEST_GEN_FILES += transhuge-stress
+ TEST_GEN_FILES += userfaultfd
+ TEST_GEN_FILES += mlock-random-test
+ TEST_GEN_FILES += virtual_address_range
++TEST_GEN_FILES += va_128TBswitch
+ 
+ TEST_PROGS := run_vmtests
+ 
+diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
+index cc826326de87..d2561895a021 100755
+--- a/tools/testing/selftests/vm/run_vmtests
++++ b/tools/testing/selftests/vm/run_vmtests
+@@ -177,4 +177,15 @@ else
+ 	echo "[PASS]"
+ fi
+ 
++echo "-----------------------------"
++echo "running virtual address 128TB switch test"
++echo "-----------------------------"
++./va_128TBswitch
++if [ $? -ne 0 ]; then
++    echo "[FAIL]"
++    exitcode=1
++else
++    echo "[PASS]"
++fi
++
+ exit $exitcode
+diff --git a/tools/testing/selftests/vm/va_128TBswitch.c b/tools/testing/selftests/vm/va_128TBswitch.c
+new file mode 100644
+index 000000000000..e7fe734c374f
+--- /dev/null
++++ b/tools/testing/selftests/vm/va_128TBswitch.c
+@@ -0,0 +1,297 @@
++/*
++ *
++ * Authors: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
++ * Authors: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
++ *
++ * This program is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License, version 2, as
++ * published by the Free Software Foundation.
++
++ * This program is distributed in the hope that it would be useful, but
++ * WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
++ *
++ */
++
++#include <stdio.h>
++#include <sys/mman.h>
++#include <string.h>
++
++#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
++
++#ifdef __powerpc64__
++#define PAGE_SIZE	(64 << 10)
++/*
++ * This will work with 16M and 2M hugepage size
++ */
++#define HUGETLB_SIZE	(16 << 20)
++#else
++#define PAGE_SIZE	(4 << 10)
++#define HUGETLB_SIZE	(2 << 20)
++#endif
++
++/*
++ * >= 128TB is the hint addr value we used to select
++ * large address space.
++ */
++#define ADDR_SWITCH_HINT (1UL << 47)
++#define LOW_ADDR	((void *) (1UL << 30))
++#define HIGH_ADDR	((void *) (1UL << 48))
++
++struct testcase {
++	void *addr;
++	unsigned long size;
++	unsigned long flags;
++	const char *msg;
++	unsigned int low_addr_required:1;
++	unsigned int keep_mapped:1;
++};
++
++static struct testcase testcases[] = {
++	{
++		/*
++		 * If stack is moved, we could possibly allocate
++		 * this at the requested address.
++		 */
++		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
++		.size = PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
++		.low_addr_required = 1,
++	},
++	{
++		/*
++		 * We should never allocate at the requested address or above it
++		 * The len cross the 128TB boundary. Without MAP_FIXED
++		 * we will always search in the lower address space.
++		 */
++		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, (2 * PAGE_SIZE))",
++		.low_addr_required = 1,
++	},
++	{
++		/*
++		 * Exact mapping at 128TB, the area is free we should get that
++		 * even without MAP_FIXED.
++		 */
++		.addr = ((void *)(ADDR_SWITCH_HINT)),
++		.size = PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT),
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
++		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
++	},
++	{
++		.addr = NULL,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(NULL)",
++		.low_addr_required = 1,
++	},
++	{
++		.addr = LOW_ADDR,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(LOW_ADDR)",
++		.low_addr_required = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(HIGH_ADDR)",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(HIGH_ADDR) again",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
++		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
++	},
++	{
++		.addr = (void *) -1,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(-1)",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = (void *) -1,
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(-1) again",
++	},
++	{
++		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
++		.size = PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
++		.low_addr_required = 1,
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, 2 * PAGE_SIZE)",
++		.low_addr_required = 1,
++		.keep_mapped = 1,
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE / 2),
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE/2 , 2 * PAGE_SIZE)",
++		.low_addr_required = 1,
++		.keep_mapped = 1,
++	},
++	{
++		.addr = ((void *)(ADDR_SWITCH_HINT)),
++		.size = PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT),
++		.size = 2 * PAGE_SIZE,
++		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
++		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
++	},
++};
++
++static struct testcase hugetlb_testcases[] = {
++	{
++		.addr = NULL,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(NULL, MAP_HUGETLB)",
++		.low_addr_required = 1,
++	},
++	{
++		.addr = LOW_ADDR,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(LOW_ADDR, MAP_HUGETLB)",
++		.low_addr_required = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = HIGH_ADDR,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
++		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
++	},
++	{
++		.addr = (void *) -1,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(-1, MAP_HUGETLB)",
++		.keep_mapped = 1,
++	},
++	{
++		.addr = (void *) -1,
++		.size = HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(-1, MAP_HUGETLB) again",
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
++		.size = 2 * HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
++		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, 2*HUGETLB_SIZE, MAP_HUGETLB)",
++		.low_addr_required = 1,
++		.keep_mapped = 1,
++	},
++	{
++		.addr = (void *)(ADDR_SWITCH_HINT),
++		.size = 2 * HUGETLB_SIZE,
++		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
++		.msg = "mmap(ADDR_SWITCH_HINT , 2*HUGETLB_SIZE, MAP_FIXED | MAP_HUGETLB)",
++	},
++};
++
++static int run_test(struct testcase *test, int count)
++{
++	void *p;
++	int i, ret = 0;
++
++	for (i = 0; i < count; i++) {
++		struct testcase *t = test + i;
++
++		p = mmap(t->addr, t->size, PROT_READ | PROT_WRITE, t->flags, -1, 0);
++
++		printf("%s: %p - ", t->msg, p);
++
++		if (p == MAP_FAILED) {
++			printf("FAILED\n");
++			ret = 1;
++			continue;
++		}
++
++		if (t->low_addr_required && p >= (void *)(ADDR_SWITCH_HINT)) {
++			printf("FAILED\n");
++			ret = 1;
++		} else {
++			/*
++			 * Do a dereference of the address returned so that we catch
++			 * bugs in page fault handling
++			 */
++			memset(p, 0, t->size);
++			printf("OK\n");
++		}
++		if (!t->keep_mapped)
++			munmap(p, t->size);
++	}
++
++	return ret;
++}
++
++static int supported_arch(void)
++{
++#if defined(__powerpc64__)
++	return 1;
++#elif defined(__x86_64__)
++	return 1;
++#else
++	return 0;
++#endif
++}
++
++int main(int argc, char **argv)
++{
++	int ret;
++
++	if (!supported_arch())
++		return 0;
++
++	ret = run_test(testcases, ARRAY_SIZE(testcases));
++	if (argc == 2 && !strcmp(argv[1], "--run-hugetlb"))
++		ret = run_test(hugetlb_testcases, ARRAY_SIZE(hugetlb_testcases));
++	return ret;
++}
+diff --git a/tools/testing/selftests/x86/5lvl.c b/tools/testing/selftests/x86/5lvl.c
+deleted file mode 100644
+index 2eafdcd4c2b3..000000000000
+--- a/tools/testing/selftests/x86/5lvl.c
++++ /dev/null
+@@ -1,177 +0,0 @@
+-#include <stdio.h>
+-#include <sys/mman.h>
+-
+-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+-
+-#define PAGE_SIZE	4096
+-#define LOW_ADDR	((void *) (1UL << 30))
+-#define HIGH_ADDR	((void *) (1UL << 50))
+-
+-struct testcase {
+-	void *addr;
+-	unsigned long size;
+-	unsigned long flags;
+-	const char *msg;
+-	unsigned int low_addr_required:1;
+-	unsigned int keep_mapped:1;
+-};
+-
+-static struct testcase testcases[] = {
+-	{
+-		.addr = NULL,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(NULL)",
+-		.low_addr_required = 1,
+-	},
+-	{
+-		.addr = LOW_ADDR,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(LOW_ADDR)",
+-		.low_addr_required = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(HIGH_ADDR)",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(HIGH_ADDR) again",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+-		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
+-	},
+-	{
+-		.addr = (void*) -1,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(-1)",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = (void*) -1,
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(-1) again",
+-	},
+-	{
+-		.addr = (void *)((1UL << 47) - PAGE_SIZE),
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap((1UL << 47), 2 * PAGE_SIZE)",
+-		.low_addr_required = 1,
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = (void *)((1UL << 47) - PAGE_SIZE / 2),
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap((1UL << 47), 2 * PAGE_SIZE / 2)",
+-		.low_addr_required = 1,
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = (void *)((1UL << 47) - PAGE_SIZE),
+-		.size = 2 * PAGE_SIZE,
+-		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+-		.msg = "mmap((1UL << 47) - PAGE_SIZE, 2 * PAGE_SIZE, MAP_FIXED)",
+-	},
+-	{
+-		.addr = NULL,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(NULL, MAP_HUGETLB)",
+-		.low_addr_required = 1,
+-	},
+-	{
+-		.addr = LOW_ADDR,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(LOW_ADDR, MAP_HUGETLB)",
+-		.low_addr_required = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = HIGH_ADDR,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+-		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
+-	},
+-	{
+-		.addr = (void*) -1,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(-1, MAP_HUGETLB)",
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = (void*) -1,
+-		.size = 2UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap(-1, MAP_HUGETLB) again",
+-	},
+-	{
+-		.addr = (void *)((1UL << 47) - PAGE_SIZE),
+-		.size = 4UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
+-		.msg = "mmap((1UL << 47), 4UL << 20, MAP_HUGETLB)",
+-		.low_addr_required = 1,
+-		.keep_mapped = 1,
+-	},
+-	{
+-		.addr = (void *)((1UL << 47) - (2UL << 20)),
+-		.size = 4UL << 20,
+-		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+-		.msg = "mmap((1UL << 47) - (2UL << 20), 4UL << 20, MAP_FIXED | MAP_HUGETLB)",
+-	},
+-};
+-
+-int main(int argc, char **argv)
+-{
+-	int i;
+-	void *p;
+-
+-	for (i = 0; i < ARRAY_SIZE(testcases); i++) {
+-		struct testcase *t = testcases + i;
+-
+-		p = mmap(t->addr, t->size, PROT_NONE, t->flags, -1, 0);
+-
+-		printf("%s: %p - ", t->msg, p);
+-
+-		if (p == MAP_FAILED) {
+-			printf("FAILED\n");
+-			continue;
+-		}
+-
+-		if (t->low_addr_required && p >= (void *)(1UL << 47))
+-			printf("FAILED\n");
+-		else
+-			printf("OK\n");
+-		if (!t->keep_mapped)
+-			munmap(p, t->size);
+-	}
+-	return 0;
+-}
 -- 
-Michal Hocko
-SUSE Labs
+2.14.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
