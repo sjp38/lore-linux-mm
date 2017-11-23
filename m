@@ -1,113 +1,167 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3136B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:56:21 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id k66so1318521lfg.14
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 23:56:21 -0800 (PST)
-Received: from bastet.se.axis.com (bastet.se.axis.com. [195.60.68.11])
-        by mx.google.com with ESMTPS id 10si1797816lji.365.2017.11.22.23.56.19
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 43B136B0038
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:01:02 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i17so4465890wmb.7
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 00:01:02 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k7si14828321wrg.112.2017.11.23.00.01.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 23:56:19 -0800 (PST)
-Date: Thu, 23 Nov 2017 08:56:17 +0100
-From: Jesper Nilsson <jesper.nilsson@axis.com>
-Subject: Re: mm/percpu.c: use smarter memory allocation for struct
- pcpu_alloc_info (crisv32 hang)
-Message-ID: <20171123075617.GE20542@axis.com>
-References: <62a3b680-6dde-d308-3da8-9c9a2789b114@roeck-us.net>
- <nycvar.YSQ.7.76.1711201305160.16045@knanqh.ubzr>
- <20171120185138.GB23789@roeck-us.net>
- <nycvar.YSQ.7.76.1711201512300.16045@knanqh.ubzr>
- <20171120211114.GA25984@roeck-us.net>
- <nycvar.YSQ.7.76.1711201918180.16045@knanqh.ubzr>
- <20171121014818.GA360@roeck-us.net>
- <nycvar.YSQ.7.76.1711202224490.16045@knanqh.ubzr>
- <20171122153453.GB20542@axis.com>
- <nycvar.YSQ.7.76.1711221133230.10610@knanqh.ubzr>
+        Thu, 23 Nov 2017 00:01:01 -0800 (PST)
+Date: Thu, 23 Nov 2017 09:01:03 +0100
+From: Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [PATCH v3 4/4] test: add a test for the process_vmsplice syscall
+Message-ID: <20171123080103.GA490@kroah.com>
+References: <1511379391-988-1-git-send-email-rppt@linux.vnet.ibm.com>
+ <1511379391-988-5-git-send-email-rppt@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <nycvar.YSQ.7.76.1711221133230.10610@knanqh.ubzr>
+In-Reply-To: <1511379391-988-5-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nicolas Pitre <nicolas.pitre@linaro.org>
-Cc: Jesper Nilsson <jespern@axis.com>, Guenter Roeck <linux@roeck-us.net>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, linux-cris-kernel@axis.com
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Andrei Vagin <avagin@openvz.org>
 
-On Wed, Nov 22, 2017 at 03:17:00PM -0500, Nicolas Pitre wrote:
-> On Wed, 22 Nov 2017, Jesper Nilsson wrote:
+On Wed, Nov 22, 2017 at 09:36:31PM +0200, Mike Rapoport wrote:
+> From: Andrei Vagin <avagin@openvz.org>
 > 
-> > On Mon, Nov 20, 2017 at 10:50:46PM -0500, Nicolas Pitre wrote:
-> > > On Mon, 20 Nov 2017, Guenter Roeck wrote:
-> > > > On Mon, Nov 20, 2017 at 07:28:21PM -0500, Nicolas Pitre wrote:
-> > > > > On Mon, 20 Nov 2017, Guenter Roeck wrote:
-> > > > > 
-> > > > > > bdata->node_min_pfn=60000 PFN_PHYS(bdata->node_min_pfn)=c0000000 start_off=536000 region=c0536000
-> > > > > 
-> > > > > If PFN_PHYS(bdata->node_min_pfn)=c0000000 and
-> > > > > region=c0536000 that means phys_to_virt() is a no-op.
-> > > > > 
-> > > > No, it is |= 0x80000000
-> > > 
-> > > Then the bootmem registration looks very fishy. If you have:
-> > > 
-> > > > I think the problem is the 0x60000 in bdata->node_min_pfn. It is shifted
-> > > > left by PFN_PHYS, making it 0xc0000000, which in my understanding is
-> > > > a virtual address.
-> > > 
-> > > Exact.
-> > > 
-> > > #define __pa(x)                 ((unsigned long)(x) & 0x7fffffff)
-> > > #define __va(x)                 ((void *)((unsigned long)(x) | 0x80000000))
-> > > 
-> > > With that, the only possible physical address range you may have is 
-> > > 0x40000000 - 0x7fffffff, and it better start at 0x40000000. If that's 
-> > > not where your RAM is then something is wrong.
-> > > 
-> > > This is in fact a very bad idea to define __va() and __pa() using 
-> > > bitwise operations as this hides mistakes like defining physical RAM 
-> > > address at 0xc0000000. Instead, it should look like:
-> > > 
-> > > #define __pa(x)                 ((unsigned long)(x) - 0x80000000)
-> > > #define __va(x)                 ((void *)((unsigned long)(x) + 0x80000000))
-> > > 
-> > > This way, bad physical RAM address definitions will be caught 
-> > > immediately.
-> > > 
-> > > > That doesn't seem to be easy to fix. It seems there is a mixup of physical
-> > > > and  virtual addresses in the architecture.
-> > > 
-> > > Well... I don't think there is much else to say other than this needs 
-> > > fixing.
-> > 
-> > The memory map for the ETRAX FS has the SDRAM mapped at both 0x40000000-0x7fffffff
-> > and 0xc0000000-0xffffffff, and the difference is cached and non-cached.
-> > That is actively (ab)used in the port, unfortunately, allthough I'm
-> > uncertain if this is the problem in this case.
+> This test checks that process_vmsplice() can splice pages from a remote
+> process and returns EFAULT, if process_vmsplice() tries to splice pages
+> by an unaccessiable address.
 > 
-> It certainly is a problem. If your cached RAM is physically mapped at 
-> 0xc0000000 and you want it to be virtually mapped at 0xc0000000 then you 
-> should have:
+> Signed-off-by: Andrei Vagin <avagin@openvz.org>
+> ---
+>  tools/testing/selftests/process_vmsplice/Makefile  |   5 +
+>  .../process_vmsplice/process_vmsplice_test.c       | 188 +++++++++++++++++++++
+>  2 files changed, 193 insertions(+)
+>  create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
+>  create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
 > 
-> #define __pa(x)                 ((unsigned long)(x))
-> #define __va(x)                 ((void *)(x))
-> 
-> i.e. no translation.
+> diff --git a/tools/testing/selftests/process_vmsplice/Makefile b/tools/testing/selftests/process_vmsplice/Makefile
+> new file mode 100644
+> index 0000000..246d5a7
+> --- /dev/null
+> +++ b/tools/testing/selftests/process_vmsplice/Makefile
+> @@ -0,0 +1,5 @@
+> +CFLAGS += -I../../../../usr/include/
+> +
+> +TEST_GEN_PROGS := process_vmsplice_test
+> +
+> +include ../lib.mk
+> diff --git a/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+> new file mode 100644
+> index 0000000..8abf59b
+> --- /dev/null
+> +++ b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+> @@ -0,0 +1,188 @@
+> +#define _GNU_SOURCE
+> +#include <stdio.h>
+> +#include <unistd.h>
+> +#include <sys/mman.h>
+> +#include <sys/syscall.h>
+> +#include <fcntl.h>
+> +#include <sys/uio.h>
+> +#include <errno.h>
+> +#include <signal.h>
+> +#include <sys/prctl.h>
+> +#include <sys/wait.h>
+> +
+> +#include "../kselftest.h"
+> +
+> +#ifndef __NR_process_vmsplice
+> +#define __NR_process_vmsplice 333
+> +#endif
+> +
+> +#define pr_err(fmt, ...) \
+> +		({ \
+> +			fprintf(stderr, "%s:%d:" fmt, \
+> +				__func__, __LINE__, ##__VA_ARGS__); \
+> +			KSFT_FAIL; \
+> +		})
+> +#define pr_perror(fmt, ...) pr_err(fmt ": %m\n", ##__VA_ARGS__)
+> +#define fail(fmt, ...) pr_err("FAIL:" fmt, ##__VA_ARGS__)
+> +
+> +static ssize_t process_vmsplice(pid_t pid, int fd, const struct iovec *iov,
+> +			unsigned long nr_segs, unsigned int flags)
+> +{
+> +	return syscall(__NR_process_vmsplice, pid, fd, iov, nr_segs, flags);
+> +
+> +}
+> +
+> +#define MEM_SIZE (4096 * 100)
+> +#define MEM_WRONLY_SIZE (4096 * 10)
+> +
+> +int main(int argc, char **argv)
+> +{
+> +	char *addr, *addr_wronly;
+> +	int p[2];
+> +	struct iovec iov[2];
+> +	char buf[4096];
+> +	int status, ret;
+> +	pid_t pid;
+> +
+> +	ksft_print_header();
+> +
+> +	addr = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE,
+> +					MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+> +	if (addr == MAP_FAILED)
+> +		return pr_perror("Unable to create a mapping");
+> +
+> +	addr_wronly = mmap(0, MEM_WRONLY_SIZE, PROT_WRITE,
+> +				MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+> +	if (addr_wronly == MAP_FAILED)
+> +		return pr_perror("Unable to create a write-only mapping");
+> +
+> +	if (pipe(p))
+> +		return pr_perror("Unable to create a pipe");
+> +
+> +	pid = fork();
+> +	if (pid < 0)
+> +		return pr_perror("Unable to fork");
+> +
+> +	if (pid == 0) {
+> +		addr[0] = 'C';
+> +		addr[4096 + 128] = 'A';
+> +		addr[4096 + 128 + 4096 - 1] = 'B';
+> +
+> +		if (prctl(PR_SET_PDEATHSIG, SIGKILL))
+> +			return pr_perror("Unable to set PR_SET_PDEATHSIG");
+> +		if (write(p[1], "c", 1) != 1)
+> +			return pr_perror("Unable to write data into pipe");
+> +
+> +		while (1)
+> +			sleep(1);
+> +		return 1;
+> +	}
+> +	if (read(p[0], buf, 1) != 1) {
+> +		pr_perror("Unable to read data from pipe");
+> +		kill(pid, SIGKILL);
+> +		wait(&status);
+> +		return 1;
+> +	}
+> +
+> +	munmap(addr, MEM_SIZE);
+> +	munmap(addr_wronly, MEM_WRONLY_SIZE);
+> +
+> +	iov[0].iov_base = addr;
+> +	iov[0].iov_len = 1;
+> +
+> +	iov[1].iov_base = addr + 4096 + 128;
+> +	iov[1].iov_len = 4096;
+> +
+> +	/* check one iovec */
+> +	if (process_vmsplice(pid, p[1], iov, 1, SPLICE_F_GIFT) != 1)
+> +		return pr_perror("Unable to splice pages");
 
-Sorry, it's the other way around, cached memory is at 0x40000000 and
-non-cached is at 0xc0000000, so the translation is right, even if
-as you pointed out earlier, it should be performed differently.
+Shouldn't you check to see if the syscall is even present?  You should
+not error if it is not, as this test will then "fail" on kernels/arches
+without the syscall enabled, which isn't the nicest.
 
-> For non-cached RAM access, there are specific 
-> interfaces for that. For example, you could have dma_alloc_coherent() 
-> take advantage of the fact that memory with the top bit cleared becomes 
-> uncached. But __pa() is the wrong interface for obtaining uncached 
-> memory.
-> 
-> Nicolas
+thanks,
 
-/^JN - Jesper Nilsson
--- 
-               Jesper Nilsson -- jesper.nilsson@axis.com
+greg k-h
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
