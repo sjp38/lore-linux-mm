@@ -1,82 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7764F6B0253
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 13:23:46 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k100so12480224wrc.9
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:23:46 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id b13si5938749wmi.32.2017.11.23.10.23.43
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 80E6A6B025F
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 13:47:54 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id s28so17579311pfg.6
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:47:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e22si16310289pgv.360.2017.11.23.10.47.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 10:23:45 -0800 (PST)
-Date: Thu, 23 Nov 2017 19:23:31 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH v2 1/4] mm: fix device-dax pud write-faults triggered by
- get_user_pages()
-In-Reply-To: <151043109938.2842.14834662818213616199.stgit@dwillia2-desk3.amr.corp.intel.com>
-Message-ID: <alpine.DEB.2.20.1711231922500.2364@nanos>
-References: <151043109403.2842.11607911965674122836.stgit@dwillia2-desk3.amr.corp.intel.com> <151043109938.2842.14834662818213616199.stgit@dwillia2-desk3.amr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 10:47:51 -0800 (PST)
+Date: Thu, 23 Nov 2017 19:45:49 +0100
+From: David Sterba <dsterba@suse.cz>
+Subject: Re: [PATCH v2 00/11] Metadata specific accouting and dirty writeout
+Message-ID: <20171123184549.GT3553@twin.jikos.cz>
+Reply-To: dsterba@suse.cz
+References: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Arnd Bergmann <arnd@arndb.de>, linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>, x86@kernel.org, Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, "David S. Miller" <davem@davemloft.net>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, linux-nvdimm@lists.01.org
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org
 
-
-
-On Sat, 11 Nov 2017, Dan Williams wrote:
-
-> Currently only get_user_pages_fast() can safely handle the writable gup
-> case due to its use of pud_access_permitted() to check whether the pud
-> entry is writable. In the gup slow path pud_write() is used instead of
-> pud_access_permitted() and to date it has been unimplemented, just calls
-> BUG_ON().
+On Wed, Nov 22, 2017 at 04:15:55PM -0500, Josef Bacik wrote:
+> These patches are to support having metadata accounting and dirty handling
+> in a generic way.  For dirty metadata ext4 and xfs currently are limited by
+> their journal size, which allows them to handle dirty metadata flushing in a
+> relatively easy way.  Btrfs does not have this limiting factor, we can have as
+> much dirty metadata on the system as we have memory, so we have a dummy inode
+> that all of our metadat pages are allocated from so we can call
+> balance_dirty_pages() on it and make sure we don't overwhelm the system with
+> dirty metadata pages.
 > 
->     kernel BUG at ./include/linux/hugetlb.h:244!
->     [..]
->     RIP: 0010:follow_devmap_pud+0x482/0x490
->     [..]
->     Call Trace:
->      follow_page_mask+0x28c/0x6e0
->      __get_user_pages+0xe4/0x6c0
->      get_user_pages_unlocked+0x130/0x1b0
->      get_user_pages_fast+0x89/0xb0
->      iov_iter_get_pages_alloc+0x114/0x4a0
->      nfs_direct_read_schedule_iovec+0xd2/0x350
->      ? nfs_start_io_direct+0x63/0x70
->      nfs_file_direct_read+0x1e0/0x250
->      nfs_file_read+0x90/0xc0
+> The problem with this is it severely limits our ability to do things like
+> support sub-pagesize blocksizes.  Btrfs also supports metadata blocksizes > page
+> size, which makes keeping track of our metadata and it's pages particularly
+> tricky.  We have the inode mapping with our pages, and we have another radix
+> tree for our actual metadata buffers.  This double accounting leads to some fun
+> shenanigans around reclaim and evicting pages we know we are done using.
 > 
-> For now this just implements a simple check for the _PAGE_RW bit similar
-> to pmd_write. However, this implies that the gup-slow-path check is
-> missing the extra checks that the gup-fast-path performs with
-> pud_access_permitted. Later patches will align all checks to use the
-> 'access_permitted' helper if the architecture provides it. Note that the
-> generic 'access_permitted' helper fallback is the simple _PAGE_RW check
-> on architectures that do not define the 'access_permitted' helper(s).
+> To solve this we would like to switch to a scheme like xfs has, where we simply
+> have our metadata structures tied into the slab shrinking code, and we just use
+> alloc_page() for our pages, or kmalloc() when we add sub-pagesize blocksizes.
+> In order to do this we need infrastructure in place to make sure we still don't
+> overwhelm the system with dirty metadata pages.
 > 
-> Fixes: a00cc7d9dd93 ("mm, x86: add support for PUD-sized transparent hugepages")
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: "David S. Miller" <davem@davemloft.net>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Arnd Bergmann <arnd@arndb.de>
-> Cc: <stable@vger.kernel.org>
-> Cc: <x86@kernel.org>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
-> ---
->  arch/arm64/include/asm/pgtable.h    |    1 +
->  arch/sparc/include/asm/pgtable_64.h |    1 +
->  arch/x86/include/asm/pgtable.h      |    6 ++++++
+> Enter these patches.  Because metadata is tracked on a non-pagesize amount we
+> need to convert a bunch of our existing counters to bytes.  From there I've
+> added various counters for metadata, to keep track of overall metadata bytes,
+> how many are dirty and how many are under writeback.  I've added a super
+> operation to handle the dirty writeback, which is going to be handled mostly
+> inside the fs since we will need a little more smarts around what we writeback.
 
-For the x86 part:
+The text relevant for btrfs should also go to the btree_inode removal
+patch changelog. The cover letter gets lost but we still might need to
+refer to the overall logic that's going to be changed in that patch.
 
-Acked-by: Thomas Gleixner <tglx@linutronix.de>
+And possibly more documentation should go to the code itself, there are
+some scattered comments in the tricky parts but the overall logic is not
+described and the key functions lack comments.
+
+What's your merge plan? There are other subsystem changes needed, before
+the btree_inode removal can happen and can be tested within our for-next
+branches. The 4.15 target is out of reach, so I assume 4.16 for the
+dependencies and 4.17 for the btree_inode. We can of course test them
+earlier, but 4.16 does not seem realistic for the whole patchset.
+
+> The last three patches are just there to show how we use the infrastructure in
+> the first 8 patches.  The actuall kill btree_inode patch is pretty big,
+> unfortunately ripping out all of the pagecache based handling and replacing it
+> with the new infrastructure has to be done whole-hog and can't be broken up
+> anymore than it already has been without making it un-bisectable.
+
+I don't completely agree that it cannot be split. I went through it a
+few times, the patch is too big for review. It mixes the core part and
+cleanups that do not necessarily need to be in the patch. I'd like to
+see the core part minimized further, at the cost of leaving some dead
+code behind (like the old callbacks).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
