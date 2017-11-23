@@ -1,62 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BBAF6B025E
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:52:50 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q187so2627170pga.6
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:52:50 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id k189si16026382pgc.133.2017.11.23.04.52.48
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 24BC16B025E
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:00:35 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id v123so8681839oif.23
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:00:35 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id q11si8502528otd.162.2017.11.23.05.00.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 23 Nov 2017 04:52:48 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v1] mm: relax deferred struct page requirements
-In-Reply-To: <20171117014601.31606-1-pasha.tatashin@oracle.com>
-References: <20171117014601.31606-1-pasha.tatashin@oracle.com>
-Date: Thu, 23 Nov 2017 23:52:45 +1100
-Message-ID: <87wp2h17j6.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 05:00:33 -0800 (PST)
+Subject: Re: [PATCH] Add slowpath enter/exit trace events
+References: <20171123104336.25855-1-peter.enderborg@sony.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <f12576a9-93e5-48db-3e70-88d73907801d@I-love.SAKURA.ne.jp>
+Date: Thu, 23 Nov 2017 22:00:04 +0900
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20171123104336.25855-1-peter.enderborg@sony.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Tatashin <pasha.tatashin@oracle.com>, steven.sistare@oracle.com, daniel.m.jordan@oracle.com, benh@kernel.crashing.org, paulus@samba.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, arbab@linux.vnet.ibm.com, schwidefsky@de.ibm.com, heiko.carstens@de.ibm.com, x86@kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, linuxppc-dev@lists.ozlabs.org, mhocko@suse.com, linux-mm@kvack.org, linux-s390@vger.kernel.org, mgorman@techsingularity.net
+To: peter.enderborg@sony.com, Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-Pavel Tatashin <pasha.tatashin@oracle.com> writes:
+On 2017/11/23 19:43, peter.enderborg@sony.com wrote:
+> The warning of slow allocation has been removed, this is
+> a other way to fetch that information. But you need
+> to enable the trace. The exit function also returns
+> information about the number of retries, how long
+> it was stalled and failure reason if that happened.
 
-> There is no need to have ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT,
-> as all the page initialization code is in common code.
->
-> Also, there is no need to depend on MEMORY_HOTPLUG, as initialization code
-> does not really use hotplug memory functionality. So, we can remove this
-> requirement as well.
->
-> This patch allows to use deferred struct page initialization on all
-> platforms with memblock allocator.
->
-> Tested on x86, arm64, and sparc. Also, verified that code compiles on
-> PPC with CONFIG_MEMORY_HOTPLUG disabled.
->
-> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
-> ---
->  arch/powerpc/Kconfig | 1 -
->  arch/s390/Kconfig    | 1 -
->  arch/x86/Kconfig     | 1 -
->  mm/Kconfig           | 7 +------
->  4 files changed, 1 insertion(+), 9 deletions(-)
->
-> diff --git a/arch/powerpc/Kconfig b/arch/powerpc/Kconfig
-> index cb782ac1c35d..1540348691c9 100644
-> --- a/arch/powerpc/Kconfig
-> +++ b/arch/powerpc/Kconfig
-> @@ -148,7 +148,6 @@ config PPC
->  	select ARCH_MIGHT_HAVE_PC_PARPORT
->  	select ARCH_MIGHT_HAVE_PC_SERIO
->  	select ARCH_SUPPORTS_ATOMIC_RMW
-> -	select ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
-
-Acked-by: Michael Ellerman <mpe@ellerman.id.au>
-
-cheers
+However, the fast path (I mean, get_page_from_freelist() at
+"/* First allocation attempt */" label) might be slow, for it is
+allowed to call node_reclaim() which can take uncontrollable
+duration. I think that you need to add hooks like
+http://lkml.kernel.org/r/1510833448-19918-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp does. ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
