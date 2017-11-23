@@ -1,43 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B7A086B025F
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:03:06 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id g35so4667589lfi.0
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:03:06 -0800 (PST)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id j14si6002471lfk.355.2017.11.23.05.03.05
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D5C86B0261
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:07:09 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id u3so18941331pgn.3
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:07:09 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x1si11381795pln.242.2017.11.23.05.07.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 05:03:05 -0800 (PST)
-Subject: Re: [PATCH] Add slowpath enter/exit trace events
-References: <20171123104336.25855-1-peter.enderborg@sony.com>
- <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
- <ef88ca71-b41b-f5e9-fd41-d02676bad1cf@sony.com>
- <20171123124738.nj7foesbajo42t3g@dhcp22.suse.cz>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <e9d1b05d-0188-6c98-7247-d43467fa73f5@sony.com>
-Date: Thu, 23 Nov 2017 14:03:04 +0100
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 05:07:08 -0800 (PST)
+Subject: Re: MPK: pkey_free and key reuse
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+ <e7d1e622-bbac-2750-2895-cc151458ff2f@linux.intel.com>
+ <48ac42c0-4c31-cef8-a75a-8f3beab7cc66@redhat.com>
+ <633b5b03-3481-0da2-9d6c-f5298902e36a@linux.intel.com>
+ <068b89c7-4303-88a7-540a-1491dc8a292d@redhat.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <3c4aab06-af97-ccd2-ed51-a462ec251c65@suse.cz>
+Date: Thu, 23 Nov 2017 14:07:03 +0100
 MIME-Version: 1.0
-In-Reply-To: <20171123124738.nj7foesbajo42t3g@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-GB
+In-Reply-To: <068b89c7-4303-88a7-540a-1491dc8a292d@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: Florian Weimer <fweimer@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On 11/23/2017 01:47 PM, Michal Hocko wrote:
->
-> This might be true but the other POV is that the trace point with the
-> additional information is just too disruptive to the rest of the code
-> and it exposes too many implementation details.
+On 11/23/2017 01:48 PM, Florian Weimer wrote:
+>>>> Using the malloc() analogy, we
+>>>> don't expect that free() in one thread actively takes away references to
+>>>> the memory held by other threads.
+>>>
+>>> But malloc/free isn't expected to be a partial antidote to random
+>>> pointer scribbling.
+>>
+>> Nor is protection keys intended to be an antidote for use-after-free.
+> 
+> I'm comparing this to munmap, which is actually such an antidote 
+> (because it involves an IPI to flush all CPUs which could have seen the 
+> mapping before).
+> 
+> I'm surprised that pkey_free doesn't perform a similar broadcast.
 
->From who do you want to hide details? Is this a security thing? I don't und=
-erstand this=C2=A0 argument.=C2=A0 Tracefs is not part of uapi, right?
+Hmm, I'm not sure this comparison is accurate. IPI flushes in unmap are
+done because the shared page tables were updated, and TLB's in other
+cpu's might be stale. The closest pkey equivalent would be allocating a
+new pkey that only my thread can use, and then using it in
+pkey_mprotect() to change some memory region. Then other threads will
+lose access and I believe IPI's will be issued and existing TLB mappings
+in other cpu's removed.
 
-Hopefully there are not that many fails, and they might be very hard to rep=
-roduce if you don't know what you are looking for.
+pkey_remove() has AFAICS two potential problems:
+- the key is still used in some page tables. Scanning them all and
+resetting to 0 would be rather expensive. Maybe we could maintain
+per-pkey counters (for pkey != 0) in the mm, which might not be that
+expensive, and refuse pkey_free() if the counter is not zero?
+- the key is still "used" by other threads in their PKRU. Here I would
+think that if kernel doesn't broadcast pkey_alloc() to other threads, it
+also shouldn't broadcast the freeing? We also can't track per-pkey
+"threads using pkey" counters, as WRPKRU is pure userspace.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
