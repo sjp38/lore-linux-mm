@@ -1,581 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CBD36B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:43 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id 136so11378698qkd.1
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 08:52:43 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id i38si1163790qte.179.2017.11.23.08.52.41
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AA0986B0038
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 12:33:43 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id m78so5272070wma.3
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 09:33:43 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 28si5294119edv.450.2017.11.23.09.33.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 08:52:41 -0800 (PST)
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vANGmxZW066592
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:40 -0500
-Received: from e36.co.us.ibm.com (e36.co.us.ibm.com [32.97.110.154])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ee1bctv2c-1
+        Thu, 23 Nov 2017 09:33:41 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vANHTKcM051865
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 12:33:40 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2edx7p41ns-1
 	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 11:52:39 -0500
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 12:33:40 -0500
 Received: from localhost
-	by e36.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <aneesh.kumar@linux.vnet.ibm.com>;
-	Thu, 23 Nov 2017 09:52:39 -0700
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Subject: [PATCH V3] selftest/vm: Move 128TB mmap boundary test to generic directory
-Date: Thu, 23 Nov 2017 22:22:26 +0530
-Message-Id: <20171123165226.32582-1-aneesh.kumar@linux.vnet.ibm.com>
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Thu, 23 Nov 2017 17:33:38 -0000
+Date: Thu, 23 Nov 2017 17:33:31 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 0/5] Memory hotplug support for arm64 - complete
+ patchset v2
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <20171123160258.xmw5lxnjfch2dxfw@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20171123160258.xmw5lxnjfch2dxfw@dhcp22.suse.cz>
+Message-Id: <20171123173331.GA15535@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H . Peter Anvin" <hpa@zytor.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, realean2@ie.ibm.com
 
-Architectures like ppc64 do support mmap hint addr based large address space
-selection. This test can be run on those architectures too. Move the test to
-selftest/vm so that other archs can use the same.
+On Thu 23 Nov 2017, 17:02, Michal Hocko wrote:
 
-We also add a few new test scenarios in this patch. We do test few boundary
-condition before we do a high address mmap. ppc64 use the addr limit to validate
-addr in the fault path. We had bugs in this area w.r.t slb fault handling
-before we updated the addr limit.
+Hi Michal,
 
-We also touch the allocated space to make sure we don't have any bugs in the
-fault handling path.
+> I will try to have a look but I do not expect to understand any of arm64
+> specific changes so I will focus on the generic code but it would help a
+> _lot_ if the cover letter provided some overview of what has been done
+> from a higher level POV. What are the arch pieces and what is the
+> generic code missing. A quick glance over patches suggests that
+> changelogs for specific patches are modest as well. Could you give us
+> more information please? Reviewing hundreds lines of code without
+> context is a pain.
 
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
----
-Changes from V2:
-* Rebase on top of -tip tree.
-* update the correct license
-* use memset to touch the full mmap range.
+sorry for the lack of details. I will try to provide a better
+overview in the following. Please, feel free to ask for more details
+where needed.
 
- tools/testing/selftests/vm/Makefile         |   1 +
- tools/testing/selftests/vm/run_vmtests      |  11 ++
- tools/testing/selftests/vm/va_128TBswitch.c | 297 ++++++++++++++++++++++++++++
- tools/testing/selftests/x86/5lvl.c          | 177 -----------------
- 4 files changed, 309 insertions(+), 177 deletions(-)
- create mode 100644 tools/testing/selftests/vm/va_128TBswitch.c
- delete mode 100644 tools/testing/selftests/x86/5lvl.c
+Overall, the goal of the patchset is to implement arch_memory_add and
+arch_memory_remove for arm64, to support the generic memory_hotplug
+framework. 
 
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index e49eca1915f8..f33f2d6d5014 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -18,6 +18,7 @@ TEST_GEN_FILES += transhuge-stress
- TEST_GEN_FILES += userfaultfd
- TEST_GEN_FILES += mlock-random-test
- TEST_GEN_FILES += virtual_address_range
-+TEST_GEN_FILES += va_128TBswitch
- 
- TEST_PROGS := run_vmtests
- 
-diff --git a/tools/testing/selftests/vm/run_vmtests b/tools/testing/selftests/vm/run_vmtests
-index cc826326de87..d2561895a021 100755
---- a/tools/testing/selftests/vm/run_vmtests
-+++ b/tools/testing/selftests/vm/run_vmtests
-@@ -177,4 +177,15 @@ else
- 	echo "[PASS]"
- fi
- 
-+echo "-----------------------------"
-+echo "running virtual address 128TB switch test"
-+echo "-----------------------------"
-+./va_128TBswitch
-+if [ $? -ne 0 ]; then
-+    echo "[FAIL]"
-+    exitcode=1
-+else
-+    echo "[PASS]"
-+fi
-+
- exit $exitcode
-diff --git a/tools/testing/selftests/vm/va_128TBswitch.c b/tools/testing/selftests/vm/va_128TBswitch.c
-new file mode 100644
-index 000000000000..e7fe734c374f
---- /dev/null
-+++ b/tools/testing/selftests/vm/va_128TBswitch.c
-@@ -0,0 +1,297 @@
-+/*
-+ *
-+ * Authors: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-+ * Authors: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-+ *
-+ * This program is free software; you can redistribute it and/or modify
-+ * it under the terms of the GNU General Public License, version 2, as
-+ * published by the Free Software Foundation.
-+
-+ * This program is distributed in the hope that it would be useful, but
-+ * WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-+ *
-+ */
-+
-+#include <stdio.h>
-+#include <sys/mman.h>
-+#include <string.h>
-+
-+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
-+
-+#ifdef __powerpc64__
-+#define PAGE_SIZE	(64 << 10)
-+/*
-+ * This will work with 16M and 2M hugepage size
-+ */
-+#define HUGETLB_SIZE	(16 << 20)
-+#else
-+#define PAGE_SIZE	(4 << 10)
-+#define HUGETLB_SIZE	(2 << 20)
-+#endif
-+
-+/*
-+ * >= 128TB is the hint addr value we used to select
-+ * large address space.
-+ */
-+#define ADDR_SWITCH_HINT (1UL << 47)
-+#define LOW_ADDR	((void *) (1UL << 30))
-+#define HIGH_ADDR	((void *) (1UL << 48))
-+
-+struct testcase {
-+	void *addr;
-+	unsigned long size;
-+	unsigned long flags;
-+	const char *msg;
-+	unsigned int low_addr_required:1;
-+	unsigned int keep_mapped:1;
-+};
-+
-+static struct testcase testcases[] = {
-+	{
-+		/*
-+		 * If stack is moved, we could possibly allocate
-+		 * this at the requested address.
-+		 */
-+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
-+		.size = PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		/*
-+		 * We should never allocate at the requested address or above it
-+		 * The len cross the 128TB boundary. Without MAP_FIXED
-+		 * we will always search in the lower address space.
-+		 */
-+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, (2 * PAGE_SIZE))",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		/*
-+		 * Exact mapping at 128TB, the area is free we should get that
-+		 * even without MAP_FIXED.
-+		 */
-+		.addr = ((void *)(ADDR_SWITCH_HINT)),
-+		.size = PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT),
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-+		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
-+	},
-+	{
-+		.addr = NULL,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(NULL)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		.addr = LOW_ADDR,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(LOW_ADDR)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(HIGH_ADDR)",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(HIGH_ADDR) again",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-+		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
-+	},
-+	{
-+		.addr = (void *) -1,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(-1)",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = (void *) -1,
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(-1) again",
-+	},
-+	{
-+		.addr = ((void *)(ADDR_SWITCH_HINT - PAGE_SIZE)),
-+		.size = PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, PAGE_SIZE)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, 2 * PAGE_SIZE)",
-+		.low_addr_required = 1,
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE / 2),
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE/2 , 2 * PAGE_SIZE)",
-+		.low_addr_required = 1,
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = ((void *)(ADDR_SWITCH_HINT)),
-+		.size = PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT, PAGE_SIZE)",
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT),
-+		.size = 2 * PAGE_SIZE,
-+		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-+		.msg = "mmap(ADDR_SWITCH_HINT, 2 * PAGE_SIZE, MAP_FIXED)",
-+	},
-+};
-+
-+static struct testcase hugetlb_testcases[] = {
-+	{
-+		.addr = NULL,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(NULL, MAP_HUGETLB)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		.addr = LOW_ADDR,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(LOW_ADDR, MAP_HUGETLB)",
-+		.low_addr_required = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = HIGH_ADDR,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-+		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
-+	},
-+	{
-+		.addr = (void *) -1,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(-1, MAP_HUGETLB)",
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = (void *) -1,
-+		.size = HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(-1, MAP_HUGETLB) again",
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT - PAGE_SIZE),
-+		.size = 2 * HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
-+		.msg = "mmap(ADDR_SWITCH_HINT - PAGE_SIZE, 2*HUGETLB_SIZE, MAP_HUGETLB)",
-+		.low_addr_required = 1,
-+		.keep_mapped = 1,
-+	},
-+	{
-+		.addr = (void *)(ADDR_SWITCH_HINT),
-+		.size = 2 * HUGETLB_SIZE,
-+		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
-+		.msg = "mmap(ADDR_SWITCH_HINT , 2*HUGETLB_SIZE, MAP_FIXED | MAP_HUGETLB)",
-+	},
-+};
-+
-+static int run_test(struct testcase *test, int count)
-+{
-+	void *p;
-+	int i, ret = 0;
-+
-+	for (i = 0; i < count; i++) {
-+		struct testcase *t = test + i;
-+
-+		p = mmap(t->addr, t->size, PROT_READ | PROT_WRITE, t->flags, -1, 0);
-+
-+		printf("%s: %p - ", t->msg, p);
-+
-+		if (p == MAP_FAILED) {
-+			printf("FAILED\n");
-+			ret = 1;
-+			continue;
-+		}
-+
-+		if (t->low_addr_required && p >= (void *)(ADDR_SWITCH_HINT)) {
-+			printf("FAILED\n");
-+			ret = 1;
-+		} else {
-+			/*
-+			 * Do a dereference of the address returned so that we catch
-+			 * bugs in page fault handling
-+			 */
-+			memset(p, 0, t->size);
-+			printf("OK\n");
-+		}
-+		if (!t->keep_mapped)
-+			munmap(p, t->size);
-+	}
-+
-+	return ret;
-+}
-+
-+static int supported_arch(void)
-+{
-+#if defined(__powerpc64__)
-+	return 1;
-+#elif defined(__x86_64__)
-+	return 1;
-+#else
-+	return 0;
-+#endif
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	int ret;
-+
-+	if (!supported_arch())
-+		return 0;
-+
-+	ret = run_test(testcases, ARRAY_SIZE(testcases));
-+	if (argc == 2 && !strcmp(argv[1], "--run-hugetlb"))
-+		ret = run_test(hugetlb_testcases, ARRAY_SIZE(hugetlb_testcases));
-+	return ret;
-+}
-diff --git a/tools/testing/selftests/x86/5lvl.c b/tools/testing/selftests/x86/5lvl.c
-deleted file mode 100644
-index 2eafdcd4c2b3..000000000000
---- a/tools/testing/selftests/x86/5lvl.c
-+++ /dev/null
-@@ -1,177 +0,0 @@
--#include <stdio.h>
--#include <sys/mman.h>
--
--#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
--
--#define PAGE_SIZE	4096
--#define LOW_ADDR	((void *) (1UL << 30))
--#define HIGH_ADDR	((void *) (1UL << 50))
--
--struct testcase {
--	void *addr;
--	unsigned long size;
--	unsigned long flags;
--	const char *msg;
--	unsigned int low_addr_required:1;
--	unsigned int keep_mapped:1;
--};
--
--static struct testcase testcases[] = {
--	{
--		.addr = NULL,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(NULL)",
--		.low_addr_required = 1,
--	},
--	{
--		.addr = LOW_ADDR,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(LOW_ADDR)",
--		.low_addr_required = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(HIGH_ADDR)",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(HIGH_ADDR) again",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
--		.msg = "mmap(HIGH_ADDR, MAP_FIXED)",
--	},
--	{
--		.addr = (void*) -1,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(-1)",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = (void*) -1,
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(-1) again",
--	},
--	{
--		.addr = (void *)((1UL << 47) - PAGE_SIZE),
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap((1UL << 47), 2 * PAGE_SIZE)",
--		.low_addr_required = 1,
--		.keep_mapped = 1,
--	},
--	{
--		.addr = (void *)((1UL << 47) - PAGE_SIZE / 2),
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap((1UL << 47), 2 * PAGE_SIZE / 2)",
--		.low_addr_required = 1,
--		.keep_mapped = 1,
--	},
--	{
--		.addr = (void *)((1UL << 47) - PAGE_SIZE),
--		.size = 2 * PAGE_SIZE,
--		.flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
--		.msg = "mmap((1UL << 47) - PAGE_SIZE, 2 * PAGE_SIZE, MAP_FIXED)",
--	},
--	{
--		.addr = NULL,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(NULL, MAP_HUGETLB)",
--		.low_addr_required = 1,
--	},
--	{
--		.addr = LOW_ADDR,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(LOW_ADDR, MAP_HUGETLB)",
--		.low_addr_required = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB)",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(HIGH_ADDR, MAP_HUGETLB) again",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = HIGH_ADDR,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
--		.msg = "mmap(HIGH_ADDR, MAP_FIXED | MAP_HUGETLB)",
--	},
--	{
--		.addr = (void*) -1,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(-1, MAP_HUGETLB)",
--		.keep_mapped = 1,
--	},
--	{
--		.addr = (void*) -1,
--		.size = 2UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap(-1, MAP_HUGETLB) again",
--	},
--	{
--		.addr = (void *)((1UL << 47) - PAGE_SIZE),
--		.size = 4UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS,
--		.msg = "mmap((1UL << 47), 4UL << 20, MAP_HUGETLB)",
--		.low_addr_required = 1,
--		.keep_mapped = 1,
--	},
--	{
--		.addr = (void *)((1UL << 47) - (2UL << 20)),
--		.size = 4UL << 20,
--		.flags = MAP_HUGETLB | MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
--		.msg = "mmap((1UL << 47) - (2UL << 20), 4UL << 20, MAP_FIXED | MAP_HUGETLB)",
--	},
--};
--
--int main(int argc, char **argv)
--{
--	int i;
--	void *p;
--
--	for (i = 0; i < ARRAY_SIZE(testcases); i++) {
--		struct testcase *t = testcases + i;
--
--		p = mmap(t->addr, t->size, PROT_NONE, t->flags, -1, 0);
--
--		printf("%s: %p - ", t->msg, p);
--
--		if (p == MAP_FAILED) {
--			printf("FAILED\n");
--			continue;
--		}
--
--		if (t->low_addr_required && p >= (void *)(1UL << 47))
--			printf("FAILED\n");
--		else
--			printf("OK\n");
--		if (!t->keep_mapped)
--			munmap(p, t->size);
--	}
--	return 0;
--}
--- 
-2.14.3
+Hot add
+-------
+Not so many surprises here. We implement the arch specific
+arch_add_memory, which builds the kernel page tables via hotplug_paging()
+and then calls arch specific add_pages(). We need the arch specific
+add_pages() to implement a trick that makes the satus of pages being
+added accepted by the asumptions made in the generic __add_pages. (See
+code comments).
+
+Hot remove
+----------
+The code is basically a port of x86_64 hot remove, with several relevant
+changes that I am highlithing below. 
+
+* Architecture specific code:
+- We implement arch_remove_memory() which takes care of i) calling
+  the generic __remove_pages and ii) tearing down kernel page tables
+  (remove_pagetable()).
+
+- We implement the arch specific vmemmap_free(), which is called by the
+  generic code to free vmemmap for memory being removed. vmemmap_free(),
+  in its turn, reuses the code of remove_pagetable() to do its job.
+
+- remove_pagetable() (called by the two functions above), removes kernel
+  page tables and, in the case of vmemmap, also removes the actual
+  vmemmap pages. The function never splits P[UM]D mapped page
+  table entries, and fails in case such a split is requested.
+  To implement this behavior, we do a two passes call of
+  remove_pagetable() in arch_remove_memory(): the first pass does not
+  alter any of the pagetable contents, but only checks whether some
+  P[UM]D split would occur; in the case the first pass succeeds, the
+  second pass does the actual removal job.
+  Actually, the case where a P[UM]D would be split should be extremely
+  rare - so denying the removal should not be a big deal: 
+  in fact, hot-add and hot-remove add memory at the granularity of
+  SECTION_SIZE_BITS, which is hardcoded to 30 for arm64 at the moment,
+  and PMDs and PUDs map 2MB and 1GB worth of 4K pages, respectively. 
+  In order for a split to occur, someone should first decrease 
+  SECTION_SIZE_BITS and then ask to remove some p[um]d sub area that
+  was mapped at boot to the full p[um]d.
+
+* Generic code
+- [SYSFS and x86 ACPI changes]. In x86, hot remove is triggered by ACPI,
+  which performs memory offlining and removal in one atomic step. To
+  enable memory removal in the absence of ACPI, we add a sysfs `remove`
+  handle (/sys/devices/system/memory/remove), symmetrically to the
+  existing memory probe device (existing since the beginning of time
+  with commit 3947be1969a9 ("memory hotplug: sysfs and add/remove
+  functions")). To hot-remove a section, one would first offline it
+  (echo offline > /sys/devices/system/memory/memoryXX/state) and then
+  call remove on this new remove handle, passing the phy address of the
+  section being removed.
+  Now, the x86 code assumes that offline and remove are done in one
+  single atomic step (ACPI- Commit 242831eb15a0 ("Memory hotplug / ACPI:
+  Simplify memory removal")). In this spirit, the generic code also
+  assumed that when someone called memory_hotplug.c:remove_memory, then
+  that memory would have been already offlined. If that was not the case,
+  it would raise a BUG().
+  In our case, offlining and removal are done in separate steps,
+  so we remove this assumptions and fail the removal if the memory
+  was not previously offlined. We also consider the possibility that
+  arch_remove_memory itself might fail. As explained above, in some rare
+  cases, it actually might in our arm64 implementation.
+  While functional to our implementation, I believe that the assumption
+  of offlining and removal in one atomic step is not obvious for all
+  the architectures in general.
+- [Memblock changes]. In x86 hot-remove implementation - commit
+  ae9aae9eda2d ("memory-hotplug: common APIs to support page tables
+  hot-remove") -, when freeing
+  vmemmap, if a vmemmap page is only partially cleared and some of its
+  content is still used, then the vmemap page is obviously not freed. 
+  Instead, the partially unused content of that paged is memset to the
+  seemingly totally arbitrary 0xFD constant. When all the page content
+  is found to be set to 0xFD, then the page is freed. 
+  After some good feedback received on the v1 of this patchset, we
+  decided to get rid of this 0xFD trick for our arm64 port. Instead, we
+  added a memblock flag, that we use to mark partially unused vmemmap
+  areas (like 0xFD was doing before). We then check memblock rather than
+  the content of the page to decide whether we can free it or not.
+  
+I hope this is a better cover letter. 
+
+Best regards,
+Andrea
+
+
+> > Changes v1->v2:
+> > - swapper pgtable updated in place on hot add, avoiding unnecessary copy
+> > - stop_machine used to updated swapper on hot add, avoiding races
+> > - introduced check on offlining state before hot remove
+> > - new memblock flag used to mark partially unused vmemmap pages, avoiding
+> >   the nasty 0xFD hack used in the prev rev (and in x86 hot remove code)
+> > - proper cleaning sequence for p[um]ds,ptes and related TLB management
+> > - Removed macros that changed hot remove behavior based on number
+> >   of pgtable levels. Now this is hidden in the pgtable traversal macros.
+> > - Check on the corner case where P[UM]Ds would have to be split during
+> >   hot remove: now this is forbidden.
+> > - Minor fixes and refactoring.
+> > 
+> > Andrea Reale (4):
+> >   mm: memory_hotplug: Remove assumption on memory state before hotremove
+> >   mm: memory_hotplug: memblock to track partially removed vmemmap mem
+> >   mm: memory_hotplug: Add memory hotremove probe device
+> >   mm: memory-hotplug: Add memory hot remove support for arm64
+> > 
+> > Maciej Bielski (1):
+> >   mm: memory_hotplug: Memory hotplug (add) support for arm64
+> > 
+> >  arch/arm64/Kconfig             |  15 +
+> >  arch/arm64/configs/defconfig   |   2 +
+> >  arch/arm64/include/asm/mmu.h   |   7 +
+> >  arch/arm64/mm/init.c           | 116 ++++++++
+> >  arch/arm64/mm/mmu.c            | 609 ++++++++++++++++++++++++++++++++++++++++-
+> >  drivers/acpi/acpi_memhotplug.c |   2 +-
+> >  drivers/base/memory.c          |  34 ++-
+> >  include/linux/memblock.h       |  12 +
+> >  include/linux/memory_hotplug.h |   9 +-
+> >  mm/memblock.c                  |  32 +++
+> >  mm/memory_hotplug.c            |  13 +-
+> >  11 files changed, 835 insertions(+), 16 deletions(-)
+> > 
+> > -- 
+> > 2.7.4
+> > 
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
