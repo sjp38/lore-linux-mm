@@ -1,80 +1,182 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 85F146B0253
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:09:51 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o60so12210239wrc.14
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:09:51 -0800 (PST)
-Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
-        by mx.google.com with ESMTPS id a54si1854102edc.11.2017.11.23.07.09.50
+	by kanga.kvack.org (Postfix) with ESMTP id 4977A6B0069
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:22:44 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id k100so12230499wrc.9
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:22:44 -0800 (PST)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id s67si5311679wme.114.2017.11.23.07.22.42
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 07:09:50 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
-	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id EEC83B909D
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 15:09:49 +0000 (GMT)
-Date: Thu, 23 Nov 2017 15:09:49 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] Add slowpath enter/exit trace events
-Message-ID: <20171123150949.ccca6mvcwp74v4iy@techsingularity.net>
-References: <20171123104336.25855-1-peter.enderborg@sony.com>
- <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
- <20171123133629.5sgmapfg7gix7pu3@techsingularity.net>
- <20171123140127.7z5z6awj2ti6lozh@dhcp22.suse.cz>
+        Thu, 23 Nov 2017 07:22:42 -0800 (PST)
+Date: Thu, 23 Nov 2017 15:22:18 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 01/11] Initialize the mapping of KASan shadow memory
+Message-ID: <20171123152218.GQ31757@n2100.armlinux.org.uk>
+References: <87375eqobb.fsf@on-the-bus.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0063816@dggemm510-mbs.china.huawei.com>
+ <20171117073556.GB28855@cbox>
+ <B8AC3E80E903784988AB3003E3E97330C00638D4@dggemm510-mbs.china.huawei.com>
+ <20171118134841.3f6c9183@why.wild-wind.fr.eu.org>
+ <B8AC3E80E903784988AB3003E3E97330C0068F12@dggemm510-mbx.china.huawei.com>
+ <20171121122938.sydii3i36jbzi7x4@lakrids.cambridge.arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0069032@dggemm510-mbx.china.huawei.com>
+ <757534e5-fcea-3eb4-3c8d-b8c7e709f555@arm.com>
+ <B8AC3E80E903784988AB3003E3E97330C0069083@dggemm510-mbx.china.huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171123140127.7z5z6awj2ti6lozh@dhcp22.suse.cz>
+In-Reply-To: <B8AC3E80E903784988AB3003E3E97330C0069083@dggemm510-mbx.china.huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: peter.enderborg@sony.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: "Liuwenliang (Abbott Liu)" <liuwenliang@huawei.com>
+Cc: Marc Zyngier <marc.zyngier@arm.com>, Mark Rutland <mark.rutland@arm.com>, "tixy@linaro.org" <tixy@linaro.org>, "mhocko@suse.com" <mhocko@suse.com>, "grygorii.strashko@linaro.org" <grygorii.strashko@linaro.org>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "glider@google.com" <glider@google.com>, "afzal.mohd.ma@gmail.com" <afzal.mohd.ma@gmail.com>, "mingo@kernel.org" <mingo@kernel.org>, Christoffer Dall <cdall@linaro.org>, "opendmb@gmail.com" <opendmb@gmail.com>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "kasan-dev@googlegroups.com" <kasan-dev@googlegroups.com>, Dailei <dylix.dailei@huawei.com>, "dvyukov@google.com" <dvyukov@google.com>, "aryabinin@virtuozzo.com" <aryabinin@virtuozzo.com>, "labbott@redhat.com" <labbott@redhat.com>, "vladimir.murzin@arm.com" <vladimir.murzin@arm.com>, "keescook@chromium.org" <keescook@chromium.org>, "arnd@arndb.de" <arnd@arndb.de>, Zengweilin <zengweilin@huawei.com>, "f.fainelli@gmail.com" <f.fainelli@gmail.com>, Heshaoliang <heshaoliang@huawei.com>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "ard.biesheuvel@linaro.org" <ard.biesheuvel@linaro.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Jiazhenghua <jiazhenghua@huawei.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "thgarnie@google.com" <thgarnie@google.com>, "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>
 
-On Thu, Nov 23, 2017 at 03:01:27PM +0100, Michal Hocko wrote:
-> On Thu 23-11-17 13:36:29, Mel Gorman wrote:
-> > On Thu, Nov 23, 2017 at 01:25:30PM +0100, Michal Hocko wrote:
-> > > On Thu 23-11-17 11:43:36, peter.enderborg@sony.com wrote:
-> > > > From: Peter Enderborg <peter.enderborg@sony.com>
-> > > > 
-> > > > The warning of slow allocation has been removed, this is
-> > > > a other way to fetch that information. But you need
-> > > > to enable the trace. The exit function also returns
-> > > > information about the number of retries, how long
-> > > > it was stalled and failure reason if that happened.
-> > > 
-> > > I think this is just too excessive. We already have a tracepoint for the
-> > > allocation exit. All we need is an entry to have a base to compare with.
-> > > Another usecase would be to measure allocation latency. Information you
-> > > are adding can be (partially) covered by existing tracepoints.
-> > > 
-> > 
-> > You can gather that by simply adding a probe to __alloc_pages_slowpath
-> > (like what perf probe does) and matching the trigger with the existing
-> > mm_page_alloc points.
+On Thu, Nov 23, 2017 at 01:54:59AM +0000, Liuwenliang (Abbott Liu) wrote:
+> On Nov 23, 2017  20:30  Marc Zyngier [mailto:marc.zyngier@arm.com]  wrote:
+> >Please define both PAR accessors. Yes, I know the 32bit version is not
+> >used yet, but it doesn't hurt to make it visible.
 > 
-> I am not sure adding a probe on a production system will fly in many
-> cases.
-
-Not sure why not considering that the final mechanism is very similar.
-
-> A static tracepoint would be much easier in that case.
-
-Sure, but if it's only really latencies that are a concern then a probe
-would do the job without backports. 
-
-> But I
-> agree there are other means to accomplish the same thing. My main point
-> was to have an easy out-of-the-box way to check latencies. But that is
-> not something I would really insist on.
+> Thanks for your review.
+> I'm going to change it in the new version.
+> Here is the code I tested on vexpress_a9 and vexpress_a15:
+> diff --git a/arch/arm/include/asm/cp15.h b/arch/arm/include/asm/cp15.h
+> index dbdbce1..b8353b1 100644
+> --- a/arch/arm/include/asm/cp15.h
+> +++ b/arch/arm/include/asm/cp15.h
+> @@ -2,6 +2,7 @@
+>  #define __ASM_ARM_CP15_H
 > 
+>  #include <asm/barrier.h>
+> +#include <linux/stringify.h>
+> 
+>  /*
+>   * CR1 bits (CP#15 CR1)
+> @@ -64,8 +65,109 @@
+>  #define __write_sysreg(v, r, w, c, t)  asm volatile(w " " c : : "r" ((t)(v)))
+>  #define write_sysreg(v, ...)           __write_sysreg(v, __VA_ARGS__)
+> 
+> +#define TTBR0_32     __ACCESS_CP15(c2, 0, c0, 0)
+> +#define TTBR1_32     __ACCESS_CP15(c2, 0, c0, 1)
+> +#define PAR_32               __ACCESS_CP15(c7, 0, c4, 0)
+> +#define TTBR0_64     __ACCESS_CP15_64(0, c2)
+> +#define TTBR1_64     __ACCESS_CP15_64(1, c2)
+> +#define PAR_64               __ACCESS_CP15_64(0, c7)
+> +#define VTTBR           __ACCESS_CP15_64(6, c2)
+> +#define CNTV_CVAL       __ACCESS_CP15_64(3, c14)
+> +#define CNTVOFF         __ACCESS_CP15_64(4, c14)
+> +
+> +#define MIDR            __ACCESS_CP15(c0, 0, c0, 0)
+> +#define CSSELR          __ACCESS_CP15(c0, 2, c0, 0)
+> +#define VPIDR           __ACCESS_CP15(c0, 4, c0, 0)
+> +#define VMPIDR          __ACCESS_CP15(c0, 4, c0, 5)
+> +#define SCTLR           __ACCESS_CP15(c1, 0, c0, 0)
+> +#define CPACR           __ACCESS_CP15(c1, 0, c0, 2)
+> +#define HCR             __ACCESS_CP15(c1, 4, c1, 0)
+> +#define HDCR            __ACCESS_CP15(c1, 4, c1, 1)
+> +#define HCPTR           __ACCESS_CP15(c1, 4, c1, 2)
+> +#define HSTR            __ACCESS_CP15(c1, 4, c1, 3)
+> +#define TTBCR           __ACCESS_CP15(c2, 0, c0, 2)
+> +#define HTCR            __ACCESS_CP15(c2, 4, c0, 2)
+> +#define VTCR            __ACCESS_CP15(c2, 4, c1, 2)
+> +#define DACR            __ACCESS_CP15(c3, 0, c0, 0)
+> +#define DFSR            __ACCESS_CP15(c5, 0, c0, 0)
+> +#define IFSR            __ACCESS_CP15(c5, 0, c0, 1)
+> +#define ADFSR           __ACCESS_CP15(c5, 0, c1, 0)
+> +#define AIFSR           __ACCESS_CP15(c5, 0, c1, 1)
+> +#define HSR             __ACCESS_CP15(c5, 4, c2, 0)
+> +#define DFAR            __ACCESS_CP15(c6, 0, c0, 0)
+> +#define IFAR            __ACCESS_CP15(c6, 0, c0, 2)
+> +#define HDFAR           __ACCESS_CP15(c6, 4, c0, 0)
+> +#define HIFAR           __ACCESS_CP15(c6, 4, c0, 2)
+> +#define HPFAR           __ACCESS_CP15(c6, 4, c0, 4)
+> +#define ICIALLUIS       __ACCESS_CP15(c7, 0, c1, 0)
+> +#define ATS1CPR         __ACCESS_CP15(c7, 0, c8, 0)
+> +#define TLBIALLIS       __ACCESS_CP15(c8, 0, c3, 0)
+> +#define TLBIALL         __ACCESS_CP15(c8, 0, c7, 0)
+> +#define TLBIALLNSNHIS   __ACCESS_CP15(c8, 4, c3, 4)
+> +#define PRRR            __ACCESS_CP15(c10, 0, c2, 0)
+> +#define NMRR            __ACCESS_CP15(c10, 0, c2, 1)
+> +#define AMAIR0          __ACCESS_CP15(c10, 0, c3, 0)
+> +#define AMAIR1          __ACCESS_CP15(c10, 0, c3, 1)
+> +#define VBAR            __ACCESS_CP15(c12, 0, c0, 0)
+> +#define CID             __ACCESS_CP15(c13, 0, c0, 1)
+> +#define TID_URW         __ACCESS_CP15(c13, 0, c0, 2)
+> +#define TID_URO         __ACCESS_CP15(c13, 0, c0, 3)
+> +#define TID_PRIV        __ACCESS_CP15(c13, 0, c0, 4)
+> +#define HTPIDR          __ACCESS_CP15(c13, 4, c0, 2)
+> +#define CNTKCTL         __ACCESS_CP15(c14, 0, c1, 0)
+> +#define CNTV_CTL        __ACCESS_CP15(c14, 0, c3, 1)
+> +#define CNTHCTL         __ACCESS_CP15(c14, 4, c1, 0)
+> +
+>  extern unsigned long cr_alignment;     /* defined in entry-armv.S */
+> 
+> +static inline void set_par(u64 val)
+> +{
+> +        if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +                write_sysreg(val, PAR_64);
+> +        else
+> +                write_sysreg(val, PAR_32);
+> +}
+> +
+> +static inline u64 get_par(void)
+> +{
+> +        if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +                return read_sysreg(PAR_64);
+> +        else
+> +                return (u64)read_sysreg(PAR_32);
+> +}
+> +
+> +static inline void set_ttbr0(u64 val)
+> +{
+> + if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +         write_sysreg(val, TTBR0_64);
+> + else
+> +         write_sysreg(val, TTBR0_32);
+> +}
+> +
+> +static inline u64 get_ttbr0(void)
+> +{
+> + if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +         return read_sysreg(TTBR0_64);
+> + else
+> +         return (u64)read_sysreg(TTBR0_32);
+> +}
+> +
+> +static inline void set_ttbr1(u64 val)
+> +{
+> + if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +         write_sysreg(val, TTBR1_64);
+> + else
+> +         write_sysreg(val, TTBR1_32);
+> +}
+> +
+> +static inline u64 get_ttbr1(void)
+> +{
+> + if (IS_ENABLED(CONFIG_ARM_LPAE))
+> +         return read_sysreg(TTBR1_64);
+> + else
+> +         return (u64)read_sysreg(TTBR1_32);
+> +}
+> +
 
-An entry tracepoint is enough for just latencies by punting the analysis
-to userspace and state tracking to either systemtap or userspace. If
-userspace then it would need to never malloc once analysis starts and be
-mlocked.
+Please pay attention to the project coding style whenever creating code
+for a program.  It doesn't matter what the project coding style is, as
+long as you write your code to match the style that is already there.
+
+For the kernel, that is: tabs not spaces for indentation of code.
+You seem to be using a variable number of spaces for all the new code
+above.
+
+Some of it seems to be your email client thinking it knows better about
+white space - and such behaviours basically makes patches unapplyable.
+See Documentation/process/email-clients.rst for hints about email
+clients.
 
 -- 
-Mel Gorman
-SUSE Labs
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
