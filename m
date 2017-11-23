@@ -1,68 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D43B6B0273
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:05:54 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id u42so24662586ioi.7
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:05:54 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z73si14900846iof.325.2017.11.23.03.05.53
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BF506B0275
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:13:46 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id x63so4753592wmf.2
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:13:46 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id c7si4771217edl.136.2017.11.23.03.13.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 03:05:53 -0800 (PST)
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171122203907.GI4094@dastard>
-	<201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
-	<2178e42e-9600-4f9a-4b91-22d2ba6f98c0@redhat.com>
-	<201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
-	<83429cb3-4962-4a16-793e-42483a843c75@redhat.com>
-In-Reply-To: <83429cb3-4962-4a16-793e-42483a843c75@redhat.com>
-Message-Id: <201711232003.DII64069.FQSLOtOFJMOVFH@I-love.SAKURA.ne.jp>
-Date: Thu, 23 Nov 2017 20:03:54 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Nov 2017 03:13:45 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vANB8xe1007068
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:13:44 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2edtdcnb8e-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:13:43 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Thu, 23 Nov 2017 11:13:41 -0000
+Date: Thu, 23 Nov 2017 11:13:35 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: [PATCH v2 0/5] Memory hotplug support for arm64 - complete patchset
+ v2
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Message-Id: <cover.1511433386.git.ar@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: pbonzini@redhat.com
-Cc: david@fromorbit.com, mhocko@kernel.org, akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: linux-arm-kernel@lists.infradead.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, mhocko@suse.com, realean2@ie.ibm.com
 
-Paolo Bonzini wrote:
-> On 23/11/2017 10:56, Tetsuo Handa wrote:
-> > Paolo Bonzini wrote:
-> >> On 23/11/2017 07:34, Tetsuo Handa wrote:
-> >>>> Just fix the numa aware shrinkers, as they are the only ones that
-> >>>> will have this problem. There are only 6 of them, and only the 3
-> >>>> that existed at the time that register_shrinker() was changed to
-> >>>> return an error fail to check for an error. i.e. the superblock
-> >>>> shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
-> >>>
-> >>> You are assuming the "too small to fail" memory-allocation rule
-> >>> by ignoring that this problem is caused by fault injection.
-> >>
-> >> Fault injection should also obey the too small to fail rule, at least by
-> >> default.
-> > 
-> > Pardon? Most allocation requests in the kernel are <= 32KB.
-> > Such change makes fault injection useless. ;-)
-> 
-> But if these calls are "too small to fail", you are injecting a fault on
-> something that cannot fail anyway.  Unless you're aiming at removing
-> "too small to fail", then I understand.
-> 
+Hi all,
 
-The "too small to fail" does not mean that small allocations cannot fail.
-It unlikely fails because it will retry forever unless killed as an OOM victim,
-and currently we allow it to try memory allocation from memory reserves when
-killed as an OOM victim. But such assumption is fragile. We unexpectedly
-forget to allow it to try memory allocation from memory reserves (e.g. commit 
-c288983dddf71421 ("mm/page_alloc.c: make sure OOM victim can try allocations
-with no watermarks once")). There is no guarantee that small allocations
-will not fail in future.
+this is a second round of patches to introduce memory hotplug and
+hotremove support for arm64. It builds on the work previously published at
+[1] and it implements the feedback received in the first round of reviews.
 
-To me, using __GFP_NOFAIL for register_shrinker() sounds the simplest fix.
-Adding error handling code to all register_shrinker() callers is not worth
-bothering. In most runtime environments, kmalloc() in register_shrinker()
-will be order 0.
+The patchset applies and has been tested on commit bebc6082da0a ("Linux
+4.14"). 
+
+Due to a small regression introduced with commit 8135d8926c08
+("mm: memory_hotplug: memory hotremove supports thp migration"), you
+will need to appy patch [2] first, until the fix is not upstreamed.
+
+Comments and feedback are gold.
+
+[1] https://lkml.org/lkml/2017/4/11/536
+[2] https://lkml.org/lkml/2017/11/20/902
+
+Changes v1->v2:
+- swapper pgtable updated in place on hot add, avoiding unnecessary copy
+- stop_machine used to updated swapper on hot add, avoiding races
+- introduced check on offlining state before hot remove
+- new memblock flag used to mark partially unused vmemmap pages, avoiding
+  the nasty 0xFD hack used in the prev rev (and in x86 hot remove code)
+- proper cleaning sequence for p[um]ds,ptes and related TLB management
+- Removed macros that changed hot remove behavior based on number
+  of pgtable levels. Now this is hidden in the pgtable traversal macros.
+- Check on the corner case where P[UM]Ds would have to be split during
+  hot remove: now this is forbidden.
+- Minor fixes and refactoring.
+
+Andrea Reale (4):
+  mm: memory_hotplug: Remove assumption on memory state before hotremove
+  mm: memory_hotplug: memblock to track partially removed vmemmap mem
+  mm: memory_hotplug: Add memory hotremove probe device
+  mm: memory-hotplug: Add memory hot remove support for arm64
+
+Maciej Bielski (1):
+  mm: memory_hotplug: Memory hotplug (add) support for arm64
+
+ arch/arm64/Kconfig             |  15 +
+ arch/arm64/configs/defconfig   |   2 +
+ arch/arm64/include/asm/mmu.h   |   7 +
+ arch/arm64/mm/init.c           | 116 ++++++++
+ arch/arm64/mm/mmu.c            | 609 ++++++++++++++++++++++++++++++++++++++++-
+ drivers/acpi/acpi_memhotplug.c |   2 +-
+ drivers/base/memory.c          |  34 ++-
+ include/linux/memblock.h       |  12 +
+ include/linux/memory_hotplug.h |   9 +-
+ mm/memblock.c                  |  32 +++
+ mm/memory_hotplug.c            |  13 +-
+ 11 files changed, 835 insertions(+), 16 deletions(-)
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
