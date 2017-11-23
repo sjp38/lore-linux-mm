@@ -1,245 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 26B146B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:02:55 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a22so3517823wme.0
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:02:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c2sor10448741edi.33.2017.11.23.01.02.52
+	by kanga.kvack.org (Postfix) with ESMTP id C1B296B0038
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:19:49 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id 80so2302390wmb.7
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:19:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w12si12140489edd.60.2017.11.23.01.19.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 23 Nov 2017 01:02:53 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 01:19:48 -0800 (PST)
+Date: Thu, 23 Nov 2017 10:19:46 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH] arch, mm: introduce arch_tlb_gather_mmu_exit
-Date: Thu, 23 Nov 2017 10:02:36 +0100
-Message-Id: <20171123090236.18574-1-mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/cma: fix alloc_contig_range ret code/potential leak
+Message-ID: <20171123091946.uqlw5seolnwlfggl@dhcp22.suse.cz>
+References: <15cf0f39-43f9-8287-fcfe-f2502af59e8a@oracle.com>
+ <20171122185214.25285-1-mike.kravetz@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171122185214.25285-1-mike.kravetz@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Will Deacon <will.deacon@arm.com>, Minchan Kim <minchan@kernel.org>, Andrea Argangeli <andrea@kernel.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Vlastimil Babka <vbabka@suse.cz>, Michal Nazarewicz <mina86@mina86.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
 
-From: Michal Hocko <mhocko@suse.com>
+On Wed 22-11-17 10:52:14, Mike Kravetz wrote:
+> If the call __alloc_contig_migrate_range() in alloc_contig_range
+> returns -EBUSY, processing continues so that test_pages_isolated()
+> is called where there is a tracepoint to identify the busy pages.
+> However, it is possible for busy pages to become available between
+> the calls to these two routines.  In this case, the range of pages
+> may be allocated.   Unfortunately, the original return code (ret
+> == -EBUSY) is still set and returned to the caller.  Therefore,
+> the caller believes the pages were not allocated and they are leaked.
+> 
+> Update comment to indicate that allocation is still possible even if
+> __alloc_contig_migrate_range returns -EBUSY.  Also, clear return code
+> in this case so that it is not accidentally used or returned to caller.
+> 
+> Fixes: 8ef5849fa8a2 ("mm/cma: always check which page caused allocation failure")
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 
-5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
-introduced an optimization to not flush tlb when we are tearing the
-whole address space down. Will goes on to explain
+OK, this one looks reasonable as well.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-: Basically, we tag each address space with an ASID (PCID on x86) which
-: is resident in the TLB. This means we can elide TLB invalidation when
-: pulling down a full mm because we won't ever assign that ASID to
-: another mm without doing TLB invalidation elsewhere (which actually
-: just nukes the whole TLB).
+Thanks!
 
-This all is nice but tlb_gather users are not aware of that and this can
-actually cause some real problems. E.g. the oom_reaper tries to reap the
-whole address space but it might race with threads accessing the memory [1].
-It is possible that soft-dirty handling might suffer from the same
-problem [2] as soon as it starts supporting the feature.
+> ---
+>  mm/page_alloc.c | 9 ++++++++-
+>  1 file changed, 8 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 77e4d3c5c57b..25e81844d1aa 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -7582,11 +7582,18 @@ int alloc_contig_range(unsigned long start, unsigned long end,
+>  
+>  	/*
+>  	 * In case of -EBUSY, we'd like to know which page causes problem.
+> -	 * So, just fall through. We will check it in test_pages_isolated().
+> +	 * So, just fall through. test_pages_isolated() has a tracepoint
+> +	 * which will report the busy page.
+> +	 *
+> +	 * It is possible that busy pages could become available before
+> +	 * the call to test_pages_isolated, and the range will actually be
+> +	 * allocated.  So, if we fall through be sure to clear ret so that
+> +	 * -EBUSY is not accidentally used or returned to caller.
+>  	 */
+>  	ret = __alloc_contig_migrate_range(&cc, start, end);
+>  	if (ret && ret != -EBUSY)
+>  		goto done;
+> +	ret =0;
+>  
+>  	/*
+>  	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
+> -- 
+> 2.13.6
+> 
 
-Introduce an explicit exit variant tlb_gather_mmu_exit which allows the
-behavior arm64 implements for the fullmm case and replace it by an
-explicit exit flag in the mmu_gather structure. exit_mmap path is then
-turned into the explicit exit variant. Other architectures simply ignore
-the flag.
-
-[1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
-[2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
-Hi,
-I am sending this as an RFC because I am not fully familiar with the tlb
-gather arch implications, espacially the semantic of fullmm. Therefore
-I might duplicate some of its functionality. I hope people on the CC
-list will help me to sort this out.
-
-Comments? Objections?
-
- arch/arm/include/asm/tlb.h   |  3 ++-
- arch/arm64/include/asm/tlb.h |  2 +-
- arch/ia64/include/asm/tlb.h  |  3 ++-
- arch/s390/include/asm/tlb.h  |  3 ++-
- arch/sh/include/asm/tlb.h    |  2 +-
- arch/um/include/asm/tlb.h    |  2 +-
- include/asm-generic/tlb.h    |  6 ++++--
- include/linux/mm_types.h     |  2 ++
- mm/memory.c                  | 17 +++++++++++++++--
- mm/mmap.c                    |  2 +-
- 10 files changed, 31 insertions(+), 11 deletions(-)
-
-diff --git a/arch/arm/include/asm/tlb.h b/arch/arm/include/asm/tlb.h
-index d5562f9ce600..f2696f831cae 100644
---- a/arch/arm/include/asm/tlb.h
-+++ b/arch/arm/include/asm/tlb.h
-@@ -149,7 +149,8 @@ static inline void tlb_flush_mmu(struct mmu_gather *tlb)
- 
- static inline void
- arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--			unsigned long start, unsigned long end)
-+			unsigned long start, unsigned long end,
-+			bool exit)
- {
- 	tlb->mm = mm;
- 	tlb->fullmm = !(start | (end+1));
-diff --git a/arch/arm64/include/asm/tlb.h b/arch/arm64/include/asm/tlb.h
-index ffdaea7954bb..812c12f5e634 100644
---- a/arch/arm64/include/asm/tlb.h
-+++ b/arch/arm64/include/asm/tlb.h
-@@ -43,7 +43,7 @@ static inline void tlb_flush(struct mmu_gather *tlb)
- 	 * The ASID allocator will either invalidate the ASID or mark
- 	 * it as used.
- 	 */
--	if (tlb->fullmm)
-+	if (tlb->fullmm && tlb->exit)
- 		return;
- 
- 	/*
-diff --git a/arch/ia64/include/asm/tlb.h b/arch/ia64/include/asm/tlb.h
-index 44f0ac0df308..f3639447e26d 100644
---- a/arch/ia64/include/asm/tlb.h
-+++ b/arch/ia64/include/asm/tlb.h
-@@ -170,7 +170,8 @@ static inline void __tlb_alloc_page(struct mmu_gather *tlb)
- 
- static inline void
- arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--			unsigned long start, unsigned long end)
-+			unsigned long start, unsigned long end,
-+			bool exit)
- {
- 	tlb->mm = mm;
- 	tlb->max = ARRAY_SIZE(tlb->local);
-diff --git a/arch/s390/include/asm/tlb.h b/arch/s390/include/asm/tlb.h
-index 457b7ba0fbb6..c02207eb4278 100644
---- a/arch/s390/include/asm/tlb.h
-+++ b/arch/s390/include/asm/tlb.h
-@@ -50,7 +50,8 @@ extern void tlb_remove_table(struct mmu_gather *tlb, void *table);
- 
- static inline void
- arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--			unsigned long start, unsigned long end)
-+			unsigned long start, unsigned long end,
-+			bool exit)
- {
- 	tlb->mm = mm;
- 	tlb->start = start;
-diff --git a/arch/sh/include/asm/tlb.h b/arch/sh/include/asm/tlb.h
-index 77abe192fb43..c4248c8b1e6b 100644
---- a/arch/sh/include/asm/tlb.h
-+++ b/arch/sh/include/asm/tlb.h
-@@ -38,7 +38,7 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
- 
- static inline void
- arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--		unsigned long start, unsigned long end)
-+		unsigned long start, unsigned long end, bool exit)
- {
- 	tlb->mm = mm;
- 	tlb->start = start;
-diff --git a/arch/um/include/asm/tlb.h b/arch/um/include/asm/tlb.h
-index dce6db147f24..057d5c6adfe0 100644
---- a/arch/um/include/asm/tlb.h
-+++ b/arch/um/include/asm/tlb.h
-@@ -47,7 +47,7 @@ static inline void init_tlb_gather(struct mmu_gather *tlb)
- 
- static inline void
- arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--		unsigned long start, unsigned long end)
-+		unsigned long start, unsigned long end, bool exit)
- {
- 	tlb->mm = mm;
- 	tlb->start = start;
-diff --git a/include/asm-generic/tlb.h b/include/asm-generic/tlb.h
-index faddde44de8c..2b29d77d201e 100644
---- a/include/asm-generic/tlb.h
-+++ b/include/asm-generic/tlb.h
-@@ -101,7 +101,8 @@ struct mmu_gather {
- 	unsigned int		fullmm : 1,
- 	/* we have performed an operation which
- 	 * requires a complete flush of the tlb */
--				need_flush_all : 1;
-+				need_flush_all : 1,
-+				exit : 1;
- 
- 	struct mmu_gather_batch *active;
- 	struct mmu_gather_batch	local;
-@@ -113,7 +114,8 @@ struct mmu_gather {
- #define HAVE_GENERIC_MMU_GATHER
- 
- void arch_tlb_gather_mmu(struct mmu_gather *tlb,
--	struct mm_struct *mm, unsigned long start, unsigned long end);
-+	struct mm_struct *mm, unsigned long start, unsigned long end,
-+	bool exit);
- void tlb_flush_mmu(struct mmu_gather *tlb);
- void arch_tlb_finish_mmu(struct mmu_gather *tlb,
- 			 unsigned long start, unsigned long end, bool force);
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index cfd0ac4e5e0e..6f6b615259e6 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -527,6 +527,8 @@ static inline cpumask_t *mm_cpumask(struct mm_struct *mm)
- struct mmu_gather;
- extern void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
- 				unsigned long start, unsigned long end);
-+extern void tlb_gather_mmu_exit(struct mmu_gather *tlb, struct mm_struct *mm,
-+				unsigned long start, unsigned long end);
- extern void tlb_finish_mmu(struct mmu_gather *tlb,
- 				unsigned long start, unsigned long end);
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 4617c4e3738e..3dcd3631a37a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -218,13 +218,15 @@ static bool tlb_next_batch(struct mmu_gather *tlb)
- }
- 
- void arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
--				unsigned long start, unsigned long end)
-+				unsigned long start, unsigned long end,
-+				bool exit)
- {
- 	tlb->mm = mm;
- 
- 	/* Is it from 0 to ~0? */
- 	tlb->fullmm     = !(start | (end+1));
- 	tlb->need_flush_all = 0;
-+	tlb->exit	= exit;
- 	tlb->local.next = NULL;
- 	tlb->local.nr   = 0;
- 	tlb->local.max  = ARRAY_SIZE(tlb->__pages);
-@@ -408,7 +410,18 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
- void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
- 			unsigned long start, unsigned long end)
- {
--	arch_tlb_gather_mmu(tlb, mm, start, end);
-+	arch_tlb_gather_mmu(tlb, mm, start, end, false);
-+	inc_tlb_flush_pending(tlb->mm);
-+}
-+
-+/* tlb_gather_mmu_exit
-+ * 	Basically same as tlb_gather_mmu except it allows architectures to
-+ * 	skip tlb flushing if they can ensure that nobody will reuse tlb entries
-+ */
-+void tlb_gather_mmu_exit(struct mmu_gather *tlb, struct mm_struct *mm,
-+			unsigned long start, unsigned long end)
-+{
-+	arch_tlb_gather_mmu(tlb, mm, start, end, true);
- 	inc_tlb_flush_pending(tlb->mm);
- }
- 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 476e810cf100..8fa392ac289f 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -2999,7 +2999,7 @@ void exit_mmap(struct mm_struct *mm)
- 
- 	lru_add_drain();
- 	flush_cache_mm(mm);
--	tlb_gather_mmu(&tlb, mm, 0, -1);
-+	tlb_gather_mmu_exit(&tlb, mm, 0, -1);
- 	/* update_hiwater_rss(mm) here? but nobody should be looking */
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
 -- 
-2.15.0
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
