@@ -1,81 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B49F6B025E
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:05:35 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id o16so2234216wmf.4
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 00:05:35 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07FD76B025E
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:11:08 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id d14so11587749wrg.15
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 00:11:07 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q5si887354edh.30.2017.11.23.00.05.33
+        by mx.google.com with ESMTPS id e18si3762105edd.37.2017.11.23.00.11.06
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 00:05:33 -0800 (PST)
-Subject: Re: [PATCH v2] mm/cma: fix alloc_contig_range ret code/potential leak
-References: <15cf0f39-43f9-8287-fcfe-f2502af59e8a@oracle.com>
- <20171122185214.25285-1-mike.kravetz@oracle.com>
+        Thu, 23 Nov 2017 00:11:06 -0800 (PST)
+Subject: Re: MPK: removing a pkey
+References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
+ <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
+ <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
+ <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
+ <9ec19ff3-86f6-7cfe-1a07-1ab1c5d9882c@redhat.com>
+ <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
 From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <bde01dfd-3b32-a6cd-6cce-96f6fd395d0d@suse.cz>
-Date: Thu, 23 Nov 2017 09:05:30 +0100
+Message-ID: <de93997a-7802-96cf-62e2-e59416e745ca@suse.cz>
+Date: Thu, 23 Nov 2017 09:11:05 +0100
 MIME-Version: 1.0
-In-Reply-To: <20171122185214.25285-1-mike.kravetz@oracle.com>
+In-Reply-To: <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Michal Nazarewicz <mina86@mina86.com>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, stable@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>, Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
+Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
 
-On 11/22/2017 07:52 PM, Mike Kravetz wrote:
-> If the call __alloc_contig_migrate_range() in alloc_contig_range
-> returns -EBUSY, processing continues so that test_pages_isolated()
-> is called where there is a tracepoint to identify the busy pages.
-> However, it is possible for busy pages to become available between
-> the calls to these two routines.  In this case, the range of pages
-> may be allocated.   Unfortunately, the original return code (ret
-> == -EBUSY) is still set and returned to the caller.  Therefore,
-> the caller believes the pages were not allocated and they are leaked.
+On 11/22/2017 05:32 PM, Dave Hansen wrote:
+> On 11/22/2017 08:21 AM, Florian Weimer wrote:
+>> On 11/22/2017 05:10 PM, Dave Hansen wrote:
+>>> On 11/22/2017 04:15 AM, Florian Weimer wrote:
+>>>> On 11/22/2017 09:18 AM, Vlastimil Babka wrote:
+>>>>> And, was the pkey == -1 internal wiring supposed to be exposed to the
+>>>>> pkey_mprotect() signal, or should there have been a pre-check returning
+>>>>> EINVAL in SYSCALL_DEFINE4(pkey_mprotect), before calling
+>>>>> do_mprotect_pkey())? I assume it's too late to change it now anyway (or
+>>>>> not?), so should we also document it?
+>>>>
+>>>> I think the -1 case to the set the default key is useful because it
+>>>> allows you to use a key value of -1 to mean a??MPK is not supporteda??, and
+>>>> still call pkey_mprotect.
+>>>
+>>> The behavior to not allow 0 to be set was unintentional and is a bug.
+>>> We should fix that.
+>>
+>> On the other hand, x86-64 has no single default protection key due to
+>> the PROT_EXEC emulation.
 > 
-> Update comment to indicate that allocation is still possible even if
-> __alloc_contig_migrate_range returns -EBUSY.  Also, clear return code
-> in this case so that it is not accidentally used or returned to caller.
-> 
-> Fixes: 8ef5849fa8a2 ("mm/cma: always check which page caused allocation failure")
-> Cc: <stable@vger.kernel.org>
-> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> No, the default is clearly 0 and documented to be so.  The PROT_EXEC
+> emulation one should be inaccessible in all the APIs so does not even
+> show up as *being* a key in the API.  The fact that it's implemented
+> with pkeys should be pretty immaterial other than the fact that you
+> can't touch the high bits in PKRU.
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-> ---
->  mm/page_alloc.c | 9 ++++++++-
->  1 file changed, 8 insertions(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 77e4d3c5c57b..25e81844d1aa 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -7582,11 +7582,18 @@ int alloc_contig_range(unsigned long start, unsigned long end,
->  
->  	/*
->  	 * In case of -EBUSY, we'd like to know which page causes problem.
-> -	 * So, just fall through. We will check it in test_pages_isolated().
-> +	 * So, just fall through. test_pages_isolated() has a tracepoint
-> +	 * which will report the busy page.
-> +	 *
-> +	 * It is possible that busy pages could become available before
-> +	 * the call to test_pages_isolated, and the range will actually be
-> +	 * allocated.  So, if we fall through be sure to clear ret so that
-> +	 * -EBUSY is not accidentally used or returned to caller.
->  	 */
->  	ret = __alloc_contig_migrate_range(&cc, start, end);
->  	if (ret && ret != -EBUSY)
->  		goto done;
-> +	ret =0;
-
-             ^ missing space
->  
->  	/*
->  	 * Pages from [start, end) are within a MAX_ORDER_NR_PAGES
-> 
+So, just to be sure, if we call pkey_mprotect() with 0, will it blindly
+set 0, or the result of arch_override_mprotect_pkey() (thus equivalent
+to call with -1) ? I assume the latter?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
