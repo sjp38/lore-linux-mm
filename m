@@ -1,294 +1,268 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D1106B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:25:42 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id s18so18852305pge.19
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:25:42 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CCAB6B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:30:15 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id q84so16845132pfl.12
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:30:15 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o8si15588828pgp.359.2017.11.23.04.25.37
+        by mx.google.com with ESMTPS id s9si16131607pgr.631.2017.11.23.04.30.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 04:25:37 -0800 (PST)
-Date: Thu, 23 Nov 2017 13:25:30 +0100
+        Thu, 23 Nov 2017 04:30:13 -0800 (PST)
+Date: Thu, 23 Nov 2017 13:30:11 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] Add slowpath enter/exit trace events
-Message-ID: <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
-References: <20171123104336.25855-1-peter.enderborg@sony.com>
+Subject: Re: +
+ mm-split-deferred_init_range-into-initializing-and-freeing-parts.patch added
+ to -mm tree
+Message-ID: <20171123123011.woohmpw2hbbqw3ea@dhcp22.suse.cz>
+References: <5a14ba73.b+ZaCLiIMjohGFkU%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171123104336.25855-1-peter.enderborg@sony.com>
+In-Reply-To: <5a14ba73.b+ZaCLiIMjohGFkU%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: peter.enderborg@sony.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: akpm@linux-foundation.org
+Cc: pasha.tatashin@oracle.com, daniel.m.jordan@oracle.com, mgorman@techsingularity.net, steven.sistare@oracle.com, mm-commits@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 23-11-17 11:43:36, peter.enderborg@sony.com wrote:
-> From: Peter Enderborg <peter.enderborg@sony.com>
+On Tue 21-11-17 15:44:51, Andrew Morton wrote:
+> ------------------------------------------------------
+> From: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Subject: mm: split deferred_init_range into initializing and freeing parts
 > 
-> The warning of slow allocation has been removed, this is
-> a other way to fetch that information. But you need
-> to enable the trace. The exit function also returns
-> information about the number of retries, how long
-> it was stalled and failure reason if that happened.
+> In deferred_init_range() we initialize struct pages, and also free them to
+> buddy allocator.  We do it in separate loops, because buddy page is
+> computed ahead, so we do not want to access a struct page that has not
+> been initialized yet.
+> 
+> There is still, however, a corner case where it is potentially possible to
+> access uninitialized struct page: this is when buddy page is from the next
+> memblock range.
+> 
+> This patch fixes this problem by splitting deferred_init_range() into two
+> functions: one to initialize struct pages, and another to free them.
+> 
+> In addition, this patch brings the following improvements:
+> - Get rid of __def_free() helper function. And simplifies loop logic by
+>   adding a new pfn validity check function: deferred_pfn_valid().
+> - Reduces number of variables that we track. So, there is a higher chance
+>   that we will avoid using stack to store/load variables inside hot loops.
+> - Enables future multi-threading of these functions: do initialization in
+>   multiple threads, wait for all threads to finish, do freeing part in
+>   multithreading.
+> 
+> Tested on x86 with 1T of memory to make sure no regressions are introduced.
 
-I think this is just too excessive. We already have a tracepoint for the
-allocation exit. All we need is an entry to have a base to compare with.
-Another usecase would be to measure allocation latency. Information you
-are adding can be (partially) covered by existing tracepoints.
+I thought I have acked this one. Let me dig that out.
+...
+Ohh, here it is https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1528267.html
 
-> Signed-off-by: Peter Enderborg <peter.enderborg@sony.com>
+> 
+> Link: http://lkml.kernel.org/r/20171107150446.32055-2-pasha.tatashin@oracle.com
+> Signed-off-by: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Steven Sistare <steven.sistare@oracle.com>
+> Cc: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  include/trace/events/kmem.h | 68 +++++++++++++++++++++++++++++++++++++++++++++
->  mm/page_alloc.c             | 62 +++++++++++++++++++++++++++++++----------
->  2 files changed, 116 insertions(+), 14 deletions(-)
 > 
-> diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-> index eb57e30..bb882ca 100644
-> --- a/include/trace/events/kmem.h
-> +++ b/include/trace/events/kmem.h
-> @@ -315,6 +315,74 @@ TRACE_EVENT(mm_page_alloc_extfrag,
->  		__entry->change_ownership)
->  );
->  
-> +TRACE_EVENT(mm_page_alloc_slowpath_enter,
-> +
-> +	TP_PROTO(int alloc_order,
-> +		nodemask_t *nodemask,
-> +		gfp_t gfp_flags),
-> +
-> +	TP_ARGS(alloc_order, nodemask, gfp_flags),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(int, alloc_order)
-> +		__field(nodemask_t *, nodemask)
-> +		__field(gfp_t, gfp_flags)
-> +	 ),
-> +
-> +	 TP_fast_assign(
-> +		__entry->alloc_order		= alloc_order;
-> +		__entry->nodemask		= nodemask;
-> +		__entry->gfp_flags		= gfp_flags;
-> +	 ),
-> +
-> +	 TP_printk("alloc_order=%d nodemask=%*pbl gfp_flags=%s",
-> +		__entry->alloc_order,
-> +		nodemask_pr_args(__entry->nodemask),
-> +		show_gfp_flags(__entry->gfp_flags))
-> +);
-> +
-> +TRACE_EVENT(mm_page_alloc_slowpath_exit,
-> +
-> +	TP_PROTO(struct page *page,
-> +		int alloc_order,
-> +		nodemask_t *nodemask,
-> +		u64 alloc_start,
-> +		gfp_t gfp_flags,
-> +		int retrys,
-> +		int exit),
-> +
-> +	TP_ARGS(page, alloc_order, nodemask, alloc_start, gfp_flags,
-> +		retrys, exit),
-> +
-> +	TP_STRUCT__entry(__field(struct page *, page)
-> +		__field(int, alloc_order)
-> +		__field(nodemask_t *, nodemask)
-> +		__field(u64, msdelay)
-> +		__field(gfp_t, gfp_flags)
-> +		__field(int, retrys)
-> +		__field(int, exit)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		__entry->page	     = page;
-> +		__entry->alloc_order = alloc_order;
-> +		__entry->nodemask    = nodemask;
-> +		__entry->msdelay     = jiffies_to_msecs(jiffies-alloc_start);
-> +		__entry->gfp_flags   = gfp_flags;
-> +		__entry->retrys	     = retrys;
-> +		__entry->exit	     = exit;
-> +	),
-> +
-> +	TP_printk("page=%p alloc_order=%d nodemask=%*pbl msdelay=%llu gfp_flags=%s retrys=%d exit=%d",
-> +		__entry->page,
-> +		__entry->alloc_order,
-> +		nodemask_pr_args(__entry->nodemask),
-> +		__entry->msdelay,
-> +		show_gfp_flags(__entry->gfp_flags),
-> +		__entry->retrys,
-> +		__entry->exit)
-> +);
-> +
->  #endif /* _TRACE_KMEM_H */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 48b5b01..bae9cb9 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -104,6 +104,17 @@ DEFINE_PER_CPU(struct work_struct, pcpu_drain);
->  volatile unsigned long latent_entropy __latent_entropy;
->  EXPORT_SYMBOL(latent_entropy);
->  #endif
-> +enum slowpath_exit {
-> +	SLOWPATH_NOZONE = -16,
-> +	SLOWPATH_COMPACT_DEFERRED,
-> +	SLOWPATH_CAN_NOT_DIRECT_RECLAIM,
-> +	SLOWPATH_RECURSION,
-> +	SLOWPATH_NO_RETRY,
-> +	SLOWPATH_COSTLY_ORDER,
-> +	SLOWPATH_OOM_VICTIM,
-> +	SLOWPATH_NO_DIRECT_RECLAIM,
-> +	SLOWPATH_ORDER
-> +};
->  
->  /*
->   * Array of node states.
-> @@ -3908,8 +3919,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	enum compact_result compact_result;
->  	int compaction_retries;
->  	int no_progress_loops;
-> +	unsigned long alloc_start = jiffies;
->  	unsigned int cpuset_mems_cookie;
->  	int reserve_flags;
-> +	enum slowpath_exit slowpath_exit;
-> +	int retry_count = 0;
-> +
-> +	trace_mm_page_alloc_slowpath_enter(order,
-> +		ac->nodemask,
-> +		gfp_mask);
->  
->  	/*
->  	 * In the slowpath, we sanity check order to avoid ever trying to
-> @@ -3919,7 +3937,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 */
->  	if (order >= MAX_ORDER) {
->  		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
-> -		return NULL;
-> +		slowpath_exit = SLOWPATH_ORDER;
-> +		goto fail;
->  	}
->  
->  	/*
-> @@ -3951,8 +3970,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	 */
->  	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
->  					ac->high_zoneidx, ac->nodemask);
-> -	if (!ac->preferred_zoneref->zone)
-> +	if (!ac->preferred_zoneref->zone) {
-> +		slowpath_exit = SLOWPATH_NOZONE;
->  		goto nopage;
-> +	}
->  
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
-> @@ -3998,8 +4019,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  			 * system, so we fail the allocation instead of entering
->  			 * direct reclaim.
->  			 */
-> -			if (compact_result == COMPACT_DEFERRED)
-> +			if (compact_result == COMPACT_DEFERRED) {
-> +				slowpath_exit = SLOWPATH_COMPACT_DEFERRED;
->  				goto nopage;
-> +			}
->  
->  			/*
->  			 * Looks like reclaim/compaction is worth trying, but
-> @@ -4011,6 +4034,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	}
->  
->  retry:
-> +	retry_count++;
->  	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
->  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
->  		wake_all_kswapds(order, ac);
-> @@ -4036,13 +4060,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		goto got_pg;
->  
->  	/* Caller is not willing to reclaim, we can't balance anything */
-> -	if (!can_direct_reclaim)
-> +	if (!can_direct_reclaim) {
-> +		slowpath_exit = SLOWPATH_CAN_NOT_DIRECT_RECLAIM;
->  		goto nopage;
-> +	}
->  
->  	/* Avoid recursion of direct reclaim */
-> -	if (current->flags & PF_MEMALLOC)
-> +	if (current->flags & PF_MEMALLOC) {
-> +		slowpath_exit = SLOWPATH_RECURSION;
->  		goto nopage;
-> -
-> +	}
->  	/* Try direct reclaim and then allocating */
->  	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
->  							&did_some_progress);
-> @@ -4056,16 +4083,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		goto got_pg;
->  
->  	/* Do not loop if specifically requested */
-> -	if (gfp_mask & __GFP_NORETRY)
-> +	if (gfp_mask & __GFP_NORETRY) {
-> +		slowpath_exit = SLOWPATH_NO_RETRY;
->  		goto nopage;
-> -
-> +	}
->  	/*
->  	 * Do not retry costly high order allocations unless they are
->  	 * __GFP_RETRY_MAYFAIL
->  	 */
-> -	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL))
-> +	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL)) {
-> +		slowpath_exit = SLOWPATH_COSTLY_ORDER;
->  		goto nopage;
-> -
-> +	}
->  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
->  				 did_some_progress > 0, &no_progress_loops))
->  		goto retry;
-> @@ -4095,9 +4124,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	/* Avoid allocations with no watermarks from looping endlessly */
->  	if (tsk_is_oom_victim(current) &&
->  	    (alloc_flags == ALLOC_OOM ||
-> -	     (gfp_mask & __GFP_NOMEMALLOC)))
-> +	     (gfp_mask & __GFP_NOMEMALLOC))) {
-> +		slowpath_exit = SLOWPATH_OOM_VICTIM;
->  		goto nopage;
-> -
-> +	}
->  	/* Retry as long as the OOM killer is making progress */
->  	if (did_some_progress) {
->  		no_progress_loops = 0;
-> @@ -4118,9 +4148,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  		 * All existing users of the __GFP_NOFAIL are blockable, so warn
->  		 * of any new users that actually require GFP_NOWAIT
->  		 */
-> -		if (WARN_ON_ONCE(!can_direct_reclaim))
-> +		if (WARN_ON_ONCE(!can_direct_reclaim)) {
-> +			slowpath_exit = SLOWPATH_NO_DIRECT_RECLAIM;
->  			goto fail;
-> -
-> +		}
->  		/*
->  		 * PF_MEMALLOC request from this context is rather bizarre
->  		 * because we cannot reclaim anything and only can loop waiting
-> @@ -4153,6 +4184,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
->  	warn_alloc(gfp_mask, ac->nodemask,
->  			"page allocation failure: order:%u", order);
->  got_pg:
-> +	trace_mm_page_alloc_slowpath_exit(page, order, ac->nodemask,
-> +		alloc_start, gfp_mask, retry_count, slowpath_exit);
-> +
->  	return page;
+>  mm/page_alloc.c |  146 +++++++++++++++++++++++-----------------------
+>  1 file changed, 76 insertions(+), 70 deletions(-)
+> 
+> diff -puN mm/page_alloc.c~mm-split-deferred_init_range-into-initializing-and-freeing-parts mm/page_alloc.c
+> --- a/mm/page_alloc.c~mm-split-deferred_init_range-into-initializing-and-freeing-parts
+> +++ a/mm/page_alloc.c
+> @@ -1457,92 +1457,87 @@ static inline void __init pgdat_init_rep
 >  }
 >  
-> -- 
-> 2.7.4
+>  /*
+> - * Helper for deferred_init_range, free the given range, reset the counters, and
+> - * return number of pages freed.
+> + * Returns true if page needs to be initialized of freed to buddy allocator.
+> + *
+> + * First we check if pfn is valid on architectures where it is possible to have
+> + * holes within pageblock_nr_pages. On systems where it is not possible, this
+> + * function is optimized out.
+> + *
+> + * Then, we check if a current large page is valid by only checking the validity
+> + * of the head pfn.
+> + *
+> + * Finally, meminit_pfn_in_nid is checked on systems where pfns can interleave
+> + * within a node: a pfn is between start and end of a node, but does not belong
+> + * to this memory node.
+>   */
+> -static inline unsigned long __init __def_free(unsigned long *nr_free,
+> -					      unsigned long *free_base_pfn,
+> -					      struct page **page)
+> +static inline bool __init
+> +deferred_pfn_valid(int nid, unsigned long pfn,
+> +		   struct mminit_pfnnid_cache *nid_init_state)
+>  {
+> -	unsigned long nr = *nr_free;
+> +	if (!pfn_valid_within(pfn))
+> +		return false;
+> +	if (!(pfn & (pageblock_nr_pages - 1)) && !pfn_valid(pfn))
+> +		return false;
+> +	if (!meminit_pfn_in_nid(pfn, nid, nid_init_state))
+> +		return false;
+> +	return true;
+> +}
+>  
+> -	deferred_free_range(*free_base_pfn, nr);
+> -	*free_base_pfn = 0;
+> -	*nr_free = 0;
+> -	*page = NULL;
+> +/*
+> + * Free pages to buddy allocator. Try to free aligned pages in
+> + * pageblock_nr_pages sizes.
+> + */
+> +static void __init deferred_free_pages(int nid, int zid, unsigned long pfn,
+> +				       unsigned long end_pfn)
+> +{
+> +	struct mminit_pfnnid_cache nid_init_state = { };
+> +	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+> +	unsigned long nr_free = 0;
+>  
+> -	return nr;
+> +	for (; pfn < end_pfn; pfn++) {
+> +		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+> +			deferred_free_range(pfn - nr_free, nr_free);
+> +			nr_free = 0;
+> +		} else if (!(pfn & nr_pgmask)) {
+> +			deferred_free_range(pfn - nr_free, nr_free);
+> +			nr_free = 1;
+> +			cond_resched();
+> +		} else {
+> +			nr_free++;
+> +		}
+> +	}
+> +	/* Free the last block of pages to allocator */
+> +	deferred_free_range(pfn - nr_free, nr_free);
+>  }
+>  
+> -static unsigned long __init deferred_init_range(int nid, int zid,
+> -						unsigned long start_pfn,
+> -						unsigned long end_pfn)
+> +/*
+> + * Initialize struct pages.  We minimize pfn page lookups and scheduler checks
+> + * by performing it only once every pageblock_nr_pages.
+> + * Return number of pages initialized.
+> + */
+> +static unsigned long  __init deferred_init_pages(int nid, int zid,
+> +						 unsigned long pfn,
+> +						 unsigned long end_pfn)
+>  {
+>  	struct mminit_pfnnid_cache nid_init_state = { };
+>  	unsigned long nr_pgmask = pageblock_nr_pages - 1;
+> -	unsigned long free_base_pfn = 0;
+>  	unsigned long nr_pages = 0;
+> -	unsigned long nr_free = 0;
+>  	struct page *page = NULL;
+> -	unsigned long pfn;
+>  
+> -	/*
+> -	 * First we check if pfn is valid on architectures where it is possible
+> -	 * to have holes within pageblock_nr_pages. On systems where it is not
+> -	 * possible, this function is optimized out.
+> -	 *
+> -	 * Then, we check if a current large page is valid by only checking the
+> -	 * validity of the head pfn.
+> -	 *
+> -	 * meminit_pfn_in_nid is checked on systems where pfns can interleave
+> -	 * within a node: a pfn is between start and end of a node, but does not
+> -	 * belong to this memory node.
+> -	 *
+> -	 * Finally, we minimize pfn page lookups and scheduler checks by
+> -	 * performing it only once every pageblock_nr_pages.
+> -	 *
+> -	 * We do it in two loops: first we initialize struct page, than free to
+> -	 * buddy allocator, becuse while we are freeing pages we can access
+> -	 * pages that are ahead (computing buddy page in __free_one_page()).
+> -	 */
+> -	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+> -		if (!pfn_valid_within(pfn))
+> +	for (; pfn < end_pfn; pfn++) {
+> +		if (!deferred_pfn_valid(nid, pfn, &nid_init_state)) {
+> +			page = NULL;
+>  			continue;
+> -		if ((pfn & nr_pgmask) || pfn_valid(pfn)) {
+> -			if (meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+> -				if (page && (pfn & nr_pgmask))
+> -					page++;
+> -				else
+> -					page = pfn_to_page(pfn);
+> -				__init_single_page(page, pfn, zid, nid);
+> -				cond_resched();
+> -			}
+> -		}
+> -	}
+> -
+> -	page = NULL;
+> -	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+> -		if (!pfn_valid_within(pfn)) {
+> -			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> -		} else if (!(pfn & nr_pgmask) && !pfn_valid(pfn)) {
+> -			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> -		} else if (!meminit_pfn_in_nid(pfn, nid, &nid_init_state)) {
+> -			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> -		} else if (page && (pfn & nr_pgmask)) {
+> -			page++;
+> -			nr_free++;
+> -		} else {
+> -			nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> +		} else if (!page || !(pfn & nr_pgmask)) {
+>  			page = pfn_to_page(pfn);
+> -			free_base_pfn = pfn;
+> -			nr_free = 1;
+>  			cond_resched();
+> +		} else {
+> +			page++;
+>  		}
+> +		__init_single_page(page, pfn, zid, nid);
+> +		nr_pages++;
+>  	}
+> -	/* Free the last block of pages to allocator */
+> -	nr_pages += __def_free(&nr_free, &free_base_pfn, &page);
+> -
+> -	return nr_pages;
+> +	return (nr_pages);
+>  }
+>  
+>  /* Initialise remaining memory on a node */
+> @@ -1582,10 +1577,21 @@ static int __init deferred_init_memmap(v
+>  	}
+>  	first_init_pfn = max(zone->zone_start_pfn, first_init_pfn);
+>  
+> +	/*
+> +	 * Initialize and free pages. We do it in two loops: first we initialize
+> +	 * struct page, than free to buddy allocator, because while we are
+> +	 * freeing pages we can access pages that are ahead (computing buddy
+> +	 * page in __free_one_page()).
+> +	 */
+> +	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+> +		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+> +		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> +		nr_pages += deferred_init_pages(nid, zid, spfn, epfn);
+> +	}
+>  	for_each_free_mem_range(i, nid, MEMBLOCK_NONE, &spa, &epa, NULL) {
+>  		spfn = max_t(unsigned long, first_init_pfn, PFN_UP(spa));
+>  		epfn = min_t(unsigned long, zone_end_pfn(zone), PFN_DOWN(epa));
+> -		nr_pages += deferred_init_range(nid, zid, spfn, epfn);
+> +		deferred_free_pages(nid, zid, spfn, epfn);
+>  	}
+>  
+>  	/* Sanity check that the next zone really is unpopulated */
+> _
 > 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Patches currently in -mm which might be from pasha.tatashin@oracle.com are
+> 
+> mm-relax-deferred-struct-page-requirements.patch
+> mm-split-deferred_init_range-into-initializing-and-freeing-parts.patch
+> sparc64-ng4-memset-32-bits-overflow.patch
 
 -- 
 Michal Hocko
