@@ -1,92 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 437F46B0297
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:32 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 207so17628604pgc.21
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:32 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h123si14355140pgc.417.2017.11.22.16.36.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 22 Nov 2017 16:36:31 -0800 (PST)
-Subject: [PATCH 23/23] x86, kaiser: add Kconfig
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:35:24 -0800
-References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003524.88C90659@viggo.jf.intel.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 82FA56B026D
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 20:34:05 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d86so4346342pfk.19
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 17:34:05 -0800 (PST)
+Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
+        by mx.google.com with ESMTP id 3si8797276plt.771.2017.11.22.17.34.03
+        for <linux-mm@kvack.org>;
+        Wed, 22 Nov 2017 17:34:04 -0800 (PST)
+Date: Thu, 23 Nov 2017 12:25:01 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 00/62] XArray November 2017 Edition
+Message-ID: <20171123012501.GK4094@dastard>
+References: <20171122210739.29916-1-willy@infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171122210739.29916-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>
 
+On Wed, Nov 22, 2017 at 01:06:37PM -0800, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> I've lost count of the number of times I've posted the XArray before,
+> so time for a new numbering scheme.  Here're two earlier versions,
+> https://lkml.org/lkml/2017/3/17/724
+> https://lwn.net/Articles/715948/ (this one's more loquacious in its
+> description of things that are better about the radix tree API than the
+> XArray).
+> 
+> This time around, I've gone for an approach of many small changes.
+> Unfortunately, that means you get 62 moderate patches instead of dozens
+> of big ones.
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Where's the API documentation that tells things like constraints
+about locking and lock-less lookups via RCU?
 
-PARAVIRT generally requires that the kernel not manage its own page
-tables.  It also means that the hypervisor and kernel must agree
-wholeheartedly about what format the page tables are in and what
-they contain.  KAISER, unfortunately, changes the rules and they
-can not be used together.
+e.g. I notice in the XFS patches you seem to randomly strip out
+rcu_read_lock/unlock() pairs that are currently around radix tree
+lookup operations without explanation. Without documentation
+describing how this stuff is supposed to work, review is somewhat
+difficult...
 
-I've seen conflicting feedback from maintainers lately about whether
-they want the Kconfig magic to go first or last in a patch series.
-It's going last here because the partially-applied series leads to
-kernels that can not boot in a bunch of cases.  I did a run through
-the entire series with CONFIG_KAISER=y to look for build errors,
-though.
+Cheers,
 
-Note from Hugh Dickins on why it depends on SMP:
-
-	It is absurd that KAISER should depend on SMP, but
-	apparently nobody has tried a UP build before: which
-	breaks on implicit declaration of function
-	'per_cpu_offset' in arch/x86/mm/kaiser.c.
-
-	Now, you would expect that to be trivially fixed up; but
-	looking at the System.map when that block is #ifdef'ed
-	out of kaiser_init(), I see that in a UP build
-	__per_cpu_user_mapped_end is precisely at
-	__per_cpu_user_mapped_start, and the items carefully
-	gathered into that section for user-mapping on SMP,
-	dispersed elsewhere on UP.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: x86@kernel.org
----
-
- b/security/Kconfig |   10 ++++++++++
- 1 file changed, 10 insertions(+)
-
-diff -puN security/Kconfig~kaiser-kconfig security/Kconfig
---- a/security/Kconfig~kaiser-kconfig	2017-11-22 15:46:24.395619651 -0800
-+++ b/security/Kconfig	2017-11-22 15:46:24.398619651 -0800
-@@ -54,6 +54,16 @@ config SECURITY_NETWORK
- 	  implement socket and networking access controls.
- 	  If you are unsure how to answer this question, answer N.
- 
-+config KAISER
-+	bool "Remove the kernel mapping in user mode"
-+	depends on X86_64 && SMP && !PARAVIRT
-+	help
-+	  This feature reduces the number of hardware side channels by
-+	  ensuring that the majority of kernel addresses are not mapped
-+	  into userspace.
-+
-+	  See Documentation/x86/kaiser.txt for more details.
-+
- config SECURITY_INFINIBAND
- 	bool "Infiniband Security Hooks"
- 	depends on SECURITY && INFINIBAND
-_
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
