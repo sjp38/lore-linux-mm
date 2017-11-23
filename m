@@ -1,57 +1,279 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EA7E6B026D
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:43:30 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id r55so9883716otc.23
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:43:30 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p1si8119305otp.471.2017.11.23.02.43.29
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53C876B026F
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:44:27 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id y85so4586427lfk.15
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:44:27 -0800 (PST)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id y63si6430461lfg.633.2017.11.23.02.44.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 02:43:29 -0800 (PST)
-Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
-References: <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
- <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
- <20171122203907.GI4094@dastard>
- <201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
- <2178e42e-9600-4f9a-4b91-22d2ba6f98c0@redhat.com>
- <201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Message-ID: <83429cb3-4962-4a16-793e-42483a843c75@redhat.com>
-Date: Thu, 23 Nov 2017 11:43:21 +0100
+        Thu, 23 Nov 2017 02:44:25 -0800 (PST)
+From: <peter.enderborg@sony.com>
+Subject: [PATCH] Add slowpath enter/exit trace events
+Date: Thu, 23 Nov 2017 11:43:36 +0100
+Message-ID: <20171123104336.25855-1-peter.enderborg@sony.com>
 MIME-Version: 1.0
-In-Reply-To: <201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: david@fromorbit.com, mhocko@kernel.org, akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
+To: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Peter Enderborg <peter.enderborg@sony.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On 23/11/2017 10:56, Tetsuo Handa wrote:
-> Paolo Bonzini wrote:
->> On 23/11/2017 07:34, Tetsuo Handa wrote:
->>>> Just fix the numa aware shrinkers, as they are the only ones that
->>>> will have this problem. There are only 6 of them, and only the 3
->>>> that existed at the time that register_shrinker() was changed to
->>>> return an error fail to check for an error. i.e. the superblock
->>>> shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
->>>
->>> You are assuming the "too small to fail" memory-allocation rule
->>> by ignoring that this problem is caused by fault injection.
->>
->> Fault injection should also obey the too small to fail rule, at least by
->> default.
-> 
-> Pardon? Most allocation requests in the kernel are <= 32KB.
-> Such change makes fault injection useless. ;-)
+From: Peter Enderborg <peter.enderborg@sony.com>
 
-But if these calls are "too small to fail", you are injecting a fault on
-something that cannot fail anyway.  Unless you're aiming at removing
-"too small to fail", then I understand.
+The warning of slow allocation has been removed, this is
+a other way to fetch that information. But you need
+to enable the trace. The exit function also returns
+information about the number of retries, how long
+it was stalled and failure reason if that happened.
 
-Paolo
+Signed-off-by: Peter Enderborg <peter.enderborg@sony.com>
+---
+ include/trace/events/kmem.h | 68 +++++++++++++++++++++++++++++++++++++++++++++
+ mm/page_alloc.c             | 62 +++++++++++++++++++++++++++++++----------
+ 2 files changed, 116 insertions(+), 14 deletions(-)
+
+diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+index eb57e30..bb882ca 100644
+--- a/include/trace/events/kmem.h
++++ b/include/trace/events/kmem.h
+@@ -315,6 +315,74 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+ 		__entry->change_ownership)
+ );
+ 
++TRACE_EVENT(mm_page_alloc_slowpath_enter,
++
++	TP_PROTO(int alloc_order,
++		nodemask_t *nodemask,
++		gfp_t gfp_flags),
++
++	TP_ARGS(alloc_order, nodemask, gfp_flags),
++
++	TP_STRUCT__entry(
++		__field(int, alloc_order)
++		__field(nodemask_t *, nodemask)
++		__field(gfp_t, gfp_flags)
++	 ),
++
++	 TP_fast_assign(
++		__entry->alloc_order		= alloc_order;
++		__entry->nodemask		= nodemask;
++		__entry->gfp_flags		= gfp_flags;
++	 ),
++
++	 TP_printk("alloc_order=%d nodemask=%*pbl gfp_flags=%s",
++		__entry->alloc_order,
++		nodemask_pr_args(__entry->nodemask),
++		show_gfp_flags(__entry->gfp_flags))
++);
++
++TRACE_EVENT(mm_page_alloc_slowpath_exit,
++
++	TP_PROTO(struct page *page,
++		int alloc_order,
++		nodemask_t *nodemask,
++		u64 alloc_start,
++		gfp_t gfp_flags,
++		int retrys,
++		int exit),
++
++	TP_ARGS(page, alloc_order, nodemask, alloc_start, gfp_flags,
++		retrys, exit),
++
++	TP_STRUCT__entry(__field(struct page *, page)
++		__field(int, alloc_order)
++		__field(nodemask_t *, nodemask)
++		__field(u64, msdelay)
++		__field(gfp_t, gfp_flags)
++		__field(int, retrys)
++		__field(int, exit)
++	),
++
++	TP_fast_assign(
++		__entry->page	     = page;
++		__entry->alloc_order = alloc_order;
++		__entry->nodemask    = nodemask;
++		__entry->msdelay     = jiffies_to_msecs(jiffies-alloc_start);
++		__entry->gfp_flags   = gfp_flags;
++		__entry->retrys	     = retrys;
++		__entry->exit	     = exit;
++	),
++
++	TP_printk("page=%p alloc_order=%d nodemask=%*pbl msdelay=%llu gfp_flags=%s retrys=%d exit=%d",
++		__entry->page,
++		__entry->alloc_order,
++		nodemask_pr_args(__entry->nodemask),
++		__entry->msdelay,
++		show_gfp_flags(__entry->gfp_flags),
++		__entry->retrys,
++		__entry->exit)
++);
++
+ #endif /* _TRACE_KMEM_H */
+ 
+ /* This part must be outside protection */
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 48b5b01..bae9cb9 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -104,6 +104,17 @@ DEFINE_PER_CPU(struct work_struct, pcpu_drain);
+ volatile unsigned long latent_entropy __latent_entropy;
+ EXPORT_SYMBOL(latent_entropy);
+ #endif
++enum slowpath_exit {
++	SLOWPATH_NOZONE = -16,
++	SLOWPATH_COMPACT_DEFERRED,
++	SLOWPATH_CAN_NOT_DIRECT_RECLAIM,
++	SLOWPATH_RECURSION,
++	SLOWPATH_NO_RETRY,
++	SLOWPATH_COSTLY_ORDER,
++	SLOWPATH_OOM_VICTIM,
++	SLOWPATH_NO_DIRECT_RECLAIM,
++	SLOWPATH_ORDER
++};
+ 
+ /*
+  * Array of node states.
+@@ -3908,8 +3919,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	enum compact_result compact_result;
+ 	int compaction_retries;
+ 	int no_progress_loops;
++	unsigned long alloc_start = jiffies;
+ 	unsigned int cpuset_mems_cookie;
+ 	int reserve_flags;
++	enum slowpath_exit slowpath_exit;
++	int retry_count = 0;
++
++	trace_mm_page_alloc_slowpath_enter(order,
++		ac->nodemask,
++		gfp_mask);
+ 
+ 	/*
+ 	 * In the slowpath, we sanity check order to avoid ever trying to
+@@ -3919,7 +3937,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	if (order >= MAX_ORDER) {
+ 		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+-		return NULL;
++		slowpath_exit = SLOWPATH_ORDER;
++		goto fail;
+ 	}
+ 
+ 	/*
+@@ -3951,8 +3970,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	 */
+ 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+ 					ac->high_zoneidx, ac->nodemask);
+-	if (!ac->preferred_zoneref->zone)
++	if (!ac->preferred_zoneref->zone) {
++		slowpath_exit = SLOWPATH_NOZONE;
+ 		goto nopage;
++	}
+ 
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+@@ -3998,8 +4019,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 			 * system, so we fail the allocation instead of entering
+ 			 * direct reclaim.
+ 			 */
+-			if (compact_result == COMPACT_DEFERRED)
++			if (compact_result == COMPACT_DEFERRED) {
++				slowpath_exit = SLOWPATH_COMPACT_DEFERRED;
+ 				goto nopage;
++			}
+ 
+ 			/*
+ 			 * Looks like reclaim/compaction is worth trying, but
+@@ -4011,6 +4034,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	}
+ 
+ retry:
++	retry_count++;
+ 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+ 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+ 		wake_all_kswapds(order, ac);
+@@ -4036,13 +4060,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto got_pg;
+ 
+ 	/* Caller is not willing to reclaim, we can't balance anything */
+-	if (!can_direct_reclaim)
++	if (!can_direct_reclaim) {
++		slowpath_exit = SLOWPATH_CAN_NOT_DIRECT_RECLAIM;
+ 		goto nopage;
++	}
+ 
+ 	/* Avoid recursion of direct reclaim */
+-	if (current->flags & PF_MEMALLOC)
++	if (current->flags & PF_MEMALLOC) {
++		slowpath_exit = SLOWPATH_RECURSION;
+ 		goto nopage;
+-
++	}
+ 	/* Try direct reclaim and then allocating */
+ 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+ 							&did_some_progress);
+@@ -4056,16 +4083,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		goto got_pg;
+ 
+ 	/* Do not loop if specifically requested */
+-	if (gfp_mask & __GFP_NORETRY)
++	if (gfp_mask & __GFP_NORETRY) {
++		slowpath_exit = SLOWPATH_NO_RETRY;
+ 		goto nopage;
+-
++	}
+ 	/*
+ 	 * Do not retry costly high order allocations unless they are
+ 	 * __GFP_RETRY_MAYFAIL
+ 	 */
+-	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL))
++	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL)) {
++		slowpath_exit = SLOWPATH_COSTLY_ORDER;
+ 		goto nopage;
+-
++	}
+ 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+ 				 did_some_progress > 0, &no_progress_loops))
+ 		goto retry;
+@@ -4095,9 +4124,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	/* Avoid allocations with no watermarks from looping endlessly */
+ 	if (tsk_is_oom_victim(current) &&
+ 	    (alloc_flags == ALLOC_OOM ||
+-	     (gfp_mask & __GFP_NOMEMALLOC)))
++	     (gfp_mask & __GFP_NOMEMALLOC))) {
++		slowpath_exit = SLOWPATH_OOM_VICTIM;
+ 		goto nopage;
+-
++	}
+ 	/* Retry as long as the OOM killer is making progress */
+ 	if (did_some_progress) {
+ 		no_progress_loops = 0;
+@@ -4118,9 +4148,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+ 		 * of any new users that actually require GFP_NOWAIT
+ 		 */
+-		if (WARN_ON_ONCE(!can_direct_reclaim))
++		if (WARN_ON_ONCE(!can_direct_reclaim)) {
++			slowpath_exit = SLOWPATH_NO_DIRECT_RECLAIM;
+ 			goto fail;
+-
++		}
+ 		/*
+ 		 * PF_MEMALLOC request from this context is rather bizarre
+ 		 * because we cannot reclaim anything and only can loop waiting
+@@ -4153,6 +4184,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+ 	warn_alloc(gfp_mask, ac->nodemask,
+ 			"page allocation failure: order:%u", order);
+ got_pg:
++	trace_mm_page_alloc_slowpath_exit(page, order, ac->nodemask,
++		alloc_start, gfp_mask, retry_count, slowpath_exit);
++
+ 	return page;
+ }
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
