@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 836346B0038
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:21:51 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id p65so2302219wma.1
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:21:51 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k12si843581edd.18.2017.11.23.01.21.50
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 155C66B0069
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:22:02 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id g10so2961165oia.8
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 01:22:02 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j28si8116576otb.336.2017.11.23.01.22.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 01:21:50 -0800 (PST)
-Date: Thu, 23 Nov 2017 10:21:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: hugetlb page migration vs. overcommit
-Message-ID: <20171123092149.tnfl2dcswg2iv3s3@dhcp22.suse.cz>
-References: <20171122152832.iayefrlxbugphorp@dhcp22.suse.cz>
- <91969714-5256-e96f-a48b-43af756a2686@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 23 Nov 2017 01:22:01 -0800 (PST)
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+References: <1511265757-15563-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171121134007.466815aa4a0562eaaa223cbf@linux-foundation.org>
+ <201711220709.JJJ12483.MtFOOJFHOLQSVF@I-love.SAKURA.ne.jp>
+ <201711221953.IDJ12440.OQLtFVOJFMSHFO@I-love.SAKURA.ne.jp>
+ <20171122203907.GI4094@dastard>
+ <201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <2178e42e-9600-4f9a-4b91-22d2ba6f98c0@redhat.com>
+Date: Thu, 23 Nov 2017 10:21:52 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <91969714-5256-e96f-a48b-43af756a2686@oracle.com>
+In-Reply-To: <201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, david@fromorbit.com, mhocko@kernel.org
+Cc: akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
 
-On Wed 22-11-17 11:11:38, Mike Kravetz wrote:
-> On 11/22/2017 07:28 AM, Michal Hocko wrote:
-[...]
-> > Why don't we simply migrate as long as we are able to allocate the
-> > target hugetlb page? I have a half baked patch to remove this
-> > restriction, would there be an opposition to do something like that?
-> 
-> I would not be opposed and would help with this effort.  My concern would
-> be any subtle hugetlb accounting issues once you start messing with
-> additional overcommit pages.
+On 23/11/2017 07:34, Tetsuo Handa wrote:
+>> Just fix the numa aware shrinkers, as they are the only ones that
+>> will have this problem. There are only 6 of them, and only the 3
+>> that existed at the time that register_shrinker() was changed to
+>> return an error fail to check for an error. i.e. the superblock
+>> shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
+>
+> You are assuming the "too small to fail" memory-allocation rule
+> by ignoring that this problem is caused by fault injection.
 
-Well my current (crude) patch checks for overcommit in the destructor
-and releases the page if we are over. That should deal with accounting
-AFAICS.
--- 
-Michal Hocko
-SUSE Labs
+Fault injection should also obey the too small to fail rule, at least by
+default.
+
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
