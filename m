@@ -1,100 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D7C6B0069
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:09:18 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f6so331191pfe.16
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:09:18 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id x5si15868818pgb.437.2017.11.23.07.09.17
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 85F146B0253
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:09:51 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id o60so12210239wrc.14
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:09:51 -0800 (PST)
+Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
+        by mx.google.com with ESMTPS id a54si1854102edc.11.2017.11.23.07.09.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 07:09:17 -0800 (PST)
-Subject: Re: MPK: removing a pkey
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
- <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
- <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
- <9ec19ff3-86f6-7cfe-1a07-1ab1c5d9882c@redhat.com>
- <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
- <28f6e430-293d-4b30-dce6-018a2b3c03e8@redhat.com>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <39ea6607-a013-bd18-b478-3f44fb17caa4@linux.intel.com>
-Date: Thu, 23 Nov 2017 07:09:13 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 07:09:50 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail05.blacknight.ie [81.17.254.26])
+	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id EEC83B909D
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 15:09:49 +0000 (GMT)
+Date: Thu, 23 Nov 2017 15:09:49 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] Add slowpath enter/exit trace events
+Message-ID: <20171123150949.ccca6mvcwp74v4iy@techsingularity.net>
+References: <20171123104336.25855-1-peter.enderborg@sony.com>
+ <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
+ <20171123133629.5sgmapfg7gix7pu3@techsingularity.net>
+ <20171123140127.7z5z6awj2ti6lozh@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <28f6e430-293d-4b30-dce6-018a2b3c03e8@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20171123140127.7z5z6awj2ti6lozh@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, Vlastimil Babka <vbabka@suse.cz>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: peter.enderborg@sony.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-On 11/23/2017 04:38 AM, Florian Weimer wrote:
-> On 11/22/2017 05:32 PM, Dave Hansen wrote:
->> On 11/22/2017 08:21 AM, Florian Weimer wrote:
->>> On 11/22/2017 05:10 PM, Dave Hansen wrote:
->>>> On 11/22/2017 04:15 AM, Florian Weimer wrote:
->>>>> On 11/22/2017 09:18 AM, Vlastimil Babka wrote:
->>>>>> And, was the pkey == -1 internal wiring supposed to be exposed to the
->>>>>> pkey_mprotect() signal, or should there have been a pre-check
->>>>>> returning
->>>>>> EINVAL in SYSCALL_DEFINE4(pkey_mprotect), before calling
->>>>>> do_mprotect_pkey())? I assume it's too late to change it now
->>>>>> anyway (or
->>>>>> not?), so should we also document it?
->>>>>
->>>>> I think the -1 case to the set the default key is useful because it
->>>>> allows you to use a key value of -1 to mean a??MPK is not supporteda??,
->>>>> and
->>>>> still call pkey_mprotect.
->>>>
->>>> The behavior to not allow 0 to be set was unintentional and is a bug.
->>>> We should fix that.
->>>
->>> On the other hand, x86-64 has no single default protection key due to
->>> the PROT_EXEC emulation.
->>
->> No, the default is clearly 0 and documented to be so.A  The PROT_EXEC
->> emulation one should be inaccessible in all the APIs so does not even
->> show up as *being* a key in the API.
-
-I should have been more explicit: the EXEC pkey does not show up in the
-syscall API.
-
-> I see key 1 in /proc for a PROT_EXEC mapping.A  If I supply an explicit
-> protection key, that key is used, and the page ends up having read
-> access enabled.
+On Thu, Nov 23, 2017 at 03:01:27PM +0100, Michal Hocko wrote:
+> On Thu 23-11-17 13:36:29, Mel Gorman wrote:
+> > On Thu, Nov 23, 2017 at 01:25:30PM +0100, Michal Hocko wrote:
+> > > On Thu 23-11-17 11:43:36, peter.enderborg@sony.com wrote:
+> > > > From: Peter Enderborg <peter.enderborg@sony.com>
+> > > > 
+> > > > The warning of slow allocation has been removed, this is
+> > > > a other way to fetch that information. But you need
+> > > > to enable the trace. The exit function also returns
+> > > > information about the number of retries, how long
+> > > > it was stalled and failure reason if that happened.
+> > > 
+> > > I think this is just too excessive. We already have a tracepoint for the
+> > > allocation exit. All we need is an entry to have a base to compare with.
+> > > Another usecase would be to measure allocation latency. Information you
+> > > are adding can be (partially) covered by existing tracepoints.
+> > > 
+> > 
+> > You can gather that by simply adding a probe to __alloc_pages_slowpath
+> > (like what perf probe does) and matching the trigger with the existing
+> > mm_page_alloc points.
 > 
-> The key is also visible in the siginfo_t argument on read access to a
-> PROT_EXEC mapping with the default key, so it's not just /proc:
+> I am not sure adding a probe on a production system will fly in many
+> cases.
+
+Not sure why not considering that the final mechanism is very similar.
+
+> A static tracepoint would be much easier in that case.
+
+Sure, but if it's only really latencies that are a concern then a probe
+would do the job without backports. 
+
+> But I
+> agree there are other means to accomplish the same thing. My main point
+> was to have an easy out-of-the-box way to check latencies. But that is
+> not something I would really insist on.
 > 
-> page 1 (0x7f008242d000): read access denied
-> A  SIGSEGV address: 0x7f008242d000
-> A  SIGSEGV code: 4
-> A  SIGSEGV key: 1
-> 
-> I'm attaching my test.
 
-Yes, it is exposed there.  But, as a non-allocated pkey, the intention
-in the kernel was to make sure that it could not be passed to the syscalls.
+An entry tracepoint is enough for just latencies by punting the analysis
+to userspace and state tracking to either systemtap or userspace. If
+userspace then it would need to never malloc once analysis starts and be
+mlocked.
 
-If that behavior is broken, we should probably fix it.
-
->> The fact that it's implemented
->> with pkeys should be pretty immaterial other than the fact that you
->> can't touch the high bits in PKRU.
-> 
-> I don't see a restriction for PKRU updates.A  If I write zero to the PKRU
-> register, PROT_EXEC implies PROT_READ, as I would expect.
-
-I'll rephrase:
-	
-	The fact that it's implemented with pkeys should be pretty
-	immaterial other than the fact that you must not touch the bits
-	controlling PROT_EXEC in PKRU if you want to keep it working.
-
-There is no restriction which is *enforced*.  It's just documented.
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
