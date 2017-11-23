@@ -1,49 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 991CD6B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:00:37 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id f6so305207pfe.16
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:00:37 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id j1si16331455pgc.771.2017.11.23.07.00.36
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E566B0069
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 10:02:45 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id s28so17197112pfg.6
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:02:45 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id bg3si13071568plb.167.2017.11.23.07.02.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 07:00:36 -0800 (PST)
-Subject: Re: MPK: removing a pkey
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
- <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
- <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
- <9ec19ff3-86f6-7cfe-1a07-1ab1c5d9882c@redhat.com>
- <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
- <de93997a-7802-96cf-62e2-e59416e745ca@suse.cz>
+        Thu, 23 Nov 2017 07:02:44 -0800 (PST)
+Subject: Re: [PATCH 00/23] [v4] KAISER: unmap most of the kernel from
+ userspace page tables
+References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
+ <20171123072742.ouswjlvevpuincgx@gmail.com>
+ <20171123073254.vafflgq253mhppy5@gmail.com>
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <17831167-7142-d42a-c7a0-59bdc8bbb786@linux.intel.com>
-Date: Thu, 23 Nov 2017 07:00:32 -0800
+Message-ID: <2d07acca-48ca-a71d-c5e5-99ab309f2870@linux.intel.com>
+Date: Thu, 23 Nov 2017 07:02:40 -0800
 MIME-Version: 1.0
-In-Reply-To: <de93997a-7802-96cf-62e2-e59416e745ca@suse.cz>
+In-Reply-To: <20171123073254.vafflgq253mhppy5@gmail.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org, jgross@suse.com
 
-On 11/23/2017 12:11 AM, Vlastimil Babka wrote:
->> No, the default is clearly 0 and documented to be so.  The PROT_EXEC
->> emulation one should be inaccessible in all the APIs so does not even
->> show up as *being* a key in the API.  The fact that it's implemented
->> with pkeys should be pretty immaterial other than the fact that you
->> can't touch the high bits in PKRU.
-> So, just to be sure, if we call pkey_mprotect() with 0, will it blindly
-> set 0, or the result of arch_override_mprotect_pkey() (thus equivalent
-> to call with -1) ? I assume the latter?
+On 11/22/2017 11:32 PM, Ingo Molnar wrote:
+> diff --git a/arch/x86/events/intel/ds.c b/arch/x86/events/intel/ds.c
+> index c9f44d7ce838..61388b01962d 100644
+> --- a/arch/x86/events/intel/ds.c
+> +++ b/arch/x86/events/intel/ds.c
+> @@ -3,7 +3,7 @@
+>  #include <linux/types.h>
+>  #include <linux/slab.h>
+>  
+> -#include <asm/kaiser.h>
+> +#include <linux/kaiser.h>
+>  #include <asm/perf_event.h>
+>  #include <asm/insn.h>
 
-It's supposed to set 0.
+Yes, that looks like the correct fix on both counts.
 
--1 was, as far as I remember, an internal-to-the-kernel-only thing to
-tell us that a key came from *mprotect()* instead of pkey_mprotect().
+Please let me know if you would like an updated series to fix these,
+either in email or a git tree.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
