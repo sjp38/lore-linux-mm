@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E321A6B0286
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:15 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 82so15862052pfp.5
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:15 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 07B1D6B0289
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:36:16 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 192so17551240pgd.18
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 16:36:16 -0800 (PST)
 Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id f66si16032162pfc.315.2017.11.22.16.36.14
+        by mx.google.com with ESMTPS id v39si14589333pgn.809.2017.11.22.16.36.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 22 Nov 2017 16:36:14 -0800 (PST)
-Subject: [PATCH 15/23] x86, mm: put mmu-to-h/w ASID translation in one place
+Subject: [PATCH 13/23] x86, mm: Move CR3 construction functions
 From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Wed, 22 Nov 2017 16:35:06 -0800
+Date: Wed, 22 Nov 2017 16:35:02 -0800
 References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
 In-Reply-To: <20171123003438.48A0EEDE@viggo.jf.intel.com>
-Message-Id: <20171123003506.67E81D7F@viggo.jf.intel.com>
+Message-Id: <20171123003502.CC87BF47@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
@@ -23,14 +23,14 @@ Cc: linux-mm@kvack.org, dave.hansen@linux.intel.com, moritz.lipp@iaik.tugraz.at,
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-There are effectively two ASID types:
-1. The one stored in the mmu_context that goes from 0->5
-2. The one programmed into the hardware that goes from 1->6
+For flushing the TLB, the ASID which has been programmed into the
+hardware must be known.  That differs from what is in 'cpu_tlbstate'.
 
-This consolidates the locations where converting beween the two
-(by doing +1) to a single place which gives us a nice place to
-comment.  KAISER will also need to, given an ASID, know which
-hardware ASID to flush for the userspace mapping.
+Add functions to transform the 'cpu_tlbstate' values into to the one
+programmed into the hardware (CR3).
+
+It's not easy to include mmu_context.h into tlbflush.h, so just move
+the CR3 building over to tlbflush.h.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
@@ -44,17 +44,18 @@ Cc: Hugh Dickins <hughd@google.com>
 Cc: x86@kernel.org
 ---
 
- b/arch/x86/include/asm/tlbflush.h |   30 ++++++++++++++++++------------
- 1 file changed, 18 insertions(+), 12 deletions(-)
+ b/arch/x86/include/asm/mmu_context.h |   29 +----------------------------
+ b/arch/x86/include/asm/tlbflush.h    |   27 +++++++++++++++++++++++++++
+ b/arch/x86/mm/tlb.c                  |    8 ++++----
+ 3 files changed, 32 insertions(+), 32 deletions(-)
 
-diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern arch/x86/include/asm/tlbflush.h
---- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern	2017-11-22 15:45:52.346619731 -0800
-+++ b/arch/x86/include/asm/tlbflush.h	2017-11-22 15:45:52.350619731 -0800
-@@ -88,21 +88,26 @@ static inline u64 inc_mm_tlb_gen(struct
-  */
- #define MAX_ASID_AVAILABLE ((1<<CR3_AVAIL_ASID_BITS) - 2)
+diff -puN arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/mmu_context.h
+--- a/arch/x86/include/asm/mmu_context.h~kaiser-pcid-pre-build-func-move	2017-11-22 15:45:51.231619733 -0800
++++ b/arch/x86/include/asm/mmu_context.h	2017-11-22 15:45:51.238619733 -0800
+@@ -282,33 +282,6 @@ static inline bool arch_vma_access_permi
+ }
  
--/*
+ /*
 - * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
 - * bits.  This serves two purposes.  It prevents a nasty situation in
 - * which PCID-unaware code saves CR3, loads some other value (with PCID
@@ -63,41 +64,113 @@ diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-kern arch/x86/in
 - * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
 - * deterministically.
 - */
-+static inline u16 kern_asid(u16 asid)
-+{
-+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-+	/*
-+	 * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
-+	 * bits.  This serves two purposes.  It prevents a nasty situation in
-+	 * which PCID-unaware code saves CR3, loads some other value (with PCID
-+	 * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
-+	 * the saved ASID was nonzero.  It also means that any bugs involving
-+	 * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
-+	 * deterministically.
-+	 */
-+	return asid + 1;
-+}
-+
- struct pgd_t;
- static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+-
+-static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+-{
+-	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
+-		return __sme_pa(mm->pgd) | (asid + 1);
+-	} else {
+-		VM_WARN_ON_ONCE(asid != 0);
+-		return __sme_pa(mm->pgd);
+-	}
+-}
+-
+-static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+-{
+-	VM_WARN_ON_ONCE(asid > 4094);
+-	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
+-}
+-
+-/*
+  * This can be used from process context to figure out what the value of
+  * CR3 is without needing to do a (slow) __read_cr3().
+  *
+@@ -317,7 +290,7 @@ static inline unsigned long build_cr3_no
+  */
+ static inline unsigned long __get_current_cr3_fast(void)
  {
- 	if (static_cpu_has(X86_FEATURE_PCID)) {
--		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
--		return __sme_pa(pgd) | (asid + 1);
-+		return __sme_pa(pgd) | kern_asid(asid);
- 	} else {
- 		VM_WARN_ON_ONCE(asid != 0);
- 		return __sme_pa(pgd);
-@@ -112,7 +117,8 @@ static inline unsigned long build_cr3(pg
- static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
- {
- 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
--	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
-+	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
-+	return __sme_pa(pgd) | kern_asid(asid) | CR3_NOFLUSH;
+-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
++	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
+ 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
+ 
+ 	/* For now, be very restrictive about when this can be called. */
+diff -puN arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move arch/x86/include/asm/tlbflush.h
+--- a/arch/x86/include/asm/tlbflush.h~kaiser-pcid-pre-build-func-move	2017-11-22 15:45:51.233619733 -0800
++++ b/arch/x86/include/asm/tlbflush.h	2017-11-22 15:45:51.238619733 -0800
+@@ -75,6 +75,33 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return new_tlb_gen;
  }
  
++/*
++ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
++ * bits.  This serves two purposes.  It prevents a nasty situation in
++ * which PCID-unaware code saves CR3, loads some other value (with PCID
++ * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
++ * the saved ASID was nonzero.  It also means that any bugs involving
++ * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
++ * deterministically.
++ */
++struct pgd_t;
++static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
++{
++	if (static_cpu_has(X86_FEATURE_PCID)) {
++		VM_WARN_ON_ONCE(asid > 4094);
++		return __sme_pa(pgd) | (asid + 1);
++	} else {
++		VM_WARN_ON_ONCE(asid != 0);
++		return __sme_pa(pgd);
++	}
++}
++
++static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
++{
++	VM_WARN_ON_ONCE(asid > 4094);
++	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++}
++
  #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #else
+diff -puN arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~kaiser-pcid-pre-build-func-move	2017-11-22 15:45:51.235619733 -0800
++++ b/arch/x86/mm/tlb.c	2017-11-22 15:45:51.239619733 -0800
+@@ -128,7 +128,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 	 * isn't free.
+ 	 */
+ #ifdef CONFIG_DEBUG_VM
+-	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
++	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev->pgd, prev_asid))) {
+ 		/*
+ 		 * If we were to BUG here, we'd be very likely to kill
+ 		 * the system so hard that we don't see the call trace.
+@@ -195,7 +195,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 		if (need_flush) {
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+-			write_cr3(build_cr3(next, new_asid));
++			write_cr3(build_cr3(next->pgd, new_asid));
+ 
+ 			/*
+ 			 * NB: This gets called via leave_mm() in the idle path
+@@ -208,7 +208,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 		} else {
+ 			/* The new ASID is already up to date. */
+-			write_cr3(build_cr3_noflush(next, new_asid));
++			write_cr3(build_cr3_noflush(next->pgd, new_asid));
+ 
+ 			/* See above wrt _rcuidle. */
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+@@ -288,7 +288,7 @@ void initialize_tlbstate_and_flush(void)
+ 		!(cr4_read_shadow() & X86_CR4_PCIDE));
+ 
+ 	/* Force ASID 0 and force a TLB flush. */
+-	write_cr3(build_cr3(mm, 0));
++	write_cr3(build_cr3(mm->pgd, 0));
+ 
+ 	/* Reinitialize tlbstate. */
+ 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
 _
 
 --
