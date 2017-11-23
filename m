@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 90D1B6B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 18:29:23 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 190so20073607pgh.16
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 15:29:23 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id a33si8722082pla.26.2017.11.23.15.29.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 15:29:22 -0800 (PST)
-Subject: Re: MPK: removing a pkey
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
- <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
- <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
- <9ec19ff3-86f6-7cfe-1a07-1ab1c5d9882c@redhat.com>
- <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
- <de93997a-7802-96cf-62e2-e59416e745ca@suse.cz>
- <17831167-7142-d42a-c7a0-59bdc8bbb786@linux.intel.com>
- <2d12777f-615a-8101-2156-cf861ec13aa7@suse.cz>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <8051353f-47d3-37a4-a402-41adc8b6eb88@linux.intel.com>
-Date: Thu, 23 Nov 2017 15:29:20 -0800
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BDD6D6B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 18:46:28 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q187so3833271pga.6
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 15:46:28 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id m39si17361960plg.464.2017.11.23.15.46.26
+        for <linux-mm@kvack.org>;
+        Thu, 23 Nov 2017 15:46:27 -0800 (PST)
+Date: Fri, 24 Nov 2017 08:46:26 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH 1/2] mm,vmscan: Kill global shrinker lock.
+Message-ID: <20171123234626.GA19756@bbox>
+References: <1510609063-3327-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171115005602.GB23810@bbox>
+ <20171116174422.GC26475@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <2d12777f-615a-8101-2156-cf861ec13aa7@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171116174422.GC26475@cmpxchg.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Florian Weimer <fweimer@redhat.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Huang Ying <ying.huang@intel.com>, Mel Gorman <mgorman@techsingularity.net>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/23/2017 01:42 PM, Vlastimil Babka wrote:
->> It's supposed to set 0.
->>
->> -1 was, as far as I remember, an internal-to-the-kernel-only thing to
->> tell us that a key came from *mprotect()* instead of pkey_mprotect().
-> So, pkey_mprotect(..., 0) will set it to 0, regardless of PROT_EXEC.
-
-Although weird, the thought here was that pkey_mprotect() callers are
-new and should know about the interactions with PROT_EXEC.  They can
-also *get* PROT_EXEC semantics if they want.
-
-The only wart here is if you do:
-
-	mprotect(..., PROT_EXEC); // key 10 is now the PROT_EXEC key
-	pkey_mprotect(..., PROT_EXEC, key=3);
-
-I'm not sure what this does.  We should probably ensure that it returns
-an error.
-
-> pkey_mprotect(..., -1) or mprotect() will set it to 0-or-PROT_EXEC-pkey.
+On Thu, Nov 16, 2017 at 12:44:22PM -0500, Johannes Weiner wrote:
+> On Wed, Nov 15, 2017 at 09:56:02AM +0900, Minchan Kim wrote:
+> > @@ -498,6 +498,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+> >  			sc.nid = 0;
+> >  
+> >  		freed += do_shrink_slab(&sc, shrinker, nr_scanned, nr_eligible);
+> > +		/*
+> > +		 * bail out if someone want to register a new shrinker to prevent
+> > +		 * long time stall by parallel ongoing shrinking.
+> > +		 */
+> > +		if (rwsem_is_contended(&shrinker_rwsem)) {
+> > +			freed = 1;
+> > +			break;
+> > +		}
+> >  	}
 > 
-> Can't shake the feeling that it's somewhat weird, but I guess it's
-> flexible at least. So just has to be well documented.
+> When you send the formal version, please include
+> 
+> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
-It *is* weird.  But, layering on top of legacy APIs are often weird.  I
-would have been open to other sane, but less weird ways to do it a year
-ago. :)
+Thanks for the review, Johannes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
