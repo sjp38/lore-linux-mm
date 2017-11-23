@@ -1,279 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 53C876B026F
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:44:27 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id y85so4586427lfk.15
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:44:27 -0800 (PST)
-Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
-        by mx.google.com with ESMTPS id y63si6430461lfg.633.2017.11.23.02.44.25
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3473B6B0271
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:47:55 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id v8so11742153wrd.21
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:47:55 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id a15si4808530wmg.202.2017.11.23.02.47.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 02:44:25 -0800 (PST)
-From: <peter.enderborg@sony.com>
-Subject: [PATCH] Add slowpath enter/exit trace events
-Date: Thu, 23 Nov 2017 11:43:36 +0100
-Message-ID: <20171123104336.25855-1-peter.enderborg@sony.com>
+        Thu, 23 Nov 2017 02:47:54 -0800 (PST)
+Date: Thu, 23 Nov 2017 11:47:52 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
+ page tables
+Message-ID: <20171123104752.GB17990@amd>
+References: <20171031223146.6B47C861@viggo.jf.intel.com>
+ <20171122161907.GA12684@amd>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="9zSXsLTf0vkW971A"
+Content-Disposition: inline
+In-Reply-To: <20171122161907.GA12684@amd>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Peter Enderborg <peter.enderborg@sony.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-From: Peter Enderborg <peter.enderborg@sony.com>
 
-The warning of slow allocation has been removed, this is
-a other way to fetch that information. But you need
-to enable the trace. The exit function also returns
-information about the number of retries, how long
-it was stalled and failure reason if that happened.
+--9zSXsLTf0vkW971A
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-Signed-off-by: Peter Enderborg <peter.enderborg@sony.com>
----
- include/trace/events/kmem.h | 68 +++++++++++++++++++++++++++++++++++++++++++++
- mm/page_alloc.c             | 62 +++++++++++++++++++++++++++++++----------
- 2 files changed, 116 insertions(+), 14 deletions(-)
+On Wed 2017-11-22 17:19:07, Pavel Machek wrote:
+> Hi!
+>=20
+> > KAISER makes it harder to defeat KASLR, but makes syscalls and
+> > interrupts slower.  These patches are based on work from a team at
+> > Graz University of Technology posted here[1].  The major addition is
+> > support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
+> > work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
+> > for a wide variety of use cases.
+>=20
+> Is it useful?
+>=20
+> > Full Description:
+> >=20
+> > KAISER is a countermeasure against attacks on kernel address
+> > information.  There are at least three existing, published,
+> > approaches using the shared user/kernel mapping and hardware features
+> > to defeat KASLR.  One approach referenced in the paper locates the
+> > kernel by observing differences in page fault timing between
+> > present-but-inaccessable kernel pages and non-present pages.
+>=20
+> I mean... evil userspace will still be able to determine kernel's
+> location using cache aliasing effects, right?
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index eb57e30..bb882ca 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -315,6 +315,74 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->change_ownership)
- );
- 
-+TRACE_EVENT(mm_page_alloc_slowpath_enter,
-+
-+	TP_PROTO(int alloc_order,
-+		nodemask_t *nodemask,
-+		gfp_t gfp_flags),
-+
-+	TP_ARGS(alloc_order, nodemask, gfp_flags),
-+
-+	TP_STRUCT__entry(
-+		__field(int, alloc_order)
-+		__field(nodemask_t *, nodemask)
-+		__field(gfp_t, gfp_flags)
-+	 ),
-+
-+	 TP_fast_assign(
-+		__entry->alloc_order		= alloc_order;
-+		__entry->nodemask		= nodemask;
-+		__entry->gfp_flags		= gfp_flags;
-+	 ),
-+
-+	 TP_printk("alloc_order=%d nodemask=%*pbl gfp_flags=%s",
-+		__entry->alloc_order,
-+		nodemask_pr_args(__entry->nodemask),
-+		show_gfp_flags(__entry->gfp_flags))
-+);
-+
-+TRACE_EVENT(mm_page_alloc_slowpath_exit,
-+
-+	TP_PROTO(struct page *page,
-+		int alloc_order,
-+		nodemask_t *nodemask,
-+		u64 alloc_start,
-+		gfp_t gfp_flags,
-+		int retrys,
-+		int exit),
-+
-+	TP_ARGS(page, alloc_order, nodemask, alloc_start, gfp_flags,
-+		retrys, exit),
-+
-+	TP_STRUCT__entry(__field(struct page *, page)
-+		__field(int, alloc_order)
-+		__field(nodemask_t *, nodemask)
-+		__field(u64, msdelay)
-+		__field(gfp_t, gfp_flags)
-+		__field(int, retrys)
-+		__field(int, exit)
-+	),
-+
-+	TP_fast_assign(
-+		__entry->page	     = page;
-+		__entry->alloc_order = alloc_order;
-+		__entry->nodemask    = nodemask;
-+		__entry->msdelay     = jiffies_to_msecs(jiffies-alloc_start);
-+		__entry->gfp_flags   = gfp_flags;
-+		__entry->retrys	     = retrys;
-+		__entry->exit	     = exit;
-+	),
-+
-+	TP_printk("page=%p alloc_order=%d nodemask=%*pbl msdelay=%llu gfp_flags=%s retrys=%d exit=%d",
-+		__entry->page,
-+		__entry->alloc_order,
-+		nodemask_pr_args(__entry->nodemask),
-+		__entry->msdelay,
-+		show_gfp_flags(__entry->gfp_flags),
-+		__entry->retrys,
-+		__entry->exit)
-+);
-+
- #endif /* _TRACE_KMEM_H */
- 
- /* This part must be outside protection */
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 48b5b01..bae9cb9 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -104,6 +104,17 @@ DEFINE_PER_CPU(struct work_struct, pcpu_drain);
- volatile unsigned long latent_entropy __latent_entropy;
- EXPORT_SYMBOL(latent_entropy);
- #endif
-+enum slowpath_exit {
-+	SLOWPATH_NOZONE = -16,
-+	SLOWPATH_COMPACT_DEFERRED,
-+	SLOWPATH_CAN_NOT_DIRECT_RECLAIM,
-+	SLOWPATH_RECURSION,
-+	SLOWPATH_NO_RETRY,
-+	SLOWPATH_COSTLY_ORDER,
-+	SLOWPATH_OOM_VICTIM,
-+	SLOWPATH_NO_DIRECT_RECLAIM,
-+	SLOWPATH_ORDER
-+};
- 
- /*
-  * Array of node states.
-@@ -3908,8 +3919,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	enum compact_result compact_result;
- 	int compaction_retries;
- 	int no_progress_loops;
-+	unsigned long alloc_start = jiffies;
- 	unsigned int cpuset_mems_cookie;
- 	int reserve_flags;
-+	enum slowpath_exit slowpath_exit;
-+	int retry_count = 0;
-+
-+	trace_mm_page_alloc_slowpath_enter(order,
-+		ac->nodemask,
-+		gfp_mask);
- 
- 	/*
- 	 * In the slowpath, we sanity check order to avoid ever trying to
-@@ -3919,7 +3937,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	if (order >= MAX_ORDER) {
- 		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
--		return NULL;
-+		slowpath_exit = SLOWPATH_ORDER;
-+		goto fail;
- 	}
- 
- 	/*
-@@ -3951,8 +3970,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	 */
- 	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
- 					ac->high_zoneidx, ac->nodemask);
--	if (!ac->preferred_zoneref->zone)
-+	if (!ac->preferred_zoneref->zone) {
-+		slowpath_exit = SLOWPATH_NOZONE;
- 		goto nopage;
-+	}
- 
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
- 		wake_all_kswapds(order, ac);
-@@ -3998,8 +4019,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 			 * system, so we fail the allocation instead of entering
- 			 * direct reclaim.
- 			 */
--			if (compact_result == COMPACT_DEFERRED)
-+			if (compact_result == COMPACT_DEFERRED) {
-+				slowpath_exit = SLOWPATH_COMPACT_DEFERRED;
- 				goto nopage;
-+			}
- 
- 			/*
- 			 * Looks like reclaim/compaction is worth trying, but
-@@ -4011,6 +4034,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	}
- 
- retry:
-+	retry_count++;
- 	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
- 	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
- 		wake_all_kswapds(order, ac);
-@@ -4036,13 +4060,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto got_pg;
- 
- 	/* Caller is not willing to reclaim, we can't balance anything */
--	if (!can_direct_reclaim)
-+	if (!can_direct_reclaim) {
-+		slowpath_exit = SLOWPATH_CAN_NOT_DIRECT_RECLAIM;
- 		goto nopage;
-+	}
- 
- 	/* Avoid recursion of direct reclaim */
--	if (current->flags & PF_MEMALLOC)
-+	if (current->flags & PF_MEMALLOC) {
-+		slowpath_exit = SLOWPATH_RECURSION;
- 		goto nopage;
--
-+	}
- 	/* Try direct reclaim and then allocating */
- 	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
- 							&did_some_progress);
-@@ -4056,16 +4083,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		goto got_pg;
- 
- 	/* Do not loop if specifically requested */
--	if (gfp_mask & __GFP_NORETRY)
-+	if (gfp_mask & __GFP_NORETRY) {
-+		slowpath_exit = SLOWPATH_NO_RETRY;
- 		goto nopage;
--
-+	}
- 	/*
- 	 * Do not retry costly high order allocations unless they are
- 	 * __GFP_RETRY_MAYFAIL
- 	 */
--	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL))
-+	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL)) {
-+		slowpath_exit = SLOWPATH_COSTLY_ORDER;
- 		goto nopage;
--
-+	}
- 	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
- 				 did_some_progress > 0, &no_progress_loops))
- 		goto retry;
-@@ -4095,9 +4124,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	/* Avoid allocations with no watermarks from looping endlessly */
- 	if (tsk_is_oom_victim(current) &&
- 	    (alloc_flags == ALLOC_OOM ||
--	     (gfp_mask & __GFP_NOMEMALLOC)))
-+	     (gfp_mask & __GFP_NOMEMALLOC))) {
-+		slowpath_exit = SLOWPATH_OOM_VICTIM;
- 		goto nopage;
--
-+	}
- 	/* Retry as long as the OOM killer is making progress */
- 	if (did_some_progress) {
- 		no_progress_loops = 0;
-@@ -4118,9 +4148,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 		 * All existing users of the __GFP_NOFAIL are blockable, so warn
- 		 * of any new users that actually require GFP_NOWAIT
- 		 */
--		if (WARN_ON_ONCE(!can_direct_reclaim))
-+		if (WARN_ON_ONCE(!can_direct_reclaim)) {
-+			slowpath_exit = SLOWPATH_NO_DIRECT_RECLAIM;
- 			goto fail;
--
-+		}
- 		/*
- 		 * PF_MEMALLOC request from this context is rather bizarre
- 		 * because we cannot reclaim anything and only can loop waiting
-@@ -4153,6 +4184,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
- 	warn_alloc(gfp_mask, ac->nodemask,
- 			"page allocation failure: order:%u", order);
- got_pg:
-+	trace_mm_page_alloc_slowpath_exit(page, order, ac->nodemask,
-+		alloc_start, gfp_mask, retry_count, slowpath_exit);
-+
- 	return page;
- }
- 
--- 
-2.7.4
+Issues with AnC attacks are tracked via several CVE identifiers.
+
+CVE-2017-5925 is assigned to track the developments for Intel processors
+CVE-2017-5926 is assigned to track the developments for AMD processors
+
+									Pavel
+
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
+
+--9zSXsLTf0vkW971A
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
+
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
+
+iEYEARECAAYFAloWp1gACgkQMOfwapXb+vJ/EwCdE+s8rl/8J9z8zG5LklwlSeNT
+E5UAoJlIldkJu8PK08DYWCYOi6BvpMG7
+=Us5Y
+-----END PGP SIGNATURE-----
+
+--9zSXsLTf0vkW971A--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
