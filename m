@@ -1,72 +1,301 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B9FF6B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:32:58 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id c83so16937715pfj.11
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:32:58 -0800 (PST)
-Received: from huawei.com ([45.249.212.32])
-        by mx.google.com with ESMTPS id a3si10630336pld.306.2017.11.23.04.32.56
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 049206B0033
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 07:35:19 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id s13so4652457lfs.5
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 04:35:18 -0800 (PST)
+Received: from SELDSEGREL01.sonyericsson.com (seldsegrel01.sonyericsson.com. [37.139.156.29])
+        by mx.google.com with ESMTPS id a83si7642086ljf.130.2017.11.23.04.35.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 04:32:57 -0800 (PST)
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Subject: [PATCH v2] kmemleak: add scheduling point to kmemleak_scan
-Date: Thu, 23 Nov 2017 20:23:08 +0800
-Message-ID: <1511439788-20099-1-git-send-email-xieyisheng1@huawei.com>
+        Thu, 23 Nov 2017 04:35:17 -0800 (PST)
+Subject: Re: [PATCH] Add slowpath enter/exit trace events
+References: <20171123104336.25855-1-peter.enderborg@sony.com>
+ <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
+From: peter enderborg <peter.enderborg@sony.com>
+Message-ID: <ef88ca71-b41b-f5e9-fd41-d02676bad1cf@sony.com>
+Date: Thu, 23 Nov 2017 13:35:15 +0100
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <20171123122530.ktsxgeakebfp3yep@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, catalin.marinas@arm.com, mhocko@kernel.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Steven Rostedt <rostedt@goodmis.org>, Ingo Molnar <mingo@redhat.com>, Alex Deucher <alexander.deucher@amd.com>, "David S . Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Pavel Tatashin <pasha.tatashin@oracle.com>
 
-kmemleak_scan will scan struct page for each node and it can be really
-large and resulting in a soft lockup. We have seen a soft lockup when do
-scan while compile kernel:
+Monitoring both enter/exit for all allocations and track down the one that are slow will be a very
+big load on mobile devices or embedded device consuming a lot of battery and cpu. With this we can do useful monitoring
+on devices on our field tests with real usage.
 
- [  220.561051] watchdog: BUG: soft lockup - CPU#53 stuck for 22s! [bash:10287]
- [...]
- [  220.753837] Call Trace:
- [  220.756296]  kmemleak_scan+0x21a/0x4c0
- [  220.760034]  kmemleak_write+0x312/0x350
- [  220.763866]  ? do_wp_page+0x147/0x4c0
- [  220.767521]  full_proxy_write+0x5a/0xa0
- [  220.771351]  __vfs_write+0x33/0x150
- [  220.774833]  ? __inode_security_revalidate+0x4c/0x60
- [  220.779782]  ? selinux_file_permission+0xda/0x130
- [  220.784479]  ? _cond_resched+0x15/0x30
- [  220.788221]  vfs_write+0xad/0x1a0
- [  220.791529]  SyS_write+0x52/0xc0
- [  220.794758]  do_syscall_64+0x61/0x1a0
- [  220.798411]  entry_SYSCALL64_slow_path+0x25/0x25
+On 11/23/2017 01:25 PM, Michal Hocko wrote:
+> On Thu 23-11-17 11:43:36, peter.enderborg@sony.com wrote:
+>> From: Peter Enderborg <peter.enderborg@sony.com>
+>>
+>> The warning of slow allocation has been removed, this is
+>> a other way to fetch that information. But you need
+>> to enable the trace. The exit function also returns
+>> information about the number of retries, how long
+>> it was stalled and failure reason if that happened.
+> I think this is just too excessive. We already have a tracepoint for the
+> allocation exit. All we need is an entry to have a base to compare with.
+> Another usecase would be to measure allocation latency. Information you
+> are adding can be (partially) covered by existing tracepoints.
+>
+>> Signed-off-by: Peter Enderborg <peter.enderborg@sony.com>
+>> ---
+>>  include/trace/events/kmem.h | 68 +++++++++++++++++++++++++++++++++++++++++++++
+>>  mm/page_alloc.c             | 62 +++++++++++++++++++++++++++++++----------
+>>  2 files changed, 116 insertions(+), 14 deletions(-)
+>>
+>> diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
+>> index eb57e30..bb882ca 100644
+>> --- a/include/trace/events/kmem.h
+>> +++ b/include/trace/events/kmem.h
+>> @@ -315,6 +315,74 @@ TRACE_EVENT(mm_page_alloc_extfrag,
+>>  		__entry->change_ownership)
+>>  );
+>>  
+>> +TRACE_EVENT(mm_page_alloc_slowpath_enter,
+>> +
+>> +	TP_PROTO(int alloc_order,
+>> +		nodemask_t *nodemask,
+>> +		gfp_t gfp_flags),
+>> +
+>> +	TP_ARGS(alloc_order, nodemask, gfp_flags),
+>> +
+>> +	TP_STRUCT__entry(
+>> +		__field(int, alloc_order)
+>> +		__field(nodemask_t *, nodemask)
+>> +		__field(gfp_t, gfp_flags)
+>> +	 ),
+>> +
+>> +	 TP_fast_assign(
+>> +		__entry->alloc_order		= alloc_order;
+>> +		__entry->nodemask		= nodemask;
+>> +		__entry->gfp_flags		= gfp_flags;
+>> +	 ),
+>> +
+>> +	 TP_printk("alloc_order=%d nodemask=%*pbl gfp_flags=%s",
+>> +		__entry->alloc_order,
+>> +		nodemask_pr_args(__entry->nodemask),
+>> +		show_gfp_flags(__entry->gfp_flags))
+>> +);
+>> +
+>> +TRACE_EVENT(mm_page_alloc_slowpath_exit,
+>> +
+>> +	TP_PROTO(struct page *page,
+>> +		int alloc_order,
+>> +		nodemask_t *nodemask,
+>> +		u64 alloc_start,
+>> +		gfp_t gfp_flags,
+>> +		int retrys,
+>> +		int exit),
+>> +
+>> +	TP_ARGS(page, alloc_order, nodemask, alloc_start, gfp_flags,
+>> +		retrys, exit),
+>> +
+>> +	TP_STRUCT__entry(__field(struct page *, page)
+>> +		__field(int, alloc_order)
+>> +		__field(nodemask_t *, nodemask)
+>> +		__field(u64, msdelay)
+>> +		__field(gfp_t, gfp_flags)
+>> +		__field(int, retrys)
+>> +		__field(int, exit)
+>> +	),
+>> +
+>> +	TP_fast_assign(
+>> +		__entry->page	     = page;
+>> +		__entry->alloc_order = alloc_order;
+>> +		__entry->nodemask    = nodemask;
+>> +		__entry->msdelay     = jiffies_to_msecs(jiffies-alloc_start);
+>> +		__entry->gfp_flags   = gfp_flags;
+>> +		__entry->retrys	     = retrys;
+>> +		__entry->exit	     = exit;
+>> +	),
+>> +
+>> +	TP_printk("page=%p alloc_order=%d nodemask=%*pbl msdelay=%llu gfp_flags=%s retrys=%d exit=%d",
+>> +		__entry->page,
+>> +		__entry->alloc_order,
+>> +		nodemask_pr_args(__entry->nodemask),
+>> +		__entry->msdelay,
+>> +		show_gfp_flags(__entry->gfp_flags),
+>> +		__entry->retrys,
+>> +		__entry->exit)
+>> +);
+>> +
+>>  #endif /* _TRACE_KMEM_H */
+>>  
+>>  /* This part must be outside protection */
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 48b5b01..bae9cb9 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -104,6 +104,17 @@ DEFINE_PER_CPU(struct work_struct, pcpu_drain);
+>>  volatile unsigned long latent_entropy __latent_entropy;
+>>  EXPORT_SYMBOL(latent_entropy);
+>>  #endif
+>> +enum slowpath_exit {
+>> +	SLOWPATH_NOZONE = -16,
+>> +	SLOWPATH_COMPACT_DEFERRED,
+>> +	SLOWPATH_CAN_NOT_DIRECT_RECLAIM,
+>> +	SLOWPATH_RECURSION,
+>> +	SLOWPATH_NO_RETRY,
+>> +	SLOWPATH_COSTLY_ORDER,
+>> +	SLOWPATH_OOM_VICTIM,
+>> +	SLOWPATH_NO_DIRECT_RECLAIM,
+>> +	SLOWPATH_ORDER
+>> +};
+>>  
+>>  /*
+>>   * Array of node states.
+>> @@ -3908,8 +3919,15 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	enum compact_result compact_result;
+>>  	int compaction_retries;
+>>  	int no_progress_loops;
+>> +	unsigned long alloc_start = jiffies;
+>>  	unsigned int cpuset_mems_cookie;
+>>  	int reserve_flags;
+>> +	enum slowpath_exit slowpath_exit;
+>> +	int retry_count = 0;
+>> +
+>> +	trace_mm_page_alloc_slowpath_enter(order,
+>> +		ac->nodemask,
+>> +		gfp_mask);
+>>  
+>>  	/*
+>>  	 * In the slowpath, we sanity check order to avoid ever trying to
+>> @@ -3919,7 +3937,8 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	 */
+>>  	if (order >= MAX_ORDER) {
+>>  		WARN_ON_ONCE(!(gfp_mask & __GFP_NOWARN));
+>> -		return NULL;
+>> +		slowpath_exit = SLOWPATH_ORDER;
+>> +		goto fail;
+>>  	}
+>>  
+>>  	/*
+>> @@ -3951,8 +3970,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	 */
+>>  	ac->preferred_zoneref = first_zones_zonelist(ac->zonelist,
+>>  					ac->high_zoneidx, ac->nodemask);
+>> -	if (!ac->preferred_zoneref->zone)
+>> +	if (!ac->preferred_zoneref->zone) {
+>> +		slowpath_exit = SLOWPATH_NOZONE;
+>>  		goto nopage;
+>> +	}
+>>  
+>>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>>  		wake_all_kswapds(order, ac);
+>> @@ -3998,8 +4019,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  			 * system, so we fail the allocation instead of entering
+>>  			 * direct reclaim.
+>>  			 */
+>> -			if (compact_result == COMPACT_DEFERRED)
+>> +			if (compact_result == COMPACT_DEFERRED) {
+>> +				slowpath_exit = SLOWPATH_COMPACT_DEFERRED;
+>>  				goto nopage;
+>> +			}
+>>  
+>>  			/*
+>>  			 * Looks like reclaim/compaction is worth trying, but
+>> @@ -4011,6 +4034,7 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	}
+>>  
+>>  retry:
+>> +	retry_count++;
+>>  	/* Ensure kswapd doesn't accidentally go to sleep as long as we loop */
+>>  	if (gfp_mask & __GFP_KSWAPD_RECLAIM)
+>>  		wake_all_kswapds(order, ac);
+>> @@ -4036,13 +4060,16 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  		goto got_pg;
+>>  
+>>  	/* Caller is not willing to reclaim, we can't balance anything */
+>> -	if (!can_direct_reclaim)
+>> +	if (!can_direct_reclaim) {
+>> +		slowpath_exit = SLOWPATH_CAN_NOT_DIRECT_RECLAIM;
+>>  		goto nopage;
+>> +	}
+>>  
+>>  	/* Avoid recursion of direct reclaim */
+>> -	if (current->flags & PF_MEMALLOC)
+>> +	if (current->flags & PF_MEMALLOC) {
+>> +		slowpath_exit = SLOWPATH_RECURSION;
+>>  		goto nopage;
+>> -
+>> +	}
+>>  	/* Try direct reclaim and then allocating */
+>>  	page = __alloc_pages_direct_reclaim(gfp_mask, order, alloc_flags, ac,
+>>  							&did_some_progress);
+>> @@ -4056,16 +4083,18 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  		goto got_pg;
+>>  
+>>  	/* Do not loop if specifically requested */
+>> -	if (gfp_mask & __GFP_NORETRY)
+>> +	if (gfp_mask & __GFP_NORETRY) {
+>> +		slowpath_exit = SLOWPATH_NO_RETRY;
+>>  		goto nopage;
+>> -
+>> +	}
+>>  	/*
+>>  	 * Do not retry costly high order allocations unless they are
+>>  	 * __GFP_RETRY_MAYFAIL
+>>  	 */
+>> -	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL))
+>> +	if (costly_order && !(gfp_mask & __GFP_RETRY_MAYFAIL)) {
+>> +		slowpath_exit = SLOWPATH_COSTLY_ORDER;
+>>  		goto nopage;
+>> -
+>> +	}
+>>  	if (should_reclaim_retry(gfp_mask, order, ac, alloc_flags,
+>>  				 did_some_progress > 0, &no_progress_loops))
+>>  		goto retry;
+>> @@ -4095,9 +4124,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	/* Avoid allocations with no watermarks from looping endlessly */
+>>  	if (tsk_is_oom_victim(current) &&
+>>  	    (alloc_flags == ALLOC_OOM ||
+>> -	     (gfp_mask & __GFP_NOMEMALLOC)))
+>> +	     (gfp_mask & __GFP_NOMEMALLOC))) {
+>> +		slowpath_exit = SLOWPATH_OOM_VICTIM;
+>>  		goto nopage;
+>> -
+>> +	}
+>>  	/* Retry as long as the OOM killer is making progress */
+>>  	if (did_some_progress) {
+>>  		no_progress_loops = 0;
+>> @@ -4118,9 +4148,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  		 * All existing users of the __GFP_NOFAIL are blockable, so warn
+>>  		 * of any new users that actually require GFP_NOWAIT
+>>  		 */
+>> -		if (WARN_ON_ONCE(!can_direct_reclaim))
+>> +		if (WARN_ON_ONCE(!can_direct_reclaim)) {
+>> +			slowpath_exit = SLOWPATH_NO_DIRECT_RECLAIM;
+>>  			goto fail;
+>> -
+>> +		}
+>>  		/*
+>>  		 * PF_MEMALLOC request from this context is rather bizarre
+>>  		 * because we cannot reclaim anything and only can loop waiting
+>> @@ -4153,6 +4184,9 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
+>>  	warn_alloc(gfp_mask, ac->nodemask,
+>>  			"page allocation failure: order:%u", order);
+>>  got_pg:
+>> +	trace_mm_page_alloc_slowpath_exit(page, order, ac->nodemask,
+>> +		alloc_start, gfp_mask, retry_count, slowpath_exit);
+>> +
+>>  	return page;
+>>  }
+>>  
+>> -- 
+>> 2.7.4
+>>
+>> --
+>> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+>> the body to majordomo@kvack.org.  For more info on Linux MM,
+>> see: http://www.linux-mm.org/ .
+>> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Fix this by adding cond_resched every MAX_SCAN_SIZE.
-
-Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
-Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
----
-v2:
-  * call cond_resched() every MAX_SCAN_SIZE for consistency with the other places
-  * fix the subject of the patch. - Both per Catalin
-
- mm/kmemleak.c | 2 ++
- 1 file changed, 2 insertions(+)
-
-diff --git a/mm/kmemleak.c b/mm/kmemleak.c
-index e4738d5..3d47817 100644
---- a/mm/kmemleak.c
-+++ b/mm/kmemleak.c
-@@ -1523,6 +1523,8 @@ static void kmemleak_scan(void)
- 			if (page_count(page) == 0)
- 				continue;
- 			scan_block(page, page + 1, NULL);
-+			if (!(pfn % (MAX_SCAN_SIZE / sizeof(*page))))
-+				cond_resched();
- 		}
- 	}
- 	put_online_mems();
--- 
-1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
