@@ -1,67 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7CA6B0033
-	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 22:29:59 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id d6so16142446pfb.3
-        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:29:59 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t63sor669292pfg.103.2017.11.22.19.29.57
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E01E6B0033
+	for <linux-mm@kvack.org>; Wed, 22 Nov 2017 22:32:15 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id u3so17967641pgn.3
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:32:15 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id t14si14945910pgc.810.2017.11.22.19.32.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 22 Nov 2017 19:29:57 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 22 Nov 2017 19:32:14 -0800 (PST)
+Received: from mail-io0-f174.google.com (mail-io0-f174.google.com [209.85.223.174])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 1671721924
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:32:14 +0000 (UTC)
+Received: by mail-io0-f174.google.com with SMTP id i38so25291438iod.2
+        for <linux-mm@kvack.org>; Wed, 22 Nov 2017 19:32:14 -0800 (PST)
 MIME-Version: 1.0
-From: Hao Lee <haolee.swjtu@gmail.com>
-Date: Thu, 23 Nov 2017 11:29:56 +0800
-Message-ID: <CA+PpKPmSasSKfZosJznAVsheciOmdGM_c8aU8jkctFggTjQkdQ@mail.gmail.com>
-Subject: Why does the kernel still boot normally even though the identity
- mapping is not set up?
+In-Reply-To: <20171123003459.C0FF167A@viggo.jf.intel.com>
+References: <20171123003438.48A0EEDE@viggo.jf.intel.com> <20171123003459.C0FF167A@viggo.jf.intel.com>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Wed, 22 Nov 2017 19:31:52 -0800
+Message-ID: <CALCETrWM7OytAXOP9Jb1Ss0=75bGB-XSCLounC2z7xauG6CABQ@mail.gmail.com>
+Subject: Re: [PATCH 11/23] x86, kaiser: map entry stack variables
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, moritz.lipp@iaik.tugraz.at, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andrew Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, X86 ML <x86@kernel.org>
 
-Hi,
+On Wed, Nov 22, 2017 at 4:34 PM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>
+> From: Dave Hansen <dave.hansen@linux.intel.com>
+>
+> There are times where the kernel is entered but there is not a
+> safe stack, like at SYSCALL entry.  To obtain a safe stack, the
+> per-cpu variables 'rsp_scratch' and 'cpu_current_top_of_stack'
+> are used to save the old %rsp value and to find where the kernel
+> stack should start.
+>
+> You can not directly manipulate the CR3 register.  You can only
+> 'MOV' to it from another register, which means a register must be
+> clobbered in order to do any CR3 manipulation.  User-mapping
+> these variables allows us to obtain a safe stack and use it for
+> temporary storage *before* CR3 is switched.
+>
+> Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
+> Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+> Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
+> Cc: Richard Fellner <richard.fellner@student.tugraz.at>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Linus Torvalds <torvalds@linux-foundation.org>
+> Cc: Kees Cook <keescook@google.com>
+> Cc: Hugh Dickins <hughd@google.com>
+> Cc: x86@kernel.org
+> ---
+>
+>  b/arch/x86/kernel/cpu/common.c |    2 +-
+>  b/arch/x86/kernel/process_64.c |    2 +-
+>  2 files changed, 2 insertions(+), 2 deletions(-)
+>
+> diff -puN arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/cpu/common.c
+> --- a/arch/x86/kernel/cpu/common.c~kaiser-user-map-stack-helper-vars    2017-11-22 15:45:50.128619736 -0800
+> +++ b/arch/x86/kernel/cpu/common.c      2017-11-22 15:45:50.134619736 -0800
+> @@ -1524,7 +1524,7 @@ EXPORT_PER_CPU_SYMBOL(__preempt_count);
+>   * the top of the kernel stack.  Use an extra percpu variable to track the
+>   * top of the kernel stack directly.
+>   */
+> -DEFINE_PER_CPU(unsigned long, cpu_current_top_of_stack) =
+> +DEFINE_PER_CPU_USER_MAPPED(unsigned long, cpu_current_top_of_stack) =
+>         (unsigned long)&init_thread_union + THREAD_SIZE;
 
-I'm currently reading the code of identity mapping and have found a
-strange problem.
+This is in an x86_32-only section and should be dropped, I think.
 
-In head64.c, kernel sets up identity mapping[1] for the switchover, or
-more precisely, this temporary mapping is used by the following two
-instructions in head_64.S[2]:
+> diff -puN arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars arch/x86/kernel/process_64.c
+> --- a/arch/x86/kernel/process_64.c~kaiser-user-map-stack-helper-vars    2017-11-22 15:45:50.130619736 -0800
+> +++ b/arch/x86/kernel/process_64.c      2017-11-22 15:45:50.134619736 -0800
+> @@ -59,7 +59,7 @@
+>  #include <asm/unistd_32_ia32.h>
+>  #endif
+>
+> -__visible DEFINE_PER_CPU(unsigned long, rsp_scratch);
+> +__visible DEFINE_PER_CPU_USER_MAPPED(unsigned long, rsp_scratch);
+>
 
-    /* Ensure I am executing from virtual addresses */
-    movq $1f, %rax
-    jmp *%rax
-
-I delete all the code of identity mapping[1] and recompile my kernel
-and then test it in Bochs. To my surprise, this kernel can still boot
-normally. I also test it in VMware(with Fedora 25) and QEMU. Vmware
-can boot without any problem but QEMU can't. However, others have
-reported[3] that QEMU can boot normally too if kvm is enabled with
---enable-kvm. Then I want to find out what happened, so I debug these
-code in Bochs line by line. When the above two instructions are being
-executed, Bochs prints warnings:
-
-??? (physical address not available)
-??? (physical address not available)
-
-I ignore these warnings and make the kernel continue running. I find
-the kernel can reach the next instruction (movl $0x80000001, %eax)
-successfully and the RIP register is set to the correct virtual
-address as if the identity mapping code was not deleted.
-
-My question is why the kernel can still boot normally even though the
-identity mapping is not set up. This question is first raised in a
-GitHub issue: https://github.com/0xAX/linux-insides/issues/544
-
-Could someone give us some hints? Many Thanks!
-
-[1] https://github.com/torvalds/linux/blob/0c86a6bd85ff0629cd2c5141027fc1c8bb6cde9c/arch/x86/kernel/head64.c#L98-L138
-[2] https://github.com/torvalds/linux/blob/0c86a6bd85ff0629cd2c5141027fc1c8bb6cde9c/arch/x86/kernel/head_64.S#L135-L137
-[3] https://www.spinics.net/lists/kvm/msg159168.html
-
-Regards,
-Hao Lee
+This shouldn't be needed any more either.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
