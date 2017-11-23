@@ -1,86 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3473B6B0271
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 05:47:55 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id v8so11742153wrd.21
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 02:47:55 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id a15si4808530wmg.202.2017.11.23.02.47.53
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D43B6B0273
+	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 06:05:54 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id u42so24662586ioi.7
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 03:05:54 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z73si14900846iof.325.2017.11.23.03.05.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 23 Nov 2017 02:47:54 -0800 (PST)
-Date: Thu, 23 Nov 2017 11:47:52 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 00/23] KAISER: unmap most of the kernel from userspace
- page tables
-Message-ID: <20171123104752.GB17990@amd>
-References: <20171031223146.6B47C861@viggo.jf.intel.com>
- <20171122161907.GA12684@amd>
-MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha1;
-	protocol="application/pgp-signature"; boundary="9zSXsLTf0vkW971A"
-Content-Disposition: inline
-In-Reply-To: <20171122161907.GA12684@amd>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 23 Nov 2017 03:05:53 -0800 (PST)
+Subject: Re: [PATCH] mm,vmscan: Mark register_shrinker() as __must_check
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171122203907.GI4094@dastard>
+	<201711231534.BBI34381.tJOOHLQMOFVFSF@I-love.SAKURA.ne.jp>
+	<2178e42e-9600-4f9a-4b91-22d2ba6f98c0@redhat.com>
+	<201711231856.CFH69777.FtOSJFMQHLOVFO@I-love.SAKURA.ne.jp>
+	<83429cb3-4962-4a16-793e-42483a843c75@redhat.com>
+In-Reply-To: <83429cb3-4962-4a16-793e-42483a843c75@redhat.com>
+Message-Id: <201711232003.DII64069.FQSLOtOFJMOVFH@I-love.SAKURA.ne.jp>
+Date: Thu, 23 Nov 2017 20:03:54 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: pbonzini@redhat.com
+Cc: david@fromorbit.com, mhocko@kernel.org, akpm@linux-foundation.org, glauber@scylladb.com, linux-mm@kvack.org, viro@zeniv.linux.org.uk, jack@suse.com, airlied@linux.ie, alexander.deucher@amd.com, shli@fb.com, snitzer@redhat.com
 
+Paolo Bonzini wrote:
+> On 23/11/2017 10:56, Tetsuo Handa wrote:
+> > Paolo Bonzini wrote:
+> >> On 23/11/2017 07:34, Tetsuo Handa wrote:
+> >>>> Just fix the numa aware shrinkers, as they are the only ones that
+> >>>> will have this problem. There are only 6 of them, and only the 3
+> >>>> that existed at the time that register_shrinker() was changed to
+> >>>> return an error fail to check for an error. i.e. the superblock
+> >>>> shrinker, the XFS dquot shrinker and the XFS buffer cache shrinker.
+> >>>
+> >>> You are assuming the "too small to fail" memory-allocation rule
+> >>> by ignoring that this problem is caused by fault injection.
+> >>
+> >> Fault injection should also obey the too small to fail rule, at least by
+> >> default.
+> > 
+> > Pardon? Most allocation requests in the kernel are <= 32KB.
+> > Such change makes fault injection useless. ;-)
+> 
+> But if these calls are "too small to fail", you are injecting a fault on
+> something that cannot fail anyway.  Unless you're aiming at removing
+> "too small to fail", then I understand.
+> 
 
---9zSXsLTf0vkW971A
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+The "too small to fail" does not mean that small allocations cannot fail.
+It unlikely fails because it will retry forever unless killed as an OOM victim,
+and currently we allow it to try memory allocation from memory reserves when
+killed as an OOM victim. But such assumption is fragile. We unexpectedly
+forget to allow it to try memory allocation from memory reserves (e.g. commit 
+c288983dddf71421 ("mm/page_alloc.c: make sure OOM victim can try allocations
+with no watermarks once")). There is no guarantee that small allocations
+will not fail in future.
 
-On Wed 2017-11-22 17:19:07, Pavel Machek wrote:
-> Hi!
->=20
-> > KAISER makes it harder to defeat KASLR, but makes syscalls and
-> > interrupts slower.  These patches are based on work from a team at
-> > Graz University of Technology posted here[1].  The major addition is
-> > support for Intel PCIDs which builds on top of Andy Lutomorski's PCID
-> > work merged for 4.14.  PCIDs make KAISER's overhead very reasonable
-> > for a wide variety of use cases.
->=20
-> Is it useful?
->=20
-> > Full Description:
-> >=20
-> > KAISER is a countermeasure against attacks on kernel address
-> > information.  There are at least three existing, published,
-> > approaches using the shared user/kernel mapping and hardware features
-> > to defeat KASLR.  One approach referenced in the paper locates the
-> > kernel by observing differences in page fault timing between
-> > present-but-inaccessable kernel pages and non-present pages.
->=20
-> I mean... evil userspace will still be able to determine kernel's
-> location using cache aliasing effects, right?
-
-Issues with AnC attacks are tracked via several CVE identifiers.
-
-CVE-2017-5925 is assigned to track the developments for Intel processors
-CVE-2017-5926 is assigned to track the developments for AMD processors
-
-									Pavel
-
---=20
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
-g.html
-
---9zSXsLTf0vkW971A
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: Digital signature
-
------BEGIN PGP SIGNATURE-----
-Version: GnuPG v1
-
-iEYEARECAAYFAloWp1gACgkQMOfwapXb+vJ/EwCdE+s8rl/8J9z8zG5LklwlSeNT
-E5UAoJlIldkJu8PK08DYWCYOi6BvpMG7
-=Us5Y
------END PGP SIGNATURE-----
-
---9zSXsLTf0vkW971A--
+To me, using __GFP_NOFAIL for register_shrinker() sounds the simplest fix.
+Adding error handling code to all register_shrinker() callers is not worth
+bothering. In most runtime environments, kmalloc() in register_shrinker()
+will be order 0.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
