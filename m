@@ -1,110 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3CC406B025F
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 03:54:10 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id j6so11189412wre.16
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 00:54:10 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D2656B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 04:38:24 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id j6so11256031wre.16
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 01:38:24 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s6si297289edc.399.2017.11.24.00.54.07
+        by mx.google.com with ESMTPS id w10si2968087edj.349.2017.11.24.01.38.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 00:54:07 -0800 (PST)
-Date: Fri, 24 Nov 2017 09:54:05 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171124085405.dwln5k3dk7fdio7e@dhcp22.suse.cz>
-References: <20171116101900.13621-1-mhocko@kernel.org>
- <20171116121438.6vegs4wiahod3byl@dhcp22.suse.cz>
+        Fri, 24 Nov 2017 01:38:22 -0800 (PST)
+Date: Fri, 24 Nov 2017 10:38:19 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/3] lockdep: Apply crossrelease to PG_locked locks
+Message-ID: <20171124093819.GA6072@quack2.suse.cz>
+References: <1510802067-18609-1-git-send-email-byungchul.park@lge.com>
+ <1510802067-18609-2-git-send-email-byungchul.park@lge.com>
+ <20171116120216.nxbwkj5y3kvim6cj@dhcp22.suse.cz>
+ <cf8aa555-7435-ea00-a4ee-3dcfd33ab5a0@lge.com>
+ <20171116130746.i642wszwvyb7q6hm@dhcp22.suse.cz>
+ <20171124030236.GA28999@X58A-UD3R>
+ <20171124081149.filhcoy6zh6ysrjj@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171116121438.6vegs4wiahod3byl@dhcp22.suse.cz>
+In-Reply-To: <20171124081149.filhcoy6zh6ysrjj@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-api@vger.kernel.org
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, mingo@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com, jack@suse.cz, jlayton@redhat.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, npiggin@gmail.com, rgoldwyn@suse.com, vbabka@suse.cz, pombredanne@nexb.com, vinmenon@codeaurora.org, gregkh@linuxfoundation.org
 
-Are there any more concerns? So far the biggest one was the name. The
-other which suggests a flag as a modifier has been sorted out hopefully.
-Is there anymore more before we can consider this for merging? Well
-except for man page update which I will prepare of course. Can we target
-this to 4.16?
-
-On Thu 16-11-17 13:14:38, Michal Hocko wrote:
-> [Ups, managed to screw the subject - fix it]
+On Fri 24-11-17 09:11:49, Michal Hocko wrote:
+> On Fri 24-11-17 12:02:36, Byungchul Park wrote:
+> > On Thu, Nov 16, 2017 at 02:07:46PM +0100, Michal Hocko wrote:
+> > > On Thu 16-11-17 21:48:05, Byungchul Park wrote:
+> > > > On 11/16/2017 9:02 PM, Michal Hocko wrote:
+> > > > > for each struct page. So you are doubling the size. Who is going to
+> > > > > enable this config option? You are moving this to page_ext in a later
+> > > > > patch which is a good step but it doesn't go far enough because this
+> > > > > still consumes those resources. Is there any problem to make this
+> > > > > kernel command line controllable? Something we do for page_owner for
+> > > > > example?
+> > > > 
+> > > > Sure. I will add it.
+> > > > 
+> > > > > Also it would be really great if you could give us some measures about
+> > > > > the runtime overhead. I do not expect it to be very large but this is
+> > > > 
+> > > > The major overhead would come from the amount of additional memory
+> > > > consumption for 'lockdep_map's.
+> > > 
+> > > yes
+> > > 
+> > > > Do you want me to measure the overhead by the additional memory
+> > > > consumption?
+> > > > 
+> > > > Or do you expect another overhead?
+> > > 
+> > > I would be also interested how much impact this has on performance. I do
+> > > not expect it would be too large but having some numbers for cache cold
+> > > parallel kbuild or other heavy page lock workloads.
+> > 
+> > Hello Michal,
+> > 
+> > I measured 'cache cold parallel kbuild' on my qemu machine. The result
+> > varies much so I cannot confirm, but I think there's no meaningful
+> > difference between before and after applying crossrelease to page locks.
+> > 
+> > Actually, I expect little overhead in lock_page() and unlock_page() even
+> > after applying crossreleas to page locks, but only expect a bit overhead
+> > by additional memory consumption for 'lockdep_map's per page.
+> > 
+> > I run the following instructions within "QEMU x86_64 4GB memory 4 cpus":
+> > 
+> >    make clean
+> >    echo 3 > drop_caches
+> >    time make -j4
 > 
-> On Thu 16-11-17 11:18:58, Michal Hocko wrote:
-> > Hi,
-> > this has started as a follow up discussion [1][2] resulting in the
-> > runtime failure caused by hardening patch [3] which removes MAP_FIXED
-> > from the elf loader because MAP_FIXED is inherently dangerous as it
-> > might silently clobber and existing underlying mapping (e.g. stack). The
-> > reason for the failure is that some architectures enforce an alignment
-> > for the given address hint without MAP_FIXED used (e.g. for shared or
-> > file backed mappings).
-> > 
-> > One way around this would be excluding those archs which do alignment
-> > tricks from the hardening [4]. The patch is really trivial but it has
-> > been objected, rightfully so, that this screams for a more generic
-> > solution. We basically want a non-destructive MAP_FIXED.
-> > 
-> > The first patch introduced MAP_FIXED_SAFE which enforces the given
-> > address but unlike MAP_FIXED it fails with ENOMEM if the given range
-> > conflicts with an existing one. The flag is introduced as a completely
-> > new flag rather than a MAP_FIXED extension because of the backward
-> > compatibility. We really want a never-clobber semantic even on older
-> > kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
-> > flags evaluation because we do not EINVAL on unknown flags. On those
-> > kernels we would simply use the traditional hint based semantic so the
-> > caller can still get a different address (which sucks) but at least not
-> > silently corrupt an existing mapping. I do not see a good way around
-> > that. Except we won't export expose the new semantic to the userspace at
-> > all. It seems there are users who would like to have something like that
-> > [5], though. Atomic address range probing in the multithreaded programs
-> > sounds like an interesting thing to me as well, although I do not have
-> > any specific usecase in mind.
-> > 
-> > The second patch simply replaces MAP_FIXED use in elf loader by
-> > MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
-> > follow. Actually real MAP_FIXED usages should be docummented properly
-> > and they should be more of an exception.
-> > 
-> > Does anybody see any fundamental reasons why this is a wrong approach?
-> > 
-> > Diffstat says
-> >  arch/alpha/include/uapi/asm/mman.h   |  2 ++
-> >  arch/metag/kernel/process.c          |  6 +++++-
-> >  arch/mips/include/uapi/asm/mman.h    |  2 ++
-> >  arch/parisc/include/uapi/asm/mman.h  |  2 ++
-> >  arch/powerpc/include/uapi/asm/mman.h |  1 +
-> >  arch/sparc/include/uapi/asm/mman.h   |  1 +
-> >  arch/tile/include/uapi/asm/mman.h    |  1 +
-> >  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
-> >  fs/binfmt_elf.c                      | 12 ++++++++----
-> >  include/uapi/asm-generic/mman.h      |  1 +
-> >  mm/mmap.c                            | 11 +++++++++++
-> >  11 files changed, 36 insertions(+), 5 deletions(-)
-> > 
-> > [1] http://lkml.kernel.org/r/20171107162217.382cd754@canb.auug.org.au
-> > [2] http://lkml.kernel.org/r/1510048229.12079.7.camel@abdul.in.ibm.com
-> > [3] http://lkml.kernel.org/r/20171023082608.6167-1-mhocko@kernel.org
-> > [4] http://lkml.kernel.org/r/20171113094203.aofz2e7kueitk55y@dhcp22.suse.cz
-> > [5] http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au
-> > 
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Maybe FS people will help you find a more representative workload. E.g.
+> linear cache cold file read should be good as well. Maybe there are some
+> tests in fstests (or how they call xfstests these days).
 
+So a relatively good test of page handling costs is to mmap cache hot file
+and measure time to fault in all the pages in the mapping. That way IO and
+filesystem stays out of the way and you measure only page table lookup,
+page handling (taking page ref and locking the page), and instantiation of
+the new PTE. Out of this page handling is actually the significant part.
+
+								Honza
 -- 
-Michal Hocko
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
