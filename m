@@ -1,173 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7079A6B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:57:55 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id o20so2428879wro.8
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:57:55 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i23si4989091edj.505.2017.11.24.02.57.53
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 82F0C6B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 06:36:43 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d6so19422729pfb.3
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 03:36:43 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id a65si19712152pfg.271.2017.11.24.03.36.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 02:57:53 -0800 (PST)
-Date: Fri, 24 Nov 2017 10:57:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
- direct compaction
-Message-ID: <20171124105750.pwixg6wg3ifkldil@suse.de>
-References: <20171122143321.29501-1-hannes@cmpxchg.org>
- <20171123140843.is7cqatrdijkjqql@suse.de>
- <1d1ec1f2-d7aa-ee56-b18b-7d5efc172a50@suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1d1ec1f2-d7aa-ee56-b18b-7d5efc172a50@suse.cz>
+        Fri, 24 Nov 2017 03:36:41 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v2 1/2] mm,vmscan: Make unregister_shrinker() no-op if register_shrinker() failed.
+Date: Fri, 24 Nov 2017 20:36:24 +0900
+Message-Id: <1511523385-6433-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: linux-mm@kvack.org
+Cc: akpm@linux-foundation.org, mhocko@kernel.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Al Viro <viro@zeniv.linux.org.uk>, Glauber Costa <glauber@scylladb.com>, syzbot <syzkaller@googlegroups.com>
 
-On Thu, Nov 23, 2017 at 10:15:17PM +0100, Vlastimil Babka wrote:
-> On 11/23/2017 03:08 PM, Mel Gorman wrote:
-> > 
-> > 1. This indirectly uses __rmqueue to allocate a MIGRATE_MOVABLE page but
-> >    that is allowed to fallback to other pageblocks and potentially even
-> >    steal them. I think it's very bad that an attempt to defragment can
-> >    itself indirectly cause more fragmentation events by altering pageblocks.
-> >    Please consider using __rmqueue_fallback (within alloc_pages_zone of
-> >    course)
-> 
-> Agree. That should be simpler to do in the new version of the patch and
-> its __rmqueue_compact(). It might happen though that we deplete all free
-> pages on movable lists. Then the only option is to fallback to others
-> (aborting compaction in that case makes little sense IMHO) but perhaps
-> without the usual fallback heuristics of trying to steal the largest
-> page, whole pageblock etc.
-> 
+Syzbot caught an oops at unregister_shrinker() because combination of
+commit 1d3d4437eae1bb29 ("vmscan: per-node deferred work") and fault
+injection made register_shrinker() fail and the caller of
+register_shrinker() did not check for failure.
 
-I also should have said __rmqueue_smallest. It was __rmqueue_fallback
-that needed to be avoided :(
+----------
+[  554.881422] FAULT_INJECTION: forcing a failure.
+[  554.881422] name failslab, interval 1, probability 0, space 0, times 0
+[  554.881438] CPU: 1 PID: 13231 Comm: syz-executor1 Not tainted 4.14.0-rc8+ #82
+[  554.881443] Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+[  554.881445] Call Trace:
+[  554.881459]  dump_stack+0x194/0x257
+[  554.881474]  ? arch_local_irq_restore+0x53/0x53
+[  554.881486]  ? find_held_lock+0x35/0x1d0
+[  554.881507]  should_fail+0x8c0/0xa40
+[  554.881522]  ? fault_create_debugfs_attr+0x1f0/0x1f0
+[  554.881537]  ? check_noncircular+0x20/0x20
+[  554.881546]  ? find_next_zero_bit+0x2c/0x40
+[  554.881560]  ? ida_get_new_above+0x421/0x9d0
+[  554.881577]  ? find_held_lock+0x35/0x1d0
+[  554.881594]  ? __lock_is_held+0xb6/0x140
+[  554.881628]  ? check_same_owner+0x320/0x320
+[  554.881634]  ? lock_downgrade+0x990/0x990
+[  554.881649]  ? find_held_lock+0x35/0x1d0
+[  554.881672]  should_failslab+0xec/0x120
+[  554.881684]  __kmalloc+0x63/0x760
+[  554.881692]  ? lock_downgrade+0x990/0x990
+[  554.881712]  ? register_shrinker+0x10e/0x2d0
+[  554.881721]  ? trace_event_raw_event_module_request+0x320/0x320
+[  554.881737]  register_shrinker+0x10e/0x2d0
+[  554.881747]  ? prepare_kswapd_sleep+0x1f0/0x1f0
+[  554.881755]  ? _down_write_nest_lock+0x120/0x120
+[  554.881765]  ? memcpy+0x45/0x50
+[  554.881785]  sget_userns+0xbcd/0xe20
+(...snipped...)
+[  554.898693] kasan: CONFIG_KASAN_INLINE enabled
+[  554.898724] kasan: GPF could be caused by NULL-ptr deref or user memory access
+[  554.898732] general protection fault: 0000 [#1] SMP KASAN
+[  554.898737] Dumping ftrace buffer:
+[  554.898741]    (ftrace buffer empty)
+[  554.898743] Modules linked in:
+[  554.898752] CPU: 1 PID: 13231 Comm: syz-executor1 Not tainted 4.14.0-rc8+ #82
+[  554.898755] Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+[  554.898760] task: ffff8801d1dbe5c0 task.stack: ffff8801c9e38000
+[  554.898772] RIP: 0010:__list_del_entry_valid+0x7e/0x150
+[  554.898775] RSP: 0018:ffff8801c9e3f108 EFLAGS: 00010246
+[  554.898780] RAX: dffffc0000000000 RBX: 0000000000000000 RCX: 0000000000000000
+[  554.898784] RDX: 0000000000000000 RSI: ffff8801c53c6f98 RDI: ffff8801c53c6fa0
+[  554.898788] RBP: ffff8801c9e3f120 R08: 1ffff100393c7d55 R09: 0000000000000004
+[  554.898791] R10: ffff8801c9e3ef70 R11: 0000000000000000 R12: 0000000000000000
+[  554.898795] R13: dffffc0000000000 R14: 1ffff100393c7e45 R15: ffff8801c53c6f98
+[  554.898800] FS:  0000000000000000(0000) GS:ffff8801db300000(0000) knlGS:0000000000000000
+[  554.898804] CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
+[  554.898807] CR2: 00000000dbc23000 CR3: 00000001c7269000 CR4: 00000000001406e0
+[  554.898813] DR0: 0000000020000000 DR1: 0000000020000000 DR2: 0000000000000000
+[  554.898816] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+[  554.898818] Call Trace:
+[  554.898828]  unregister_shrinker+0x79/0x300
+[  554.898837]  ? perf_trace_mm_vmscan_writepage+0x750/0x750
+[  554.898844]  ? down_write+0x87/0x120
+[  554.898851]  ? deactivate_super+0x139/0x1b0
+[  554.898857]  ? down_read+0x150/0x150
+[  554.898864]  ? check_same_owner+0x320/0x320
+[  554.898875]  deactivate_locked_super+0x64/0xd0
+[  554.898883]  deactivate_super+0x141/0x1b0
+----------
 
-> > 2. One of the reasons a linear scanner was used was because I wanted the
-> >    possibility that MIGRATE_UNMOVABLE and MIGRATE_RECLAIMABLE pageblocks
-> >    would also be scanned and we would avoid future fragmentation events.
-> 
-> Hmm are you talking about the free scanner here, or the migration
-> scanner? The free scanner generally avoids these pageblocks, by the way
-> of suitable_migration_target() (and I think it used to be like this all
-> the time). Only recently an override of cc->ignore_block_suitable was added.
-> 
+Since allowing register_shrinker() callers to call unregister_shrinker()
+when register_shrinker() failed can simplify error recovery path, this
+patch makes unregister_shrinker() no-op when register_shrinker() failed.
+Since we can encourage register_shrinker() callers to check for failure
+by marking register_shrinker() as __must_check, unregister_shrinker()
+can stay silent.
 
-Migration scanner.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Reported-by: syzbot <syzkaller@googlegroups.com>
+Cc: Glauber Costa <glauber@scylladb.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+---
+ mm/vmscan.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-> >    This had a lot of overhead and was reduced since but it's still a
-> >    relevant problem.  Granted, this patch is not the correct place to fix
-> >    that issue and potential solutions have been discussed elsewhere. However,
-> >    this patch potentially means that never happens. It doesn't necessarily
-> >    kill the patch but the long-lived behaviour may be that no compaction
-> >    occurs because all the MIGRATE_MOVABLE pageblocks are full and you'll
-> >    either need to reclaim to fix it or we'll need kcompactd to migration
-> >    MIGRATE_MOVABLE pages from UNMOVABLE and RECLAIMABLE pageblocks out
-> >    of band.
-> > 
-> >    For THP, this point doesn't matter but if you need this patch for
-> >    high-order allocations for network buffers then at some point, you
-> >    really will have to clean out those pageblocks or it'll degrade.
-> 
-> Hmm this really reads like about the migration scanner. That one is
-> unchanged by this patch, there is still a linear scanner. In fact, it
-> gets better, because now it can see the whole zone, not just the first
-> 1/3 - 1/2 until it meets the free scanner (my past observations). And
-> some time ago the async direct compaction was adjusted so that it only
-> scans the migratetype matching the allocation (see
-> suitable_migration_source()). So to some extent, the cleaning already
-> happens.
-> 
-
-It is true that the migration scanner may see a subset of the zone but
-it was important to avoid a previous migration source becoming a
-migration target. The problem is completely different when using the
-freelist as a hint.
-
-> > 3. Another reason a linear scanner was used was because we wanted to
-> >    clear entire pageblocks we were migrating from and pack the target
-> >    pageblocks as much as possible. This was to reduce the amount of
-> >    migration required overall even though the scanning hurts. This patch
-> >    takes MIGRATE_MOVABLE pages from anywhere that is "not this pageblock".
-> >    Those potentially have to be moved again and again trying to randomly
-> >    fill a MIGRATE_MOVABLE block. Have you considered using the freelists
-> >    as a hint? i.e. take a page from the freelist, then isolate all free
-> >    pages in the same pageblock as migration targets? That would preserve
-> >    the "packing property" of the linear scanner.
-> > 
-> >    This would increase the amount of scanning but that *might* be offset by
-> >    the number of migrations the workload does overall. Note that migrations
-> >    potentially are minor faults so if we do too many migrations, your
-> >    workload may suffer.
-> 
-> I have considered the "freelist as a hint", but I'm kinda sceptical
-> about it, because with increasing uptime reclaim should be freeing
-> rather random pages, so finding some free page in a pageblock doesn't
-> mean there would be more free pages there than in the other pageblocks?
-> 
-
-True, but randomly selecting pageblocks based on the contents of the
-freelist is not better. If a pageblock has limited free pages then it'll
-be filled quickly and not used as a hint in the future.
-
-> Instead my plan is to make the migration scanner smarter by expanding
-> the "skip_on_failure" feature in isolate_migratepages_block(). The
-> scanner should not even start isolating if the block ahead contains a
-> page that's not free or lru-isolatable/PageMovable. The current
-> "look-ahead" is effectively limited by COMPACT_CLUSTER_MAX (32) isolated
-> pages followed by a migration, after which the scanner might immediately
-> find a non-migratable page, so if it was called for a THP, that work has
-> been wasted.
-> 
-
-That's also not necessarily true because there is a benefit to moving
-pages from unmovable blocks to avoid fragmentation later.
-
-> > 5. Consider two processes A and B compacting at the same time with A_s
-> >    and A_t being the source pageblock and target pageblock that process
-> >    A is using and B_s/B_t being B's pageblocks. Nothing prevents A_s ==
-> >    B_t and B_s == A_t. Maybe it rarely happens in practice but it was one
-> >    problem the linear scanner was meant to avoid.
-> 
-> I hope that ultimately this problem is not worse than the existing
-> problem where B would not be compacting, but simply allocating the pages
-> that A just created... Maybe if the "look-ahead" idea turns out to have
-> high enough success rate of really creating the high-order page where it
-> decides to isolate and migrate (which probably depends mostly on the
-> migration failure rate?) we could resurrect the old idea of doing a
-> pageblock isolation (MIGRATE_ISOLATE) beforehand. That would block all
-> interference.
-> 
-
-Pageblock bits similar to the skip bit could also be used to limit the
-problem.
-
-> > I can't shake the feeling I had another concern when I started this
-> > email but then forgot it before I got to the end so it can't be that
-> > important :(.
-> 
-> Thanks a lot for the feedback. I totally see how the approach of two
-> linear scanners makes many things simpler, but seems we are now really
-> paying too high a price for the free page scanning. So hopefully there
-> is a way out, although not a simple one.
-
-
-While the linear scanner solved some problems, I do agree that the overhead
-is too high today. However, I think it can be fixed by using the freelist
-as a hint, possibly combined with a pageblock bit to avoid hitting some
-problems the linear scanner avoids. I do think there is a way out even
-though I also think that the complexity would not have been justified
-when compaction was first introduced -- partially because it was not clear
-the time that the overhead was an issue but mostly because compaction was
-initially a huge-page-only thing.
-
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 6a5a72b..d01177b 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -297,6 +297,8 @@ int register_shrinker(struct shrinker *shrinker)
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
++	if (!shrinker->nr_deferred)
++		return;
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
 -- 
-Mel Gorman
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
