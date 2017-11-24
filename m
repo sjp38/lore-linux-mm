@@ -1,64 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BF2AC6B025E
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:35:43 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id y41so13406962wrc.22
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:35:43 -0800 (PST)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.184])
-        by mx.google.com with ESMTPS id 57si2238063edz.9.2017.11.24.02.35.42
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A53506B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:36:48 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id k84so11627277pfj.18
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:36:48 -0800 (PST)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id w24si17767311plq.427.2017.11.24.02.36.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Nov 2017 02:35:42 -0800 (PST)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [RFC v2] dma-coherent: introduce no-align to avoid allocation
- failure and save memory
-Date: Fri, 24 Nov 2017 10:35:56 +0000
-Message-ID: <ac459cbf03c343ecad78450d89f340e7@AcuMS.aculab.com>
-References: <CGME20171124055811epcas1p364177b515eb072d25cd9f49573daef72@epcas1p3.samsung.com>
- <20171124055833.10998-1-jaewon31.kim@samsung.com>
-In-Reply-To: <20171124055833.10998-1-jaewon31.kim@samsung.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="Windows-1252"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Nov 2017 02:36:47 -0800 (PST)
+Message-ID: <5A17F5DF.2040108@huawei.com>
+Date: Fri, 24 Nov 2017 18:35:11 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
+Subject: Re: [PATCH v2 4/5] mm: memory_hotplug: Add memory hotremove probe
+ device
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com> <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
+In-Reply-To: <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Jaewon Kim' <jaewon31.kim@samsung.com>, "m.szyprowski@samsung.com" <m.szyprowski@samsung.com>, "hch@lst.de" <hch@lst.de>, "robin.murphy@arm.com" <robin.murphy@arm.com>, "gregkh@linuxfoundation.org" <gregkh@linuxfoundation.org>
-Cc: "iommu@lists.linux-foundation.org" <iommu@lists.linux-foundation.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@suse.com" <mhocko@suse.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "jaewon31.kim@gmail.com" <jaewon31.kim@gmail.com>
+To: Andrea Reale <ar@linux.vnet.ibm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, mhocko@suse.com, realean2@ie.ibm.com
 
-From: Jaewon Kim
-> Sent: 24 November 2017 05:59
->=20
-> dma-coherent uses bitmap APIs which internally consider align based on th=
-e
-> requested size. If most of allocations are small size like KBs, using
-> alignment scheme seems to be good for anti-fragmentation. But if large
-> allocation are commonly used, then an allocation could be failed because
-> of the alignment. To avoid the allocation failure, we had to increase tot=
-al
-> size.
->=20
-> This is a example, total size is 30MB, only few memory at front is being
-> used, and 9MB is being requsted. Then 9MB will be aligned to 16MB. The
-> first try on offset 0MB will be failed because others already are using
-> them. The second try on offset 16MB will be failed because of ouf of boun=
-d.
->=20
-> So if the alignment is not necessary on a specific dma-coherent memory
-> region, we can set no-align property. Then dma-coherent will ignore the
-> alignment only for the memory region.
+HI, Andrea
 
-ISTM that the alignment needs to be a property of the request, not of the
-device. Certainly the device driver code is most likely to know the specifi=
-c
-alignment requirements of any specific allocation.
+I don't see "memory_add_physaddr_to_nid" in arch/arm64.
+Am I miss something?
 
-We've some hardware that would need large allocations to be 16k aligned.
-We actually use multiple 16k allocations because any large buffers are
-accessed directly from userspace (mmap and vm_iomap_memory) and the
-card has its own page tables (with 16k pages).
+Thnaks
+zhongjiang
 
-	David
+On 2017/11/23 19:14, Andrea Reale wrote:
+> Adding a "remove" sysfs handle that can be used to trigger
+> memory hotremove manually, exactly simmetrically with
+> what happens with the "probe" device for hot-add.
+>
+> This is usueful for architecture that do not rely on
+> ACPI for memory hot-remove.
+>
+> Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> Signed-off-by: Maciej Bielski <m.bielski@virtualopensystems.com>
+> ---
+>  drivers/base/memory.c | 34 +++++++++++++++++++++++++++++++++-
+>  1 file changed, 33 insertions(+), 1 deletion(-)
+>
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 1d60b58..8ccb67c 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -530,7 +530,36 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
+>  }
+>  
+>  static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+> -#endif
+> +
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +static ssize_t
+> +memory_remove_store(struct device *dev,
+> +		struct device_attribute *attr, const char *buf, size_t count)
+> +{
+> +	u64 phys_addr;
+> +	int nid, ret;
+> +	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
+> +
+> +	ret = kstrtoull(buf, 0, &phys_addr);
+> +	if (ret)
+> +		return ret;
+> +
+> +	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+> +		return -EINVAL;
+> +
+> +	nid = memory_add_physaddr_to_nid(phys_addr);
+> +	ret = lock_device_hotplug_sysfs();
+> +	if (ret)
+> +		return ret;
+> +
+> +	remove_memory(nid, phys_addr,
+> +			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+> +	unlock_device_hotplug();
+> +	return count;
+> +}
+> +static DEVICE_ATTR(remove, S_IWUSR, NULL, memory_remove_store);
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
+> +#endif /* CONFIG_ARCH_MEMORY_PROBE */
+>  
+>  #ifdef CONFIG_MEMORY_FAILURE
+>  /*
+> @@ -790,6 +819,9 @@ bool is_memblock_offlined(struct memory_block *mem)
+>  static struct attribute *memory_root_attrs[] = {
+>  #ifdef CONFIG_ARCH_MEMORY_PROBE
+>  	&dev_attr_probe.attr,
+> +#ifdef CONFIG_MEMORY_HOTREMOVE
+> +	&dev_attr_remove.attr,
+> +#endif
+>  #endif
+>  
+>  #ifdef CONFIG_MEMORY_FAILURE
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
