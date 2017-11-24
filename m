@@ -1,139 +1,127 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AEDBC6B025E
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:55:10 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id r58so16779143qtc.7
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 07:55:10 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s16si1022204qki.321.2017.11.24.07.55.09
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 875AC6B0253
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:58:20 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id o60so14132349wrc.14
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 07:58:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i4si3445994edd.36.2017.11.24.07.58.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Nov 2017 07:55:09 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAOFnfBc141193
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:55:08 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2eemxnc2xb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:55:08 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
-	Fri, 24 Nov 2017 15:55:05 -0000
-Date: Fri, 24 Nov 2017 15:54:59 +0000
-From: Andrea Reale <ar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 2/5] mm: memory_hotplug: Remove assumption on memory
- state before hotremove
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <4e21a27570f665793debf167c8567c6752116d0a.1511433386.git.ar@linux.vnet.ibm.com>
- <CAJZ5v0i7vOxwhgA1LWYDqxCKkHaYikCf_HZZQCbgApLpoyV2JA@mail.gmail.com>
- <20171124144917.GB1966@samekh>
- <20171124154317.copbe3u6y2q4mura@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Nov 2017 07:58:18 -0800 (PST)
+Date: Fri, 24 Nov 2017 16:58:16 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
+References: <20171108102723.602216b1@gandalf.local.home>
+ <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171124154317.copbe3u6y2q4mura@dhcp22.suse.cz>
-Message-Id: <20171124155458.GC1966@samekh>
+In-Reply-To: <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, Mark Rutland <mark.rutland@arm.com>, scott.branden@broadcom.com, Will Deacon <will.deacon@arm.com>, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, Rafael Wysocki <rafael.j.wysocki@intel.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>
 
-On Fri 24 Nov 2017, 16:43, Michal Hocko wrote:
-> On Fri 24-11-17 14:49:17, Andrea Reale wrote:
-> > Hi Rafael,
-> > 
-> > On Fri 24 Nov 2017, 15:39, Rafael J. Wysocki wrote:
-> > > On Fri, Nov 24, 2017 at 11:22 AM, Andrea Reale <ar@linux.vnet.ibm.com> wrote:
-> > > > Resending the patch adding linux-acpi in CC, as suggested by Rafael.
-> > > > Everyone else: apologies for the noise.
-> > > >
-> > > > Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
-> > > > introduced an assumption whereas when control
-> > > > reaches remove_memory the corresponding memory has been already
-> > > > offlined. In that case, the acpi_memhotplug was making sure that
-> > > > the assumption held.
-> > > > This assumption, however, is not necessarily true if offlining
-> > > > and removal are not done by the same "controller" (for example,
-> > > > when first offlining via sysfs).
-> > > >
-> > > > Removing this assumption for the generic remove_memory code
-> > > > and moving it in the specific acpi_memhotplug code. This is
-> > > > a dependency for the software-aided arm64 offlining and removal
-> > > > process.
-> > > >
-> > > > Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
-> > > > Signed-off-by: Maciej Bielski <m.bielski@linux.vnet.ibm.com>
-> > > > ---
-> > > >  drivers/acpi/acpi_memhotplug.c |  2 +-
-> > > >  include/linux/memory_hotplug.h |  9 ++++++---
-> > > >  mm/memory_hotplug.c            | 13 +++++++++----
-> > > >  3 files changed, 16 insertions(+), 8 deletions(-)
-> > > >
-> > > > diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-> > > > index 6b0d3ef..b0126a0 100644
-> > > > --- a/drivers/acpi/acpi_memhotplug.c
-> > > > +++ b/drivers/acpi/acpi_memhotplug.c
-> > > > @@ -282,7 +282,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
-> > > >                         nid = memory_add_physaddr_to_nid(info->start_addr);
-> > > >
-> > > >                 acpi_unbind_memory_blocks(info);
-> > > > -               remove_memory(nid, info->start_addr, info->length);
-> > > > +               BUG_ON(remove_memory(nid, info->start_addr, info->length));
-> > > 
-> > > Why does this have to be BUG_ON()?  Is it really necessary to kill the
-> > > system here?
-> > 
-> > Actually, I hoped you would help me understand that: that BUG() call was introduced
-> > by yourself in Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
-> > in memory_hoptlug.c:remove_memory()). 
-> > 
-> > Just reading at that commit my understanding was that you were assuming
-> > that acpi_memory_remove_memory() have already done the job of offlining
-> > the target memory, so there would be a bug if that wasn't the case.
-> > 
-> > In my case, that assumption did not hold and I found that it might not
-> > hold for other platforms that do not use ACPI. In fact, the purpose of
-> > this patch is to move this assumption out of the generic hotplug code
-> > and move it to ACPI code where it originated. 
+On Fri 2017-11-24 16:54:16, Petr Mladek wrote:
+> On Wed 2017-11-08 10:27:23, Steven Rostedt wrote:
+> > If there is a waiter, then it breaks out of the loop, clears the waiter
+> > flag (because that will release the waiter from its spin), and exits.
+> > Note, it does *not* release the console semaphore. Because it is a
+> > semaphore, there is no owner.
 > 
-> remove_memory failure is basically impossible to handle AFAIR. The
-> original code to BUG in remove_memory is ugly as hell and we do not want
-> to spread that out of that function. Instead we really want to get rid
-> of it.
-
-Today, BUG() is called even in the simple case where remove fails
-because the section we are removing is not offline. I cannot see any need to
-BUG() in such a case: an error code seems more than sufficient to me.
-This is why this patch removes the BUG() call when the "offline" check
-fails from the generic code. 
-It moves it back to the ACPI call, where the assumption
-originated. Honestlly, I cannot tell if it makes sense to BUG() there:
-I have nothing against removing it from ACPI hotplug too, but
-I don't know enough to feel free to change the acpi semantics myself, so I
-moved it there to keep the original behavior unchanged for x86 code.
-
-In this arm64 hot-remove port, offline and remove are done in two separate
-steps, and is conceivable that an user tries erroneusly to remove some
-section that he forgot to offline first: in that case, with the patch,
-remove will just report an erro without BUGing.
-
-Is my reasoning flawed?
-
-Cheers,
-Andrea
-
-> -- 
-> Michal Hocko
-> SUSE Labs
-> --
-> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
-> the body of a message to majordomo@vger.kernel.org
-> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> > Index: linux-trace.git/kernel/printk/printk.c
+> > ===================================================================
+> > --- linux-trace.git.orig/kernel/printk/printk.c
+> > +++ linux-trace.git/kernel/printk/printk.c
+> > @@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
+> >  static struct lockdep_map console_lock_dep_map = {
+> >  	.name = "console_lock"
+> >  };
+> > +static struct lockdep_map console_owner_dep_map = {
+> > +	.name = "console_owner"
+> > +};
+> >  #endif
+> >  
+> > +static DEFINE_RAW_SPINLOCK(console_owner_lock);
+> > +static struct task_struct *console_owner;
+> > +static bool console_waiter;
+> > +
+> >  enum devkmsg_log_bits {
+> >  	__DEVKMSG_LOG_BIT_ON = 0,
+> >  	__DEVKMSG_LOG_BIT_OFF,
+> > @@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
+> >  		 * semaphore.  The release will print out buffers and wake up
+> >  		 * /dev/kmsg and syslog() users.
+> >  		 */
+> > -		if (console_trylock())
+> > +		if (console_trylock()) {
+> >  			console_unlock();
+> > +		} else {
+> > +			struct task_struct *owner = NULL;
+> > +			bool waiter;
+> > +			bool spin = false;
+> > +
+> > +			printk_safe_enter_irqsave(flags);
+> > +
+> > +			raw_spin_lock(&console_owner_lock);
+> > +			owner = READ_ONCE(console_owner);
+> > +			waiter = READ_ONCE(console_waiter);
+> > +			if (!waiter && owner && owner != current) {
+> > +				WRITE_ONCE(console_waiter, true);
+> > +				spin = true;
+> > +			}
+> > +			raw_spin_unlock(&console_owner_lock);
+> > +
+> > +			/*
+> > +			 * If there is an active printk() writing to the
+> > +			 * consoles, instead of having it write our data too,
+> > +			 * see if we can offload that load from the active
+> > +			 * printer, and do some printing ourselves.
+> > +			 * Go into a spin only if there isn't already a waiter
+> > +			 * spinning, and there is an active printer, and
+> > +			 * that active printer isn't us (recursive printk?).
+> > +			 */
+> > +			if (spin) {
+> > +				/* We spin waiting for the owner to release us */
+> > +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> > +				/* Owner will clear console_waiter on hand off */
+> > +				while (READ_ONCE(console_waiter))
+> > +					cpu_relax();
+> > +
+> > +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> > +				printk_safe_exit_irqrestore(flags);
+> > +
+> > +				/*
+> > +				 * The owner passed the console lock to us.
+> > +				 * Since we did not spin on console lock, annotate
+> > +				 * this as a trylock. Otherwise lockdep will
+> > +				 * complain.
+> > +				 */
+> > +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
 > 
+> I am not sure that this correctly imitates the real lock
+> dependency. The trylock flag means that we are able to skip
+> this section when the lock is taken elsewhere. But it is not
+> the whole truth. In fact, we are blocked in this code path
+> when console_sem is taken by another process.
+> 
+> The use of console_owner_lock is not enough. The other
+> console_sem calls a lot of code outside the section
+> guarded by console_owner_lock.
+> 
+> I think that we have actually entered the cross-release bunch
+> of problems, see https://lwn.net/Articles/709849/
+> 
+> IMHO, we need to use struct lockdep_map_cross for
+> console_lock_dep_map. Also we need to put somewhere
+> lock_commit_crosslock().
+> 
+> I am going to play with it. Also I add Byungchul Park into CC.
+> This is why I keep most of the context in this reply (I am sorry
+> for it).
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+See my first attempt below. I do not get any lockdep
+warning but it is possible that I just did it wrong.
