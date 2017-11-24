@@ -1,156 +1,173 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 189546B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:52:03 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y41so13434420wrc.22
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:52:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h7sor5037980wre.77.2017.11.24.02.52.01
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7079A6B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:57:55 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id o20so2428879wro.8
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:57:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i23si4989091edj.505.2017.11.24.02.57.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 24 Nov 2017 02:52:01 -0800 (PST)
-Date: Fri, 24 Nov 2017 11:53:08 +0100
-From: Maciej Bielski <m.bielski@virtualopensystems.com>
-Subject: Re: [PATCH v2 1/5] mm: memory_hotplug: Memory hotplug (add) support
- for arm64
-Message-ID: <20171124105308.GA10023@tpad>
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <ba9c72239dc5986edc6ca29fc58fefb306e4b52d.1511433386.git.ar@linux.vnet.ibm.com>
- <CAKZGPAPN7migyvpNJDu1bA+ditb0TJV4WLqZuPdkxOU3kYQ9Ng@mail.gmail.com>
- <20171124094232.GA18120@samekh>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Nov 2017 02:57:53 -0800 (PST)
+Date: Fri, 24 Nov 2017 10:57:50 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
+ direct compaction
+Message-ID: <20171124105750.pwixg6wg3ifkldil@suse.de>
+References: <20171122143321.29501-1-hannes@cmpxchg.org>
+ <20171123140843.is7cqatrdijkjqql@suse.de>
+ <1d1ec1f2-d7aa-ee56-b18b-7d5efc172a50@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20171124094232.GA18120@samekh>
+In-Reply-To: <1d1ec1f2-d7aa-ee56-b18b-7d5efc172a50@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Reale <ar@linux.vnet.ibm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, mhocko@suse.com, realean2@ie.ibm.com
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Fri, Nov 24, 2017 at 09:42:33AM +0000, Andrea Reale wrote:
-> Hi Arun,
->
->
-> On Fri 24 Nov 2017, 11:25, Arun KS wrote:
-> > On Thu, Nov 23, 2017 at 4:43 PM, Maciej Bielski
-> > <m.bielski@virtualopensystems.com> wrote:
-> >> [ ...]
-> > > Introduces memory hotplug functionality (hot-add) for arm64.
-> > > @@ -615,6 +616,44 @@ void __init paging_init(void)
-> > >                       SWAPPER_DIR_SIZE - PAGE_SIZE);
-> > >  }
-> > >
-> > > +#ifdef CONFIG_MEMORY_HOTPLUG
-> > > +
-> > > +/*
-> > > + * hotplug_paging() is used by memory hotplug to build new page tables
-> > > + * for hot added memory.
-> > > + */
-> > > +
-> > > +struct mem_range {
-> > > +       phys_addr_t base;
-> > > +       phys_addr_t size;
-> > > +};
-> > > +
-> > > +static int __hotplug_paging(void *data)
-> > > +{
-> > > +       int flags = 0;
-> > > +       struct mem_range *section = data;
-> > > +
-> > > +       if (debug_pagealloc_enabled())
-> > > +               flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
-> > > +
-> > > +       __create_pgd_mapping(swapper_pg_dir, section->base,
-> > > +                       __phys_to_virt(section->base), section->size,
-> > > +                       PAGE_KERNEL, pgd_pgtable_alloc, flags);
-> >
-> > Hello Andrea,
-> >
-> > __hotplug_paging runs on stop_machine context.
-> > cpu stop callbacks must not sleep.
-> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/stop_machine.c?h=v4.14#n479
-> >
-> > __create_pgd_mapping uses pgd_pgtable_alloc. which does
-> > __get_free_page(PGALLOC_GFP)
-> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm64/mm/mmu.c?h=v4.14#n342
-> >
-> > PGALLOC_GFP has GFP_KERNEL which inturn has __GFP_RECLAIM
-> >
-> > #define PGALLOC_GFP     (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-> > #define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
-> >
-> > Now, prepare_alloc_pages() called by __alloc_pages_nodemask checks for
-> >
-> > might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
-> >
-> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/page_alloc.c?h=v4.14#n4150
-> >
-> > and then BUG()
->
-> Well spotted, thanks for reporting the problem. One possible solution
-> would be to revert back to building the updated page tables on a copy
-> pgdir (as it was done in v1 of this patchset) and then replacing swapper
-> atomically with stop_machine.
->
-> Actually, I am not sure if stop_machine is strictly needed,
-> if we modify the swapper pgdir live: for example, in x86_64
-> kernel_physical_mapping_init, atomicity is ensured by spin-locking on
-> init_mm.page_table_lock.
-> https://elixir.free-electrons.com/linux/v4.14/source/arch/x86/mm/init_64.c#L684
-> I'll spend some time investigating whoever else could be working
-> concurrently on the swapper pgdir.
->
-> Any suggestion or pointer is very welcome.
+On Thu, Nov 23, 2017 at 10:15:17PM +0100, Vlastimil Babka wrote:
+> On 11/23/2017 03:08 PM, Mel Gorman wrote:
+> > 
+> > 1. This indirectly uses __rmqueue to allocate a MIGRATE_MOVABLE page but
+> >    that is allowed to fallback to other pageblocks and potentially even
+> >    steal them. I think it's very bad that an attempt to defragment can
+> >    itself indirectly cause more fragmentation events by altering pageblocks.
+> >    Please consider using __rmqueue_fallback (within alloc_pages_zone of
+> >    course)
+> 
+> Agree. That should be simpler to do in the new version of the patch and
+> its __rmqueue_compact(). It might happen though that we deplete all free
+> pages on movable lists. Then the only option is to fallback to others
+> (aborting compaction in that case makes little sense IMHO) but perhaps
+> without the usual fallback heuristics of trying to steal the largest
+> page, whole pageblock etc.
+> 
 
-Hi Andrea, Arun,
+I also should have said __rmqueue_smallest. It was __rmqueue_fallback
+that needed to be avoided :(
 
-Alternative approach could be implementing pgd_pgtable_alloc_nosleep() and
-pointing this to hotplug_paging(). Subsequently, it could use different flags,
-eg:
+> > 2. One of the reasons a linear scanner was used was because I wanted the
+> >    possibility that MIGRATE_UNMOVABLE and MIGRATE_RECLAIMABLE pageblocks
+> >    would also be scanned and we would avoid future fragmentation events.
+> 
+> Hmm are you talking about the free scanner here, or the migration
+> scanner? The free scanner generally avoids these pageblocks, by the way
+> of suitable_migration_target() (and I think it used to be like this all
+> the time). Only recently an override of cc->ignore_block_suitable was added.
+> 
 
-#define PGALLOC_GFP_NORECLAIM	(__GFP_IO | __GFP_FS | __GFP_NOTRACK | __GFP_ZERO)
+Migration scanner.
 
-Is this unefficient approach in any way?
-Do we like the fact that the memory-attaching thread can go to sleep?
+> >    This had a lot of overhead and was reduced since but it's still a
+> >    relevant problem.  Granted, this patch is not the correct place to fix
+> >    that issue and potential solutions have been discussed elsewhere. However,
+> >    this patch potentially means that never happens. It doesn't necessarily
+> >    kill the patch but the long-lived behaviour may be that no compaction
+> >    occurs because all the MIGRATE_MOVABLE pageblocks are full and you'll
+> >    either need to reclaim to fix it or we'll need kcompactd to migration
+> >    MIGRATE_MOVABLE pages from UNMOVABLE and RECLAIMABLE pageblocks out
+> >    of band.
+> > 
+> >    For THP, this point doesn't matter but if you need this patch for
+> >    high-order allocations for network buffers then at some point, you
+> >    really will have to clean out those pageblocks or it'll degrade.
+> 
+> Hmm this really reads like about the migration scanner. That one is
+> unchanged by this patch, there is still a linear scanner. In fact, it
+> gets better, because now it can see the whole zone, not just the first
+> 1/3 - 1/2 until it meets the free scanner (my past observations). And
+> some time ago the async direct compaction was adjusted so that it only
+> scans the migratetype matching the allocation (see
+> suitable_migration_source()). So to some extent, the cleaning already
+> happens.
+> 
 
-BR,
+It is true that the migration scanner may see a subset of the zone but
+it was important to avoid a previous migration source becoming a
+migration target. The problem is completely different when using the
+freelist as a hint.
 
->
-> Thanks,
-> Andrea
->
-> > I was testing on 4.4 kernel, but cross checked with 4.14 as well.
-> >
-> > Regards,
-> > Arun
-> >
-> >
-> > > +
-> > > +       return 0;
-> > > +}
-> > > +
-> > > +inline void hotplug_paging(phys_addr_t start, phys_addr_t size)
-> > > +{
-> > > +       struct mem_range section = {
-> > > +               .base = start,
-> > > +               .size = size,
-> > > +       };
-> > > +
-> > > +       stop_machine(__hotplug_paging, &section, NULL);
-> > > +}
-> > > +#endif /* CONFIG_MEMORY_HOTPLUG */
-> > > +
-> > >  /*
-> > >   * Check whether a kernel address is valid (derived from arch/x86/).
-> > >   */
-> > > --
-> > > 2.7.4
-> > >
-> >
->
+> > 3. Another reason a linear scanner was used was because we wanted to
+> >    clear entire pageblocks we were migrating from and pack the target
+> >    pageblocks as much as possible. This was to reduce the amount of
+> >    migration required overall even though the scanning hurts. This patch
+> >    takes MIGRATE_MOVABLE pages from anywhere that is "not this pageblock".
+> >    Those potentially have to be moved again and again trying to randomly
+> >    fill a MIGRATE_MOVABLE block. Have you considered using the freelists
+> >    as a hint? i.e. take a page from the freelist, then isolate all free
+> >    pages in the same pageblock as migration targets? That would preserve
+> >    the "packing property" of the linear scanner.
+> > 
+> >    This would increase the amount of scanning but that *might* be offset by
+> >    the number of migrations the workload does overall. Note that migrations
+> >    potentially are minor faults so if we do too many migrations, your
+> >    workload may suffer.
+> 
+> I have considered the "freelist as a hint", but I'm kinda sceptical
+> about it, because with increasing uptime reclaim should be freeing
+> rather random pages, so finding some free page in a pageblock doesn't
+> mean there would be more free pages there than in the other pageblocks?
+> 
 
---
-Maciej Bielski
+True, but randomly selecting pageblocks based on the contents of the
+freelist is not better. If a pageblock has limited free pages then it'll
+be filled quickly and not used as a hint in the future.
+
+> Instead my plan is to make the migration scanner smarter by expanding
+> the "skip_on_failure" feature in isolate_migratepages_block(). The
+> scanner should not even start isolating if the block ahead contains a
+> page that's not free or lru-isolatable/PageMovable. The current
+> "look-ahead" is effectively limited by COMPACT_CLUSTER_MAX (32) isolated
+> pages followed by a migration, after which the scanner might immediately
+> find a non-migratable page, so if it was called for a THP, that work has
+> been wasted.
+> 
+
+That's also not necessarily true because there is a benefit to moving
+pages from unmovable blocks to avoid fragmentation later.
+
+> > 5. Consider two processes A and B compacting at the same time with A_s
+> >    and A_t being the source pageblock and target pageblock that process
+> >    A is using and B_s/B_t being B's pageblocks. Nothing prevents A_s ==
+> >    B_t and B_s == A_t. Maybe it rarely happens in practice but it was one
+> >    problem the linear scanner was meant to avoid.
+> 
+> I hope that ultimately this problem is not worse than the existing
+> problem where B would not be compacting, but simply allocating the pages
+> that A just created... Maybe if the "look-ahead" idea turns out to have
+> high enough success rate of really creating the high-order page where it
+> decides to isolate and migrate (which probably depends mostly on the
+> migration failure rate?) we could resurrect the old idea of doing a
+> pageblock isolation (MIGRATE_ISOLATE) beforehand. That would block all
+> interference.
+> 
+
+Pageblock bits similar to the skip bit could also be used to limit the
+problem.
+
+> > I can't shake the feeling I had another concern when I started this
+> > email but then forgot it before I got to the end so it can't be that
+> > important :(.
+> 
+> Thanks a lot for the feedback. I totally see how the approach of two
+> linear scanners makes many things simpler, but seems we are now really
+> paying too high a price for the free page scanning. So hopefully there
+> is a way out, although not a simple one.
+
+
+While the linear scanner solved some problems, I do agree that the overhead
+is too high today. However, I think it can be fixed by using the freelist
+as a hint, possibly combined with a pageblock bit to avoid hitting some
+problems the linear scanner avoids. I do think there is a way out even
+though I also think that the complexity would not have been justified
+when compaction was first introduced -- partially because it was not clear
+the time that the overhead was an issue but mostly because compaction was
+initially a huge-page-only thing.
+
+-- 
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
