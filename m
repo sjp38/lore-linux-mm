@@ -1,55 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A74106B0253
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 03:39:55 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id 4so21149171pge.8
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 00:39:55 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CC406B025F
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 03:54:10 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j6so11189412wre.16
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 00:54:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y84si4015701pfa.362.2017.11.24.00.39.54
+        by mx.google.com with ESMTPS id s6si297289edc.399.2017.11.24.00.54.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 00:39:54 -0800 (PST)
-Subject: Re: MPK: removing a pkey
-References: <0f006ef4-a7b5-c0cf-5f58-d0fd1f911a54@redhat.com>
- <8741e4d6-6ac0-9c07-99f3-95d8d04940b4@suse.cz>
- <813f9736-36dd-b2e5-c850-9f2d5f94514a@redhat.com>
- <f42fe774-bdcc-a509-bb7f-fe709fd28fcb@linux.intel.com>
- <9ec19ff3-86f6-7cfe-1a07-1ab1c5d9882c@redhat.com>
- <d98eb4b8-6e59-513d-fdf8-3395485cb851@linux.intel.com>
- <de93997a-7802-96cf-62e2-e59416e745ca@suse.cz>
- <17831167-7142-d42a-c7a0-59bdc8bbb786@linux.intel.com>
- <2d12777f-615a-8101-2156-cf861ec13aa7@suse.cz>
- <8051353f-47d3-37a4-a402-41adc8b6eb88@linux.intel.com>
- <e97e53a1-ba04-c62e-cc64-054b488d5394@redhat.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <346db028-6f45-65d5-a531-300c2251a8eb@suse.cz>
-Date: Fri, 24 Nov 2017 09:38:27 +0100
+        Fri, 24 Nov 2017 00:54:07 -0800 (PST)
+Date: Fri, 24 Nov 2017 09:54:05 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171124085405.dwln5k3dk7fdio7e@dhcp22.suse.cz>
+References: <20171116101900.13621-1-mhocko@kernel.org>
+ <20171116121438.6vegs4wiahod3byl@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <e97e53a1-ba04-c62e-cc64-054b488d5394@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171116121438.6vegs4wiahod3byl@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-x86_64@vger.kernel.org, linux-arch@vger.kernel.org
-Cc: linux-mm <linux-mm@kvack.org>, Linux API <linux-api@vger.kernel.org>
+To: linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
 
-On 11/24/2017 09:35 AM, Florian Weimer wrote:
-> On 11/24/2017 12:29 AM, Dave Hansen wrote:
->> Although weird, the thought here was that pkey_mprotect() callers are
->> new and should know about the interactions with PROT_EXEC.  They can
->> also*get*  PROT_EXEC semantics if they want.
->>
->> The only wart here is if you do:
->>
->> 	mprotect(..., PROT_EXEC); // key 10 is now the PROT_EXEC key
+Are there any more concerns? So far the biggest one was the name. The
+other which suggests a flag as a modifier has been sorted out hopefully.
+Is there anymore more before we can consider this for merging? Well
+except for man page update which I will prepare of course. Can we target
+this to 4.16?
+
+On Thu 16-11-17 13:14:38, Michal Hocko wrote:
+> [Ups, managed to screw the subject - fix it]
 > 
-> I thought the PROT_EXEC key is always 1?
+> On Thu 16-11-17 11:18:58, Michal Hocko wrote:
+> > Hi,
+> > this has started as a follow up discussion [1][2] resulting in the
+> > runtime failure caused by hardening patch [3] which removes MAP_FIXED
+> > from the elf loader because MAP_FIXED is inherently dangerous as it
+> > might silently clobber and existing underlying mapping (e.g. stack). The
+> > reason for the failure is that some architectures enforce an alignment
+> > for the given address hint without MAP_FIXED used (e.g. for shared or
+> > file backed mappings).
+> > 
+> > One way around this would be excluding those archs which do alignment
+> > tricks from the hardening [4]. The patch is really trivial but it has
+> > been objected, rightfully so, that this screams for a more generic
+> > solution. We basically want a non-destructive MAP_FIXED.
+> > 
+> > The first patch introduced MAP_FIXED_SAFE which enforces the given
+> > address but unlike MAP_FIXED it fails with ENOMEM if the given range
+> > conflicts with an existing one. The flag is introduced as a completely
+> > new flag rather than a MAP_FIXED extension because of the backward
+> > compatibility. We really want a never-clobber semantic even on older
+> > kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+> > flags evaluation because we do not EINVAL on unknown flags. On those
+> > kernels we would simply use the traditional hint based semantic so the
+> > caller can still get a different address (which sucks) but at least not
+> > silently corrupt an existing mapping. I do not see a good way around
+> > that. Except we won't export expose the new semantic to the userspace at
+> > all. It seems there are users who would like to have something like that
+> > [5], though. Atomic address range probing in the multithreaded programs
+> > sounds like an interesting thing to me as well, although I do not have
+> > any specific usecase in mind.
+> > 
+> > The second patch simply replaces MAP_FIXED use in elf loader by
+> > MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
+> > follow. Actually real MAP_FIXED usages should be docummented properly
+> > and they should be more of an exception.
+> > 
+> > Does anybody see any fundamental reasons why this is a wrong approach?
+> > 
+> > Diffstat says
+> >  arch/alpha/include/uapi/asm/mman.h   |  2 ++
+> >  arch/metag/kernel/process.c          |  6 +++++-
+> >  arch/mips/include/uapi/asm/mman.h    |  2 ++
+> >  arch/parisc/include/uapi/asm/mman.h  |  2 ++
+> >  arch/powerpc/include/uapi/asm/mman.h |  1 +
+> >  arch/sparc/include/uapi/asm/mman.h   |  1 +
+> >  arch/tile/include/uapi/asm/mman.h    |  1 +
+> >  arch/xtensa/include/uapi/asm/mman.h  |  2 ++
+> >  fs/binfmt_elf.c                      | 12 ++++++++----
+> >  include/uapi/asm-generic/mman.h      |  1 +
+> >  mm/mmap.c                            | 11 +++++++++++
+> >  11 files changed, 36 insertions(+), 5 deletions(-)
+> > 
+> > [1] http://lkml.kernel.org/r/20171107162217.382cd754@canb.auug.org.au
+> > [2] http://lkml.kernel.org/r/1510048229.12079.7.camel@abdul.in.ibm.com
+> > [3] http://lkml.kernel.org/r/20171023082608.6167-1-mhocko@kernel.org
+> > [4] http://lkml.kernel.org/r/20171113094203.aofz2e7kueitk55y@dhcp22.suse.cz
+> > [5] http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au
+> > 
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Seems it assigns the first non-allocated one. Can even fail if there's
-none left, and then there's no PROT_EXEC read protection. In practice I
-expect PROT_EXEC mapping to be created by ELF loader (?) before the
-program can even call pkey_alloc() itself, so it would be 1.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
