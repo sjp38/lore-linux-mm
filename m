@@ -1,83 +1,172 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D6376B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 12:03:11 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z184so22523175pgd.0
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 09:03:11 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 796196B0069
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 12:17:15 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 199so16514256pgg.20
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 09:17:15 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n1si9963826pge.665.2017.11.24.09.03.09
+        by mx.google.com with ESMTPS id z3si18402558pln.173.2017.11.24.09.17.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Nov 2017 09:03:09 -0800 (PST)
-Date: Fri, 24 Nov 2017 09:03:07 -0800
+        Fri, 24 Nov 2017 09:17:14 -0800 (PST)
+Date: Fri, 24 Nov 2017 09:17:12 -0800
 From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: XArray documentation
-Message-ID: <20171124170307.GA681@bombadil.infradead.org>
+Message-ID: <20171124171712.GB681@bombadil.infradead.org>
 References: <20171122210739.29916-1-willy@infradead.org>
  <20171124011607.GB3722@bombadil.infradead.org>
- <3543098.x2GeNdvaH7@merkaba>
+ <4866F643-97A1-4B80-B5E2-8EF5BEF8EE30@dilger.ca>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <3543098.x2GeNdvaH7@merkaba>
+In-Reply-To: <4866F643-97A1-4B80-B5E2-8EF5BEF8EE30@dilger.ca>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Martin Steigerwald <martin@lichtvoll.de>
+To: Andreas Dilger <adilger@dilger.ca>
 Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Fri, Nov 24, 2017 at 05:50:41PM +0100, Martin Steigerwald wrote:
-> Matthew Wilcox - 24.11.17, 02:16:
-> > ======
-> > XArray
-> > ======
-> > 
-> > Overview
-> > ========
-> > 
-> > The XArray is an array of ULONG_MAX entries.  Each entry can be either
-> > a pointer, or an encoded value between 0 and LONG_MAX.  It is efficient
-> > when the indices used are densely clustered; hashing the object and
-> > using the hash as the index will not perform well.  A freshly-initialised
-> > XArray contains a NULL pointer at every index.  There is no difference
-> > between an entry which has never been stored to and an entry which has most
-> > recently had NULL stored to it.
+On Thu, Nov 23, 2017 at 09:30:21PM -0700, Andreas Dilger wrote:
+> > Pointers to be stored in the XArray must have the bottom two bits clear
+> > (ie must point to something which is 4-byte aligned).  This includes all
+> > objects allocated by calling :c:func:`kmalloc` and :c:func:`alloc_page`,
+> > but you cannot store pointers to arbitrary offsets within an object.
+> > The XArray does not support storing :c:func:`IS_ERR` pointers; some
+> > conflict with data values and others conflict with entries the XArray
+> > uses for its own purposes.  If you need to store special values which
+> > cannot be confused with real kernel pointers, the values 4, 8, ... 4092
+> > are available.
 > 
-> I am no kernel developer (just provided a tiny bit of documentation a long 
-> time ago)a?| but on reading into this, I missed:
+> Thought - if storing error values into the XArray in addition to regular
+> pointers is important for some use case, it would be easy to make
+> "ERR_PTR_XA()", "PTR_ERR_XA()", and "IS_ERR_XA()" macros that just shift
+> the error values up and down by two bits to avoid the conflict.  That
+> would still allow error values up (down) to -1023 to be stored without
+> any chance of a pointer conflict, which should be enough.
+
+We could do something along those lines.  It's not something anybody's
+trying to do with the radix tree today, but I wanted to document it
+just in case anybody got a clever idea in the future.  Another source
+of ambiguity that I didn't mention is that xa_store() can return
+ERR_PTR(-ENOMEM), so if we encode the xarray-error-pointers in some
+way, they have to be distinguishable from errors returned by the xa_*
+functions.  There's no ambiguity when using the xas_ functions as they
+signal errors in the xa_state.
+
+> > Each non-NULL entry in the array has three bits associated with it called
+> > tags.  Each tag may be flipped on or off independently of the others.
+> > You can search for entries with a given tag set.
 > 
-> What is it about? And what is it used for?
+> How can it be 3 tag bits, if the pointers only need to be 4-byte aligned?
+
+The same way the radix tree does it -- there are three bitfields in each
+node.  So all your PAGECACHE_DIRTY tags are stored in the same bitfield.
+
+(I'm taking these two questions as request for more information on the
+implementation, which I don't want to put in this document.  I want
+this to be the users manual.  I think the appropriate place to put this
+information is in source code comments.)
+
+> > Finally, you can remove all entries from an XArray by calling
+> > :c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
+> > to free the entries first.  You can do this by iterating over all non-NULL
+> > entries in
 > 
-> "Overview" appears to be already a description of the actual implementation 
-> specifics, instead ofa?| well an overview.
+> ... the XArray using xa_for_each() ?
+
+I swear I wrote that ... editing error.  New paragraph:
+
+Finally, you can remove all entries from an XArray by calling
+:c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
+to free the entries first.  You can do this by iterating over all non-NULL
+entries in the XArray using the :c:func:`xa_for_each` iterator.
+
+> > The only error currently generated by the xarray code itself is
+> > ENOMEM, but it supports arbitrary errors in case you want to call
+> > :c:func:`xas_set_err` yourself.  If the xa_state is holding an ENOMEM
+> > error, :c:func:`xas_nomem` will attempt to allocate a single xa_node using
 > 
-> Of course, I am sure you all know what it is fora?| but someone who wants to 
-> learn about the kernel is likely to be confused by such a start.
+> .. calling :c:func:`xas_nomem` ... ?
+> 
+> > the specified gfp flags and store it in the xa_state for the next attempt.
+> > The idea is that you take the xa_lock, attempt the operation and drop
+> > the lock.  Then you allocate memory if there was a memory allocation
+> 
+> ... then you try to allocate ...
 
-Hi Martin,
+Fair point -- if xas_nomem() fails to allocate memory, it'll return 'false'
+to indicate not to bother retrying the operation.
 
-Thank you for your comment.  I'm clearly too close to it because even
-after reading your useful critique, I'm not sure what to change.  Please
-help me!
+> > failure and retry the operation.  You must call :c:func:`xas_destroy`
+> > if you call :c:func:`xas_nomem` in case it's not necessary to use the
+> > memory that was allocated.
+> 
+> This last sentence is not totally clear.  How about:
+> 
+> If you called :c:func:`xas_nomem` to allocate memory, but didn't need
+> to use the memory for some reason, you need to call :c:func:`xas_destroy`
+> to free the allocated memory.
+> 
+> 
+> The question is where the "allocated memory" is stored, if it isn't in
+> the XArray?  Is it in the XA_STATE? 
 
-Maybe it's that I've described the abstraction as if it's the
-implementation and put too much detail into the overview.  This might
-be clearer?
+That was earlier in the document:
 
-The XArray is an abstract data type which behaves like an infinitely
-large array of pointers.  The index into the array is an unsigned long.
-A freshly-initialised XArray contains a NULL pointer at every index.
+:c:func:`xas_set_err` yourself.  If the xa_state is holding an ENOMEM
+error, :c:func:`xas_nomem` will attempt to allocate a single xa_node using
+the specified gfp flags and store it in the xa_state for the next attempt.
 
-----
-and then move all this information into later paragraphs:
+> How do you know if the allocated
+> memory was needed, or is it always safe to call xas_destroy?
 
-There is no difference between an entry which has never been stored to
-and an entry which has most recently had NULL stored to it.
-Each entry in the array can be either a pointer, or an
-encoded value between 0 and LONG_MAX.
-While you can use any index, the implementation is efficient when the
-indices used are densely clustered; hashing the object and using the
-hash as the index will not perform well.
+It's always safe to call xas_destroy.
+
+> Is the
+> allocated memory always consumed if xa_store/xa_cmpxchg are called?
+
+Usually.  If another process added the same node that we were trying to
+store to, we won't allocate memory.
+
+> What if there was another process that also added the same entry while
+> the xa_lock was dropped?
+
+We'll overwrite it.
+
+I've rewritten this whole section.  Thanks for the feedback!
+
+The xa_state is also used to store errors.  You can call
+:c:func:`xas_error` to retrieve the error.  All operations check whether
+the xa_state is in an error state before proceeding, so there's no need 
+for you to check for an error after each call; you can make multiple
+calls in succession and only check at a convenient point.  The only error
+currently generated by the xarray code itself is ENOMEM, but it supports
+arbitrary errors in case you want to call :c:func:`xas_set_err` yourself.
+
+If the xa_state is holding an ENOMEM error, calling :c:func:`xas_nomem`
+will attempt to allocate more memory using the specified gfp flags and
+cache it in the xa_state for the next attempt.  The idea is that you take
+the xa_lock, attempt the operation and drop the lock.  The operation
+attempts to allocate memory while holding the lock, but it is more
+likely to fail.  Once you have dropped the lock, :c:func:`xas_nomem`
+can try harder to allocate more memory.  It will return ``true`` if it
+is worth retrying the operation (ie that there was a memory error *and*
+more memory was allocated.  You must call :c:func:`xas_destroy` if you
+call :c:func:`xas_nomem` in case memory was allocated and then turned
+out not to be needed.
+
+> > When using the advanced API, it's possible to see internal entries
+> > in the XArray.  You should never see an :c:func:`xa_is_node` entry,
+> > but you may see other internal entries, including sibling entries,
+> > skip entries and retry entries.  The :c:func:`xas_retry` function is a
+> > useful helper function for handling internal entries, particularly in
+> > the middle of iterations.
+> 
+> How do you know if a returned value is an "internal entry"?  Is there
+> some "xas_is_internal()" macro/function that tells you this?
+
+I know I chose the right name for that function, since you guessed it :-)
+
+I've rewritten this whole section.  I'll post the updated document in a bit.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
