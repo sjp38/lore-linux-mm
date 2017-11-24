@@ -1,158 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2D16B025F
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:12:00 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id z14so9640550wrb.12
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 07:12:00 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 460DA6B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 10:43:25 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id j16so22221719pgn.14
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 07:43:25 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w38si1254100edd.51.2017.11.24.07.11.53
+        by mx.google.com with ESMTPS id r26si20255859pfi.232.2017.11.24.07.43.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 07:11:53 -0800 (PST)
-Date: Fri, 24 Nov 2017 15:11:50 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
- direct compaction
-Message-ID: <20171124151150.gryhgb32ttgficmi@suse.de>
-References: <20171122143321.29501-1-hannes@cmpxchg.org>
- <20171123140843.is7cqatrdijkjqql@suse.de>
- <1d1ec1f2-d7aa-ee56-b18b-7d5efc172a50@suse.cz>
- <20171124105750.pwixg6wg3ifkldil@suse.de>
- <fa70766d-9251-21e7-d6be-868347523f4e@suse.cz>
+        Fri, 24 Nov 2017 07:43:23 -0800 (PST)
+Date: Fri, 24 Nov 2017 16:43:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 2/5] mm: memory_hotplug: Remove assumption on memory
+ state before hotremove
+Message-ID: <20171124154317.copbe3u6y2q4mura@dhcp22.suse.cz>
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <4e21a27570f665793debf167c8567c6752116d0a.1511433386.git.ar@linux.vnet.ibm.com>
+ <CAJZ5v0i7vOxwhgA1LWYDqxCKkHaYikCf_HZZQCbgApLpoyV2JA@mail.gmail.com>
+ <20171124144917.GB1966@samekh>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <fa70766d-9251-21e7-d6be-868347523f4e@suse.cz>
+In-Reply-To: <20171124144917.GB1966@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Andrew Morton <akpm@linux-foundation.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: Andrea Reale <ar@linux.vnet.ibm.com>
+Cc: "Rafael J. Wysocki" <rafael@kernel.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, Mark Rutland <mark.rutland@arm.com>, scott.branden@broadcom.com, Will Deacon <will.deacon@arm.com>, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, Rafael Wysocki <rafael.j.wysocki@intel.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>
 
-On Fri, Nov 24, 2017 at 02:49:34PM +0100, Vlastimil Babka wrote:
-> On 11/24/2017 11:57 AM, Mel Gorman wrote:
-> > On Thu, Nov 23, 2017 at 10:15:17PM +0100, Vlastimil Babka wrote:
-> >> Hmm this really reads like about the migration scanner. That one is
-> >> unchanged by this patch, there is still a linear scanner. In fact, it
-> >> gets better, because now it can see the whole zone, not just the first
-> >> 1/3 - 1/2 until it meets the free scanner (my past observations). And
-> >> some time ago the async direct compaction was adjusted so that it only
-> >> scans the migratetype matching the allocation (see
-> >> suitable_migration_source()). So to some extent, the cleaning already
-> >> happens.
-> >>
+On Fri 24-11-17 14:49:17, Andrea Reale wrote:
+> Hi Rafael,
+> 
+> On Fri 24 Nov 2017, 15:39, Rafael J. Wysocki wrote:
+> > On Fri, Nov 24, 2017 at 11:22 AM, Andrea Reale <ar@linux.vnet.ibm.com> wrote:
+> > > Resending the patch adding linux-acpi in CC, as suggested by Rafael.
+> > > Everyone else: apologies for the noise.
+> > >
+> > > Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
+> > > introduced an assumption whereas when control
+> > > reaches remove_memory the corresponding memory has been already
+> > > offlined. In that case, the acpi_memhotplug was making sure that
+> > > the assumption held.
+> > > This assumption, however, is not necessarily true if offlining
+> > > and removal are not done by the same "controller" (for example,
+> > > when first offlining via sysfs).
+> > >
+> > > Removing this assumption for the generic remove_memory code
+> > > and moving it in the specific acpi_memhotplug code. This is
+> > > a dependency for the software-aided arm64 offlining and removal
+> > > process.
+> > >
+> > > Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> > > Signed-off-by: Maciej Bielski <m.bielski@linux.vnet.ibm.com>
+> > > ---
+> > >  drivers/acpi/acpi_memhotplug.c |  2 +-
+> > >  include/linux/memory_hotplug.h |  9 ++++++---
+> > >  mm/memory_hotplug.c            | 13 +++++++++----
+> > >  3 files changed, 16 insertions(+), 8 deletions(-)
+> > >
+> > > diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> > > index 6b0d3ef..b0126a0 100644
+> > > --- a/drivers/acpi/acpi_memhotplug.c
+> > > +++ b/drivers/acpi/acpi_memhotplug.c
+> > > @@ -282,7 +282,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+> > >                         nid = memory_add_physaddr_to_nid(info->start_addr);
+> > >
+> > >                 acpi_unbind_memory_blocks(info);
+> > > -               remove_memory(nid, info->start_addr, info->length);
+> > > +               BUG_ON(remove_memory(nid, info->start_addr, info->length));
 > > 
-> > It is true that the migration scanner may see a subset of the zone but
-> > it was important to avoid a previous migration source becoming a
-> > migration target. The problem is completely different when using the
-> > freelist as a hint.
+> > Why does this have to be BUG_ON()?  Is it really necessary to kill the
+> > system here?
 > 
-> I think fundamentally the problems are the same when using freelist
-> exclusively, or just as a hint, as there's no longer the natural
-> exclusivity where some pageblocks are used as migration source and
-> others as migration target, no?
+> Actually, I hoped you would help me understand that: that BUG() call was introduced
+> by yourself in Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
+> in memory_hoptlug.c:remove_memory()). 
 > 
-
-They are similar only in that the linear scanner only suffers from the
-same problem at that boundary where the migration and free scanner meet.
-At the boundary where they meet, the problem occurs if that boundary moves
-towards the end of the zone.
-
-> >>> 3. Another reason a linear scanner was used was because we wanted to
-> >>>    clear entire pageblocks we were migrating from and pack the target
-> >>>    pageblocks as much as possible. This was to reduce the amount of
-> >>>    migration required overall even though the scanning hurts. This patch
-> >>>    takes MIGRATE_MOVABLE pages from anywhere that is "not this pageblock".
-> >>>    Those potentially have to be moved again and again trying to randomly
-> >>>    fill a MIGRATE_MOVABLE block. Have you considered using the freelists
-> >>>    as a hint? i.e. take a page from the freelist, then isolate all free
-> >>>    pages in the same pageblock as migration targets? That would preserve
-> >>>    the "packing property" of the linear scanner.
-> >>>
-> >>>    This would increase the amount of scanning but that *might* be offset by
-> >>>    the number of migrations the workload does overall. Note that migrations
-> >>>    potentially are minor faults so if we do too many migrations, your
-> >>>    workload may suffer.
-> >>
-> >> I have considered the "freelist as a hint", but I'm kinda sceptical
-> >> about it, because with increasing uptime reclaim should be freeing
-> >> rather random pages, so finding some free page in a pageblock doesn't
-> >> mean there would be more free pages there than in the other pageblocks?
-> >>
-> > 
-> > True, but randomly selecting pageblocks based on the contents of the
-> > freelist is not better.
+> Just reading at that commit my understanding was that you were assuming
+> that acpi_memory_remove_memory() have already done the job of offlining
+> the target memory, so there would be a bug if that wasn't the case.
 > 
-> One theoretical benefit (besides no scanning overhead) is that we prefer
-> the smallest blocks from the freelist, where in the hint approach we
-> might pick order-0 as a hint but then split larger free pages in the
-> same pageblock.
-> 
+> In my case, that assumption did not hold and I found that it might not
+> hold for other platforms that do not use ACPI. In fact, the purpose of
+> this patch is to move this assumption out of the generic hotplug code
+> and move it to ACPI code where it originated. 
 
-While you're right, I think it's more than offset by the possibility
-that we migrate the same page multiple times and the packing is worse.
-The benefit also is not that great if you consider that we're migrating to
-a MIGRATE_MOVABLE block because for movable allocations, we only care about
-being able to free the entire pageblock for a hugepage allocation. Splitting
-a large contiguous range within a movable block so that an unmovable
-allocation can use the space is not a great outcome from a fragmentation
-perspective.
-
-> > If a pageblock has limited free pages then it'll
-> > be filled quickly and not used as a hint in the future.
-> > 
-> >> Instead my plan is to make the migration scanner smarter by expanding
-> >> the "skip_on_failure" feature in isolate_migratepages_block(). The
-> >> scanner should not even start isolating if the block ahead contains a
-> >> page that's not free or lru-isolatable/PageMovable. The current
-> >> "look-ahead" is effectively limited by COMPACT_CLUSTER_MAX (32) isolated
-> >> pages followed by a migration, after which the scanner might immediately
-> >> find a non-migratable page, so if it was called for a THP, that work has
-> >> been wasted.
-> >>
-> > 
-> > That's also not necessarily true because there is a benefit to moving
-> > pages from unmovable blocks to avoid fragmentation later.
-> 
-> Yeah, I didn't describe it fully, but for unmovable blocks, this would
-> not apply and we would clear them. Then, avoiding fallback to unmovable
-> blocks when allocating migration target would prevent the ping-pong.
-> 
-
-While it would be nice to clear them, I don't think it would be the
-responsibility of this particular patch. I think it would be better to do
-that clearing from kcompactd context.
-
-> >>> 5. Consider two processes A and B compacting at the same time with A_s
-> >>>    and A_t being the source pageblock and target pageblock that process
-> >>>    A is using and B_s/B_t being B's pageblocks. Nothing prevents A_s ==
-> >>>    B_t and B_s == A_t. Maybe it rarely happens in practice but it was one
-> >>>    problem the linear scanner was meant to avoid.
-> >>
-> >> I hope that ultimately this problem is not worse than the existing
-> >> problem where B would not be compacting, but simply allocating the pages
-> >> that A just created... Maybe if the "look-ahead" idea turns out to have
-> >> high enough success rate of really creating the high-order page where it
-> >> decides to isolate and migrate (which probably depends mostly on the
-> >> migration failure rate?) we could resurrect the old idea of doing a
-> >> pageblock isolation (MIGRATE_ISOLATE) beforehand. That would block all
-> >> interference.
-> >>
-> > 
-> > Pageblock bits similar to the skip bit could also be used to limit the
-> > problem.
-> 
-> Right, if we can afford changing the current 4 bits per pageblock to a
-> full byte.
-> 
-
-Potentially yes although maybe initially just do nothing at all with this
-problem and look into whether it occurs at all later. If nothing else,
-the larger the machine, the less likely it is to occur. It was more of a
-concern when compaction was first implemented as machines with less than
-1G of memory were still common.
-
+remove_memory failure is basically impossible to handle AFAIR. The
+original code to BUG in remove_memory is ugly as hell and we do not want
+to spread that out of that function. Instead we really want to get rid
+of it.
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
 --
