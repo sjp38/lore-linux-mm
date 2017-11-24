@@ -1,251 +1,290 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AFABB6B0033
-	for <linux-mm@kvack.org>; Thu, 23 Nov 2017 23:30:34 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id x13so9136706iti.0
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 20:30:34 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id f3sor4369357itf.148.2017.11.23.20.30.33
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E726B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 00:55:14 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id o27so10438646uaj.5
+        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 21:55:14 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i10sor741609uaf.191.2017.11.23.21.55.13
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 23 Nov 2017 20:30:33 -0800 (PST)
-From: Andreas Dilger <adilger@dilger.ca>
-Message-Id: <4866F643-97A1-4B80-B5E2-8EF5BEF8EE30@dilger.ca>
-Content-Type: multipart/signed;
- boundary="Apple-Mail=_96ACF243-38EE-4ED3-AA4B-6D4C5075AF7B";
- protocol="application/pgp-signature"; micalg=pgp-sha1
-Mime-Version: 1.0 (Mac OS X Mail 10.3 \(3273\))
-Subject: Re: XArray documentation
-Date: Thu, 23 Nov 2017 21:30:21 -0700
-In-Reply-To: <20171124011607.GB3722@bombadil.infradead.org>
-References: <20171122210739.29916-1-willy@infradead.org>
- <20171124011607.GB3722@bombadil.infradead.org>
+        Thu, 23 Nov 2017 21:55:13 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <ba9c72239dc5986edc6ca29fc58fefb306e4b52d.1511433386.git.ar@linux.vnet.ibm.com>
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com> <ba9c72239dc5986edc6ca29fc58fefb306e4b52d.1511433386.git.ar@linux.vnet.ibm.com>
+From: Arun KS <arunks.linux@gmail.com>
+Date: Fri, 24 Nov 2017 11:25:12 +0530
+Message-ID: <CAKZGPAPN7migyvpNJDu1bA+ditb0TJV4WLqZuPdkxOU3kYQ9Ng@mail.gmail.com>
+Subject: Re: [PATCH v2 1/5] mm: memory_hotplug: Memory hotplug (add) support
+ for arm64
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Maciej Bielski <m.bielski@virtualopensystems.com>
+Cc: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, ar@linux.vnet.ibm.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, mhocko@suse.com, realean2@ie.ibm.com
+
+On Thu, Nov 23, 2017 at 4:43 PM, Maciej Bielski
+<m.bielski@virtualopensystems.com> wrote:
+> Introduces memory hotplug functionality (hot-add) for arm64.
+>
+> Changes v1->v2:
+> - swapper pgtable updated in place on hot add, avoiding unnecessary copy:
+>   all changes are additive and non destructive.
+>
+> - stop_machine used to updated swapper on hot add, avoiding races
+>
+> - checking if pagealloc is under debug to stay coherent with mem_map
+>
+> Signed-off-by: Maciej Bielski <m.bielski@virtualopensystems.com>
+> Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> ---
+>  arch/arm64/Kconfig           | 12 ++++++
+>  arch/arm64/configs/defconfig |  1 +
+>  arch/arm64/include/asm/mmu.h |  3 ++
+>  arch/arm64/mm/init.c         | 87 ++++++++++++++++++++++++++++++++++++++++++++
+>  arch/arm64/mm/mmu.c          | 39 ++++++++++++++++++++
+>  5 files changed, 142 insertions(+)
+>
+> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
+> index 0df64a6..c736bba 100644
+> --- a/arch/arm64/Kconfig
+> +++ b/arch/arm64/Kconfig
+> @@ -641,6 +641,14 @@ config HOTPLUG_CPU
+>           Say Y here to experiment with turning CPUs off and on.  CPUs
+>           can be controlled through /sys/devices/system/cpu.
+>
+> +config ARCH_HAS_ADD_PAGES
+> +       def_bool y
+> +       depends on ARCH_ENABLE_MEMORY_HOTPLUG
+> +
+> +config ARCH_ENABLE_MEMORY_HOTPLUG
+> +       def_bool y
+> +    depends on !NUMA
+> +
+>  # Common NUMA Features
+>  config NUMA
+>         bool "Numa Memory Allocation and Scheduler Support"
+> @@ -715,6 +723,10 @@ config ARCH_HAS_CACHE_LINE_SIZE
+>
+>  source "mm/Kconfig"
+>
+> +config ARCH_MEMORY_PROBE
+> +       def_bool y
+> +       depends on MEMORY_HOTPLUG
+> +
+>  config SECCOMP
+>         bool "Enable seccomp to safely compute untrusted bytecode"
+>         ---help---
+> diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
+> index 34480e9..5fc5656 100644
+> --- a/arch/arm64/configs/defconfig
+> +++ b/arch/arm64/configs/defconfig
+> @@ -80,6 +80,7 @@ CONFIG_ARM64_VA_BITS_48=y
+>  CONFIG_SCHED_MC=y
+>  CONFIG_NUMA=y
+>  CONFIG_PREEMPT=y
+> +CONFIG_MEMORY_HOTPLUG=y
+>  CONFIG_KSM=y
+>  CONFIG_TRANSPARENT_HUGEPAGE=y
+>  CONFIG_CMA=y
+> diff --git a/arch/arm64/include/asm/mmu.h b/arch/arm64/include/asm/mmu.h
+> index 0d34bf0..2b3fa4d 100644
+> --- a/arch/arm64/include/asm/mmu.h
+> +++ b/arch/arm64/include/asm/mmu.h
+> @@ -40,5 +40,8 @@ extern void create_pgd_mapping(struct mm_struct *mm, phys_addr_t phys,
+>                                pgprot_t prot, bool page_mappings_only);
+>  extern void *fixmap_remap_fdt(phys_addr_t dt_phys);
+>  extern void mark_linear_text_alias_ro(void);
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +extern void hotplug_paging(phys_addr_t start, phys_addr_t size);
+> +#endif
+>
+>  #endif
+> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+> index 5960bef..e96e7d3 100644
+> --- a/arch/arm64/mm/init.c
+> +++ b/arch/arm64/mm/init.c
+> @@ -722,3 +722,90 @@ static int __init register_mem_limit_dumper(void)
+>         return 0;
+>  }
+>  __initcall(register_mem_limit_dumper);
+> +
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +int add_pages(int nid, unsigned long start_pfn,
+> +               unsigned long nr_pages, bool want_memblock)
+> +{
+> +       int ret;
+> +       u64 start_addr = start_pfn << PAGE_SHIFT;
+> +       /*
+> +        * Mark the first page in the range as unusable. This is needed
+> +        * because __add_section (within __add_pages) wants pfn_valid
+> +        * of it to be false, and in arm64 pfn falid is implemented by
+> +        * just checking at the nomap flag for existing blocks.
+> +        *
+> +        * A small trick here is that __add_section() requires only
+> +        * phys_start_pfn (that is the first pfn of a section) to be
+> +        * invalid. Regardless of whether it was assumed (by the function
+> +        * author) that all pfns within a section are either all valid
+> +        * or all invalid, it allows to avoid looping twice (once here,
+> +        * second when memblock_clear_nomap() is called) through all
+> +        * pfns of the section and modify only one pfn. Thanks to that,
+> +        * further, in __add_zone() only this very first pfn is skipped
+> +        * and corresponding page is not flagged reserved. Therefore it
+> +        * is enough to correct this setup only for it.
+> +        *
+> +        * When arch_add_memory() returns the walk_memory_range() function
+> +        * is called and passed with online_memory_block() callback,
+> +        * which execution finally reaches the memory_block_action()
+> +        * function, where also only the first pfn of a memory block is
+> +        * checked to be reserved. Above, it was first pfn of a section,
+> +        * here it is a block but
+> +        * (drivers/base/memory.c):
+> +        *     sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+> +        * (include/linux/memory.h):
+> +        *     #define MIN_MEMORY_BLOCK_SIZE     (1UL << SECTION_SIZE_BITS)
+> +        * so we can consider block and section equivalently
+> +        */
+> +       memblock_mark_nomap(start_addr, 1<<PAGE_SHIFT);
+> +       ret = __add_pages(nid, start_pfn, nr_pages, want_memblock);
+> +
+> +       /*
+> +        * Make the pages usable after they have been added.
+> +        * This will make pfn_valid return true
+> +        */
+> +       memblock_clear_nomap(start_addr, 1<<PAGE_SHIFT);
+> +
+> +       /*
+> +        * This is a hack to avoid having to mix arch specific code
+> +        * into arch independent code. SetPageReserved is supposed
+> +        * to be called by __add_zone (within __add_section, within
+> +        * __add_pages). However, when it is called there, it assumes that
+> +        * pfn_valid returns true.  For the way pfn_valid is implemented
+> +        * in arm64 (a check on the nomap flag), the only way to make
+> +        * this evaluate true inside __add_zone is to clear the nomap
+> +        * flags of blocks in architecture independent code.
+> +        *
+> +        * To avoid this, we set the Reserved flag here after we cleared
+> +        * the nomap flag in the line above.
+> +        */
+> +       SetPageReserved(pfn_to_page(start_pfn));
+> +
+> +       return ret;
+> +}
+> +
+> +int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+> +{
+> +       int ret;
+> +       unsigned long start_pfn = start >> PAGE_SHIFT;
+> +       unsigned long nr_pages = size >> PAGE_SHIFT;
+> +       unsigned long end_pfn = start_pfn + nr_pages;
+> +       unsigned long max_sparsemem_pfn = 1UL << (MAX_PHYSMEM_BITS-PAGE_SHIFT);
+> +
+> +       if (end_pfn > max_sparsemem_pfn) {
+> +               pr_err("end_pfn too big");
+> +               return -1;
+> +       }
+> +       hotplug_paging(start, size);
+> +
+> +       ret = add_pages(nid, start_pfn, nr_pages, want_memblock);
+> +
+> +       if (ret)
+> +               pr_warn("%s: Problem encountered in __add_pages() ret=%d\n",
+> +                       __func__, ret);
+> +
+> +       return ret;
+> +}
+> +
+> +#endif /* CONFIG_MEMORY_HOTPLUG */
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index f1eb15e..d93043d 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -28,6 +28,7 @@
+>  #include <linux/mman.h>
+>  #include <linux/nodemask.h>
+>  #include <linux/memblock.h>
+> +#include <linux/stop_machine.h>
+>  #include <linux/fs.h>
+>  #include <linux/io.h>
+>  #include <linux/mm.h>
+> @@ -615,6 +616,44 @@ void __init paging_init(void)
+>                       SWAPPER_DIR_SIZE - PAGE_SIZE);
+>  }
+>
+> +#ifdef CONFIG_MEMORY_HOTPLUG
+> +
+> +/*
+> + * hotplug_paging() is used by memory hotplug to build new page tables
+> + * for hot added memory.
+> + */
+> +
+> +struct mem_range {
+> +       phys_addr_t base;
+> +       phys_addr_t size;
+> +};
+> +
+> +static int __hotplug_paging(void *data)
+> +{
+> +       int flags = 0;
+> +       struct mem_range *section = data;
+> +
+> +       if (debug_pagealloc_enabled())
+> +               flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+> +
+> +       __create_pgd_mapping(swapper_pg_dir, section->base,
+> +                       __phys_to_virt(section->base), section->size,
+> +                       PAGE_KERNEL, pgd_pgtable_alloc, flags);
+
+Hello Andrea,
+
+__hotplug_paging runs on stop_machine context.
+cpu stop callbacks must not sleep.
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/stop_machine.c?h=v4.14#n479
+
+__create_pgd_mapping uses pgd_pgtable_alloc. which does
+__get_free_page(PGALLOC_GFP)
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm64/mm/mmu.c?h=v4.14#n342
+
+PGALLOC_GFP has GFP_KERNEL which inturn has __GFP_RECLAIM
+
+#define PGALLOC_GFP     (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+#define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+
+Now, prepare_alloc_pages() called by __alloc_pages_nodemask checks for
+
+might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
+
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/page_alloc.c?h=v4.14#n4150
+
+and then BUG()
+
+I was testing on 4.4 kernel, but cross checked with 4.14 as well.
+
+Regards,
+Arun
 
 
---Apple-Mail=_96ACF243-38EE-4ED3-AA4B-6D4C5075AF7B
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain;
-	charset=us-ascii
-
-On Nov 23, 2017, at 6:16 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> 
-> Here's the current state of the documentation for the XArray.  Suggestions
-> for improvement gratefully received.
-> 
-> ======
-> XArray
-> ======
-> 
-> Overview
-> ========
-> 
-> The XArray is an array of ULONG_MAX entries.  Each entry can be either
-> a pointer, or an encoded value between 0 and LONG_MAX.  It is efficient
-> when the indices used are densely clustered; hashing the object and
-> using the hash as the index will not perform well.  A freshly-initialised
-> XArray contains a NULL pointer at every index.  There is no difference
-> between an entry which has never been stored to and an entry which has most
-> recently had NULL stored to it.
-> 
-> Pointers to be stored in the XArray must have the bottom two bits clear
-> (ie must point to something which is 4-byte aligned).  This includes all
-> objects allocated by calling :c:func:`kmalloc` and :c:func:`alloc_page`,
-> but you cannot store pointers to arbitrary offsets within an object.
-> The XArray does not support storing :c:func:`IS_ERR` pointers; some
-> conflict with data values and others conflict with entries the XArray
-> uses for its own purposes.  If you need to store special values which
-> cannot be confused with real kernel pointers, the values 4, 8, ... 4092
-> are available.
-
-Thought - if storing error values into the XArray in addition to regular
-pointers is important for some use case, it would be easy to make
-"ERR_PTR_XA()", "PTR_ERR_XA()", and "IS_ERR_XA()" macros that just shift
-the error values up and down by two bits to avoid the conflict.  That
-would still allow error values up (down) to -1023 to be stored without
-any chance of a pointer conflict, which should be enough.
-
-> Each non-NULL entry in the array has three bits associated with it called
-> tags.  Each tag may be flipped on or off independently of the others.
-> You can search for entries with a given tag set.
-
-How can it be 3 tag bits, if the pointers only need to be 4-byte aligned?
-
-> An unusual feature of the XArray is the ability to tie multiple entries
-> together.  Once stored to, looking up any entry in the range will give
-> the same result as looking up any other entry in the range.  Setting a
-> tag on one entry will set it on all of them.  Multiple entries can be
-> explicitly split into smaller entries, or storing NULL into any entry
-> will cause the XArray to forget about the tie.
-> 
-> Normal API
-> ==========
-> 
-> Start by initialising an XArray, either with :c:func:`DEFINE_XARRAY`
-> for statically allocated XArrays or :c:func:`xa_init` for dynamically
-> allocated ones.
-> 
-> You can then set entries using :c:func:`xa_store` and get entries using
-> :c:func:`xa_load`.  xa_store will overwrite a non-NULL entry with the
-> new entry.  It returns the previous entry stored at that index.  You can
-> conditionally replace an entry at an index by using :c:func:`xa_cmpxchg`.
-> Like :c:func:`cmpxchg`, it will only succeed if the entry at that
-> index has the 'old' value.  It also returns the entry which was at
-> that index; if it returns the same entry which was passed as 'old',
-> then :c:func:`xa_cmpxchg` succeeded.
-> 
-> If you want to store a pointer, you can do that directly.  If you want
-> to store an integer between 0 and LONG_MAX, you must first encode it
-> using :c:func:`xa_mk_value`.  When you retrieve an entry from the XArray,
-> you can check whether it is a data value by calling :c:func:`xa_is_value`,
-> and convert it back to an integer by calling :c:func:`xa_to_value`.
-> 
-> You can enquire whether a tag is set on an entry by using
-> :c:func:`xa_get_tag`.  If the entry is not NULL, you can set a tag on
-> it by using :c:func:`xa_set_tag` and remove the tag from an entry by
-> calling :c:func:`xa_clear_tag`.  You can ask whether any entry in the
-> XArray has a particular tag set by calling :c:func:`xa_tagged`.
-> 
-> You can copy entries out of the XArray into a plain array by
-> calling :c:func:`xa_get_entries` and copy tagged entries by calling
-> :c:func:`xa_get_tagged`.  Or you can iterate over the non-NULL entries
-> in place in the XArray by calling :c:func:`xa_for_each`.  You may prefer
-> to use :c:func:`xa_find` or :c:func:`xa_next` to move to the next present
-> entry in the XArray.
-> 
-> Finally, you can remove all entries from an XArray by calling
-> :c:func:`xa_destroy`.  If the XArray entries are pointers, you may wish
-> to free the entries first.  You can do this by iterating over all non-NULL
-> entries in
-
-... the XArray using xa_for_each() ?
-
-> When using the Normal API, you do not have to worry about locking.
-> The XArray uses RCU and an irq-safe spinlock to synchronise access to
-> the XArray:
-> 
-> No lock needed:
-> * :c:func:`xa_empty`
-> * :c:func:`xa_tagged`
-> 
-> Takes RCU read lock:
-> * :c:func:`xa_load`
-> * :c:func:`xa_for_each`
-> * :c:func:`xa_find`
-> * :c:func:`xa_next`
-> * :c:func:`xa_get_entries`
-> * :c:func:`xa_get_tagged`
-> * :c:func:`xa_get_tag`
-> 
-> Takes xa_lock internally:
-> * :c:func:`xa_store`
-> * :c:func:`xa_cmpxchg`
-> * :c:func:`xa_destroy`
-> * :c:func:`xa_set_tag`
-> * :c:func:`xa_clear_tag`
-> 
-> The :c:func:`xa_store` and :c:func:`xa_cmpxchg` functions take a gfp_t
-> parameter in case the XArray needs to allocate memory to store this entry.
-> If the entry being stored is NULL, no memory allocation needs to be
-> performed, and the GFP flags specified here will be ignored.
-> 
-> Advanced API
-> ============
-> 
-> The advanced API offers more flexibility and better performance at the
-> cost of an interface which can be harder to use and has fewer safeguards.
-> No locking is done for you by the advanced API, and you are required to
-> use the xa_lock while modifying the array.  You can choose whether to use
-> the xa_lock or the RCU lock while doing read-only operations on the array.
-> 
-> The advanced API is based around the xa_state.  This is an opaque data
-> structure which you declare on the stack using the :c:func:`XA_STATE`
-> macro.  This macro initialises the xa_state ready to start walking
-> around the XArray.  It is used as a cursor to maintain the position
-> in the XArray and let you compose various operations together without
-> having to restart from the top every time.
-> 
-> The xa_state is also used to store errors.  If an operation fails, it
-> calls :c:func:`xas_set_err` to note the error.  All operations check
-> whether the xa_state is in an error state before proceeding, so there's
-> no need for you to check for an error after each call; you can make
-> multiple calls in succession and only check at a convenient point.
-> 
-> The only error currently generated by the xarray code itself is
-> ENOMEM, but it supports arbitrary errors in case you want to call
-> :c:func:`xas_set_err` yourself.  If the xa_state is holding an ENOMEM
-> error, :c:func:`xas_nomem` will attempt to allocate a single xa_node using
-
-.. calling :c:func:`xas_nomem` ... ?
-
-> the specified gfp flags and store it in the xa_state for the next attempt.
-> The idea is that you take the xa_lock, attempt the operation and drop
-> the lock.  Then you allocate memory if there was a memory allocation
-
-... then you try to allocate ...
-
-> failure and retry the operation.  You must call :c:func:`xas_destroy`
-> if you call :c:func:`xas_nomem` in case it's not necessary to use the
-> memory that was allocated.
-
-This last sentence is not totally clear.  How about:
-
-If you called :c:func:`xas_nomem` to allocate memory, but didn't need
-to use the memory for some reason, you need to call :c:func:`xas_destroy`
-to free the allocated memory.
-
-
-The question is where the "allocated memory" is stored, if it isn't in
-the XArray?  Is it in the XA_STATE?  How do you know if the allocated
-memory was needed, or is it always safe to call xas_destroy?  Is the
-allocated memory always consumed if xa_store/xa_cmpxchg are called?
-What if there was another process that also added the same entry while
-the xa_lock was dropped?
-
-> When using the advanced API, it's possible to see internal entries
-> in the XArray.  You should never see an :c:func:`xa_is_node` entry,
-> but you may see other internal entries, including sibling entries,
-> skip entries and retry entries.  The :c:func:`xas_retry` function is a
-> useful helper function for handling internal entries, particularly in
-> the middle of iterations.
-
-How do you know if a returned value is an "internal entry"?  Is there
-some "xas_is_internal()" macro/function that tells you this?
-
-> Functions
-> =========
-> 
-> .. kernel-doc:: include/linux/xarray.h
-> .. kernel-doc:: lib/xarray.c
-
-
-Cheers, Andreas
-
-
-
-
-
-
---Apple-Mail=_96ACF243-38EE-4ED3-AA4B-6D4C5075AF7B
-Content-Transfer-Encoding: 7bit
-Content-Disposition: attachment;
-	filename=signature.asc
-Content-Type: application/pgp-signature;
-	name=signature.asc
-Content-Description: Message signed with OpenPGP
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - http://gpgtools.org
-
-iD8DBQFaF6BfpIg59Q01vtYRAkZWAKCQPKpQe63APJNvfP9B0nUn5FLC4gCfUz7J
-FURP546flTXRgaJCKfiK5Z0=
-=S+L1
------END PGP SIGNATURE-----
-
---Apple-Mail=_96ACF243-38EE-4ED3-AA4B-6D4C5075AF7B--
+> +
+> +       return 0;
+> +}
+> +
+> +inline void hotplug_paging(phys_addr_t start, phys_addr_t size)
+> +{
+> +       struct mem_range section = {
+> +               .base = start,
+> +               .size = size,
+> +       };
+> +
+> +       stop_machine(__hotplug_paging, &section, NULL);
+> +}
+> +#endif /* CONFIG_MEMORY_HOTPLUG */
+> +
+>  /*
+>   * Check whether a kernel address is valid (derived from arch/x86/).
+>   */
+> --
+> 2.7.4
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
