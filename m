@@ -1,95 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D2656B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 04:38:24 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j6so11256031wre.16
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 01:38:24 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w10si2968087edj.349.2017.11.24.01.38.22
+	by kanga.kvack.org (Postfix) with ESMTP id CA0B16B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 04:42:44 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id a63so13250477wrc.1
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 01:42:44 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id v43si91907edm.63.2017.11.24.01.42.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 01:38:22 -0800 (PST)
-Date: Fri, 24 Nov 2017 10:38:19 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH 1/3] lockdep: Apply crossrelease to PG_locked locks
-Message-ID: <20171124093819.GA6072@quack2.suse.cz>
-References: <1510802067-18609-1-git-send-email-byungchul.park@lge.com>
- <1510802067-18609-2-git-send-email-byungchul.park@lge.com>
- <20171116120216.nxbwkj5y3kvim6cj@dhcp22.suse.cz>
- <cf8aa555-7435-ea00-a4ee-3dcfd33ab5a0@lge.com>
- <20171116130746.i642wszwvyb7q6hm@dhcp22.suse.cz>
- <20171124030236.GA28999@X58A-UD3R>
- <20171124081149.filhcoy6zh6ysrjj@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 24 Nov 2017 01:42:43 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAO9e0h2037051
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 04:42:42 -0500
+Received: from e06smtp13.uk.ibm.com (e06smtp13.uk.ibm.com [195.75.94.109])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2eef79w0wk-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 04:42:41 -0500
+Received: from localhost
+	by e06smtp13.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Fri, 24 Nov 2017 09:42:40 -0000
+Date: Fri, 24 Nov 2017 09:42:33 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 1/5] mm: memory_hotplug: Memory hotplug (add) support
+ for arm64
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <ba9c72239dc5986edc6ca29fc58fefb306e4b52d.1511433386.git.ar@linux.vnet.ibm.com>
+ <CAKZGPAPN7migyvpNJDu1bA+ditb0TJV4WLqZuPdkxOU3kYQ9Ng@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171124081149.filhcoy6zh6ysrjj@dhcp22.suse.cz>
+In-Reply-To: <CAKZGPAPN7migyvpNJDu1bA+ditb0TJV4WLqZuPdkxOU3kYQ9Ng@mail.gmail.com>
+Message-Id: <20171124094232.GA18120@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, mingo@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com, jack@suse.cz, jlayton@redhat.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, npiggin@gmail.com, rgoldwyn@suse.com, vbabka@suse.cz, pombredanne@nexb.com, vinmenon@codeaurora.org, gregkh@linuxfoundation.org
+To: Arun KS <arunks.linux@gmail.com>
+Cc: Maciej Bielski <m.bielski@virtualopensystems.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, mhocko@suse.com, realean2@ie.ibm.com
 
-On Fri 24-11-17 09:11:49, Michal Hocko wrote:
-> On Fri 24-11-17 12:02:36, Byungchul Park wrote:
-> > On Thu, Nov 16, 2017 at 02:07:46PM +0100, Michal Hocko wrote:
-> > > On Thu 16-11-17 21:48:05, Byungchul Park wrote:
-> > > > On 11/16/2017 9:02 PM, Michal Hocko wrote:
-> > > > > for each struct page. So you are doubling the size. Who is going to
-> > > > > enable this config option? You are moving this to page_ext in a later
-> > > > > patch which is a good step but it doesn't go far enough because this
-> > > > > still consumes those resources. Is there any problem to make this
-> > > > > kernel command line controllable? Something we do for page_owner for
-> > > > > example?
-> > > > 
-> > > > Sure. I will add it.
-> > > > 
-> > > > > Also it would be really great if you could give us some measures about
-> > > > > the runtime overhead. I do not expect it to be very large but this is
-> > > > 
-> > > > The major overhead would come from the amount of additional memory
-> > > > consumption for 'lockdep_map's.
-> > > 
-> > > yes
-> > > 
-> > > > Do you want me to measure the overhead by the additional memory
-> > > > consumption?
-> > > > 
-> > > > Or do you expect another overhead?
-> > > 
-> > > I would be also interested how much impact this has on performance. I do
-> > > not expect it would be too large but having some numbers for cache cold
-> > > parallel kbuild or other heavy page lock workloads.
-> > 
-> > Hello Michal,
-> > 
-> > I measured 'cache cold parallel kbuild' on my qemu machine. The result
-> > varies much so I cannot confirm, but I think there's no meaningful
-> > difference between before and after applying crossrelease to page locks.
-> > 
-> > Actually, I expect little overhead in lock_page() and unlock_page() even
-> > after applying crossreleas to page locks, but only expect a bit overhead
-> > by additional memory consumption for 'lockdep_map's per page.
-> > 
-> > I run the following instructions within "QEMU x86_64 4GB memory 4 cpus":
-> > 
-> >    make clean
-> >    echo 3 > drop_caches
-> >    time make -j4
+Hi Arun,
+
+
+On Fri 24 Nov 2017, 11:25, Arun KS wrote:
+> On Thu, Nov 23, 2017 at 4:43 PM, Maciej Bielski
+> <m.bielski@virtualopensystems.com> wrote:
+>> [ ...]
+> > Introduces memory hotplug functionality (hot-add) for arm64.
+> > @@ -615,6 +616,44 @@ void __init paging_init(void)
+> >                       SWAPPER_DIR_SIZE - PAGE_SIZE);
+> >  }
+> >
+> > +#ifdef CONFIG_MEMORY_HOTPLUG
+> > +
+> > +/*
+> > + * hotplug_paging() is used by memory hotplug to build new page tables
+> > + * for hot added memory.
+> > + */
+> > +
+> > +struct mem_range {
+> > +       phys_addr_t base;
+> > +       phys_addr_t size;
+> > +};
+> > +
+> > +static int __hotplug_paging(void *data)
+> > +{
+> > +       int flags = 0;
+> > +       struct mem_range *section = data;
+> > +
+> > +       if (debug_pagealloc_enabled())
+> > +               flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
+> > +
+> > +       __create_pgd_mapping(swapper_pg_dir, section->base,
+> > +                       __phys_to_virt(section->base), section->size,
+> > +                       PAGE_KERNEL, pgd_pgtable_alloc, flags);
 > 
-> Maybe FS people will help you find a more representative workload. E.g.
-> linear cache cold file read should be good as well. Maybe there are some
-> tests in fstests (or how they call xfstests these days).
+> Hello Andrea,
+> 
+> __hotplug_paging runs on stop_machine context.
+> cpu stop callbacks must not sleep.
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/stop_machine.c?h=v4.14#n479
+> 
+> __create_pgd_mapping uses pgd_pgtable_alloc. which does
+> __get_free_page(PGALLOC_GFP)
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm64/mm/mmu.c?h=v4.14#n342
+> 
+> PGALLOC_GFP has GFP_KERNEL which inturn has __GFP_RECLAIM
+> 
+> #define PGALLOC_GFP     (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
+> #define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
+> 
+> Now, prepare_alloc_pages() called by __alloc_pages_nodemask checks for
+> 
+> might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/page_alloc.c?h=v4.14#n4150
+> 
+> and then BUG()
 
-So a relatively good test of page handling costs is to mmap cache hot file
-and measure time to fault in all the pages in the mapping. That way IO and
-filesystem stays out of the way and you measure only page table lookup,
-page handling (taking page ref and locking the page), and instantiation of
-the new PTE. Out of this page handling is actually the significant part.
+Well spotted, thanks for reporting the problem. One possible solution
+would be to revert back to building the updated page tables on a copy
+pgdir (as it was done in v1 of this patchset) and then replacing swapper
+atomically with stop_machine.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Actually, I am not sure if stop_machine is strictly needed,
+if we modify the swapper pgdir live: for example, in x86_64
+kernel_physical_mapping_init, atomicity is ensured by spin-locking on
+init_mm.page_table_lock.
+https://elixir.free-electrons.com/linux/v4.14/source/arch/x86/mm/init_64.c#L684
+I'll spend some time investigating whoever else could be working
+concurrently on the swapper pgdir.
+
+Any suggestion or pointer is very welcome.
+
+Thanks,
+Andrea
+
+> I was testing on 4.4 kernel, but cross checked with 4.14 as well.
+> 
+> Regards,
+> Arun
+> 
+> 
+> > +
+> > +       return 0;
+> > +}
+> > +
+> > +inline void hotplug_paging(phys_addr_t start, phys_addr_t size)
+> > +{
+> > +       struct mem_range section = {
+> > +               .base = start,
+> > +               .size = size,
+> > +       };
+> > +
+> > +       stop_machine(__hotplug_paging, &section, NULL);
+> > +}
+> > +#endif /* CONFIG_MEMORY_HOTPLUG */
+> > +
+> >  /*
+> >   * Check whether a kernel address is valid (derived from arch/x86/).
+> >   */
+> > --
+> > 2.7.4
+> >
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
