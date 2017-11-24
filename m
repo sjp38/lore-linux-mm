@@ -1,59 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4172E6B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 08:13:12 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s28so19574627pfg.6
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:13:12 -0800 (PST)
-Received: from JPTOSEGREL01.sonyericsson.com (jptosegrel01.sonyericsson.com. [124.215.201.71])
-        by mx.google.com with ESMTPS id h71si17945368pgc.321.2017.11.24.05.13.10
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B84236B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 08:22:05 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id a72so13089103ioe.13
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 05:22:05 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d8si17446326ioe.241.2017.11.24.05.22.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 24 Nov 2017 05:13:11 -0800 (PST)
-Subject: Re: [PATCH] mm:Add watermark slope for high mark
-References: <20171124100707.24190-1-peter.enderborg@sony.com>
- <20171124101457.by7eoblmk357jwnz@dhcp22.suse.cz>
-From: peter enderborg <peter.enderborg@sony.com>
-Message-ID: <3ff0a870-4a0e-3b8a-ecfd-3db4c6bbd695@sony.com>
-Date: Fri, 24 Nov 2017 14:12:56 +0100
-MIME-Version: 1.0
-In-Reply-To: <20171124101457.by7eoblmk357jwnz@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
-Content-Language: en-GB
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 24 Nov 2017 05:22:04 -0800 (PST)
+Subject: Re: [PATCH v2 1/2] mm,vmscan: Make unregister_shrinker() no-op if register_shrinker() failed.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1511523385-6433-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171124122148.qevmiogh3pzr4zix@dhcp22.suse.cz>
+In-Reply-To: <20171124122148.qevmiogh3pzr4zix@dhcp22.suse.cz>
+Message-Id: <201711242221.BJD26077.SFOtVQJMFHOOFL@I-love.SAKURA.ne.jp>
+Date: Fri, 24 Nov 2017 22:21:55 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, "Luis R . Rodriguez" <mcgrof@kernel.org>, Kees Cook <keescook@chromium.org>, Alex Deucher <alexander.deucher@amd.com>, "David S .
- Miller" <davem@davemloft.net>, Harry Wentland <Harry.Wentland@amd.com>, Greg
- Kroah-Hartman <gregkh@linuxfoundation.org>, Tony Cheng <Tony.Cheng@amd.com>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh
- Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Kemi Wang <kemi.wang@intel.com>, Vlastimil Babka <vbabka@suse.cz>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Nikolay Borisov <nborisov@suse.com>, Mel Gorman <mgorman@suse.de>, Pavel Tatashin <pasha.tatashin@oracle.com>, Linux API <linux-api@vger.kernel.org>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, glauber@scylladb.com, syzkaller@googlegroups.com
 
-On 11/24/2017 11:14 AM, Michal Hocko wrote:
-> On Fri 24-11-17 11:07:07, Peter Enderborg wrote:
->> When tuning the watermark_scale_factor to reduce stalls and compactions
->> the high mark is also changed, it changed a bit too much. So this
->> patch introduces a slope that can reduce this overhead a bit, or
->> increase it if needed.
-> This doesn't explain what is the problem, why it is a problem and why we
-> need yet another tuning to address it. Users shouldn't really care about
-> internal stuff like watermark tuning for each watermark independently.
-> This looks like a gross hack. Please start over with the problem
-> description and then we can move on to an approapriate fix. Piling up
-> tuning knobs to workaround problems is simply not acceptable.
->  
+Michal Hocko wrote:
+> > Since we can encourage register_shrinker() callers to check for failure
+> > by marking register_shrinker() as __must_check, unregister_shrinker()
+> > can stay silent.
+> 
+> I am not sure __must_check is the right way. We already do get
+> allocation warning if the registration fails so silent unregister is
+> acceptable. Unchecked register_shrinker is a bug like any other
+> unchecked error path.
 
-In the original patch - https://lkml.org/lkml/2016/2/18/498 - had a
-
-discussion about small systems with 8GB RAM. In the handheld world, that's
-a lot of RAM. However, the magic number 2 used in the present algorithm
-is out of the blue. Compaction problems are the same for both small and
-big. So small devices also need to increase watermark to
-get compaction to work and reduce direct reclaims. Changing the low watermark
-makes direct reclaim rate drop a lot. But it will cause kswap to work more,
-and that has a negative impact. Lowering the gap will smooth out the kswap
-workload to suite embedded devices a lot better. This can be addressed by
-reducing the high watermark using the slope patch herein. Im sort of understand
-your opinion on user knobs, but hard-coded magic numbers are even worse.
+I consider that __must_check is the simplest way to find all of
+unchecked register_shrinker bugs. Why not to encourage users to fix?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
