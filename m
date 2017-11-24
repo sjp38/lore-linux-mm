@@ -1,79 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EEF116B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 02:50:10 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id h21so16877581pfk.14
-        for <linux-mm@kvack.org>; Thu, 23 Nov 2017 23:50:10 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F0DE6B0033
+	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 03:05:10 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id f9so13446657wra.2
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 00:05:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b186si17390410pgc.780.2017.11.23.23.50.09
+        by mx.google.com with ESMTPS id z18si121775eda.277.2017.11.24.00.05.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 23 Nov 2017 23:50:09 -0800 (PST)
-Date: Fri, 24 Nov 2017 08:50:06 +0100
+        Fri, 24 Nov 2017 00:05:09 -0800 (PST)
+Date: Fri, 24 Nov 2017 09:05:07 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: Do not stall register_shrinker
-Message-ID: <20171124075006.wlixilwhipagvbc5@dhcp22.suse.cz>
-References: <1511481899-20335-1-git-send-email-minchan@kernel.org>
+Subject: Re: [PATCH] mm,madvise: bugfix of madvise systemcall infinite loop
+ under special circumstances.
+Message-ID: <20171124080507.u76g634hucoxmpov@dhcp22.suse.cz>
+References: <20171124022757.4991-1-guoxuenan@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1511481899-20335-1-git-send-email-minchan@kernel.org>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171124022757.4991-1-guoxuenan@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: guoxuenan <guoxuenan@huawei.com>
+Cc: akpm@linux-foundation.org, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rppt@linux.vnet.ibm.com, hillf.zj@alibaba-inc.com, shli@fb.com, aarcange@redhat.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, rientjes@google.com, khandual@linux.vnet.ibm.com, riel@redhat.com
 
-On Fri 24-11-17 09:04:59, Minchan Kim wrote:
-> Shakeel Butt reported, he have observed in production system that
-> the job loader gets stuck for 10s of seconds while doing mount
-> operation. It turns out that it was stuck in register_shrinker()
-> and some unrelated job was under memory pressure and spending time
-> in shrink_slab(). Machines have a lot of shrinkers registered and
-> jobs under memory pressure has to traverse all of those memcg-aware
-> shrinkers and do affect unrelated jobs which want to register their
-> own shrinkers.
+On Fri 24-11-17 10:27:57, guoxuenan wrote:
+> From: chenjie <chenjie6@huawei.com>
 > 
-> To solve the issue, this patch simply bails out slab shrinking
-> once it found someone want to register shrinker in parallel.
-> A downside is it could cause unfair shrinking between shrinkers.
-> However, it should be rare and we can add compilcated logic once
-> we found it's not enough.
+> The madvise() system call supported a set of "conventional" advice values,
+> the MADV_WILLNEED parameter will trigger an infinite loop under direct
+> access mode(DAX). In DAX mode, the function madvise_vma() will return
+> directly without updating the pointer [prev].
 > 
-> Link: http://lkml.kernel.org/r/20171115005602.GB23810@bbox
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-and-tested-by: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> For example:
+> Special circumstances:
+> 1a??init [ start < vam->vm_start < vam->vm_end < end ]
+> 2a??madvise_vma() using MADV_WILLNEED parameter ;
+> madvise_vma() -> madvise_willneed() -> return 0 && without updating [prev]
+> 
+> =======================================================================
+> in Function SYSCALL_DEFINE3(madvise,...)
+> 
+> for (;;)
+> {
+> //[first loop: start = vam->vm_start < vam->vm_end  <end ];
+>       update [start = vma->vm_start | end  ]
+> 
+> con0: if (start >= end)                 //false always;
+> 	goto out;
+>       tmp = vma->vm_end;
+> 
+> //do not update [prev] and always return 0;
+>       error = madvise_willneed();
+> 
+> con1: if (error)                        //false always;
+> 	goto out;
+> 
+> //[ vam->vm_start < start = vam->vm_end  <end ]
+>       update [start = tmp ]
+> 
+> con2: if (start >= end)                 //false always ;
+> 	goto out;
+> 
+> //because of pointer [prev] did not change,[vma] keep as it was;
+>       update [ vma = prev->vm_next ]
+> }
+> 
+> =======================================================================
+> After the first cycle ;it will always keep
+> [ vam->vm_start < start = vam->vm_end  < end ].
+> since Circulation exit conditions (con{0,1,2}) will never meet ,the
+> program stuck in infinite loop.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Are you sure? Have you tested this? I might be missing something because
+madvise code is a bit of a mess but AFAICS prev pointer (updated or not)
+will allow to move advance
+		if (prev)
+			vma = prev->vm_next;
+		else	/* madvise_remove dropped mmap_sem */
+			vma = find_vma(current->mm, start);
+note that start is vma->vm_end and find_vma will find a vma which
+vma_end > addr
 
+So either I am missing something or this code has actaully never worked
+for DAX, XIP which I find rather suspicious.
+ 
+> Signed-off-by: chenjie <chenjie6@huawei.com>
+> Signed-off-by: guoxuenan <guoxuenan@huawei.com>
 > ---
->  mm/vmscan.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
+>  mm/madvise.c | 1 +
+>  1 file changed, 1 insertion(+)
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6a5a72baccd5..6698001787bd 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -486,6 +486,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			sc.nid = 0;
+> diff --git a/mm/madvise.c b/mm/madvise.c
+> index 21261ff..c355fee 100644
+> --- a/mm/madvise.c
+> +++ b/mm/madvise.c
+> @@ -294,6 +294,7 @@ static long madvise_willneed(struct vm_area_struct *vma,
+>  #endif
 >  
->  		freed += do_shrink_slab(&sc, shrinker, priority);
-> +		/*
-> +		 * bail out if someone want to register a new shrinker to
-> +		 * prevent long time stall by parallel ongoing shrinking.
-> +		 */
-> +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> +			freed = freed ? : 1;
-> +			break;
-> +		}
+>  	if (IS_DAX(file_inode(file))) {
+> +		*prev = vma;
+>  		/* no bad return value, but ignore advice */
+>  		return 0;
 >  	}
->  
->  	up_read(&shrinker_rwsem);
 > -- 
-> 2.7.4
+> 2.9.5
 > 
 
 -- 
