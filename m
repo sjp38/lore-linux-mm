@@ -1,72 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 98B306B0033
-	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 05:53:04 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id v8so12964554otd.4
-        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 02:53:04 -0800 (PST)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B58A6B0253
+	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 05:53:25 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id 72so10818330oik.6
+        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 02:53:25 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id m11si10734563otb.296.2017.11.25.02.53.02
+        by mx.google.com with ESMTPS id n131si8164783oia.456.2017.11.25.02.53.23
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 25 Nov 2017 02:53:03 -0800 (PST)
+        Sat, 25 Nov 2017 02:53:24 -0800 (PST)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 3/3] mm,oom: Remove oom_lock serialization from the OOM reaper.
-Date: Sat, 25 Nov 2017 19:52:49 +0900
-Message-Id: <1511607169-5084-3-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-In-Reply-To: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH 1/3] mm,oom: Move last second allocation to inside the OOM killer.
+Date: Sat, 25 Nov 2017 19:52:47 +0900
+Message-Id: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
 
-Since "mm,oom: Move last second allocation to inside the OOM killer."
-changed to do last second allocation attempt after confirming that there
-is no OOM victim's mm without MMF_OOM_SKIP set, we no longer need to
-block the OOM reaper using oom_lock. This patch should allow start
-reclaiming earlier than now.
+Since selecting an OOM victim can take quite some time and the OOM
+situation might be resolved meanwhile, sometimes doing last second
+allocation attempt after selecting an OOM victim can succeed.
+
+Therefore, this patch moves last second allocation attempt to after
+selecting an OOM victim. This patch is expected to reduce the time
+window for potentially pre-mature OOM killing considerably.
 
 Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Acked-by: Michal Hocko <mhocko@suse.com>
+Suggested-by: Michal Hocko <mhocko@suse.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
 ---
- mm/oom_kill.c | 17 -----------------
- 1 file changed, 17 deletions(-)
+ include/linux/oom.h | 13 +++++++++++++
+ mm/oom_kill.c       | 14 ++++++++++++++
+ mm/page_alloc.c     | 44 ++++++++++++++++++++++++++------------------
+ 3 files changed, 53 insertions(+), 18 deletions(-)
 
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index 01c91d8..27cd36b 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -14,6 +14,8 @@
+ struct notifier_block;
+ struct mem_cgroup;
+ struct task_struct;
++struct alloc_context;
++struct page;
+ 
+ /*
+  * Details of the page allocation that triggered the oom killer that are used to
+@@ -38,6 +40,15 @@ struct oom_control {
+ 	 */
+ 	const int order;
+ 
++	/* Context for really last second allocation attempt. */
++	const struct alloc_context *ac;
++	/*
++	 * Set by the OOM killer if ac != NULL and last second allocation
++	 * attempt succeeded. If ac != NULL, the caller must check for
++	 * page != NULL.
++	 */
++	struct page *page;
++
+ 	/* Used by oom implementation, do not set */
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+@@ -102,6 +113,8 @@ extern unsigned long oom_badness(struct task_struct *p,
+ 
+ extern struct task_struct *find_lock_task_mm(struct task_struct *p);
+ 
++extern struct page *alloc_pages_before_oomkill(const struct oom_control *oc);
++
+ /* sysctls */
+ extern int sysctl_oom_dump_tasks;
+ extern int sysctl_oom_kill_allocating_task;
 diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 348ec5a..3b0d0fe 100644
+index c957be3..348ec5a 100644
 --- a/mm/oom_kill.c
 +++ b/mm/oom_kill.c
-@@ -491,22 +491,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	struct vm_area_struct *vma;
- 	bool ret = true;
+@@ -1061,6 +1061,9 @@ bool out_of_memory(struct oom_control *oc)
+ 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
+ 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
+ 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
++		oc->page = alloc_pages_before_oomkill(oc);
++		if (oc->page)
++			return true;
+ 		get_task_struct(current);
+ 		oc->chosen = current;
+ 		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
+@@ -1068,6 +1071,17 @@ bool out_of_memory(struct oom_control *oc)
+ 	}
+ 
+ 	select_bad_process(oc);
++	/*
++	 * Try really last second allocation attempt after we selected an OOM
++	 * victim, for somebody might have managed to free memory while we were
++	 * selecting an OOM victim which can take quite some time.
++	 */
++	oc->page = alloc_pages_before_oomkill(oc);
++	if (oc->page) {
++		if (oc->chosen && oc->chosen != (void *)-1UL)
++			put_task_struct(oc->chosen);
++		return true;
++	}
+ 	/* Found nothing?!?! Either we hang forever, or we panic. */
+ 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+ 		dump_header(oc, NULL);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 48b5b01..7fa95ea 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -3325,8 +3325,9 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 		.memcg = NULL,
+ 		.gfp_mask = gfp_mask,
+ 		.order = order,
++		.ac = ac,
+ 	};
+-	struct page *page;
++	struct page *page = NULL;
+ 
+ 	*did_some_progress = 0;
+ 
+@@ -3340,19 +3341,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 		return NULL;
+ 	}
  
 -	/*
--	 * We have to make sure to not race with the victim exit path
--	 * and cause premature new oom victim selection:
--	 * __oom_reap_task_mm		exit_mm
--	 *   mmget_not_zero
--	 *				  mmput
--	 *				    atomic_dec_and_test
--	 *				  exit_oom_victim
--	 *				[...]
--	 *				out_of_memory
--	 *				  select_bad_process
--	 *				    # no TIF_MEMDIE task selects new victim
--	 *  unmap_page_range # frees some memory
+-	 * Go through the zonelist yet one more time, keep very high watermark
+-	 * here, this is only to catch a parallel oom killing, we must fail if
+-	 * we're still under heavy pressure. But make sure that this reclaim
+-	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+-	 * allocation which will never fail due to oom_lock already held.
 -	 */
--	mutex_lock(&oom_lock);
+-	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
+-				      ~__GFP_DIRECT_RECLAIM, order,
+-				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+-	if (page)
+-		goto out;
 -
- 	if (!down_read_trylock(&mm->mmap_sem)) {
- 		ret = false;
- 		trace_skip_task_reaping(tsk->pid);
-@@ -580,7 +564,6 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
+ 	/* Coredumps can quickly deplete all memory reserves */
+ 	if (current->flags & PF_DUMPCORE)
+ 		goto out;
+@@ -3387,16 +3375,18 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+ 		goto out;
  
- 	trace_finish_task_reaping(tsk->pid);
- unlock_oom:
--	mutex_unlock(&oom_lock);
- 	return ret;
+ 	/* Exhausted what can be done so it's blamo time */
+-	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
++	if (out_of_memory(&oc)) {
++		*did_some_progress = 1;
++		page = oc.page;
++	} else if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+ 		*did_some_progress = 1;
+ 
+ 		/*
+ 		 * Help non-failing allocations by giving them access to memory
+ 		 * reserves
+ 		 */
+-		if (gfp_mask & __GFP_NOFAIL)
+-			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
+-					ALLOC_NO_WATERMARKS, ac);
++		page = __alloc_pages_cpuset_fallback(gfp_mask, order,
++						     ALLOC_NO_WATERMARKS, ac);
+ 	}
+ out:
+ 	mutex_unlock(&oom_lock);
+@@ -4156,6 +4146,24 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+ 	return page;
  }
  
++struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
++{
++	/*
++	 * Go through the zonelist yet one more time, keep very high watermark
++	 * here, this is only to catch a parallel oom killing, we must fail if
++	 * we're still under heavy pressure. But make sure that this reclaim
++	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
++	 * allocation which will never fail due to oom_lock already held.
++	 */
++	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
++	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
++
++	if (!oc->ac)
++		return NULL;
++	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
++	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, oc->ac);
++}
++
+ static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
+ 		int preferred_nid, nodemask_t *nodemask,
+ 		struct alloc_context *ac, gfp_t *alloc_mask,
 -- 
 1.8.3.1
 
