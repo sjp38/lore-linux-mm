@@ -1,99 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F3A76B0033
-	for <linux-mm@kvack.org>; Fri, 24 Nov 2017 20:53:13 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id i89so19942084pfj.9
-        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 17:53:13 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AED076B0033
+	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 01:39:10 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id z30so12758506otd.9
+        for <linux-mm@kvack.org>; Fri, 24 Nov 2017 22:39:10 -0800 (PST)
 Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id b4si20922530pfa.345.2017.11.24.17.53.11
+        by mx.google.com with ESMTPS id n2si9383003oig.394.2017.11.24.22.39.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 24 Nov 2017 17:53:12 -0800 (PST)
-Subject: Re: [PATCH] mm,madvise: bugfix of madvise systemcall infinite loop
- under special circumstances.
-References: <20171124022757.4991-1-guoxuenan@huawei.com>
- <20171124080507.u76g634hucoxmpov@dhcp22.suse.cz>
- <829af987-4d65-382c-dbd4-0c81222ebb51@huawei.com>
- <20171124130803.hafb3zbhy7gdqkvi@dhcp22.suse.cz>
-From: =?UTF-8?B?6YOt6Zuq5qWg?= <guoxuenan@huawei.com>
-Message-ID: <52b8bab4-6656-fe76-ed21-ee3c4682a5e3@huawei.com>
-Date: Sat, 25 Nov 2017 09:52:13 +0800
+        Fri, 24 Nov 2017 22:39:09 -0800 (PST)
+From: JianKang Chen <chenjiankang1@huawei.com>
+Subject: [PATCH] mm/page_alloc: fix comment is __get_free_pages
+Date: Sat, 25 Nov 2017 14:29:19 +0800
+Message-ID: <1511591359-11448-1-git-send-email-chenjiankang1@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20171124130803.hafb3zbhy7gdqkvi@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: akpm@linux-foundation.org, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, rppt@linux.vnet.ibm.com, yi.zhang@huawei.com, miaoxie@huawei.com, aarcange@redhat.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, rientjes@google.com, khandual@linux.vnet.ibm.com, riel@redhat.com, hillf.zj@alibaba-inc.com, shli@fb.com
+To: akpm@linux-foundation.org, mhocko@suse.com, mgorman@techsingularity.net, hillf.zj@alibaba-inc.com
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-Yes , your modification is much better! thanks.
+From: c00426987 <c00426987@huawei.com>
 
-a?? 2017/11/24 21:08, Michal Hocko a??e??:
-> On Fri 24-11-17 20:51:29, e?-e?aaeJPY  wrote:
->> Sorry,I explained  wrong before. But,I've tested using trinity in DAX
->> mode,and I'am sure it has possibility of triggering an soft lockup. I have
->> encountered the problem of endless loop here .
->>
->> I had a little problem here,I correct it .
->> under Initial state :
->> [ start = vam->vm_start < vam->vm_end < end ]
->>
->> When [start = vam->vm_start] the program enters  for{;;} loop
->> ,find_vma_prev() will set the pointer vma and the pointer prev (prev =
->> vam->vm_prev ). Normally ,madvise_vma() will always move the pointer prev
->> ,but when use DAX mode , it will never update .
-> [...]
->> if (prev) // here prev not NULL,it will always enter this branch ..
->> 	vma = prev->vm_next;
->> else	/* madvise_remove dropped mmap_sem */
->> 	vma = find_vma(current->mm, start);
-> 
-> You are right! My fault, I managed to confuse myself in the code flow.
-> It really looks like this has been broken for more than 10 years since
-> fe77ba6f4f97 ("[PATCH] xip: madvice/fadvice: execute in place").
-> 
-> Maybe the following would be more readable and less error prone?
-> ---
-> diff --git a/mm/madvise.c b/mm/madvise.c
-> index 375cf32087e4..a631c414f915 100644
-> --- a/mm/madvise.c
-> +++ b/mm/madvise.c
-> @@ -276,30 +276,26 @@ static long madvise_willneed(struct vm_area_struct *vma,
->   {
->   	struct file *file = vma->vm_file;
->   
-> +	*prev = vma;
->   #ifdef CONFIG_SWAP
->   	if (!file) {
-> -		*prev = vma;
->   		force_swapin_readahead(vma, start, end);
->   		return 0;
->   	}
->   
-> -	if (shmem_mapping(file->f_mapping)) {
-> -		*prev = vma;
-> +	if (shmem_mapping(file->f_mapping))
->   		force_shm_swapin_readahead(vma, start, end,
->   					file->f_mapping);
->   		return 0;
-> -	}
->   #else
->   	if (!file)
->   		return -EBADF;
->   #endif
->   
-> -	if (IS_DAX(file_inode(file))) {
-> +	if (IS_DAX(file_inode(file)))
->   		/* no bad return value, but ignore advice */
->   		return 0;
-> -	}
->   
-> -	*prev = vma;
->   	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
->   	if (end > vma->vm_end)
->   		end = vma->vm_end;
-> 
+__get_free_pages will return an 64bit address in 64bit System
+like arm64 or x86_64. And this comment really
+confuse new bigenner of mm.
+
+reported-by: Hanjun Guo <guohanjun@huawei.com>
+Signed-off-by: Chen Jiankang <chenjiankang1@huawei.com>
+---
+ mm/page_alloc.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 77e4d3c..b847b24 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4240,8 +4240,8 @@ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
+ 	struct page *page;
+ 
+ 	/*
+-	 * __get_free_pages() returns a 32-bit address, which cannot represent
+-	 * a highmem page
++	 * __get_free_pages() returns a virtual address, which
++	 * cannot represent a highmem page
+ 	 */
+ 	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
+ 
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
