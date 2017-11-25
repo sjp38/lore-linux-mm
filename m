@@ -1,61 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B9D006B025F
-	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 06:07:34 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id r70so30722122ioi.2
-        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 03:07:34 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DD426B0033
+	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 06:37:02 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id x202so24636349pgx.1
+        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 03:37:02 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j124si10006039ite.59.2017.11.25.03.07.33
+        by mx.google.com with ESMTPS id v3si2043247plb.385.2017.11.25.03.37.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 25 Nov 2017 03:07:33 -0800 (PST)
-Subject: Re: [PATCH] mm,page_alloc: Use min watermark for last second allocation attempt.
+        Sat, 25 Nov 2017 03:37:01 -0800 (PST)
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1510915081-3768-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171120093851.gs3zqpmmyacxplor@dhcp22.suse.cz>
-In-Reply-To: <20171120093851.gs3zqpmmyacxplor@dhcp22.suse.cz>
-Message-Id: <201711252007.HDF15235.SFQOMHLFOVtFJO@I-love.SAKURA.ne.jp>
-Date: Sat, 25 Nov 2017 20:07:24 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Subject: [PATCH 2/3] mm,oom: Use ALLOC_OOM for OOM victim's last second allocation.
+Date: Sat, 25 Nov 2017 19:52:48 +0900
+Message-Id: <1511607169-5084-2-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Manish Jaggi <mjaggi@caviumnetworks.com>, Michal Hocko <mhocko@suse.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-Michal Hocko wrote:
-> On Fri 17-11-17 19:38:01, Tetsuo Handa wrote:
-> [...]
-> > [ 1792.835056] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
-> > [ 1792.836073] Killed process 14458 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
-> 
-> Wen you are in a situation when you are killing 88kB process then you
-> are most probably going to suffer more oom kills anyway. Optimizing for
-> this case is thus questionable at best. You would need to come up with
-> a reasonable explanation why the livelock as described by Andrea is not
-> possible with the current MM reclaim retry implementation. I am not
-> saying the patch is wrong but your justification _is_ wrong.
+Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
+count causes random kernel panics when an OOM victim which consumed memory
+in a way the OOM reaper does not help was selected by the OOM killer [1].
+Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
+to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
+victim's mm were not able to try allocation from memory reserves after the
+OOM reaper gave up reclaiming memory.
 
-What I wanted you to check is the fact that there was about 1.5 seconds of time
-window and free: was 948KB above min: watermark (which is  larger than 88KB) and
-total free was 1560KB above min: (which means that making free memory was in progress
-rather than suffer more OOM kills).
+Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
+last second allocation attempt.
 
-[ 1792.835056] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
-[ 1792.836073] Killed process 14458 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
-[ 1792.837757] oom_reaper: reaped process 14458 (normal-priority), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-[ 1794.366070] systemd-journal invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
-(...snipped...)
-[ 1794.366295] Normal free:18448kB min:17500kB low:21872kB high:26244kB active_anon:650740kB inactive_anon:18976kB active_file:220kB inactive_file:436kB unevictable:0kB writepending:0kB present:1048576kB managed:966968kB mlocked:0kB kernel_stack:19568kB pagetables:36132kB bounce:0kB free_pcp:2736kB local_pcp:680kB free_cma:0kB
-(...snipped...)
-[ 1794.366342] Normal: 557*4kB (UM) 476*8kB (UMH) 126*16kB (UMH) 84*32kB (UM) 16*64kB (UM) 9*128kB (UM) 4*256kB (UM) 4*512kB (UM) 3*1024kB (M) 0*2048kB 0*4096kB = 19060kB
-(...snipped...)
-[ 1794.366368] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
-[ 1794.367372] Killed process 14459 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
-[ 1794.369143] oom_reaper: reaped process 14459 (normal-priority), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+[1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
 
-But since I can't find better justification for this patch, I decided to send remaining
-patches first: http://lkml.kernel.org/r/1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
+Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
+Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oleg Nesterov <oleg@redhat.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: David Rientjes <rientjes@google.com>
+---
+ mm/page_alloc.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 7fa95ea..dbaff7f 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -4154,13 +4154,19 @@ struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
+ 	 * we're still under heavy pressure. But make sure that this reclaim
+ 	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+ 	 * allocation which will never fail due to oom_lock already held.
++	 * Also, make sure that OOM victims can try ALLOC_OOM watermark
++	 * in case they haven't tried ALLOC_OOM watermark.
+ 	 */
+ 	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
+ 	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
++	int reserve_flags;
+ 
+ 	if (!oc->ac)
+ 		return NULL;
+ 	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
++	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
++	if (reserve_flags)
++		alloc_flags = reserve_flags;
+ 	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, oc->ac);
+ }
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
