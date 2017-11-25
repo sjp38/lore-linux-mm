@@ -1,196 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B58A6B0253
-	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 05:53:25 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id 72so10818330oik.6
-        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 02:53:25 -0800 (PST)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B9D006B025F
+	for <linux-mm@kvack.org>; Sat, 25 Nov 2017 06:07:34 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id r70so30722122ioi.2
+        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 03:07:34 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n131si8164783oia.456.2017.11.25.02.53.23
+        by mx.google.com with ESMTPS id j124si10006039ite.59.2017.11.25.03.07.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 25 Nov 2017 02:53:24 -0800 (PST)
+        Sat, 25 Nov 2017 03:07:33 -0800 (PST)
+Subject: Re: [PATCH] mm,page_alloc: Use min watermark for last second allocation attempt.
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH 1/3] mm,oom: Move last second allocation to inside the OOM killer.
-Date: Sat, 25 Nov 2017 19:52:47 +0900
-Message-Id: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1510915081-3768-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+	<20171120093851.gs3zqpmmyacxplor@dhcp22.suse.cz>
+In-Reply-To: <20171120093851.gs3zqpmmyacxplor@dhcp22.suse.cz>
+Message-Id: <201711252007.HDF15235.SFQOMHLFOVtFJO@I-love.SAKURA.ne.jp>
+Date: Sat, 25 Nov 2017 20:07:24 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>
+To: mhocko@suse.com
+Cc: aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, hannes@cmpxchg.org
 
-Since selecting an OOM victim can take quite some time and the OOM
-situation might be resolved meanwhile, sometimes doing last second
-allocation attempt after selecting an OOM victim can succeed.
+Michal Hocko wrote:
+> On Fri 17-11-17 19:38:01, Tetsuo Handa wrote:
+> [...]
+> > [ 1792.835056] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
+> > [ 1792.836073] Killed process 14458 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
+> 
+> Wen you are in a situation when you are killing 88kB process then you
+> are most probably going to suffer more oom kills anyway. Optimizing for
+> this case is thus questionable at best. You would need to come up with
+> a reasonable explanation why the livelock as described by Andrea is not
+> possible with the current MM reclaim retry implementation. I am not
+> saying the patch is wrong but your justification _is_ wrong.
 
-Therefore, this patch moves last second allocation attempt to after
-selecting an OOM victim. This patch is expected to reduce the time
-window for potentially pre-mature OOM killing considerably.
+What I wanted you to check is the fact that there was about 1.5 seconds of time
+window and free: was 948KB above min: watermark (which is  larger than 88KB) and
+total free was 1560KB above min: (which means that making free memory was in progress
+rather than suffer more OOM kills).
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Suggested-by: Michal Hocko <mhocko@suse.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- include/linux/oom.h | 13 +++++++++++++
- mm/oom_kill.c       | 14 ++++++++++++++
- mm/page_alloc.c     | 44 ++++++++++++++++++++++++++------------------
- 3 files changed, 53 insertions(+), 18 deletions(-)
+[ 1792.835056] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
+[ 1792.836073] Killed process 14458 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
+[ 1792.837757] oom_reaper: reaped process 14458 (normal-priority), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+[ 1794.366070] systemd-journal invoked oom-killer: gfp_mask=0x14200ca(GFP_HIGHUSER_MOVABLE), nodemask=(null), order=0, oom_score_adj=0
+(...snipped...)
+[ 1794.366295] Normal free:18448kB min:17500kB low:21872kB high:26244kB active_anon:650740kB inactive_anon:18976kB active_file:220kB inactive_file:436kB unevictable:0kB writepending:0kB present:1048576kB managed:966968kB mlocked:0kB kernel_stack:19568kB pagetables:36132kB bounce:0kB free_pcp:2736kB local_pcp:680kB free_cma:0kB
+(...snipped...)
+[ 1794.366342] Normal: 557*4kB (UM) 476*8kB (UMH) 126*16kB (UMH) 84*32kB (UM) 16*64kB (UM) 9*128kB (UM) 4*256kB (UM) 4*512kB (UM) 3*1024kB (M) 0*2048kB 0*4096kB = 19060kB
+(...snipped...)
+[ 1794.366368] Out of memory: Kill process 14294 (idle-priority) score 876 or sacrifice child
+[ 1794.367372] Killed process 14459 (normal-priority) total-vm:4176kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
+[ 1794.369143] oom_reaper: reaped process 14459 (normal-priority), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index 01c91d8..27cd36b 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -14,6 +14,8 @@
- struct notifier_block;
- struct mem_cgroup;
- struct task_struct;
-+struct alloc_context;
-+struct page;
- 
- /*
-  * Details of the page allocation that triggered the oom killer that are used to
-@@ -38,6 +40,15 @@ struct oom_control {
- 	 */
- 	const int order;
- 
-+	/* Context for really last second allocation attempt. */
-+	const struct alloc_context *ac;
-+	/*
-+	 * Set by the OOM killer if ac != NULL and last second allocation
-+	 * attempt succeeded. If ac != NULL, the caller must check for
-+	 * page != NULL.
-+	 */
-+	struct page *page;
-+
- 	/* Used by oom implementation, do not set */
- 	unsigned long totalpages;
- 	struct task_struct *chosen;
-@@ -102,6 +113,8 @@ extern unsigned long oom_badness(struct task_struct *p,
- 
- extern struct task_struct *find_lock_task_mm(struct task_struct *p);
- 
-+extern struct page *alloc_pages_before_oomkill(const struct oom_control *oc);
-+
- /* sysctls */
- extern int sysctl_oom_dump_tasks;
- extern int sysctl_oom_kill_allocating_task;
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index c957be3..348ec5a 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1061,6 +1061,9 @@ bool out_of_memory(struct oom_control *oc)
- 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
- 	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
- 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-+		oc->page = alloc_pages_before_oomkill(oc);
-+		if (oc->page)
-+			return true;
- 		get_task_struct(current);
- 		oc->chosen = current;
- 		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
-@@ -1068,6 +1071,17 @@ bool out_of_memory(struct oom_control *oc)
- 	}
- 
- 	select_bad_process(oc);
-+	/*
-+	 * Try really last second allocation attempt after we selected an OOM
-+	 * victim, for somebody might have managed to free memory while we were
-+	 * selecting an OOM victim which can take quite some time.
-+	 */
-+	oc->page = alloc_pages_before_oomkill(oc);
-+	if (oc->page) {
-+		if (oc->chosen && oc->chosen != (void *)-1UL)
-+			put_task_struct(oc->chosen);
-+		return true;
-+	}
- 	/* Found nothing?!?! Either we hang forever, or we panic. */
- 	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
- 		dump_header(oc, NULL);
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 48b5b01..7fa95ea 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3325,8 +3325,9 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		.memcg = NULL,
- 		.gfp_mask = gfp_mask,
- 		.order = order,
-+		.ac = ac,
- 	};
--	struct page *page;
-+	struct page *page = NULL;
- 
- 	*did_some_progress = 0;
- 
-@@ -3340,19 +3341,6 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		return NULL;
- 	}
- 
--	/*
--	 * Go through the zonelist yet one more time, keep very high watermark
--	 * here, this is only to catch a parallel oom killing, we must fail if
--	 * we're still under heavy pressure. But make sure that this reclaim
--	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
--	 * allocation which will never fail due to oom_lock already held.
--	 */
--	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
--				      ~__GFP_DIRECT_RECLAIM, order,
--				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
--	if (page)
--		goto out;
--
- 	/* Coredumps can quickly deplete all memory reserves */
- 	if (current->flags & PF_DUMPCORE)
- 		goto out;
-@@ -3387,16 +3375,18 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		goto out;
- 
- 	/* Exhausted what can be done so it's blamo time */
--	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
-+	if (out_of_memory(&oc)) {
-+		*did_some_progress = 1;
-+		page = oc.page;
-+	} else if (WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
- 		*did_some_progress = 1;
- 
- 		/*
- 		 * Help non-failing allocations by giving them access to memory
- 		 * reserves
- 		 */
--		if (gfp_mask & __GFP_NOFAIL)
--			page = __alloc_pages_cpuset_fallback(gfp_mask, order,
--					ALLOC_NO_WATERMARKS, ac);
-+		page = __alloc_pages_cpuset_fallback(gfp_mask, order,
-+						     ALLOC_NO_WATERMARKS, ac);
- 	}
- out:
- 	mutex_unlock(&oom_lock);
-@@ -4156,6 +4146,24 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return page;
- }
- 
-+struct page *alloc_pages_before_oomkill(const struct oom_control *oc)
-+{
-+	/*
-+	 * Go through the zonelist yet one more time, keep very high watermark
-+	 * here, this is only to catch a parallel oom killing, we must fail if
-+	 * we're still under heavy pressure. But make sure that this reclaim
-+	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-+	 * allocation which will never fail due to oom_lock already held.
-+	 */
-+	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
-+	gfp_t gfp_mask = oc->gfp_mask | __GFP_HARDWALL;
-+
-+	if (!oc->ac)
-+		return NULL;
-+	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-+	return get_page_from_freelist(gfp_mask, oc->order, alloc_flags, oc->ac);
-+}
-+
- static inline bool prepare_alloc_pages(gfp_t gfp_mask, unsigned int order,
- 		int preferred_nid, nodemask_t *nodemask,
- 		struct alloc_context *ac, gfp_t *alloc_mask,
--- 
-1.8.3.1
+But since I can't find better justification for this patch, I decided to send remaining
+patches first: http://lkml.kernel.org/r/1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp .
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
