@@ -1,14 +1,14 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 68C3E6B0033
-	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 03:27:04 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id a72so17577454ioe.13
-        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 00:27:04 -0800 (PST)
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CBE2E6B0069
+	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 03:46:30 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id n134so14696857itg.3
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 00:46:30 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j30sor8610653ioo.196.2017.11.26.00.27.03
+        by mx.google.com with SMTPS id n142sor6844730itn.37.2017.11.26.00.46.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 26 Nov 2017 00:27:03 -0800 (PST)
+        Sun, 26 Nov 2017 00:46:29 -0800 (PST)
 MIME-Version: 1.0
 In-Reply-To: <201711261703.HDI52138.JSFVOFOtHLMOFQ@I-love.SAKURA.ne.jp>
 References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
@@ -17,8 +17,8 @@ References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
  <201711261142.EIE82842.LFOtSHOFVOFJQM@I-love.SAKURA.ne.jp>
  <CALOAHbCov=Dd7bYjL6+abiVu_WgT1ZmFN_TfLTs8A1jfw8=bOQ@mail.gmail.com> <201711261703.HDI52138.JSFVOFOtHLMOFQ@I-love.SAKURA.ne.jp>
 From: Yafang Shao <laoar.shao@gmail.com>
-Date: Sun, 26 Nov 2017 16:27:02 +0800
-Message-ID: <CALOAHbAXLT0iztU+1gsVwEm715RWYNnDXu=JJK6jjwSEt6KmNw@mail.gmail.com>
+Date: Sun, 26 Nov 2017 16:46:29 +0800
+Message-ID: <CALOAHbAgh0egRJk7ME_YBzon9ED9jL94vi4aw19bbpZVuUA+aQ@mail.gmail.com>
 Subject: Re: [PATCH] mm: print a warning once the vm dirtiness settings is illogical
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
@@ -52,6 +52,13 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Michal H
 > +                       bg_thresh, thresh, bg_bytes, bytes, bg_ratio, ratio, gdtc, gdtc ? gdtc->avail : 0UL, vm_dirty_bytes, dirty_background_bytes);
 >                 bg_thresh = thresh / 2;
 >         }
+
+You could print dtc->avail as well.
+Seems bg_thresh and thresh are not so acurate as they are interger
+other than float.
+
+Should find a smart way to fix it.
+
 >
 > [  259.641324] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
 > [  317.798913] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
@@ -62,27 +69,6 @@ Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Michal H
 > [  466.322618] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
 > [  466.497893] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
 > [  466.504687] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
-
-Hi Tetsuo,
-
-Bellow is the code analysis,
-     // global_dirtyable_memory() will return number of globally dirtyable page
-    gdtc.avail = global_dirtyable_memory();
-    domain_dirty_limits(&gdtc);
-        unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;   // 1228
-        unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE)
-/ 100;  // 409
-        available_memory = dtc->avail;
-        thresh = (ratio * available_memory) / PAGE_SIZE;
-        bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
-
-
-So if available_memory is less than 4 pages, thresh and bg_thresh will
-be both 0,
-then the message will be printed.
-
-Thanks
-Yafang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
