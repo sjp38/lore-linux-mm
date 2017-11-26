@@ -1,84 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E45656B0033
-	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 05:38:24 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id u10so14163088otc.21
-        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 02:38:24 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id e13si10207693oib.255.2017.11.26.02.38.22
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B3FE86B0033
+	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 09:48:48 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id k3so9557126wmg.6
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 06:48:48 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x17sor2978303wmh.14.2017.11.26.06.48.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 26 Nov 2017 02:38:23 -0800 (PST)
-Subject: Re: [PATCH] mm: print a warning once the vm dirtiness settings is illogical
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <CALOAHbB05YJvVPRE0VsEDj+U7Wqv64XoGOQtpDP1a50mbpYXGg@mail.gmail.com>
-	<201711261142.EIE82842.LFOtSHOFVOFJQM@I-love.SAKURA.ne.jp>
-	<CALOAHbCov=Dd7bYjL6+abiVu_WgT1ZmFN_TfLTs8A1jfw8=bOQ@mail.gmail.com>
-	<201711261703.HDI52138.JSFVOFOtHLMOFQ@I-love.SAKURA.ne.jp>
-	<CALOAHbAgh0egRJk7ME_YBzon9ED9jL94vi4aw19bbpZVuUA+aQ@mail.gmail.com>
-In-Reply-To: <CALOAHbAgh0egRJk7ME_YBzon9ED9jL94vi4aw19bbpZVuUA+aQ@mail.gmail.com>
-Message-Id: <201711261938.BCD34864.QLVFOSJFHOtOFM@I-love.SAKURA.ne.jp>
-Date: Sun, 26 Nov 2017 19:38:13 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (Google Transport Security);
+        Sun, 26 Nov 2017 06:48:46 -0800 (PST)
+Date: Sun, 26 Nov 2017 15:48:42 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
+ KAISER
+Message-ID: <20171126144842.7ojxbo5wsu44w4ti@gmail.com>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+ <20171110193105.02A90543@viggo.jf.intel.com>
+ <1510688325.1080.1.camel@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1510688325.1080.1.camel@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: laoar.shao@gmail.com
-Cc: akpm@linux-foundation.org, jack@suse.cz, mhocko@suse.com, linux-mm@kvack.org
+To: Rik van Riel <riel@redhat.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, tglx@linutronix.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-Yafang Shao wrote:
-> 2017-11-26 16:03 GMT+08:00 Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>:
-> > Yafang Shao wrote:
-> >> >> I have also verified your test code on my machine, but can not find
-> >> >> this message.
-> >> >>
-> >> >
-> >> > Not always printed. It is timing dependent.
-> >> >
-> >>
-> >> I will try and analysis why this happen.
-> >>
-> > I see.
-> >
-> > Here is dump of variables. Always mostly 0 when this happens.
-> >
-> > --- a/mm/page-writeback.c
-> > +++ b/mm/page-writeback.c
-> > @@ -434,7 +434,8 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
-> >                 bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
-> >
-> >         if (unlikely(bg_thresh >= thresh)) {
-> > -               pr_warn("vm direct limit must be set greater than background limit.\n");
-> > +               pr_warn("vm direct limit must be set greater than background limit. bg_thresh=%lu thresh=%lu bg_bytes=%lu bytes=%lu bg_ratio=%lu ratio=%lu gdtc=%p gdtc->vail=%lu vm_dirty_bytes=%lu dirty_background_bytes=%lu\n",
-> > +                       bg_thresh, thresh, bg_bytes, bytes, bg_ratio, ratio, gdtc, gdtc ? gdtc->avail : 0UL, vm_dirty_bytes, dirty_background_bytes);
-> >                 bg_thresh = thresh / 2;
-> >         }
+
+* Rik van Riel <riel@redhat.com> wrote:
+
+> On Fri, 2017-11-10 at 11:31 -0800, Dave Hansen wrote:
+> > From: Dave Hansen <dave.hansen@linux.intel.com>
+> > 
+> > Global pages stay in the TLB across context switches.  Since all
+> > contexts
+> > share the same kernel mapping, these mappings are marked as global
+> > pages
+> > so kernel entries in the TLB are not flushed out on a context switch.
+> > 
+> > But, even having these entries in the TLB opens up something that an
+> > attacker can use [1].
+> > 
+> > That means that even when KAISER switches page tables on return to
+> > user
+> > space the global pages would stay in the TLB cache.
+> > 
+> > Disable global pages so that kernel TLB entries can be flushed before
+> > returning to user space. This way, all accesses to kernel addresses
+> > from
+> > userspace result in a TLB miss independent of the existence of a
+> > kernel
+> > mapping.
+> > 
+> > Replace _PAGE_GLOBAL by __PAGE_KERNEL_GLOBAL and keep _PAGE_GLOBAL
+> > available so that it can still be used for a few selected kernel
+> > mappings
+> > which must be visible to userspace, when KAISER is enabled, like the
+> > entry/exit code and data.
 > 
-> You could print dtc->avail as well.
-> Seems bg_thresh and thresh are not so acurate as they are interger
-> other than float.
+> Nice changelog.
+> 
+> Why am I pointing this out?
+> 
+> > +++ b/arch/x86/include/asm/pgtable_types.h	2017-11-10
+> > 11:22:06.626244956 -0800
+> > @@ -179,8 +179,20 @@ enum page_cache_mode {
+> >  #define PAGE_READONLY_EXEC	__pgprot(_PAGE_PRESENT |
+> > _PAGE_USER |	\
+> >  					 _PAGE_ACCESSED)
+> >  
+> > +/*
+> > + * Disable global pages for anything using the default
+> > + * __PAGE_KERNEL* macros.  PGE will still be enabled
+> > + * and _PAGE_GLOBAL may still be used carefully.
+> > + */
+> > +#ifdef CONFIG_KAISER
+> > +#define __PAGE_KERNEL_GLOBAL	0
+> > +#else
+> > +#define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
+> > +#endif
+> > +					
+> 
+> The comment above could use a little more info
+> on why things are done that way, though :)
 
-Indeed, dtc->avail < 4 when this message is printed.
+Good point - I've updated these comments to say:
 
-[  314.730541] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=2
-[  315.864111] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=1
-[  315.864126] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=1
-[  315.993866] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=2
-[  355.807392] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=2
-[  406.819939] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=1
-[  407.782790] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=1
-[  416.939906] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=1
-[  417.090872] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093164] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093176] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093183] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093191] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093198] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093206] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093213] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093223] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093232] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
-[  417.093240] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->avail=0 vm_dirty_bytes=0 dirty_background_bytes=0 dtc->avail=3
+/*
+ * Disable global pages for anything using the default
+ * __PAGE_KERNEL* macros.
+ *
+ * PGE will still be enabled and _PAGE_GLOBAL may still be used carefully
+ * for a few selected kernel mappings which must be visible to userspace,
+ * when KAISER is enabled, like the entry/exit code and data.
+ */
+#ifdef CONFIG_KAISER
+#define __PAGE_KERNEL_GLOBAL	0
+#else
+#define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
+#endif
+
+... and I've added your Reviewed-by tag which I assume now applies?
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
