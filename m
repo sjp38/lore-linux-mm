@@ -1,166 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B40816B0033
-	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 01:58:03 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id o27so12924308uaj.5
-        for <linux-mm@kvack.org>; Sat, 25 Nov 2017 22:58:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i10sor2261545uaf.191.2017.11.25.22.58.02
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A8B076B0033
+	for <linux-mm@kvack.org>; Sun, 26 Nov 2017 03:04:00 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id p144so9823243itc.9
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 00:04:00 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p125si11535326ite.42.2017.11.26.00.03.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 25 Nov 2017 22:58:02 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171124105308.GA10023@tpad>
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com> <ba9c72239dc5986edc6ca29fc58fefb306e4b52d.1511433386.git.ar@linux.vnet.ibm.com>
- <CAKZGPAPN7migyvpNJDu1bA+ditb0TJV4WLqZuPdkxOU3kYQ9Ng@mail.gmail.com>
- <20171124094232.GA18120@samekh> <20171124105308.GA10023@tpad>
-From: Arun KS <arunks.linux@gmail.com>
-Date: Sun, 26 Nov 2017 12:28:01 +0530
-Message-ID: <CAKZGPAMByPKcEmWf_QMm6k4WomH8ZJjjj3YNyBU617DZN1VwMQ@mail.gmail.com>
-Subject: Re: [PATCH v2 1/5] mm: memory_hotplug: Memory hotplug (add) support
- for arm64
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 26 Nov 2017 00:03:58 -0800 (PST)
+Subject: Re: [PATCH] mm: print a warning once the vm dirtiness settings is illogical
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
+	<cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
+	<CALOAHbB05YJvVPRE0VsEDj+U7Wqv64XoGOQtpDP1a50mbpYXGg@mail.gmail.com>
+	<201711261142.EIE82842.LFOtSHOFVOFJQM@I-love.SAKURA.ne.jp>
+	<CALOAHbCov=Dd7bYjL6+abiVu_WgT1ZmFN_TfLTs8A1jfw8=bOQ@mail.gmail.com>
+In-Reply-To: <CALOAHbCov=Dd7bYjL6+abiVu_WgT1ZmFN_TfLTs8A1jfw8=bOQ@mail.gmail.com>
+Message-Id: <201711261703.HDI52138.JSFVOFOtHLMOFQ@I-love.SAKURA.ne.jp>
+Date: Sun, 26 Nov 2017 17:03:49 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Maciej Bielski <m.bielski@virtualopensystems.com>
-Cc: Andrea Reale <ar@linux.vnet.ibm.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, Catalin Marinas <catalin.marinas@arm.com>, mhocko@suse.com, realean2@ie.ibm.com
+To: laoar.shao@gmail.com
+Cc: akpm@linux-foundation.org, jack@suse.cz, mhocko@suse.com, linux-mm@kvack.org
 
-On Fri, Nov 24, 2017 at 4:23 PM, Maciej Bielski
-<m.bielski@virtualopensystems.com> wrote:
-> On Fri, Nov 24, 2017 at 09:42:33AM +0000, Andrea Reale wrote:
->> Hi Arun,
->>
->>
->> On Fri 24 Nov 2017, 11:25, Arun KS wrote:
->> > On Thu, Nov 23, 2017 at 4:43 PM, Maciej Bielski
->> > <m.bielski@virtualopensystems.com> wrote:
->> >> [ ...]
->> > > Introduces memory hotplug functionality (hot-add) for arm64.
->> > > @@ -615,6 +616,44 @@ void __init paging_init(void)
->> > >                       SWAPPER_DIR_SIZE - PAGE_SIZE);
->> > >  }
->> > >
->> > > +#ifdef CONFIG_MEMORY_HOTPLUG
->> > > +
->> > > +/*
->> > > + * hotplug_paging() is used by memory hotplug to build new page tables
->> > > + * for hot added memory.
->> > > + */
->> > > +
->> > > +struct mem_range {
->> > > +       phys_addr_t base;
->> > > +       phys_addr_t size;
->> > > +};
->> > > +
->> > > +static int __hotplug_paging(void *data)
->> > > +{
->> > > +       int flags = 0;
->> > > +       struct mem_range *section = data;
->> > > +
->> > > +       if (debug_pagealloc_enabled())
->> > > +               flags = NO_BLOCK_MAPPINGS | NO_CONT_MAPPINGS;
->> > > +
->> > > +       __create_pgd_mapping(swapper_pg_dir, section->base,
->> > > +                       __phys_to_virt(section->base), section->size,
->> > > +                       PAGE_KERNEL, pgd_pgtable_alloc, flags);
->> >
->> > Hello Andrea,
->> >
->> > __hotplug_paging runs on stop_machine context.
->> > cpu stop callbacks must not sleep.
->> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/kernel/stop_machine.c?h=v4.14#n479
->> >
->> > __create_pgd_mapping uses pgd_pgtable_alloc. which does
->> > __get_free_page(PGALLOC_GFP)
->> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/arm64/mm/mmu.c?h=v4.14#n342
->> >
->> > PGALLOC_GFP has GFP_KERNEL which inturn has __GFP_RECLAIM
->> >
->> > #define PGALLOC_GFP     (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
->> > #define GFP_KERNEL      (__GFP_RECLAIM | __GFP_IO | __GFP_FS)
->> >
->> > Now, prepare_alloc_pages() called by __alloc_pages_nodemask checks for
->> >
->> > might_sleep_if(gfp_mask & __GFP_DIRECT_RECLAIM);
->> >
->> > https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/mm/page_alloc.c?h=v4.14#n4150
->> >
->> > and then BUG()
->>
->> Well spotted, thanks for reporting the problem. One possible solution
->> would be to revert back to building the updated page tables on a copy
->> pgdir (as it was done in v1 of this patchset) and then replacing swapper
->> atomically with stop_machine.
->>
->> Actually, I am not sure if stop_machine is strictly needed,
->> if we modify the swapper pgdir live: for example, in x86_64
->> kernel_physical_mapping_init, atomicity is ensured by spin-locking on
->> init_mm.page_table_lock.
->> https://elixir.free-electrons.com/linux/v4.14/source/arch/x86/mm/init_64.c#L684
->> I'll spend some time investigating whoever else could be working
->> concurrently on the swapper pgdir.
->>
->> Any suggestion or pointer is very welcome.
->
-> Hi Andrea, Arun,
->
-> Alternative approach could be implementing pgd_pgtable_alloc_nosleep() and
-> pointing this to hotplug_paging(). Subsequently, it could use different flags,
-> eg:
->
-> #define PGALLOC_GFP_NORECLAIM   (__GFP_IO | __GFP_FS | __GFP_NOTRACK | __GFP_ZERO)
+Yafang Shao wrote:
+> >> I have also verified your test code on my machine, but can not find
+> >> this message.
+> >>
+> >
+> > Not always printed. It is timing dependent.
+> >
+> 
+> I will try and analysis why this happen.
+> 
+I see.
 
-This solves the problem with __get_free_page.
+Here is dump of variables. Always mostly 0 when this happens.
 
-But pgd_pgtable_alloc() ->  pgtable_page_ctor() -> ptlock_alloc() and
-then kmem_cache_alloc(page_ptl_cachep, GFP_KERNEL)
-Same BUG again.
+--- a/mm/page-writeback.c
++++ b/mm/page-writeback.c
+@@ -434,7 +434,8 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
+                bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
+ 
+        if (unlikely(bg_thresh >= thresh)) {
+-               pr_warn("vm direct limit must be set greater than background limit.\n");
++               pr_warn("vm direct limit must be set greater than background limit. bg_thresh=%lu thresh=%lu bg_bytes=%lu bytes=%lu bg_ratio=%lu ratio=%lu gdtc=%p gdtc->vail=%lu vm_dirty_bytes=%lu dirty_background_bytes=%lu\n",
++                       bg_thresh, thresh, bg_bytes, bytes, bg_ratio, ratio, gdtc, gdtc ? gdtc->avail : 0UL, vm_dirty_bytes, dirty_background_bytes);
+                bg_thresh = thresh / 2;
+        }
 
-Regards,
-Arun
-
->
-> Is this unefficient approach in any way?
-> Do we like the fact that the memory-attaching thread can go to sleep?
->
-> BR,
->
->>
->> Thanks,
->> Andrea
->>
->> > I was testing on 4.4 kernel, but cross checked with 4.14 as well.
->> >
->> > Regards,
->> > Arun
->> >
->> >
->> > > +
->> > > +       return 0;
->> > > +}
->> > > +
->> > > +inline void hotplug_paging(phys_addr_t start, phys_addr_t size)
->> > > +{
->> > > +       struct mem_range section = {
->> > > +               .base = start,
->> > > +               .size = size,
->> > > +       };
->> > > +
->> > > +       stop_machine(__hotplug_paging, &section, NULL);
->> > > +}
->> > > +#endif /* CONFIG_MEMORY_HOTPLUG */
->> > > +
->> > >  /*
->> > >   * Check whether a kernel address is valid (derived from arch/x86/).
->> > >   */
->> > > --
->> > > 2.7.4
->> > >
->> >
->>
->
-> --
-> Maciej Bielski
+[  259.641324] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  317.798913] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  317.798935] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  317.976210] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  417.781194] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  466.322615] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  466.322618] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  466.497893] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
+[  466.504687] vm direct limit must be set greater than background limit. bg_thresh=0 thresh=0 bg_bytes=0 bytes=0 bg_ratio=409 ratio=1228 gdtc=          (null) gdtc->vail=0 vm_dirty_bytes=0 dirty_background_bytes=0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
