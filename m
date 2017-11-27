@@ -1,48 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 261516B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 13:22:55 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id h21so23272209pfk.14
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:22:55 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f84si26016097pfh.71.2017.11.27.10.22.54
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A36096B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 13:32:23 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n8so11541912wmg.4
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:32:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w10si2184434edj.349.2017.11.27.10.32.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 10:22:54 -0800 (PST)
-Subject: Re: [patch V2 5/5] x86/kaiser: Add boottime disable switch
-References: <20171126231403.657575796@linutronix.de>
- <20171126232414.645128754@linutronix.de>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <24359653-5b93-7146-8f65-ac38c3af0069@linux.intel.com>
-Date: Mon, 27 Nov 2017 10:22:52 -0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Nov 2017 10:32:21 -0800 (PST)
+Date: Mon, 27 Nov 2017 19:32:18 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
+Message-ID: <20171127183218.33zm666jw3uqkxdq@dhcp22.suse.cz>
+References: <23066.59196.909026.689706@gargle.gargle.HOWL>
+ <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
+ <87vahv8whv.fsf@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171126232414.645128754@linutronix.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87vahv8whv.fsf@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Andi Kleen <ak@linux.intel.com>
+Cc: Mikael Pettersson <mikpelinux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
 
-On 11/26/2017 03:14 PM, Thomas Gleixner wrote:
-> --- a/security/Kconfig
-> +++ b/security/Kconfig
-> @@ -56,7 +56,7 @@ config SECURITY_NETWORK
->  
->  config KAISER
->  	bool "Remove the kernel mapping in user mode"
-> -	depends on X86_64 && SMP && !PARAVIRT
-> +	depends on X86_64 && SMP && !PARAVIRT && JUMP_LABEL
->  	help
->  	  This feature reduces the number of hardware side channels by
->  	  ensuring that the majority of kernel addresses are not mapped
+On Mon 27-11-17 09:25:16, Andi Kleen wrote:
+> Michal Hocko <mhocko@kernel.org> writes:
+> >
+> > Could you be more explicit about _why_ we need to remove this tunable?
+> > I am not saying I disagree, the removal simplifies the code but I do not
+> > really see any justification here.
+> 
+> It's an arbitrary scaling limit on the how many mappings the process
+> has. The more memory you have the bigger a problem it is. We've
+> ran into this problem too on larger systems.
 
-One of the reasons for doing the runtime-disable was to get rid of the
-!PARAVIRT dependency.  I can add a follow-on here that will act as if we
-did "nokaiser" whenever Xen is in play so we can remove this dependency.
+Why cannot you increase the limit?
 
-I just hope Xen is detectable early enough to do the static patching.
+> The reason the limit was there originally because it allows a DoS
+> attack against the kernel by filling all unswappable memory up with VMAs.
+
+We can reduce the effect by accounting vmas to memory cgroups.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
