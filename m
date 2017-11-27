@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2699A6B025E
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:21:01 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id i17so16026659otb.2
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 07:21:01 -0800 (PST)
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 490316B0253
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:33:06 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id l138so12792289oib.0
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 07:33:06 -0800 (PST)
 Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r82si2125626oig.377.2017.11.27.07.20.59
+        by mx.google.com with ESMTP id q32si12089157ota.214.2017.11.27.07.33.04
         for <linux-mm@kvack.org>;
-        Mon, 27 Nov 2017 07:21:00 -0800 (PST)
-Subject: Re: [PATCH v2 3/5] mm: memory_hotplug: memblock to track partially
- removed vmemmap mem
+        Mon, 27 Nov 2017 07:33:05 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm: memory_hotplug: Add memory hotremove probe
+ device
 References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <e17d447381b3f13d4d7d314916ca273b6f60d287.1511433386.git.ar@linux.vnet.ibm.com>
+ <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
 From: Robin Murphy <robin.murphy@arm.com>
-Message-ID: <f21d2b81-e0f5-b186-22e3-ded138505dc9@arm.com>
-Date: Mon, 27 Nov 2017 15:20:56 +0000
+Message-ID: <198063b0-fcc9-7beb-7476-86ed5f04734c@arm.com>
+Date: Mon, 27 Nov 2017 15:33:01 +0000
 MIME-Version: 1.0
-In-Reply-To: <e17d447381b3f13d4d7d314916ca273b6f60d287.1511433386.git.ar@linux.vnet.ibm.com>
+In-Reply-To: <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
@@ -26,132 +26,83 @@ To: Andrea Reale <ar@linux.vnet.ibm.com>, linux-arm-kernel@lists.infradead.org
 Cc: mark.rutland@arm.com, realean2@ie.ibm.com, mhocko@suse.com, m.bielski@virtualopensystems.com, scott.branden@broadcom.com, catalin.marinas@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunks@qti.qualcomm.com, qiuxishi@huawei.com
 
 On 23/11/17 11:14, Andrea Reale wrote:
-> When hot-removing memory we need to free vmemmap memory.
+> Adding a "remove" sysfs handle that can be used to trigger
+> memory hotremove manually, exactly simmetrically with
+> what happens with the "probe" device for hot-add.
+> 
+> This is usueful for architecture that do not rely on
+> ACPI for memory hot-remove.
 
-What problems arise if we don't? Is it only for the sake of freeing up 
-some pages here and there, or is there something more fundamental?
+Is there a real-world use-case for this, or is it mostly just a handy 
+development feature?
 
-> However, depending on the memory is being removed, it might
-> not be always possible to free a full vmemmap page / huge-page
-> because part of it might still be used.
-> 
-> Commit ae9aae9eda2d ("memory-hotplug: common APIs to support page tables
-> hot-remove") introduced a workaround for x86
-> hot-remove, by which partially unused areas are filled with
-> the 0xFD constant. Full pages are only removed when fully
-> filled by 0xFDs.
-> 
-> This commit introduces a MEMBLOCK_UNUSED_VMEMMAP memblock flag, with
-> the goal of using it in place of 0xFDs. For now, this will be used for
-> the arm64 port of memory hot remove, but the idea is to eventually use
-> the same mechanism for x86 as well.
-> 
 > Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
 > Signed-off-by: Maciej Bielski <m.bielski@virtualopensystems.com>
 > ---
->   include/linux/memblock.h | 12 ++++++++++++
->   mm/memblock.c            | 32 ++++++++++++++++++++++++++++++++
->   2 files changed, 44 insertions(+)
+>   drivers/base/memory.c | 34 +++++++++++++++++++++++++++++++++-
+>   1 file changed, 33 insertions(+), 1 deletion(-)
 > 
-> diff --git a/include/linux/memblock.h b/include/linux/memblock.h
-> index bae11c7..0daec05 100644
-> --- a/include/linux/memblock.h
-> +++ b/include/linux/memblock.h
-> @@ -26,6 +26,9 @@ enum {
->   	MEMBLOCK_HOTPLUG	= 0x1,	/* hotpluggable region */
->   	MEMBLOCK_MIRROR		= 0x2,	/* mirrored region */
->   	MEMBLOCK_NOMAP		= 0x4,	/* don't add to kernel direct mapping */
+> diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> index 1d60b58..8ccb67c 100644
+> --- a/drivers/base/memory.c
+> +++ b/drivers/base/memory.c
+> @@ -530,7 +530,36 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
+>   }
+>   
+>   static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+> -#endif
+> +
 > +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +	MEMBLOCK_UNUSED_VMEMMAP	= 0x8,  /* Mark VMEMAP blocks as dirty */
+> +static ssize_t
+> +memory_remove_store(struct device *dev,
+> +		struct device_attribute *attr, const char *buf, size_t count)
+> +{
+> +	u64 phys_addr;
+> +	int nid, ret;
+> +	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
+> +
+> +	ret = kstrtoull(buf, 0, &phys_addr);
+> +	if (ret)
+> +		return ret;
+> +
+> +	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+> +		return -EINVAL;
+> +
+> +	nid = memory_add_physaddr_to_nid(phys_addr);
 
-I'm not sure I get what "dirty" is supposed to mean in this context. 
-Also, this appears to be specific to CONFIG_SPARSEMEM_VMEMMAP, whilst 
-only tangentially related to CONFIG_MEMORY_HOTREMOVE, so the 
-dependencies look a bit off.
-
-In fact, now that I think about it, why does this need to be in memblock 
-at all? If it is specific to sparsemem, shouldn't the section map 
-already be enough to tell us what's supposed to be present or not?
+This call looks a bit odd, since you're not doing a memory add. In fact, 
+any memory being removed should already be fully known-about, so AFAICS 
+it should be simple to get everything you need to know (including 
+potentially the online status as mentioned earlier), through 'normal' 
+methods, e.g. page_to_nid() or similar.
 
 Robin.
 
-> +#endif
->   };
->   
->   struct memblock_region {
-> @@ -90,6 +93,10 @@ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
->   int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
->   int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
->   ulong choose_memblock_flags(void);
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int memblock_mark_unused_vmemmap(phys_addr_t base, phys_addr_t size);
-> +int memblock_clear_unused_vmemmap(phys_addr_t base, phys_addr_t size);
-> +#endif
->   
->   /* Low level functions */
->   int memblock_add_range(struct memblock_type *type,
-> @@ -182,6 +189,11 @@ static inline bool memblock_is_nomap(struct memblock_region *m)
->   	return m->flags & MEMBLOCK_NOMAP;
->   }
->   
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +bool memblock_is_vmemmap_unused_range(struct memblock_type *mt,
-> +		phys_addr_t start, phys_addr_t end);
-> +#endif
+> +	ret = lock_device_hotplug_sysfs();
+> +	if (ret)
+> +		return ret;
 > +
->   #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
->   int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
->   			    unsigned long  *end_pfn);
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 9120578..30d5aa4 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -809,6 +809,18 @@ int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t size)
->   	return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
->   }
->   
-> +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +int __init_memblock memblock_mark_unused_vmemmap(phys_addr_t base,
-> +		phys_addr_t size)
-> +{
-> +	return memblock_setclr_flag(base, size, 1, MEMBLOCK_UNUSED_VMEMMAP);
+> +	remove_memory(nid, phys_addr,
+> +			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+> +	unlock_device_hotplug();
+> +	return count;
 > +}
-> +int __init_memblock memblock_clear_unused_vmemmap(phys_addr_t base,
-> +		phys_addr_t size)
-> +{
-> +	return memblock_setclr_flag(base, size, 0, MEMBLOCK_UNUSED_VMEMMAP);
-> +}
-> +#endif
->   /**
->    * __next_reserved_mem_region - next function for for_each_reserved_region()
->    * @idx: pointer to u64 loop variable
-> @@ -1696,6 +1708,26 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
->   	}
->   }
+> +static DEVICE_ATTR(remove, S_IWUSR, NULL, memory_remove_store);
+> +#endif /* CONFIG_MEMORY_HOTREMOVE */
+> +#endif /* CONFIG_ARCH_MEMORY_PROBE */
 >   
+>   #ifdef CONFIG_MEMORY_FAILURE
+>   /*
+> @@ -790,6 +819,9 @@ bool is_memblock_offlined(struct memory_block *mem)
+>   static struct attribute *memory_root_attrs[] = {
+>   #ifdef CONFIG_ARCH_MEMORY_PROBE
+>   	&dev_attr_probe.attr,
 > +#ifdef CONFIG_MEMORY_HOTREMOVE
-> +bool __init_memblock memblock_is_vmemmap_unused_range(struct memblock_type *mt,
-> +		phys_addr_t start, phys_addr_t end)
-> +{
-> +	u64 i;
-> +	struct memblock_region *r;
-> +
-> +	i = memblock_search(mt, start);
-> +	r = &(mt->regions[i]);
-> +	while (r->base < end) {
-> +		if (!(r->flags & MEMBLOCK_UNUSED_VMEMMAP))
-> +			return 0;
-> +
-> +		r = &(memblock.memory.regions[++i]);
-> +	}
-> +
-> +	return 1;
-> +}
+> +	&dev_attr_remove.attr,
 > +#endif
-> +
->   void __init_memblock memblock_set_current_limit(phys_addr_t limit)
->   {
->   	memblock.current_limit = limit;
+>   #endif
+>   
+>   #ifdef CONFIG_MEMORY_FAILURE
 > 
 
 --
