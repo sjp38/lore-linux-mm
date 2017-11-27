@@ -1,88 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B2E46B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:26:29 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id u14so1518841plm.19
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:26:29 -0800 (PST)
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id l7si24864493pli.651.2017.11.27.15.26.28
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BB78A6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:42:54 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id z75so19679797wrc.5
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:42:54 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a10si11125441wrd.44.2017.11.27.15.42.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 15:26:28 -0800 (PST)
-Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
-References: <23066.59196.909026.689706@gargle.gargle.HOWL>
- <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
- <CAM43=SPVvBTPz31Uu=iz3fpS9tb75uSmL=pYP3AfsfmYr9u4Og@mail.gmail.com>
- <20171127195207.vderbbkbgygawuhx@dhcp22.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <b6faf739-1a4a-12e1-ad84-0b42166d68c1@nvidia.com>
-Date: Mon, 27 Nov 2017 15:26:27 -0800
-MIME-Version: 1.0
-In-Reply-To: <20171127195207.vderbbkbgygawuhx@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+        Mon, 27 Nov 2017 15:42:53 -0800 (PST)
+Date: Mon, 27 Nov 2017 15:42:49 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4 2/4] vm: add a syscall to map a process memory into a
+ pipe
+Message-Id: <20171127154249.39e60ecf72019216f2f1782d@linux-foundation.org>
+In-Reply-To: <1511767181-22793-3-git-send-email-rppt@linux.vnet.ibm.com>
+References: <1511767181-22793-1-git-send-email-rppt@linux.vnet.ibm.com>
+	<1511767181-22793-3-git-send-email-rppt@linux.vnet.ibm.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Mikael Pettersson <mikpelinux@gmail.com>
-Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>, Andrei Vagin <avagin@virtuozzo.com>
 
-On 11/27/2017 11:52 AM, Michal Hocko wrote:
-> On Mon 27-11-17 20:18:00, Mikael Pettersson wrote:
->> On Mon, Nov 27, 2017 at 11:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>>> I've kept the kernel tunable to not break the API towards user-space,
->>>> but it's a no-op now.  Also the distinction between split_vma() and
->>>> __split_vma() disappears, so they are merged.
->>>
->>> Could you be more explicit about _why_ we need to remove this tunable?
->>> I am not saying I disagree, the removal simplifies the code but I do not
->>> really see any justification here.
->>
->> In principle you don't "need" to, as those that know about it can bump it
->> to some insanely high value and get on with life.  Meanwhile those that don't
->> (and I was one of them until fairly recently, and I'm no newcomer to Unix or
->> Linux) get to scratch their heads and wonder why the kernel says ENOMEM
->> when one has loads of free RAM.
+On Mon, 27 Nov 2017 09:19:39 +0200 Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
+
+> From: Andrei Vagin <avagin@virtuozzo.com>
 > 
-> I agree that our error reporting is more than suboptimal in this regard.
-> These are all historical mistakes and we have much more of those. The
-> thing is that we have means to debug these issues (check
-> /proc/<pid>/maps e.g.).
+> It is a hybrid of process_vm_readv() and vmsplice().
 > 
->> But what _is_ the justification for having this arbitrary limit?
->> There might have been historical reasons, but at least ELF core dumps
->> are no longer a problem.
+> vmsplice can map memory from a current address space into a pipe.
+> process_vm_readv can read memory of another process.
 > 
-> Andi has already mentioned the the resource consumption. You can create
-> a lot of unreclaimable memory and there should be some cap. Whether our
-> default is good is questionable. Whether we can remove it altogether is
-> a different thing.
+> A new system call can map memory of another process into a pipe.
 > 
-> As I've said I am not a great fan of the limit but "I've just notice it
-> breaks on me" doesn't sound like a very good justification. You still
-> have an option to increase it. Considering we do not have too many
-> reports suggests that this is not such a big deal for most users.
+> ssize_t process_vmsplice(pid_t pid, int fd, const struct iovec *iov,
+>                         unsigned long nr_segs, unsigned int flags)
 > 
+> All arguments are identical with vmsplice except pid which specifies a
+> target process.
+> 
+> Currently if we want to dump a process memory to a file or to a socket,
+> we can use process_vm_readv() + write(), but it works slow, because data
+> are copied into a temporary user-space buffer.
+> 
+> A second way is to use vmsplice() + splice(). It is more effective,
+> because data are not copied into a temporary buffer, but here is another
+> problem. vmsplice works with the currect address space, so it can be
+> used only if we inject our code into a target process.
+> 
+> The second way suffers from a few other issues:
+> * a process has to be stopped to run a parasite code
+> * a number of pipes is limited, so it may be impossible to dump all
+>   memory in one iteration, and we have to stop process and inject our
+>   code a few times.
+> * pages in pipes are unreclaimable, so it isn't good to hold a lot of
+>   memory in pipes.
+> 
+> The introduced syscall allows to use a second way without injecting any
+> code into a target process.
+> 
+> My experiments shows that process_vmsplice() + splice() works two time
+> faster than process_vm_readv() + write().
+>
+> It is particularly useful on a pre-dump stage. On this stage we enable a
+> memory tracker, and then we are dumping  a process memory while a
+> process continues work. On the first iteration we are dumping all
+> memory, and then we are dumpung only modified memory from a previous
+> iteration.  After a few pre-dump operations, a process is stopped and
+> dumped finally. The pre-dump operations allow to significantly decrease
+> a process downtime, when a process is migrated to another host.
 
-Let me add a belated report, then: we ran into this limit while implementing 
-an early version of Unified Memory[1], back in 2013. The implementation
-at the time depended on tracking that assumed "one allocation == one vma".
-So, with only 64K vmas, we quickly ran out, and changed the design to work
-around that. (And later, the design was *completely* changed to use a separate
-tracking system altogether). 
+What is the overall improvement in a typical dumping operation?
 
-The existing limit seems rather too low, at least from my perspective. Maybe
-it would be better, if expressed as a function of RAM size?
+Does that improvement justify the addition of a new syscall, and all
+that this entails?  If so, why?
 
-
-[1] https://devblogs.nvidia.com/parallelforall/unified-memory-in-cuda-6/
-
-    This is a way to automatically (via page faulting) migrate memory
-    between CPUs and devices (GPUs, here). This is before HMM, of course.
-
-thanks,
-John Hubbard
-      
+Are there any other applications of this syscall?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
