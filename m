@@ -1,38 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A6656B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 05:17:36 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id w10so21168488qtb.4
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 02:17:36 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r189sor18261634qkd.76.2017.11.27.02.17.35
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 292A46B0253
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 05:21:25 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id a142so17710083qkb.0
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 02:21:25 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g11sor18106192qtg.144.2017.11.27.02.21.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 02:17:35 -0800 (PST)
+        Mon, 27 Nov 2017 02:21:24 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1711241130540.19616@nuc-kabylake>
-References: <20171123221628.8313-1-adobriyan@gmail.com> <20171123221628.8313-21-adobriyan@gmail.com>
- <alpine.DEB.2.20.1711241130540.19616@nuc-kabylake>
+In-Reply-To: <20171124010638.GA3722@bombadil.infradead.org>
+References: <20171123221628.8313-1-adobriyan@gmail.com> <20171123221628.8313-3-adobriyan@gmail.com>
+ <20171124010638.GA3722@bombadil.infradead.org>
 From: Alexey Dobriyan <adobriyan@gmail.com>
-Date: Mon, 27 Nov 2017 12:17:34 +0200
-Message-ID: <CACVxJT_gi+3Wka5B-t6XGZ_XzostGf5sOj6mog570S-yofX4yA@mail.gmail.com>
-Subject: Re: [PATCH 21/23] slub: make struct kmem_cache_order_objects::x
- unsigned int
+Date: Mon, 27 Nov 2017 12:21:23 +0200
+Message-ID: <CACVxJT9gvPK0=q4X9pOBYRkaDmMXy-ON61QhF+ZxqLhTSiNVMg@mail.gmail.com>
+Subject: Re: [PATCH 03/23] slab: create_kmalloc_cache() works with 32-bit sizes
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, cl@linux.com, penberg@kernel.org, rientjes@google.com, iamjoonsoo.kim@lge.com
 
-On 11/24/17, Christopher Lameter <cl@linux.com> wrote:
-> On Fri, 24 Nov 2017, Alexey Dobriyan wrote:
+On 11/24/17, Matthew Wilcox <willy@infradead.org> wrote:
+> On Fri, Nov 24, 2017 at 01:16:08AM +0300, Alexey Dobriyan wrote:
+>> -struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t
+>> size,
+>> +struct kmem_cache *__init create_kmalloc_cache(const char *name, unsigned
+>> int size,
+>>  				slab_flags_t flags)
 >
->> !!! Patch assumes that "PAGE_SIZE << order" doesn't overflow. !!!
->
-> Check for that condition and do not allow creation of such caches?
+> Could you reflow this one?  Surprised checkpatch didn't whinge.
 
-It should be enforced by MAX_ORDER in slab_order() and
-setup_slub_max_order().
+If it doesn't run, it doesn't whinge. :-)
+
+I think that in the era of 16:9 monitors line length should be ignored
+altogether.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
