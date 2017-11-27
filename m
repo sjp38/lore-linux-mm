@@ -1,52 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C12006B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:08:31 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id y85so7443055lfk.15
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:08:31 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o9sor4308913lfb.46.2017.11.27.15.08.29
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B2E46B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:26:29 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id u14so1518841plm.19
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:26:29 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id l7si24864493pli.651.2017.11.27.15.26.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 Nov 2017 15:08:29 -0800 (PST)
-From: Vasyl Gomonovych <gomonovych@gmail.com>
-Subject: [PATCH] mm/page_owner: Use PTR_ERR_OR_ZERO()
-Date: Tue, 28 Nov 2017 00:08:21 +0100
-Message-Id: <1511824101-9597-1-git-send-email-gomonovych@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 15:26:28 -0800 (PST)
+Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
+References: <23066.59196.909026.689706@gargle.gargle.HOWL>
+ <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
+ <CAM43=SPVvBTPz31Uu=iz3fpS9tb75uSmL=pYP3AfsfmYr9u4Og@mail.gmail.com>
+ <20171127195207.vderbbkbgygawuhx@dhcp22.suse.cz>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <b6faf739-1a4a-12e1-ad84-0b42166d68c1@nvidia.com>
+Date: Mon, 27 Nov 2017 15:26:27 -0800
+MIME-Version: 1.0
+In-Reply-To: <20171127195207.vderbbkbgygawuhx@dhcp22.suse.cz>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: vbabka@suse.cz, akpm@linux-foundation.org, mhocko@suse.com, gregkh@linuxfoundation.org, tglx@linutronix.de, vinmenon@codeaurora.org, guptap@codeaurora.org, linux-mm@kvack.org
-Cc: gomonovych@gmail.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Mikael Pettersson <mikpelinux@gmail.com>
+Cc: linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-Fix ptr_ret.cocci warnings:
-mm/page_owner.c:639:1-3: WARNING: PTR_ERR_OR_ZERO can be used
+On 11/27/2017 11:52 AM, Michal Hocko wrote:
+> On Mon 27-11-17 20:18:00, Mikael Pettersson wrote:
+>> On Mon, Nov 27, 2017 at 11:12 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>>>> I've kept the kernel tunable to not break the API towards user-space,
+>>>> but it's a no-op now.  Also the distinction between split_vma() and
+>>>> __split_vma() disappears, so they are merged.
+>>>
+>>> Could you be more explicit about _why_ we need to remove this tunable?
+>>> I am not saying I disagree, the removal simplifies the code but I do not
+>>> really see any justification here.
+>>
+>> In principle you don't "need" to, as those that know about it can bump it
+>> to some insanely high value and get on with life.  Meanwhile those that don't
+>> (and I was one of them until fairly recently, and I'm no newcomer to Unix or
+>> Linux) get to scratch their heads and wonder why the kernel says ENOMEM
+>> when one has loads of free RAM.
+> 
+> I agree that our error reporting is more than suboptimal in this regard.
+> These are all historical mistakes and we have much more of those. The
+> thing is that we have means to debug these issues (check
+> /proc/<pid>/maps e.g.).
+> 
+>> But what _is_ the justification for having this arbitrary limit?
+>> There might have been historical reasons, but at least ELF core dumps
+>> are no longer a problem.
+> 
+> Andi has already mentioned the the resource consumption. You can create
+> a lot of unreclaimable memory and there should be some cap. Whether our
+> default is good is questionable. Whether we can remove it altogether is
+> a different thing.
+> 
+> As I've said I am not a great fan of the limit but "I've just notice it
+> breaks on me" doesn't sound like a very good justification. You still
+> have an option to increase it. Considering we do not have too many
+> reports suggests that this is not such a big deal for most users.
+> 
 
-Use PTR_ERR_OR_ZERO rather than if(IS_ERR(...)) + PTR_ERR
+Let me add a belated report, then: we ran into this limit while implementing 
+an early version of Unified Memory[1], back in 2013. The implementation
+at the time depended on tracking that assumed "one allocation == one vma".
+So, with only 64K vmas, we quickly ran out, and changed the design to work
+around that. (And later, the design was *completely* changed to use a separate
+tracking system altogether). 
 
-Generated by: scripts/coccinelle/api/ptr_ret.cocci
+The existing limit seems rather too low, at least from my perspective. Maybe
+it would be better, if expressed as a function of RAM size?
 
-Signed-off-by: Vasyl Gomonovych <gomonovych@gmail.com>
----
- mm/page_owner.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 4f44b95b9d1e..79ae586d1bce 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -636,9 +636,7 @@ static int __init pageowner_init(void)
- 
- 	dentry = debugfs_create_file("page_owner", S_IRUSR, NULL,
- 			NULL, &proc_page_owner_operations);
--	if (IS_ERR(dentry))
--		return PTR_ERR(dentry);
- 
--	return 0;
-+	return PTR_ERR_OR_ZERO(dentry);
- }
- late_initcall(pageowner_init)
--- 
-1.9.1
+[1] https://devblogs.nvidia.com/parallelforall/unified-memory-in-cuda-6/
+
+    This is a way to automatically (via page faulting) migrate memory
+    between CPUs and devices (GPUs, here). This is before HMM, of course.
+
+thanks,
+John Hubbard
+      
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
