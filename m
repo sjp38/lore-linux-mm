@@ -1,50 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A36096B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 13:32:23 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n8so11541912wmg.4
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:32:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w10si2184434edj.349.2017.11.27.10.32.20
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 05B9C6B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 13:37:22 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id a67so17193123vkf.5
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 10:37:22 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 19sor9597897uae.264.2017.11.27.10.37.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 10:32:21 -0800 (PST)
-Date: Mon, 27 Nov 2017 19:32:18 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
-Message-ID: <20171127183218.33zm666jw3uqkxdq@dhcp22.suse.cz>
-References: <23066.59196.909026.689706@gargle.gargle.HOWL>
- <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
- <87vahv8whv.fsf@linux.intel.com>
+        (Google Transport Security);
+        Mon, 27 Nov 2017 10:37:21 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87vahv8whv.fsf@linux.intel.com>
+In-Reply-To: <07d101b3-d17a-7781-f05e-96738e6d6848@linux.intel.com>
+References: <20171126231403.657575796@linutronix.de> <20171126232414.313869499@linutronix.de>
+ <07d101b3-d17a-7781-f05e-96738e6d6848@linux.intel.com>
+From: Kees Cook <keescook@google.com>
+Date: Mon, 27 Nov 2017 10:37:19 -0800
+Message-ID: <CAGXu5jKyx1T+NZGgPUUPt_-MqZe3-zrpFbAVFzsWbW=aD-D6_Q@mail.gmail.com>
+Subject: Re: [patch V2 1/5] x86/kaiser: Respect disabled CPU features
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andi Kleen <ak@linux.intel.com>
-Cc: Mikael Pettersson <mikpelinux@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-api@vger.kernel.org
+To: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Linux-MM <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-On Mon 27-11-17 09:25:16, Andi Kleen wrote:
-> Michal Hocko <mhocko@kernel.org> writes:
-> >
-> > Could you be more explicit about _why_ we need to remove this tunable?
-> > I am not saying I disagree, the removal simplifies the code but I do not
-> > really see any justification here.
-> 
-> It's an arbitrary scaling limit on the how many mappings the process
-> has. The more memory you have the bigger a problem it is. We've
-> ran into this problem too on larger systems.
+On Mon, Nov 27, 2017 at 10:11 AM, Dave Hansen
+<dave.hansen@linux.intel.com> wrote:
+>> --- a/arch/x86/include/asm/pgtable_64.h
+>> +++ b/arch/x86/include/asm/pgtable_64.h
+>> @@ -222,7 +222,8 @@ static inline pgd_t kaiser_set_shadow_pg
+>>                        * wrong CR3 value, userspace will crash
+>>                        * instead of running.
+>>                        */
+>> -                     pgd.pgd |= _PAGE_NX;
+>> +                     if (__supported_pte_mask & _PAGE_NX)
+>> +                             pgd.pgd |= _PAGE_NX;
+>>               }
+>
+> Thanks for catching that.  It's definitely a bug.  Although,
+> practically, it's hard to hit, right?  I think everything 64-bit
+> supports NX unless the hypervisor disabled it or something.
 
-Why cannot you increase the limit?
+There was a very narrow window where x86_64 machines were made without
+NX. :( This is reflected in x86_report_nx(), though maybe we should
+add a "OMG, why?" when 64-bit but no NX. ;)
 
-> The reason the limit was there originally because it allows a DoS
-> attack against the kernel by filling all unswappable memory up with VMAs.
+-Kees
 
-We can reduce the effect by accounting vmas to memory cgroups.
 -- 
-Michal Hocko
-SUSE Labs
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
