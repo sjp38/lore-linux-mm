@@ -1,108 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BB70D6B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:46:58 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j6so15645624wre.16
-        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 21:46:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g9si6559487edi.99.2017.11.26.21.46.56
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E3D8D6B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 01:15:22 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 190so28150412pgh.16
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 22:15:22 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r59sor7518936plb.9.2017.11.26.22.15.21
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 26 Nov 2017 21:46:57 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vAR5i1KV116266
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:46:56 -0500
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2egawdcjmr-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:46:55 -0500
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Mon, 27 Nov 2017 05:46:54 -0000
-Subject: Re: [PATCH] mm: Do not stall register_shrinker
-References: <1511481899-20335-1-git-send-email-minchan@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Mon, 27 Nov 2017 11:16:46 +0530
+        (Google Transport Security);
+        Sun, 26 Nov 2017 22:15:21 -0800 (PST)
+Date: Sun, 26 Nov 2017 22:15:17 -0800
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: KASAN: use-after-free Read in handle_userfault
+Message-ID: <20171127061517.GA26341@zzz.localdomain>
+References: <001a114c9224e34a49055c842032@google.com>
+ <CACT4Y+ZrYTNHDN71ZO1-vhFuCE=sRhfXeLbLom=9XodT7TJtog@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1511481899-20335-1-git-send-email-minchan@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <cb35065d-b100-533b-04c1-1188a75220a2@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+ZrYTNHDN71ZO1-vhFuCE=sRhfXeLbLom=9XodT7TJtog@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <bot+998c483ca801a50e3ce5b63a845216588ada5e2a@syzkaller.appspotmail.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, syzkaller-bugs@googlegroups.com, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org
 
-On 11/24/2017 05:34 AM, Minchan Kim wrote:
-> Shakeel Butt reported, he have observed in production system that
-> the job loader gets stuck for 10s of seconds while doing mount
-> operation. It turns out that it was stuck in register_shrinker()
-> and some unrelated job was under memory pressure and spending time
-> in shrink_slab(). Machines have a lot of shrinkers registered and
-> jobs under memory pressure has to traverse all of those memcg-aware
-> shrinkers and do affect unrelated jobs which want to register their
-> own shrinkers.
-> 
-> To solve the issue, this patch simply bails out slab shrinking
-> once it found someone want to register shrinker in parallel.
-> A downside is it could cause unfair shrinking between shrinkers.
-> However, it should be rare and we can add compilcated logic once
-> we found it's not enough.
-> 
-> Link: http://lkml.kernel.org/r/20171115005602.GB23810@bbox
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-and-tested-by: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmscan.c | 8 ++++++++
->  1 file changed, 8 insertions(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 6a5a72baccd5..6698001787bd 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -486,6 +486,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			sc.nid = 0;
->  
->  		freed += do_shrink_slab(&sc, shrinker, priority);
-> +		/*
-> +		 * bail out if someone want to register a new shrinker to
-> +		 * prevent long time stall by parallel ongoing shrinking.
-> +		 */
-> +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> +			freed = freed ? : 1;
-> +			break;
-> +		}
++Cc aarcange@redhat.com, xemul@parallels.com, linux-mm@kvack.org
 
-This is similar to when it aborts for not being able to grab the
-shrinker_rwsem at the beginning.
+On Fri, Oct 27, 2017 at 11:46:13AM +0200, Dmitry Vyukov wrote:
+> On Fri, Oct 27, 2017 at 11:44 AM, syzbot
+> <bot+998c483ca801a50e3ce5b63a845216588ada5e2a@syzkaller.appspotmail.com>
+> wrote:
+> > Hello,
+> >
+> > syzkaller hit the following crash on
+> > a31cc455c512f3f1dd5f79cac8e29a7c8a617af8
+> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> > compiler: gcc (GCC) 7.1.1 20170620
+> > .config is attached
+> > Raw console output is attached.
+> > C reproducer is attached
+> > syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> > for information about syzkaller reproducers
+> 
 
-if (!down_read_trylock(&shrinker_rwsem)) {
-	/*
-	 * If we would return 0, our callers would understand that we
-	 * have nothing else to shrink and give up trying. By returning
-	 * 1 we keep it going and assume we'll be able to shrink next
-	 * time.
-	 */
-	freed = 1;
-	goto out;
+Andrea or Pavel, can one of you please fix this?  It's another use-after-free
+related to userfaultfd "fork events", and it can easily be triggered by an
+unprivileged user.  It was reported a month ago already; the original report is
+here: https://groups.google.com/forum/#!topic/syzkaller-bugs/sS99S-Z-9No.
+(Please consider adding yourself and/or linux-mm to the MAINTAINERS file for
+fs/userfaultfd.c, so that you are Cc'ed on userfaultfd bug reports.)  In
+userfaultfd_event_wait_completion(), called from dup_fctx(), the kernel is
+freeing the the new userfaultfd_ctx because the old one had all its fd's closed,
+but actually the new one is still in use by the new mm_struct.
+
+Also, I've simplified the C reproducer:
+
+#include <linux/sched.h>
+#include <linux/userfaultfd.h>
+#include <pthread.h>
+#include <stdlib.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+static int userfaultfd;
+static void *page;
+
+static void *close_fd_proc(void *arg)
+{
+        usleep(1000);
+        close(userfaultfd);
+        return NULL;
 }
 
-Right now, shrink_slab() is getting called from three places. Twice in
-shrink_node() and once in drop_slab_node(). But the return value from
-shrink_slab() is checked only inside drop_slab_node() and it has some
-heuristics to decide whether to keep on scanning over available memcg
-shrinkers registered.
+int main()
+{
+        pthread_t t;
+        struct uffdio_api api = { 0 };
+        struct uffdio_register reg = { 0 };
 
-The question is does aborting here will still guarantee forward progress
-for all the contexts which might be attempting to allocate memory and had
-eventually invoked shrink_slab() ? Because may be the memory allocation
-request has more priority than a context getting bit delayed while being
-stuck waiting on shrinker_rwsem.
+        page = mmap(NULL, 4096, PROT_READ|PROT_WRITE,
+                    MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+
+        userfaultfd = syscall(__NR_userfaultfd, 0);
+
+        api.api = UFFDIO;
+        api.features = UFFD_FEATURE_EVENT_FORK;
+        ioctl(userfaultfd, UFFDIO_API, &api);
+
+        reg.range.start = (__u64)page;
+        reg.range.len = 4096;
+        reg.mode = UFFDIO_REGISTER_MODE_MISSING;
+        ioctl(userfaultfd, UFFDIO_REGISTER, &reg);
+
+        pthread_create(&t, NULL, close_fd_proc, NULL);
+
+        syscall(__NR_clone, CLONE_FILES, page, NULL, NULL, NULL);
+
+        return 0;
+}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
