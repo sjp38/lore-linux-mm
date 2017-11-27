@@ -1,118 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E78E6B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 06:46:56 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id m4so16093154pgc.23
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:46:56 -0800 (PST)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id b3si7727584pls.370.2017.11.27.03.46.54
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E3F086B0069
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 06:48:27 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j6so16180168wre.16
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:48:27 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id m71si11336225wmd.188.2017.11.27.03.48.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 03:46:54 -0800 (PST)
-From: guoxuenan <guoxuenan@huawei.com>
-Subject: [PATCH] mm,madvise: bugfix of madvise systemcall infinite loop under special circumstances.
-Date: Mon, 27 Nov 2017 19:53:18 +0800
-Message-ID: <20171127115318.911-1-guoxuenan@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Nov 2017 03:48:26 -0800 (PST)
+Date: Mon, 27 Nov 2017 12:47:56 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [patch V2 1/5] x86/kaiser: Respect disabled CPU features
+In-Reply-To: <20171127095737.ocolhqaxsaboycwa@hirez.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.20.1711271241100.1799@nanos>
+References: <20171126231403.657575796@linutronix.de> <20171126232414.313869499@linutronix.de> <20171127095737.ocolhqaxsaboycwa@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, mhocko@suse.com, minchan@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: yi.zhang@huawei.com, miaoxie@huawei.com, rppt@linux.vnet.ibm.com, shli@fb.com, aarcange@redhat.com, mgorman@techsingularity.net, kirill.shutemov@linux.intel.com, rientjes@google.com, khandual@linux.vnet.ibm.com, riel@redhat.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-From: chenjie <chenjie6@huawei.com>
+On Mon, 27 Nov 2017, Peter Zijlstra wrote:
+> On Mon, Nov 27, 2017 at 12:14:04AM +0100, Thomas Gleixner wrote:
+> > PAGE_NX and PAGE_GLOBAL might be not supported or disabled on the command
+> > line, but KAISER sets them unconditionally.
+> 
+> So KAISER is x86_64 only, right? AFAIK there is no x86_64 without NX
+> support. So would it not make sense to mandate NX for KAISER?, that is
+> instead of making "noexec" + KAISER work, make "noexec" kill KAISER +
+> emit a warning.
 
-The madvise() system call supported a set of "conventional" advice values,
-the MADV_WILLNEED parameter has possibility of triggering an infinite loop under
-direct access mode(DAX).
+OTOH, disabling NX is a simple way to verify that DEBUG_WX works correctly
+also on the shadow maps.
 
-Infinite loop situation:
-1a??initial state [ start = vam->vm_start < vam->vm_end < end ].
-2a??madvise_vma() using MADV_WILLNEED parameter;
-   madvise_vma() -> madvise_willneed() -> return 0 && the value of [prev] is not updated.
+But surely we can drop the PAGE_GLOBAL thing, as all 64bit systems have it.
 
-In function SYSCALL_DEFINE3(madvise,...)
-When [start = vam->vm_start] the program enters "for" loop,
-find_vma_prev() will set the pointer vma and the pointer prev(prev = vam->vm_prev).
-Normally ,madvise_vma() will always move the pointer prev ,but when use DAX mode,
-it will never update the value of [prev].
+Thanks,
 
-=======================================================================
-SYSCALL_DEFINE3(madvise,...)
-{
-	[...]
-	//start = vam->start  => prev=vma->prev
-    vma = find_vma_prev(current->mm, start, &prev);
-	[...]
-	for(;;)
-	{
-	      update [start = vma->vm_start]
-
-	con0: if (start >= end)                 //false always;
-	    goto out;
-	       tmp = vma->vm_end;
-
-	//do not update [prev] and always return 0;
-	       error = madvise_willneed();
-
-	con1: if (error)                        //false always;
-	    goto out;
-
-	//[ vam->vm_start < start = vam->vm_end  <end ]
-	       update [start = tmp ]
-
-	con2: if (start >= end)                 //false always ;
-	    goto out;
-
-	//because of pointer [prev] did not change,[vma] keep as it was;
-	       update [ vma = prev->vm_next ]
-	}
-	[...]
-}
-=======================================================================
-After the first cycle ;it will always keep
-vam->vm_start < start = vam->vm_end  < end  && vma = prev->vm_next;
-since Circulation exit conditions (con{0,1,2}) will never meet ,the
-program stuck in infinite loop.
-
-Signed-off-by: chenjie <chenjie6@huawei.com>
-Signed-off-by: guoxuenan <guoxuenan@huawei.com>
----
- mm/madvise.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
-
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 375cf32..751e97a 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -276,15 +276,14 @@ static long madvise_willneed(struct vm_area_struct *vma,
- {
- 	struct file *file = vma->vm_file;
- 
-+	*prev = vma;
- #ifdef CONFIG_SWAP
- 	if (!file) {
--		*prev = vma;
- 		force_swapin_readahead(vma, start, end);
- 		return 0;
- 	}
- 
- 	if (shmem_mapping(file->f_mapping)) {
--		*prev = vma;
- 		force_shm_swapin_readahead(vma, start, end,
- 					file->f_mapping);
- 		return 0;
-@@ -299,7 +298,6 @@ static long madvise_willneed(struct vm_area_struct *vma,
- 		return 0;
- 	}
- 
--	*prev = vma;
- 	start = ((start - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
- 	if (end > vma->vm_end)
- 		end = vma->vm_end;
--- 
-2.9.5
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
