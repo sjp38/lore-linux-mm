@@ -1,52 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 584316B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 17:53:18 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id p144so12747438itc.9
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:53:18 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id d93si22226631ioj.24.2017.11.27.14.53.17
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7735B6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 17:53:46 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 82so25845613pfp.5
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:53:46 -0800 (PST)
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id a33si16049335pla.546.2017.11.27.14.53.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 14:53:17 -0800 (PST)
-Date: Mon, 27 Nov 2017 23:53:06 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 4/5] x86/mm/kaiser: Remove superfluous SWITCH_TO_KERNEL
-Message-ID: <20171127225306.6f7iueus7fq2hg7h@hirez.programming.kicks-ass.net>
+        Mon, 27 Nov 2017 14:53:45 -0800 (PST)
+Subject: Re: [PATCH 5/5] x86/mm/kaiser: Disable the SYSCALL-64 trampoline
+ along with KAISER
 References: <20171127223110.479550152@infradead.org>
- <20171127223405.329572992@infradead.org>
- <b96a07a3-9fd5-f4c1-a4d5-433c590d006e@linux.intel.com>
+ <20171127223405.381212307@infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Message-ID: <dffd1146-5cc5-ae14-ec10-3df312703790@linux.intel.com>
+Date: Mon, 27 Nov 2017 14:53:43 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b96a07a3-9fd5-f4c1-a4d5-433c590d006e@linux.intel.com>
+In-Reply-To: <20171127223405.381212307@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Peter Zijlstra <peterz@infradead.org>, linux-kernel@vger.kernel.org
+Cc: Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-On Mon, Nov 27, 2017 at 02:47:08PM -0800, Dave Hansen wrote:
-> On 11/27/2017 02:31 PM, Peter Zijlstra wrote:
-> > We never use this code-path with KAISER enabled.
-> ...
-> > @@ -201,14 +201,6 @@ ENTRY(entry_SYSCALL_64)
-> >  
-> >  	swapgs
-> >  	movq	%rsp, PER_CPU_VAR(rsp_scratch)
-> > -
-> > -	/*
-> > -	 * The kernel CR3 is needed to map the process stack, but we
-> > -	 * need a scratch register to be able to load CR3.  %rsp is
-> > -	 * clobberable right now, so use it as a scratch register.
-> > -	 * %rsp will look crazy here for a couple instructions.
-> > -	 */
-> > -	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
-> >  	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
-> 
-> What's the mechanism that we use to switch between the two versions of
-> the SYSCALL entry?  It wasn't obvious from some grepping.
+On 11/27/2017 02:31 PM, Peter Zijlstra wrote:
+> --- a/arch/x86/kernel/cpu/common.c
+> +++ b/arch/x86/kernel/cpu/common.c
+> @@ -1442,7 +1442,10 @@ void syscall_init(void)
+>  		(entry_SYSCALL_64_trampoline - _entry_trampoline);
+>  
+>  	wrmsr(MSR_STAR, 0, (__USER32_CS << 16) | __KERNEL_CS);
+> -	wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
+> +	if (kaiser_enabled)
+> +		wrmsrl(MSR_LSTAR, SYSCALL64_entry_trampoline);
+> +	else
+> +		wrmsrl(MSR_LSTAR, (unsigned long)entry_SYSCALL_64);
 
-the next patch, the code in tip will in fact never use this code.
+Heh, ask and ye shall receive, I guess.
+
+We do need a Documentation/ update now.  For this, and other things.
+I'll put something together.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
