@@ -1,55 +1,190 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6020D6B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:42:09 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id k3so10673823wmg.6
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:42:09 -0800 (PST)
-Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
-        by mx.google.com with ESMTPS id k86si156426wmh.266.2017.11.27.00.42.07
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 00:42:08 -0800 (PST)
-Date: Mon, 27 Nov 2017 16:41:49 +0800 (CST)
-Message-ID: <201711271641496179247@zte.com.cn>
-In-Reply-To: <20171127082709.2lrc4wbxosv6uuv3@dhcp22.suse.cz>
-References: 20171127063846.GA27768@bbox,20171127082709.2lrc4wbxosv6uuv3@dhcp22.suse.cz
-Mime-Version: 1.0
-From: <jiang.biao2@zte.com.cn>
-Subject: =?UTF-8?B?UmU6IFtQQVRDSF0gbW0vdm1zY2FuOiBtYWtlIGRvX3Nocmlua19zbGFiIG1vcmUgcm9idXN0Lg==?=
-Content-Type: multipart/mixed;
-	boundary="=====_001_next====="
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C3B386B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:48:36 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id s11so28466851pgc.13
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:48:36 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id u79si18904959pfa.354.2017.11.27.00.48.34
+        for <linux-mm@kvack.org>;
+        Mon, 27 Nov 2017 00:48:35 -0800 (PST)
+Date: Mon, 27 Nov 2017 17:48:22 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171127084822.GA15859@X58A-UD3R>
+References: <20171108102723.602216b1@gandalf.local.home>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171108102723.602216b1@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: minchan@kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, yuwang.yuwang@alibabab-inc.com, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, kernel-team@lge.com
 
+On Wed, Nov 08, 2017 at 10:27:23AM -0500, Steven Rostedt wrote:
+> --- linux-trace.git.orig/kernel/printk/printk.c
+> +++ linux-trace.git/kernel/printk/printk.c
+> @@ -86,8 +86,15 @@ EXPORT_SYMBOL_GPL(console_drivers);
+>  static struct lockdep_map console_lock_dep_map = {
+>  	.name = "console_lock"
+>  };
+> +static struct lockdep_map console_owner_dep_map = {
+> +	.name = "console_owner"
+> +};
+>  #endif
+>  
+> +static DEFINE_RAW_SPINLOCK(console_owner_lock);
+> +static struct task_struct *console_owner;
+> +static bool console_waiter;
+> +
+>  enum devkmsg_log_bits {
+>  	__DEVKMSG_LOG_BIT_ON = 0,
+>  	__DEVKMSG_LOG_BIT_OFF,
+> @@ -1753,8 +1760,56 @@ asmlinkage int vprintk_emit(int facility
+>  		 * semaphore.  The release will print out buffers and wake up
+>  		 * /dev/kmsg and syslog() users.
+>  		 */
+> -		if (console_trylock())
+> +		if (console_trylock()) {
+>  			console_unlock();
+> +		} else {
+> +			struct task_struct *owner = NULL;
+> +			bool waiter;
+> +			bool spin = false;
+> +
+> +			printk_safe_enter_irqsave(flags);
+> +
+> +			raw_spin_lock(&console_owner_lock);
+> +			owner = READ_ONCE(console_owner);
+> +			waiter = READ_ONCE(console_waiter);
+> +			if (!waiter && owner && owner != current) {
+> +				WRITE_ONCE(console_waiter, true);
+> +				spin = true;
+> +			}
+> +			raw_spin_unlock(&console_owner_lock);
+> +
+> +			/*
+> +			 * If there is an active printk() writing to the
+> +			 * consoles, instead of having it write our data too,
+> +			 * see if we can offload that load from the active
+> +			 * printer, and do some printing ourselves.
+> +			 * Go into a spin only if there isn't already a waiter
+> +			 * spinning, and there is an active printer, and
+> +			 * that active printer isn't us (recursive printk?).
+> +			 */
+> +			if (spin) {
+> +				/* We spin waiting for the owner to release us */
+> +				spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
 
+Hello Steven,
 
---=====_001_next=====
-Content-Type: multipart/alternative;
-	boundary="=====_003_next====="
+I think it would be better to use cross-release stuff here, because the
+waiter waits for an event which happens in another context.
 
+> +				/* Owner will clear console_waiter on hand off */
+> +				while (READ_ONCE(console_waiter))
+> +					cpu_relax();
+> +
+> +				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +				printk_safe_exit_irqrestore(flags);
+> +
+> +				/*
+> +				 * The owner passed the console lock to us.
+> +				 * Since we did not spin on console lock, annotate
+> +				 * this as a trylock. Otherwise lockdep will
+> +				 * complain.
+> +				 */
+> +				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
 
---=====_003_next=====
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64 
+I'm afraid if it's ok even not to lock(or trylock) actually here. Is there
+any problem if you call console_trylock() instead of mutex_acquire() here?
 
-T24gTW9uIDI3LTExLTE3IDE1OjI2OjU0LCBqaWFuZy5iaWFvMkB6dGUuY29tLmNuIHdyb3RlOgo+
-ID4+ID4gV2l0aCBhbGwgZHVlIHJlc3BlY3QuIEkgc3RpbGwgdGhpbmsgdGhlIHJvYnVzdG5lc3Mg
-aXMgbW9yZSBpbXBvcnRhbnQgdGhhbgo+ID4gZWZmZWN0aXZlbmVzcyBpbiB0aGlzIGNhc2UuIDop
-Cj4gCj4gVGhpcyBpcyBhIHNsb3cgcGF0aCBzbyBJIHdvdWxkbid0IHdvcnJ5IGFib3V0IHRoZSBw
-ZXJmb3JtYW5jZSBtdWNoLiBPbgo+IHRoZSBvdGhlciBoYW5kIEkgYWdyZWUgdGhhdCB0aGUgQVBJ
-IGlzIHdlbGwgZG9jdW1lbnRlZCBzbyBhZGRpbmcgYQo+IHdhcm5pbmcgaXMgdG9vIGRlZmVuc2l2
-ZS4gV2Ugc2ltcGx5IGFzc3VtZSB0aGF0IHRoZSBrZXJuZWwgcnVubmluZyBpbgo+IHRoZSBrZXJu
-ZWwgaXMgcmVhc29uYWJsZS4gU28gSSB3b3VsZCBzYXksIGZpeCB5b3VyIGNvZGUuCk9rLCBhbHJl
-YWR5IHNlbmQgYW5vdGhlciBwYXRjaCBmb3IgbWJhY2hlIHNocmlua2VyIHRvIGVuc3VyZSBub24t
-bWludXMgCnJldHVybi4KVGhhbmsgeW91IGZvciB5b3VyIHJlcGx5IDopCgpSZWdhcmRzLA==
+> +				console_unlock();
+> +				printk_safe_enter_irqsave(flags);
+> +			}
+> +			printk_safe_exit_irqrestore(flags);
+> +
+> +		}
+>  	}
+>  
+>  	return printed_len;
+> @@ -2141,6 +2196,7 @@ void console_unlock(void)
+>  	static u64 seen_seq;
+>  	unsigned long flags;
+>  	bool wake_klogd = false;
+> +	bool waiter = false;
+>  	bool do_cond_resched, retry;
+>  
+>  	if (console_suspended) {
+> @@ -2229,14 +2285,64 @@ skip:
+>  		console_seq++;
+>  		raw_spin_unlock(&logbuf_lock);
+>  
+> +		/*
+> +		 * While actively printing out messages, if another printk()
+> +		 * were to occur on another CPU, it may wait for this one to
+> +		 * finish. This task can not be preempted if there is a
+> +		 * waiter waiting to take over.
+> +		 */
+> +		raw_spin_lock(&console_owner_lock);
+> +		console_owner = current;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/* The waiter may spin on us after setting console_owner */
+> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
 
+If you want to do this speculatively here, I think it would be better to
+use a read recursive acquisition. I think spin_acquire() is too stong
+for that purpose - I also mentioned it on workqueue flush code. Don't
+you think so?
 
---=====_003_next=====--
+> +
+>  		stop_critical_timings();	/* don't trace print latency */
+>  		call_console_drivers(ext_text, ext_len, text, len);
+>  		start_critical_timings();
+> +
+> +		raw_spin_lock(&console_owner_lock);
+> +		waiter = READ_ONCE(console_waiter);
+> +		console_owner = NULL;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/*
+> +		 * If there is a waiter waiting for us, then pass the
+> +		 * rest of the work load over to that waiter.
+> +		 */
+> +		if (waiter)
+> +			break;
+> +
+> +		/* There was no waiter, and nothing will spin on us here */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
 
---=====_001_next=====--
+I think this release() can be moved up over 'if (waiter)' because only
+waiters within the region between acquire() and release() are meaningful.
+
+> +
+>  		printk_safe_exit_irqrestore(flags);
+>  
+>  		if (do_cond_resched)
+>  			cond_resched();
+>  	}
+> +
+> +	/*
+> +	 * If there is an active waiter waiting on the console_lock.
+> +	 * Pass off the printing to the waiter, and the waiter
+> +	 * will continue printing on its CPU, and when all writing
+> +	 * has finished, the last printer will wake up klogd.
+> +	 */
+> +	if (waiter) {
+> +		WRITE_ONCE(console_waiter, false);
+> +		/* The waiter is now free to continue */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+
+So this can be removed.
+
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
