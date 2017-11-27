@@ -1,40 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A5AAD6B0069
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:28:28 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id f27so16232927ote.16
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:28:28 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 705ED6B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:36:57 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id p23so12360617oie.16
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:36:57 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j129sor7576313oif.123.2017.11.27.11.28.27
+        by mx.google.com with SMTPS id r15sor9510180oth.166.2017.11.27.11.36.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 11:28:27 -0800 (PST)
+        Mon, 27 Nov 2017 11:36:56 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171127162207.GA8265@bombadil.infradead.org>
+In-Reply-To: <87vahv8whv.fsf@linux.intel.com>
 References: <23066.59196.909026.689706@gargle.gargle.HOWL> <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
- <20171127162207.GA8265@bombadil.infradead.org>
+ <87vahv8whv.fsf@linux.intel.com>
 From: Mikael Pettersson <mikpelinux@gmail.com>
-Date: Mon, 27 Nov 2017 20:28:27 +0100
-Message-ID: <CAM43=SOAU2-qTB2cHeZs5xGzPFKwoqtTafqtw+BqCP9cbQDUOQ@mail.gmail.com>
+Date: Mon, 27 Nov 2017 20:36:55 +0100
+Message-ID: <CAM43=SPgi9aXGFWYwpqeN26s5aUTdk7F6C+5wgrQOTq2QmvTzA@mail.gmail.com>
 Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
+To: Andi Kleen <ak@linux.intel.com>
 Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Nov 27, 2017 at 5:22 PM, Matthew Wilcox <willy@infradead.org> wrote:
->> Could you be more explicit about _why_ we need to remove this tunable?
->> I am not saying I disagree, the removal simplifies the code but I do not
->> really see any justification here.
+On Mon, Nov 27, 2017 at 6:25 PM, Andi Kleen <ak@linux.intel.com> wrote:
+> It's an arbitrary scaling limit on the how many mappings the process
+> has. The more memory you have the bigger a problem it is. We've
+> ran into this problem too on larger systems.
 >
-> I imagine he started seeing random syscalls failing with ENOMEM and
-> eventually tracked it down to this stupid limit we used to need.
+> The reason the limit was there originally because it allows a DoS
+> attack against the kernel by filling all unswappable memory up with VMAs.
+>
+> The old limit was designed for much smaller systems than we have
+> today.
+>
+> There needs to be some limit, but it should be on the number of memory
+> pinned by the VMAs, and needs to scale with the available memory,
+> so that large systems are not penalized.
 
-Exactly, except the origin (mmap() failing) was hidden behind layers upon layers
-of user-space memory management code (not ours), which just said "failed to
-allocate N bytes" (with N about 0.001% of the free RAM).  And it
-wasn't reproducible.
+Fully agreed.  One problem with the current limit is that number of VMAs
+is only weakly related to the amount of memory one has mapped, and is
+also prone to grow due to memory fragmentation.  I've seen processes
+differ by 3X number of VMAs, even though they ran the same code and
+had similar memory sizes; they only differed on how long they had been
+running and which servers they ran on (and how long those had been up).
+
+> Unfortunately just making it part of the existing mlock limit could
+> break some existing setups which max out the mlock limit with something
+> else. Maybe we need a new rlimit for this?
+>
+> -Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
