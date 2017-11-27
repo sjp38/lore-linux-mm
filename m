@@ -1,96 +1,205 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F5B06B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:27:17 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n13so4741455wmc.3
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 09:27:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si3001178edk.337.2017.11.27.09.27.15
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C00526B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:38:47 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id k23so16720549qtc.14
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 09:38:47 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k42si2980651qtf.429.2017.11.27.09.38.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 09:27:15 -0800 (PST)
-Subject: Re: [PATCH v3 3/3] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
- <1510882624-44342-4-git-send-email-xieyisheng1@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <ea6e56d5-ede6-580e-ed2d-c1ab975f5d91@suse.cz>
-Date: Mon, 27 Nov 2017 18:25:48 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 09:38:46 -0800 (PST)
+Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vARHYQtq052786
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:38:45 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2egnf8nw9p-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:38:44 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Mon, 27 Nov 2017 17:38:42 -0000
+Date: Mon, 27 Nov 2017 17:38:36 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 3/5] mm: memory_hotplug: memblock to track partially
+ removed vmemmap mem
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <e17d447381b3f13d4d7d314916ca273b6f60d287.1511433386.git.ar@linux.vnet.ibm.com>
+ <f21d2b81-e0f5-b186-22e3-ded138505dc9@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <1510882624-44342-4-git-send-email-xieyisheng1@huawei.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <f21d2b81-e0f5-b186-22e3-ded138505dc9@arm.com>
+Message-Id: <20171127173835.GC12687@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yisheng Xie <xieyisheng1@huawei.com>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, ak@linux.intel.com, cl@linux.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, tanxiaojun@huawei.com
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, mark.rutland@arm.com, realean2@ie.ibm.com, mhocko@suse.com, m.bielski@virtualopensystems.com, scott.branden@broadcom.com, catalin.marinas@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunks@qti.qualcomm.com, qiuxishi@huawei.com
 
-On 11/17/2017 02:37 AM, Yisheng Xie wrote:
-> As manpage of migrate_pages, the errno should be set to EINVAL when
-> none of the node IDs specified by new_nodes are on-line and allowed
-> by the process's current cpuset context, or none of the specified
-> nodes contain memory. However, when test by following case:
+Hi Robin,
+
+On Mon 27 Nov 2017, 15:20, Robin Murphy wrote:
+> On 23/11/17 11:14, Andrea Reale wrote:
+> >When hot-removing memory we need to free vmemmap memory.
 > 
-> 	new_nodes = 0;
-> 	old_nodes = 0xf;
-> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
+> What problems arise if we don't? Is it only for the sake of freeing up some
+> pages here and there, or is there something more fundamental?
+>
+
+It is just for freeing up pages, but imho we are talking about a relevant
+number of pages. For example, assuming 4K pages, to describe one hot
+added section of 1GB of new memory we need ~14MBs of vmemmap space (if
+my back of the envelope math is not wrong). This
+memory would be leaked if we do not do the cleanup in hot remove. 
+If we do hot remove sections many times in the lifetime of a system, 
+this quantity can become sizeable.
+
+> >However, depending on the memory is being removed, it might
+> >not be always possible to free a full vmemmap page / huge-page
+> >because part of it might still be used.
+> >
+> >Commit ae9aae9eda2d ("memory-hotplug: common APIs to support page tables
+> >hot-remove") introduced a workaround for x86
+> >hot-remove, by which partially unused areas are filled with
+> >the 0xFD constant. Full pages are only removed when fully
+> >filled by 0xFDs.
+> >
+> >This commit introduces a MEMBLOCK_UNUSED_VMEMMAP memblock flag, with
+> >the goal of using it in place of 0xFDs. For now, this will be used for
+> >the arm64 port of memory hot remove, but the idea is to eventually use
+> >the same mechanism for x86 as well.
+> >
+> >Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> >Signed-off-by: Maciej Bielski <m.bielski@virtualopensystems.com>
+> >---
+> >  include/linux/memblock.h | 12 ++++++++++++
+> >  mm/memblock.c            | 32 ++++++++++++++++++++++++++++++++
+> >  2 files changed, 44 insertions(+)
+> >
+> >diff --git a/include/linux/memblock.h b/include/linux/memblock.h
+> >index bae11c7..0daec05 100644
+> >--- a/include/linux/memblock.h
+> >+++ b/include/linux/memblock.h
+> >@@ -26,6 +26,9 @@ enum {
+> >  	MEMBLOCK_HOTPLUG	= 0x1,	/* hotpluggable region */
+> >  	MEMBLOCK_MIRROR		= 0x2,	/* mirrored region */
+> >  	MEMBLOCK_NOMAP		= 0x4,	/* don't add to kernel direct mapping */
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+	MEMBLOCK_UNUSED_VMEMMAP	= 0x8,  /* Mark VMEMAP blocks as dirty */
 > 
-> The ret will be 0 and no errno is set. As the new_nodes is empty,
-> we should expect EINVAL as documented.
+> I'm not sure I get what "dirty" is supposed to mean in this context. Also,
+> this appears to be specific to CONFIG_SPARSEMEM_VMEMMAP, whilst only
+> tangentially related to CONFIG_MEMORY_HOTREMOVE, so the dependencies look a
+> bit off.
 > 
-> To fix the case like above, this patch check whether target nodes
-> AND current task_nodes is empty, and then check whether AND
-> node_states[N_MEMORY] is empty.
+> In fact, now that I think about it, why does this need to be in memblock at
+> all? If it is specific to sparsemem, shouldn't the section map already be
+> enough to tell us what's supposed to be present or not?
 > 
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> ---
->  mm/mempolicy.c | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 65df28d..f604b22 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1433,10 +1433,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
->  		goto out_put;
->  	}
+> Robin.
 
-Let me add the whole preceding that ends on the lines above:
+The story is: when we are hot-removing one section, we cannot be sure that
+the full block  can be fully removed, for example,
+because we might have used only a portion of it at hot-add time and the
+rest might have been used by other hot adds we are not aware of.
+So when we hot-remove, we mark the page structs of the removed memory,
+and we only remove the full page when it is all marked.
+This is exactly symmetrical to the issue described in commit
+ae9aae9eda2d ("memory-hotplug: common APIs to support page tables
+hot-remove") - introducing hot-remove for x86. 
 
-        task_nodes = cpuset_mems_allowed(task);
-        /* Is the user allowed to access the target nodes? */
-        if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
-                err = -EPERM;
-                goto out_put;
-        }
+In that commit, partially unused vmemmap pages where filled with the
+0XFD constant. In the previous iteration of this patchset, it was
+rightfully suggested that marking the pages by writing inside them was
+not the best way to achieve the result. That's why we reverted to do
+this marking using memblock. This is only used in memory hot remove,
+that's why the CONFIG_MEMORY_HOTREMOVE dependency. 
 
->  
-> -	if (!nodes_subset(*new, node_states[N_MEMORY])) {
-> -		err = -EINVAL;
-> +	task_nodes = cpuset_mems_allowed(current);
-> +	nodes_and(*new, *new, task_nodes);
-> +	if (nodes_empty(*new))
-> +		goto out_put;
+Right now, I cannot think of how I could use sparse mem to tell: the
+only thing I know at the moment of trying to free a vmemmap block is that I
+have some physical addresses that might or not be in use to describe some
+pages. I canot think of any way to know which struct pages could be occupying this
+vmemmap block, besides maybe walking all pagetables and check if I have
+some matching mapping.
+However, I might be missing something, so suggestions are welcome.
 
-So if we have CAP_SYS_NICE, we pass (or rather skip) the EPERM check
-above, but the current cpuset restriction still applies regardless. This
-doesn't make sense to me? If I get Christoph right in the v2 discussion,
-then CAP_SYS_NICE should not allow current cpuset escape. In that case,
-we should remove the CAP_SYS_NICE check from the EPERM check? Also
-should it be a subset check, or a non-empty-intersection check?
+Thanks,
+Andrea
 
-Note there's still a danger that we are breaking existing code so this
-will have to be reverted in any case...
-
-> +
-> +	nodes_and(*new, *new, node_states[N_MEMORY]);
-> +	if (nodes_empty(*new))
->  		goto out_put;
-> -	}
->  
->  	err = security_task_movememory(task);
->  	if (err)
+> >+#endif
+> >  };
+> >  struct memblock_region {
+> >@@ -90,6 +93,10 @@ int memblock_mark_mirror(phys_addr_t base, phys_addr_t size);
+> >  int memblock_mark_nomap(phys_addr_t base, phys_addr_t size);
+> >  int memblock_clear_nomap(phys_addr_t base, phys_addr_t size);
+> >  ulong choose_memblock_flags(void);
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+int memblock_mark_unused_vmemmap(phys_addr_t base, phys_addr_t size);
+> >+int memblock_clear_unused_vmemmap(phys_addr_t base, phys_addr_t size);
+> >+#endif
+> >  /* Low level functions */
+> >  int memblock_add_range(struct memblock_type *type,
+> >@@ -182,6 +189,11 @@ static inline bool memblock_is_nomap(struct memblock_region *m)
+> >  	return m->flags & MEMBLOCK_NOMAP;
+> >  }
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+bool memblock_is_vmemmap_unused_range(struct memblock_type *mt,
+> >+		phys_addr_t start, phys_addr_t end);
+> >+#endif
+> >+
+> >  #ifdef CONFIG_HAVE_MEMBLOCK_NODE_MAP
+> >  int memblock_search_pfn_nid(unsigned long pfn, unsigned long *start_pfn,
+> >  			    unsigned long  *end_pfn);
+> >diff --git a/mm/memblock.c b/mm/memblock.c
+> >index 9120578..30d5aa4 100644
+> >--- a/mm/memblock.c
+> >+++ b/mm/memblock.c
+> >@@ -809,6 +809,18 @@ int __init_memblock memblock_clear_nomap(phys_addr_t base, phys_addr_t size)
+> >  	return memblock_setclr_flag(base, size, 0, MEMBLOCK_NOMAP);
+> >  }
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+int __init_memblock memblock_mark_unused_vmemmap(phys_addr_t base,
+> >+		phys_addr_t size)
+> >+{
+> >+	return memblock_setclr_flag(base, size, 1, MEMBLOCK_UNUSED_VMEMMAP);
+> >+}
+> >+int __init_memblock memblock_clear_unused_vmemmap(phys_addr_t base,
+> >+		phys_addr_t size)
+> >+{
+> >+	return memblock_setclr_flag(base, size, 0, MEMBLOCK_UNUSED_VMEMMAP);
+> >+}
+> >+#endif
+> >  /**
+> >   * __next_reserved_mem_region - next function for for_each_reserved_region()
+> >   * @idx: pointer to u64 loop variable
+> >@@ -1696,6 +1708,26 @@ void __init_memblock memblock_trim_memory(phys_addr_t align)
+> >  	}
+> >  }
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+bool __init_memblock memblock_is_vmemmap_unused_range(struct memblock_type *mt,
+> >+		phys_addr_t start, phys_addr_t end)
+> >+{
+> >+	u64 i;
+> >+	struct memblock_region *r;
+> >+
+> >+	i = memblock_search(mt, start);
+> >+	r = &(mt->regions[i]);
+> >+	while (r->base < end) {
+> >+		if (!(r->flags & MEMBLOCK_UNUSED_VMEMMAP))
+> >+			return 0;
+> >+
+> >+		r = &(memblock.memory.regions[++i]);
+> >+	}
+> >+
+> >+	return 1;
+> >+}
+> >+#endif
+> >+
+> >  void __init_memblock memblock_set_current_limit(phys_addr_t limit)
+> >  {
+> >  	memblock.current_limit = limit;
+> >
 > 
 
 --
