@@ -1,61 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 844D66B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:29:30 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i17so11696649wmb.7
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:29:30 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id h136si12311890wmd.120.2017.11.27.12.29.28
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 07A296B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:31:55 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id d15so15094898qte.3
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:31:55 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p89sor19236150qkl.15.2017.11.27.12.31.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 12:29:28 -0800 (PST)
-Date: Mon, 27 Nov 2017 21:28:49 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch V2 2/5] x86/kaiser: Simplify disabling of global pages
-In-Reply-To: <0b5a64f1-9979-ae56-99f8-72c3802a9c60@linux.intel.com>
-Message-ID: <alpine.DEB.2.20.1711272128360.2333@nanos>
-References: <20171126231403.657575796@linutronix.de> <20171126232414.393912629@linutronix.de> <0b5a64f1-9979-ae56-99f8-72c3802a9c60@linux.intel.com>
+        (Google Transport Security);
+        Mon, 27 Nov 2017 12:31:54 -0800 (PST)
+Date: Mon, 27 Nov 2017 15:31:52 -0500 (EST)
+From: Nicolas Pitre <nicolas.pitre@linaro.org>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct pcpu_alloc_info
+ (crisv32 hang)
+In-Reply-To: <20171127194105.GM983427@devbig577.frc2.facebook.com>
+Message-ID: <nycvar.YSQ.7.76.1711271515540.5925@knanqh.ubzr>
+References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr> <20171118182542.GA23928@roeck-us.net> <20171127194105.GM983427@devbig577.frc2.facebook.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Tejun Heo <tj@kernel.org>
+Cc: Guenter Roeck <linux@roeck-us.net>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On Mon, 27 Nov 2017, Dave Hansen wrote:
+On Mon, 27 Nov 2017, Tejun Heo wrote:
 
-> On 11/26/2017 03:14 PM, Thomas Gleixner wrote:
-> > +static void enable_global_pages(void)
-> > +{
-> > +#ifndef CONFIG_KAISER
-> > +	__supported_pte_mask |= _PAGE_GLOBAL;
-> > +#endif
-> > +}
-> > +
-> >  static void __init probe_page_size_mask(void)
-> >  {
-> >  	/*
-> > @@ -179,11 +186,11 @@ static void __init probe_page_size_mask(
-> >  		cr4_set_bits_and_update_boot(X86_CR4_PSE);
-> >  
-> >  	/* Enable PGE if available */
-> > +	__supported_pte_mask |= _PAGE_GLOBAL;
-> >  	if (boot_cpu_has(X86_FEATURE_PGE)) {
-> >  		cr4_set_bits_and_update_boot(X86_CR4_PGE);
-> > -		__supported_pte_mask |= _PAGE_GLOBAL;
-> > -	} else
-> > -		__supported_pte_mask &= ~_PAGE_GLOBAL;
-> > +		enable_global_pages();
-> > +	}
+> Hello,
 > 
-> This looks a little funky.  Doesn't this or _PAGE_GLOBAL into
-> __supported_pte_mask twice?  Once before the if(), and then a second
-> time via enable_global_pages() inside the if?
-> 
-> Did you intend for it to be masked *out* in the first one and then or'd
-> back in via enable_global_pages()?
+> I'm reverting the offending commit till we figure out what's going on.
 
-It's fixed already ...
+It is figured out. The cris port is wrongly initializing the bootmem 
+allocator with virtual memory addresses rather than physical addresses. 
+And because its __va() definition reads like this:
+
+#define __va(x) ((void *)((unsigned long)(x) | 0x80000000))
+
+then things just work out because the end result is the same whether you 
+give this a physical or a virtual address.
+
+Untill you call memblock_free_early(__pa(address)) that is, because 
+values from __pa() don't match with the virtual addresses stuffed in the 
+bootmem allocator anymore.
+
+So IMHO I don't think reverting the commit is the right thing to do. 
+That commit is clearly not at fault here.
+
+
+Nicolas
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
