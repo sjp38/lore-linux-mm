@@ -1,69 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 58C926B025F
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 06:33:45 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id x63so10920167wmf.2
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:33:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q29si36571edq.55.2017.11.27.03.33.44
+Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F5566B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 06:38:02 -0500 (EST)
+Received: by mail-qk0-f198.google.com with SMTP id y186so17855300qky.20
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:38:02 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id b193si12604251wmd.4.2017.11.27.03.38.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 03:33:44 -0800 (PST)
-Date: Mon, 27 Nov 2017 12:33:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-ID: <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Mon, 27 Nov 2017 03:38:01 -0800 (PST)
+Date: Mon, 27 Nov 2017 12:37:52 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 04/30] x86, kaiser: disable global pages by default with
+ KAISER
+In-Reply-To: <20171126144842.7ojxbo5wsu44w4ti@gmail.com>
+Message-ID: <alpine.DEB.2.20.1711271236560.1799@nanos>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com> <20171110193105.02A90543@viggo.jf.intel.com> <1510688325.1080.1.camel@redhat.com> <20171126144842.7ojxbo5wsu44w4ti@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: JianKang Chen <chenjiankang1@huawei.com>
-Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Mon 27-11-17 19:09:24, JianKang Chen wrote:
-> From: Jiankang Chen <chenjiankang1@huawei.com>
+On Sun, 26 Nov 2017, Ingo Molnar wrote:
+>  * Disable global pages for anything using the default
+>  * __PAGE_KERNEL* macros.
+>  *
+>  * PGE will still be enabled and _PAGE_GLOBAL may still be used carefully
+>  * for a few selected kernel mappings which must be visible to userspace,
+>  * when KAISER is enabled, like the entry/exit code and data.
+>  */
+> #ifdef CONFIG_KAISER
+> #define __PAGE_KERNEL_GLOBAL	0
+> #else
+> #define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
+> #endif
 > 
-> __get_free_pages will return an virtual address, 
-> but it is not just 32-bit address, for example a 64-bit system. 
-> And this comment really confuse new bigenner of mm.
+> ... and I've added your Reviewed-by tag which I assume now applies?
 
-s@bigenner@beginner@
+Ideally we replace the whole patch with the __supported_pte_mask one which
+I posted as a delta patch.
 
-Anyway, do we really need a bug on for this? Has this actually caught
-any wrong usage? VM_BUG_ON tends to be enabled these days AFAIK and
-panicking the kernel seems like an over-reaction. If there is a real
-risk then why don't we simply mask __GFP_HIGHMEM off when calling
-alloc_pages?
+Thanks,
 
-> reported-by: Hanjun Guo <guohanjun@huawei.com>
-> Signed-off-by: Jiankang Chen <chenjiankang1@huawei.com>
-> ---
->  mm/page_alloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 77e4d3c..5a7c432 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -4240,7 +4240,7 @@ unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order)
->  	struct page *page;
->  
->  	/*
-> -	 * __get_free_pages() returns a 32-bit address, which cannot represent
-> +	 * __get_free_pages() returns a virtual address, which cannot represent
->  	 * a highmem page
->  	 */
->  	VM_BUG_ON((gfp_mask & __GFP_HIGHMEM) != 0);
-> -- 
-> 1.7.12.4
-> 
-
--- 
-Michal Hocko
-SUSE Labs
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
