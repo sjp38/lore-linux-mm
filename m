@@ -1,25 +1,29 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B76AD6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:46:10 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id t92so19363285wrc.13
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:46:10 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3A7596B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:47:57 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id u98so14145068wrb.17
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:47:57 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y19sor6865196wrg.81.2017.11.27.11.46.09
+        by mx.google.com with SMTPS id i30sor8074519wra.60.2017.11.27.11.47.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 11:46:09 -0800 (PST)
-Date: Mon, 27 Nov 2017 22:46:03 +0300
+        Mon, 27 Nov 2017 11:47:56 -0800 (PST)
+Date: Mon, 27 Nov 2017 22:47:53 +0300
 From: Alexey Dobriyan <adobriyan@gmail.com>
 Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
-Message-ID: <20171127194603.GA28115@avx2>
+Message-ID: <20171127194753.GB28115@avx2>
+References: <20171127194603.GA28115@avx2>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20171127194603.GA28115@avx2>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mikpelinux.gmail.com@avx2.kvack.org
+To: mikpelinux@gmail.com
 Cc: linux-kernel@vger.kernel.org, mhocko@kernel.org, willy@infradead.org, ak@linux.intel.com, linux-mm@kvack.org
+
+	[resent because I can't type]
 
 > vm.max_map_count
 
