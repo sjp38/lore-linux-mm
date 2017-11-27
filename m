@@ -1,89 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C08686B025F
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:12:53 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id d15so25269161pfl.0
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 09:12:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q11si19829499pgc.718.2017.11.27.09.12.52
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CFD56B0261
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:14:58 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id o29so21670882qto.12
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 09:14:58 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id d31si14487305qkh.314.2017.11.27.09.14.56
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 09:12:52 -0800 (PST)
-Date: Mon, 27 Nov 2017 18:10:51 +0100
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH v2 09/11] Btrfs: kill the btree_inode
-Message-ID: <20171127171051.GF3553@twin.jikos.cz>
-Reply-To: dsterba@suse.cz
-References: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
- <1511385366-20329-10-git-send-email-josef@toxicpanda.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 09:14:56 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vARHBs9E057807
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:14:55 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2egm4r0u2a-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:14:53 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Mon, 27 Nov 2017 17:14:50 -0000
+Date: Mon, 27 Nov 2017 17:14:43 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 4/5] mm: memory_hotplug: Add memory hotremove probe
+ device
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
+ <198063b0-fcc9-7beb-7476-86ed5f04734c@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <1511385366-20329-10-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <198063b0-fcc9-7beb-7476-86ed5f04734c@arm.com>
+Message-Id: <20171127171441.GB12687@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Robin Murphy <robin.murphy@arm.com>
+Cc: linux-arm-kernel@lists.infradead.org, mark.rutland@arm.com, realean2@ie.ibm.com, mhocko@suse.com, m.bielski@virtualopensystems.com, scott.branden@broadcom.com, catalin.marinas@arm.com, will.deacon@arm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, arunks@qti.qualcomm.com, qiuxishi@huawei.com
 
-On Wed, Nov 22, 2017 at 04:16:04PM -0500, Josef Bacik wrote:
-> From: Josef Bacik <jbacik@fb.com>
-> @@ -4802,8 +4885,8 @@ struct extent_buffer *btrfs_clone_extent_buffer(struct extent_buffer *src)
->  	return new;
->  }
->  
-> -struct extent_buffer *__alloc_dummy_extent_buffer(struct btrfs_fs_info *fs_info,
-> -						  u64 start, unsigned long len)
-> +struct extent_buffer *alloc_dummy_extent_buffer(struct btrfs_eb_info *eb_info,
-> +						u64 start, unsigned long len)
+Hi Robin,
 
-The __alloc_dummy_extent_buffer takes the length parameter because it's
-used in tests that need to pass different values.
-I've removed nodesize from alloc_dummy_extent_buffer and the callchain
-because we know that it's always going to be fs_info->nodesize.
-Reintroducing it does not look like a good idea.
+On Mon 27 Nov 2017, 15:33, Robin Murphy wrote:
+> On 23/11/17 11:14, Andrea Reale wrote:
+> >Adding a "remove" sysfs handle that can be used to trigger
+> >memory hotremove manually, exactly simmetrically with
+> >what happens with the "probe" device for hot-add.
+> >
+> >This is usueful for architecture that do not rely on
+> >ACPI for memory hot-remove.
+> 
+> Is there a real-world use-case for this, or is it mostly just a handy
+> development feature?
+> 
+as I was saying in a response to your previous message, in our use
+case remove events are triggered by software. Besides our use case,
+yes, it is mostly just a handy develeopment feature AFAICT.
 
->  {
->  	struct extent_buffer *eb;
->  	unsigned long num_pages;
+> >Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> >Signed-off-by: Maciej Bielski <m.bielski@virtualopensystems.com>
+> >---
+> >  drivers/base/memory.c | 34 +++++++++++++++++++++++++++++++++-
+> >  1 file changed, 33 insertions(+), 1 deletion(-)
+> >
+> >diff --git a/drivers/base/memory.c b/drivers/base/memory.c
+> >index 1d60b58..8ccb67c 100644
+> >--- a/drivers/base/memory.c
+> >+++ b/drivers/base/memory.c
+> >@@ -530,7 +530,36 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
+> >  }
+> >  static DEVICE_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+> >-#endif
+> >+
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+static ssize_t
+> >+memory_remove_store(struct device *dev,
+> >+		struct device_attribute *attr, const char *buf, size_t count)
+> >+{
+> >+	u64 phys_addr;
+> >+	int nid, ret;
+> >+	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
+> >+
+> >+	ret = kstrtoull(buf, 0, &phys_addr);
+> >+	if (ret)
+> >+		return ret;
+> >+
+> >+	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
+> >+		return -EINVAL;
+> >+
+> >+	nid = memory_add_physaddr_to_nid(phys_addr);
+> 
+> This call looks a bit odd, since you're not doing a memory add. In fact, any
+> memory being removed should already be fully known-about, so AFAICS it
+> should be simple to get everything you need to know (including potentially
+> the online status as mentioned earlier), through 'normal' methods, e.g.
+> page_to_nid() or similar.
 
-> @@ -160,13 +162,25 @@ struct extent_state {
->  #endif
->  };
->  
-> +struct btrfs_eb_info {
-> +	struct btrfs_fs_info *fs_info;
-> +	struct extent_io_tree io_tree;
-> +	struct extent_io_tree io_failure_tree;
-> +
-> +	/* Extent buffer radix tree */
-> +	spinlock_t buffer_lock;
-> +	struct radix_tree_root buffer_radix;
-> +	struct list_lru lru_list;
-> +	pgoff_t writeback_index;
-> +};
-> +
->  #define INLINE_EXTENT_BUFFER_PAGES 16
->  #define MAX_INLINE_EXTENT_BUFFER_SIZE (INLINE_EXTENT_BUFFER_PAGES * PAGE_SIZE)
->  struct extent_buffer {
->  	u64 start;
->  	unsigned long len;
->  	unsigned long bflags;
-> -	struct btrfs_fs_info *fs_info;
-> +	struct btrfs_eb_info *eb_info;
+Makes sense. Suggestion noted, thanks.
 
-This single change increases the patch size just because all the
-callers need to be updated. I suggest to keep fs_info in extent_buffer,
-we're not going to lose much in terms of memory:
-
-currently there are 14 eb objects in a 4k slab page, with the additional
-fs_info it's still 14,
-
-280 * 14 = 3920, unused 176 bytes
-288 * 14 = 4032, unused 64 bytes
-
->  	spinlock_t refs_lock;
->  	atomic_t refs;
->  	atomic_t io_pages;
+> Robin.
+> 
+> >+	ret = lock_device_hotplug_sysfs();
+> >+	if (ret)
+> >+		return ret;
+> >+
+> >+	remove_memory(nid, phys_addr,
+> >+			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
+> >+	unlock_device_hotplug();
+> >+	return count;
+> >+}
+> >+static DEVICE_ATTR(remove, S_IWUSR, NULL, memory_remove_store);
+> >+#endif /* CONFIG_MEMORY_HOTREMOVE */
+> >+#endif /* CONFIG_ARCH_MEMORY_PROBE */
+> >  #ifdef CONFIG_MEMORY_FAILURE
+> >  /*
+> >@@ -790,6 +819,9 @@ bool is_memblock_offlined(struct memory_block *mem)
+> >  static struct attribute *memory_root_attrs[] = {
+> >  #ifdef CONFIG_ARCH_MEMORY_PROBE
+> >  	&dev_attr_probe.attr,
+> >+#ifdef CONFIG_MEMORY_HOTREMOVE
+> >+	&dev_attr_remove.attr,
+> >+#endif
+> >  #endif
+> >  #ifdef CONFIG_MEMORY_FAILURE
+> >
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
