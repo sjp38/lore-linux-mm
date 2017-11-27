@@ -1,50 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 091606B0253
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:21:30 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id x63so36086333ioe.18
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:21:30 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i81sor2096703iof.237.2017.11.27.11.21.28
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A5AAD6B0069
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 14:28:28 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id f27so16232927ote.16
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 11:28:28 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j129sor7576313oif.123.2017.11.27.11.28.27
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 11:21:29 -0800 (PST)
+        Mon, 27 Nov 2017 11:28:27 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171127100635.kfw2nspspqbrf2qm@gmail.com>
-References: <20171126231403.657575796@linutronix.de> <20171126232414.563046145@linutronix.de>
- <20171127094156.rbq7i7it7ojsblfj@hirez.programming.kicks-ass.net> <20171127100635.kfw2nspspqbrf2qm@gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Mon, 27 Nov 2017 11:21:28 -0800
-Message-ID: <CA+55aFyLC9+S=MZueRXMmwwnx47bhovXr1YhRg+FAPFfQZXoYA@mail.gmail.com>
-Subject: Re: [PATCH] vfs: Add PERM_* symbolic helpers for common file mode/permissions
+In-Reply-To: <20171127162207.GA8265@bombadil.infradead.org>
+References: <23066.59196.909026.689706@gargle.gargle.HOWL> <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
+ <20171127162207.GA8265@bombadil.infradead.org>
+From: Mikael Pettersson <mikpelinux@gmail.com>
+Date: Mon, 27 Nov 2017 20:28:27 +0100
+Message-ID: <CAM43=SOAU2-qTB2cHeZs5xGzPFKwoqtTafqtw+BqCP9cbQDUOQ@mail.gmail.com>
+Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, linux-mm <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Mon, Nov 27, 2017 at 2:06 AM, Ingo Molnar <mingo@kernel.org> wrote:
+On Mon, Nov 27, 2017 at 5:22 PM, Matthew Wilcox <willy@infradead.org> wrote:
+>> Could you be more explicit about _why_ we need to remove this tunable?
+>> I am not saying I disagree, the removal simplifies the code but I do not
+>> really see any justification here.
 >
->
-> +/*
-> + * Human readable symbolic definitions for common
-> + * file permissions:
-> + */
-> +#define PERM_r________ 0400
-> +#define PERM_r__r_____ 0440
-> +#define PERM_r__r__r__ 0444
+> I imagine he started seeing random syscalls failing with ENOMEM and
+> eventually tracked it down to this stupid limit we used to need.
 
-I'm not a fan. Particularly as you have a very random set of
-permissions (rx and wx? Not very common), but also because it's just
-not that legible.
-
-I've argued several times that we shouldn't use the defines at all.
-The octal format isn't any less legible than any #define I've ever
-seen, and is generally _more_ legible.
-
-What's wrong with just using 0400 for "read by user"?
-
-                Linus
+Exactly, except the origin (mmap() failing) was hidden behind layers upon layers
+of user-space memory management code (not ours), which just said "failed to
+allocate N bytes" (with N about 0.001% of the free RAM).  And it
+wasn't reproducible.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
