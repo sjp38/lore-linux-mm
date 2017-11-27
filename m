@@ -1,57 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DD7096B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 08:19:16 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c82so4504182wme.8
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 05:19:16 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 93si21987493wrs.362.2017.11.27.05.19.15
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B1D06B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 08:20:42 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 124so5395822wmv.1
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 05:20:42 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 15sor3554771wma.83.2017.11.27.05.20.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 05:19:15 -0800 (PST)
-Date: Mon, 27 Nov 2017 14:18:44 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch V2 1/5] x86/kaiser: Respect disabled CPU features
-In-Reply-To: <CAMzpN2joDWU41SpNTu30pnOsZbdNcDMiCZ99HBy53SFVwvxMuw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1711271416410.1799@nanos>
-References: <20171126231403.657575796@linutronix.de> <20171126232414.313869499@linutronix.de> <20171127095737.ocolhqaxsaboycwa@hirez.programming.kicks-ass.net> <alpine.DEB.2.20.1711271241100.1799@nanos>
- <CAMzpN2joDWU41SpNTu30pnOsZbdNcDMiCZ99HBy53SFVwvxMuw@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 27 Nov 2017 05:20:41 -0800 (PST)
+Date: Mon, 27 Nov 2017 14:20:37 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: [PATCH v2] x86/mm/kaiser: Disable global pages by default with KAISER
+Message-ID: <20171127132037.tqmnwchnmxp67n35@gmail.com>
+References: <20171110193058.BECA7D88@viggo.jf.intel.com>
+ <20171110193105.02A90543@viggo.jf.intel.com>
+ <1510688325.1080.1.camel@redhat.com>
+ <20171126144842.7ojxbo5wsu44w4ti@gmail.com>
+ <alpine.DEB.2.20.1711271236560.1799@nanos>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1711271236560.1799@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brian Gerst <brgerst@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, Linux-MM <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Rik van Riel <riel@redhat.com>, Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, bp@suse.de, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Mon, 27 Nov 2017, Brian Gerst wrote:
-> On Mon, Nov 27, 2017 at 6:47 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > On Mon, 27 Nov 2017, Peter Zijlstra wrote:
-> >> On Mon, Nov 27, 2017 at 12:14:04AM +0100, Thomas Gleixner wrote:
-> >> > PAGE_NX and PAGE_GLOBAL might be not supported or disabled on the command
-> >> > line, but KAISER sets them unconditionally.
-> >>
-> >> So KAISER is x86_64 only, right? AFAIK there is no x86_64 without NX
-> >> support. So would it not make sense to mandate NX for KAISER?, that is
-> >> instead of making "noexec" + KAISER work, make "noexec" kill KAISER +
-> >> emit a warning.
-> >
-> > OTOH, disabling NX is a simple way to verify that DEBUG_WX works correctly
-> > also on the shadow maps.
-> >
-> > But surely we can drop the PAGE_GLOBAL thing, as all 64bit systems have it.
+
+* Thomas Gleixner <tglx@linutronix.de> wrote:
+
+> On Sun, 26 Nov 2017, Ingo Molnar wrote:
+> >  * Disable global pages for anything using the default
+> >  * __PAGE_KERNEL* macros.
+> >  *
+> >  * PGE will still be enabled and _PAGE_GLOBAL may still be used carefully
+> >  * for a few selected kernel mappings which must be visible to userspace,
+> >  * when KAISER is enabled, like the entry/exit code and data.
+> >  */
+> > #ifdef CONFIG_KAISER
+> > #define __PAGE_KERNEL_GLOBAL	0
+> > #else
+> > #define __PAGE_KERNEL_GLOBAL	_PAGE_GLOBAL
+> > #endif
+> > 
+> > ... and I've added your Reviewed-by tag which I assume now applies?
 > 
-> I seem to recall that some virtualized environments (maybe Xen?) don't
-> support global pages.
+> Ideally we replace the whole patch with the __supported_pte_mask one which
+> I posted as a delta patch.
 
-Uuurg. Ok, we leave it as is for now. Better safe than sorry. It does no
-harm.
+Yeah, so I squashed these two patches:
+
+  09d76fc407e0: x86/mm/kaiser: Disable global pages by default with KAISER
+  bac79112ee4a: x86/mm/kaiser: Simplify disabling of global pages
+
+into a single patch, which results in the single patch below, with an updated 
+changelog that reflects the cleanups. I kept Dave's authorship and credited you 
+for the simplification.
+
+Note that the squashed commit had some whitespace noise which I skipped, further 
+simplifying the patch.
+
+Is it OK this way? If yes then I'll reshuffle the tree with this variant.
 
 Thanks,
 
-	tglx
+	Ingo
 
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+====================>
