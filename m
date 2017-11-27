@@ -1,55 +1,32 @@
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Subject: [PATCH RESEND v10 09/10] mm: Allow arch code to override copy_highpage()
-Date: Thu, 16 Nov 2017 07:38:32 -0700
-Message-ID: <6bf7a449fb35d9235b539bb452df23c453b23401.1510768775.git.khalid.aziz__28649.0244012841$1510843182$gmane$org@oracle.com>
-References: <cover.1510768775.git.khalid.aziz@oracle.com>
-Return-path: <sparclinux-owner@vger.kernel.org>
-In-Reply-To: <cover.1510768775.git.khalid.aziz@oracle.com>
-In-Reply-To: <cover.1510768775.git.khalid.aziz@oracle.com>
-References: <cover.1510768775.git.khalid.aziz@oracle.com>
-Sender: sparclinux-owner@vger.kernel.org
-To: akpm@linux-foundation.org, davem@davemloft.net
-Cc: Khalid Aziz <khalid.aziz@oracle.com>, linux-kernel@vger.kernel.org, sparclinux@vger.kernel.org, linux-mm@kvack.org, Khalid Aziz <khalid@gonehiking.org>
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: [PATCH 2/5] x86/mm/kaiser: Add a banner
+Date: Mon, 27 Nov 2017 23:31:12 +0100
+Message-ID: <20171127223405.231444600@infradead.org>
+References: <20171127223110.479550152@infradead.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Return-path: <linux-kernel-owner@vger.kernel.org>
+Content-Disposition: inline; filename=peterz-kaiser-banner.patch
+Sender: linux-kernel-owner@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 List-Id: linux-mm.kvack.org
 
-Some architectures can support metadata for memory pages and when a
-page is copied, its metadata must also be copied. Sparc processors
-from M7 onwards support metadata for memory pages. This metadata
-provides tag based protection for access to memory pages. To maintain
-this protection, the tag data must be copied to the new page when a
-page is migrated across NUMA nodes. This patch allows arch specific
-code to override default copy_highpage() and copy metadata along
-with page data upon migration.
+So we can more easily see if the shiny got enabled.
 
-Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
-Cc: Khalid Aziz <khalid@gonehiking.org>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 ---
-v9:
-	- new patch
+ arch/x86/mm/kaiser.c |    2 ++
+ 1 file changed, 2 insertions(+)
 
- include/linux/highmem.h | 4 ++++
- 1 file changed, 4 insertions(+)
-
-diff --git a/include/linux/highmem.h b/include/linux/highmem.h
-index 776f90f3a1cd..0690679832d4 100644
---- a/include/linux/highmem.h
-+++ b/include/linux/highmem.h
-@@ -237,6 +237,8 @@ static inline void copy_user_highpage(struct page *to, struct page *from,
+--- a/arch/x86/mm/kaiser.c
++++ b/arch/x86/mm/kaiser.c
+@@ -425,6 +425,8 @@ void __init kaiser_init(void)
+ 	if (!kaiser_enabled)
+ 		return;
  
- #endif
- 
-+#ifndef __HAVE_ARCH_COPY_HIGHPAGE
++	printk("All your KAISER are belong to us\n");
 +
- static inline void copy_highpage(struct page *to, struct page *from)
- {
- 	char *vfrom, *vto;
-@@ -248,4 +250,6 @@ static inline void copy_highpage(struct page *to, struct page *from)
- 	kunmap_atomic(vfrom);
- }
+ 	kaiser_init_all_pgds();
  
-+#endif
-+
- #endif /* _LINUX_HIGHMEM_H */
--- 
-2.11.0
-
+ 	for_each_possible_cpu(cpu) {
