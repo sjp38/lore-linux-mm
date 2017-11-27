@@ -1,63 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EA33F6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:21:15 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id c123so28386847pga.17
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:21:15 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 464B46B0253
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 03:27:13 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id v69so14507900wrb.3
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 00:27:13 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j21si22674333pga.622.2017.11.27.00.21.14
+        by mx.google.com with ESMTPS id p91si786303edb.470.2017.11.27.00.27.11
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 00:21:14 -0800 (PST)
-Date: Mon, 27 Nov 2017 09:21:12 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm: print a warning once the vm dirtiness settings is
- illogical
-Message-ID: <20171127082112.b7elnzy24qiqze46@dhcp22.suse.cz>
-References: <CALOAHbB05YJvVPRE0VsEDj+U7Wqv64XoGOQtpDP1a50mbpYXGg@mail.gmail.com>
- <201711261142.EIE82842.LFOtSHOFVOFJQM@I-love.SAKURA.ne.jp>
- <CALOAHbCov=Dd7bYjL6+abiVu_WgT1ZmFN_TfLTs8A1jfw8=bOQ@mail.gmail.com>
- <201711261703.HDI52138.JSFVOFOtHLMOFQ@I-love.SAKURA.ne.jp>
- <CALOAHbAgh0egRJk7ME_YBzon9ED9jL94vi4aw19bbpZVuUA+aQ@mail.gmail.com>
- <201711261938.BCD34864.QLVFOSJFHOtOFM@I-love.SAKURA.ne.jp>
- <CALOAHbCVoy=5U0_7wg9nZR+sa8buG41BAE4KDnr2Fb4tYqhaXw@mail.gmail.com>
+        Mon, 27 Nov 2017 00:27:11 -0800 (PST)
+Date: Mon, 27 Nov 2017 09:27:09 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/vmscan: make do_shrink_slab more robust.
+Message-ID: <20171127082709.2lrc4wbxosv6uuv3@dhcp22.suse.cz>
+References: <20171127063846.GA27768@bbox>
+ <201711271526547083632@zte.com.cn>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALOAHbCVoy=5U0_7wg9nZR+sa8buG41BAE4KDnr2Fb4tYqhaXw@mail.gmail.com>
+In-Reply-To: <201711271526547083632@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>, fcicq@fcicq.net
+To: jiang.biao2@zte.com.cn
+Cc: minchan@kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
 
-On Mon 27-11-17 16:06:50, Yafang Shao wrote:
-> +cc fcicq
-[...]
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index 8a15511..6c5c018 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -377,7 +377,16 @@ static unsigned long global_dirtyable_memory(void)
->     if (!vm_highmem_is_dirtyable)
->         x -= highmem_dirtyable_memory(x);
+On Mon 27-11-17 15:26:54, jiang.biao2@zte.com.cn wrote:
+> On Mon, Nov 27, 2017 at 02:27:20PM +0800, jiang.biao2@zte.com.cn wrote:> > I agree with your concern.  How about we take another way by
+> > > adding some warning in such case? such as,
+> > >         freeable = shrinker->count_objects(shrinker, shrinkctl);
+> > > +       if (unlikely(freeable < 0)) {
+> > > +               pr_err("shrink_slab: %pF negative objects returned. freeable=%ld\n",
+> > > +                       shrinker->scan_objects, freeable);
+> > > +               freeable = 0;  //maybe not needed?
+> > > +       }
+> > >         if (freeable == 0)
+> > >                 return 0;
+> > > In this way, we would not break the API, but could alert user exception
+> > > with message, and make it more robust in such case.
+> >
+> > True but it would be a problem robust vs. effectivess tradeoff.
+> > Think about that everyone want to make thier code robust.
+> > It means they start to dump lots of defensive code so code start
+> > to look like complicated as well as binary bloating.
+> > So, whenever we add some more, we should think how effective
+> > the code I am putting?
+> > 
+> > In this case, I'm skeptical, Sorry. But others might have different
+> > opinions. :)
 > 
-> -   return x + 1;   /* Ensure that we never return 0 */
-> +   /*
-> +    * - Why 100 ?
-> +    * - Because the return value will be used by dirty ratio and
-> +    *   dirty background ratio to calculate dirty thresh and bg thresh,
-> +    *   so if the return value is two small, the thresh value maybe
-> +    *   calculated to 0.
-> +    *   As the max value of ratio is 100, so the return value is added
-> +    *   by 100 here.
-> +    */
-> +   return x + 100;
+> With all due respect. I still think the robustness is more important than 
+> effectiveness in this case. :)
 
-No. We should just revert 0f6d24f87856 ("mm/page-writeback.c: print a
-warning if the vm dirtiness settings are illogical") because it is of a
-dubious value and it causes problems. I am not even sure why it got
-merged. It doesn't have any ack or review and I remember objecting to
-the patch previously as pointless.
+This is a slow path so I wouldn't worry about the performance much. On
+the other hand I agree that the API is well documented so adding a
+warning is too defensive. We simply assume that the kernel running in
+the kernel is reasonable. So I would say, fix your code.
+
 -- 
 Michal Hocko
 SUSE Labs
