@@ -1,52 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 07A296B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:31:55 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id d15so15094898qte.3
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:31:55 -0800 (PST)
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 830D26B0033
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 15:33:39 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id j202so18840089qke.2
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 12:33:39 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p89sor19236150qkl.15.2017.11.27.12.31.54
+        by mx.google.com with SMTPS id f94sor19463386qki.19.2017.11.27.12.33.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 12:31:54 -0800 (PST)
-Date: Mon, 27 Nov 2017 15:31:52 -0500 (EST)
-From: Nicolas Pitre <nicolas.pitre@linaro.org>
-Subject: Re: mm/percpu.c: use smarter memory allocation for struct pcpu_alloc_info
- (crisv32 hang)
-In-Reply-To: <20171127194105.GM983427@devbig577.frc2.facebook.com>
-Message-ID: <nycvar.YSQ.7.76.1711271515540.5925@knanqh.ubzr>
-References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr> <20171118182542.GA23928@roeck-us.net> <20171127194105.GM983427@devbig577.frc2.facebook.com>
+        Mon, 27 Nov 2017 12:33:38 -0800 (PST)
+Date: Mon, 27 Nov 2017 12:33:35 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: mm/percpu.c: use smarter memory allocation for struct
+ pcpu_alloc_info (crisv32 hang)
+Message-ID: <20171127203335.GQ983427@devbig577.frc2.facebook.com>
+References: <nycvar.YSQ.7.76.1710031731130.5407@knanqh.ubzr>
+ <20171118182542.GA23928@roeck-us.net>
+ <20171127194105.GM983427@devbig577.frc2.facebook.com>
+ <nycvar.YSQ.7.76.1711271515540.5925@knanqh.ubzr>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <nycvar.YSQ.7.76.1711271515540.5925@knanqh.ubzr>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
+To: Nicolas Pitre <nicolas.pitre@linaro.org>
 Cc: Guenter Roeck <linux@roeck-us.net>, Christoph Lameter <cl@linux.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Mikael Starvik <starvik@axis.com>, Jesper Nilsson <jesper.nilsson@axis.com>, linux-cris-kernel@axis.com
 
-On Mon, 27 Nov 2017, Tejun Heo wrote:
+Hello,
 
-> Hello,
-> 
-> I'm reverting the offending commit till we figure out what's going on.
+On Mon, Nov 27, 2017 at 03:31:52PM -0500, Nicolas Pitre wrote:
+> So IMHO I don't think reverting the commit is the right thing to do. 
+> That commit is clearly not at fault here.
 
-It is figured out. The cris port is wrongly initializing the bootmem 
-allocator with virtual memory addresses rather than physical addresses. 
-And because its __va() definition reads like this:
+It's not about the blame.  We just want to avoid breaking boot in a
+way which is difficult to debug.  Once cris is fixed, we can re-apply
+the patch.
 
-#define __va(x) ((void *)((unsigned long)(x) | 0x80000000))
+Thanks.
 
-then things just work out because the end result is the same whether you 
-give this a physical or a virtual address.
-
-Untill you call memblock_free_early(__pa(address)) that is, because 
-values from __pa() don't match with the virtual addresses stuffed in the 
-bootmem allocator anymore.
-
-So IMHO I don't think reverting the commit is the right thing to do. 
-That commit is clearly not at fault here.
-
-
-Nicolas
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
