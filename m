@@ -1,104 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AA5E6B0033
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 01:31:58 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 4so28030041pge.8
-        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 22:31:58 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 35E7F6B0253
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 01:38:49 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id s18so28200453pge.19
+        for <linux-mm@kvack.org>; Sun, 26 Nov 2017 22:38:49 -0800 (PST)
 Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id h14si6939846pfj.360.2017.11.26.22.31.56
+        by mx.google.com with ESMTP id 31si23069800ple.443.2017.11.26.22.38.47
         for <linux-mm@kvack.org>;
-        Sun, 26 Nov 2017 22:31:57 -0800 (PST)
-Date: Mon, 27 Nov 2017 15:31:54 +0900
+        Sun, 26 Nov 2017 22:38:48 -0800 (PST)
+Date: Mon, 27 Nov 2017 15:38:46 +0900
 From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm: Do not stall register_shrinker
-Message-ID: <20171127063154.GA27559@bbox>
-References: <1511481899-20335-1-git-send-email-minchan@kernel.org>
- <cb35065d-b100-533b-04c1-1188a75220a2@linux.vnet.ibm.com>
+Subject: Re: [PATCH] mm/vmscan: make do_shrink_slab more robust.
+Message-ID: <20171127063846.GA27768@bbox>
+References: <20171127051643.GA27449@bbox>
+ <201711271427202879096@zte.com.cn>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cb35065d-b100-533b-04c1-1188a75220a2@linux.vnet.ibm.com>
+In-Reply-To: <201711271427202879096@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team <kernel-team@lge.com>, Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Shakeel Butt <shakeelb@google.com>, Johannes Weiner <hannes@cmpxchg.org>
+To: jiang.biao2@zte.com.cn
+Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, ying.huang@intel.com, linux-mm@kvack.org, mgorman@techsingularity.net, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
 
-On Mon, Nov 27, 2017 at 11:16:46AM +0530, Anshuman Khandual wrote:
-> On 11/24/2017 05:34 AM, Minchan Kim wrote:
-> > Shakeel Butt reported, he have observed in production system that
-> > the job loader gets stuck for 10s of seconds while doing mount
-> > operation. It turns out that it was stuck in register_shrinker()
-> > and some unrelated job was under memory pressure and spending time
-> > in shrink_slab(). Machines have a lot of shrinkers registered and
-> > jobs under memory pressure has to traverse all of those memcg-aware
-> > shrinkers and do affect unrelated jobs which want to register their
-> > own shrinkers.
+On Mon, Nov 27, 2017 at 02:27:20PM +0800, jiang.biao2@zte.com.cn wrote:
+> > On Mon, Nov 27, 2017 at 12:46:27PM +0800, jiang.biao2@zte.com.cn wrote:> > On Mon, Nov 27, 2017 at 09:37:30AM +0800, Jiang Biao wrote:> >
+> > > > > This patch make do_shrink_slab more robust when
+> > > > > shrinker->count_objects return negative freeable.
+> > > >
+> > > > Shrinker.h says count_objects should return 0 if there are no
+> > > > freeable objects, not -1.
+> > > >
+> > > > So if something returns -1, changing it with returning 0 would
+> > > be more proper fix.
+> > > >
+> > > Hi,
+> > > Indeed it's not a bug of vmscan, but there are many shrinkers
+> > > out there, which may return negative value unwillingly(in some
+> > > rare cases, such as decreasing cocurrently). It's unlikely and
+> > > should be avioded, but not impossible, this patch may make it
+> > > more robust and could not hurt :).
 > > 
-> > To solve the issue, this patch simply bails out slab shrinking
-> > once it found someone want to register shrinker in parallel.
-> > A downside is it could cause unfair shrinking between shrinkers.
-> > However, it should be rare and we can add compilcated logic once
-> > we found it's not enough.
+> > Yub, I'm not strong against of your claim. However, let's think
+> > from different point of view.
 > > 
-> > Link: http://lkml.kernel.org/r/20171115005602.GB23810@bbox
-> > Cc: Michal Hocko <mhocko@suse.com>
-> > Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Reported-and-tested-by: Shakeel Butt <shakeelb@google.com>
-> > Signed-off-by: Shakeel Butt <shakeelb@google.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/vmscan.c | 8 ++++++++
-> >  1 file changed, 8 insertions(+)
+> > API says it should return 0 unless shrinker cannot find freeable
+> > object any more but with your change, implmentation handles
+> > although a shrinker return minus value by mistake.
 > > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 6a5a72baccd5..6698001787bd 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -486,6 +486,14 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
-> >  			sc.nid = 0;
-> >  
-> >  		freed += do_shrink_slab(&sc, shrinker, priority);
-> > +		/*
-> > +		 * bail out if someone want to register a new shrinker to
-> > +		 * prevent long time stall by parallel ongoing shrinking.
-> > +		 */
-> > +		if (rwsem_is_contended(&shrinker_rwsem)) {
-> > +			freed = freed ? : 1;
-> > +			break;
-> > +		}
-> 
-> This is similar to when it aborts for not being able to grab the
-> shrinker_rwsem at the beginning.
-> 
-> if (!down_read_trylock(&shrinker_rwsem)) {
-> 	/*
-> 	 * If we would return 0, our callers would understand that we
-> 	 * have nothing else to shrink and give up trying. By returning
-> 	 * 1 we keep it going and assume we'll be able to shrink next
-> 	 * time.
-> 	 */
-> 	freed = 1;
-> 	goto out;
-> }
-> 
-> Right now, shrink_slab() is getting called from three places. Twice in
-> shrink_node() and once in drop_slab_node(). But the return value from
-> shrink_slab() is checked only inside drop_slab_node() and it has some
-> heuristics to decide whether to keep on scanning over available memcg
-> shrinkers registered.
-> 
-> The question is does aborting here will still guarantee forward progress
-> for all the contexts which might be attempting to allocate memory and had
-> eventually invoked shrink_slab() ? Because may be the memory allocation
-> request has more priority than a context getting bit delayed while being
-> stuck waiting on shrinker_rwsem.
+> > In future, MM guys might want to extend count_objects returning
+> > -ERR_SOMETHING to propagate error, for example but we cannot.
+> > Because some of shrinkers already rely on the implementation so
+> > if we start to support minus value return, some of shrinker might
+> > be broken.
+> > 
+> > Yes, it's the imaginary scenario but wanted why such changes
+> > makes us trouble in future, API PoV.
+> I agree with your concern.  How about we take another way by 
+> adding some warning in such case? such as,
+>         freeable = shrinker->count_objects(shrinker, shrinkctl);
+> +       if (unlikely(freeable < 0)) {
+> +               pr_err("shrink_slab: %pF negative objects returned. freeable=%ld\n",
+> +                       shrinker->scan_objects, freeable);
+> +               freeable = 0;  //maybe not needed?
+> +       }
+>         if (freeable == 0)
+>                 return 0;
+> In this way, we would not break the API, but could alert user exception 
+> with message, and make it more robust in such case.
 
-Some of routines relied on temporal return's value of shrink_slab to make
-decisions in procedure of progress of reclaimaing. It might affect whole
-procedure progress of shrinking at that time. However, we have removed such
-heusristic and unified it with checking forard progress during MAX_RECAIM_RETRIES
-trial so I don't think it makes big difference.
+True but it would be a problem robust vs. effectivess tradeoff.
+Think about that everyone want to make thier code robust.
+It means they start to dump lots of defensive code so code start
+to look like complicated as well as binary bloating.
+So, whenever we add some more, we should think how effective
+the code I am putting?
+
+In this case, I'm skeptical, Sorry. But others might have different
+opinions. :)
 
 Thanks.
 
