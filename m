@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 629F36B025E
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ADD476B025F
 	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 09:12:20 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 96so63495wrk.7
+Received: by mail-wm0-f71.google.com with SMTP id b189so474358wmd.5
         for <linux-mm@kvack.org>; Tue, 28 Nov 2017 06:12:20 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o30sor17764203eda.56.2017.11.28.06.12.18
+        by mx.google.com with SMTPS id u17sor9823487edf.7.2017.11.28.06.12.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 28 Nov 2017 06:12:18 -0800 (PST)
+        Tue, 28 Nov 2017 06:12:19 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH RFC 1/2] mm, hugetlb: unify core page allocation accounting and initialization
-Date: Tue, 28 Nov 2017 15:12:10 +0100
-Message-Id: <20171128141211.11117-2-mhocko@kernel.org>
+Subject: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit during migration
+Date: Tue, 28 Nov 2017 15:12:11 +0100
+Message-Id: <20171128141211.11117-3-mhocko@kernel.org>
 In-Reply-To: <20171128141211.11117-1-mhocko@kernel.org>
 References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
  <20171128141211.11117-1-mhocko@kernel.org>
@@ -23,158 +23,266 @@ Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.n
 
 From: Michal Hocko <mhocko@suse.com>
 
-hugetlb allocator has two entry points to the page allocator
-- alloc_fresh_huge_page_node
-- __hugetlb_alloc_buddy_huge_page
+hugepage migration relies on __alloc_buddy_huge_page to get a new page.
+This has 2 main disadvantages.
+1) it doesn't allow to migrate any huge page if the pool is used
+completely which is not an exceptional case as the pool is static and
+unused memory is just wasted.
+2) it leads to a weird semantic when migration between two numa nodes
+might increase the pool size of the destination NUMA node while the page
+is in use. The issue is caused by per NUMA node surplus pages tracking
+(see free_huge_page).
 
-The two differ very subtly in two aspects. The first one doesn't care
-about HTLB_BUDDY_* stats and it doesn't initialize the huge page.
-prep_new_huge_page is not used because it not only initializes hugetlb
-specific stuff but because it also put_page and releases the page to
-the hugetlb pool which is not what is required in some contexts. This
-makes things more complicated than necessary.
+Address both issues by changing the way how we allocate and account
+pages allocated for migration. Those should temporal by definition.
+So we mark them that way (we will abuse page flags in the 3rd page)
+and update free_huge_page to free such pages to the page allocator.
+Page migration path then just transfers the temporal status from the
+new page to the old one which will be freed on the last reference.
+The global surplus count will never change during this path but we still
+have to be careful when freeing a page from a node with surplus pages
+on the node.
 
-Simplify things by a) removing the page allocator entry point duplicity
-and only keep __hugetlb_alloc_buddy_huge_page and b) make
-prep_new_huge_page more reusable by removing the put_page which moves
-the page to the allocator pool. All current callers are updated to call
-put_page explicitly. Later patches will add new callers which won't
-need it.
+Rename __alloc_buddy_huge_page to __alloc_surplus_huge_page to better
+reflect its purpose. The new allocation routine for the migration path
+is __alloc_migrate_huge_page.
 
-This patch shouldn't introduce any functional change.
+The user visible effect of this patch is that migrated pages are really
+temporal and they travel between NUMA nodes as per the migration
+request:
+Before migration
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:1
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
+
+After
+
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:0
+/sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:1
+/sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
+
+with the previous implementation, both nodes would have nr_hugepages:1
+until the page is freed.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 29 insertions(+), 32 deletions(-)
+ include/linux/hugetlb.h | 35 +++++++++++++++++++++++++++++
+ mm/hugetlb.c            | 58 +++++++++++++++++++++++++++++++++++--------------
+ mm/migrate.c            | 13 +++++++++++
+ 3 files changed, 90 insertions(+), 16 deletions(-)
 
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 6e3696c7b35a..1b6d7783c717 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -157,8 +157,43 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot);
+ 
+ bool is_hugetlb_entry_migration(pte_t pte);
++
++/*
++ * Internal hugetlb specific page flag. Do not use outside of the hugetlb
++ * code
++ */
++static inline bool PageHugeTemporary(struct page *page)
++{
++	if (!PageHuge(page))
++		return false;
++
++	return page[2].flags == -1U;
++}
++
++static inline void SetPageHugeTemporary(struct page *page)
++{
++	page[2].flags = -1U;
++}
++
++static inline void ClearPageHugeTemporary(struct page *page)
++{
++	page[2].flags = 0;
++}
+ #else /* !CONFIG_HUGETLB_PAGE */
+ 
++static inline bool PageHugeTemporary(struct page *page)
++{
++	return false;
++}
++
++static inline void SetPageHugeTemporary(struct page *page)
++{
++}
++
++static inline void ClearPageHugeTemporary(struct page *page)
++{
++}
++
+ static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
+ {
+ }
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2c9033d39bfe..8189c92fac82 100644
+index 8189c92fac82..037bf0f89463 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
- 	if (page) {
- 		prep_compound_gigantic_page(page, huge_page_order(h));
- 		prep_new_huge_page(h, page, nid);
-+		put_page(page); /* free it into the hugepage allocator */
- 	}
+@@ -1283,7 +1283,13 @@ void free_huge_page(struct page *page)
+ 	if (restore_reserve)
+ 		h->resv_huge_pages++;
  
- 	return page;
-@@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
- 	h->nr_huge_pages++;
- 	h->nr_huge_pages_node[nid]++;
- 	spin_unlock(&hugetlb_lock);
--	put_page(page); /* free it into the hugepage allocator */
- }
- 
- static void prep_compound_gigantic_page(struct page *page, unsigned int order)
-@@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)
- 	return (index << compound_order(page_head)) + compound_idx;
- }
- 
--static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
-+static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-+		gfp_t gfp_mask, int nid, nodemask_t *nmask)
- {
-+	int order = huge_page_order(h);
- 	struct page *page;
- 
--	page = __alloc_pages_node(nid,
--		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
--						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
--		huge_page_order(h));
--	if (page) {
--		prep_new_huge_page(h, page, nid);
--	}
-+	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
-+	if (nid == NUMA_NO_NODE)
-+		nid = numa_mem_id();
-+	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
-+	if (page)
-+		__count_vm_event(HTLB_BUDDY_PGALLOC);
-+	else
-+		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
- 
- 	return page;
- }
- 
-+/*
-+ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
-+ * manner.
-+ */
- static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
- {
- 	struct page *page;
- 	int nr_nodes, node;
--	int ret = 0;
-+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
- 
- 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
--		page = alloc_fresh_huge_page_node(h, node);
--		if (page) {
--			ret = 1;
-+		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
-+				node, nodes_allowed);
-+		if (page)
- 			break;
--		}
-+
- 	}
- 
--	if (ret)
--		count_vm_event(HTLB_BUDDY_PGALLOC);
--	else
--		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
-+	if (!page)
-+		return 0;
- 
--	return ret;
-+	prep_new_huge_page(h, page, page_to_nid(page));
-+	put_page(page); /* free it into the hugepage allocator */
-+
-+	return 1;
- }
- 
- /*
-@@ -1523,17 +1531,6 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+-	if (h->surplus_huge_pages_node[nid]) {
++	if (PageHugeTemporary(page)) {
++		list_del(&page->lru);
++		ClearPageHugeTemporary(page);
++		update_and_free_page(h, page);
++		if (h->surplus_huge_pages_node[nid])
++			h->surplus_huge_pages_node[nid]--;
++	} else if (h->surplus_huge_pages_node[nid]) {
+ 		/* remove the page from active list */
+ 		list_del(&page->lru);
+ 		update_and_free_page(h, page);
+@@ -1531,7 +1537,11 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
  	return rc;
  }
  
--static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
--		gfp_t gfp_mask, int nid, nodemask_t *nmask)
--{
--	int order = huge_page_order(h);
--
--	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
--	if (nid == NUMA_NO_NODE)
--		nid = numa_mem_id();
--	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
--}
--
- static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+-static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
++/*
++ * Allocates a fresh surplus page from the page allocator. Temporary
++ * requests (e.g. page migration) can pass enforce_overcommit == false
++ */
++static struct page *__alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
  		int nid, nodemask_t *nmask)
  {
-@@ -1589,11 +1586,9 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
- 		 */
- 		h->nr_huge_pages_node[r_nid]++;
- 		h->surplus_huge_pages_node[r_nid]++;
--		__count_vm_event(HTLB_BUDDY_PGALLOC);
- 	} else {
- 		h->nr_huge_pages--;
- 		h->surplus_huge_pages--;
--		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 	struct page *page;
+@@ -1595,6 +1605,28 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 	return page;
+ }
+ 
++static struct page *__alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
++		int nid, nodemask_t *nmask)
++{
++	struct page *page;
++
++	if (hstate_is_gigantic(h))
++		return NULL;
++
++	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
++	if (!page)
++		return NULL;
++
++	/*
++	 * We do not account these pages as surplus because they are only
++	 * temporary and will be released properly on the last reference
++	 */
++	prep_new_huge_page(h, page, page_to_nid(page));
++	SetPageHugeTemporary(page);
++
++	return page;
++}
++
+ /*
+  * Use the VMA's mpolicy to allocate a huge page from the buddy.
+  */
+@@ -1609,17 +1641,13 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
+ 	nodemask_t *nodemask;
+ 
+ 	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
+-	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
++	page = __alloc_surplus_huge_page(h, gfp_mask, nid, nodemask);
+ 	mpol_cond_put(mpol);
+ 
+ 	return page;
+ }
+ 
+-/*
+- * This allocation function is useful in the context where vma is irrelevant.
+- * E.g. soft-offlining uses this function because it only cares physical
+- * address of error page.
+- */
++/* page migration callback function */
+ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ {
+ 	gfp_t gfp_mask = htlb_alloc_mask(h);
+@@ -1634,12 +1662,12 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ 	spin_unlock(&hugetlb_lock);
+ 
+ 	if (!page)
+-		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
++		page = __alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
+ 
+ 	return page;
+ }
+ 
+-
++/* page migration callback function */
+ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 		nodemask_t *nmask)
+ {
+@@ -1657,9 +1685,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
  	}
  	spin_unlock(&hugetlb_lock);
  
-@@ -2148,6 +2143,8 @@ static void __init gather_bootmem_prealloc(void)
- 		prep_compound_huge_page(page, h->order);
- 		WARN_ON(PageReserved(page));
- 		prep_new_huge_page(h, page, page_to_nid(page));
-+		put_page(page); /* free it into the hugepage allocator */
+-	/* No reservations, try to overcommit */
+-
+-	return __alloc_buddy_huge_page(h, gfp_mask, preferred_nid, nmask);
++	return __alloc_migrate_huge_page(h, gfp_mask, preferred_nid, nmask);
+ }
+ 
+ /*
+@@ -1687,7 +1713,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
+ retry:
+ 	spin_unlock(&hugetlb_lock);
+ 	for (i = 0; i < needed; i++) {
+-		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
++		page = __alloc_surplus_huge_page(h, htlb_alloc_mask(h),
+ 				NUMA_NO_NODE, NULL);
+ 		if (!page) {
+ 			alloc_ok = false;
+@@ -2284,7 +2310,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ 	 * First take pages out of surplus state.  Then make up the
+ 	 * remaining difference by allocating fresh huge pages.
+ 	 *
+-	 * We might race with __alloc_buddy_huge_page() here and be unable
++	 * We might race with __alloc_surplus_huge_page() here and be unable
+ 	 * to convert a surplus huge page to a normal huge page. That is
+ 	 * not critical, though, it just means the overall size of the
+ 	 * pool might be one hugepage larger than it needs to be, but
+@@ -2330,7 +2356,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ 	 * By placing pages into the surplus state independent of the
+ 	 * overcommit value, we are allowing the surplus pool size to
+ 	 * exceed overcommit. There are few sane options here. Since
+-	 * __alloc_buddy_huge_page() is checking the global counter,
++	 * __alloc_surplus_huge_page() is checking the global counter,
+ 	 * though, we'll note that we're not allowed to exceed surplus
+ 	 * and won't grow the pool anywhere else. Not until one of the
+ 	 * sysctls are changed, or the surplus pages go out of use.
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 4d0be47a322a..b3345f8174a9 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1326,6 +1326,19 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 		hugetlb_cgroup_migrate(hpage, new_hpage);
+ 		put_new_page = NULL;
+ 		set_page_owner_migrate_reason(new_hpage, reason);
 +
- 		/*
- 		 * If we had gigantic hugepages allocated at boot time, we need
- 		 * to restore the 'stolen' pages to totalram_pages in order to
++		/*
++		 * transfer temporary state of the new huge page. This is
++		 * reverse to other transitions because the newpage is going to
++		 * be final while the old one will be freed so it takes over
++		 * the temporary status.
++		 * No need for any locking here because destructor cannot race
++		 * with us.
++		 */
++		if (PageHugeTemporary(new_hpage)) {
++			SetPageHugeTemporary(hpage);
++			ClearPageHugeTemporary(new_hpage);
++		}
+ 	}
+ 
+ 	unlock_page(hpage);
 -- 
 2.15.0
 
