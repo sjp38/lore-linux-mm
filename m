@@ -1,157 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D8616B02E1
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:57:00 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id x202so31504644pgx.1
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:57:00 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id n65si12451324pfg.62.2017.11.28.01.56.58
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 875406B02E2
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 05:09:50 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b202so63862wmb.9
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:09:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 34si263943edj.475.2017.11.28.02.09.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 01:56:59 -0800 (PST)
-Subject: [PATCH] x86/mm/kaiser: Flush the correct ASID in __native_flush_tlb_single()
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 28 Nov 2017 01:55:31 -0800
-Message-Id: <20171128095531.F32E1BC7@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 02:09:49 -0800 (PST)
+Date: Tue, 28 Nov 2017 11:09:46 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
+ dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
+ the vm dirtiness settings is illogical)
+Message-ID: <20171128100946.GI5977@quack2.suse.cz>
+References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
+ <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
+ <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz>
+ <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
+ <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
+ <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz>
+ <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, "Reported-by:fengguang.wu"@intel.com, tglx@linutronix.de, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, bp@alien8.de, x86@kernel.org
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
 
+On Tue 28-11-17 15:52:50, Yafang Shao wrote:
+> 2017-11-28 15:45 GMT+08:00 Michal Hocko <mhocko@suse.com>:
+> > On Tue 28-11-17 14:12:15, Yafang Shao wrote:
+> >> 2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
+> >> > Hi Michal,
+> >> >
+> >> > What about bellow change ?
+> >> > It makes the function  domain_dirty_limits() more clear.
+> >> > And the result will have a higher precision.
+> >> >
+> >> >
+> >> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> >> > index 8a15511..2b5e507 100644
+> >> > --- a/mm/page-writeback.c
+> >> > +++ b/mm/page-writeback.c
+> >> > @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
+> >> > dirty_throttle_control *dtc)
+> >> >     unsigned long bytes = vm_dirty_bytes;
+> >> >     unsigned long bg_bytes = dirty_background_bytes;
+> >> >     /* convert ratios to per-PAGE_SIZE for higher precision */
+> >> > -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
+> >> > -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
+> >> > +   unsigned long ratio = vm_dirty_ratio;
+> >> > +   unsigned long bg_ratio = dirty_background_ratio;
+> >> >     unsigned long thresh;
+> >> >     unsigned long bg_thresh;
+> >> >     struct task_struct *tsk;
+> >> > @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
+> >> > dirty_throttle_control *dtc)
+> >> >          */
+> >> >         if (bytes)
+> >> >             ratio = min(DIV_ROUND_UP(bytes, global_avail),
+> >> > -                   PAGE_SIZE);
+> >> > +                   100);
+> >> >         if (bg_bytes)
+> >> >             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+> >> > -                      PAGE_SIZE);
+> >> > +                      99);   /* bg_ratio should less than ratio */
+> >> >         bytes = bg_bytes = 0;
+> >> >     }
+> >>
+> >>
+> >> Errata:
+> >>
+> >>         if (bytes)
+> >> -           ratio = min(DIV_ROUND_UP(bytes, global_avail),
+> >> -                   PAGE_SIZE);
+> >> +           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
+> >> +                   100);
+> >>         if (bg_bytes)
+> >> -           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+> >> -                      PAGE_SIZE);
+> >> +           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
+> >> +                      100 - 1); /* bg_ratio should be less than ratio */
+> >>         bytes = bg_bytes = 0;
+> >
+> > And you really think this makes code easier to follow? I am somehow not
+> > conviced...
+> >
+> 
+> There's hidden bug in the original code, because it is too complex to
+> clearly understand.
+> See bellow,
+> 
+> ratio = min(DIV_ROUND_UP(bytes, global_avail),
+>                     PAGE_SIZE)
+> 
+> Suppose the vm_dirty_bytes is set to 512M (this is a reasonable
+> value), and the global_avail is only 10000 pages (this is not low),
+> then DIV_ROUND_UP(bytes, global_avail) is 53688, which is bigger than
+> 4096, so the ratio will be 4096.
+> That's unreasonable.
 
-I believe this fixes a bug introduced in the following KAISER patch:
+But that's not a bug in domain_dirty_limits(). It is more a design issue of
+the dirty_bytes interface - i.e., if you tell the system that 512M of dirty
+pages is fine, then it is fine even if you have only 400M of page cache -
+i.e., 100% of page cache can be dirty and that's what the function
+computes.  Bad luck if you don't like that but that's how the interface was
+(mis)designed. We can talk about changes to what dirty_bytes mean under a
+situation when there is low amount of page cache but that will be a
+userspace visible change and we will have to be *very* careful not to break
+current users.
 
-    x86/mm/kaiser: Use PCID feature to make user and kernel switches faster
-
-It's only been lightly tested.  I'm sharing so that folks who might
-be running into it have a fix to test.
-
---
-
-From: Dave Hansen <dave.hansen@linux.intel.com>
-
-There have been a series of weird warnings and boot problems on
-when running the KAISER PCID patches.  I believe many of them can
-be tracked down to this problem.  One example:
-
-	http://lkml.kernel.org/r/5a1aaa36.CWNgvwmmRFzeAlPc%fengguang.wu@intel.com
-
-The issue is when we are relatively early in boot and have the
-lower 12 bits of CR3 clear and thus are running with PCID (aka
-ASID) 0.  cpu_tlbstate.loaded_mm_asid contains a 0.  *But* PCID
-0 is not ASID 0.  The ASIDs are biased up by one as not to conflict
-with the somewhat special hardware PCID 0.
-
-Upon entering __native_flush_tlb_single(), we set loaded_mm_asid=0.
-We then calculate the kern_asid(), biasing up by 1, get 1, and pass
-*that* to INVPCID.  Thus, we have PCID 0 loaded in CR3 but are
-flushing PCID 1 with INVPCID.  That obviously does not work.
-
-To fix this, mark the cpu_tlbstate.loaded_mm_asid as invalid, then
-detect that state in __native_flush_tlb_single(), falling back to
-INVLPG.
-
-Also add a VM_WARN_ON() to help find these in the future.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Reported-by: fengguang.wu@intel.com
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: x86@kernel.org
----
-
- b/arch/x86/include/asm/tlbflush.h |   36 +++++++++++++++++++++++++++++++-----
- b/arch/x86/mm/init.c              |    1 +
- 2 files changed, 32 insertions(+), 5 deletions(-)
-
-diff -puN arch/x86/include/asm/tlbflush.h~kaiser-fix-wrong-asid-flush arch/x86/include/asm/tlbflush.h
---- a/arch/x86/include/asm/tlbflush.h~kaiser-fix-wrong-asid-flush	2017-11-28 01:43:05.180452966 -0800
-+++ b/arch/x86/include/asm/tlbflush.h	2017-11-28 01:43:05.190452966 -0800
-@@ -77,6 +77,8 @@ static inline u64 inc_mm_tlb_gen(struct
- 
- /* There are 12 bits of space for ASIDS in CR3 */
- #define CR3_HW_ASID_BITS 12
-+#define CR3_NR_HW_ASIDS	(1<<CR3_HW_ASID_BITS)
-+#define INVALID_HW_ASID	(CR3_NR_HW_ASIDS+1)
- /* When enabled, KAISER consumes a single bit for user/kernel switches */
- #ifdef CONFIG_KAISER
- #define X86_CR3_KAISER_SWITCH_BIT 11
-@@ -425,19 +427,40 @@ static inline void __native_flush_tlb_gl
- 	raw_local_irq_restore(flags);
- }
- 
-+static inline void __invlpg(unsigned long addr)
-+{
-+	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
-+}
-+
-+static inline u16 cr3_asid(void)
-+{
-+	return __read_cr3() & ((1<<CR3_HW_ASID_BITS)-1);
-+}
-+
- static inline void __native_flush_tlb_single(unsigned long addr)
- {
--	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-+	u16 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
- 
- 	/*
--	 * Some platforms #GP if we call invpcid(type=1/2) before
--	 * CR4.PCIDE=1.  Just call invpcid in the case we are called
--	 * early.
-+	 * Handle systems that do not support PCIDs.  This will also
-+	 * get used in cases where this is called before PCID detection
-+	 * is done.
- 	 */
- 	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
--		asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
-+		__invlpg(addr);
- 		return;
- 	}
-+
-+	/*
-+	 * An "invalid" loaded_mm_asid means that we have not
-+	 * initialized 'cpu_tlbstate' and are not using PCIDs.
-+	 * Just flush the TLB as if PCIDs were not present.
-+	 */
-+	if (loaded_mm_asid == INVALID_HW_ASID) {
-+		__invlpg(addr);
-+		return;
-+	}
-+
- 	/* Flush the address out of both PCIDs. */
- 	/*
- 	 * An optimization here might be to determine addresses
-@@ -451,6 +474,9 @@ static inline void __native_flush_tlb_si
- 	if (kern_asid(loaded_mm_asid) != user_asid(loaded_mm_asid))
- 		invpcid_flush_one(user_asid(loaded_mm_asid), addr);
- 	invpcid_flush_one(kern_asid(loaded_mm_asid), addr);
-+
-+	/* Check that we are flushing the active ASID: */
-+	VM_WARN_ON_ONCE(kern_asid(loaded_mm_asid) != cr3_asid());
- }
- 
- static inline void __flush_tlb_all(void)
-diff -puN arch/x86/mm/init.c~kaiser-fix-wrong-asid-flush arch/x86/mm/init.c
---- a/arch/x86/mm/init.c~kaiser-fix-wrong-asid-flush	2017-11-28 01:43:05.186452966 -0800
-+++ b/arch/x86/mm/init.c	2017-11-28 01:43:05.190452966 -0800
-@@ -882,6 +882,7 @@ void __init zone_sizes_init(void)
- 
- DEFINE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate) = {
- 	.loaded_mm = &init_mm,
-+	.loaded_mm_asid = INVALID_HW_ASID, /* We are not doing ASID management yet */
- 	.next_asid = 1,
- 	.cr4 = ~0UL,	/* fail hard if we screw up cr4 shadow initialization */
- };
-_
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
