@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 776A06B0293
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:49:45 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id y36so1839738plh.10
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:49:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 81A366B0295
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:49:48 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id v15so1841764plk.17
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:49:48 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z20sor9555737pfe.143.2017.11.27.23.49.43
+        by mx.google.com with SMTPS id 78sor8714862pfr.16.2017.11.27.23.49.47
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:49:43 -0800 (PST)
+        Mon, 27 Nov 2017 23:49:47 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH 07/18] lib/stackdepot: extend stackdepot API to support per-user stackdepot
-Date: Tue, 28 Nov 2017 16:48:42 +0900
-Message-Id: <1511855333-3570-8-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 08/18] vchecker: Add 'callstack' checker
+Date: Tue, 28 Nov 2017 16:48:43 +0900
+Message-Id: <1511855333-3570-9-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,407 +20,312 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+From: Namhyung Kim <namhyung@kernel.org>
 
-There is a usecase that check if stack trace is new or not during specific
-period. Since stackdepot library doesn't support removal of stack trace,
-it's impossible to know above thing. Since removal of stack trace is not
-easy in the design of stackdepot library, we need another way to support
-it. Therefore, this patch introduces per-user stackdepot. Although it
-still cannot support removal of individual stack trace, it can be
-destroyed totally. With it, we can implement correct is_new check
-by using per-user stackdepot for specific period.
+The callstack checker is to find invalid code paths accessing to a
+certain field in an object.  Currently it only saves all stack traces at
+the given offset.  Reporting will be added in the next patch.
 
+The below example checks callstack of anon_vma:
+
+  # cd /sys/kernel/debug/vchecker
+  # echo 0 8 > anon_vma/callstack  # offset 0, size 8
+  # echo 1 > anon_vma/enable
+
+  # cat anon_vma/callstack        # show saved callstacks
+  0x0 0x8 callstack
+  total: 42
+  callstack #0
+    anon_vma_fork+0x101/0x280
+    copy_process.part.10+0x15ff/0x2a40
+    _do_fork+0x155/0x7d0
+    SyS_clone+0x19/0x20
+    do_syscall_64+0xdf/0x460
+    return_from_SYSCALL_64+0x0/0x7a
+  ...
+
+Signed-off-by: Namhyung Kim <namhyung@kernel.org>
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- drivers/gpu/drm/drm_mm.c   |   4 +-
- include/linux/stackdepot.h |  11 +++--
- lib/stackdepot.c           | 115 ++++++++++++++++++++++++++++-----------------
- mm/kasan/kasan.c           |   2 +-
- mm/kasan/report.c          |   2 +-
- mm/kasan/vchecker.c        |   4 +-
- mm/page_owner.c            |   8 ++--
- 7 files changed, 90 insertions(+), 56 deletions(-)
+ mm/kasan/vchecker.c | 172 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 161 insertions(+), 11 deletions(-)
 
-diff --git a/drivers/gpu/drm/drm_mm.c b/drivers/gpu/drm/drm_mm.c
-index eb86bc3..95b8291 100644
---- a/drivers/gpu/drm/drm_mm.c
-+++ b/drivers/gpu/drm/drm_mm.c
-@@ -118,7 +118,7 @@ static noinline void save_stack(struct drm_mm_node *node)
- 		trace.nr_entries--;
- 
- 	/* May be called under spinlock, so avoid sleeping */
--	node->stack = depot_save_stack(&trace, GFP_NOWAIT);
-+	node->stack = depot_save_stack(NULL, &trace, GFP_NOWAIT, NULL);
- }
- 
- static void show_leaks(struct drm_mm *mm)
-@@ -143,7 +143,7 @@ static void show_leaks(struct drm_mm *mm)
- 			continue;
- 		}
- 
--		depot_fetch_stack(node->stack, &trace);
-+		depot_fetch_stack(NULL, node->stack, &trace);
- 		snprint_stack_trace(buf, BUFSZ, &trace, 0);
- 		DRM_ERROR("node [%08llx + %08llx]: inserted at\n%s",
- 			  node->start, node->size, buf);
-diff --git a/include/linux/stackdepot.h b/include/linux/stackdepot.h
-index 93363f2..abcfe1b 100644
---- a/include/linux/stackdepot.h
-+++ b/include/linux/stackdepot.h
-@@ -24,10 +24,15 @@
- typedef u32 depot_stack_handle_t;
- 
- struct stack_trace;
-+struct stackdepot;
- 
--depot_stack_handle_t depot_save_stack(struct stack_trace *trace, gfp_t flags,
--				      bool *is_new);
-+depot_stack_handle_t depot_save_stack(struct stackdepot *s,
-+		struct stack_trace *trace, gfp_t flags, bool *is_new);
- 
--void depot_fetch_stack(depot_stack_handle_t handle, struct stack_trace *trace);
-+void depot_fetch_stack(struct stackdepot *s,
-+		depot_stack_handle_t handle, struct stack_trace *trace);
-+
-+struct stackdepot *create_stackdepot(void);
-+void destroy_stackdepot(struct stackdepot *s);
- 
- #endif
-diff --git a/lib/stackdepot.c b/lib/stackdepot.c
-index e40ccb6..0a4fcb5 100644
---- a/lib/stackdepot.c
-+++ b/lib/stackdepot.c
-@@ -39,6 +39,7 @@
- #include <linux/stackdepot.h>
- #include <linux/string.h>
- #include <linux/types.h>
-+#include <linux/vmalloc.h>
- 
- #define DEPOT_STACK_BITS (sizeof(depot_stack_handle_t) * 8)
- 
-@@ -55,6 +56,11 @@
- 	(((1LL << (STACK_ALLOC_INDEX_BITS)) < STACK_ALLOC_SLABS_CAP) ? \
- 	 (1LL << (STACK_ALLOC_INDEX_BITS)) : STACK_ALLOC_SLABS_CAP)
- 
-+#define STACK_HASH_ORDER 20
-+#define STACK_HASH_SIZE (1L << STACK_HASH_ORDER)
-+#define STACK_HASH_MASK (STACK_HASH_SIZE - 1)
-+#define STACK_HASH_SEED 0x9747b28c
-+
- /* The compact structure to store the reference to stacks. */
- union handle_parts {
- 	depot_stack_handle_t handle;
-@@ -73,14 +79,21 @@ struct stack_record {
- 	unsigned long entries[1];	/* Variable-sized array of entries. */
- };
- 
--static void *stack_slabs[STACK_ALLOC_MAX_SLABS];
-+struct stackdepot {
-+	spinlock_t lock;
-+	int depot_index;
-+	int next_slab_inited;
-+	size_t depot_offset;
- 
--static int depot_index;
--static int next_slab_inited;
--static size_t depot_offset;
--static DEFINE_SPINLOCK(depot_lock);
-+	void *stack_slabs[STACK_ALLOC_MAX_SLABS];
-+	struct stack_record *stack_table[STACK_HASH_SIZE];
-+};
- 
--static bool init_stack_slab(void **prealloc)
-+static struct stackdepot global_stackdepot = {
-+	.lock	= __SPIN_LOCK_UNLOCKED(global_stackdepot.lock),
-+};
-+
-+static bool init_stack_slab(struct stackdepot *s, void **prealloc)
- {
- 	if (!*prealloc)
- 		return false;
-@@ -88,24 +101,25 @@ static bool init_stack_slab(void **prealloc)
- 	 * This smp_load_acquire() pairs with smp_store_release() to
- 	 * |next_slab_inited| below and in depot_alloc_stack().
- 	 */
--	if (smp_load_acquire(&next_slab_inited))
-+	if (smp_load_acquire(&s->next_slab_inited))
- 		return true;
--	if (stack_slabs[depot_index] == NULL) {
--		stack_slabs[depot_index] = *prealloc;
-+	if (s->stack_slabs[s->depot_index] == NULL) {
-+		s->stack_slabs[s->depot_index] = *prealloc;
- 	} else {
--		stack_slabs[depot_index + 1] = *prealloc;
-+		s->stack_slabs[s->depot_index + 1] = *prealloc;
- 		/*
- 		 * This smp_store_release pairs with smp_load_acquire() from
- 		 * |next_slab_inited| above and in depot_save_stack().
- 		 */
--		smp_store_release(&next_slab_inited, 1);
-+		smp_store_release(&s->next_slab_inited, 1);
- 	}
- 	*prealloc = NULL;
- 	return true;
- }
- 
- /* Allocation of a new stack in raw storage */
--static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
-+static struct stack_record *depot_alloc_stack(struct stackdepot *s,
-+		unsigned long *entries, int size,
- 		u32 hash, void **prealloc, gfp_t alloc_flags)
- {
- 	int required_size = offsetof(struct stack_record, entries) +
-@@ -114,50 +128,41 @@ static struct stack_record *depot_alloc_stack(unsigned long *entries, int size,
- 
- 	required_size = ALIGN(required_size, 1 << STACK_ALLOC_ALIGN);
- 
--	if (unlikely(depot_offset + required_size > STACK_ALLOC_SIZE)) {
--		if (unlikely(depot_index + 1 >= STACK_ALLOC_MAX_SLABS)) {
-+	if (unlikely(s->depot_offset + required_size > STACK_ALLOC_SIZE)) {
-+		if (unlikely(s->depot_index + 1 >= STACK_ALLOC_MAX_SLABS)) {
- 			WARN_ONCE(1, "Stack depot reached limit capacity");
- 			return NULL;
- 		}
--		depot_index++;
--		depot_offset = 0;
-+		s->depot_index++;
-+		s->depot_offset = 0;
- 		/*
- 		 * smp_store_release() here pairs with smp_load_acquire() from
- 		 * |next_slab_inited| in depot_save_stack() and
- 		 * init_stack_slab().
- 		 */
--		if (depot_index + 1 < STACK_ALLOC_MAX_SLABS)
--			smp_store_release(&next_slab_inited, 0);
-+		if (s->depot_index + 1 < STACK_ALLOC_MAX_SLABS)
-+			smp_store_release(&s->next_slab_inited, 0);
- 	}
--	init_stack_slab(prealloc);
--	if (stack_slabs[depot_index] == NULL) {
-+	init_stack_slab(s, prealloc);
-+	if (s->stack_slabs[s->depot_index] == NULL) {
- 		if (!(alloc_flags & __GFP_NOWARN))
- 			WARN_ONCE(1, "Stack depot failed to allocate stack_slabs");
- 		return NULL;
- 	}
- 
--	stack = stack_slabs[depot_index] + depot_offset;
-+	stack = s->stack_slabs[s->depot_index] + s->depot_offset;
- 
- 	stack->hash = hash;
- 	stack->size = size;
--	stack->handle.slabindex = depot_index;
--	stack->handle.offset = depot_offset >> STACK_ALLOC_ALIGN;
-+	stack->handle.slabindex = s->depot_index;
-+	stack->handle.offset = s->depot_offset >> STACK_ALLOC_ALIGN;
- 	stack->handle.valid = 1;
- 	memcpy(stack->entries, entries, size * sizeof(unsigned long));
--	depot_offset += required_size;
-+	s->depot_offset += required_size;
- 
- 	return stack;
- }
- 
--#define STACK_HASH_ORDER 20
--#define STACK_HASH_SIZE (1L << STACK_HASH_ORDER)
--#define STACK_HASH_MASK (STACK_HASH_SIZE - 1)
--#define STACK_HASH_SEED 0x9747b28c
--
--static struct stack_record *stack_table[STACK_HASH_SIZE] = {
--	[0 ...	STACK_HASH_SIZE - 1] = NULL
--};
--
- /* Calculate hash for a stack */
- static inline u32 hash_stack(unsigned long *entries, unsigned int size)
- {
-@@ -184,10 +189,12 @@ static inline struct stack_record *find_stack(struct stack_record *bucket,
- 	return NULL;
- }
- 
--void depot_fetch_stack(depot_stack_handle_t handle, struct stack_trace *trace)
-+void depot_fetch_stack(struct stackdepot *s,
-+		depot_stack_handle_t handle, struct stack_trace *trace)
- {
- 	union handle_parts parts = { .handle = handle };
--	void *slab = stack_slabs[parts.slabindex];
-+	struct stackdepot *s2 = s ? : &global_stackdepot;
-+	void *slab = s2->stack_slabs[parts.slabindex];
- 	size_t offset = parts.offset << STACK_ALLOC_ALIGN;
- 	struct stack_record *stack = slab + offset;
- 
-@@ -205,8 +212,8 @@ EXPORT_SYMBOL_GPL(depot_fetch_stack);
-  *
-  * Returns the handle of the stack struct stored in depot.
-  */
--depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
--				      gfp_t alloc_flags, bool *is_new)
-+depot_stack_handle_t depot_save_stack(struct stackdepot *s,
-+		struct stack_trace *trace, gfp_t alloc_flags, bool *is_new)
- {
- 	u32 hash;
- 	depot_stack_handle_t retval = 0;
-@@ -218,8 +225,11 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
- 	if (unlikely(trace->nr_entries == 0))
- 		goto fast_exit;
- 
-+	if (!s)
-+		s = &global_stackdepot;
-+
- 	hash = hash_stack(trace->entries, trace->nr_entries);
--	bucket = &stack_table[hash & STACK_HASH_MASK];
-+	bucket = &s->stack_table[hash & STACK_HASH_MASK];
- 
- 	/*
- 	 * Fast path: look the stack trace up without locking.
-@@ -239,7 +249,7 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
- 	 * The smp_load_acquire() here pairs with smp_store_release() to
- 	 * |next_slab_inited| in depot_alloc_stack() and init_stack_slab().
- 	 */
--	if (unlikely(!smp_load_acquire(&next_slab_inited))) {
-+	if (unlikely(!smp_load_acquire(&s->next_slab_inited))) {
- 		gfp_t orig_flags = alloc_flags;
- 
- 		/*
-@@ -258,12 +268,12 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
- 		alloc_flags = orig_flags;
- 	}
- 
--	spin_lock_irqsave(&depot_lock, flags);
-+	spin_lock_irqsave(&s->lock, flags);
- 
- 	found = find_stack(*bucket, trace->entries, trace->nr_entries, hash);
- 	if (!found) {
- 		struct stack_record *new =
--			depot_alloc_stack(trace->entries, trace->nr_entries,
-+			depot_alloc_stack(s, trace->entries, trace->nr_entries,
- 					  hash, &prealloc, alloc_flags);
- 		if (new) {
- 			new->next = *bucket;
-@@ -281,10 +291,10 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
- 		 * We didn't need to store this stack trace, but let's keep
- 		 * the preallocated memory for the future.
- 		 */
--		WARN_ON(!init_stack_slab(&prealloc));
-+		WARN_ON(!init_stack_slab(s, &prealloc));
- 	}
- 
--	spin_unlock_irqrestore(&depot_lock, flags);
-+	spin_unlock_irqrestore(&s->lock, flags);
- exit:
- 	if (prealloc) {
- 		/* Nobody used this memory, ok to free it. */
-@@ -296,3 +306,22 @@ depot_stack_handle_t depot_save_stack(struct stack_trace *trace,
- 	return retval;
- }
- EXPORT_SYMBOL_GPL(depot_save_stack);
-+
-+struct stackdepot *create_stackdepot(void)
-+{
-+	struct stackdepot *s;
-+
-+	s = vzalloc(sizeof(*s));
-+	if (!s)
-+		return NULL;
-+
-+	spin_lock_init(&s->lock);
-+	return s;
-+}
-+EXPORT_SYMBOL_GPL(create_stackdepot);
-+
-+void destroy_stackdepot(struct stackdepot *s)
-+{
-+	vfree(s);
-+}
-+EXPORT_SYMBOL_GPL(destroy_stackdepot);
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 1b37e12..984e423 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -454,7 +454,7 @@ static inline depot_stack_handle_t save_stack(gfp_t flags)
- 	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
- 		trace.nr_entries--;
- 
--	return depot_save_stack(&trace, flags, NULL);
-+	return depot_save_stack(NULL, &trace, flags, NULL);
- }
- 
- static inline void set_track(struct kasan_track *track, gfp_t flags)
-diff --git a/mm/kasan/report.c b/mm/kasan/report.c
-index b78735a..6c83631 100644
---- a/mm/kasan/report.c
-+++ b/mm/kasan/report.c
-@@ -183,7 +183,7 @@ static void print_track(struct kasan_track *track, const char *prefix)
- 	if (track->stack) {
- 		struct stack_trace trace;
- 
--		depot_fetch_stack(track->stack, &trace);
-+		depot_fetch_stack(NULL, track->stack, &trace);
- 		print_stack_trace(&trace, 0);
- 	} else {
- 		pr_err("(stack is not available)\n");
 diff --git a/mm/kasan/vchecker.c b/mm/kasan/vchecker.c
-index 82d4f1d..15a1b18 100644
+index 15a1b18..0c9a4fc 100644
 --- a/mm/kasan/vchecker.c
 +++ b/mm/kasan/vchecker.c
-@@ -299,7 +299,7 @@ static noinline depot_stack_handle_t save_stack(void)
+@@ -31,6 +31,7 @@ struct vchecker {
+ 
+ enum vchecker_type_num {
+ 	VCHECKER_TYPE_VALUE = 0,
++	VCHECKER_TYPE_CALLSTACK,
+ 	VCHECKER_TYPE_MAX,
+ };
+ 
+@@ -45,7 +46,7 @@ struct vchecker_type {
+ 			char *buf, size_t cnt);
+ 	void (*fini)(struct vchecker_cb *cb);
+ 	void (*show)(struct kmem_cache *s, struct seq_file *f,
+-			struct vchecker_cb *cb, void *object);
++			struct vchecker_cb *cb, void *object, bool verbose);
+ 	bool (*check)(struct kmem_cache *s, struct vchecker_cb *cb,
+ 			void *object, bool write,
+ 			unsigned long begin, unsigned long end);
+@@ -64,6 +65,12 @@ struct vchecker_value_arg {
+ 	u64 value;
+ };
+ 
++#define CALLSTACK_MAX_HANDLE  (PAGE_SIZE / sizeof(depot_stack_handle_t))
++struct vchecker_callstack_arg {
++	depot_stack_handle_t *handles;
++	atomic_t count;
++};
++
+ static struct dentry *debugfs_root;
+ static struct vchecker_type vchecker_types[VCHECKER_TYPE_MAX];
+ static DEFINE_MUTEX(vchecker_meta);
+@@ -82,7 +89,7 @@ static bool need_check(struct vchecker_cb *cb,
+ }
+ 
+ static void show_cb(struct kmem_cache *s, struct seq_file *f,
+-			struct vchecker_cb *cb, void *object)
++			struct vchecker_cb *cb, void *object, bool verbose)
+ {
+ 	if (f) {
+ 		seq_printf(f, "%s checker for offset %ld ~ %ld\n",
+@@ -92,7 +99,7 @@ static void show_cb(struct kmem_cache *s, struct seq_file *f,
+ 			cb->type->name, cb->begin, cb->end, object);
+ 	}
+ 
+-	cb->type->show(s, f, cb, object);
++	cb->type->show(s, f, cb, object, verbose);
+ }
+ 
+ static void add_cb(struct kmem_cache *s, struct vchecker_cb *cb)
+@@ -189,7 +196,7 @@ static void vchecker_report(unsigned long addr, size_t size, bool write,
+ 	pr_err("%s of size %zu by task %s/%d\n",
+ 		write ? "Write" : "Read", size,
+ 		current->comm, task_pid_nr(current));
+-	show_cb(s, NULL, cb, object);
++	show_cb(s, NULL, cb, object, true);
+ 
+ 	describe_object(s, object, (const void *)addr);
+ 	pr_err("==================================================================\n");
+@@ -284,14 +291,14 @@ bool vchecker_check(unsigned long addr, size_t size,
+ 	return vchecker_poisoned((void *)addr, size);
+ }
+ 
+-static noinline depot_stack_handle_t save_stack(void)
++static noinline depot_stack_handle_t save_stack(int skip, bool *is_new)
+ {
+ 	unsigned long entries[VCHECKER_STACK_DEPTH];
+ 	struct stack_trace trace = {
+ 		.nr_entries = 0,
+ 		.entries = entries,
+ 		.max_entries = VCHECKER_STACK_DEPTH,
+-		.skip = 0
++		.skip = skip,
+ 	};
+ 
+ 	save_stack_trace(&trace);
+@@ -299,7 +306,7 @@ static noinline depot_stack_handle_t save_stack(void)
  	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
  		trace.nr_entries--;
  
--	return depot_save_stack(&trace, GFP_NOWAIT, NULL);
-+	return depot_save_stack(NULL, &trace, GFP_NOWAIT, NULL);
+-	return depot_save_stack(NULL, &trace, GFP_NOWAIT, NULL);
++	return depot_save_stack(NULL, &trace, GFP_NOWAIT, is_new);
  }
  
  static ssize_t vchecker_type_write(struct file *filp, const char __user *ubuf,
-@@ -503,7 +503,7 @@ static void show_value_stack(struct vchecker_data *data)
- 		return;
+@@ -381,7 +388,7 @@ static int vchecker_type_show(struct seq_file *f, enum vchecker_type_num type)
+ 		if (cb->type != &vchecker_types[type])
+ 			continue;
  
- 	pr_err("Invalid writer:\n");
--	depot_fetch_stack(data->write_handle, &trace);
-+	depot_fetch_stack(NULL, data->write_handle, &trace);
- 	print_stack_trace(&trace, 0);
- 	pr_err("\n");
- }
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 0e22eee..627a955 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -66,7 +66,7 @@ static __always_inline depot_stack_handle_t create_dummy_stack(void)
- 	dummy.skip = 0;
- 
- 	save_stack_trace(&dummy);
--	return depot_save_stack(&dummy, GFP_KERNEL, NULL);
-+	return depot_save_stack(NULL, &dummy, GFP_KERNEL, NULL);
- }
- 
- static noinline void register_dummy_stack(void)
-@@ -162,7 +162,7 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
- 	if (check_recursive_alloc(&trace, _RET_IP_))
- 		return dummy_handle;
- 
--	handle = depot_save_stack(&trace, flags, NULL);
-+	handle = depot_save_stack(NULL, &trace, flags, NULL);
- 	if (!handle)
- 		handle = failure_handle;
- 
-@@ -377,7 +377,7 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
- 	if (ret >= count)
- 		goto err;
- 
--	depot_fetch_stack(handle, &trace);
-+	depot_fetch_stack(NULL, handle, &trace);
- 	ret += snprint_stack_trace(kbuf + ret, count - ret, &trace, 0);
- 	if (ret >= count)
- 		goto err;
-@@ -440,7 +440,7 @@ void __dump_page_owner(struct page *page)
- 		return;
+-		show_cb(s, f, cb, NULL);
++		show_cb(s, f, cb, NULL, true);
  	}
+ 	mutex_unlock(&vchecker_meta);
  
--	depot_fetch_stack(handle, &trace);
-+	depot_fetch_stack(NULL, handle, &trace);
- 	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
- 		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
- 	print_stack_trace(&trace, 0);
+@@ -398,7 +405,7 @@ static int enable_show(struct seq_file *f, void *v)
+ 
+ 	seq_printf(f, "%s\n", checker->enabled ? "1" : "0");
+ 	list_for_each_entry(cb, &checker->cb_list, list)
+-		show_cb(s, f, cb, NULL);
++		show_cb(s, f, cb, NULL, false);
+ 
+ 	mutex_unlock(&vchecker_meta);
+ 
+@@ -509,7 +516,7 @@ static void show_value_stack(struct vchecker_data *data)
+ }
+ 
+ static void show_value(struct kmem_cache *s, struct seq_file *f,
+-			struct vchecker_cb *cb, void *object)
++			struct vchecker_cb *cb, void *object, bool verbose)
+ {
+ 	struct vchecker_value_arg *arg = cb->arg;
+ 	struct vchecker_data *data;
+@@ -538,7 +545,7 @@ static bool check_value(struct kmem_cache *s, struct vchecker_cb *cb,
+ 	if (!write)
+ 		goto check;
+ 
+-	handle = save_stack();
++	handle = save_stack(0, NULL);
+ 	if (!handle) {
+ 		pr_err("VCHECKER: %s: fail at addr %p\n", __func__, object);
+ 		dump_stack();
+@@ -581,9 +588,152 @@ static const struct file_operations fops_value = {
+ 	.release	= single_release,
+ };
+ 
++static int init_callstack(struct kmem_cache *s, struct vchecker_cb *cb,
++			  char *buf, size_t cnt)
++{
++	unsigned long begin, len;
++	struct vchecker_callstack_arg *arg;
++	unsigned long max_size = round_up(s->object_size, sizeof(u64));
++
++	BUILD_BUG_ON(sizeof(u64) != KASAN_SHADOW_SCALE_SIZE);
++
++	if (sscanf(buf, "%lu %lu", &begin, &len) != 2)
++		return -EINVAL;
++
++	if (len > max_size || begin > max_size - len)
++		return -EINVAL;
++
++	arg = kzalloc(sizeof(struct vchecker_callstack_arg), GFP_KERNEL);
++	if (!arg)
++		return -ENOMEM;
++
++	arg->handles = (void *)get_zeroed_page(GFP_KERNEL);
++	if (!arg->handles) {
++		kfree(arg);
++		return -ENOMEM;
++	}
++	atomic_set(&arg->count, 0);
++
++	cb->begin = begin;
++	cb->end = begin + len;
++	cb->arg = arg;
++
++	return 0;
++}
++
++static void fini_callstack(struct vchecker_cb *cb)
++{
++	struct vchecker_callstack_arg *arg = cb->arg;
++
++	free_page((unsigned long)arg->handles);
++	kfree(arg);
++}
++
++static void show_callstack_handle(struct seq_file *f, int idx,
++				  struct vchecker_callstack_arg *arg)
++{
++	struct stack_trace trace;
++	unsigned int i;
++
++	seq_printf(f, "callstack #%d\n", idx);
++
++	depot_fetch_stack(NULL, arg->handles[idx], &trace);
++
++	for (i = 0; i < trace.nr_entries; i++)
++		seq_printf(f, "  %pS\n", (void *)trace.entries[i]);
++	seq_putc(f, '\n');
++}
++
++static void show_callstack(struct kmem_cache *s, struct seq_file *f,
++			   struct vchecker_cb *cb, void *object, bool verbose)
++{
++	struct vchecker_callstack_arg *arg = cb->arg;
++	int count = atomic_read(&arg->count);
++	int i;
++
++	if (f) {
++		seq_printf(f, "total: %d\n", count);
++
++		if (!verbose)
++			return;
++
++		if (count > CALLSTACK_MAX_HANDLE) {
++			seq_printf(f, "callstack is overflowed: (%d / %ld)\n",
++				count, CALLSTACK_MAX_HANDLE);
++			count = CALLSTACK_MAX_HANDLE;
++		}
++
++		for (i = 0; i < count; i++)
++			show_callstack_handle(f, i, arg);
++	} else {
++		pr_err("invalid callstack found #%d\n", count - 1);
++		/* current stack trace will be shown by kasan_object_err() */
++	}
++}
++
++/*
++ * number of stacks to skip (at least).
++ *
++ *  __asan_loadX -> vchecker_check -> cb->check() -> save_stack
++ *    -> save_stack_trace
++ */
++#define STACK_SKIP  5
++
++static bool check_callstack(struct kmem_cache *s, struct vchecker_cb *cb,
++			    void *object, bool write,
++			    unsigned long begin, unsigned long end)
++{
++	u32 handle;
++	bool is_new = false;
++	struct vchecker_callstack_arg *arg = cb->arg;
++	int idx;
++
++	handle = save_stack(STACK_SKIP, &is_new);
++	if (!is_new)
++		return true;
++
++	idx = atomic_fetch_inc(&arg->count);
++
++	/* TODO: support handle table in multiple pages */
++	if (idx < CALLSTACK_MAX_HANDLE)
++		arg->handles[idx] = handle;
++
++	/* TODO: support reporting new callstack */
++	return true;
++}
++
++static int callstack_show(struct seq_file *f, void *v)
++{
++	return vchecker_type_show(f, VCHECKER_TYPE_CALLSTACK);
++}
++
++static int callstack_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, callstack_show, inode->i_private);
++}
++
++static ssize_t callstack_write(struct file *filp, const char __user *ubuf,
++			       size_t cnt, loff_t *ppos)
++{
++	/* add a new (disabled) callstack checker at the given offset */
++	return vchecker_type_write(filp, ubuf, cnt, ppos,
++				   VCHECKER_TYPE_CALLSTACK);
++}
++
++static const struct file_operations fops_callstack = {
++	.open		= callstack_open,
++	.write		= callstack_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
++/* also need to update enum VCHECKER_TYPE_XXX */
+ static struct vchecker_type vchecker_types[VCHECKER_TYPE_MAX] = {
+ 	{ "value", &fops_value, init_value, fini_value,
+ 		show_value, check_value },
++	{ "callstack", &fops_callstack, init_callstack, fini_callstack,
++		show_callstack, check_callstack },
+ };
+ 
+ static void free_vchecker(struct kmem_cache *s)
 -- 
 2.7.4
 
