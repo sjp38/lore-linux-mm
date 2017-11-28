@@ -1,50 +1,176 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 946326B02D2
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:21:56 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id s28so26943048pfg.6
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:21:56 -0800 (PST)
-Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
-        by mx.google.com with ESMTPS id j11si3353972pgq.502.2017.11.28.01.21.55
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0880C6B02D4
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:27:52 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d86so15352490pfk.19
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:27:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j72sor7859763pge.196.2017.11.28.01.27.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 01:21:55 -0800 (PST)
-Date: Tue, 28 Nov 2017 17:21:26 +0800 (CST)
-Message-ID: <201711281721266018326@zte.com.cn>
-In-Reply-To: <20171128080434.z32gfedrzq37rsqe@dhcp22.suse.cz>
-References: 1511837307-56494-1-git-send-email-jiang.biao2@zte.com.cn,20171128080434.z32gfedrzq37rsqe@dhcp22.suse.cz
-Mime-Version: 1.0
-From: <jiang.biao2@zte.com.cn>
-Subject: =?UTF-8?B?UmU6IFtQQVRDSF0gbW0vdm1zY2FuOiBjaGFuZ2UgcmV0dXJuIHR5cGUgb2YgaXNfcGFnZV9jYWNoZV9mcmVlYWJsZWZyb20gaW50IHRvIGJvb2w=?=
-Content-Type: multipart/mixed;
-	boundary="=====_001_next====="
+        (Google Transport Security);
+        Tue, 28 Nov 2017 01:27:50 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CAABZP2yS524XEiyu=kkVx7ff1ySTtE=WWETNDrZ_toEm0mwqyQ@mail.gmail.com>
+References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
+ <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
+ <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
+ <CAABZP2zB8vKswQXicYq5r8iNOKz21CRyw1cUiB2s9O+ZMb+JvQ@mail.gmail.com>
+ <CACT4Y+YkVbkwAm0h7UJH08woiohJT9EYObhxpE33dP0A4agtkw@mail.gmail.com>
+ <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
+ <CACT4Y+ah6q-xoakyPL7v-+Knp8ZaFbnRRk_Ki6Wsmz3C8Pe8XQ@mail.gmail.com> <CAABZP2yS524XEiyu=kkVx7ff1ySTtE=WWETNDrZ_toEm0mwqyQ@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 28 Nov 2017 10:27:28 +0100
+Message-ID: <CACT4Y+aAhHSW=qBFLy7S1wWLsJsjW83y8uC4nQy0N9Hf8HoMKQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
+To: Zhouyi Zhou <zhouzhouyi@gmail.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+
+On Tue, Nov 28, 2017 at 10:17 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+> Hi,
+>     Imagine all of the QUARANTINE_BATCHES elements of
+> global_quarantine array is of size 4MB + 1MB, now a new call
+> to quarantine_put is invoked, one of the element will be of size 4MB +
+> 1MB + 1MB, so on and on.
+
+
+I see what you mean. Does it really happen in your case? What's the
+maximum batch size that you get during your workload?
+
+I always wondered why don't we drain quarantine right in
+quarantine_put when we overflow it? We already take quarantine_lock
+and calling cache_free should be fine in that context, since user code
+already does that.
 
 
 
---=====_001_next=====
-Content-Type: multipart/alternative;
-	boundary="=====_003_next====="
-
-
---=====_003_next=====
-Content-Type: text/plain;
-	charset="UTF-8"
-Content-Transfer-Encoding: base64 
-
-PiBPbiBUdWUgMjgtMTEtMTcgMTA6NDg6MjcsIEppYW5nIEJpYW8gd3JvdGU6PiA+IFVzaW5nIGJv
-b2wgZm9yIHRoZSByZXR1cm4gdHlwZSBvZiBpc19wYWdlX2NhY2hlX2ZyZWVhYmxlKCkgc2hvdWxk
-IGJlCj4gPiBtb3JlIGFwcHJvcHJpYXRlLgo+IAo+IERvZXMgdGhpcyBoZWxwIHRvIGdlbmVyYXRl
-IGEgYmV0dGVyIGNvZGUgb3Igd2h5IGRvIHdlIHdhbnQgdG8gY2hhbmdlCj4gdGhpcyBhdCBhbGw/
-Ck5vLiBQbHMganVzdCBpZ25vcmUgdGhhdC4KClRoYW5rcy4=
-
-
---=====_003_next=====--
-
---=====_001_next=====--
+> On Tue, Nov 28, 2017 at 4:58 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>> On Tue, Nov 28, 2017 at 9:33 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+>>> Hi,
+>>>    Please take a look at function quarantine_put, I don't think following
+>>> code will limit the batch size below quarantine_batch_size. It only advance
+>>> quarantine_tail after qlist_move_all.
+>>>
+>>>                 qlist_move_all(q, &temp);
+>>>
+>>>                 spin_lock(&quarantine_lock);
+>>>                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
+>>>                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
+>>>                 if (global_quarantine[quarantine_tail].bytes >=
+>>>                                 READ_ONCE(quarantine_batch_size)) {
+>>>                         int new_tail;
+>>>
+>>>                         new_tail = quarantine_tail + 1;
+>>>                         if (new_tail == QUARANTINE_BATCHES)
+>>>                                 new_tail = 0;
+>>>                         if (new_tail != quarantine_head)
+>>>                                 quarantine_tail = new_tail;
+>>
+>>
+>> As far as I see this code can exceed global quarantine batch size by
+>> at most 1 per-cpu batch. Per-cpu batch is caped at 1MB. So max global
+>> batch size will be 4MB+1MB. Which does not radically change situation.
+>>
+>>
+>>> On Tue, Nov 28, 2017 at 4:12 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>>> On Tue, Nov 28, 2017 at 9:00 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+>>>>> Thanks for reviewing
+>>>>>    My machine has 128G of RAM, and runs many KVM virtual machines.
+>>>>> libvirtd always
+>>>>> report "internal error: received hangup / error event on socket" under
+>>>>> heavy memory load.
+>>>>>    Then I use perf top -g, qlist_move_cache consumes 100% cpu for
+>>>>> several minutes.
+>>>>
+>>>> For 128GB of RAM, batch size is 4MB. Processing such batch should not
+>>>> take more than few ms. So I am still struggling  to understand how/why
+>>>> your change helps and why there are issues in the first place...
+>>>>
+>>>>
+>>>>
+>>>>> On Tue, Nov 28, 2017 at 3:45 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>>>>> On Tue, Nov 28, 2017 at 5:05 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+>>>>>>> When there are huge amount of quarantined cache allocates in system,
+>>>>>>> number of entries in global_quarantine[i] will be great. Meanwhile,
+>>>>>>> there is no relax in while loop in function qlist_move_cache which
+>>>>>>> hold quarantine_lock. As a result, some userspace programs for example
+>>>>>>> libvirt will complain.
+>>>>>>
+>>>>>> Hi,
+>>>>>>
+>>>>>> The QUARANTINE_BATCHES thing was supposed to fix this problem, see
+>>>>>> quarantine_remove_cache() function.
+>>>>>> What is the amount of RAM and number of CPUs in your system?
+>>>>>> If system has 4GB of RAM, quarantine size is 128MB and that's split
+>>>>>> into 1024 batches. Batch size is 128KB. Even if that's filled with the
+>>>>>> smallest objects of size 32, that's only 4K objects. And there is a
+>>>>>> cond_resched() between processing of every batch.
+>>>>>> I don't understand why it causes problems in your setup. We use KASAN
+>>>>>> extremely heavily on hundreds of machines 24x7 and we have not seen
+>>>>>> any single report from this code...
+>>>>>>
+>>>>>>
+>>>>>>> On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
+>>>>>>>> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
+>>>>>>>>
+>>>>>>>> This patch fix livelock by conditionally release cpu to let others
+>>>>>>>> has a chance to run.
+>>>>>>>>
+>>>>>>>> Tested on x86_64.
+>>>>>>>> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
+>>>>>>>> ---
+>>>>>>>>  mm/kasan/quarantine.c | 12 +++++++++++-
+>>>>>>>>  1 file changed, 11 insertions(+), 1 deletion(-)
+>>>>>>>>
+>>>>>>>> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+>>>>>>>> index 3a8ddf8..33eeff4 100644
+>>>>>>>> --- a/mm/kasan/quarantine.c
+>>>>>>>> +++ b/mm/kasan/quarantine.c
+>>>>>>>> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
+>>>>>>>>                                    struct kmem_cache *cache)
+>>>>>>>>  {
+>>>>>>>>         struct qlist_node *curr;
+>>>>>>>> +       struct qlist_head tmp_head;
+>>>>>>>> +       unsigned long flags;
+>>>>>>>>
+>>>>>>>>         if (unlikely(qlist_empty(from)))
+>>>>>>>>                 return;
+>>>>>>>>
+>>>>>>>> +       qlist_init(&tmp_head);
+>>>>>>>>         curr = from->head;
+>>>>>>>>         qlist_init(from);
+>>>>>>>>         while (curr) {
+>>>>>>>> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
+>>>>>>>>                 if (obj_cache == cache)
+>>>>>>>>                         qlist_put(to, curr, obj_cache->size);
+>>>>>>>>                 else
+>>>>>>>> -                       qlist_put(from, curr, obj_cache->size);
+>>>>>>>> +                       qlist_put(&tmp_head, curr, obj_cache->size);
+>>>>>>>>
+>>>>>>>>                 curr = next;
+>>>>>>>> +
+>>>>>>>> +               if (need_resched()) {
+>>>>>>>> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
+>>>>>>>> +                       cond_resched();
+>>>>>>>> +                       spin_lock_irqsave(&quarantine_lock, flags);
+>>>>>>>> +               }
+>>>>>>>>         }
+>>>>>>>> +       qlist_move_all(&tmp_head, from);
+>>>>>>>>  }
+>>>>>>>>
+>>>>>>>>  static void per_cpu_remove_cache(void *arg)
+>>>>>>>> --
+>>>>>>>> 2.1.4
+>>>>>>>>
+>>>>>>>
+>>>>>>> --
+>>>>>>> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+>>>>>>> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+>>>>>>> To post to this group, send email to kasan-dev@googlegroups.com.
+>>>>>>> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A%40mail.gmail.com.
+>>>>>>> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
