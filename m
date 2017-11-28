@@ -1,107 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CA97E6B0283
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:46:16 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 61so1837410plf.5
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:46:16 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b59sor1057213plc.12.2017.11.27.23.46.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F67C6B0287
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:49:21 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id d6so26786897pfb.3
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:49:21 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q80sor7550170pfi.141.2017.11.27.23.49.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:46:15 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
-References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com> <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 28 Nov 2017 08:45:54 +0100
-Message-ID: <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
-Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
-Content-Type: text/plain; charset="UTF-8"
+        Mon, 27 Nov 2017 23:49:20 -0800 (PST)
+From: js1304@gmail.com
+Subject: [PATCH 00/18] introduce a new tool, valid access checker
+Date: Tue, 28 Nov 2017 16:48:35 +0900
+Message-Id: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouyi Zhou <zhouzhouyi@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Nov 28, 2017 at 5:05 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
-> When there are huge amount of quarantined cache allocates in system,
-> number of entries in global_quarantine[i] will be great. Meanwhile,
-> there is no relax in while loop in function qlist_move_cache which
-> hold quarantine_lock. As a result, some userspace programs for example
-> libvirt will complain.
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Hi,
+Hello,
 
-The QUARANTINE_BATCHES thing was supposed to fix this problem, see
-quarantine_remove_cache() function.
-What is the amount of RAM and number of CPUs in your system?
-If system has 4GB of RAM, quarantine size is 128MB and that's split
-into 1024 batches. Batch size is 128KB. Even if that's filled with the
-smallest objects of size 32, that's only 4K objects. And there is a
-cond_resched() between processing of every batch.
-I don't understand why it causes problems in your setup. We use KASAN
-extremely heavily on hundreds of machines 24x7 and we have not seen
-any single report from this code...
+This patchset introduces a new tool, valid access checker.
 
+Vchecker is a dynamic memory error detector. It provides a new debug feature
+that can find out an un-intended access to valid area. Valid area here means
+the memory which is allocated and allowed to be accessed by memory owner and
+un-intended access means the read/write that is initiated by non-owner.
+Usual problem of this class is memory overwritten.
 
-> On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
->> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
->>
->> This patch fix livelock by conditionally release cpu to let others
->> has a chance to run.
->>
->> Tested on x86_64.
->> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
->> ---
->>  mm/kasan/quarantine.c | 12 +++++++++++-
->>  1 file changed, 11 insertions(+), 1 deletion(-)
->>
->> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
->> index 3a8ddf8..33eeff4 100644
->> --- a/mm/kasan/quarantine.c
->> +++ b/mm/kasan/quarantine.c
->> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
->>                                    struct kmem_cache *cache)
->>  {
->>         struct qlist_node *curr;
->> +       struct qlist_head tmp_head;
->> +       unsigned long flags;
->>
->>         if (unlikely(qlist_empty(from)))
->>                 return;
->>
->> +       qlist_init(&tmp_head);
->>         curr = from->head;
->>         qlist_init(from);
->>         while (curr) {
->> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
->>                 if (obj_cache == cache)
->>                         qlist_put(to, curr, obj_cache->size);
->>                 else
->> -                       qlist_put(from, curr, obj_cache->size);
->> +                       qlist_put(&tmp_head, curr, obj_cache->size);
->>
->>                 curr = next;
->> +
->> +               if (need_resched()) {
->> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
->> +                       cond_resched();
->> +                       spin_lock_irqsave(&quarantine_lock, flags);
->> +               }
->>         }
->> +       qlist_move_all(&tmp_head, from);
->>  }
->>
->>  static void per_cpu_remove_cache(void *arg)
->> --
->> 2.1.4
->>
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To post to this group, send email to kasan-dev@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A%40mail.gmail.com.
-> For more options, visit https://groups.google.com/d/optout.
+Most of debug feature focused on finding out un-intended access to
+in-valid area, for example, out-of-bound access and use-after-free, and,
+there are many good tools for it. But, as far as I know, there is no good tool
+to find out un-intended access to valid area. This kind of problem is really
+hard to solve so this tool would be very useful.
+
+This tool doesn't automatically catch a problem. Manual runtime configuration
+to specify the target object is required.
+
+Note that there was a similar attempt for the debugging overwritten problem
+however it requires manual code modifying and recompile.
+
+http://lkml.kernel.org/r/<20171117223043.7277-1-wen.gang.wang@oracle.com>
+
+To get more information about vchecker, please see a documention at
+the last patch.
+
+Patchset can also be available at
+
+https://github.com/JoonsooKim/linux/tree/vchecker-master-v1.0-next-20171122
+
+Enjoy it.
+
+Thanks.
+
+Joonsoo Kim (14):
+  mm/kasan: make some kasan functions global
+  vchecker: introduce the valid access checker
+  vchecker: mark/unmark the shadow of the allocated objects
+  vchecker: prepare per object memory for vchecker
+  vchecker: store/report callstack of value writer
+  lib/stackdepot: extend stackdepot API to support per-user stackdepot
+  vchecker: consistently exclude vchecker's stacktrace
+  vchecker: fix 'remove' handling on callstack checker
+  mm/vchecker: support inline KASAN build
+  mm/vchecker: make callstack depth configurable
+  mm/vchecker: pass allocation caller address to vchecker hook
+  mm/vchecker: support allocation caller filter
+  lib/vchecker_test: introduce a sample for vchecker test
+  doc: add vchecker document
+
+Namhyung Kim (4):
+  lib/stackdepot: Add is_new arg to depot_save_stack
+  vchecker: Add 'callstack' checker
+  vchecker: Support toggle on/off of callstack check
+  vchecker: Use __GFP_ATOMIC to save stacktrace
+
+ Documentation/dev-tools/vchecker.rst |  200 +++++++
+ drivers/gpu/drm/drm_mm.c             |    4 +-
+ include/linux/kasan.h                |    1 +
+ include/linux/slab.h                 |    8 +
+ include/linux/slab_def.h             |    3 +
+ include/linux/slub_def.h             |    3 +
+ include/linux/stackdepot.h           |   10 +-
+ lib/Kconfig.kasan                    |   21 +
+ lib/Makefile                         |    1 +
+ lib/stackdepot.c                     |  126 ++--
+ lib/vchecker_test.c                  |  117 ++++
+ mm/kasan/Makefile                    |    1 +
+ mm/kasan/kasan.c                     |   14 +-
+ mm/kasan/kasan.h                     |    3 +
+ mm/kasan/report.c                    |   12 +-
+ mm/kasan/vchecker.c                  | 1089 ++++++++++++++++++++++++++++++++++
+ mm/kasan/vchecker.h                  |   43 ++
+ mm/page_owner.c                      |    8 +-
+ mm/slab.c                            |   47 +-
+ mm/slab.h                            |   14 +-
+ mm/slab_common.c                     |   25 +
+ mm/slub.c                            |   49 +-
+ 22 files changed, 1730 insertions(+), 69 deletions(-)
+ create mode 100644 Documentation/dev-tools/vchecker.rst
+ create mode 100644 lib/vchecker_test.c
+ create mode 100644 mm/kasan/vchecker.c
+ create mode 100644 mm/kasan/vchecker.h
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
