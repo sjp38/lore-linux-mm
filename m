@@ -1,75 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 906886B0038
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 20:42:45 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id q84so25997862pfl.12
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 17:42:45 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id r39si13897731pld.235.2017.11.27.17.42.43
-        for <linux-mm@kvack.org>;
-        Mon, 27 Nov 2017 17:42:43 -0800 (PST)
-Date: Tue, 28 Nov 2017 10:42:29 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171128014229.GA2899@X58A-UD3R>
-References: <20171108102723.602216b1@gandalf.local.home>
- <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
- <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C0C06B0253
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 20:53:12 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id t77so15514129pfe.10
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 17:53:12 -0800 (PST)
+Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
+        by mx.google.com with ESMTPS id bg3si4099576plb.420.2017.11.27.17.53.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 17:53:11 -0800 (PST)
+From: Jiang Biao <jiang.biao2@zte.com.cn>
+Subject: [PATCH] mm/vmscan: try to optimize branch procedures.
+Date: Tue, 28 Nov 2017 09:49:45 +0800
+Message-Id: <1511833785-55392-1-git-send-email-jiang.biao2@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, kernel-team@lge.com
+To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn, zhong.weidong@zte.com.cn
 
-On Fri, Nov 24, 2017 at 04:58:16PM +0100, Petr Mladek wrote:
-> @@ -1797,13 +1797,6 @@ asmlinkage int vprintk_emit(int facility, int level,
->  				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
->  				printk_safe_exit_irqrestore(flags);
->  
-> -				/*
-> -				 * The owner passed the console lock to us.
-> -				 * Since we did not spin on console lock, annotate
-> -				 * this as a trylock. Otherwise lockdep will
-> -				 * complain.
-> -				 */
-> -				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
+1. Use unlikely to try to improve branch prediction. The
+*total_scan < 0* branch is unlikely to reach, so use unlikely.
 
-Hello Petr,
+2. Optimize *next_deferred >= scanned* condition.
+*next_deferred >= scanned* condition could be optimized into
+*next_deferred > scanned*, because when *next_deferred == scanned*,
+next_deferred shoud be 0, which is covered by the else branch.
 
-IMHO, it would get unbalanced if you only remove this mutex_acquire().
+3. Merge two branch blocks into one. The *next_deferred > 0* branch
+could be merged into *next_deferred > scanned* to simplify the code.
 
->  				console_unlock();
->  				printk_safe_enter_irqsave(flags);
->  			}
-> @@ -2334,10 +2327,10 @@ void console_unlock(void)
->  		/* The waiter is now free to continue */
->  		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
->  		/*
-> -		 * Hand off console_lock to waiter. The waiter will perform
-> -		 * the up(). After this, the waiter is the console_lock owner.
-> +		 * Hand off console_lock to waiter. After this, the waiter
-> +		 * is the console_lock owner.
->  		 */
-> -		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
+Signed-off-by: Jiang Biao <jiang.biao2@zte.com.cn>
+---
+ mm/vmscan.c | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
 
-IMHO, this release() should be moved to somewhere properly.
-
-> +		lock_commit_crosslock((struct lockdep_map *)&console_lock_dep_map);
->  		printk_safe_exit_irqrestore(flags);
->  		/* Note, if waiter is set, logbuf_lock is not held */
->  		return;
-
-However, now that cross-release was introduces, lockdep can be applied
-to semaphore operations. Actually, I have a plan to do that. I think it
-would be better to make semaphore tracked with lockdep and remove all
-these manual acquire() and release() here. What do you think about it?
-
-Thanks,
-Byungchul
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eb2f031..5f5d4ab 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -338,7 +338,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	delta *= freeable;
+ 	do_div(delta, nr_eligible + 1);
+ 	total_scan += delta;
+-	if (total_scan < 0) {
++	if (unlikely(total_scan < 0)) {
+ 		pr_err("shrink_slab: %pF negative objects to delete nr=%ld\n",
+ 		       shrinker->scan_objects, total_scan);
+ 		total_scan = freeable;
+@@ -407,18 +407,16 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		cond_resched();
+ 	}
+ 
+-	if (next_deferred >= scanned)
+-		next_deferred -= scanned;
+-	else
+-		next_deferred = 0;
+ 	/*
+ 	 * move the unused scan count back into the shrinker in a
+ 	 * manner that handles concurrent updates. If we exhausted the
+ 	 * scan, there is no need to do an update.
+ 	 */
+-	if (next_deferred > 0)
++	if (next_deferred > scanned) {
++		next_deferred -= scanned;
+ 		new_nr = atomic_long_add_return(next_deferred,
+ 						&shrinker->nr_deferred[nid]);
++	}
+ 	else
+ 		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
+ 
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
