@@ -1,46 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B91C16B0280
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:47:32 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q7so16573852pgr.10
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 22:47:32 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 03B906B0282
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:45:10 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id o20so8842680wro.8
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:45:09 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 14si8194494pla.382.2017.11.27.22.47.31
+        by mx.google.com with ESMTPS id e11si2469261eda.52.2017.11.27.23.45.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 22:47:31 -0800 (PST)
-Subject: Re: [patch 2/4] x86/kaiser: Enable PARAVIRT again
-References: <20171127203416.236563829@linutronix.de>
- <20171127204257.575052752@linutronix.de>
-From: Juergen Gross <jgross@suse.com>
-Message-ID: <3dd8ba26-aa52-9d8b-011c-24ff18ae2d56@suse.com>
-Date: Tue, 28 Nov 2017 07:47:25 +0100
+        Mon, 27 Nov 2017 23:45:07 -0800 (PST)
+Date: Tue, 28 Nov 2017 08:45:06 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
+ dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
+ the vm dirtiness settings is illogical)
+Message-ID: <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz>
+References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
+ <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
+ <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz>
+ <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
+ <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171127204257.575052752@linutronix.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at, Boris Ostrovsky <boris.ostrovsky@oracle.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
 
-On 27/11/17 21:34, Thomas Gleixner wrote:
-> XEN_PV paravirtualizes read/write_c3. This does not work with KAISER as the
-> CR3 switch from and to user space PGD would require to map the whole XEN_PV
-> machinery into both. It's also not clear whether the register space is
-> sufficient to do so. All other PV guests use the native implementations and
-> are compatible with KAISER.
+On Tue 28-11-17 14:12:15, Yafang Shao wrote:
+> 2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
+> > Hi Michal,
+> >
+> > What about bellow change ?
+> > It makes the function  domain_dirty_limits() more clear.
+> > And the result will have a higher precision.
+> >
+> >
+> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> > index 8a15511..2b5e507 100644
+> > --- a/mm/page-writeback.c
+> > +++ b/mm/page-writeback.c
+> > @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
+> > dirty_throttle_control *dtc)
+> >     unsigned long bytes = vm_dirty_bytes;
+> >     unsigned long bg_bytes = dirty_background_bytes;
+> >     /* convert ratios to per-PAGE_SIZE for higher precision */
+> > -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
+> > -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
+> > +   unsigned long ratio = vm_dirty_ratio;
+> > +   unsigned long bg_ratio = dirty_background_ratio;
+> >     unsigned long thresh;
+> >     unsigned long bg_thresh;
+> >     struct task_struct *tsk;
+> > @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
+> > dirty_throttle_control *dtc)
+> >          */
+> >         if (bytes)
+> >             ratio = min(DIV_ROUND_UP(bytes, global_avail),
+> > -                   PAGE_SIZE);
+> > +                   100);
+> >         if (bg_bytes)
+> >             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+> > -                      PAGE_SIZE);
+> > +                      99);   /* bg_ratio should less than ratio */
+> >         bytes = bg_bytes = 0;
+> >     }
 > 
-> Add detection for XEN_PV and disable KAISER in the early boot process when
-> the kernel is running as a XEN_PV guest.
 > 
-> Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+> Errata:
+> 
+>         if (bytes)
+> -           ratio = min(DIV_ROUND_UP(bytes, global_avail),
+> -                   PAGE_SIZE);
+> +           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
+> +                   100);
+>         if (bg_bytes)
+> -           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+> -                      PAGE_SIZE);
+> +           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
+> +                      100 - 1); /* bg_ratio should be less than ratio */
+>         bytes = bg_bytes = 0;
 
-Reviewed-by: Juergen Gross <jgross@suse.com>
+And you really think this makes code easier to follow? I am somehow not
+conviced...
 
-
-Juergen
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
