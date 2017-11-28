@@ -1,243 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 931A16B02AA
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:50:22 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id i15so26781643pfa.15
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:50:22 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y4sor1794711plb.135.2017.11.27.23.50.21
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 79E296B02AB
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:52:52 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id q64so27928806iof.8
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:52:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m67sor11509775ite.16.2017.11.27.23.52.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:50:21 -0800 (PST)
-From: js1304@gmail.com
-Subject: [PATCH 18/18] doc: add vchecker document
-Date: Tue, 28 Nov 2017 16:48:53 +0900
-Message-Id: <1511855333-3570-19-git-send-email-iamjoonsoo.kim@lge.com>
-In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
+        Mon, 27 Nov 2017 23:52:51 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz>
+References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
+ <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
+ <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz> <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
+ <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com> <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 28 Nov 2017 15:52:50 +0800
+Message-ID: <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
+Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
+ dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
+ the vm dirtiness settings is illogical)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
 
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+2017-11-28 15:45 GMT+08:00 Michal Hocko <mhocko@suse.com>:
+> On Tue 28-11-17 14:12:15, Yafang Shao wrote:
+>> 2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
+>> > Hi Michal,
+>> >
+>> > What about bellow change ?
+>> > It makes the function  domain_dirty_limits() more clear.
+>> > And the result will have a higher precision.
+>> >
+>> >
+>> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+>> > index 8a15511..2b5e507 100644
+>> > --- a/mm/page-writeback.c
+>> > +++ b/mm/page-writeback.c
+>> > @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
+>> > dirty_throttle_control *dtc)
+>> >     unsigned long bytes = vm_dirty_bytes;
+>> >     unsigned long bg_bytes = dirty_background_bytes;
+>> >     /* convert ratios to per-PAGE_SIZE for higher precision */
+>> > -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
+>> > -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
+>> > +   unsigned long ratio = vm_dirty_ratio;
+>> > +   unsigned long bg_ratio = dirty_background_ratio;
+>> >     unsigned long thresh;
+>> >     unsigned long bg_thresh;
+>> >     struct task_struct *tsk;
+>> > @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
+>> > dirty_throttle_control *dtc)
+>> >          */
+>> >         if (bytes)
+>> >             ratio = min(DIV_ROUND_UP(bytes, global_avail),
+>> > -                   PAGE_SIZE);
+>> > +                   100);
+>> >         if (bg_bytes)
+>> >             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+>> > -                      PAGE_SIZE);
+>> > +                      99);   /* bg_ratio should less than ratio */
+>> >         bytes = bg_bytes = 0;
+>> >     }
+>>
+>>
+>> Errata:
+>>
+>>         if (bytes)
+>> -           ratio = min(DIV_ROUND_UP(bytes, global_avail),
+>> -                   PAGE_SIZE);
+>> +           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
+>> +                   100);
+>>         if (bg_bytes)
+>> -           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+>> -                      PAGE_SIZE);
+>> +           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
+>> +                      100 - 1); /* bg_ratio should be less than ratio */
+>>         bytes = bg_bytes = 0;
+>
+> And you really think this makes code easier to follow? I am somehow not
+> conviced...
+>
 
-This is a main document for vchecker user.
+There's hidden bug in the original code, because it is too complex to
+clearly understand.
+See bellow,
 
-Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
----
- Documentation/dev-tools/vchecker.rst | 200 +++++++++++++++++++++++++++++++++++
- 1 file changed, 200 insertions(+)
- create mode 100644 Documentation/dev-tools/vchecker.rst
+ratio = min(DIV_ROUND_UP(bytes, global_avail),
+                    PAGE_SIZE)
 
-diff --git a/Documentation/dev-tools/vchecker.rst b/Documentation/dev-tools/vchecker.rst
-new file mode 100644
-index 0000000..136e5d9
---- /dev/null
-+++ b/Documentation/dev-tools/vchecker.rst
-@@ -0,0 +1,200 @@
-+The Valid Access Checker (VCHECKER)
-+===================================
-+
-+Overview
-+--------
-+Vchecker is a dynamic memory error detector. It provides a new debug feature
-+that can find out an un-intended access to valid area. Valid area here means
-+the memory which is allocated and allowed to be accessed by memory owner and
-+un-intended access means the read/write that is initiated by non-owner.
-+Usual problem of this class is memory overwritten.
-+
-+Most of debug feature focused on finding out un-intended access to
-+in-valid area, for example, out-of-bound access and use-after-free, and,
-+there are many good tools for it. But, as far as I know, there is no good tool
-+to find out un-intended access to valid area. This kind of problem is really
-+hard to solve so this tool would be very useful.
-+
-+This tool doesn't automatically catch a problem. Manual configuration to
-+specify the target object is required. See the usage part on the below.
-+
-+Usage
-+-----
-+
-+To enable vchecker configure kernel with
-+
-+::
-+
-+	CONFIG_VCHECKER = y
-+
-+and choose the target slab object type and the type of the checkers by debugfs
-+interface at the runtime. Following is the hierarchy of the interface.
-+
-+::
-+
-+	- debugfs root for vchecker
-+		- directory per slab cache
-+			- alloc_filter
-+			- callstack_depth
-+			- enable
-+			- value
-+			- callstack
-+
-+
-+alloc_filter can be used to apply the checker to specific allocation caller
-+for this slab cache. For example, there are multiple users for kmalloc-N
-+slab cache and it's better to filter out un-related allocation caller
-+when debugging. Note that, if alloc_filter is specified, vchecker doesn't
-+regard existing allocated objects as debugging target since it's not easy
-+to know the allocation caller for existing allocated objects.
-+
-+callstack_depth can be used to limit the depth of callstack. It would be
-+helpful to reduce overhead.
-+
-+enable can be used to begin/end the checker for this slab cache.
-+
-+There are two checkers now, value checker and callstack checker.
-+
-+Value checker checks the value stored in the target object.
-+See following example.
-+
-+::
-+
-+	static void workfn(struct work_struct *work)
-+	{
-+		struct object *obj;
-+		struct delayed_work *dwork = (struct delayed_work *)work;
-+
-+		obj = kmem_cache_alloc(s, GFP_KERNEL);
-+
-+		obj->v[0] = 7;
-+		obj->v[0] = 0;
-+
-+		kmem_cache_free(s, obj);
-+		mod_delayed_work(system_wq, dwork, HZ);
-+	}
-+
-+Assume that v[0] should not be the value, 7, however, there is a code
-+to set v[0] to the value, 7. To detect this error, register the value checker
-+for this object and specify that invalid value is '7'. After registration,
-+if someone stores '7' to this object, the error will be reported. Registration
-+can be done by three parameter as following.
-+
-+::
-+
-+	# cd /sys/kernel/debug/vchecker
-+	# echo 0 0xffff 7 > [slab cache]/value
-+		// offset 0 (dec)
-+		// mask 0xffff (hex)
-+		// value 7 (dec)
-+	# echo 1 > [slab cache]/enable
-+
-+Before describing the each parameters, one thing should be noted. One value
-+checker works for 8 bytes at maximum. If more bytes should be checked,
-+please register multiple value checkers.
-+
-+First parameter is a target offset from the object base. It should be aligned
-+by 8 bytes due to implementation constraint. Second parameter is a mask that
-+is used to specify the range in the specified 8 bytes. Occasionally, we want to
-+check just 1 byte or 1 bit and this mask makes it possible to check such
-+a small range. Third parameter is the value that is assumed as invalid.
-+
-+Second checker is the callstack checker. It checks the read/write callstack
-+of the target object. Overwritten problem usually happens by non-owner and
-+it would have odd callstack. By checking the oddity of the callstack, vchecker
-+can report the possible error candidate. Currently, the oddity of the callstack
-+is naively determined by checking whether it is a new callstack or not. It can
-+be extended to use whitelist but not yet implemented.
-+
-+::
-+
-+	# echo 0 8 > [slab cache]/callstack
-+		// offset 0 (dec)
-+		// size 8 (dec)
-+	# echo 1 > [slab cache]/enable
-+
-+First parameter is a target offset as usual and the second one is the size to
-+determine the range. Unlike the value checker, callstack checker can check
-+more than 8 bytes by just one checker.
-+
-+::
-+
-+	# echo off > [slab cache]/callstack
-+		// ... (do some work to collect enough valid callstacks) ...
-+	# echo on > [slab cache]/callstack
-+
-+You can collect potential valid callstack during 'off state'. If you think
-+that enough callstacks are collected, turn on the checker. It will report
-+a new callstack and it may be a bug candidate.
-+
-+Error reports
-+-------------
-+
-+Report format looks very similar with the report of KASAN
-+
-+::
-+
-+	[   49.400673] ==================================================================
-+	[   49.402297] BUG: VCHECKER: invalid access in workfn_old_obj+0x14/0x50 [vchecker_test] at addr ffff88002e9dc000
-+	[   49.403899] Write of size 8 by task kworker/0:2/465
-+	[   49.404538] value checker for offset 0 ~ 8 at ffff88002e9dc000
-+	[   49.405374] (mask 0xffff value 7) invalid value 7
-+
-+	[   49.406016] Invalid writer:
-+	[   49.406302]  workfn_old_obj+0x14/0x50 [vchecker_test]
-+	[   49.406973]  process_one_work+0x3b5/0x9f0
-+	[   49.407463]  worker_thread+0x87/0x750
-+	[   49.407895]  kthread+0x1b2/0x200
-+	[   49.408252]  ret_from_fork+0x24/0x30
-+
-+	[   49.408723] Allocated by task 1326:
-+	[   49.409126]  kasan_kmalloc+0xb9/0xe0
-+	[   49.409571]  kmem_cache_alloc+0xd1/0x250
-+	[   49.410046]  0xffffffffa00c8157
-+	[   49.410389]  do_one_initcall+0x82/0x1cf
-+	[   49.410851]  do_init_module+0xe7/0x333
-+	[   49.411296]  load_module+0x406b/0x4b40
-+	[   49.411745]  SYSC_finit_module+0x14d/0x180
-+	[   49.412247]  do_syscall_64+0xf0/0x340
-+	[   49.412674]  return_from_SYSCALL_64+0x0/0x75
-+
-+	[   49.413276] Freed by task 0:
-+	[   49.413566] (stack is not available)
-+
-+	[   49.414034] The buggy address belongs to the object at ffff88002e9dc000
-+	                which belongs to the cache vchecker_test of size 8
-+	[   49.415708] The buggy address is located 0 bytes inside of
-+	                8-byte region [ffff88002e9dc000, ffff88002e9dc008)
-+	[   49.417148] ==================================================================
-+
-+It shows that vchecker find the invalid value writing
-+at workfn_old_obj+0x14/0x50. Object information is also reported.
-+
-+Implementation details
-+----------------------
-+This part requires some understanding of how KASAN works since vchecker is
-+highly depends on shadow memory of KASAN. Vchecker uses the shadow to
-+distinguish interesting memory address for validation. If it finds the special
-+value on the shadow of the accessing address, it means that this address is
-+the target for validation check. Then, it tries to do additional checks to this
-+address. With this way, vchecker can filter out un-interesting memory access
-+very efficiently.
-+
-+A new type of checks can be added by implementing following callback structure.
-+check() callback is the main function that checks whether the access is valid
-+or not. Please reference existing checkers for more information.
-+
-+::
-+
-+	struct vchecker_type {
-+		char *name;
-+		const struct file_operations *fops;
-+		int (*init)(struct kmem_cache *s, struct vchecker_cb *cb,
-+				char *buf, size_t cnt);
-+		void (*fini)(struct vchecker_cb *cb);
-+		void (*show)(struct kmem_cache *s, struct seq_file *f,
-+				struct vchecker_cb *cb, void *object, bool verbose);
-+		bool (*check)(struct kmem_cache *s, struct vchecker_cb *cb,
-+				void *object, bool write, unsigned long ret_ip,
-+				unsigned long begin, unsigned long end);
-+	};
--- 
-2.7.4
+Suppose the vm_dirty_bytes is set to 512M (this is a reasonable
+value), and the global_avail is only 10000 pages (this is not low),
+then DIV_ROUND_UP(bytes, global_avail) is 53688, which is bigger than
+4096, so the ratio will be 4096.
+That's unreasonable.
+
+
+Thanks
+Yafang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
