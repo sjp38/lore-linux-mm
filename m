@@ -1,85 +1,35 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B81E6B026B
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:05:58 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id n134so19726206itg.3
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 20:05:58 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a184sor1092729ith.137.2017.11.27.20.05.57
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C826B6B026D
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:10:27 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id i17so17030910otb.2
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 20:10:27 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id r32si13234582oth.265.2017.11.27.20.10.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 Nov 2017 20:05:57 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
-References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
-From: Zhouyi Zhou <zhouzhouyi@gmail.com>
-Date: Tue, 28 Nov 2017 12:05:56 +0800
-Message-ID: <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
-Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 20:10:26 -0800 (PST)
+From: Josh Poimboeuf <jpoimboe@redhat.com>
+Subject: [PATCH 0/2] x86/mm/kaiser: a couple of KAISER mapping fixes
+Date: Mon, 27 Nov 2017 22:10:11 -0600
+Message-Id: <cover.1511842148.git.jpoimboe@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: aryabinin@virtuozzo.com, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Cc: Zhouyi Zhou <zhouzhouyi@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-When there are huge amount of quarantined cache allocates in system,
-number of entries in global_quarantine[i] will be great. Meanwhile,
-there is no relax in while loop in function qlist_move_cache which
-hold quarantine_lock. As a result, some userspace programs for example
-libvirt will complain.
+On top of the tip KAISER patches.
 
-On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
-> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
->
-> This patch fix livelock by conditionally release cpu to let others
-> has a chance to run.
->
-> Tested on x86_64.
-> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
-> ---
->  mm/kasan/quarantine.c | 12 +++++++++++-
->  1 file changed, 11 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
-> index 3a8ddf8..33eeff4 100644
-> --- a/mm/kasan/quarantine.c
-> +++ b/mm/kasan/quarantine.c
-> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
->                                    struct kmem_cache *cache)
->  {
->         struct qlist_node *curr;
-> +       struct qlist_head tmp_head;
-> +       unsigned long flags;
->
->         if (unlikely(qlist_empty(from)))
->                 return;
->
-> +       qlist_init(&tmp_head);
->         curr = from->head;
->         qlist_init(from);
->         while (curr) {
-> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
->                 if (obj_cache == cache)
->                         qlist_put(to, curr, obj_cache->size);
->                 else
-> -                       qlist_put(from, curr, obj_cache->size);
-> +                       qlist_put(&tmp_head, curr, obj_cache->size);
->
->                 curr = next;
-> +
-> +               if (need_resched()) {
-> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
-> +                       cond_resched();
-> +                       spin_lock_irqsave(&quarantine_lock, flags);
-> +               }
->         }
-> +       qlist_move_all(&tmp_head, from);
->  }
->
->  static void per_cpu_remove_cache(void *arg)
-> --
-> 2.1.4
->
+Josh Poimboeuf (2):
+  x86/mm/kaiser: Remove unused user-mapped page-aligned section
+  x86/mm/kaiser: Don't map the IRQ stack in user space
+
+ include/asm-generic/vmlinux.lds.h |  6 ++----
+ include/linux/percpu-defs.h       | 10 ----------
+ 2 files changed, 2 insertions(+), 14 deletions(-)
+
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
