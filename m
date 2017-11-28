@@ -1,190 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 99C9A6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 22:11:42 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id h205so37817528iof.15
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 19:11:42 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c2sor9312601itf.1.2017.11.27.19.11.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D811F6B025E
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 22:37:03 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id s9so12205653pfe.20
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 19:37:03 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id d4si2644613pgc.216.2017.11.27.19.37.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 27 Nov 2017 19:11:40 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 19:37:02 -0800 (PST)
+Received: from mail-it0-f52.google.com (mail-it0-f52.google.com [209.85.214.52])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 419BB219A3
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 03:37:02 +0000 (UTC)
+Received: by mail-it0-f52.google.com with SMTP id t1so6687211ite.5
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 19:37:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz>
-References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
- <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp> <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 28 Nov 2017 11:11:40 +0800
-Message-ID: <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
-Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
- dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
- the vm dirtiness settings is illogical)
+In-Reply-To: <20171127223405.231444600@infradead.org>
+References: <20171127223110.479550152@infradead.org> <20171127223405.231444600@infradead.org>
+From: Andy Lutomirski <luto@kernel.org>
+Date: Mon, 27 Nov 2017 19:36:40 -0800
+Message-ID: <CALCETrV-vk-49HkOXi6EW0zxzDrCj2DM4N2i33AuX-vGNb0SHg@mail.gmail.com>
+Subject: Re: [PATCH 2/5] x86/mm/kaiser: Add a banner
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-Hi Michal,
-
-What about bellow change ?
-It makes the function  domain_dirty_limits() more clear.
-And the result will have a higher precision.
-
-
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 8a15511..2b5e507 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
-dirty_throttle_control *dtc)
-    unsigned long bytes = vm_dirty_bytes;
-    unsigned long bg_bytes = dirty_background_bytes;
-    /* convert ratios to per-PAGE_SIZE for higher precision */
--   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
--   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
-+   unsigned long ratio = vm_dirty_ratio;
-+   unsigned long bg_ratio = dirty_background_ratio;
-    unsigned long thresh;
-    unsigned long bg_thresh;
-    struct task_struct *tsk;
-@@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
-dirty_throttle_control *dtc)
-         */
-        if (bytes)
-            ratio = min(DIV_ROUND_UP(bytes, global_avail),
--                   PAGE_SIZE);
-+                   100);
-        if (bg_bytes)
-            bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
--                      PAGE_SIZE);
-+                      99);   /* bg_ratio should less than ratio */
-        bytes = bg_bytes = 0;
-    }
-
-+   /* bytes and bg_bytes must be PAGE_SIZE aligned */
-    if (bytes)
--       thresh = DIV_ROUND_UP(bytes, PAGE_SIZE);
-+       thresh = DIV_ROUND_UP(bytes, PAGE_SIZE) * 100;
-    else
--       thresh = (ratio * available_memory) / PAGE_SIZE;
-+       thresh = ratio * available_memory;
-
-    if (bg_bytes)
--       bg_thresh = DIV_ROUND_UP(bg_bytes, PAGE_SIZE);
-+       bg_thresh = DIV_ROUND_UP(bg_bytes, PAGE_SIZE) * 100;
-    else
--       bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
-+       bg_thresh = bg_ratio * available_memory;
-
-    if (unlikely(bg_thresh >= thresh)) {
-        pr_warn("vm direct limit must be set greater than background limit.\n");
-        bg_thresh = thresh / 2;
-    }
-
-+   /* ensure bg_thresh and thresh never be 0 */
-+   bg_thresh = DIV_ROUND_UP(bg_thresh, 100);
-+   thresh = DIV_ROUND_UP(thresh, 100);
-+
-    tsk = current;
-    if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
-
-2017-11-27 17:19 GMT+08:00 Michal Hocko <mhocko@suse.com>:
-> Andrew,
-> could you simply send this to Linus. If we _really_ need something to
-> prevent misconfiguration, which I doubt to be honest, then it should be
-> thought through much better.
+On Mon, Nov 27, 2017 at 2:31 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+> So we can more easily see if the shiny got enabled.
+>
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 > ---
-> From 4ef6b1cbf98ea5dae155ab3303c4ae1d93411b79 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Mon, 27 Nov 2017 10:12:15 +0100
-> Subject: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
->  dirtiness settings are illogical"
+>  arch/x86/mm/kaiser.c |    2 ++
+>  1 file changed, 2 insertions(+)
 >
-> This reverts commit 0f6d24f878568fac579a1962d0bf7cb9f01e0ceb because
-> it causes false positive warnings during OOM situations as noticed by
-> Tetsuo Handa:
-> [  621.814512] Node 0 active_anon:3525940kB inactive_anon:8372kB active_file:216kB inactive_file:1872kB unevictable:0kB isolated(anon):0kB isolated(file):0kB mapped:2504kB dirty:52kB writeback:0kB shmem:8660kB s
-> hmem_thp: 0kB shmem_pmdmapped: 0kB anon_thp: 636928kB writeback_tmp:0kB unstable:0kB all_unreclaimable? yes
-> [  621.821534] Node 0 DMA free:14848kB min:284kB low:352kB high:420kB active_anon:992kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:15988kB managed:15904kB mlocke
-> d:0kB kernel_stack:0kB pagetables:24kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> [  621.829035] lowmem_reserve[]: 0 2687 3645 3645
-> [  621.831655] Node 0 DMA32 free:53004kB min:49608kB low:62008kB high:74408kB active_anon:2712648kB inactive_anon:0kB active_file:0kB inactive_file:0kB unevictable:0kB writepending:0kB present:3129216kB managed:
-> 2773132kB mlocked:0kB kernel_stack:96kB pagetables:5096kB bounce:0kB free_pcp:0kB local_pcp:0kB free_cma:0kB
-> [  621.839945] lowmem_reserve[]: 0 0 958 958
-> [  621.842811] Node 0 Normal free:17140kB min:17684kB low:22104kB high:26524kB active_anon:812300kB inactive_anon:8372kB active_file:1228kB inactive_file:1868kB unevictable:0kB writepending:52kB present:1048576k
-> B managed:981224kB mlocked:0kB kernel_stack:3520kB pagetables:8552kB bounce:0kB free_pcp:120kB local_pcp:120kB free_cma:0kB
-> [  621.852473] lowmem_reserve[]: 0 0 0 0
-> [...]
-> [  621.891477] Out of memory: Kill process 8459 (a.out) score 999 or sacrifice child
-> [  621.894363] Killed process 8459 (a.out) total-vm:4180kB, anon-rss:88kB, file-rss:0kB, shmem-rss:0kB
-> [  621.897172] oom_reaper: reaped process 8459 (a.out), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
-> [  622.424664] vm direct limit must be set greater than background limit.
+> --- a/arch/x86/mm/kaiser.c
+> +++ b/arch/x86/mm/kaiser.c
+> @@ -425,6 +425,8 @@ void __init kaiser_init(void)
+>         if (!kaiser_enabled)
+>                 return;
 >
-> The problem is that both thresh and bg_thresh will be 0 if available_memory
->  is less than 4 pages when evaluating global_dirtyable_memory. While
-> this might be worked around the whole point of the warning is dubious at
-> best. We do rely on admins to do sensible things when changing tunable
-> knobs. Dirty memory writeback knobs are not any special in that regards
-> so revert the warning rather than adding more hacks to work this around.
->
-> Rerported-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Debugged-by: Yafang Shao <laoar.shao@gmail.com>
-> Fixes: 0f6d24f87856 ("mm/page-writeback.c: print a warning if the vm dirtiness settings are illogical")
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  Documentation/sysctl/vm.txt | 7 -------
->  mm/page-writeback.c         | 5 +----
->  2 files changed, 1 insertion(+), 11 deletions(-)
->
-> diff --git a/Documentation/sysctl/vm.txt b/Documentation/sysctl/vm.txt
-> index b920423f88cb..5025ff9307e6 100644
-> --- a/Documentation/sysctl/vm.txt
-> +++ b/Documentation/sysctl/vm.txt
-> @@ -158,10 +158,6 @@ Note: the minimum value allowed for dirty_bytes is two pages (in bytes); any
->  value lower than this limit will be ignored and the old configuration will be
->  retained.
->
-> -Note: the value of dirty_bytes also must be set greater than
-> -dirty_background_bytes or the amount of memory corresponding to
-> -dirty_background_ratio.
-> -
->  ==============================================================
->
->  dirty_expire_centisecs
-> @@ -181,9 +177,6 @@ generating disk writes will itself start writing out dirty data.
->
->  The total available memory is not equal to total system memory.
->
-> -Note: dirty_ratio must be set greater than dirty_background_ratio or
-> -ratio corresponding to dirty_background_bytes.
-> -
->  ==============================================================
->
->  dirty_writeback_centisecs
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index e7095030aa1f..586f31261c83 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -433,11 +433,8 @@ static void domain_dirty_limits(struct dirty_throttle_control *dtc)
->         else
->                 bg_thresh = (bg_ratio * available_memory) / PAGE_SIZE;
->
-> -       if (unlikely(bg_thresh >= thresh)) {
-> -               pr_warn("vm direct limit must be set greater than background limit.\n");
-> +       if (bg_thresh >= thresh)
->                 bg_thresh = thresh / 2;
-> -       }
-> -
->         tsk = current;
->         if (tsk->flags & PF_LESS_THROTTLE || rt_task(tsk)) {
->                 bg_thresh += bg_thresh / 4 + global_wb_domain.dirty_limit / 32;
-> --
-> 2.15.0
->
-> --
-> Michal Hocko
-> SUSE Labs
+> +       printk("All your KAISER are belong to us\n");
+> +
+
+All your incomprehensible academic names are belong to us.
+
+On a serious note, can we please banish the name KAISER from all the
+user-facing bits?  No one should be setting a boot option that has a
+name based on an academic project called "Kernel Address Isolation to
+have Side-channels Efficiently Removed".  We're not efficiently
+removing side channels.  The side channels are still very much there.
+Heck, the series as currently presented doesn't even rescue kASLR.  It
+could*, if we were to finish the work that I mostly started and
+completely banish all the normal kernel mappings from the shadow**
+tables.  We're rather inefficiently (and partially!) mitigating the
+fact that certain CPU designers have had their heads up their
+collective arses for *years* and have failed to pay attention to
+numerous academic papers documenting that fact.
+
+Let's call the user facing bits "separate user pagetables".  If we
+want to make it conditioned on a future cpu cap called
+X86_BUG_REALLY_DUMB_SIDE_CHANNELS, great, assuming a better CPU ever
+shows up.  But please let's not make users look up WTF "KAISER" means.
+
+* No one ever documented the %*!& side channels AFAIK, so everything
+we're talking about here is mostly speculation.
+
+** The word "shadow" needs to die, too.  I know what shadow page
+tables are, and they have *nothing* to do with KAISER.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
