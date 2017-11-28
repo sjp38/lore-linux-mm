@@ -1,124 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 76D856B02E5
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 05:16:40 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id n134so203534itg.3
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:16:40 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m186sor9686208ith.15.2017.11.28.02.16.39
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 477C56B02E7
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 05:19:10 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id r2so15650129wra.4
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:19:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 93si299778edl.355.2017.11.28.02.19.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Nov 2017 02:16:39 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 02:19:08 -0800 (PST)
+Date: Tue, 28 Nov 2017 11:19:07 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: hugetlb page migration vs. overcommit
+Message-ID: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
+References: <20171122152832.iayefrlxbugphorp@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171128100946.GI5977@quack2.suse.cz>
-References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
- <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
- <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz> <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
- <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
- <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz> <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
- <20171128100946.GI5977@quack2.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 28 Nov 2017 18:16:38 +0800
-Message-ID: <CALOAHbDy6aoiW4x+YAj3nqfo7PRxxdrGbvF6MBnKP=24M0uigQ@mail.gmail.com>
-Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
- dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
- the vm dirtiness settings is illogical)
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171122152832.iayefrlxbugphorp@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>
+To: linux-mm@kvack.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-2017-11-28 18:09 GMT+08:00 Jan Kara <jack@suse.cz>:
-> On Tue 28-11-17 15:52:50, Yafang Shao wrote:
->> 2017-11-28 15:45 GMT+08:00 Michal Hocko <mhocko@suse.com>:
->> > On Tue 28-11-17 14:12:15, Yafang Shao wrote:
->> >> 2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
->> >> > Hi Michal,
->> >> >
->> >> > What about bellow change ?
->> >> > It makes the function  domain_dirty_limits() more clear.
->> >> > And the result will have a higher precision.
->> >> >
->> >> >
->> >> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
->> >> > index 8a15511..2b5e507 100644
->> >> > --- a/mm/page-writeback.c
->> >> > +++ b/mm/page-writeback.c
->> >> > @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
->> >> > dirty_throttle_control *dtc)
->> >> >     unsigned long bytes = vm_dirty_bytes;
->> >> >     unsigned long bg_bytes = dirty_background_bytes;
->> >> >     /* convert ratios to per-PAGE_SIZE for higher precision */
->> >> > -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
->> >> > -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
->> >> > +   unsigned long ratio = vm_dirty_ratio;
->> >> > +   unsigned long bg_ratio = dirty_background_ratio;
->> >> >     unsigned long thresh;
->> >> >     unsigned long bg_thresh;
->> >> >     struct task_struct *tsk;
->> >> > @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
->> >> > dirty_throttle_control *dtc)
->> >> >          */
->> >> >         if (bytes)
->> >> >             ratio = min(DIV_ROUND_UP(bytes, global_avail),
->> >> > -                   PAGE_SIZE);
->> >> > +                   100);
->> >> >         if (bg_bytes)
->> >> >             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
->> >> > -                      PAGE_SIZE);
->> >> > +                      99);   /* bg_ratio should less than ratio */
->> >> >         bytes = bg_bytes = 0;
->> >> >     }
->> >>
->> >>
->> >> Errata:
->> >>
->> >>         if (bytes)
->> >> -           ratio = min(DIV_ROUND_UP(bytes, global_avail),
->> >> -                   PAGE_SIZE);
->> >> +           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
->> >> +                   100);
->> >>         if (bg_bytes)
->> >> -           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
->> >> -                      PAGE_SIZE);
->> >> +           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
->> >> +                      100 - 1); /* bg_ratio should be less than ratio */
->> >>         bytes = bg_bytes = 0;
->> >
->> > And you really think this makes code easier to follow? I am somehow not
->> > conviced...
->> >
->>
->> There's hidden bug in the original code, because it is too complex to
->> clearly understand.
->> See bellow,
->>
->> ratio = min(DIV_ROUND_UP(bytes, global_avail),
->>                     PAGE_SIZE)
->>
->> Suppose the vm_dirty_bytes is set to 512M (this is a reasonable
->> value), and the global_avail is only 10000 pages (this is not low),
->> then DIV_ROUND_UP(bytes, global_avail) is 53688, which is bigger than
->> 4096, so the ratio will be 4096.
->> That's unreasonable.
->
-> But that's not a bug in domain_dirty_limits(). It is more a design issue of
-> the dirty_bytes interface - i.e., if you tell the system that 512M of dirty
-> pages is fine, then it is fine even if you have only 400M of page cache -
-> i.e., 100% of page cache can be dirty and that's what the function
-> computes.  Bad luck if you don't like that but that's how the interface was
-> (mis)designed. We can talk about changes to what dirty_bytes mean under a
-> situation when there is low amount of page cache but that will be a
-> userspace visible change and we will have to be *very* careful not to break
-> current users.
->
+On Wed 22-11-17 16:28:32, Michal Hocko wrote:
+> Hi,
+> is there any reason why we enforce the overcommit limit during hugetlb
+> pages migration? It's in alloc_huge_page_node->__alloc_buddy_huge_page
+> path. I am wondering whether this is really an intentional behavior.
+> The page migration allocates a page just temporarily so we should be
+> able to go over the overcommit limit for the migration duration. The
+> reason I am asking is that hugetlb pages tend to be utilized usually
+> (otherwise the memory would be just wasted and pool shrunk) but then
+> the migration simply fails which breaks memory hotplug and other
+> migration dependent functionality which is quite suboptimal. You can
+> workaround that by increasing the overcommit limit.
+> 
+> Why don't we simply migrate as long as we are able to allocate the
+> target hugetlb page? I have a half baked patch to remove this
+> restriction, would there be an opposition to do something like that?
 
-Thanks for your suggestion.
-I will submit a patch for that.
+So I finally got to think about this some more and looked at how we
+actually account things more thoroughly. And it is, you both of you
+expected, quite subtle and not easy to get around. Per NUMA pools make
+things quite complicated. Why? Migration can really increase the overall
+pool size. Say we are migrating from Node1 to Node2. Node2 doesn't have
+any pre-allocated pages but assume that the overcommit allows us to move
+on. All good. Except that the original page will return to the pool
+because free_huge_page will see Node1 without any surplus pages and
+therefore moves back the page to the pool. Node2 will release the
+surplus page only after it is freed which can be an unbound amount of
+time. 
 
-Thanks
-Yafang
+While we are still effectively under the overcommit limit the semantic
+is kind of strange and I am not sure the behavior is really intended.
+I see why per node surplus counter is used here. We simply want to
+maintain per node counts after regular page free. So I was thinking
+to add a temporary/migrate state to the huge page for migration pages
+(start with new page, state transfered to the old page on success) and
+free such a page to the allocator regardless of the surplus counters.
+
+This would mean that the page migration might change inter node pool
+sizes but I guess that should be acceptable. What do you guys think?
+I can send a draft patch if that helps you to understand the idea.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
