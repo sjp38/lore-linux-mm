@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CD0A76B028D
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:49:34 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id x202so31249996pgx.1
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:49:34 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 1BEB46B028F
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:49:38 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i123so31263374pgd.2
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:49:38 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y4sor4727416pgy.54.2017.11.27.23.49.33
+        by mx.google.com with SMTPS id z189sor7087726pgb.235.2017.11.27.23.49.36
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:49:33 -0800 (PST)
+        Mon, 27 Nov 2017 23:49:36 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH 04/18] vchecker: prepare per object memory for vchecker
-Date: Tue, 28 Nov 2017 16:48:39 +0900
-Message-Id: <1511855333-3570-5-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 05/18] vchecker: store/report callstack of value writer
+Date: Tue, 28 Nov 2017 16:48:40 +0900
+Message-Id: <1511855333-3570-6-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,129 +22,186 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-To prepare per object memory for vchecker, we need to change the layout
-of the object when kmem_cache initialization. Add such code on
-vchecker_cache_create() which is called when kmem_cache initialization.
+The purpose of the value checker is finding invalid user writing
+invalid value at the moment that the value is written. However, there is
+not enough infrastructure so that we cannot easily detect this case
+in time.
 
-And, this memory should be initialized when object is populated. Do it
-with another hook.
+However, by following way, we can emulate similar effect.
 
-This memory will be used in the following patch.
+1. Store callstack when memory is written.
+2. If check is failed when next access happen due to invalid written
+value from previous write, report previous write-access callstack
+
+It will caught offending user properly.
+
+Following output "Invalid writer:" part is the result of this patch.
+We find the invalid value writer at workfn_old_obj+0x14/0x50.
+
+[   49.400673] ==================================================================
+[   49.402297] BUG: VCHECKER: invalid access in workfn_old_obj+0x14/0x50 [vchecker_test] at addr ffff88002e9dc000
+[   49.403899] Write of size 8 by task kworker/0:2/465
+[   49.404538] value checker for offset 0 ~ 8 at ffff88002e9dc000
+[   49.405374] (mask 0xffff value 7) invalid value 7
+
+[   49.406016] Invalid writer:
+[   49.406302]  workfn_old_obj+0x14/0x50 [vchecker_test]
+[   49.406973]  process_one_work+0x3b5/0x9f0
+[   49.407463]  worker_thread+0x87/0x750
+[   49.407895]  kthread+0x1b2/0x200
+[   49.408252]  ret_from_fork+0x24/0x30
+
+[   49.408723] Allocated by task 1326:
+[   49.409126]  kasan_kmalloc+0xb9/0xe0
+[   49.409571]  kmem_cache_alloc+0xd1/0x250
+[   49.410046]  0xffffffffa00c8157
+[   49.410389]  do_one_initcall+0x82/0x1cf
+[   49.410851]  do_init_module+0xe7/0x333
+[   49.411296]  load_module+0x406b/0x4b40
+[   49.411745]  SYSC_finit_module+0x14d/0x180
+[   49.412247]  do_syscall_64+0xf0/0x340
+[   49.412674]  return_from_SYSCALL_64+0x0/0x75
+
+[   49.413276] Freed by task 0:
+[   49.413566] (stack is not available)
+
+[   49.414034] The buggy address belongs to the object at ffff88002e9dc000
+                which belongs to the cache vchecker_test of size 8
+[   49.415708] The buggy address is located 0 bytes inside of
+                8-byte region [ffff88002e9dc000, ffff88002e9dc008)
+[   49.417148] ==================================================================
+
+Correct implementation needs more modifications to various layers
+so it is postponed until feasibility is proved.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- mm/kasan/vchecker.c | 15 +++++++++++++++
- mm/kasan/vchecker.h |  4 ++++
- mm/slab.c           |  2 ++
- mm/slub.c           |  2 ++
- 4 files changed, 23 insertions(+)
+ mm/kasan/vchecker.c | 64 ++++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 59 insertions(+), 5 deletions(-)
 
 diff --git a/mm/kasan/vchecker.c b/mm/kasan/vchecker.c
-index 0b8a1e7..be0f0cd 100644
+index be0f0cd..2e9f461 100644
 --- a/mm/kasan/vchecker.c
 +++ b/mm/kasan/vchecker.c
-@@ -31,6 +31,10 @@ enum vchecker_type_num {
- 	VCHECKER_TYPE_MAX,
+@@ -16,11 +16,14 @@
+ #include <linux/mutex.h>
+ #include <linux/kasan.h>
+ #include <linux/uaccess.h>
++#include <linux/stackdepot.h>
+ 
+ #include "vchecker.h"
+ #include "../slab.h"
+ #include "kasan.h"
+ 
++#define VCHECKER_STACK_DEPTH (16)
++
+ struct vchecker {
+ 	bool enabled;
+ 	struct list_head cb_list;
+@@ -32,7 +35,7 @@ enum vchecker_type_num {
  };
  
-+struct vchecker_data {
-+	void *dummy;
-+};
-+
+ struct vchecker_data {
+-	void *dummy;
++	depot_stack_handle_t write_handle;
+ };
+ 
  struct vchecker_type {
- 	char *name;
- 	const struct file_operations *fops;
-@@ -109,10 +113,21 @@ static int remove_cbs(struct kmem_cache *s, struct vchecker_type *t)
- 	return 0;
+@@ -281,6 +284,24 @@ bool vchecker_check(unsigned long addr, size_t size,
+ 	return vchecker_poisoned((void *)addr, size);
  }
  
-+void vchecker_init_slab_obj(struct kmem_cache *s, const void *object)
++static noinline depot_stack_handle_t save_stack(void)
 +{
-+	struct vchecker_data *data;
++	unsigned long entries[VCHECKER_STACK_DEPTH];
++	struct stack_trace trace = {
++		.nr_entries = 0,
++		.entries = entries,
++		.max_entries = VCHECKER_STACK_DEPTH,
++		.skip = 0
++	};
 +
-+	data = (void *)object + s->vchecker_cache.data_offset;
-+	__memset(data, 0, sizeof(*data));
++	save_stack_trace(&trace);
++	if (trace.nr_entries != 0 &&
++	    trace.entries[trace.nr_entries-1] == ULONG_MAX)
++		trace.nr_entries--;
++
++	return depot_save_stack(&trace, GFP_NOWAIT);
 +}
 +
- void vchecker_cache_create(struct kmem_cache *s,
- 			size_t *size, slab_flags_t *flags)
- {
- 	*flags |= SLAB_VCHECKER;
-+
-+	s->vchecker_cache.data_offset = *size;
-+	*size += sizeof(struct vchecker_data);
+ static ssize_t vchecker_type_write(struct file *filp, const char __user *ubuf,
+ 			size_t cnt, loff_t *ppos,
+ 			enum vchecker_type_num type)
+@@ -474,17 +495,35 @@ static void fini_value(struct vchecker_cb *cb)
+ 	kfree(cb->arg);
  }
  
- void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size)
-diff --git a/mm/kasan/vchecker.h b/mm/kasan/vchecker.h
-index aa22e8d..efebc63 100644
---- a/mm/kasan/vchecker.h
-+++ b/mm/kasan/vchecker.h
-@@ -7,6 +7,7 @@ struct vchecker_cb;
- struct vchecker_cache {
- 	struct vchecker *checker;
- 	struct dentry *dir;
-+	int data_offset;
- };
- 
- 
-@@ -18,6 +19,7 @@ int init_vchecker(struct kmem_cache *s);
- void fini_vchecker(struct kmem_cache *s);
- void vchecker_cache_create(struct kmem_cache *s, size_t *size,
- 			slab_flags_t *flags);
-+void vchecker_init_slab_obj(struct kmem_cache *s, const void *object);
- void vchecker_enable_cache(struct kmem_cache *s, bool enable);
- void vchecker_enable_obj(struct kmem_cache *s, const void *object,
- 			size_t size, bool enable);
-@@ -31,6 +33,8 @@ static inline int init_vchecker(struct kmem_cache *s) { return 0; }
- static inline void fini_vchecker(struct kmem_cache *s) { }
- static inline void vchecker_cache_create(struct kmem_cache *s,
- 			size_t *size, slab_flags_t *flags) {}
-+static inline void vchecker_init_slab_obj(struct kmem_cache *s,
-+	const void *object) {}
- 
- #endif
- 
-diff --git a/mm/slab.c b/mm/slab.c
-index ba45c15..64d768b 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -2076,6 +2076,7 @@ int __kmem_cache_create(struct kmem_cache *cachep, slab_flags_t flags)
- 	}
- #endif
- 
-+	vchecker_cache_create(cachep, &size, &flags);
- 	kasan_cache_create(cachep, &size, &flags);
- 
- 	size = ALIGN(size, cachep->align);
-@@ -2601,6 +2602,7 @@ static void cache_init_objs(struct kmem_cache *cachep,
- 
- 	for (i = 0; i < cachep->num; i++) {
- 		objp = index_to_obj(cachep, page, i);
-+		vchecker_init_slab_obj(cachep, objp);
- 		kasan_init_slab_obj(cachep, objp);
- 
- 		/* constructor could break poison info */
-diff --git a/mm/slub.c b/mm/slub.c
-index 67364cb..c099b33 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -1418,6 +1418,7 @@ static void setup_object(struct kmem_cache *s, struct page *page,
- 				void *object)
++static void show_value_stack(struct vchecker_data *data)
++{
++	struct stack_trace trace;
++
++	if (!data->write_handle)
++		return;
++
++	pr_err("Invalid writer:\n");
++	depot_fetch_stack(data->write_handle, &trace);
++	print_stack_trace(&trace, 0);
++	pr_err("\n");
++}
++
+ static void show_value(struct kmem_cache *s, struct seq_file *f,
+ 			struct vchecker_cb *cb, void *object)
  {
- 	setup_object_debug(s, page, object);
-+	vchecker_init_slab_obj(s, object);
- 	kasan_init_slab_obj(s, object);
- 	if (unlikely(s->ctor)) {
- 		kasan_unpoison_object_data(s, object);
-@@ -3550,6 +3551,7 @@ static int calculate_sizes(struct kmem_cache *s, int forced_order)
- 		size += 2 * sizeof(struct track);
- #endif
+ 	struct vchecker_value_arg *arg = cb->arg;
++	struct vchecker_data *data;
  
-+	vchecker_cache_create(s, &size, &s->flags);
- 	kasan_cache_create(s, &size, &s->flags);
- #ifdef CONFIG_SLUB_DEBUG
- 	if (flags & SLAB_RED_ZONE) {
+ 	if (f)
+ 		seq_printf(f, "(mask 0x%llx value %llu) invalid value %llu\n\n",
+ 			arg->mask, arg->value, arg->value & arg->mask);
+-	else
++	else {
++		data = (void *)object + s->vchecker_cache.data_offset;
++
+ 		pr_err("(mask 0x%llx value %llu) invalid value %llu\n\n",
+ 			arg->mask, arg->value, arg->value & arg->mask);
++		show_value_stack(data);
++	}
+ }
+ 
+ static bool check_value(struct kmem_cache *s, struct vchecker_cb *cb,
+@@ -492,14 +531,29 @@ static bool check_value(struct kmem_cache *s, struct vchecker_cb *cb,
+ 			unsigned long begin, unsigned long end)
+ {
+ 	struct vchecker_value_arg *arg;
++	struct vchecker_data *data;
+ 	u64 value;
++	depot_stack_handle_t handle;
++
++	if (!write)
++		goto check;
++
++	handle = save_stack();
++	if (!handle) {
++		pr_err("VCHECKER: %s: fail at addr %p\n", __func__, object);
++		dump_stack();
++	}
+ 
++	data = (void *)object + s->vchecker_cache.data_offset;
++	data->write_handle = handle;
++
++check:
+ 	arg = cb->arg;
+ 	value = *(u64 *)(object + begin);
+-	if ((value & arg->mask) != (arg->value & arg->mask))
+-		return true;
++	if ((value & arg->mask) == (arg->value & arg->mask))
++		return false;
+ 
+-	return false;
++	return true;
+ }
+ 
+ static int value_show(struct seq_file *f, void *v)
 -- 
 2.7.4
 
