@@ -1,290 +1,232 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ADD476B025F
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 09:12:20 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id b189so474358wmd.5
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 06:12:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u17sor9823487edf.7.2017.11.28.06.12.18
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AAD46B0038
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 11:18:59 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id n64so182009ota.3
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 08:18:59 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h34si10501314otb.236.2017.11.28.08.18.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Nov 2017 06:12:19 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit during migration
-Date: Tue, 28 Nov 2017 15:12:11 +0100
-Message-Id: <20171128141211.11117-3-mhocko@kernel.org>
-In-Reply-To: <20171128141211.11117-1-mhocko@kernel.org>
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 08:18:57 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v2] mm,oom: Set ->signal->oom_mm to all thread groups sharing the victim's mm.
+Date: Wed, 29 Nov 2017 01:17:15 +0900
+Message-Id: <1511885835-4899-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711282307.EBG97690.MQVOFLFFOJHtOS@I-love.SAKURA.ne.jp>
+References: <201711282307.EBG97690.MQVOFLFFOJHtOS@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-From: Michal Hocko <mhocko@suse.com>
+Due to commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+oom_reaped tasks") and patch "mm,oom: Use ALLOC_OOM for OOM victim's last
+second allocation.", thread groups sharing the OOM victim's mm without
+setting ->signal->oom_mm before task_will_free_mem(current) is called
+might fail to try ALLOC_OOM allocation attempt.
 
-hugepage migration relies on __alloc_buddy_huge_page to get a new page.
-This has 2 main disadvantages.
-1) it doesn't allow to migrate any huge page if the pool is used
-completely which is not an exceptional case as the pool is static and
-unused memory is just wasted.
-2) it leads to a weird semantic when migration between two numa nodes
-might increase the pool size of the destination NUMA node while the page
-is in use. The issue is caused by per NUMA node surplus pages tracking
-(see free_huge_page).
+Therefore, make sure that all thread groups sharing the OOM victim's mm can
+try ALLOC_OOM allocation attempt by calling mark_oom_victim() on all thread
+groups sharing the OOM victim's mm, by splitting oom_kill_process() into
+"select final victim and print message" part and "kill final victim" part.
 
-Address both issues by changing the way how we allocate and account
-pages allocated for migration. Those should temporal by definition.
-So we mark them that way (we will abuse page flags in the 3rd page)
-and update free_huge_page to free such pages to the page allocator.
-Page migration path then just transfers the temporal status from the
-new page to the old one which will be freed on the last reference.
-The global surplus count will never change during this path but we still
-have to be careful when freeing a page from a node with surplus pages
-on the node.
+Roman is proposing similar change for implementing cgroup-aware OOM killer
+at http://lkml.kernel.org/r/20171019185218.12663-2-guro@fb.com , and this
+patch can be reused for that purpose.
 
-Rename __alloc_buddy_huge_page to __alloc_surplus_huge_page to better
-reflect its purpose. The new allocation routine for the migration path
-is __alloc_migrate_huge_page.
-
-The user visible effect of this patch is that migrated pages are really
-temporal and they travel between NUMA nodes as per the migration
-request:
-Before migration
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:1
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
-
-After
-
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:0
-/sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:1
-/sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
-
-with the previous implementation, both nodes would have nr_hugepages:1
-until the page is freed.
-
-Signed-off-by: Michal Hocko <mhocko@suse.com>
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
 ---
- include/linux/hugetlb.h | 35 +++++++++++++++++++++++++++++
- mm/hugetlb.c            | 58 +++++++++++++++++++++++++++++++++++--------------
- mm/migrate.c            | 13 +++++++++++
- 3 files changed, 90 insertions(+), 16 deletions(-)
+ mm/oom_kill.c | 129 ++++++++++++++++++++++++++++++----------------------------
+ 1 file changed, 67 insertions(+), 62 deletions(-)
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index 6e3696c7b35a..1b6d7783c717 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -157,8 +157,43 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
- 		unsigned long address, unsigned long end, pgprot_t newprot);
- 
- bool is_hugetlb_entry_migration(pte_t pte);
-+
-+/*
-+ * Internal hugetlb specific page flag. Do not use outside of the hugetlb
-+ * code
-+ */
-+static inline bool PageHugeTemporary(struct page *page)
-+{
-+	if (!PageHuge(page))
-+		return false;
-+
-+	return page[2].flags == -1U;
-+}
-+
-+static inline void SetPageHugeTemporary(struct page *page)
-+{
-+	page[2].flags = -1U;
-+}
-+
-+static inline void ClearPageHugeTemporary(struct page *page)
-+{
-+	page[2].flags = 0;
-+}
- #else /* !CONFIG_HUGETLB_PAGE */
- 
-+static inline bool PageHugeTemporary(struct page *page)
-+{
-+	return false;
-+}
-+
-+static inline void SetPageHugeTemporary(struct page *page)
-+{
-+}
-+
-+static inline void ClearPageHugeTemporary(struct page *page)
-+{
-+}
-+
- static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
- {
- }
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 8189c92fac82..037bf0f89463 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1283,7 +1283,13 @@ void free_huge_page(struct page *page)
- 	if (restore_reserve)
- 		h->resv_huge_pages++;
- 
--	if (h->surplus_huge_pages_node[nid]) {
-+	if (PageHugeTemporary(page)) {
-+		list_del(&page->lru);
-+		ClearPageHugeTemporary(page);
-+		update_and_free_page(h, page);
-+		if (h->surplus_huge_pages_node[nid])
-+			h->surplus_huge_pages_node[nid]--;
-+	} else if (h->surplus_huge_pages_node[nid]) {
- 		/* remove the page from active list */
- 		list_del(&page->lru);
- 		update_and_free_page(h, page);
-@@ -1531,7 +1537,11 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	return rc;
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 3b0d0fe..f859144 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -814,6 +814,64 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	return ret;
  }
  
--static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
-+/*
-+ * Allocates a fresh surplus page from the page allocator. Temporary
-+ * requests (e.g. page migration) can pass enforce_overcommit == false
-+ */
-+static struct page *__alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
- 		int nid, nodemask_t *nmask)
- {
- 	struct page *page;
-@@ -1595,6 +1605,28 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
- 	return page;
- }
- 
-+static struct page *__alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-+		int nid, nodemask_t *nmask)
++static void __oom_kill_process(struct task_struct *victim)
 +{
-+	struct page *page;
++	bool can_oom_reap = true;
++	struct task_struct *p;
++	struct task_struct *t;
++	struct mm_struct *mm;
 +
-+	if (hstate_is_gigantic(h))
-+		return NULL;
-+
-+	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
-+	if (!page)
-+		return NULL;
++	victim = find_lock_task_mm(victim);
++	if (!victim)
++		return;
++	get_task_struct(victim);
++	/* Get a reference to safely compare mm after task_unlock(victim) */
++	mm = victim->mm;
++	mmgrab(mm);
++	task_unlock(victim);
 +
 +	/*
-+	 * We do not account these pages as surplus because they are only
-+	 * temporary and will be released properly on the last reference
++	 * Kill all user processes sharing victim's mm and then grant them
++	 * access to memory reserves.
 +	 */
-+	prep_new_huge_page(h, page, page_to_nid(page));
-+	SetPageHugeTemporary(page);
++	rcu_read_lock();
++	for_each_process(p) {
++		if (!process_shares_mm(p, mm))
++			continue;
++		if (is_global_init(p)) {
++			can_oom_reap = false;
++			set_bit(MMF_OOM_SKIP, &mm->flags);
++			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
++				task_pid_nr(victim), victim->comm,
++				task_pid_nr(p), p->comm);
++			continue;
++		}
++		/*
++		 * No use_mm() user needs to read from the userspace so we are
++		 * ok to reap it.
++		 */
++		if (unlikely(p->flags & PF_KTHREAD))
++			continue;
++		/*
++		 * We should send SIGKILL before granting access to memory
++		 * reserves in order to prevent the OOM victim from depleting
++		 * the memory reserves from the user space under its control.
++		 */
++		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
++		t = find_lock_task_mm(p);
++		if (!t)
++			continue;
++		mark_oom_victim(t);
++		task_unlock(t);
++	}
++	rcu_read_unlock();
 +
-+	return page;
++	if (can_oom_reap)
++		wake_oom_reaper(victim);
++	mmdrop(mm);
++	put_task_struct(victim);
 +}
 +
- /*
-  * Use the VMA's mpolicy to allocate a huge page from the buddy.
-  */
-@@ -1609,17 +1641,13 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
- 	nodemask_t *nodemask;
- 
- 	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
--	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
-+	page = __alloc_surplus_huge_page(h, gfp_mask, nid, nodemask);
- 	mpol_cond_put(mpol);
- 
- 	return page;
- }
- 
--/*
-- * This allocation function is useful in the context where vma is irrelevant.
-- * E.g. soft-offlining uses this function because it only cares physical
-- * address of error page.
-- */
-+/* page migration callback function */
- struct page *alloc_huge_page_node(struct hstate *h, int nid)
+ static void oom_kill_process(struct oom_control *oc, const char *message)
  {
- 	gfp_t gfp_mask = htlb_alloc_mask(h);
-@@ -1634,12 +1662,12 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
- 	spin_unlock(&hugetlb_lock);
+ 	struct task_struct *p = oc->chosen;
+@@ -825,7 +883,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	unsigned int victim_points = 0;
+ 	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+ 					      DEFAULT_RATELIMIT_BURST);
+-	bool can_oom_reap = true;
  
- 	if (!page)
--		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
-+		page = __alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
+ 	/*
+ 	 * If the task is already exiting, don't alarm the sysadmin or kill
+@@ -833,13 +890,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	 * so it can die quickly
+ 	 */
+ 	task_lock(p);
+-	if (task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		wake_oom_reaper(p);
+-		task_unlock(p);
+-		put_task_struct(p);
+-		return;
+-	}
++	if (task_will_free_mem(p))
++		goto kill_victims;
+ 	task_unlock(p);
  
- 	return page;
- }
- 
--
-+/* page migration callback function */
- struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
- 		nodemask_t *nmask)
- {
-@@ -1657,9 +1685,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 	if (__ratelimit(&oom_rs))
+@@ -885,66 +937,20 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 		put_task_struct(victim);
+ 		victim = p;
  	}
- 	spin_unlock(&hugetlb_lock);
- 
--	/* No reservations, try to overcommit */
 -
--	return __alloc_buddy_huge_page(h, gfp_mask, preferred_nid, nmask);
-+	return __alloc_migrate_huge_page(h, gfp_mask, preferred_nid, nmask);
- }
+-	/* Get a reference to safely compare mm after task_unlock(victim) */
+ 	mm = victim->mm;
+-	mmgrab(mm);
  
- /*
-@@ -1687,7 +1713,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
- retry:
- 	spin_unlock(&hugetlb_lock);
- 	for (i = 0; i < needed; i++) {
--		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
-+		page = __alloc_surplus_huge_page(h, htlb_alloc_mask(h),
- 				NUMA_NO_NODE, NULL);
- 		if (!page) {
- 			alloc_ok = false;
-@@ -2284,7 +2310,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 	 * First take pages out of surplus state.  Then make up the
- 	 * remaining difference by allocating fresh huge pages.
- 	 *
--	 * We might race with __alloc_buddy_huge_page() here and be unable
-+	 * We might race with __alloc_surplus_huge_page() here and be unable
- 	 * to convert a surplus huge page to a normal huge page. That is
- 	 * not critical, though, it just means the overall size of the
- 	 * pool might be one hugepage larger than it needs to be, but
-@@ -2330,7 +2356,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
- 	 * By placing pages into the surplus state independent of the
- 	 * overcommit value, we are allowing the surplus pool size to
- 	 * exceed overcommit. There are few sane options here. Since
--	 * __alloc_buddy_huge_page() is checking the global counter,
-+	 * __alloc_surplus_huge_page() is checking the global counter,
- 	 * though, we'll note that we're not allowed to exceed surplus
- 	 * and won't grow the pool anywhere else. Not until one of the
- 	 * sysctls are changed, or the surplus pages go out of use.
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 4d0be47a322a..b3345f8174a9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1326,6 +1326,19 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
- 		hugetlb_cgroup_migrate(hpage, new_hpage);
- 		put_new_page = NULL;
- 		set_page_owner_migrate_reason(new_hpage, reason);
-+
-+		/*
-+		 * transfer temporary state of the new huge page. This is
-+		 * reverse to other transitions because the newpage is going to
-+		 * be final while the old one will be freed so it takes over
-+		 * the temporary status.
-+		 * No need for any locking here because destructor cannot race
-+		 * with us.
-+		 */
-+		if (PageHugeTemporary(new_hpage)) {
-+			SetPageHugeTemporary(hpage);
-+			ClearPageHugeTemporary(new_hpage);
-+		}
+ 	/* Raise event before sending signal: task reaper must see this */
+ 	count_vm_event(OOM_KILL);
+ 	count_memcg_event_mm(mm, OOM_KILL);
+ 
+-	/*
+-	 * We should send SIGKILL before granting access to memory reserves
+-	 * in order to prevent the OOM victim from depleting the memory
+-	 * reserves from the user space under its control.
+-	 */
+-	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
+-	mark_oom_victim(victim);
+ 	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+-		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
+-		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+-		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+-		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
++	       task_pid_nr(victim), victim->comm, K(mm->total_vm),
++	       K(get_mm_counter(mm, MM_ANONPAGES)),
++	       K(get_mm_counter(mm, MM_FILEPAGES)),
++	       K(get_mm_counter(mm, MM_SHMEMPAGES)));
++kill_victims:
+ 	task_unlock(victim);
+-
+-	/*
+-	 * Kill all user processes sharing victim->mm in other thread groups, if
+-	 * any.  They don't get access to memory reserves, though, to avoid
+-	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
+-	 * oom killed thread cannot exit because it requires the semaphore and
+-	 * its contended by another thread trying to allocate memory itself.
+-	 * That thread will now get access to memory reserves since it has a
+-	 * pending fatal signal.
+-	 */
+-	rcu_read_lock();
+-	for_each_process(p) {
+-		if (!process_shares_mm(p, mm))
+-			continue;
+-		if (same_thread_group(p, victim))
+-			continue;
+-		if (is_global_init(p)) {
+-			can_oom_reap = false;
+-			set_bit(MMF_OOM_SKIP, &mm->flags);
+-			pr_info("oom killer %d (%s) has mm pinned by %d (%s)\n",
+-					task_pid_nr(victim), victim->comm,
+-					task_pid_nr(p), p->comm);
+-			continue;
+-		}
+-		/*
+-		 * No use_mm() user needs to read from the userspace so we are
+-		 * ok to reap it.
+-		 */
+-		if (unlikely(p->flags & PF_KTHREAD))
+-			continue;
+-		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
+-	}
+-	rcu_read_unlock();
+-
+-	if (can_oom_reap)
+-		wake_oom_reaper(victim);
+-
+-	mmdrop(mm);
++	__oom_kill_process(victim);
+ 	put_task_struct(victim);
+ }
+ #undef K
+@@ -1018,8 +1024,7 @@ bool out_of_memory(struct oom_control *oc)
+ 	 * quickly exit and free its memory.
+ 	 */
+ 	if (task_will_free_mem(current)) {
+-		mark_oom_victim(current);
+-		wake_oom_reaper(current);
++		__oom_kill_process(current);
+ 		return true;
  	}
  
- 	unlock_page(hpage);
 -- 
-2.15.0
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
