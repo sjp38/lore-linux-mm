@@ -1,68 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 37D396B0278
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:02:26 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q7so16489709pgr.10
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 22:02:26 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id o5si25144435plh.477.2017.11.27.22.02.25
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AFFE66B027C
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:12:16 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id g73so38328218ioj.0
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 22:12:16 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d13sor9234994itj.18.2017.11.27.22.12.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 27 Nov 2017 22:02:25 -0800 (PST)
-From: Kemi Wang <kemi.wang@intel.com>
-Subject: [PATCH 2/2] mm: Rename zone_statistics() to numa_statistics()
-Date: Tue, 28 Nov 2017 14:00:24 +0800
-Message-Id: <1511848824-18709-2-git-send-email-kemi.wang@intel.com>
-In-Reply-To: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
-References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
+        (Google Transport Security);
+        Mon, 27 Nov 2017 22:12:15 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
+References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
+ <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
+ <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz> <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 28 Nov 2017 14:12:15 +0800
+Message-ID: <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
+Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
+ dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
+ the vm dirtiness settings is illogical)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Kemi Wang <kemi.wang@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
 
-Since numa statistics has been separated from zone statistics framework,
-but the functionality of zone_statistics() updates numa counters. Thus, the
-function name makes people confused. So, change the name to
-numa_statistics() as well as its call sites accordingly.
+2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
+> Hi Michal,
+>
+> What about bellow change ?
+> It makes the function  domain_dirty_limits() more clear.
+> And the result will have a higher precision.
+>
+>
+> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
+> index 8a15511..2b5e507 100644
+> --- a/mm/page-writeback.c
+> +++ b/mm/page-writeback.c
+> @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
+> dirty_throttle_control *dtc)
+>     unsigned long bytes = vm_dirty_bytes;
+>     unsigned long bg_bytes = dirty_background_bytes;
+>     /* convert ratios to per-PAGE_SIZE for higher precision */
+> -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
+> -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
+> +   unsigned long ratio = vm_dirty_ratio;
+> +   unsigned long bg_ratio = dirty_background_ratio;
+>     unsigned long thresh;
+>     unsigned long bg_thresh;
+>     struct task_struct *tsk;
+> @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
+> dirty_throttle_control *dtc)
+>          */
+>         if (bytes)
+>             ratio = min(DIV_ROUND_UP(bytes, global_avail),
+> -                   PAGE_SIZE);
+> +                   100);
+>         if (bg_bytes)
+>             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+> -                      PAGE_SIZE);
+> +                      99);   /* bg_ratio should less than ratio */
+>         bytes = bg_bytes = 0;
+>     }
 
-Signed-off-by: Kemi Wang <kemi.wang@intel.com>
----
- mm/page_alloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 142e1ba..61fa717 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2783,7 +2783,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
-  *
-  * Must be called with interrupts disabled.
-  */
--static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
-+static inline void numa_statistics(struct zone *preferred_zone, struct zone *z)
- {
- #ifdef CONFIG_NUMA
- 	enum numa_stat_item local_stat = NUMA_LOCAL;
-@@ -2845,7 +2845,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
- 	page = __rmqueue_pcplist(zone,  migratetype, pcp, list);
- 	if (page) {
- 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
--		zone_statistics(preferred_zone, zone);
-+		numa_statistics(preferred_zone, zone);
- 	}
- 	local_irq_restore(flags);
- 	return page;
-@@ -2893,7 +2893,7 @@ struct page *rmqueue(struct zone *preferred_zone,
- 				  get_pcppage_migratetype(page));
- 
- 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
--	zone_statistics(preferred_zone, zone);
-+	numa_statistics(preferred_zone, zone);
- 	local_irq_restore(flags);
- 
- out:
--- 
-2.7.4
+Errata:
+
+        if (bytes)
+-           ratio = min(DIV_ROUND_UP(bytes, global_avail),
+-                   PAGE_SIZE);
++           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
++                   100);
+        if (bg_bytes)
+-           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
+-                      PAGE_SIZE);
++           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
++                      100 - 1); /* bg_ratio should be less than ratio */
+        bytes = bg_bytes = 0;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
