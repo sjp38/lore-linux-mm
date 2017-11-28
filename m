@@ -1,175 +1,155 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 807516B02C4
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 03:35:03 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id l19so31348903pgo.4
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 00:35:03 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id x7si24188484plo.379.2017.11.28.00.35.01
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D879D6B02C6
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 03:58:36 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id b77so13598576pfl.2
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 00:58:36 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i3sor4925452pli.148.2017.11.28.00.58.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 00:35:02 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
-References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
- <9b4d5612-24eb-4bea-7164-49e42dc76f30@suse.cz>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <e3837971-381a-6e26-7b9a-2a2d882c5530@intel.com>
-Date: Tue, 28 Nov 2017 16:33:04 +0800
+        (Google Transport Security);
+        Tue, 28 Nov 2017 00:58:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <9b4d5612-24eb-4bea-7164-49e42dc76f30@suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
+References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
+ <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
+ <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
+ <CAABZP2zB8vKswQXicYq5r8iNOKz21CRyw1cUiB2s9O+ZMb+JvQ@mail.gmail.com>
+ <CACT4Y+YkVbkwAm0h7UJH08woiohJT9EYObhxpE33dP0A4agtkw@mail.gmail.com> <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 28 Nov 2017 09:58:14 +0100
+Message-ID: <CACT4Y+ah6q-xoakyPL7v-+Knp8ZaFbnRRk_Ki6Wsmz3C8Pe8XQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Zhouyi Zhou <zhouzhouyi@gmail.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+
+On Tue, Nov 28, 2017 at 9:33 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+> Hi,
+>    Please take a look at function quarantine_put, I don't think following
+> code will limit the batch size below quarantine_batch_size. It only advance
+> quarantine_tail after qlist_move_all.
+>
+>                 qlist_move_all(q, &temp);
+>
+>                 spin_lock(&quarantine_lock);
+>                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
+>                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
+>                 if (global_quarantine[quarantine_tail].bytes >=
+>                                 READ_ONCE(quarantine_batch_size)) {
+>                         int new_tail;
+>
+>                         new_tail = quarantine_tail + 1;
+>                         if (new_tail == QUARANTINE_BATCHES)
+>                                 new_tail = 0;
+>                         if (new_tail != quarantine_head)
+>                                 quarantine_tail = new_tail;
 
 
+As far as I see this code can exceed global quarantine batch size by
+at most 1 per-cpu batch. Per-cpu batch is caped at 1MB. So max global
+batch size will be 4MB+1MB. Which does not radically change situation.
 
-On 2017a1'11ae??28ae?JPY 16:09, Vlastimil Babka wrote:
-> On 11/28/2017 07:00 AM, Kemi Wang wrote:
->> The existed implementation of NUMA counters is per logical CPU along with
->> zone->vm_numa_stat[] separated by zone, plus a global numa counter array
->> vm_numa_stat[]. However, unlike the other vmstat counters, numa stats don't
->> effect system's decision and are only read from /proc and /sys, it is a
->> slow path operation and likely tolerate higher overhead. Additionally,
->> usually nodes only have a single zone, except for node 0. And there isn't
->> really any use where you need these hits counts separated by zone.
+
+> On Tue, Nov 28, 2017 at 4:12 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>> On Tue, Nov 28, 2017 at 9:00 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+>>> Thanks for reviewing
+>>>    My machine has 128G of RAM, and runs many KVM virtual machines.
+>>> libvirtd always
+>>> report "internal error: received hangup / error event on socket" under
+>>> heavy memory load.
+>>>    Then I use perf top -g, qlist_move_cache consumes 100% cpu for
+>>> several minutes.
 >>
->> Therefore, we can migrate the implementation of numa stats from per-zone to
->> per-node, and get rid of these global numa counters. It's good enough to
->> keep everything in a per cpu ptr of type u64, and sum them up when need, as
->> suggested by Andi Kleen. That's helpful for code cleanup and enhancement
->> (e.g. save more than 130+ lines code).
-> 
-> OK.
-> 
->> With this patch, we can see 1.8%(335->329) drop of CPU cycles for single
->> page allocation and deallocation concurrently with 112 threads tested on a
->> 2-sockets skylake platform using Jesper's page_bench03 benchmark.
-> 
-> To be fair, one can now avoid the overhead completely since 4518085e127d
-> ("mm, sysctl: make NUMA stats configurable"). But if we can still
-> optimize it, sure.
-> 
-
-Yes, I did that several months ago. And both Dave Hansen and me thought that
-auto tuning should be better because people probably do not touch this interface,
-but Michal had some concerns about that. 
-
-This patch aims to cleanup up the code for numa stats with a little performance
-improvement.
-
->> Benchmark provided by Jesper D Brouer(increase loop times to 10000000):
->> https://github.com/netoptimizer/prototype-kernel/tree/master/kernel/mm/
->> bench
+>> For 128GB of RAM, batch size is 4MB. Processing such batch should not
+>> take more than few ms. So I am still struggling  to understand how/why
+>> your change helps and why there are issues in the first place...
 >>
->> Also, it does not cause obvious latency increase when read /proc and /sys
->> on a 2-sockets skylake platform. Latency shown by time command:
->>                            base             head
->> /proc/vmstat            sys 0m0.001s     sys 0m0.001s
 >>
->> /sys/devices/system/    sys 0m0.001s     sys 0m0.000s
->> node/node*/numastat
-> 
-> Well, here I have to point out that the coarse "time" command resolution
-> here means the comparison of a single read cannot be compared. You would
-> have to e.g. time a loop with enough iterations (which would then be all
-> cache-hot, but better than nothing I guess).
-> 
-
-It indeed is a coarse comparison to show that it does not cause obvious
-overhead in a slow path.
-
-All right, I will do that to get a more accurate value.
-
->> We would not worry it much as it is a slow path and will not be read
->> frequently.
 >>
->> Suggested-by: Andi Kleen <ak@linux.intel.com>
->> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
-> 
-> ...
-> 
->> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
->> index 1779c98..7383d66 100644
->> --- a/include/linux/vmstat.h
->> +++ b/include/linux/vmstat.h
->> @@ -118,36 +118,8 @@ static inline void vm_events_fold_cpu(int cpu)
->>   * Zone and node-based page accounting with per cpu differentials.
->>   */
->>  extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];
->> -extern atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
->>  extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];
->> -
->> -#ifdef CONFIG_NUMA
->> -static inline void zone_numa_state_add(long x, struct zone *zone,
->> -				 enum numa_stat_item item)
->> -{
->> -	atomic_long_add(x, &zone->vm_numa_stat[item]);
->> -	atomic_long_add(x, &vm_numa_stat[item]);
->> -}
->> -
->> -static inline unsigned long global_numa_state(enum numa_stat_item item)
->> -{
->> -	long x = atomic_long_read(&vm_numa_stat[item]);
->> -
->> -	return x;
->> -}
->> -
->> -static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
->> -					enum numa_stat_item item)
->> -{
->> -	long x = atomic_long_read(&zone->vm_numa_stat[item]);
->> -	int cpu;
->> -
->> -	for_each_online_cpu(cpu)
->> -		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
->> -
->> -	return x;
->> -}
->> -#endif /* CONFIG_NUMA */
->> +extern u64 __percpu *vm_numa_stat;
->>  
->>  static inline void zone_page_state_add(long x, struct zone *zone,
->>  				 enum zone_stat_item item)
->> @@ -234,10 +206,39 @@ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
->>  
->>  
->>  #ifdef CONFIG_NUMA
->> +static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
->> +					enum numa_stat_item item)
->> +{
->> +	return 0;
->> +}
->> +
->> +static inline unsigned long node_numa_state_snapshot(int node,
->> +					enum numa_stat_item item)
->> +{
->> +	unsigned long x = 0;
->> +	int cpu;
->> +
->> +	for_each_possible_cpu(cpu)
-> 
-> I'm worried about the "for_each_possible..." approach here and elsewhere
-> in the patch as it can be rather excessive compared to the online number
-> of cpus (we've seen BIOSes report large numbers of possible CPU's). IIRC
-> the general approach with vmstat is to query just online cpu's / nodes,
-> and if they go offline, transfer their accumulated stats to some other
-> "victim"?
-> 
-
-It's a trade off I think. "for_each_possible_cpu()" can avoid to fold local cpu 
-stats to a global counter (actually, the first available cpu in this patch) when 
-cpu is offline/dead.
-
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+>>> On Tue, Nov 28, 2017 at 3:45 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+>>>> On Tue, Nov 28, 2017 at 5:05 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+>>>>> When there are huge amount of quarantined cache allocates in system,
+>>>>> number of entries in global_quarantine[i] will be great. Meanwhile,
+>>>>> there is no relax in while loop in function qlist_move_cache which
+>>>>> hold quarantine_lock. As a result, some userspace programs for example
+>>>>> libvirt will complain.
+>>>>
+>>>> Hi,
+>>>>
+>>>> The QUARANTINE_BATCHES thing was supposed to fix this problem, see
+>>>> quarantine_remove_cache() function.
+>>>> What is the amount of RAM and number of CPUs in your system?
+>>>> If system has 4GB of RAM, quarantine size is 128MB and that's split
+>>>> into 1024 batches. Batch size is 128KB. Even if that's filled with the
+>>>> smallest objects of size 32, that's only 4K objects. And there is a
+>>>> cond_resched() between processing of every batch.
+>>>> I don't understand why it causes problems in your setup. We use KASAN
+>>>> extremely heavily on hundreds of machines 24x7 and we have not seen
+>>>> any single report from this code...
+>>>>
+>>>>
+>>>>> On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
+>>>>>> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
+>>>>>>
+>>>>>> This patch fix livelock by conditionally release cpu to let others
+>>>>>> has a chance to run.
+>>>>>>
+>>>>>> Tested on x86_64.
+>>>>>> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
+>>>>>> ---
+>>>>>>  mm/kasan/quarantine.c | 12 +++++++++++-
+>>>>>>  1 file changed, 11 insertions(+), 1 deletion(-)
+>>>>>>
+>>>>>> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
+>>>>>> index 3a8ddf8..33eeff4 100644
+>>>>>> --- a/mm/kasan/quarantine.c
+>>>>>> +++ b/mm/kasan/quarantine.c
+>>>>>> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
+>>>>>>                                    struct kmem_cache *cache)
+>>>>>>  {
+>>>>>>         struct qlist_node *curr;
+>>>>>> +       struct qlist_head tmp_head;
+>>>>>> +       unsigned long flags;
+>>>>>>
+>>>>>>         if (unlikely(qlist_empty(from)))
+>>>>>>                 return;
+>>>>>>
+>>>>>> +       qlist_init(&tmp_head);
+>>>>>>         curr = from->head;
+>>>>>>         qlist_init(from);
+>>>>>>         while (curr) {
+>>>>>> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
+>>>>>>                 if (obj_cache == cache)
+>>>>>>                         qlist_put(to, curr, obj_cache->size);
+>>>>>>                 else
+>>>>>> -                       qlist_put(from, curr, obj_cache->size);
+>>>>>> +                       qlist_put(&tmp_head, curr, obj_cache->size);
+>>>>>>
+>>>>>>                 curr = next;
+>>>>>> +
+>>>>>> +               if (need_resched()) {
+>>>>>> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
+>>>>>> +                       cond_resched();
+>>>>>> +                       spin_lock_irqsave(&quarantine_lock, flags);
+>>>>>> +               }
+>>>>>>         }
+>>>>>> +       qlist_move_all(&tmp_head, from);
+>>>>>>  }
+>>>>>>
+>>>>>>  static void per_cpu_remove_cache(void *arg)
+>>>>>> --
+>>>>>> 2.1.4
+>>>>>>
+>>>>>
+>>>>> --
+>>>>> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
+>>>>> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
+>>>>> To post to this group, send email to kasan-dev@googlegroups.com.
+>>>>> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A%40mail.gmail.com.
+>>>>> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
