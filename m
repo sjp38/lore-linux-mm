@@ -1,116 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCED26B02DD
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:45:34 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id u98so15261878wrb.17
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:45:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w39si2391894edc.97.2017.11.28.01.45.33
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8416A6B02DF
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:46:05 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i17so70502wmb.7
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:46:05 -0800 (PST)
+Received: from outbound-smtp04.blacknight.com (outbound-smtp04.blacknight.com. [81.17.249.35])
+        by mx.google.com with ESMTPS id y89si3698257eda.294.2017.11.28.01.46.04
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 28 Nov 2017 01:45:33 -0800 (PST)
-Date: Tue, 28 Nov 2017 10:45:32 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] Revert "mm/page-writeback.c: print a warning if the vm
- dirtiness settings are illogical" (was: Re: [PATCH] mm: print a warning once
- the vm dirtiness settings is illogical)
-Message-ID: <20171128094532.t6pyqrvaczi5a7jz@dhcp22.suse.cz>
-References: <1506592464-30962-1-git-send-email-laoar.shao@gmail.com>
- <cdfce9d0-9542-3fd1-098c-492d8d9efc11@I-love.SAKURA.ne.jp>
- <20171127091939.tahb77nznytcxw55@dhcp22.suse.cz>
- <CALOAHbDNbFs51mW0kUFXcqqyJy+ydpHPaRbvquPVrPTY5HGeRg@mail.gmail.com>
- <CALOAHbCzLYRp8G6H58vfiEJZQDxhcRx5=LqMsDc7rPQ4Erg=1w@mail.gmail.com>
- <20171128074506.bw5r2wzt3pooyu22@dhcp22.suse.cz>
- <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
+        Tue, 28 Nov 2017 01:46:04 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
+	by outbound-smtp04.blacknight.com (Postfix) with ESMTPS id 2214E99101
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 09:46:04 +0000 (UTC)
+Date: Tue, 28 Nov 2017 09:46:03 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm/vmscan: try to optimize branch procedures.
+Message-ID: <20171128094603.2umepkakzhh44eqa@techsingularity.net>
+References: <20171128080339.i3ktwm565pz7om4v@dhcp22.suse.cz>
+ <201711281719103258154@zte.com.cn>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <CALOAHbDBgU8d-n9rseeWUyAiYn9YOjL02VMZw1Xt0XhZhWq4-A@mail.gmail.com>
+In-Reply-To: <201711281719103258154@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, Linux MM <linux-mm@kvack.org>
+To: jiang.biao2@zte.com.cn
+Cc: mhocko@kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
 
-On Tue 28-11-17 15:52:50, Yafang Shao wrote:
-> 2017-11-28 15:45 GMT+08:00 Michal Hocko <mhocko@suse.com>:
-> > On Tue 28-11-17 14:12:15, Yafang Shao wrote:
-> >> 2017-11-28 11:11 GMT+08:00 Yafang Shao <laoar.shao@gmail.com>:
-> >> > Hi Michal,
-> >> >
-> >> > What about bellow change ?
-> >> > It makes the function  domain_dirty_limits() more clear.
-> >> > And the result will have a higher precision.
-> >> >
-> >> >
-> >> > diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> >> > index 8a15511..2b5e507 100644
-> >> > --- a/mm/page-writeback.c
-> >> > +++ b/mm/page-writeback.c
-> >> > @@ -397,8 +397,8 @@ static void domain_dirty_limits(struct
-> >> > dirty_throttle_control *dtc)
-> >> >     unsigned long bytes = vm_dirty_bytes;
-> >> >     unsigned long bg_bytes = dirty_background_bytes;
-> >> >     /* convert ratios to per-PAGE_SIZE for higher precision */
-> >> > -   unsigned long ratio = (vm_dirty_ratio * PAGE_SIZE) / 100;
-> >> > -   unsigned long bg_ratio = (dirty_background_ratio * PAGE_SIZE) / 100;
-> >> > +   unsigned long ratio = vm_dirty_ratio;
-> >> > +   unsigned long bg_ratio = dirty_background_ratio;
-> >> >     unsigned long thresh;
-> >> >     unsigned long bg_thresh;
-> >> >     struct task_struct *tsk;
-> >> > @@ -416,28 +416,33 @@ static void domain_dirty_limits(struct
-> >> > dirty_throttle_control *dtc)
-> >> >          */
-> >> >         if (bytes)
-> >> >             ratio = min(DIV_ROUND_UP(bytes, global_avail),
-> >> > -                   PAGE_SIZE);
-> >> > +                   100);
-> >> >         if (bg_bytes)
-> >> >             bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
-> >> > -                      PAGE_SIZE);
-> >> > +                      99);   /* bg_ratio should less than ratio */
-> >> >         bytes = bg_bytes = 0;
-> >> >     }
-> >>
-> >>
-> >> Errata:
-> >>
-> >>         if (bytes)
-> >> -           ratio = min(DIV_ROUND_UP(bytes, global_avail),
-> >> -                   PAGE_SIZE);
-> >> +           ratio = min(DIV_ROUND_UP(bytes / PAGE_SIZE, global_avail),
-> >> +                   100);
-> >>         if (bg_bytes)
-> >> -           bg_ratio = min(DIV_ROUND_UP(bg_bytes, global_avail),
-> >> -                      PAGE_SIZE);
-> >> +           bg_ratio = min(DIV_ROUND_UP(bg_bytes / PAGE_SIZE, global_avail),
-> >> +                      100 - 1); /* bg_ratio should be less than ratio */
-> >>         bytes = bg_bytes = 0;
-> >
-> > And you really think this makes code easier to follow? I am somehow not
-> > conviced...
-> >
-> 
-> There's hidden bug in the original code, because it is too complex to
-> clearly understand.
-> See bellow,
-> 
-> ratio = min(DIV_ROUND_UP(bytes, global_avail),
->                     PAGE_SIZE)
-> 
-> Suppose the vm_dirty_bytes is set to 512M (this is a reasonable
-> value), and the global_avail is only 10000 pages (this is not low),
-> then DIV_ROUND_UP(bytes, global_avail) is 53688, which is bigger than
-> 4096, so the ratio will be 4096.
-> That's unreasonable.
+On Tue, Nov 28, 2017 at 05:19:10PM +0800, jiang.biao2@zte.com.cn wrote:
+> > On Tue 28-11-17 09:49:45, Jiang Biao wrote:> > 1. Use unlikely to try to improve branch prediction. The
+> > > *total_scan < 0* branch is unlikely to reach, so use unlikely.
+> > >
+> > > 2. Optimize *next_deferred >= scanned* condition.
+> > > *next_deferred >= scanned* condition could be optimized into
+> > > *next_deferred > scanned*, because when *next_deferred == scanned*,
+> > > next_deferred shoud be 0, which is covered by the else branch.
+> > >
+> > > 3. Merge two branch blocks into one. The *next_deferred > 0* branch
+> > > could be merged into *next_deferred > scanned* to simplify the code.
+> > 
+> > How have you measured benefit of this patch?
+> No accurate measurement for now.
+> Theoretically, unlikely could improve branch prediction for unlikely branch.
 
-You should discuss this with IO people (make sure to CC Tejun). I do not
-see _why_ this is unreasonable to be honest. Anyway I still maintain
-my position on the warning which is just calling for false positives
-without any great advantage. So whatever you decide to change in the
-ratio calculation I do not think we should add the warning back.
+In general, it only really matters for a heavily mispredicted path in a
+fast path. It's not enforced very often but seeing a dedicated patch
+making the change to a slow path is not very convincing.
+
+> It's hard to measure the benefit of 2 and 3, any idea to do that enlightened 
+> would be greatly appreciated. :)
+
+Typically done using perf to check for mispredictions and showing a
+reduction. It can also have icache benefits if code that is almost dead
+is moved to another part of the function by the compiler reducing icache
+pressure overall. Again, it only really matters in fast path.
+
+> But it could simply code logic from coding 
+> perspective???
+
+It doesn't carry enough weight to stand on its own.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
