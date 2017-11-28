@@ -1,148 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CDE5F6B0253
-	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 21:07:42 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id b5so19496057itc.7
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:07:42 -0800 (PST)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id v65si23291577iod.270.2017.11.27.18.07.39
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 87B7D6B0038
+	for <linux-mm@kvack.org>; Mon, 27 Nov 2017 21:53:37 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id 72so13419917oik.6
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 18:53:37 -0800 (PST)
+Received: from mxct.zte.com.cn (out1.zte.com.cn. [202.103.147.172])
+        by mx.google.com with ESMTPS id s203si11235146oif.248.2017.11.27.18.53.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 27 Nov 2017 18:07:41 -0800 (PST)
-Subject: Re: [PATCH v3 3/3] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <1510882624-44342-1-git-send-email-xieyisheng1@huawei.com>
- <1510882624-44342-4-git-send-email-xieyisheng1@huawei.com>
- <ea6e56d5-ede6-580e-ed2d-c1ab975f5d91@suse.cz>
-From: Yisheng Xie <xieyisheng1@huawei.com>
-Message-ID: <43477914-445f-c1cd-afdb-94a23ba25baa@huawei.com>
-Date: Tue, 28 Nov 2017 10:03:27 +0800
-MIME-Version: 1.0
-In-Reply-To: <ea6e56d5-ede6-580e-ed2d-c1ab975f5d91@suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 27 Nov 2017 18:53:36 -0800 (PST)
+From: Jiang Biao <jiang.biao2@zte.com.cn>
+Subject: [PATCH] mm/vmscan: change return type of is_page_cache_freeable from int to bool
+Date: Tue, 28 Nov 2017 10:48:27 +0800
+Message-Id: <1511837307-56494-1-git-send-email-jiang.biao2@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, mhocko@suse.com, mingo@kernel.org, rientjes@google.com, n-horiguchi@ah.jp.nec.com, salls@cs.ucsb.edu, ak@linux.intel.com, cl@linux.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, tanxiaojun@huawei.com
+To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, jiang.biao2@zte.com.cn, zhong.weidong@zte.com.cn
 
-Hi Vlastimil,
+Using bool for the return type of is_page_cache_freeable() should be
+more appropriate.
 
-Thanks for your comment!
-On 2017/11/28 1:25, Vlastimil Babka wrote:
-> On 11/17/2017 02:37 AM, Yisheng Xie wrote:
->> As manpage of migrate_pages, the errno should be set to EINVAL when
->> none of the node IDs specified by new_nodes are on-line and allowed
->> by the process's current cpuset context, or none of the specified
->> nodes contain memory. However, when test by following case:
->>
->> 	new_nodes = 0;
->> 	old_nodes = 0xf;
->> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
->>
->> The ret will be 0 and no errno is set. As the new_nodes is empty,
->> we should expect EINVAL as documented.
->>
->> To fix the case like above, this patch check whether target nodes
->> AND current task_nodes is empty, and then check whether AND
->> node_states[N_MEMORY] is empty.
->>
->> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
->> ---
->>  mm/mempolicy.c | 10 +++++++---
->>  1 file changed, 7 insertions(+), 3 deletions(-)
->>
->> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
->> index 65df28d..f604b22 100644
->> --- a/mm/mempolicy.c
->> +++ b/mm/mempolicy.c
->> @@ -1433,10 +1433,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
->>  		goto out_put;
->>  	}
-> 
-> Let me add the whole preceding that ends on the lines above:
-> 
->         task_nodes = cpuset_mems_allowed(task);
->         /* Is the user allowed to access the target nodes? */
->         if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
->                 err = -EPERM;
->                 goto out_put;
->         }
-> 
->>  
->> -	if (!nodes_subset(*new, node_states[N_MEMORY])) {
->> -		err = -EINVAL;
->> +	task_nodes = cpuset_mems_allowed(current);
->> +	nodes_and(*new, *new, task_nodes);
->> +	if (nodes_empty(*new))
->> +		goto out_put;
-> 
-> So if we have CAP_SYS_NICE, we pass (or rather skip) the EPERM check
-> above, but the current cpuset restriction still applies regardless. This
-> doesn't make sense to me? If I get Christoph right in the v2 discussion,
-> then CAP_SYS_NICE should not allow current cpuset escape. 
-hmm, maybe I do not get what you mean, the patch seems do not *escape* the
-current cpuset?  if CAP_SYS_NICE it also check current cpuset, right?
+Signed-off-by: Jiang Biao <jiang.biao2@zte.com.cn>
+---
+ mm/vmscan.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> In that case,
-> we should remove the CAP_SYS_NICE check from the EPERM check? Also
-> should it be a subset check, or a non-empty-intersection check?
-
-So you mean:
-1. we should remove the EPERM check above?
-2. Not sure we should use subset check, or a non-empty-intersection for current cpuset?
-(Please let me know, if have other points.)
-
-For 1: I have checked the manpage of capabilities[1]:
-CAP_SYS_NICE
-	[...]
-	*apply migrate_pages(2) to arbitrary processes* and allow
-        processes to be migrated to arbitrary nodes;
-
-	apply move_pages(2) to arbitrary processes;
-	[...]
-
-Therefore, IMO, EPERM check should be something like:
-	if (currtent->mm != task->mm && !capable(CAP_SYS_NICE)) { // or if (currtent != task && !capable(CAP_SYS_NICE)) ?
-		err = -EPERM;
-		goto out_put;
-	}
-And I kept it as unchanged to follow the original code's meaning.(For move_pages
-also use the the logical to check EPERM). I also did not want to break the existing code. :)
-
-For 2: we should follow the manpage of migrate_pages about EINVAL, as your listed in
-the former discussion:
-	  EINVAL... Or, _none_ of the node IDs specified by new_nodes are
- 	 	on-line and allowed by the process's current cpuset context, or none of
-  		the specified nodes contain memory.
-
-So a non-empty-intersection check for current cpuset should be enough, right?
-And Christoph seems do _not oppose_ this point. (I not sure whether he is *agree* or not).
-
-[1] http://man7.org/linux/man-pages/man7/capabilities.7.html
-> 
-> Note there's still a danger that we are breaking existing code so this
-> will have to be reverted in any case...
-
-I am not oppose if you want to revert this patch, but we should find a
-correct way to fix the case above, right? Maybe anther version or a fix to fold?
-
-Thanks
-Yisheng Xie
-> 
->> +
->> +	nodes_and(*new, *new, node_states[N_MEMORY]);
->> +	if (nodes_empty(*new))
->>  		goto out_put;
->> -	}
->>  
->>  	err = security_task_movememory(task);
->>  	if (err)
->>
-> 
-> 
-> .
-> 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index eb2f031..5fe63ed 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -530,7 +530,7 @@ void drop_slab(void)
+ 		drop_slab_node(nid);
+ }
+ 
+-static inline int is_page_cache_freeable(struct page *page)
++static inline bool is_page_cache_freeable(struct page *page)
+ {
+ 	/*
+ 	 * A freeable page cache page is referenced only by the caller
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
