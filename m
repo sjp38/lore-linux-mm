@@ -1,176 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0880C6B02D4
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:27:52 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id d86so15352490pfk.19
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:27:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j72sor7859763pge.196.2017.11.28.01.27.50
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 190416B02D6
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:31:13 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id b189so52553wmd.5
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:31:13 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u10si4515542edf.527.2017.11.28.01.31.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Nov 2017 01:27:50 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 01:31:12 -0800 (PST)
+Date: Tue, 28 Nov 2017 10:31:08 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm/vmscan: try to optimize branch procedures.
+Message-ID: <20171128093108.btuna7xp4yzkziuj@dhcp22.suse.cz>
+References: <20171128080339.i3ktwm565pz7om4v@dhcp22.suse.cz>
+ <201711281719103258154@zte.com.cn>
 MIME-Version: 1.0
-In-Reply-To: <CAABZP2yS524XEiyu=kkVx7ff1ySTtE=WWETNDrZ_toEm0mwqyQ@mail.gmail.com>
-References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
- <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
- <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
- <CAABZP2zB8vKswQXicYq5r8iNOKz21CRyw1cUiB2s9O+ZMb+JvQ@mail.gmail.com>
- <CACT4Y+YkVbkwAm0h7UJH08woiohJT9EYObhxpE33dP0A4agtkw@mail.gmail.com>
- <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
- <CACT4Y+ah6q-xoakyPL7v-+Knp8ZaFbnRRk_Ki6Wsmz3C8Pe8XQ@mail.gmail.com> <CAABZP2yS524XEiyu=kkVx7ff1ySTtE=WWETNDrZ_toEm0mwqyQ@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 28 Nov 2017 10:27:28 +0100
-Message-ID: <CACT4Y+aAhHSW=qBFLy7S1wWLsJsjW83y8uC4nQy0N9Hf8HoMKQ@mail.gmail.com>
-Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <201711281719103258154@zte.com.cn>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouyi Zhou <zhouzhouyi@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: jiang.biao2@zte.com.cn
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
 
-On Tue, Nov 28, 2017 at 10:17 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
-> Hi,
->     Imagine all of the QUARANTINE_BATCHES elements of
-> global_quarantine array is of size 4MB + 1MB, now a new call
-> to quarantine_put is invoked, one of the element will be of size 4MB +
-> 1MB + 1MB, so on and on.
+On Tue 28-11-17 17:19:10, jiang.biao2@zte.com.cn wrote:
+> > On Tue 28-11-17 09:49:45, Jiang Biao wrote:> > 1. Use unlikely to try to improve branch prediction. The
+> > > *total_scan < 0* branch is unlikely to reach, so use unlikely.
+> > >
+> > > 2. Optimize *next_deferred >= scanned* condition.
+> > > *next_deferred >= scanned* condition could be optimized into
+> > > *next_deferred > scanned*, because when *next_deferred == scanned*,
+> > > next_deferred shoud be 0, which is covered by the else branch.
+> > >
+> > > 3. Merge two branch blocks into one. The *next_deferred > 0* branch
+> > > could be merged into *next_deferred > scanned* to simplify the code.
+> > 
+> > How have you measured benefit of this patch?
+> No accurate measurement for now.
+> Theoretically, unlikely could improve branch prediction for unlikely branch.
 
+Yes, except that this is a slow path and I suspect that branch
+prediction has minimal if at all.
 
-I see what you mean. Does it really happen in your case? What's the
-maximum batch size that you get during your workload?
+> It's hard to measure the benefit of 2 and 3, any idea to do that enlightened 
+> would be greatly appreciated. :) But it could simply code logic from coding 
+> perspectivea??
 
-I always wondered why don't we drain quarantine right in
-quarantine_put when we overflow it? We already take quarantine_lock
-and calling cache_free should be fine in that context, since user code
-already does that.
-
-
-
-> On Tue, Nov 28, 2017 at 4:58 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> On Tue, Nov 28, 2017 at 9:33 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
->>> Hi,
->>>    Please take a look at function quarantine_put, I don't think following
->>> code will limit the batch size below quarantine_batch_size. It only advance
->>> quarantine_tail after qlist_move_all.
->>>
->>>                 qlist_move_all(q, &temp);
->>>
->>>                 spin_lock(&quarantine_lock);
->>>                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
->>>                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
->>>                 if (global_quarantine[quarantine_tail].bytes >=
->>>                                 READ_ONCE(quarantine_batch_size)) {
->>>                         int new_tail;
->>>
->>>                         new_tail = quarantine_tail + 1;
->>>                         if (new_tail == QUARANTINE_BATCHES)
->>>                                 new_tail = 0;
->>>                         if (new_tail != quarantine_head)
->>>                                 quarantine_tail = new_tail;
->>
->>
->> As far as I see this code can exceed global quarantine batch size by
->> at most 1 per-cpu batch. Per-cpu batch is caped at 1MB. So max global
->> batch size will be 4MB+1MB. Which does not radically change situation.
->>
->>
->>> On Tue, Nov 28, 2017 at 4:12 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->>>> On Tue, Nov 28, 2017 at 9:00 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
->>>>> Thanks for reviewing
->>>>>    My machine has 128G of RAM, and runs many KVM virtual machines.
->>>>> libvirtd always
->>>>> report "internal error: received hangup / error event on socket" under
->>>>> heavy memory load.
->>>>>    Then I use perf top -g, qlist_move_cache consumes 100% cpu for
->>>>> several minutes.
->>>>
->>>> For 128GB of RAM, batch size is 4MB. Processing such batch should not
->>>> take more than few ms. So I am still struggling  to understand how/why
->>>> your change helps and why there are issues in the first place...
->>>>
->>>>
->>>>
->>>>> On Tue, Nov 28, 2017 at 3:45 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->>>>>> On Tue, Nov 28, 2017 at 5:05 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
->>>>>>> When there are huge amount of quarantined cache allocates in system,
->>>>>>> number of entries in global_quarantine[i] will be great. Meanwhile,
->>>>>>> there is no relax in while loop in function qlist_move_cache which
->>>>>>> hold quarantine_lock. As a result, some userspace programs for example
->>>>>>> libvirt will complain.
->>>>>>
->>>>>> Hi,
->>>>>>
->>>>>> The QUARANTINE_BATCHES thing was supposed to fix this problem, see
->>>>>> quarantine_remove_cache() function.
->>>>>> What is the amount of RAM and number of CPUs in your system?
->>>>>> If system has 4GB of RAM, quarantine size is 128MB and that's split
->>>>>> into 1024 batches. Batch size is 128KB. Even if that's filled with the
->>>>>> smallest objects of size 32, that's only 4K objects. And there is a
->>>>>> cond_resched() between processing of every batch.
->>>>>> I don't understand why it causes problems in your setup. We use KASAN
->>>>>> extremely heavily on hundreds of machines 24x7 and we have not seen
->>>>>> any single report from this code...
->>>>>>
->>>>>>
->>>>>>> On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
->>>>>>>> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
->>>>>>>>
->>>>>>>> This patch fix livelock by conditionally release cpu to let others
->>>>>>>> has a chance to run.
->>>>>>>>
->>>>>>>> Tested on x86_64.
->>>>>>>> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
->>>>>>>> ---
->>>>>>>>  mm/kasan/quarantine.c | 12 +++++++++++-
->>>>>>>>  1 file changed, 11 insertions(+), 1 deletion(-)
->>>>>>>>
->>>>>>>> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
->>>>>>>> index 3a8ddf8..33eeff4 100644
->>>>>>>> --- a/mm/kasan/quarantine.c
->>>>>>>> +++ b/mm/kasan/quarantine.c
->>>>>>>> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
->>>>>>>>                                    struct kmem_cache *cache)
->>>>>>>>  {
->>>>>>>>         struct qlist_node *curr;
->>>>>>>> +       struct qlist_head tmp_head;
->>>>>>>> +       unsigned long flags;
->>>>>>>>
->>>>>>>>         if (unlikely(qlist_empty(from)))
->>>>>>>>                 return;
->>>>>>>>
->>>>>>>> +       qlist_init(&tmp_head);
->>>>>>>>         curr = from->head;
->>>>>>>>         qlist_init(from);
->>>>>>>>         while (curr) {
->>>>>>>> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
->>>>>>>>                 if (obj_cache == cache)
->>>>>>>>                         qlist_put(to, curr, obj_cache->size);
->>>>>>>>                 else
->>>>>>>> -                       qlist_put(from, curr, obj_cache->size);
->>>>>>>> +                       qlist_put(&tmp_head, curr, obj_cache->size);
->>>>>>>>
->>>>>>>>                 curr = next;
->>>>>>>> +
->>>>>>>> +               if (need_resched()) {
->>>>>>>> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
->>>>>>>> +                       cond_resched();
->>>>>>>> +                       spin_lock_irqsave(&quarantine_lock, flags);
->>>>>>>> +               }
->>>>>>>>         }
->>>>>>>> +       qlist_move_all(&tmp_head, from);
->>>>>>>>  }
->>>>>>>>
->>>>>>>>  static void per_cpu_remove_cache(void *arg)
->>>>>>>> --
->>>>>>>> 2.1.4
->>>>>>>>
->>>>>>>
->>>>>>> --
->>>>>>> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
->>>>>>> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
->>>>>>> To post to this group, send email to kasan-dev@googlegroups.com.
->>>>>>> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A%40mail.gmail.com.
->>>>>>> For more options, visit https://groups.google.com/d/optout.
+Well, in general I wouldn't touch the code without a clear benefit.
+Theoretical but unmeasurable changes would require a bigger benefit.
+I am not saying it is wrong at all but I am not conviced your patch is
+really worth merging.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
