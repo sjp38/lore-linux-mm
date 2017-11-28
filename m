@@ -1,76 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B7456B02C7
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:03:48 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id s75so31196296pgs.12
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:03:48 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id 1si8053240plb.315.2017.11.28.01.03.47
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 48FEF6B02CB
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:12:38 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n8so28508wmg.4
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:12:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id r1si1951197edr.56.2017.11.28.01.12.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 01:03:47 -0800 (PST)
-Subject: [PATCH] x86/mm/kaiser: remove no-INVPCID user ASID flushing
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Date: Tue, 28 Nov 2017 01:02:19 -0800
-Message-Id: <20171128090219.7256F849@viggo.jf.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 01:12:36 -0800 (PST)
+Date: Tue, 28 Nov 2017 10:12:34 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 1/2] mm: make faultaround produce old ptes
+Message-ID: <20171128091234.GH5977@quack2.suse.cz>
+References: <1511845670-12133-1-git-send-email-vinmenon@codeaurora.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1511845670-12133-1-git-send-email-vinmenon@codeaurora.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, bp@alien8.de, hughd@google.com, x86@kernel.org
+To: Vinayak Menon <vinmenon@codeaurora.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, akpm@linux-foundation.org, jack@suse.cz, minchan@kernel.org, catalin.marinas@arm.com, will.deacon@arm.com, ying.huang@intel.com, riel@redhat.com, dave.hansen@linux.intel.com, mgorman@suse.de, torvalds@linux-foundation.org
 
+On Tue 28-11-17 10:37:49, Vinayak Menon wrote:
+> Based on Kirill's patch [1].
+> 
+> Currently, faultaround code produces young pte.  This can screw up
+> vmscan behaviour[2], as it makes vmscan think that these pages are hot
+> and not push them out on first round.
+> 
+> During sparse file access faultaround gets more pages mapped and all of
+> them are young.  Under memory pressure, this makes vmscan swap out anon
+> pages instead, or to drop other page cache pages which otherwise stay
+> resident.
+> 
+> Modify faultaround to produce old ptes, so they can easily be reclaimed
+> under memory pressure.
+> 
+> This can to some extend defeat the purpose of faultaround on machines
+> without hardware accessed bit as it will not help us with reducing the
+> number of minor page faults.
+> 
+> Making the faultaround ptes old results in a unixbench regression for some
+> architectures [3][4]. But on some architectures it is not found to cause
+> any regression. So by default produce young ptes and provide an option for
+> architectures to make the ptes old.
+> 
+> [1] http://lkml.kernel.org/r/1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com
+> [2] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmenon@codeaurora.org
+> [3] https://marc.info/?l=linux-kernel&m=146582237922378&w=2
+> [4] https://marc.info/?l=linux-mm&m=146589376909424&w=2
+> 
+> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+> ---
+>  include/linux/mm-arch-hooks.h | 7 +++++++
+>  include/linux/mm.h            | 2 ++
+>  mm/filemap.c                  | 4 ++++
+>  mm/memory.c                   | 5 +++++
+>  4 files changed, 18 insertions(+)
+> 
+> diff --git a/include/linux/mm-arch-hooks.h b/include/linux/mm-arch-hooks.h
+> index 4efc3f56..0322b98 100644
+> --- a/include/linux/mm-arch-hooks.h
+> +++ b/include/linux/mm-arch-hooks.h
+> @@ -22,4 +22,11 @@ static inline void arch_remap(struct mm_struct *mm,
+>  #define arch_remap arch_remap
+>  #endif
+>  
+> +#ifndef arch_faultaround_pte_mkold
+> +static inline void arch_faultaround_pte_mkold(struct vm_fault *vmf)
+> +{
+> +}
+> +#define arch_faultaround_pte_mkold arch_faultaround_pte_mkold
+> +#endif
+> +
+>  #endif /* _LINUX_MM_ARCH_HOOKS_H */
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 7661156..be689a0 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -302,6 +302,7 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
+>  #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+>  #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+>  #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
+> +#define FAULT_FLAG_MKOLD	0x200	/* Make faultaround ptes old */
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+Nit: Can we make this FAULT_FLAG_PREFAULT_OLD or something like that so
+that it is clear from the flag name that this is about prefaulting of
+pages?
 
-As the comment says, there are systems that have PCIDs but no
-support for the INVPCID instruction to help flush individual
-PCIDs.  Flushing the TLB on those systems is awkward, and even
-worse with KAISER.  If faced with one of these when KAISER is
-enabled, we simply fall back as if we have no PCID support.
+>  #define FAULT_FLAG_TRACE \
+>  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
+> @@ -330,6 +331,7 @@ struct vm_fault {
+>  	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+>  	pgoff_t pgoff;			/* Logical page offset based on vma */
+>  	unsigned long address;		/* Faulting virtual address */
+> +	unsigned long fault_address;    /* Saved faulting virtual address */
 
-However, there is a remnant in the code from trying to support
-these systems.  Remove it, but leave the warning.
+Ugh, so I dislike how you hide the decision about whether the *particular*
+PTE should be old or young in the arch code. Sure the arch wants to decide
+whether the prefaulted PTEs should be old or young and that it has to tell
+us but the arch code has no business in checking whether this is prefault
+or a normal fault - that decision belongs to filemap_map_pages(). So I'd do
+in filemap_map_pages() something like:
 
-Andy Lutomirski points out that the code that this removes
-has a hole that could leave entries from the kernel page tables
-tagged with the user asid, leaving them vulnerable to being
-used to weaken KASLR.
+	if (iter.index > start_pgoff && arch_wants_old_faultaround_pte())
+		vmf->flags |= FAULT_FLAG_PREFAULT_OLD;
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
-Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
-Cc: Richard Fellner <richard.fellner@student.tugraz.at>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Kees Cook <keescook@google.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Hugh Dickins <hughd@google.com>
-Cc: x86@kernel.org
----
+And then there's no need for new fault_address in vm_fault or messing with
+addresses and fault flags in arch specific code.
 
- b/arch/x86/mm/tlb.c |    9 ---------
- 1 file changed, 9 deletions(-)
-
-diff -puN arch/x86/mm/tlb.c~kaiser-remove-unused-tlb-flush-code arch/x86/mm/tlb.c
---- a/arch/x86/mm/tlb.c~kaiser-remove-unused-tlb-flush-code	2017-11-28 00:53:41.391460358 -0800
-+++ b/arch/x86/mm/tlb.c	2017-11-28 00:55:28.084460092 -0800
-@@ -127,15 +127,6 @@ static void flush_user_asid(pgd_t *pgd,
- 		invpcid_flush_single_context(user_asid(kern_asid));
- 	} else {
- 		/*
--		 * On systems with PCIDs, but no INVPCID, the only
--		 * way to flush a PCID is a CR3 write.  Note that
--		 * we use the kernel page tables with the *user*
--		 * ASID here.
--		 */
--		unsigned long user_asid_flush_cr3;
--		user_asid_flush_cr3 = build_cr3(pgd, user_asid(kern_asid));
--		write_cr3(user_asid_flush_cr3);
--		/*
- 		 * We do not use PCIDs with KAISER unless we also
- 		 * have INVPCID.  Getting here is unexpected.
- 		 */
-_
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
