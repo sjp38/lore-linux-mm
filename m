@@ -1,44 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 26F9B6B0038
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 07:54:23 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id a63so154319wrc.1
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:54:23 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id b9si764838wmh.93.2017.11.28.04.54.21
-        for <linux-mm@kvack.org>;
-        Tue, 28 Nov 2017 04:54:22 -0800 (PST)
-Date: Tue, 28 Nov 2017 13:54:10 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: [PATCH 2/5] x86/mm/kaiser: Add a banner
-Message-ID: <20171128125410.36t4uoh7a3pbk3hx@pd.tnic>
-References: <20171127223110.479550152@infradead.org>
- <20171127223405.231444600@infradead.org>
- <CALCETrV-vk-49HkOXi6EW0zxzDrCj2DM4N2i33AuX-vGNb0SHg@mail.gmail.com>
+	by kanga.kvack.org (Postfix) with ESMTP id 1D5926B0038
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 08:00:21 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id d14so148095wrg.15
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 05:00:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 10si1885647edw.228.2017.11.28.05.00.19
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 05:00:19 -0800 (PST)
+Date: Tue, 28 Nov 2017 14:00:17 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,oom: Set ->signal->oom_mm to all thread groups
+ sharing the victim's mm.
+Message-ID: <20171128130017.ma4qzyjay7p2zsbg@dhcp22.suse.cz>
+References: <1511872888-4579-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALCETrV-vk-49HkOXi6EW0zxzDrCj2DM4N2i33AuX-vGNb0SHg@mail.gmail.com>
+In-Reply-To: <1511872888-4579-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Mon, Nov 27, 2017 at 07:36:40PM -0800, Andy Lutomirski wrote:
-> ** The word "shadow" needs to die, too.  I know what shadow page
-> tables are, and they have *nothing* to do with KAISER.
+On Tue 28-11-17 21:41:28, Tetsuo Handa wrote:
+> Due to commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+> oom_reaped tasks") and patch "mm,oom: Use ALLOC_OOM for OOM victim's last
+> second allocation.", thread groups sharing the OOM victim's mm without
+> setting ->signal->oom_mm before task_will_free_mem(current) is called
+> might fail to try ALLOC_OOM allocation attempt.
 
-ACK to that. Calling them "shadow" is mishandling an already overloaded
-term.
+Look, this is getting insane. The code complexity grows without any
+real users asking for this. While this might look like an interesting
+excercise to you I really hate the direction you are heading. This code
+will always be just a heuristic and the more complicated it will be the
+bigger chances of other side effects there will be as well.
 
-Let's call them the user page tables as we call the other the kernel
-page tables already. Nicely balanced.
+So NACK to this unless I you can show a _real_ usecase that would
+_suffer_ by this corner case.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
