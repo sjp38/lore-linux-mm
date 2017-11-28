@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C96336B02A7
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:50:18 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 62so1839026plc.6
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:50:18 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d4sor429997plr.63.2017.11.27.23.50.17
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 931A16B02AA
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:50:22 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id i15so26781643pfa.15
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:50:22 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y4sor1794711plb.135.2017.11.27.23.50.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:50:17 -0800 (PST)
+        Mon, 27 Nov 2017 23:50:21 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH 17/18] lib/vchecker_test: introduce a sample for vchecker test
-Date: Tue, 28 Nov 2017 16:48:52 +0900
-Message-Id: <1511855333-3570-18-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 18/18] doc: add vchecker document
+Date: Tue, 28 Nov 2017 16:48:53 +0900
+Message-Id: <1511855333-3570-19-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,170 +22,220 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-It's not easy to understand what can be done by the vchecker.
-This sample could explain it and help to understand the vchecker.
+This is a main document for vchecker user.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- lib/Kconfig.kasan   |   9 ++++
- lib/Makefile        |   1 +
- lib/vchecker_test.c | 117 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 127 insertions(+)
- create mode 100644 lib/vchecker_test.c
+ Documentation/dev-tools/vchecker.rst | 200 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 200 insertions(+)
+ create mode 100644 Documentation/dev-tools/vchecker.rst
 
-diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
-index 4b8e748..9983ec8 100644
---- a/lib/Kconfig.kasan
-+++ b/lib/Kconfig.kasan
-@@ -65,4 +65,13 @@ config VCHECKER
- 	depends on KASAN && DEBUG_FS
- 	select KALLSYMS
- 
-+config TEST_VCHECKER
-+	tristate "Module for testing vchecker"
-+	depends on m && KASAN
-+	help
-+	  This is a test module doing memory over-write. If vchecker is
-+	  properly set up to check that over-write, memory over-written
-+	  problem would be detected. See the help text in the
-+	  lib/vchecker_test.c for vchecker sample run.
-+
- endif
-diff --git a/lib/Makefile b/lib/Makefile
-index d11c48e..cc1f5ec 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -244,6 +244,7 @@ clean-files	+= oid_registry_data.c
- 
- obj-$(CONFIG_UCS2_STRING) += ucs2_string.o
- obj-$(CONFIG_UBSAN) += ubsan.o
-+obj-$(CONFIG_TEST_VCHECKER) += vchecker_test.o
- 
- UBSAN_SANITIZE_ubsan.o := n
- 
-diff --git a/lib/vchecker_test.c b/lib/vchecker_test.c
+diff --git a/Documentation/dev-tools/vchecker.rst b/Documentation/dev-tools/vchecker.rst
 new file mode 100644
-index 0000000..fcb4b7f
+index 0000000..136e5d9
 --- /dev/null
-+++ b/lib/vchecker_test.c
-@@ -0,0 +1,117 @@
-+#include <linux/kernel.h>
-+#include <linux/printk.h>
-+#include <linux/slab.h>
-+#include <linux/module.h>
-+#include <linux/workqueue.h>
++++ b/Documentation/dev-tools/vchecker.rst
+@@ -0,0 +1,200 @@
++The Valid Access Checker (VCHECKER)
++===================================
 +
-+/*
-+ * How to use this sample for vchecker sample-run
-+ *
-+ * 1. Insert this module
-+ * 2. Do following command on debugfs directory
-+ *    # cd /sys/kernel/debug/vchecker
-+ *    # echo 0 0xffff 7 > vchecker_test/value # offset 0, mask 0xffff, value 7
-+ *    # echo 1 > vchecker_test/enable
-+ *    # echo workfn_kmalloc_obj > kmalloc-8/alloc_filter
-+ *    # echo "0 8" > kmalloc-8/callstack
-+ *    # echo on > kmalloc-8/callstack
-+ *    # echo 1 > kmalloc-8/enable
-+ * 3. Check the error report due to invalid written value
-+ */
++Overview
++--------
++Vchecker is a dynamic memory error detector. It provides a new debug feature
++that can find out an un-intended access to valid area. Valid area here means
++the memory which is allocated and allowed to be accessed by memory owner and
++un-intended access means the read/write that is initiated by non-owner.
++Usual problem of this class is memory overwritten.
 +
-+struct object {
-+	volatile unsigned long v[1];
-+};
++Most of debug feature focused on finding out un-intended access to
++in-valid area, for example, out-of-bound access and use-after-free, and,
++there are many good tools for it. But, as far as I know, there is no good tool
++to find out un-intended access to valid area. This kind of problem is really
++hard to solve so this tool would be very useful.
 +
-+static struct kmem_cache *s;
-+static void *old_obj;
-+static struct delayed_work dwork_old_obj;
-+static struct delayed_work dwork_new_obj;
-+static struct delayed_work dwork_kmalloc_obj;
++This tool doesn't automatically catch a problem. Manual configuration to
++specify the target object is required. See the usage part on the below.
 +
-+static void workfn_old_obj(struct work_struct *work)
-+{
-+	struct object *obj = old_obj;
-+	struct delayed_work *dwork = (struct delayed_work *)work;
++Usage
++-----
 +
-+	obj->v[0] = 7;
++To enable vchecker configure kernel with
 +
-+	mod_delayed_work(system_wq, dwork, HZ * 5);
-+}
++::
 +
-+static void workfn_new_obj(struct work_struct *work)
-+{
-+	struct object *obj;
-+	struct delayed_work *dwork = (struct delayed_work *)work;
++	CONFIG_VCHECKER = y
 +
-+	obj = kmem_cache_alloc(s, GFP_KERNEL);
++and choose the target slab object type and the type of the checkers by debugfs
++interface at the runtime. Following is the hierarchy of the interface.
 +
-+	obj->v[0] = 7;
-+	/*
-+	 * Need one more access to detect wrong value since there is
-+	 * no proper infrastructure yet and the feature is just emulated.
-+	 */
-+	obj->v[0] = 0;
++::
 +
-+	kmem_cache_free(s, obj);
-+	mod_delayed_work(system_wq, dwork, HZ * 5);
-+}
++	- debugfs root for vchecker
++		- directory per slab cache
++			- alloc_filter
++			- callstack_depth
++			- enable
++			- value
++			- callstack
 +
-+static void workfn_kmalloc_obj(struct work_struct *work)
-+{
-+	struct object *obj;
-+	struct delayed_work *dwork = (struct delayed_work *)work;
 +
-+	obj = kmalloc(sizeof(*obj), GFP_KERNEL);
++alloc_filter can be used to apply the checker to specific allocation caller
++for this slab cache. For example, there are multiple users for kmalloc-N
++slab cache and it's better to filter out un-related allocation caller
++when debugging. Note that, if alloc_filter is specified, vchecker doesn't
++regard existing allocated objects as debugging target since it's not easy
++to know the allocation caller for existing allocated objects.
 +
-+	obj->v[0] = 7;
-+	/*
-+	 * Need one more access to detect wrong value since there is
-+	 * no proper infrastructure yet and the feature is just emulated.
-+	 */
-+	obj->v[0] = 0;
++callstack_depth can be used to limit the depth of callstack. It would be
++helpful to reduce overhead.
 +
-+	kfree(obj);
-+	mod_delayed_work(system_wq, dwork, HZ * 5);
-+}
++enable can be used to begin/end the checker for this slab cache.
 +
-+static int __init vchecker_test_init(void)
-+{
-+	s = kmem_cache_create("vchecker_test",
-+			sizeof(struct object), 0, SLAB_NOLEAKTRACE, NULL);
-+	if (!s)
-+		return 1;
++There are two checkers now, value checker and callstack checker.
 +
-+	old_obj = kmem_cache_alloc(s, GFP_KERNEL);
-+	if (!old_obj) {
-+		kmem_cache_destroy(s);
-+		return 1;
++Value checker checks the value stored in the target object.
++See following example.
++
++::
++
++	static void workfn(struct work_struct *work)
++	{
++		struct object *obj;
++		struct delayed_work *dwork = (struct delayed_work *)work;
++
++		obj = kmem_cache_alloc(s, GFP_KERNEL);
++
++		obj->v[0] = 7;
++		obj->v[0] = 0;
++
++		kmem_cache_free(s, obj);
++		mod_delayed_work(system_wq, dwork, HZ);
 +	}
 +
-+	INIT_DELAYED_WORK(&dwork_old_obj, workfn_old_obj);
-+	INIT_DELAYED_WORK(&dwork_new_obj, workfn_new_obj);
-+	INIT_DELAYED_WORK(&dwork_kmalloc_obj, workfn_kmalloc_obj);
++Assume that v[0] should not be the value, 7, however, there is a code
++to set v[0] to the value, 7. To detect this error, register the value checker
++for this object and specify that invalid value is '7'. After registration,
++if someone stores '7' to this object, the error will be reported. Registration
++can be done by three parameter as following.
 +
-+	mod_delayed_work(system_wq, &dwork_old_obj, HZ * 5);
-+	mod_delayed_work(system_wq, &dwork_new_obj, HZ * 5);
-+	mod_delayed_work(system_wq, &dwork_kmalloc_obj, HZ * 5);
++::
 +
-+	return 0;
-+}
++	# cd /sys/kernel/debug/vchecker
++	# echo 0 0xffff 7 > [slab cache]/value
++		// offset 0 (dec)
++		// mask 0xffff (hex)
++		// value 7 (dec)
++	# echo 1 > [slab cache]/enable
 +
-+static void __exit vchecker_test_fini(void)
-+{
-+	cancel_delayed_work_sync(&dwork_old_obj);
-+	cancel_delayed_work_sync(&dwork_new_obj);
-+	cancel_delayed_work_sync(&dwork_kmalloc_obj);
++Before describing the each parameters, one thing should be noted. One value
++checker works for 8 bytes at maximum. If more bytes should be checked,
++please register multiple value checkers.
 +
-+	kmem_cache_free(s, old_obj);
-+	kmem_cache_destroy(s);
-+}
++First parameter is a target offset from the object base. It should be aligned
++by 8 bytes due to implementation constraint. Second parameter is a mask that
++is used to specify the range in the specified 8 bytes. Occasionally, we want to
++check just 1 byte or 1 bit and this mask makes it possible to check such
++a small range. Third parameter is the value that is assumed as invalid.
 +
++Second checker is the callstack checker. It checks the read/write callstack
++of the target object. Overwritten problem usually happens by non-owner and
++it would have odd callstack. By checking the oddity of the callstack, vchecker
++can report the possible error candidate. Currently, the oddity of the callstack
++is naively determined by checking whether it is a new callstack or not. It can
++be extended to use whitelist but not yet implemented.
 +
-+module_init(vchecker_test_init);
-+module_exit(vchecker_test_fini)
++::
 +
-+MODULE_LICENSE("GPL");
++	# echo 0 8 > [slab cache]/callstack
++		// offset 0 (dec)
++		// size 8 (dec)
++	# echo 1 > [slab cache]/enable
 +
++First parameter is a target offset as usual and the second one is the size to
++determine the range. Unlike the value checker, callstack checker can check
++more than 8 bytes by just one checker.
++
++::
++
++	# echo off > [slab cache]/callstack
++		// ... (do some work to collect enough valid callstacks) ...
++	# echo on > [slab cache]/callstack
++
++You can collect potential valid callstack during 'off state'. If you think
++that enough callstacks are collected, turn on the checker. It will report
++a new callstack and it may be a bug candidate.
++
++Error reports
++-------------
++
++Report format looks very similar with the report of KASAN
++
++::
++
++	[   49.400673] ==================================================================
++	[   49.402297] BUG: VCHECKER: invalid access in workfn_old_obj+0x14/0x50 [vchecker_test] at addr ffff88002e9dc000
++	[   49.403899] Write of size 8 by task kworker/0:2/465
++	[   49.404538] value checker for offset 0 ~ 8 at ffff88002e9dc000
++	[   49.405374] (mask 0xffff value 7) invalid value 7
++
++	[   49.406016] Invalid writer:
++	[   49.406302]  workfn_old_obj+0x14/0x50 [vchecker_test]
++	[   49.406973]  process_one_work+0x3b5/0x9f0
++	[   49.407463]  worker_thread+0x87/0x750
++	[   49.407895]  kthread+0x1b2/0x200
++	[   49.408252]  ret_from_fork+0x24/0x30
++
++	[   49.408723] Allocated by task 1326:
++	[   49.409126]  kasan_kmalloc+0xb9/0xe0
++	[   49.409571]  kmem_cache_alloc+0xd1/0x250
++	[   49.410046]  0xffffffffa00c8157
++	[   49.410389]  do_one_initcall+0x82/0x1cf
++	[   49.410851]  do_init_module+0xe7/0x333
++	[   49.411296]  load_module+0x406b/0x4b40
++	[   49.411745]  SYSC_finit_module+0x14d/0x180
++	[   49.412247]  do_syscall_64+0xf0/0x340
++	[   49.412674]  return_from_SYSCALL_64+0x0/0x75
++
++	[   49.413276] Freed by task 0:
++	[   49.413566] (stack is not available)
++
++	[   49.414034] The buggy address belongs to the object at ffff88002e9dc000
++	                which belongs to the cache vchecker_test of size 8
++	[   49.415708] The buggy address is located 0 bytes inside of
++	                8-byte region [ffff88002e9dc000, ffff88002e9dc008)
++	[   49.417148] ==================================================================
++
++It shows that vchecker find the invalid value writing
++at workfn_old_obj+0x14/0x50. Object information is also reported.
++
++Implementation details
++----------------------
++This part requires some understanding of how KASAN works since vchecker is
++highly depends on shadow memory of KASAN. Vchecker uses the shadow to
++distinguish interesting memory address for validation. If it finds the special
++value on the shadow of the accessing address, it means that this address is
++the target for validation check. Then, it tries to do additional checks to this
++address. With this way, vchecker can filter out un-interesting memory access
++very efficiently.
++
++A new type of checks can be added by implementing following callback structure.
++check() callback is the main function that checks whether the access is valid
++or not. Please reference existing checkers for more information.
++
++::
++
++	struct vchecker_type {
++		char *name;
++		const struct file_operations *fops;
++		int (*init)(struct kmem_cache *s, struct vchecker_cb *cb,
++				char *buf, size_t cnt);
++		void (*fini)(struct vchecker_cb *cb);
++		void (*show)(struct kmem_cache *s, struct seq_file *f,
++				struct vchecker_cb *cb, void *object, bool verbose);
++		bool (*check)(struct kmem_cache *s, struct vchecker_cb *cb,
++				void *object, bool write, unsigned long ret_ip,
++				unsigned long begin, unsigned long end);
++	};
 -- 
 2.7.4
 
