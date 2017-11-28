@@ -1,69 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 77F086B0038
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 14:00:01 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id z81so311124oig.16
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 11:00:01 -0800 (PST)
-Received: from foss.arm.com (usa-sjc-mx-foss1.foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id f186si9673686oig.444.2017.11.28.10.59.59
-        for <linux-mm@kvack.org>;
-        Tue, 28 Nov 2017 11:00:00 -0800 (PST)
-Date: Tue, 28 Nov 2017 19:00:01 +0000
-From: Will Deacon <will.deacon@arm.com>
-Subject: Re: [RFC PATCH] arch, mm: introduce arch_tlb_gather_mmu_exit
-Message-ID: <20171128190001.GD8187@arm.com>
-References: <20171123090236.18574-1-mhocko@kernel.org>
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E260B6B0038
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 14:39:43 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id l4so573970wre.10
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 11:39:43 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b35si206237edb.0.2017.11.28.11.39.42
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 28 Nov 2017 11:39:42 -0800 (PST)
+Date: Tue, 28 Nov 2017 20:39:40 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm,oom: Set ->signal->oom_mm to all thread groups
+ sharing the victim's mm.
+Message-ID: <20171128193940.hcrsx3wimr5hwulh@dhcp22.suse.cz>
+References: <201711282307.EBG97690.MQVOFLFFOJHtOS@I-love.SAKURA.ne.jp>
+ <1511885835-4899-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171123090236.18574-1-mhocko@kernel.org>
+In-Reply-To: <1511885835-4899-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrea Argangeli <andrea@kernel.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Thu, Nov 23, 2017 at 10:02:36AM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
-> introduced an optimization to not flush tlb when we are tearing the
-> whole address space down. Will goes on to explain
-> 
-> : Basically, we tag each address space with an ASID (PCID on x86) which
-> : is resident in the TLB. This means we can elide TLB invalidation when
-> : pulling down a full mm because we won't ever assign that ASID to
-> : another mm without doing TLB invalidation elsewhere (which actually
-> : just nukes the whole TLB).
-> 
-> This all is nice but tlb_gather users are not aware of that and this can
-> actually cause some real problems. E.g. the oom_reaper tries to reap the
-> whole address space but it might race with threads accessing the memory [1].
-> It is possible that soft-dirty handling might suffer from the same
-> problem [2] as soon as it starts supporting the feature.
-> 
-> Introduce an explicit exit variant tlb_gather_mmu_exit which allows the
-> behavior arm64 implements for the fullmm case and replace it by an
-> explicit exit flag in the mmu_gather structure. exit_mmap path is then
-> turned into the explicit exit variant. Other architectures simply ignore
-> the flag.
-> 
-> [1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
-> [2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
-> Hi,
-> I am sending this as an RFC because I am not fully familiar with the tlb
-> gather arch implications, espacially the semantic of fullmm. Therefore
-> I might duplicate some of its functionality. I hope people on the CC
-> list will help me to sort this out.
-> 
-> Comments? Objections?
+On Wed 29-11-17 01:17:15, Tetsuo Handa wrote:
+> Due to commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+> oom_reaped tasks") and patch "mm,oom: Use ALLOC_OOM for OOM victim's last
+> second allocation.", thread groups sharing the OOM victim's mm without
+> setting ->signal->oom_mm before task_will_free_mem(current) is called
+> might fail to try ALLOC_OOM allocation attempt.
 
-I can't think of a case where we'd have exit set but not be doing the
-fullmm, in which case I'd be inclined to remove the last two parameters
-from tlb_gather_mmu_exit.
+I've already NACKed your previous attempt. Now you are interfering with
+the patchset Roman plans to resubmit and cause further potential clashes
+for him.
 
-Will
+Stop this already!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
