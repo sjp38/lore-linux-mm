@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 635C36B02A3
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:50:12 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id b77so13479006pfl.2
-        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:50:12 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F3256B02A5
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 02:50:15 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q187so14955600pga.6
+        for <linux-mm@kvack.org>; Mon, 27 Nov 2017 23:50:15 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u12sor1618874plz.10.2017.11.27.23.50.10
+        by mx.google.com with SMTPS id 37sor10612221plq.68.2017.11.27.23.50.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 27 Nov 2017 23:50:11 -0800 (PST)
+        Mon, 27 Nov 2017 23:50:14 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH 15/18] mm/vchecker: pass allocation caller address to vchecker hook
-Date: Tue, 28 Nov 2017 16:48:50 +0900
-Message-Id: <1511855333-3570-16-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH 16/18] mm/vchecker: support allocation caller filter
+Date: Tue, 28 Nov 2017 16:48:51 +0900
+Message-Id: <1511855333-3570-17-git-send-email-iamjoonsoo.kim@lge.com>
 In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,290 +22,242 @@ Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@googl
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-Vchecker requires kmalloc caller address to support validation on
-*specific* kmalloc user. Therefore, this patch passes slab allocation
-caller address to vchecker hook. This caller address will be used in the
-following patch.
+kmalloc() is used everywhere in the kernel and it doesn't distiniguish
+the callers since it doesn't much help to efficiently manage the memory.
+
+However, there is a difference in the view of the debugging. A bug usually
+happens on the objects allocated by specific allocation caller. So,
+it is useful to distiniguish them. Let's call it as a same class object.
+
+This patch implements an allocation caller filter to distiniguish
+the class. With it, vchecker can be applied only to a specific class
+and debugging it could be possible.
+
+Note that it's not easy to distiniguish allocation caller of existing
+allocated memory. Therefore, existing allocated memory will not be
+included to debugging target if allocation caller filter is enabled.
+If it is really required, feel free to ask me. I have a rough idea
+to implement it.
 
 Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 ---
- include/linux/slab.h |  2 ++
- mm/kasan/kasan.c     |  1 -
- mm/kasan/vchecker.c  |  3 ++-
- mm/kasan/vchecker.h  |  5 +++--
- mm/slab.c            | 14 ++++++++++----
- mm/slab.h            |  4 +++-
- mm/slab_common.c     |  6 ++++++
- mm/slub.c            | 11 ++++++++---
- 8 files changed, 34 insertions(+), 12 deletions(-)
+ lib/Kconfig.kasan   |   1 +
+ mm/kasan/vchecker.c | 126 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 126 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index f6efbbe..25a74f3c 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -421,6 +421,7 @@ static __always_inline void *kmem_cache_alloc_trace(struct kmem_cache *s,
- 	void *ret = kmem_cache_alloc(s, flags);
+diff --git a/lib/Kconfig.kasan b/lib/Kconfig.kasan
+index d3552f3..4b8e748 100644
+--- a/lib/Kconfig.kasan
++++ b/lib/Kconfig.kasan
+@@ -63,5 +63,6 @@ config VCHECKER
+ 	  happens at the area.
  
- 	kasan_kmalloc(s, ret, size, flags);
-+	vchecker_kmalloc(s, ret, size, _THIS_IP_);
- 	return ret;
- }
+ 	depends on KASAN && DEBUG_FS
++	select KALLSYMS
  
-@@ -432,6 +433,7 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 	void *ret = kmem_cache_alloc_node(s, gfpflags, node);
- 
- 	kasan_kmalloc(s, ret, size, gfpflags);
-+	vchecker_kmalloc(s, ret, size, _THIS_IP_);
- 	return ret;
- }
- #endif /* CONFIG_TRACING */
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 984e423..8634e43 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -552,7 +552,6 @@ void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
- 	kasan_unpoison_shadow(object, size);
- 	kasan_poison_shadow((void *)redzone_start, redzone_end - redzone_start,
- 		KASAN_KMALLOC_REDZONE);
--	vchecker_kmalloc(cache, object, size);
- 
- 	if (cache->flags & SLAB_KASAN)
- 		set_track(&get_alloc_info(cache, object)->alloc_track, flags);
+ endif
 diff --git a/mm/kasan/vchecker.c b/mm/kasan/vchecker.c
-index 4d140e7..918f05a 100644
+index 918f05a..9f2b164 100644
 --- a/mm/kasan/vchecker.c
 +++ b/mm/kasan/vchecker.c
-@@ -144,7 +144,8 @@ void vchecker_cache_create(struct kmem_cache *s,
- 	*size += sizeof(struct vchecker_data);
- }
+@@ -17,6 +17,7 @@
+ #include <linux/kasan.h>
+ #include <linux/uaccess.h>
+ #include <linux/stackdepot.h>
++#include <linux/kallsyms.h>
  
--void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size)
-+void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size,
-+			unsigned long ret_ip)
+ #include "vchecker.h"
+ #include "../slab.h"
+@@ -28,6 +29,7 @@
+ struct vchecker {
+ 	bool enabled;
+ 	unsigned int callstack_depth;
++	struct list_head alloc_filter_list;
+ 	struct list_head cb_list;
+ };
+ 
+@@ -75,6 +77,12 @@ struct vchecker_callstack_arg {
+ 	bool enabled;
+ };
+ 
++struct vchecker_alloc_filter {
++	unsigned long begin;
++	unsigned long end;
++	struct list_head list;
++};
++
+ static struct dentry *debugfs_root;
+ static struct vchecker_type vchecker_types[VCHECKER_TYPE_MAX];
+ static DEFINE_MUTEX(vchecker_meta);
+@@ -149,6 +157,7 @@ void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size,
  {
  	struct vchecker *checker;
  	struct vchecker_cb *cb;
-diff --git a/mm/kasan/vchecker.h b/mm/kasan/vchecker.h
-index efebc63..ab5a6f6 100644
---- a/mm/kasan/vchecker.h
-+++ b/mm/kasan/vchecker.h
-@@ -12,7 +12,8 @@ struct vchecker_cache {
++	struct vchecker_alloc_filter *af;
  
+ 	rcu_read_lock();
+ 	checker = s->vchecker_cache.checker;
+@@ -157,6 +166,18 @@ void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size,
+ 		return;
+ 	}
  
- #ifdef CONFIG_VCHECKER
--void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size);
-+void vchecker_kmalloc(struct kmem_cache *s, const void *object, size_t size,
-+			unsigned long ret_ip);
- bool vchecker_check(unsigned long addr, size_t size,
- 			bool write, unsigned long ret_ip);
- int init_vchecker(struct kmem_cache *s);
-@@ -26,7 +27,7 @@ void vchecker_enable_obj(struct kmem_cache *s, const void *object,
++	if (list_empty(&checker->alloc_filter_list))
++		goto mark;
++
++	list_for_each_entry(af, &checker->alloc_filter_list, list) {
++		if (af->begin <= ret_ip && ret_ip < af->end)
++			goto mark;
++	}
++
++	rcu_read_unlock();
++	return;
++
++mark:
+ 	list_for_each_entry(cb, &checker->cb_list, list) {
+ 		kasan_poison_shadow(object + cb->begin,
+ 				    round_up(cb->end - cb->begin,
+@@ -476,9 +497,13 @@ static ssize_t enable_write(struct file *filp, const char __user *ubuf,
+ 	/*
+ 	 * After this operation, it is guaranteed that there is no user
+ 	 * left that accesses checker's cb list if vchecker is disabled.
++	 * Don't mark the object if alloc_filter is enabled. We cannot
++	 * know the allocation caller at this moment.
+ 	 */
+ 	synchronize_sched();
+-	vchecker_enable_cache(s, enable);
++	if (!enable ||
++		list_empty(&s->vchecker_cache.checker->alloc_filter_list))
++		vchecker_enable_cache(s, enable);
+ 	mutex_unlock(&vchecker_meta);
  
- #else
- static inline void vchecker_kmalloc(struct kmem_cache *s,
--	const void *object, size_t size) { }
-+	const void *object, size_t size, unsigned long ret_ip) { }
- static inline bool vchecker_check(unsigned long addr, size_t size,
- 			bool write, unsigned long ret_ip) { return false; }
- static inline int init_vchecker(struct kmem_cache *s) { return 0; }
-diff --git a/mm/slab.c b/mm/slab.c
-index 64d768b..f6b1adf 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -3359,7 +3359,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid,
- 	if (unlikely(flags & __GFP_ZERO) && ptr)
- 		memset(ptr, 0, cachep->object_size);
+ 	return cnt;
+@@ -556,6 +581,99 @@ static const struct file_operations callstack_depth_fops = {
+ 	.release	= single_release,
+ };
  
--	slab_post_alloc_hook(cachep, flags, 1, &ptr);
-+	slab_post_alloc_hook(cachep, flags, 1, &ptr, caller);
- 	return ptr;
- }
- 
-@@ -3416,7 +3416,7 @@ slab_alloc(struct kmem_cache *cachep, gfp_t flags, unsigned long caller)
- 	if (unlikely(flags & __GFP_ZERO) && objp)
- 		memset(objp, 0, cachep->object_size);
- 
--	slab_post_alloc_hook(cachep, flags, 1, &objp);
-+	slab_post_alloc_hook(cachep, flags, 1, &objp, caller);
- 	return objp;
- }
- 
-@@ -3579,6 +3579,7 @@ void *kmem_cache_alloc(struct kmem_cache *cachep, gfp_t flags)
- 	void *ret = slab_alloc(cachep, flags, _RET_IP_);
- 
- 	kasan_slab_alloc(cachep, ret, flags);
-+	vchecker_kmalloc(cachep, ret, cachep->object_size, _RET_IP_);
- 	trace_kmem_cache_alloc(_RET_IP_, ret,
- 			       cachep->object_size, cachep->size, flags);
- 
-@@ -3624,13 +3625,13 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 		for (i = 0; i < size; i++)
- 			memset(p[i], 0, s->object_size);
- 
--	slab_post_alloc_hook(s, flags, size, p);
-+	slab_post_alloc_hook(s, flags, size, p, _RET_IP_);
- 	/* FIXME: Trace call missing. Christoph would like a bulk variant */
- 	return size;
- error:
- 	local_irq_enable();
- 	cache_alloc_debugcheck_after_bulk(s, flags, i, p, _RET_IP_);
--	slab_post_alloc_hook(s, flags, i, p);
-+	slab_post_alloc_hook(s, flags, i, p, _RET_IP_);
- 	__kmem_cache_free_bulk(s, i, p);
- 	return 0;
- }
-@@ -3645,6 +3646,7 @@ kmem_cache_alloc_trace(struct kmem_cache *cachep, gfp_t flags, size_t size)
- 	ret = slab_alloc(cachep, flags, _RET_IP_);
- 
- 	kasan_kmalloc(cachep, ret, size, flags);
-+	vchecker_kmalloc(cachep, ret, size, _RET_IP_);
- 	trace_kmalloc(_RET_IP_, ret,
- 		      size, cachep->size, flags);
- 	return ret;
-@@ -3669,6 +3671,7 @@ void *kmem_cache_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid)
- 	void *ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
- 
- 	kasan_slab_alloc(cachep, ret, flags);
-+	vchecker_kmalloc(cachep, ret, cachep->object_size, _RET_IP_);
- 	trace_kmem_cache_alloc_node(_RET_IP_, ret,
- 				    cachep->object_size, cachep->size,
- 				    flags, nodeid);
-@@ -3688,6 +3691,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *cachep,
- 	ret = slab_alloc_node(cachep, flags, nodeid, _RET_IP_);
- 
- 	kasan_kmalloc(cachep, ret, size, flags);
-+	vchecker_kmalloc(cachep, ret, size, _RET_IP_);
- 	trace_kmalloc_node(_RET_IP_, ret,
- 			   size, cachep->size,
- 			   flags, nodeid);
-@@ -3707,6 +3711,7 @@ __do_kmalloc_node(size_t size, gfp_t flags, int node, unsigned long caller)
- 		return cachep;
- 	ret = kmem_cache_alloc_node_trace(cachep, flags, node, size);
- 	kasan_kmalloc(cachep, ret, size, flags);
-+	vchecker_kmalloc(cachep, ret, size, _RET_IP_);
- 
- 	return ret;
- }
-@@ -3743,6 +3748,7 @@ static __always_inline void *__do_kmalloc(size_t size, gfp_t flags,
- 	ret = slab_alloc(cachep, flags, caller);
- 
- 	kasan_kmalloc(cachep, ret, size, flags);
-+	vchecker_kmalloc(cachep, ret, size, _RET_IP_);
- 	trace_kmalloc(caller, ret,
- 		      size, cachep->size, flags);
- 
-diff --git a/mm/slab.h b/mm/slab.h
-index c1cf486..9fce8ab 100644
---- a/mm/slab.h
-+++ b/mm/slab.h
-@@ -435,7 +435,8 @@ static inline struct kmem_cache *slab_pre_alloc_hook(struct kmem_cache *s,
- }
- 
- static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
--					size_t size, void **p)
-+					size_t size, void **p,
-+					unsigned long caller)
++static int alloc_filter_show(struct seq_file *f, void *v)
++{
++	char name[KSYM_NAME_LEN];
++	struct kmem_cache *s = f->private;
++	struct vchecker *checker = s->vchecker_cache.checker;
++	struct vchecker_alloc_filter *af;
++
++	mutex_lock(&vchecker_meta);
++	list_for_each_entry(af, &checker->alloc_filter_list, list) {
++		if (!lookup_symbol_name(af->begin, name))
++			seq_printf(f, "%s: ", name);
++		seq_printf(f, "0x%lx - 0x%lx\n", af->begin, af->end);
++	}
++	mutex_unlock(&vchecker_meta);
++
++	return 0;
++}
++
++static int alloc_filter_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, alloc_filter_show, inode->i_private);
++}
++
++static void remove_alloc_filters(struct vchecker *checker)
++{
++	struct vchecker_alloc_filter *af, *tmp;
++
++	list_for_each_entry_safe(af, tmp, &checker->alloc_filter_list, list) {
++		list_del(&af->list);
++		kfree(af);
++	}
++}
++
++static ssize_t alloc_filter_write(struct file *filp, const char __user *ubuf,
++			size_t cnt, loff_t *ppos)
++{
++	char filter_chars[KSYM_NAME_LEN];
++	struct kmem_cache *s = file_inode(filp)->i_private;
++	struct vchecker *checker = s->vchecker_cache.checker;
++	unsigned long begin;
++	unsigned long size;
++	struct vchecker_alloc_filter *af = NULL;
++
++	if (cnt >= KSYM_NAME_LEN || cnt == 0)
++		return -EINVAL;
++
++	if (copy_from_user(&filter_chars, ubuf, cnt))
++		return -EFAULT;
++
++	if (isspace(filter_chars[0]))
++		goto change;
++
++	filter_chars[cnt - 1] = '\0';
++	begin = kallsyms_lookup_name(filter_chars);
++	if (!begin)
++		return -EINVAL;
++
++	kallsyms_lookup_size_offset(begin, &size, NULL);
++
++	af = kzalloc(sizeof(*af), GFP_KERNEL);
++	if (!af)
++		return -ENOMEM;
++
++	af->begin = begin;
++	af->end = begin + size;
++
++change:
++	mutex_lock(&vchecker_meta);
++	if (checker->enabled || !list_empty(&checker->cb_list)) {
++		mutex_unlock(&vchecker_meta);
++		kfree(af);
++
++		return -EINVAL;
++	}
++
++	if (af)
++		list_add_tail(&af->list, &checker->alloc_filter_list);
++	else
++		remove_alloc_filters(checker);
++
++	mutex_unlock(&vchecker_meta);
++
++	return cnt;
++}
++
++static const struct file_operations alloc_filter_fops = {
++	.open		= alloc_filter_open,
++	.write		= alloc_filter_write,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
+ static int init_value(struct kmem_cache *s, struct vchecker_cb *cb,
+ 				char *buf, size_t cnt)
  {
- 	size_t i;
+@@ -865,6 +983,7 @@ static void free_vchecker(struct kmem_cache *s)
+ 	if (!s->vchecker_cache.checker)
+ 		return;
  
-@@ -446,6 +447,7 @@ static inline void slab_post_alloc_hook(struct kmem_cache *s, gfp_t flags,
- 		kmemleak_alloc_recursive(object, s->object_size, 1,
- 					 s->flags, flags);
- 		kasan_slab_alloc(s, object, flags);
-+		vchecker_kmalloc(s, object, s->object_size, caller);
- 	}
++	remove_alloc_filters(s->vchecker_cache.checker);
+ 	for (i = 0; i < ARRAY_SIZE(vchecker_types); i++)
+ 		remove_cbs(s, &vchecker_types[i]);
+ 	kfree(s->vchecker_cache.checker);
+@@ -895,6 +1014,7 @@ static int alloc_vchecker(struct kmem_cache *s)
+ 		return -ENOMEM;
  
- 	if (memcg_kmem_enabled())
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 6f700f3..ffc7515 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -1446,12 +1446,18 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
- {
- 	void *ret;
- 	size_t ks = 0;
-+	struct page *page;
+ 	checker->callstack_depth = VCHECKER_STACK_DEPTH;
++	INIT_LIST_HEAD(&checker->alloc_filter_list);
+ 	INIT_LIST_HEAD(&checker->cb_list);
+ 	s->vchecker_cache.checker = checker;
  
- 	if (p)
- 		ks = ksize(p);
+@@ -922,6 +1042,10 @@ static int register_debugfs(struct kmem_cache *s)
+ 				&callstack_depth_fops))
+ 		return -ENOMEM;
  
- 	if (ks >= new_size) {
- 		kasan_krealloc((void *)p, new_size, flags);
-+		page = virt_to_head_page(p);
-+		if (PageSlab(page)) {
-+			vchecker_kmalloc(page->slab_cache, p,
-+					new_size, _RET_IP_);
-+		}
- 		return (void *)p;
- 	}
- 
-diff --git a/mm/slub.c b/mm/slub.c
-index c099b33..d37f023 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -2755,7 +2755,7 @@ static __always_inline void *slab_alloc_node(struct kmem_cache *s,
- 	if (unlikely(gfpflags & __GFP_ZERO) && object)
- 		memset(object, 0, s->object_size);
- 
--	slab_post_alloc_hook(s, gfpflags, 1, &object);
-+	slab_post_alloc_hook(s, gfpflags, 1, &object, addr);
- 
- 	return object;
- }
-@@ -2783,6 +2783,7 @@ void *kmem_cache_alloc_trace(struct kmem_cache *s, gfp_t gfpflags, size_t size)
- 	void *ret = slab_alloc(s, gfpflags, _RET_IP_);
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, gfpflags);
- 	kasan_kmalloc(s, ret, size, gfpflags);
-+	vchecker_kmalloc(s, ret, size, _RET_IP_);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_trace);
-@@ -2811,6 +2812,7 @@ void *kmem_cache_alloc_node_trace(struct kmem_cache *s,
- 			   size, s->size, gfpflags, node);
- 
- 	kasan_kmalloc(s, ret, size, gfpflags);
-+	vchecker_kmalloc(s, ret, size, _RET_IP_);
- 	return ret;
- }
- EXPORT_SYMBOL(kmem_cache_alloc_node_trace);
-@@ -3184,11 +3186,11 @@ int kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t size,
- 	}
- 
- 	/* memcg and kmem_cache debug support */
--	slab_post_alloc_hook(s, flags, size, p);
-+	slab_post_alloc_hook(s, flags, size, p, _RET_IP_);
- 	return i;
- error:
- 	local_irq_enable();
--	slab_post_alloc_hook(s, flags, i, p);
-+	slab_post_alloc_hook(s, flags, i, p, _RET_IP_);
- 	__kmem_cache_free_bulk(s, i, p);
- 	return 0;
- }
-@@ -3388,6 +3390,7 @@ static void early_kmem_cache_node_alloc(int node)
- #endif
- 	kasan_kmalloc(kmem_cache_node, n, sizeof(struct kmem_cache_node),
- 		      GFP_KERNEL);
-+	vchecker_kmalloc(kmem_cache_node, n, sizeof(*n), _RET_IP_);
- 	init_kmem_cache_node(n);
- 	inc_slabs_node(kmem_cache_node, node, page->objects);
- 
-@@ -3794,6 +3797,7 @@ void *__kmalloc(size_t size, gfp_t flags)
- 	trace_kmalloc(_RET_IP_, ret, size, s->size, flags);
- 
- 	kasan_kmalloc(s, ret, size, flags);
-+	vchecker_kmalloc(s, ret, size, _RET_IP_);
- 
- 	return ret;
- }
-@@ -3839,6 +3843,7 @@ void *__kmalloc_node(size_t size, gfp_t flags, int node)
- 	trace_kmalloc_node(_RET_IP_, ret, size, s->size, flags, node);
- 
- 	kasan_kmalloc(s, ret, size, flags);
-+	vchecker_kmalloc(s, ret, size, _RET_IP_);
- 
- 	return ret;
- }
++	if (!debugfs_create_file("alloc_filter", 0600, dir, s,
++				&alloc_filter_fops))
++		return -ENOMEM;
++
+ 	for (i = 0; i < ARRAY_SIZE(vchecker_types); i++) {
+ 		t = &vchecker_types[i];
+ 		if (!debugfs_create_file(t->name, 0600, dir, s, t->fops))
 -- 
 2.7.4
 
