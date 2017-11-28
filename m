@@ -1,43 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC9F06B02D0
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:20:38 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id u42so107809ioi.7
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:20:38 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id b11si15280129itd.167.2017.11.28.01.20.37
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 946326B02D2
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:21:56 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id s28so26943048pfg.6
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:21:56 -0800 (PST)
+Received: from mxhk.zte.com.cn (mxhk.zte.com.cn. [63.217.80.70])
+        by mx.google.com with ESMTPS id j11si3353972pgq.502.2017.11.28.01.21.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 01:20:37 -0800 (PST)
-Date: Tue, 28 Nov 2017 10:20:25 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 1/2] x86/mm/kaiser: Remove unused user-mapped
- page-aligned section
-Message-ID: <20171128092025.ggbnkx2j4uglbdax@hirez.programming.kicks-ass.net>
-References: <cover.1511842148.git.jpoimboe@redhat.com>
- <666935452d5eef100464b7314be90fccd65e795c.1511842148.git.jpoimboe@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <666935452d5eef100464b7314be90fccd65e795c.1511842148.git.jpoimboe@redhat.com>
+        Tue, 28 Nov 2017 01:21:55 -0800 (PST)
+Date: Tue, 28 Nov 2017 17:21:26 +0800 (CST)
+Message-ID: <201711281721266018326@zte.com.cn>
+In-Reply-To: <20171128080434.z32gfedrzq37rsqe@dhcp22.suse.cz>
+References: 1511837307-56494-1-git-send-email-jiang.biao2@zte.com.cn,20171128080434.z32gfedrzq37rsqe@dhcp22.suse.cz
+Mime-Version: 1.0
+From: <jiang.biao2@zte.com.cn>
+Subject: =?UTF-8?B?UmU6IFtQQVRDSF0gbW0vdm1zY2FuOiBjaGFuZ2UgcmV0dXJuIHR5cGUgb2YgaXNfcGFnZV9jYWNoZV9mcmVlYWJsZWZyb20gaW50IHRvIGJvb2w=?=
+Content-Type: multipart/mixed;
+	boundary="=====_001_next====="
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: mhocko@kernel.org
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, ying.huang@intel.com, mgorman@techsingularity.net, linux-mm@kvack.org, linux-kernel@vger.kernel.org, zhong.weidong@zte.com.cn
 
-On Mon, Nov 27, 2017 at 10:10:12PM -0600, Josh Poimboeuf wrote:
-> The '.data..percpu..user_mapped..page_aligned' section isn't used
-> anywhere.  Remove it and its related macros.
 
-With my patches:
 
-  arch/x86/events/intel/ds.c:DEFINE_PER_CPU_SHARED_ALIGNED_USER_MAPPED(struct debug_store, cpu_debug_store);
+--=====_001_next=====
+Content-Type: multipart/alternative;
+	boundary="=====_003_next====="
 
-is the only user left of any of that.
 
-I suppose we could just allocate a whole page for that and use
-kaiser_add_mapping() for it. Then we can remove all of
-DEFINE_.*_USER_MAPPED().
+--=====_003_next=====
+Content-Type: text/plain;
+	charset="UTF-8"
+Content-Transfer-Encoding: base64 
+
+PiBPbiBUdWUgMjgtMTEtMTcgMTA6NDg6MjcsIEppYW5nIEJpYW8gd3JvdGU6PiA+IFVzaW5nIGJv
+b2wgZm9yIHRoZSByZXR1cm4gdHlwZSBvZiBpc19wYWdlX2NhY2hlX2ZyZWVhYmxlKCkgc2hvdWxk
+IGJlCj4gPiBtb3JlIGFwcHJvcHJpYXRlLgo+IAo+IERvZXMgdGhpcyBoZWxwIHRvIGdlbmVyYXRl
+IGEgYmV0dGVyIGNvZGUgb3Igd2h5IGRvIHdlIHdhbnQgdG8gY2hhbmdlCj4gdGhpcyBhdCBhbGw/
+Ck5vLiBQbHMganVzdCBpZ25vcmUgdGhhdC4KClRoYW5rcy4=
+
+
+--=====_003_next=====--
+
+--=====_001_next=====--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
