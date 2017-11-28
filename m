@@ -1,155 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D879D6B02C6
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 03:58:36 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id b77so13598576pfl.2
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 00:58:36 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i3sor4925452pli.148.2017.11.28.00.58.35
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B7456B02C7
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 04:03:48 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id s75so31196296pgs.12
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 01:03:48 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id 1si8053240plb.315.2017.11.28.01.03.47
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Nov 2017 00:58:35 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
-References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
- <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
- <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
- <CAABZP2zB8vKswQXicYq5r8iNOKz21CRyw1cUiB2s9O+ZMb+JvQ@mail.gmail.com>
- <CACT4Y+YkVbkwAm0h7UJH08woiohJT9EYObhxpE33dP0A4agtkw@mail.gmail.com> <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 28 Nov 2017 09:58:14 +0100
-Message-ID: <CACT4Y+ah6q-xoakyPL7v-+Knp8ZaFbnRRk_Ki6Wsmz3C8Pe8XQ@mail.gmail.com>
-Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 28 Nov 2017 01:03:47 -0800 (PST)
+Subject: [PATCH] x86/mm/kaiser: remove no-INVPCID user ASID flushing
+From: Dave Hansen <dave.hansen@linux.intel.com>
+Date: Tue, 28 Nov 2017 01:02:19 -0800
+Message-Id: <20171128090219.7256F849@viggo.jf.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Zhouyi Zhou <zhouzhouyi@gmail.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-
-On Tue, Nov 28, 2017 at 9:33 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
-> Hi,
->    Please take a look at function quarantine_put, I don't think following
-> code will limit the batch size below quarantine_batch_size. It only advance
-> quarantine_tail after qlist_move_all.
->
->                 qlist_move_all(q, &temp);
->
->                 spin_lock(&quarantine_lock);
->                 WRITE_ONCE(quarantine_size, quarantine_size + temp.bytes);
->                 qlist_move_all(&temp, &global_quarantine[quarantine_tail]);
->                 if (global_quarantine[quarantine_tail].bytes >=
->                                 READ_ONCE(quarantine_batch_size)) {
->                         int new_tail;
->
->                         new_tail = quarantine_tail + 1;
->                         if (new_tail == QUARANTINE_BATCHES)
->                                 new_tail = 0;
->                         if (new_tail != quarantine_head)
->                                 quarantine_tail = new_tail;
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, bp@alien8.de, hughd@google.com, x86@kernel.org
 
 
-As far as I see this code can exceed global quarantine batch size by
-at most 1 per-cpu batch. Per-cpu batch is caped at 1MB. So max global
-batch size will be 4MB+1MB. Which does not radically change situation.
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
+As the comment says, there are systems that have PCIDs but no
+support for the INVPCID instruction to help flush individual
+PCIDs.  Flushing the TLB on those systems is awkward, and even
+worse with KAISER.  If faced with one of these when KAISER is
+enabled, we simply fall back as if we have no PCID support.
 
-> On Tue, Nov 28, 2017 at 4:12 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->> On Tue, Nov 28, 2017 at 9:00 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
->>> Thanks for reviewing
->>>    My machine has 128G of RAM, and runs many KVM virtual machines.
->>> libvirtd always
->>> report "internal error: received hangup / error event on socket" under
->>> heavy memory load.
->>>    Then I use perf top -g, qlist_move_cache consumes 100% cpu for
->>> several minutes.
->>
->> For 128GB of RAM, batch size is 4MB. Processing such batch should not
->> take more than few ms. So I am still struggling  to understand how/why
->> your change helps and why there are issues in the first place...
->>
->>
->>
->>> On Tue, Nov 28, 2017 at 3:45 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
->>>> On Tue, Nov 28, 2017 at 5:05 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
->>>>> When there are huge amount of quarantined cache allocates in system,
->>>>> number of entries in global_quarantine[i] will be great. Meanwhile,
->>>>> there is no relax in while loop in function qlist_move_cache which
->>>>> hold quarantine_lock. As a result, some userspace programs for example
->>>>> libvirt will complain.
->>>>
->>>> Hi,
->>>>
->>>> The QUARANTINE_BATCHES thing was supposed to fix this problem, see
->>>> quarantine_remove_cache() function.
->>>> What is the amount of RAM and number of CPUs in your system?
->>>> If system has 4GB of RAM, quarantine size is 128MB and that's split
->>>> into 1024 batches. Batch size is 128KB. Even if that's filled with the
->>>> smallest objects of size 32, that's only 4K objects. And there is a
->>>> cond_resched() between processing of every batch.
->>>> I don't understand why it causes problems in your setup. We use KASAN
->>>> extremely heavily on hundreds of machines 24x7 and we have not seen
->>>> any single report from this code...
->>>>
->>>>
->>>>> On Tue, Nov 28, 2017 at 12:04 PM,  <zhouzhouyi@gmail.com> wrote:
->>>>>> From: Zhouyi Zhou <zhouzhouyi@gmail.com>
->>>>>>
->>>>>> This patch fix livelock by conditionally release cpu to let others
->>>>>> has a chance to run.
->>>>>>
->>>>>> Tested on x86_64.
->>>>>> Signed-off-by: Zhouyi Zhou <zhouzhouyi@gmail.com>
->>>>>> ---
->>>>>>  mm/kasan/quarantine.c | 12 +++++++++++-
->>>>>>  1 file changed, 11 insertions(+), 1 deletion(-)
->>>>>>
->>>>>> diff --git a/mm/kasan/quarantine.c b/mm/kasan/quarantine.c
->>>>>> index 3a8ddf8..33eeff4 100644
->>>>>> --- a/mm/kasan/quarantine.c
->>>>>> +++ b/mm/kasan/quarantine.c
->>>>>> @@ -265,10 +265,13 @@ static void qlist_move_cache(struct qlist_head *from,
->>>>>>                                    struct kmem_cache *cache)
->>>>>>  {
->>>>>>         struct qlist_node *curr;
->>>>>> +       struct qlist_head tmp_head;
->>>>>> +       unsigned long flags;
->>>>>>
->>>>>>         if (unlikely(qlist_empty(from)))
->>>>>>                 return;
->>>>>>
->>>>>> +       qlist_init(&tmp_head);
->>>>>>         curr = from->head;
->>>>>>         qlist_init(from);
->>>>>>         while (curr) {
->>>>>> @@ -278,10 +281,17 @@ static void qlist_move_cache(struct qlist_head *from,
->>>>>>                 if (obj_cache == cache)
->>>>>>                         qlist_put(to, curr, obj_cache->size);
->>>>>>                 else
->>>>>> -                       qlist_put(from, curr, obj_cache->size);
->>>>>> +                       qlist_put(&tmp_head, curr, obj_cache->size);
->>>>>>
->>>>>>                 curr = next;
->>>>>> +
->>>>>> +               if (need_resched()) {
->>>>>> +                       spin_unlock_irqrestore(&quarantine_lock, flags);
->>>>>> +                       cond_resched();
->>>>>> +                       spin_lock_irqsave(&quarantine_lock, flags);
->>>>>> +               }
->>>>>>         }
->>>>>> +       qlist_move_all(&tmp_head, from);
->>>>>>  }
->>>>>>
->>>>>>  static void per_cpu_remove_cache(void *arg)
->>>>>> --
->>>>>> 2.1.4
->>>>>>
->>>>>
->>>>> --
->>>>> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
->>>>> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
->>>>> To post to this group, send email to kasan-dev@googlegroups.com.
->>>>> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A%40mail.gmail.com.
->>>>> For more options, visit https://groups.google.com/d/optout.
+However, there is a remnant in the code from trying to support
+these systems.  Remove it, but leave the warning.
+
+Andy Lutomirski points out that the code that this removes
+has a hole that could leave entries from the kernel page tables
+tagged with the user asid, leaving them vulnerable to being
+used to weaken KASLR.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Moritz Lipp <moritz.lipp@iaik.tugraz.at>
+Cc: Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+Cc: Michael Schwarz <michael.schwarz@iaik.tugraz.at>
+Cc: Richard Fellner <richard.fellner@student.tugraz.at>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Kees Cook <keescook@google.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Hugh Dickins <hughd@google.com>
+Cc: x86@kernel.org
+---
+
+ b/arch/x86/mm/tlb.c |    9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff -puN arch/x86/mm/tlb.c~kaiser-remove-unused-tlb-flush-code arch/x86/mm/tlb.c
+--- a/arch/x86/mm/tlb.c~kaiser-remove-unused-tlb-flush-code	2017-11-28 00:53:41.391460358 -0800
++++ b/arch/x86/mm/tlb.c	2017-11-28 00:55:28.084460092 -0800
+@@ -127,15 +127,6 @@ static void flush_user_asid(pgd_t *pgd,
+ 		invpcid_flush_single_context(user_asid(kern_asid));
+ 	} else {
+ 		/*
+-		 * On systems with PCIDs, but no INVPCID, the only
+-		 * way to flush a PCID is a CR3 write.  Note that
+-		 * we use the kernel page tables with the *user*
+-		 * ASID here.
+-		 */
+-		unsigned long user_asid_flush_cr3;
+-		user_asid_flush_cr3 = build_cr3(pgd, user_asid(kern_asid));
+-		write_cr3(user_asid_flush_cr3);
+-		/*
+ 		 * We do not use PCIDs with KAISER unless we also
+ 		 * have INVPCID.  Getting here is unexpected.
+ 		 */
+_
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
