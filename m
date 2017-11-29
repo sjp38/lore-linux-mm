@@ -1,45 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 79C826B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 07:53:26 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id t92so1939940wrc.13
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:53:26 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 8448E6B0253
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 08:02:01 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id m6so502365wrf.1
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 05:02:01 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x56si1534345edm.293.2017.11.29.04.53.24
+        by mx.google.com with ESMTPS id o6si881314eda.245.2017.11.29.05.02.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 04:53:25 -0800 (PST)
-Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
- direct compaction
-References: <20171122143321.29501-1-hannes@cmpxchg.org>
- <32b5f1b6-e3aa-4f15-4ec6-5cbb5fe158d0@suse.cz>
- <20171128153416.f7062caba47d86eb4eb15b8b@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <62741f32-a56a-8113-073e-322300545f5f@suse.cz>
-Date: Wed, 29 Nov 2017 13:51:55 +0100
+        Wed, 29 Nov 2017 05:02:00 -0800 (PST)
+Date: Wed, 29 Nov 2017 14:01:58 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] x86/numa: move setting parse numa node to num_add_memblk
+Message-ID: <20171129130158.hji24remijkaoydb@dhcp22.suse.cz>
+References: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
+ <20171129120328.dfbr26o4wsjpwct3@dhcp22.suse.cz>
+ <5A1EAAF5.4040602@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20171128153416.f7062caba47d86eb4eb15b8b@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5A1EAAF5.4040602@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, lenb@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, richard.weiyang@gmail.com, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
-On 11/29/2017 12:34 AM, Andrew Morton wrote:
-> On Wed, 22 Nov 2017 15:52:55 +0100 Vlastimil Babka <vbabka@suse.cz> wrote:
+On Wed 29-11-17 20:41:25, zhong jiang wrote:
+> On 2017/11/29 20:03, Michal Hocko wrote:
+> > On Wed 29-11-17 17:13:27, zhong jiang wrote:
+> >> Currently, Arm64 and x86 use the common code wehn parsing numa node
+> >> in a acpi way. The arm64 will set the parsed node in numa_add_memblk,
+> >> but the x86 is not set in that , then it will result in the repeatly
+> >> setting. And the parsed node maybe is  unreasonable to the system.
+> >>
+> >> we would better not set it although it also still works. because the
+> >> parsed node is unresonable. so we should skip related operate in this
+> >> node. This patch just set node in various architecture individually.
+> >> it is no functional change.
+> > I really have hard time to understand what you try to say above. Could
+> > you start by the problem description and then how you are addressing it?
+>   I am so sorry for that.  I will make the issue clear.
+>  
+>   Arm64  get numa information through acpi.  The code flow is as follows.
 > 
->>
->> Thanks a lot, that's very encouraging!
+>   arm64_acpi_numa_init
+>        acpi_parse_memory_affinity
+>           acpi_numa_memory_affinity_init
+>               numa_add_memblk(nid, start, end);      //it will set node to numa_nodes_parsed successfully.
+>               node_set(node, numa_nodes_parsed);     // numa_add_memblk had set that.  it will repeat.
 > 
-> Yup.
+>  the root cause is that X86 parse numa also  go through above code.  and  arch-related
+>  numa_add_memblk  is not set the parsed node to numa_nodes_parsed.  it need
+>  additional node_set(node, numa_parsed) to handle.  therefore,  the issue will be introduced.
 > 
-> Should we proceed with this patch for now, or wait for something better
-> to come along?
 
-I'm working on the refined version, so we don't need to take the old one
-now.
+No it is not much more clear. I would have to go and re-study the whole
+code flow to see what you mean here. So you could simply state what _the
+issue_ is? How can user observe it and what are the consequences?
+
+Sorry for my laziness, I could go and read the code but the primary
+point of the changelog is to be _clear_ about the problem and the fix.
+Call paths can help reviewers but the scope should be clear even without
+them.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
