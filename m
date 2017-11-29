@@ -1,75 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id AADEC6B0069
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 10:26:46 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id 207so3360732iti.5
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 07:26:46 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id c188si1750195ite.28.2017.11.29.07.26.45
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BD3A36B0069
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 10:34:43 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id u16so2675381pfh.7
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 07:34:43 -0800 (PST)
+Received: from mailout3.samsung.com (mailout3.samsung.com. [203.254.224.33])
+        by mx.google.com with ESMTPS id p1si1413967pgr.812.2017.11.29.07.34.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 07:26:45 -0800 (PST)
-Date: Wed, 29 Nov 2017 16:26:31 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] x86/mm/kaiser: Flush the correct ASID in
- __native_flush_tlb_single()
-Message-ID: <20171129152631.GQ3326@worktop>
-References: <20171128095531.F32E1BC7@viggo.jf.intel.com>
- <20171129143526.GP3326@worktop>
- <27729551-ecd6-e4e9-d214-4ab03d8008da@linux.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <27729551-ecd6-e4e9-d214-4ab03d8008da@linux.intel.com>
+        Wed, 29 Nov 2017 07:34:42 -0800 (PST)
+Received: from epcas5p4.samsung.com (unknown [182.195.41.42])
+	by mailout3.samsung.com (KnoxPortal) with ESMTP id 20171129153440epoutp033e0fff5b1e18258d0dc750343128d1ed~7mGnKszLc0111301113epoutp03f
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:34:40 +0000 (GMT)
+Mime-Version: 1.0
+Subject: [PATCH] zswap: Update with same-value filled page feature
+Reply-To: srividya.dr@samsung.com
+From: Srividya Desireddy <srividya.dr@samsung.com>
+In-Reply-To: <CALZtONA1R8HyODqUP8Z-0yxvRAsV=Zo8OD2PQT3HwWWmqE6Hig@mail.gmail.com>
+Message-ID: <20171129153437epcms5p64b04efa370cc42bb0f9e5677e298704e@epcms5p6>
+Date: Wed, 29 Nov 2017 15:34:37 +0000
+Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset="utf-8"
+References: <CALZtONA1R8HyODqUP8Z-0yxvRAsV=Zo8OD2PQT3HwWWmqE6Hig@mail.gmail.com>
+	<20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
+	<20171120154648.6c2f96804c4c1668bd8d572a@linux-foundation.org>
+	<CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p6>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, bp@alien8.de, x86@kernel.org
+To: Dan Streetman <ddstreet@ieee.org>, "sjenning@redhat.com" <sjenning@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Cc: Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, Srikanth Mandalapu <srikanth.m@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, Srividya Desireddy <srividya.dr@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
 
-On Wed, Nov 29, 2017 at 07:21:23AM -0800, Dave Hansen wrote:
-> Yes, that works.  Also, as I think about it, INVLPG is a safer
-> (bug-resistant) instruction to use too.  INVPCID _can_ get the current
-> (kernel) ASID wrong, as we saw.  But INVLPG always uses the current one
-> and can't be wrong about flushing the *current* ASID.
-> 
-> I think Andy measured it to be faster than INVPCID too.
-> 
-> So, maybe we should just remove INVPCID's use entirely.
+From: Srividya Desireddy <srividya.dr@samsung.com>
+Date: Wed, 29 Nov 2017 20:23:15 +0530
+Subject: [PATCH] zswap: Update with same-value filled page feature
 
-With my patches the below invpcid_flush_one() is the only remaining user
-(not counting flush_tlb_global).
+Updated zswap document with details on same-value filled
+pages identification feature.
+The usage of zswap.same_filled_pages_enabled module parameter
+is explained.
 
-I know Andy hates on INVPCID, but I could not convince myself that doing
-a full user invalidate makes sense for flush_tlb_single(), then again
-maybe it does, the patch is trivial after this.
+Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
+---
+ Documentation/vm/zswap.txt | 22 +++++++++++++++++++++-
+ 1 file changed, 21 insertions(+), 1 deletion(-)
 
-> >  arch/x86/include/asm/tlbflush.h | 23 +++++++----------------
-> >  1 file changed, 7 insertions(+), 16 deletions(-)
-> > 
-> > diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-> > index 481d5094559e..9587722162ee 100644
-> > --- a/arch/x86/include/asm/tlbflush.h
-> > +++ b/arch/x86/include/asm/tlbflush.h
-> > @@ -438,29 +438,20 @@ static inline void __native_flush_tlb_single(unsigned long addr)
-> >  {
-> >  	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
-> >  
-> > +	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
-> > +
-> > +	if (!kaiser_enabled)
-> > +		return;
-> > +
-> >  	/*
-> >  	 * Some platforms #GP if we call invpcid(type=1/2) before
-> >  	 * CR4.PCIDE=1.  Just call invpcid in the case we are called
-> >  	 * early.
-> >  	 */
-> > +	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE))
-> >  		flush_user_asid(loaded_mm_asid);
-> > +	else
-> >  		invpcid_flush_one(user_asid(loaded_mm_asid), addr);
-> >  }
-
+diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
+index 89fff7d..cc015b5 100644
+--- a/Documentation/vm/zswap.txt
++++ b/Documentation/vm/zswap.txt
+@@ -98,5 +98,25 @@ request is made for a page in an old zpool, it is uncompressed using its
+ original compressor.  Once all pages are removed from an old zpool, the zpool
+ and its compressor are freed.
+ 
++Some of the pages in zswap are same-value filled pages (i.e. contents of the
++page have same value or repetitive pattern). These pages include zero-filled
++pages and they are handled differently. During store operation, a page is
++checked if it is a same-value filled page before compressing it. If true, the
++compressed length of the page is set to zero and the pattern or same-filled
++value is stored.
++
++Same-value filled pages identification feature is enabled by default and can be
++disabled at boot time by setting the "same_filled_pages_enabled" attribute to 0,
++e.g. zswap.same_filled_pages_enabled=0. It can also be enabled and disabled at
++runtime using the sysfs "same_filled_pages_enabled" attribute, e.g.
++
++echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
++
++When zswap same-filled page identification is disabled at runtime, it will stop
++checking for the same-value filled pages during store operation. However, the
++existing pages which are marked as same-value filled pages will be loaded or
++invalidated.
++
+ A debugfs interface is provided for various statistic about pool size, number
+-of pages stored, and various counters for the reasons pages are rejected.
++of pages stored, same-value filled pages and various counters for the reasons
++pages are rejected.
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
