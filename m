@@ -1,78 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A96D96B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:27:22 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q3so1804096pgv.16
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:27:22 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r18sor387789pgd.80.2017.11.29.01.27.21
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A8E256B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:40:12 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n13so1154593wmc.3
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:40:12 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k60si1508404edc.530.2017.11.29.01.40.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 Nov 2017 01:27:21 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 01:40:11 -0800 (PST)
+Date: Wed, 29 Nov 2017 10:40:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
+ during migration
+Message-ID: <20171129094010.ycf23oibkdq6cggq@dhcp22.suse.cz>
+References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
+ <20171128141211.11117-1-mhocko@kernel.org>
+ <20171128141211.11117-3-mhocko@kernel.org>
+ <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
-References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 29 Nov 2017 10:27:00 +0100
-Message-ID: <CACT4Y+ZwvVG7aEiZWj-OmbxVdQyFj0ebXnakjeVnar-GQACBfg@mail.gmail.com>
-Subject: Re: [PATCH 00/18] introduce a new tool, valid access checker
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <js1304@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andi Kleen <ak@linux.intel.com>
+To: linux-mm@kvack.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 28, 2017 at 8:48 AM,  <js1304@gmail.com> wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
->
-> Hello,
->
-> This patchset introduces a new tool, valid access checker.
->
-> Vchecker is a dynamic memory error detector. It provides a new debug feature
-> that can find out an un-intended access to valid area. Valid area here means
-> the memory which is allocated and allowed to be accessed by memory owner and
-> un-intended access means the read/write that is initiated by non-owner.
-> Usual problem of this class is memory overwritten.
->
-> Most of debug feature focused on finding out un-intended access to
-> in-valid area, for example, out-of-bound access and use-after-free, and,
-> there are many good tools for it. But, as far as I know, there is no good tool
-> to find out un-intended access to valid area. This kind of problem is really
-> hard to solve so this tool would be very useful.
->
-> This tool doesn't automatically catch a problem. Manual runtime configuration
-> to specify the target object is required.
->
-> Note that there was a similar attempt for the debugging overwritten problem
-> however it requires manual code modifying and recompile.
->
-> http://lkml.kernel.org/r/<20171117223043.7277-1-wen.gang.wang@oracle.com>
->
-> To get more information about vchecker, please see a documention at
-> the last patch.
->
-> Patchset can also be available at
->
-> https://github.com/JoonsooKim/linux/tree/vchecker-master-v1.0-next-20171122
->
-> Enjoy it.
+On Wed 29-11-17 10:22:34, Michal Hocko wrote:
+> What about this on top. I haven't tested this yet though.
+> ---
 
+We will need to drop surplus_huge_pages_node handling from the free path
+obviously as well
 
-Hi Joonsoo,
-
-I skimmed through the code and this looks fine from KASAN point of
-view (minimal code changes and no perf impact).
-I don't feel like I can judge if this should go in or not. I will not
-use this, we use KASAN for large-scale testing, but vchecker is in a
-different bucket, it is meant for developers debugging hard bugs.
-Wengang come up with a very similar change, and Andi said that this
-looks useful.
-
-If the decision is that this goes in, please let me take a closer look
-before this is merged.
-
-Thanks
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 1be43563e226..756833f9ef8b 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1312,8 +1312,6 @@ void free_huge_page(struct page *page)
+ 		list_del(&page->lru);
+ 		ClearPageHugeTemporary(page);
+ 		update_and_free_page(h, page);
+-		if (h->surplus_huge_pages_node[nid])
+-			h->surplus_huge_pages_node[nid]--;
+ 	} else if (h->surplus_huge_pages_node[nid]) {
+ 		/* remove the page from active list */
+ 		list_del(&page->lru);
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
