@@ -1,108 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3465C6B0253
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:48:31 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id h1so1155204plh.23
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 03:48:31 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q1si1173049plb.432.2017.11.29.03.48.29
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 075216B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 07:03:31 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id p190so1339713wmd.0
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:03:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h35si1602251ede.19.2017.11.29.04.03.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 03:48:30 -0800 (PST)
-Date: Wed, 29 Nov 2017 12:48:14 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 4/6] x86/mm/kaiser: Support PCID without INVPCID
-Message-ID: <20171129114814.rait2d6u4gso5qqd@hirez.programming.kicks-ass.net>
-References: <20171129103301.131535445@infradead.org>
- <20171129103512.819130098@infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 04:03:29 -0800 (PST)
+Date: Wed, 29 Nov 2017 13:03:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] x86/numa: move setting parse numa node to num_add_memblk
+Message-ID: <20171129120328.dfbr26o4wsjpwct3@dhcp22.suse.cz>
+References: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171129103512.819130098@infradead.org>
+In-Reply-To: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at, Andy Lutomirski <luto@amacapital.net>
+To: zhong jiang <zhongjiang@huawei.com>
+Cc: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, lenb@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, richard.weiyang@gmail.com, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
-On Wed, Nov 29, 2017 at 11:33:05AM +0100, Peter Zijlstra wrote:
+On Wed 29-11-17 17:13:27, zhong jiang wrote:
+> Currently, Arm64 and x86 use the common code wehn parsing numa node
+> in a acpi way. The arm64 will set the parsed node in numa_add_memblk,
+> but the x86 is not set in that , then it will result in the repeatly
+> setting. And the parsed node maybe is  unreasonable to the system.
+> 
+> we would better not set it although it also still works. because the
+> parsed node is unresonable. so we should skip related operate in this
+> node. This patch just set node in various architecture individually.
+> it is no functional change.
 
-> XXX we could do a much larger ALTERNATIVE, there is no point in
-> testing the mask if we don't have PCID support.
+I really have hard time to understand what you try to say above. Could
+you start by the problem description and then how you are addressing it?
 
-This.
-
-> @@ -220,7 +215,27 @@ For 32-bit we have the following convent
->  .macro SWITCH_TO_USER_CR3 scratch_reg:req
->  	STATIC_JUMP_IF_FALSE .Lend_\@, kaiser_enabled_key, def=1
->  	mov	%cr3, \scratch_reg
-> -	ADJUST_USER_CR3 \scratch_reg
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> ---
+>  arch/x86/mm/amdtopology.c | 1 -
+>  arch/x86/mm/numa.c        | 3 ++-
+>  drivers/acpi/numa.c       | 5 ++++-
+>  3 files changed, 6 insertions(+), 3 deletions(-)
+> 
+> diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
+> index 91f501b..7657042 100644
+> --- a/arch/x86/mm/amdtopology.c
+> +++ b/arch/x86/mm/amdtopology.c
+> @@ -151,7 +151,6 @@ int __init amd_numa_init(void)
+>  
+>  		prevbase = base;
+>  		numa_add_memblk(nodeid, base, limit);
+> -		node_set(nodeid, numa_nodes_parsed);
+>  	}
+>  
+>  	if (!nodes_weight(numa_nodes_parsed))
+> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+> index 25504d5..8f87f26 100644
+> --- a/arch/x86/mm/numa.c
+> +++ b/arch/x86/mm/numa.c
+> @@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
+>  	mi->blk[mi->nr_blks].end = end;
+>  	mi->blk[mi->nr_blks].nid = nid;
+>  	mi->nr_blks++;
 > +
-> +	/*
-> +	 * Test if the ASID needs a flush.
-> +	 */
-> +	push	\scratch_reg			/* preserve CR3 */
-> +	andq	$(0x7FF), \scratch_reg		/* mask ASID */
-> +	bt	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
-> +	jnc	.Lnoflush_\@
-> +
-> +	/* Flush needed, clear the bit */
-> +	btr	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
-> +	pop	\scratch_reg			/* original CR3 */
-> +	jmp	.Ldo_\@
-> +
-> +.Lnoflush_\@:
-> +	pop	\scratch_reg			/* original CR3 */
-> +	ALTERNATIVE "", "bts $63, \scratch_reg", X86_FEATURE_PCID
-> +
-> +.Ldo_\@:
-> +	/* Flip the PGD and ASID to the user version */
-> +	orq     $(KAISER_SWITCH_MASK), \scratch_reg
->  	mov	\scratch_reg, %cr3
->  .Lend_\@:
->  .endm
+> +	node_set(nid, numa_nodes_parsed);
+>  	return 0;
+>  }
+>  
+> @@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
+>  	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
+>  	       0LLU, PFN_PHYS(max_pfn) - 1);
+>  
+> -	node_set(0, numa_nodes_parsed);
+>  	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
+>  
+>  	return 0;
+> diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+> index 917f1cc..f2e33cb 100644
+> --- a/drivers/acpi/numa.c
+> +++ b/drivers/acpi/numa.c
+> @@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>  		goto out_err_bad_srat;
+>  	}
+>  
+> -	node_set(node, numa_nodes_parsed);
+> +	/* some architecture is likely to ignore a unreasonable node */
+> +	if (!node_isset(node, numa_nodes_parsed))
+> +		goto out;
+>  
+>  	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+>  		node, pxm,
+> @@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>  
+>  	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
+>  
+> +out:
+>  	return 0;
+>  out_err_bad_srat:
+>  	bad_srat();
+> -- 
+> 1.8.3.1
 
-Something like so seems to actually compile and generate sensible code,
-not tested it though.
-
-
---- a/arch/x86/entry/calling.h
-+++ b/arch/x86/entry/calling.h
-@@ -216,6 +216,8 @@ For 32-bit we have the following convent
- 	STATIC_JUMP_IF_FALSE .Lend_\@, kaiser_enabled_key, def=1
- 	mov	%cr3, \scratch_reg
- 
-+	ALTERNATIVE "jmp .Ldo_\@", "", X86_FEATURE_PCID
-+
- 	/*
- 	 * Test if the ASID needs a flush.
- 	 */
-@@ -231,7 +233,7 @@ For 32-bit we have the following convent
- 
- .Lnoflush_\@:
- 	pop	\scratch_reg			/* original CR3 */
--	ALTERNATIVE "", "bts $63, \scratch_reg", X86_FEATURE_PCID
-+	bts	$63, \scratch_reg
- 
- .Ldo_\@:
- 	/* Flip the PGD and ASID to the user version */
-@@ -266,6 +268,8 @@ For 32-bit we have the following convent
- .macro RESTORE_CR3 scratch_reg:req save_reg:req
- 	STATIC_JUMP_IF_FALSE .Lend_\@, kaiser_enabled_key, def=1
- 
-+	ALTERNATIVE "jmp .Ldo_\@", "", X86_FEATURE_PCID
-+
- 	/* ASID bit 11 is for user */
- 	bt	$11, \save_reg
- 	/*
-@@ -287,7 +291,7 @@ For 32-bit we have the following convent
- 	jmp	.Ldo_\@
- 
- .Lnoflush_\@:
--	ALTERNATIVE "", "bts $63, \save_reg", X86_FEATURE_PCID
-+	bts	$63, \save_reg
- 
- .Ldo_\@:
- 	/*
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
