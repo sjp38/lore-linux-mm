@@ -1,71 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A1E2C6B0038
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:46:15 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p65so1750987wma.1
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:46:15 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id q7si1854241edl.274.2017.11.29.09.46.13
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 49B206B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:49:10 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a6so2894784pff.17
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:49:10 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n8si1600372pll.619.2017.11.29.09.49.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 09:46:14 -0800 (PST)
-Subject: Re: [PATCH 2/2] fs, elf: drop MAP_FIXED usage from elf_map
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <20171129144219.22867-3-mhocko@kernel.org>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Message-ID: <93ce964b-e352-1905-c2b6-deedf2ea06f8@oracle.com>
-Date: Wed, 29 Nov 2017 10:45:43 -0700
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 09:49:09 -0800 (PST)
+Date: Wed, 29 Nov 2017 18:48:51 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
+ code
+Message-ID: <20171129174851.jk2ai37uumxve6sg@pd.tnic>
+References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
+ <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
+ <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
+ <alpine.DEB.2.20.1711291740050.1825@nanos>
+ <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20171129144219.22867-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
-Cc: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 11/29/2017 07:42 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed, Nov 29, 2017 at 08:08:31PM +0300, Kirill A. Shutemov wrote:
+> We're really early in the boot -- startup_64 in decompression code -- and
+> I don't know a way print a message there. Is there a way?
 > 
-> Both load_elf_interp and load_elf_binary rely on elf_map to map segments
-> on a controlled address and they use MAP_FIXED to enforce that. This is
-> however dangerous thing prone to silent data corruption which can be
-> even exploitable. Let's take CVE-2017-1000253 as an example. At the time
-> (before eab09532d400 ("binfmt_elf: use ELF_ET_DYN_BASE only for PIE"))
-> ELF_ET_DYN_BASE was at TASK_SIZE / 3 * 2 which is not that far away from
-> the stack top on 32b (legacy) memory layout (only 1GB away). Therefore
-> we could end up mapping over the existing stack with some luck.
-> 
-> The issue has been fixed since then (a87938b2e246 ("fs/binfmt_elf.c:
-> fix bug in loading of PIE binaries")), ELF_ET_DYN_BASE moved moved much
-> further from the stack (eab09532d400 and later by c715b72c1ba4 ("mm:
-> revert x86_64 and arm64 ELF_ET_DYN_BASE base changes")) and excessive
-> stack consumption early during execve fully stopped by da029c11e6b1
-> ("exec: Limit arg stack to at most 75% of _STK_LIM"). So we should be
-> safe and any attack should be impractical. On the other hand this is
-> just too subtle assumption so it can break quite easily and hard to
-> spot.
-> 
-> I believe that the MAP_FIXED usage in load_elf_binary (et. al) is still
-> fundamentally dangerous. Moreover it shouldn't be even needed. We are
-> at the early process stage and so there shouldn't be unrelated mappings
-> (except for stack and loader) existing so mmap for a given address
-> should succeed even without MAP_FIXED. Something is terribly wrong if
-> this is not the case and we should rather fail than silently corrupt the
-> underlying mapping.
-> 
-> Address this issue by changing MAP_FIXED to the newly added
-> MAP_FIXED_SAFE. This will mean that mmap will fail if there is an
-> existing mapping clashing with the requested one without clobbering it.
-> 
-> Cc: Abdul Haleem <abdhalee@linux.vnet.ibm.com>
-> Cc: Joel Stanley <joel@jms.id.au>
-> Acked-by: Kees Cook <keescook@chromium.org>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
+> no_longmode handled by just hanging the machine. Is it enough for no_la57
+> case too?
 
-Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+Patch pls.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
