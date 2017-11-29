@@ -1,89 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D31486B025E
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:05:53 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id o20so2282179wro.8
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:05:53 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w10si2058039edj.349.2017.11.29.09.05.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AB5606B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:08:34 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id f9so2365793wra.2
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:08:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z16sor957959wrc.34.2017.11.29.09.08.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 09:05:52 -0800 (PST)
-Date: Wed, 29 Nov 2017 18:05:51 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH v2 05/11] writeback: convert the flexible prop stuff to
- bytes
-Message-ID: <20171129170551.GE28256@quack2.suse.cz>
-References: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
- <1511385366-20329-6-git-send-email-josef@toxicpanda.com>
+        (Google Transport Security);
+        Wed, 29 Nov 2017 09:08:33 -0800 (PST)
+Date: Wed, 29 Nov 2017 20:08:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
+ code
+Message-ID: <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
+References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
+ <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
+ <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
+ <alpine.DEB.2.20.1711291740050.1825@nanos>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1511385366-20329-6-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <alpine.DEB.2.20.1711291740050.1825@nanos>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed 22-11-17 16:16:00, Josef Bacik wrote:
-> From: Josef Bacik <jbacik@fb.com>
+On Wed, Nov 29, 2017 at 05:40:32PM +0100, Thomas Gleixner wrote:
+> On Wed, 29 Nov 2017, Kirill A. Shutemov wrote:
 > 
-> The flexible proportions were all page based, but now that we are doing
-> metadata writeout that can be smaller or larger than page size we need
-> to account for this in bytes instead of number of pages.
+> > On Wed, Nov 29, 2017 at 04:49:08PM +0100, Borislav Petkov wrote:
+> > > On Sat, Nov 11, 2017 at 01:06:41AM +0300, Kirill A. Shutemov wrote:
+> > > > Hi Ingo,
+> > > > 
+> > > > Here's updated changes that prepare the code to boot-time switching between
+> > > > paging modes and handle booting in 5-level mode when bootloader put kernel
+> > > > image above 4G, but haven't enabled 5-level paging for us.
+> > > 
+> > > Btw, if I enable CONFIG_X86_5LEVEL with 4.15-rc1 on an AMD box, the box
+> > > triple-faults and ends up spinning in a reboot loop. Even though it
+> > > should say:
+> > > 
+> > > early console in setup code
+> > > This kernel requires the following features not present on the CPU:
+> > > la57 
+> > > Unable to boot - please use a kernel appropriate for your CPU.
+> > > 
+> > > and halt.
+> > > 
+> > > A kvm guest still does that but baremetal triple-faults.
+> > > 
+> > > Ideas?
+> > 
+> > Looks like we call check_cpuflags() too late. 5-level paging gets enabled
+> > before image decompression started.
+> > 
+> > For qemu/kvm it works because it's supported in softmmu, even if not
+> > advertised in cpuid.
+> > 
+> > I'm not sure if it worth fixing on its own. I would rather get boot-time
+> > switching code upstream sooner. It will get problem go away naturally.
 > 
-> Signed-off-by: Josef Bacik <jbacik@fb.com>
+> It needs to be fixed now. Because that problem exists in 4.14
 
-Looks good to me. You can add:
+Okay.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
+We're really early in the boot -- startup_64 in decompression code -- and
+I don't know a way print a message there. Is there a way?
 
-								Honza
+no_longmode handled by just hanging the machine. Is it enough for no_la57
+case too?
 
-> ---
->  mm/page-writeback.c | 10 +++++-----
->  1 file changed, 5 insertions(+), 5 deletions(-)
-> 
-> diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-> index e4563645749a..2a1994194cc1 100644
-> --- a/mm/page-writeback.c
-> +++ b/mm/page-writeback.c
-> @@ -574,11 +574,11 @@ static unsigned long wp_next_time(unsigned long cur_time)
->  	return cur_time;
->  }
->  
-> -static void wb_domain_writeout_inc(struct wb_domain *dom,
-> +static void wb_domain_writeout_add(struct wb_domain *dom,
->  				   struct fprop_local_percpu *completions,
-> -				   unsigned int max_prop_frac)
-> +				   long bytes, unsigned int max_prop_frac)
->  {
-> -	__fprop_inc_percpu_max(&dom->completions, completions,
-> +	__fprop_add_percpu_max(&dom->completions, completions, bytes,
->  			       max_prop_frac);
->  	/* First event after period switching was turned off? */
->  	if (unlikely(!dom->period_time)) {
-> @@ -602,12 +602,12 @@ static inline void __wb_writeout_add(struct bdi_writeback *wb, long bytes)
->  	struct wb_domain *cgdom;
->  
->  	__add_wb_stat(wb, WB_WRITTEN_BYTES, bytes);
-> -	wb_domain_writeout_inc(&global_wb_domain, &wb->completions,
-> +	wb_domain_writeout_add(&global_wb_domain, &wb->completions, bytes,
->  			       wb->bdi->max_prop_frac);
->  
->  	cgdom = mem_cgroup_wb_domain(wb);
->  	if (cgdom)
-> -		wb_domain_writeout_inc(cgdom, wb_memcg_completions(wb),
-> +		wb_domain_writeout_add(cgdom, wb_memcg_completions(wb), bytes,
->  				       wb->bdi->max_prop_frac);
->  }
->  
-> -- 
-> 2.7.5
-> 
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
