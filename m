@@ -1,119 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 352696B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:53:03 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id 79so3792959ioi.10
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:53:03 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id j194si2241668ite.79.2017.11.29.11.53.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 11:53:02 -0800 (PST)
-Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
- during migration
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
- <20171128141211.11117-3-mhocko@kernel.org>
- <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <425a8947-d32a-d6bb-3a0a-2e30275c64c9@oracle.com>
-Date: Wed, 29 Nov 2017 11:52:53 -0800
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1575A6B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:02:21 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id a107so2567979wrc.11
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:02:21 -0800 (PST)
+Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
+        by mx.google.com with ESMTP id p108si1794857wrb.221.2017.11.29.12.02.17
+        for <linux-mm@kvack.org>;
+        Wed, 29 Nov 2017 12:02:17 -0800 (PST)
+Date: Wed, 29 Nov 2017 21:02:12 +0100
+From: Borislav Petkov <bp@alien8.de>
+Subject: Re: [PATCH 5/6] x86/mm/kaiser: Optimize RESTORE_CR3
+Message-ID: <20171129200212.gze3avcjofxrpy4t@pd.tnic>
+References: <20171129103301.131535445@infradead.org>
+ <20171129103512.869504878@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <20171129103512.869504878@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-On 11/29/2017 01:22 AM, Michal Hocko wrote:
-> What about this on top. I haven't tested this yet though.
-
-Yes, this would work.
-
-However, I think a simple modification to your previous free_huge_page
-changes would make this unnecessary.  I was confused in your previous
-patch because you decremented the per-node surplus page count, but not
-the global count.  I think it would have been correct (and made this
-patch unnecessary) if you decremented the global counter there as well.
-
-Of course, this patch makes the surplus accounting more explicit.
-
-If we move forward with this patch, one issue below.
-
+On Wed, Nov 29, 2017 at 11:33:06AM +0100, Peter Zijlstra wrote:
+> Currently RESTORE_CR3 does an unconditional flush
+> (SAVE_AND_SWITCH_TO_KERNEL_CR3 does not set bit 63 on \save_reg).
+> 
+> When restoring to a user ASID, check the user_asid_flush_mask to see
+> if we can avoid the flush.
+> 
+> For kernel ASIDs we can unconditionaly avoid the flush, since we do
+> explicit flushes for them.
+> 
+> Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 > ---
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 1b6d7783c717..f5fcd4e355dc 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -119,6 +119,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
->  						long freed);
->  bool isolate_huge_page(struct page *page, struct list_head *list);
->  void putback_active_hugepage(struct page *page);
-> +void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
->  void free_huge_page(struct page *page);
->  void hugetlb_fix_reserve_counts(struct inode *inode);
->  extern struct mutex *hugetlb_fault_mutex_table;
-> @@ -232,6 +233,7 @@ static inline bool isolate_huge_page(struct page *page, struct list_head *list)
->  	return false;
->  }
->  #define putback_active_hugepage(p)	do {} while (0)
-> +#define move_hugetlb_state(old, new, reason)	do {} while (0)
+>  arch/x86/entry/calling.h  |   29 +++++++++++++++++++++++++++--
+>  arch/x86/entry/entry_64.S |    4 ++--
+>  2 files changed, 29 insertions(+), 4 deletions(-)
+> 
+> --- a/arch/x86/entry/calling.h
+> +++ b/arch/x86/entry/calling.h
+> @@ -263,8 +263,33 @@ For 32-bit we have the following convent
+>  .Ldone_\@:
+>  .endm
 >  
->  static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  		unsigned long address, unsigned long end, pgprot_t newprot)
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 037bf0f89463..30601c1c62f3 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -34,6 +34,7 @@
->  #include <linux/hugetlb_cgroup.h>
->  #include <linux/node.h>
->  #include <linux/userfaultfd_k.h>
-> +#include <linux/page_owner.h>
->  #include "internal.h"
->  
->  int hugetlb_max_hstate __read_mostly;
-> @@ -4830,3 +4831,34 @@ void putback_active_hugepage(struct page *page)
->  	spin_unlock(&hugetlb_lock);
->  	put_page(page);
->  }
+> -.macro RESTORE_CR3 save_reg:req
+> +.macro RESTORE_CR3 scratch_reg:req save_reg:req
+>  	STATIC_JUMP_IF_FALSE .Lend_\@, kaiser_enabled_key, def=1
 > +
-> +void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason)
-> +{
-> +	struct hstate *h = page_hstate(oldpage);
-> +
-> +	hugetlb_cgroup_migrate(oldpage, newpage);
-> +	set_page_owner_migrate_reason(newpage, reason);
+> +	/* ASID bit 11 is for user */
+> +	bt	$11, \save_reg
+
+<---- newline here.
+
+> +	/*
+> +	 * KERNEL pages can always resume with NOFLUSH as we do
+> +	 * explicit flushes.
+> +	 */
+> +	jnc	.Lnoflush_\@
 > +
 > +	/*
-> +	 * transfer temporary state of the new huge page. This is
-> +	 * reverse to other transitions because the newpage is going to
-> +	 * be final while the old one will be freed so it takes over
-> +	 * the temporary status.
-> +	 *
-> +	 * Also note that we have to transfer the per-node surplus state
-> +	 * here as well otherwise the global surplus count will not match
-> +	 * the per-node's.
+> +	 * Check if there's a pending flush for the user ASID we're
+> +	 * about to set.
 > +	 */
-> +	if (PageHugeTemporary(newpage)) {
-> +		int old_nid = page_to_nid(oldpage);
-> +		int new_nid = page_to_nid(newpage);
+> +	movq	\save_reg, \scratch_reg
+> +	andq	$(0x7FF), \scratch_reg
+> +	bt	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
+> +	jnc	.Lnoflush_\@
 > +
-> +		SetPageHugeTemporary(oldpage);
-> +		ClearPageHugeTemporary(newpage);
-> +
-> +		if (h->surplus_huge_pages_node[old_nid]) {
-> +			h->surplus_huge_pages_node[old_nid]--;
-> +			h->surplus_huge_pages_node[new_nid]++;
-> +		}
+> +	btr	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
+> +	jmp	.Ldo_\@
 
-You need to take hugetlb_lock before adjusting the surplus counts.
+Can you save yourself one of the BT-insns?
+
+	...
+	andq	$(0x7FF), \scratch_reg
+	btr     \scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
+	jnc	.Lnoflush_\@
+	jmp     .Ldo_\@
+	...
+
+or am I missing a case?
 
 -- 
-Mike Kravetz
+Regards/Gruss,
+    Boris.
+
+Good mailing practices for 400: avoid top-posting and trim the reply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
