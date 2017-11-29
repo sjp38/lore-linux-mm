@@ -1,59 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 87CF06B0038
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:53:23 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v8so2015732wmh.2
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 13:53:23 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j134si1911389wmj.210.2017.11.29.13.53.22
+Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4E2DC6B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 17:12:48 -0500 (EST)
+Received: by mail-ua0-f198.google.com with SMTP id h30so3173290uac.1
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:12:48 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h125sor1006626vkg.253.2017.11.29.14.12.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 13:53:22 -0800 (PST)
-Date: Wed, 29 Nov 2017 13:53:19 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] list_lru: Prefetch neighboring list entries before
- acquiring lock
-Message-Id: <20171129135319.ab078fbed566be8fc90c92ec@linux-foundation.org>
-In-Reply-To: <1511965054-6328-1-git-send-email-longman@redhat.com>
-References: <1511965054-6328-1-git-send-email-longman@redhat.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 29 Nov 2017 14:12:47 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171129144219.22867-1-mhocko@kernel.org>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 29 Nov 2017 14:12:45 -0800
+Message-ID: <CAGXu5jKxgkar3802JYUqrVF==h99hDH9UUdZSgH9T_-n9y22EA@mail.gmail.com>
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Michal Hocko <mhocko@suse.com>
 
-On Wed, 29 Nov 2017 09:17:34 -0500 Waiman Long <longman@redhat.com> wrote:
+On Wed, Nov 29, 2017 at 6:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> Except we won't export expose the new semantic to the userspace at all.
 
-> The list_lru_del() function removes the given item from the LRU list.
-> The operation looks simple, but it involves writing into the cachelines
-> of the two neighboring list entries in order to get the deletion done.
-> That can take a while if the cachelines aren't there yet, thus
-> prolonging the lock hold time.
-> 
-> To reduce the lock hold time, the cachelines of the two neighboring
-> list entries are now prefetched before acquiring the list_lru_node's
-> lock.
-> 
-> Using a multi-threaded test program that created a large number
-> of dentries and then killed them, the execution time was reduced
-> from 38.5s to 36.6s after applying the patch on a 2-socket 36-core
-> 72-thread x86-64 system.
+I'm confused: the changes in patch 1 are explicitly adding
+MAP_FIXED_SAFE to the uapi. If it's not supposed to be exposed,
+shouldn't it go somewhere else?
 
-Patch looks good.
+-Kees
 
-Can someone (Dave?) please explain why list_lru_del() supports deletion
-of an already list_empty(item)?  This seems a rather dangerous thing to
-encourage.  Use cases I can think of are:
-
-a) item is already reliably deleted, so why the heck was the caller
-   calling list_lru_del() and 
-
-b) item might be concurrently deleted by another thread, in which case
-   the race loser is likely to hit a use-after-free.
-
-Is there a good use case here?
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
