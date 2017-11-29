@@ -1,70 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2504E6B0253
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:03:52 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e26so3036299pfi.15
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:03:52 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
-        by mx.google.com with ESMTPS id z23si1685102pgn.90.2017.11.29.11.03.50
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DF56F6B025E
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:09:34 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id w125so3973926itf.0
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:09:34 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id l187si2082612itb.54.2017.11.29.11.09.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 11:03:50 -0800 (PST)
-Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
- code
-References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
- <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
- <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
- <alpine.DEB.2.20.1711291740050.1825@nanos>
- <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
- <20171129174851.jk2ai37uumxve6sg@pd.tnic>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <793b9c55-e85b-97b5-c857-dd8edcda4081@zytor.com>
-Date: Wed, 29 Nov 2017 11:01:35 -0800
+        Wed, 29 Nov 2017 11:09:33 -0800 (PST)
+Subject: Re: [PATCH RFC 1/2] mm, hugetlb: unify core page allocation
+ accounting and initialization
+References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
+ <20171128141211.11117-1-mhocko@kernel.org>
+ <20171128141211.11117-2-mhocko@kernel.org>
+ <4c919c6d-2e97-b66d-f572-439bb9f0587b@oracle.com>
+ <20171129065732.lm4yucdnaizr2mjb@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <d30e03d2-6d36-1287-092e-91189fa658be@oracle.com>
+Date: Wed, 29 Nov 2017 11:09:26 -0800
 MIME-Version: 1.0
-In-Reply-To: <20171129174851.jk2ai37uumxve6sg@pd.tnic>
+In-Reply-To: <20171129065732.lm4yucdnaizr2mjb@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-On 11/29/17 09:48, Borislav Petkov wrote:
-> On Wed, Nov 29, 2017 at 08:08:31PM +0300, Kirill A. Shutemov wrote:
->> We're really early in the boot -- startup_64 in decompression code -- and
->> I don't know a way print a message there. Is there a way?
+On 11/28/2017 10:57 PM, Michal Hocko wrote:
+> On Tue 28-11-17 13:34:53, Mike Kravetz wrote:
+>> On 11/28/2017 06:12 AM, Michal Hocko wrote:
+> [...]
+>>> +/*
+>>> + * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
+>>> + * manner.
+>>> + */
+>>>  static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+>>>  {
+>>>  	struct page *page;
+>>>  	int nr_nodes, node;
+>>> -	int ret = 0;
+>>> +	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+>>>  
+>>>  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+>>> -		page = alloc_fresh_huge_page_node(h, node);
+>>> -		if (page) {
+>>> -			ret = 1;
+>>> +		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
+>>> +				node, nodes_allowed);
 >>
->> no_longmode handled by just hanging the machine. Is it enough for no_la57
->> case too?
+>> I don't have the greatest understanding of node/nodemasks, but ...
+>> Since __hugetlb_alloc_buddy_huge_page calls __alloc_pages_nodemask(), do
+>> we still need to explicitly iterate over nodes with
+>> for_each_node_mask_to_alloc() here?
 > 
-> Patch pls.
-> 
+> Yes we do, because callers depend on the round robin allocation policy
+> which is implemented by the ugly for_each_node_mask_to_alloc. I am not
+> saying I like the way this is done but this is user visible thing.
 
-I don't think there is any way to get a message out here.  It's too late
-to use the firmware, and too early to use anything native.
+Ah, thanks.
 
-no_longmode in startup_64 is an oxymoron -- it simply can't happen,
-although of course we can enter at the 32-bit entry point with that problem.
+I missed the __GFP_THISNODE.  Because of that, the nodes_allowed mask is
+not used in the allocation attempts.  So, cycling through the nodes with
+the for_each_node_mask_to_alloc makes sense.
 
-We can hang the machine, or we can triple-fault it in the hope of
-triggering a reset, and that way if the bootloader has been configured
-with a backup kernel there is a hope of recovery.
+> Or maybe I've missunderstood the whole thing...
 
-Triple-faulting is trivial:
+No, this should preserve the original behavior.
 
-	push $0
-	push $0
-	lidt (%rsp)		/* %esp for 32-bit mode */
-	ud2
-	/* WTF? */
-1:	hlt
-	jmp 1b
-
-This will either hang the machine or reboot it, depending on if the
-reboot-on-triple-fault logic in the chipset actually works.
-
-	-hpa
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
