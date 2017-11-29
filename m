@@ -1,63 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D1B46B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:03:10 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id s41so2189737wrc.22
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 08:03:10 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 193si1590765wmw.154.2017.11.29.08.03.08
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ACBE06B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:04:49 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id j4so2240947wrg.15
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 08:04:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w12si1966925edb.141.2017.11.29.08.04.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 08:03:08 -0800 (PST)
-Date: Wed, 29 Nov 2017 17:02:29 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 0/6] more KAISER bits
-In-Reply-To: <alpine.DEB.2.20.1711291523340.1825@nanos>
-Message-ID: <alpine.DEB.2.20.1711291701360.1825@nanos>
-References: <20171129103301.131535445@infradead.org> <alpine.DEB.2.20.1711291523340.1825@nanos>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 08:04:48 -0800 (PST)
+Date: Wed, 29 Nov 2017 17:04:46 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
+Message-ID: <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
+References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+ <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: JianKang Chen <chenjiankang1@huawei.com>
+Cc: akpm@linux-foundation.org, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-On Wed, 29 Nov 2017, Thomas Gleixner wrote:
-
-> On Wed, 29 Nov 2017, Peter Zijlstra wrote:
-> 
-> > Here's more patches, includes the TLB invalidate rework.
+On Mon 27-11-17 12:33:41, Michal Hocko wrote:
+> On Mon 27-11-17 19:09:24, JianKang Chen wrote:
+> > From: Jiankang Chen <chenjiankang1@huawei.com>
 > > 
-> > Has not actually been tested on a INVPCID machine yet, but does seem to
-> > work fine on my IVB-EP (which is PCID only).
+> > __get_free_pages will return an virtual address, 
+> > but it is not just 32-bit address, for example a 64-bit system. 
+> > And this comment really confuse new bigenner of mm.
 > 
-> I've picked all of that up including other bits and pieces which have been
-> circulated in various threads.
+> s@bigenner@beginner@
 > 
-> Note that the next series will have
-> 
->  - a rename as lots of people complained about KAISER
-> 
->  - stuff folded back where ever it makes sense
->  
->  - reordering of the queue to put fixes and preparatory changes first
-> 
-> Will take a bit, but this needs to be done before I completely drown in
-> conflicting patches and patch snippets of all sorts.
+> Anyway, do we really need a bug on for this? Has this actually caught
+> any wrong usage? VM_BUG_ON tends to be enabled these days AFAIK and
+> panicking the kernel seems like an over-reaction. If there is a real
+> risk then why don't we simply mask __GFP_HIGHMEM off when calling
+> alloc_pages?
 
-Current pile at:
-
-	https://tglx.de/~tglx/patches.tar
-
-I need to walk the dogs and run some errands. Will finish and post later
-tonight.
-
-Thanks,
-
-	tglx
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+I meant this
+---
