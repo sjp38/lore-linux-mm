@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6566B0268
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:51:19 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id c196so4119113ioc.3
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 13:51:19 -0800 (PST)
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2CA8F6B026C
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:51:22 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id s2so4021447ioa.17
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 13:51:22 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c184sor1801788itg.7.2017.11.29.13.51.18
+        by mx.google.com with SMTPS id a195sor1782150itd.29.2017.11.29.13.51.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 29 Nov 2017 13:51:19 -0800 (PST)
+        Wed, 29 Nov 2017 13:51:21 -0800 (PST)
 From: Paul Lawrence <paullawrence@google.com>
-Subject: [PATCH v2 3/5] kasan: added functions for unpoisoning stack variables
-Date: Wed, 29 Nov 2017 13:50:48 -0800
-Message-Id: <20171129215050.158653-4-paullawrence@google.com>
+Subject: [PATCH v2 4/5] kasan: support LLVM-style asan parameters
+Date: Wed, 29 Nov 2017 13:50:49 -0800
+Message-Id: <20171129215050.158653-5-paullawrence@google.com>
 In-Reply-To: <20171129215050.158653-1-paullawrence@google.com>
 References: <20171129215050.158653-1-paullawrence@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,51 +20,73 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
 Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>
 
-From: Alexander Potapenko <glider@google.com>
+Use cc-option to figure out whether the compiler's sanitizer uses
+LLVM-style parameters ("-mllvm -asan-foo=bar") or GCC-style parameters
+("--param asan-foo=bar").
 
-As a code-size optimization, LLVM builds since r279383 may
-bulk-manipulate the shadow region when (un)poisoning large memory
-blocks.  This requires new callbacks that simply do an uninstrumented
-memset().
-
-This fixes linking the Clang-built kernel when using KASAN.
-
-Signed-off-by: Alexander Potapenko <glider@google.com>
-[ghackmann@google.com: fix memset() parameters, and tweak
- commit message to describe new callbacks]
 Signed-off-by: Greg Hackmann <ghackmann@google.com>
 Signed-off-by: Paul Lawrence <paullawrence@google.com>
 
 ---
- mm/kasan/kasan.c | 15 +++++++++++++++
- 1 file changed, 15 insertions(+)
+ scripts/Makefile.kasan | 39 +++++++++++++++++++++++++++------------
+ 1 file changed, 27 insertions(+), 12 deletions(-)
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index f86f862f41f8..89565a1ec417 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -768,6 +768,21 @@ void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom)
- }
- EXPORT_SYMBOL(__asan_allocas_unpoison);
+diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
+index 1ce7115aa499..89c5b166adec 100644
+--- a/scripts/Makefile.kasan
++++ b/scripts/Makefile.kasan
+@@ -10,24 +10,39 @@ KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
  
-+/* Emitted by the compiler to [un]poison local variables. */
-+#define DEFINE_ASAN_SET_SHADOW(byte) \
-+	void __asan_set_shadow_##byte(const void *addr, size_t size)	\
-+	{								\
-+		__memset((void *)addr, 0x##byte, size);			\
-+	}								\
-+	EXPORT_SYMBOL(__asan_set_shadow_##byte)
+ CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address
+ 
+-CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
+-		-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET) \
+-		--param asan-stack=1 --param asan-globals=1 \
+-		--param asan-instrumentation-with-call-threshold=$(call_threshold))
+-
+ ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
+    ifneq ($(CONFIG_COMPILE_TEST),y)
+         $(warning Cannot use CONFIG_KASAN: \
+             -fsanitize=kernel-address is not supported by compiler)
+    endif
+ else
+-    ifeq ($(CFLAGS_KASAN),)
+-        ifneq ($(CONFIG_COMPILE_TEST),y)
+-            $(warning CONFIG_KASAN: compiler does not support all options.\
+-                Trying minimal configuration)
+-        endif
+-        CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
+-    endif
++   # -fasan-shadow-offset fails without -fsanitize
++   CFLAGS_KASAN_SHADOW := \
++		$(call cc-option, -fsanitize=kernel-address \
++			-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET))
++   ifeq ($(CFLAGS_KASAN_SHADOW),)
++      CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
++   else
++      CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW)
++   endif
 +
-+DEFINE_ASAN_SET_SHADOW(00);
-+DEFINE_ASAN_SET_SHADOW(f1);
-+DEFINE_ASAN_SET_SHADOW(f2);
-+DEFINE_ASAN_SET_SHADOW(f3);
-+DEFINE_ASAN_SET_SHADOW(f5);
-+DEFINE_ASAN_SET_SHADOW(f8);
++   # Now add all the compiler specific options that are valid standalone
++   CFLAGS_KASAN := $(CFLAGS_KASAN) \
++	$(call cc-option, --param asan-globals=1) \
++	$(call cc-option, --param asan-instrument-allocas=1) \
++	$(call cc-option, --param asan-instrumentation-with-call-threshold=$(call_threshold)) \
++	$(call cc-option, -mllvm -asan-mapping-offset=$(KASAN_SHADOW_OFFSET)) \
++	$(call cc-option, -mllvm -asan-stack=1) \
++	$(call cc-option, -mllvm -asan-globals=1) \
++	$(call cc-option, -mllvm -asan-use-after-scope=1) \
++	$(call cc-option, -mllvm -asan-instrumentation-with-call-threshold=$(call_threshold))
 +
- #ifdef CONFIG_MEMORY_HOTPLUG
- static int __meminit kasan_mem_notifier(struct notifier_block *nb,
- 			unsigned long action, void *data)
++
++   # This option crashes on gcc 4.9, and is not available on clang
++   ifeq ($(call cc-ifversion, -ge, 0500, y), y)
++        CFLAGS_KASAN := $(CFLAGS_KASAN) $(call cc-option, --param asan-stack=1)
++   endif
++
+ endif
+ 
+ CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
 -- 
 2.15.0.531.g2ccb3012c9-goog
 
