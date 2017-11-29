@@ -1,107 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2155E6B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 03:32:29 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id t65so1944409pfe.22
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 00:32:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f15si920132plr.724.2017.11.29.00.32.26
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE636B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 03:53:01 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id i7so1754082pgq.7
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 00:53:01 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id ay5si928003plb.457.2017.11.29.00.52.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 00:32:27 -0800 (PST)
-Date: Wed, 29 Nov 2017 09:32:24 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: disable `vm.max_map_count' sysctl limit
-Message-ID: <20171129083223.u2s2rkihdi5dzb5o@dhcp22.suse.cz>
-References: <23066.59196.909026.689706@gargle.gargle.HOWL>
- <20171127101232.ykriowhatecnvjvg@dhcp22.suse.cz>
- <CAM43=SPVvBTPz31Uu=iz3fpS9tb75uSmL=pYP3AfsfmYr9u4Og@mail.gmail.com>
- <20171127195207.vderbbkbgygawuhx@dhcp22.suse.cz>
- <b6faf739-1a4a-12e1-ad84-0b42166d68c1@nvidia.com>
- <20171128081259.gnkiw5227dtmfm4l@dhcp22.suse.cz>
- <5ca7d54b-5ae4-646d-f3a0-9b85129c9ccf@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 Nov 2017 00:53:00 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH] vfs: Add PERM_* symbolic helpers for common file mode/permissions
+In-Reply-To: <20171128111214.42esi4igzgnldsx5@gmail.com>
+References: <20171126231403.657575796@linutronix.de> <20171126232414.563046145@linutronix.de> <20171127094156.rbq7i7it7ojsblfj@hirez.programming.kicks-ass.net> <20171127100635.kfw2nspspqbrf2qm@gmail.com> <CA+55aFyLC9+S=MZueRXMmwwnx47bhovXr1YhRg+FAPFfQZXoYA@mail.gmail.com> <20171128111214.42esi4igzgnldsx5@gmail.com>
+Date: Wed, 29 Nov 2017 19:52:56 +1100
+Message-ID: <87tvxda2l3.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5ca7d54b-5ae4-646d-f3a0-9b85129c9ccf@nvidia.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Mikael Pettersson <mikpelinux@gmail.com>, linux-mm@kvack.org, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-fsdevel@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, linux-mm <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-On Tue 28-11-17 21:14:23, John Hubbard wrote:
-> On 11/28/2017 12:12 AM, Michal Hocko wrote:
-> > On Mon 27-11-17 15:26:27, John Hubbard wrote:
-> > [...]
-> >> Let me add a belated report, then: we ran into this limit while implementing 
-> >> an early version of Unified Memory[1], back in 2013. The implementation
-> >> at the time depended on tracking that assumed "one allocation == one vma".
-> > 
-> > And you tried hard to make those VMAs really separate? E.g. with
-> > prot_none gaps?
-> 
-> We didn't do that, and in fact I'm probably failing to grasp the underlying 
-> design idea that you have in mind there...hints welcome...
+Ingo Molnar <mingo@kernel.org> writes:
+...
+> Index: tip/include/linux/stat.h
+> ===================================================================
+> --- tip.orig/include/linux/stat.h
+> +++ tip/include/linux/stat.h
+> @@ -6,6 +6,34 @@
+>  #include <asm/stat.h>
+>  #include <uapi/linux/stat.h>
+>  
+> +/*
+> + * Human readable symbolic definitions for common
+> + * file permissions:
+> + */
+> +#define PERM_r________	0400
+> +#define PERM_r__r_____	0440
+> +#define PERM_r__r__r__	0444
+> +
+> +#define PERM_rw_______	0600
+> +#define PERM_rw_r_____	0640
+> +#define PERM_rw_r__r__	0644
+> +#define PERM_rw_rw_r__	0664
+> +#define PERM_rw_rw_rw_	0666
+> +
+> +#define PERM__w_______	0200
+> +#define PERM__w__w____	0220
+> +#define PERM__w__w__w_	0222
+> +
+> +#define PERM_r_x______	0500
+> +#define PERM_r_xr_x___	0550
+> +#define PERM_r_xr_xr_x	0555
+> +
+> +#define PERM_rwx______	0700
+> +#define PERM_rwxr_x___	0750
+> +#define PERM_rwxr_xr_x	0755
+> +#define PERM_rwxrwxr_x	0775
+> +#define PERM_rwxrwxrwx	0777
 
-mmap code tries to merge vmas very aggressively so you have to try to
-make too many vmas. One way to separate different vmas is to mprotect
-holes to trap potential {over,under}flows.
+I see what you're trying to do with all the explicit underscores, but it
+does make them look kinda ugly.
 
-> What we did was to hook into the mmap callbacks in the kernel driver, after 
-> userspace mmap'd a region (via a custom allocator API). And we had an ioctl
-> in there, to connect up other allocation attributes that couldn't be passed
-> through via mmap. Again, this was for regions of memory that were to be
-> migrated between CPU and device (GPU).
+What if you just used underscores to separate the user/group/other, and
+the unset permission bits are just omitted.
 
-Or maybe your driver made the vma merging impossible by requesting
-explicit ranges which are not adjacent.
+Then the two most common cases would be:
 
-> >> So, with only 64K vmas, we quickly ran out, and changed the design to work
-> >> around that. (And later, the design was *completely* changed to use a separate
-> >> tracking system altogether). exag
-> >>
-> >> The existing limit seems rather too low, at least from my perspective. Maybe
-> >> it would be better, if expressed as a function of RAM size?
-> > 
-> > Dunno. Whenever we tried to do RAM scaling it turned out a bad idea
-> > after years when memory grown much more than the code author expected.
-> > Just look how we scaled hash table sizes... But maybe you can come up
-> > with something clever. In any case tuning this from the userspace is a
-> > trivial thing to do and I am somehow skeptical that any early boot code
-> > would trip over the limit.
-> > 
-> 
-> I agree that this is not a limit that boot code is likely to hit. And maybe 
-> tuning from userspace really is the right approach here, considering that
-> there is a real cost to going too large. 
-> 
-> Just philosophically here, hard limits like this seem a little awkward if they 
-> are set once in, say, 1999 (gross exaggeration here, for effect) and then not
-> updated to stay with the times, right? In other words, one should not routinely 
-> need to tune most things. That's why I was wondering if something crude and silly
-> would work, such as just a ratio of RAM to vma count. (I'm more just trying to
-> understand the "rules" here, than to debate--I don't have a strong opinion 
-> on this.)
+  PERM_rw_r_r
+  PERM_r_r_r
 
-Well, rlimits are in general not very usable. Yet I do not think we
-should simply wipe them out.
+Both of those read nicely I think. ie. the first is "perm read write,
+read, read".
 
-> The fact that this apparently failed with hash tables is interesting, I'd
-> love to read more if you have any notes or links. I spotted a 2014 LWN article
-> ( https://lwn.net/Articles/612100 ) about hash table resizing, and some commits
-> that fixed resizing bugs, such as
-> 
->     12311959ecf8a ("rhashtable: fix shift by 64 when shrinking")
-> 
-> ...was it just a storm of bugs that showed up?
+Full set would be:
 
-No, it was just that large (TB) machines allocated insanely large hash
-tables for things which will never have any way to fill them up. See
-9017217b6f45 ("mm: adaptive hash table scaling").
+#define PERM_r			0400
+#define PERM_r_r		0440
+#define PERM_r_r_r		0444
 
--- 
-Michal Hocko
-SUSE Labs
+#define PERM_rw			0600
+#define PERM_rw_r		0640
+#define PERM_rw_r_r		0644
+#define PERM_rw_rw_r		0664
+#define PERM_rw_rw_rw		0666
+
+#define PERM_w			0200
+#define PERM_w_w		0220
+#define PERM_w_w_w		0222
+
+#define PERM_rx			0500
+#define PERM_rx_rx		0550
+#define PERM_rx_rx_rx		0555
+
+#define PERM_rwx		0700
+#define PERM_rwx_rx		0750
+#define PERM_rwx_rx_rx		0755
+#define PERM_rwx_rwx_rx		0775
+#define PERM_rwx_rwx_rwx	0777
+
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
