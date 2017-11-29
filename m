@@ -1,162 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CE476B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 02:17:43 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v25so1811190pfg.14
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 23:17:43 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2760D6B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 02:22:15 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id 200so1592482pge.12
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 23:22:15 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d76si874533pfk.321.2017.11.28.23.17.41
+        by mx.google.com with ESMTPS id 3si854142plm.80.2017.11.28.23.22.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 28 Nov 2017 23:17:41 -0800 (PST)
-Date: Wed, 29 Nov 2017 08:17:37 +0100
+        Tue, 28 Nov 2017 23:22:14 -0800 (PST)
+Date: Wed, 29 Nov 2017 08:22:11 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
- during migration
-Message-ID: <20171129071737.vjg2sckpkzelifr2@dhcp22.suse.cz>
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
- <20171128141211.11117-3-mhocko@kernel.org>
- <29679b8f-53d9-b928-7721-9450dde38104@oracle.com>
+Subject: Re: [RFC PATCH] arch, mm: introduce arch_tlb_gather_mmu_exit
+Message-ID: <20171129072211.vbjauoqyaj7hcfel@dhcp22.suse.cz>
+References: <20171123090236.18574-1-mhocko@kernel.org>
+ <20171128190001.GD8187@arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <29679b8f-53d9-b928-7721-9450dde38104@oracle.com>
+In-Reply-To: <20171128190001.GD8187@arm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: linux-mm@kvack.org, Minchan Kim <minchan@kernel.org>, Andrea Argangeli <andrea@kernel.org>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org
 
-On Tue 28-11-17 17:39:50, Mike Kravetz wrote:
-> On 11/28/2017 06:12 AM, Michal Hocko wrote:
+On Tue 28-11-17 19:00:01, Will Deacon wrote:
+> On Thu, Nov 23, 2017 at 10:02:36AM +0100, Michal Hocko wrote:
 > > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > hugepage migration relies on __alloc_buddy_huge_page to get a new page.
-> > This has 2 main disadvantages.
-> > 1) it doesn't allow to migrate any huge page if the pool is used
-> > completely which is not an exceptional case as the pool is static and
-> > unused memory is just wasted.
-> > 2) it leads to a weird semantic when migration between two numa nodes
-> > might increase the pool size of the destination NUMA node while the page
-> > is in use. The issue is caused by per NUMA node surplus pages tracking
-> > (see free_huge_page).
+> > 5a7862e83000 ("arm64: tlbflush: avoid flushing when fullmm == 1") has
+> > introduced an optimization to not flush tlb when we are tearing the
+> > whole address space down. Will goes on to explain
 > > 
-> > Address both issues by changing the way how we allocate and account
-> > pages allocated for migration. Those should temporal by definition.
-> > So we mark them that way (we will abuse page flags in the 3rd page)
-> > and update free_huge_page to free such pages to the page allocator.
-> > Page migration path then just transfers the temporal status from the
-> > new page to the old one which will be freed on the last reference.
-> 
-> In general, I think this will work.  Some questions below.
-> 
-> > The global surplus count will never change during this path but we still
-> > have to be careful when freeing a page from a node with surplus pages
-> > on the node.
-> 
-> Not sure about the "freeing page from a node with surplus pages" comment.
-> If allocating PageHugeTemporary pages does not adjust surplus counts, then
-> there should be no concern at the time of freeing.
-> 
-> Could this comment be a hold over from a previous implementation attempt?
-> 
-
-Not really. You have to realize that the original page could be surplus
-on its node. More on that below.
-
-[...]
-> > diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> > index 8189c92fac82..037bf0f89463 100644
-> > --- a/mm/hugetlb.c
-> > +++ b/mm/hugetlb.c
-> > @@ -1283,7 +1283,13 @@ void free_huge_page(struct page *page)
-> >  	if (restore_reserve)
-> >  		h->resv_huge_pages++;
-> >  
-> > -	if (h->surplus_huge_pages_node[nid]) {
-> > +	if (PageHugeTemporary(page)) {
-> > +		list_del(&page->lru);
-> > +		ClearPageHugeTemporary(page);
-> > +		update_and_free_page(h, page);
-> > +		if (h->surplus_huge_pages_node[nid])
-> > +			h->surplus_huge_pages_node[nid]--;
-> 
-> I think this is not correct.  Should the lines dealing with per-node
-> surplus counts even be here?  If the lines above are correct, then it
-> implies that the sum of per node surplus counts could exceed (or get out
-> of sync with) the global surplus count.
-
-You are right, I guess. This per-node accounting makes the whole thing
-real pain. I am worried that we will free next page from the same node
-and reduce the overal pool size. I will think about it some more.
-
-> > +	} else if (h->surplus_huge_pages_node[nid]) {
-> >  		/* remove the page from active list */
-> >  		list_del(&page->lru);
-> >  		update_and_free_page(h, page);
-> > @@ -1531,7 +1537,11 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
-> >  	return rc;
-> >  }
-> >  
-> > -static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
-> > +/*
-> > + * Allocates a fresh surplus page from the page allocator. Temporary
-> > + * requests (e.g. page migration) can pass enforce_overcommit == false
-> 
-> 'enforce_overcommit == false' perhaps part of an earlier implementation
-> attempt?
-
-yeah.
-
-[...]
-
-> > diff --git a/mm/migrate.c b/mm/migrate.c
-> > index 4d0be47a322a..b3345f8174a9 100644
-> > --- a/mm/migrate.c
-> > +++ b/mm/migrate.c
-> > @@ -1326,6 +1326,19 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
-> >  		hugetlb_cgroup_migrate(hpage, new_hpage);
-> >  		put_new_page = NULL;
-> >  		set_page_owner_migrate_reason(new_hpage, reason);
-> > +
-> > +		/*
-> > +		 * transfer temporary state of the new huge page. This is
-> > +		 * reverse to other transitions because the newpage is going to
-> > +		 * be final while the old one will be freed so it takes over
-> > +		 * the temporary status.
-> > +		 * No need for any locking here because destructor cannot race
-> > +		 * with us.
-> > +		 */
-> > +		if (PageHugeTemporary(new_hpage)) {
-> > +			SetPageHugeTemporary(hpage);
-> > +			ClearPageHugeTemporary(new_hpage);
-> > +		}
-> >  	}
-> >  
-> >  	unlock_page(hpage);
+> > : Basically, we tag each address space with an ASID (PCID on x86) which
+> > : is resident in the TLB. This means we can elide TLB invalidation when
+> > : pulling down a full mm because we won't ever assign that ASID to
+> > : another mm without doing TLB invalidation elsewhere (which actually
+> > : just nukes the whole TLB).
 > > 
+> > This all is nice but tlb_gather users are not aware of that and this can
+> > actually cause some real problems. E.g. the oom_reaper tries to reap the
+> > whole address space but it might race with threads accessing the memory [1].
+> > It is possible that soft-dirty handling might suffer from the same
+> > problem [2] as soon as it starts supporting the feature.
+> > 
+> > Introduce an explicit exit variant tlb_gather_mmu_exit which allows the
+> > behavior arm64 implements for the fullmm case and replace it by an
+> > explicit exit flag in the mmu_gather structure. exit_mmap path is then
+> > turned into the explicit exit variant. Other architectures simply ignore
+> > the flag.
+> > 
+> > [1] http://lkml.kernel.org/r/20171106033651.172368-1-wangnan0@huawei.com
+> > [2] http://lkml.kernel.org/r/20171110001933.GA12421@bbox
+> > Signed-off-by: Michal Hocko <mhocko@suse.com>
+> > ---
+> > Hi,
+> > I am sending this as an RFC because I am not fully familiar with the tlb
+> > gather arch implications, espacially the semantic of fullmm. Therefore
+> > I might duplicate some of its functionality. I hope people on the CC
+> > list will help me to sort this out.
+> > 
+> > Comments? Objections?
 > 
-> I'm still trying to wrap my head around all the different scenarios.
-> In general, this new code only 'kicks in' if the there is not a free
-> pre-allocated huge page for migration.  Right?
+> I can't think of a case where we'd have exit set but not be doing the
+> fullmm, in which case I'd be inclined to remove the last two parameters
+> from tlb_gather_mmu_exit.
 
-yes
-
-> So, if there are free huge pages they are 'consumed' during migration
-> and the number of available pre-allocated huge pages is reduced?  Or,
-> is that not exactly how it works?  Or does it depend in the purpose
-> of the migration?
-
-Well, if we have pre-allocated pages then we just consume them and they
-will not get Temporary status so the additional code doesn't kick in.
-
-> The only reason I ask is because this new method of allocating a surplus
-> page (if successful) results in no decrease of available huge pages.
-> Perhaps all migrations should attempt to allocate surplus pages and not
-> impact the pre-allocated number of available huge pages.
-
-That could reduce the chances of the migration success because
-allocating a fresh huge page can fail.
+Makes sense. Will do!
 
 -- 
 Michal Hocko
