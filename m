@@ -1,88 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB5D26B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:51:09 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i83so1165814wma.4
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:51:09 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w35si475161edm.121.2017.11.29.01.51.08
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B45076B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 05:17:26 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j4so1682600wrg.15
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 02:17:26 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id m25si1623964edm.209.2017.11.29.02.17.25
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 01:51:08 -0800 (PST)
-Date: Wed, 29 Nov 2017 10:51:06 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
- during migration
-Message-ID: <20171129095106.q6pvltcouq567tz7@dhcp22.suse.cz>
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
- <20171128141211.11117-3-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 29 Nov 2017 02:17:25 -0800 (PST)
+Date: Wed, 29 Nov 2017 10:17:13 +0000
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH] mm, memcg: fix mem_cgroup_swapout() for THPs
+Message-ID: <20171129101713.GA28244@cmpxchg.org>
+References: <20171128161941.20931-1-shakeelb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171128141211.11117-3-mhocko@kernel.org>
+In-Reply-To: <20171128161941.20931-1-shakeelb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Huang Ying <ying.huang@intel.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Greg Thelen <gthelen@google.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, cgroups@vger.kernel.org, stable@vger.kernel.org
 
-On Tue 28-11-17 15:12:11, Michal Hocko wrote:
-[...]
-> +/*
-> + * Internal hugetlb specific page flag. Do not use outside of the hugetlb
-> + * code
-> + */
-> +static inline bool PageHugeTemporary(struct page *page)
-> +{
-> +	if (!PageHuge(page))
-> +		return false;
-> +
-> +	return page[2].flags == -1U;
-> +}
-> +
-> +static inline void SetPageHugeTemporary(struct page *page)
-> +{
-> +	page[2].flags = -1U;
-> +}
-> +
-> +static inline void ClearPageHugeTemporary(struct page *page)
-> +{
-> +	page[2].flags = 0;
-> +}
+On Tue, Nov 28, 2017 at 08:19:41AM -0800, Shakeel Butt wrote:
+> The commit d6810d730022 ("memcg, THP, swap: make mem_cgroup_swapout()
+> support THP") changed mem_cgroup_swapout() to support transparent huge
+> page (THP). However the patch missed one location which should be
+> changed for correctly handling THPs. The resulting bug will cause the
+> memory cgroups whose THPs were swapped out to become zombies on
+> deletion.
+> 
+> Fixes: d6810d730022 ("memcg, THP, swap: make mem_cgroup_swapout() support THP")
+> Signed-off-by: Shakeel Butt <shakeelb@google.com>
+> Cc: stable@vger.kernel.org
 
-Ups, this is obviously not OK. I was just lucky to not hit BUG_ONs
-because I am clearly overwriting node/zone data in flags. I will have to
-find something else to abuse. I will go with my favorite mapping pointer
-which is not used at all.
----
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 1be43563e226..db7544a0b7b6 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -1259,17 +1259,17 @@ static inline bool PageHugeTemporary(struct page *page)
- 	if (!PageHuge(page))
- 		return false;
- 
--	return page[2].flags == -1U;
-+	return page[2].mapping == -1U;
- }
- 
- static inline void SetPageHugeTemporary(struct page *page)
- {
--	page[2].flags = -1U;
-+	page[2].mapping = -1U;
- }
- 
- static inline void ClearPageHugeTemporary(struct page *page)
- {
--	page[2].flags = 0;
-+	page[2].mapping = NULL;
- }
- 
- void free_huge_page(struct page *page)
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
