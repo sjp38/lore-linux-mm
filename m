@@ -1,67 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 498476B0038
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:42:04 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id a141so1980749wma.8
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 13:42:04 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id z68si2145951wrb.354.2017.11.29.13.42.02
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E93616B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:51:10 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id r22so4038612iod.7
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 13:51:10 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k36sor1414075ioi.71.2017.11.29.13.51.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 13:42:03 -0800 (PST)
-Date: Wed, 29 Nov 2017 13:41:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-Id: <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
-In-Reply-To: <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
-	<20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
-	<20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 29 Nov 2017 13:51:10 -0800 (PST)
+From: Paul Lawrence <paullawrence@google.com>
+Subject: [PATCH v2 0/5] kasan: support alloca, LLVM
+Date: Wed, 29 Nov 2017 13:50:45 -0800
+Message-Id: <20171129215050.158653-1-paullawrence@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>
 
-On Wed, 29 Nov 2017 17:04:46 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+Adding kasan alloca support using clang
+Also adding support for clang, since needed for this feature
+gcc has kasan alloca support, but only post 7.2
 
-> On Mon 27-11-17 12:33:41, Michal Hocko wrote:
-> > On Mon 27-11-17 19:09:24, JianKang Chen wrote:
-> > > From: Jiankang Chen <chenjiankang1@huawei.com>
-> > > 
-> > > __get_free_pages will return an virtual address, 
-> > > but it is not just 32-bit address, for example a 64-bit system. 
-> > > And this comment really confuse new bigenner of mm.
-> > 
-> > s@bigenner@beginner@
-> > 
-> > Anyway, do we really need a bug on for this? Has this actually caught
-> > any wrong usage? VM_BUG_ON tends to be enabled these days AFAIK and
-> > panicking the kernel seems like an over-reaction. If there is a real
-> > risk then why don't we simply mask __GFP_HIGHMEM off when calling
-> > alloc_pages?
-> 
-> I meant this
-> ---
-> >From 000bb422fe07adbfa8cd8ed953b18f48647a45d6 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Wed, 29 Nov 2017 17:02:33 +0100
-> Subject: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
-> 
-> There is no real reason to blow up just because the caller doesn't know
-> that __get_free_pages cannot return highmem pages. Simply fix that up
-> silently. Even if we have some confused users such a fixup will not be
-> harmful.
+[Patch v2 1/5] kasan: support alloca() poisoning
+  Tests moved to patch 2/5
+  __asan_alloca_unpoison():
+    Use precalculated rounded-up-size
+    Warning added if bottom is not aligned as expected
+    Parameter check added to make sure gcc builds don't fail
+    Now unpoisons partial chunks
+  get_shadow_bug_type():
+    Missing break added
 
-mm...  So we have a caller which hopes to be getting highmem pages but
-isn't.  Caller then proceeds to pointlessly kmap the page and wonders
-why it isn't getting as much memory as it would like on 32-bit systems,
-etc.
+[PATCH v2 2/5] kasan: Add tests for alloca poisonong
+  Tests moved here
+  kasan_alloca_oob_right():
+    No longer rounding up
 
-I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
-would suffice.
+[PATCH v2 3/5] kasan: added functions for unpoisoning stack variables
+  No change from v1. clang builds need f8
+
+[PATCH v2 4/5] kasan: support LLVM-style asan parameters
+  Rejigged whole file. Old approach would not work except with ToT gcc
+  or clang. All parameters would be rejected if one was not known.
+  Also if both were empty, CFLAGS_KASAN would be " " which mostly
+  disabled kasan on older compilers.
+  Added support for gcc, tested on ToT compiler
+
+[PATCH v2 5/5] kasan: add compiler support for clang
+  Made comments single line
+
+Paul Lawrence (5):
+  kasan: support alloca() poisoning
+  kasan: Add tests for alloca poisonong
+  kasan: added functions for unpoisoning stack variables
+  kasan: support LLVM-style asan parameters
+  kasan: add compiler support for clang
+
+ include/linux/compiler-clang.h |  8 +++++++
+ lib/test_kasan.c               | 22 ++++++++++++++++++++
+ mm/kasan/kasan.c               | 47 ++++++++++++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.h               |  8 +++++++
+ mm/kasan/report.c              |  4 ++++
+ scripts/Makefile.kasan         | 39 ++++++++++++++++++++++++-----------
+ 6 files changed, 116 insertions(+), 12 deletions(-)
+
+--
+2.15.0.531.g2ccb3012c9-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
