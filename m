@@ -1,230 +1,119 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 878106B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:24:50 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j26so3061845pff.8
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:24:50 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id p20si1730824plr.540.2017.11.29.11.24.48
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 352696B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 14:53:03 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 79so3792959ioi.10
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 11:53:03 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id j194si2241668ite.79.2017.11.29.11.53.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 11:24:48 -0800 (PST)
-From: Tony Luck <tony.luck@intel.com>
-Subject: [PATCHv2] x86/mm, mm/hwpoison: Don't unconditionally unmap kernel 1:1 pages.
-Date: Wed, 29 Nov 2017 11:24:46 -0800
-Message-Id: <20171129192446.21090-1-tony.luck@intel.com>
-In-Reply-To: <tip-f1a041552c403949ab3c0902c1030c3a3d186ec1@git.kernel.org>
-References: <tip-f1a041552c403949ab3c0902c1030c3a3d186ec1@git.kernel.org>
+        Wed, 29 Nov 2017 11:53:02 -0800 (PST)
+Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
+ during migration
+References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
+ <20171128141211.11117-1-mhocko@kernel.org>
+ <20171128141211.11117-3-mhocko@kernel.org>
+ <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <425a8947-d32a-d6bb-3a0a-2e30275c64c9@oracle.com>
+Date: Wed, 29 Nov 2017 11:52:53 -0800
+MIME-Version: 1.0
+In-Reply-To: <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Tony Luck <tony.luck@intel.com>, Borislav Petkov <bp@suse.de>, Denys Vlasenko <dvlasenk@redhat.com>, linux-mm@kvack.org, Peter Zijlstra <peterz@infradead.org>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, Josh Poimboeuf <jpoimboe@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Robert (Persistent Memory)" <elliott@hpe.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-In ce0fa3e56ad2 ("x86/mm, mm/hwpoison: Clear PRESENT bit for kernel 1:1
-mappings of poison pages") we added code to memory_failure() to unmap
-the page from the kernel 1:1 virtual address space to avoid speculative
-access to the page logging additional errors.
+On 11/29/2017 01:22 AM, Michal Hocko wrote:
+> What about this on top. I haven't tested this yet though.
 
-But memory_failure() may not always succeed in taking the page offline,
-especially if the page belongs to the kernel.  This can happen if
-there are too many corrected errors on a page and either mcelog(8)
-or drivers/ras/cec.c asks to take a page offline.
+Yes, this would work.
 
-Since we remove the 1:1 mapping early in memory_failure(), we can
-end up with the page unmapped, but still in use. On the next access
-the kernel crashes :-(
+However, I think a simple modification to your previous free_huge_page
+changes would make this unnecessary.  I was confused in your previous
+patch because you decremented the per-node surplus page count, but not
+the global count.  I think it would have been correct (and made this
+patch unnecessary) if you decremented the global counter there as well.
 
-There are also various debug paths that call memory_failure() to simulate
-occurrence of an error. Since there is no actual error in memory, we
-don't need to map out the page for those cases.
+Of course, this patch makes the surplus accounting more explicit.
 
-Revert most of the previous attempt and keep the solution local to
-arch/x86/kernel/cpu/mcheck/mce.c. Unmap the page only when:
+If we move forward with this patch, one issue below.
 
-	1) there is a real error
-	2) memory_failure() succeeds.
+> ---
+> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+> index 1b6d7783c717..f5fcd4e355dc 100644
+> --- a/include/linux/hugetlb.h
+> +++ b/include/linux/hugetlb.h
+> @@ -119,6 +119,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+>  						long freed);
+>  bool isolate_huge_page(struct page *page, struct list_head *list);
+>  void putback_active_hugepage(struct page *page);
+> +void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
+>  void free_huge_page(struct page *page);
+>  void hugetlb_fix_reserve_counts(struct inode *inode);
+>  extern struct mutex *hugetlb_fault_mutex_table;
+> @@ -232,6 +233,7 @@ static inline bool isolate_huge_page(struct page *page, struct list_head *list)
+>  	return false;
+>  }
+>  #define putback_active_hugepage(p)	do {} while (0)
+> +#define move_hugetlb_state(old, new, reason)	do {} while (0)
+>  
+>  static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+>  		unsigned long address, unsigned long end, pgprot_t newprot)
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 037bf0f89463..30601c1c62f3 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -34,6 +34,7 @@
+>  #include <linux/hugetlb_cgroup.h>
+>  #include <linux/node.h>
+>  #include <linux/userfaultfd_k.h>
+> +#include <linux/page_owner.h>
+>  #include "internal.h"
+>  
+>  int hugetlb_max_hstate __read_mostly;
+> @@ -4830,3 +4831,34 @@ void putback_active_hugepage(struct page *page)
+>  	spin_unlock(&hugetlb_lock);
+>  	put_page(page);
+>  }
+> +
+> +void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason)
+> +{
+> +	struct hstate *h = page_hstate(oldpage);
+> +
+> +	hugetlb_cgroup_migrate(oldpage, newpage);
+> +	set_page_owner_migrate_reason(newpage, reason);
+> +
+> +	/*
+> +	 * transfer temporary state of the new huge page. This is
+> +	 * reverse to other transitions because the newpage is going to
+> +	 * be final while the old one will be freed so it takes over
+> +	 * the temporary status.
+> +	 *
+> +	 * Also note that we have to transfer the per-node surplus state
+> +	 * here as well otherwise the global surplus count will not match
+> +	 * the per-node's.
+> +	 */
+> +	if (PageHugeTemporary(newpage)) {
+> +		int old_nid = page_to_nid(oldpage);
+> +		int new_nid = page_to_nid(newpage);
+> +
+> +		SetPageHugeTemporary(oldpage);
+> +		ClearPageHugeTemporary(newpage);
+> +
+> +		if (h->surplus_huge_pages_node[old_nid]) {
+> +			h->surplus_huge_pages_node[old_nid]--;
+> +			h->surplus_huge_pages_node[new_nid]++;
+> +		}
 
-All of this only applies to 64-bit systems. 32-bit kernel doesn't map
-all of memory into kernel space. It isn't worth adding the code to unmap
-the piece that is mapped because nobody would run a 32-bit kernel on a
-machine that has recoverable machine checks.
+You need to take hugetlb_lock before adjusting the surplus counts.
 
-Cc: stable@vger.kernel.org #v4.14
-Fixes: ce0fa3e56ad2 ("x86/mm, mm/hwpoison: Clear PRESENT bit for kernel 1:1 mappings of poison pages")
-Signed-off-by: Tony Luck <tony.luck@intel.com>
----
-v1->v2:
-0-day reported an ARCH=i386 warning
-   arch/x86//kernel/cpu/mcheck/mce.c: In function 'mce_unmap_kpfn':
-   include/linux/bitops.h:7:24: warning: left shift count >= width of type [-Wshift-count-overflow]
-    #define BIT(nr)   (1UL << (nr))
-The real problem is that we shouldn't even be trying to do this on 32-bit.
- arch/x86/include/asm/page_64.h   |  4 --
- arch/x86/kernel/cpu/mcheck/mce.c | 87 ++++++++++++++++++++--------------------
- include/linux/mm_inline.h        |  6 ---
- mm/memory-failure.c              |  2 -
- 4 files changed, 44 insertions(+), 55 deletions(-)
-
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index 4baa6bceb232..d652a3808065 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -52,10 +52,6 @@ static inline void clear_page(void *page)
- 
- void copy_page(void *to, void *from);
- 
--#ifdef CONFIG_X86_MCE
--#define arch_unmap_kpfn arch_unmap_kpfn
--#endif
--
- #endif	/* !__ASSEMBLY__ */
- 
- #ifdef CONFIG_X86_VSYSCALL_EMULATION
-diff --git a/arch/x86/kernel/cpu/mcheck/mce.c b/arch/x86/kernel/cpu/mcheck/mce.c
-index b1d616d08eee..eea882bc5e35 100644
---- a/arch/x86/kernel/cpu/mcheck/mce.c
-+++ b/arch/x86/kernel/cpu/mcheck/mce.c
-@@ -571,6 +571,46 @@ static struct notifier_block first_nb = {
- 	.priority	= MCE_PRIO_FIRST,
- };
- 
-+static void mce_unmap_kpfn(unsigned long pfn)
-+{
-+#ifdef CONFIG_X86_64
-+	unsigned long decoy_addr;
-+
-+	/*
-+	 * Unmap this page from the kernel 1:1 mappings to make sure
-+	 * we don't log more errors because of speculative access to
-+	 * the page.
-+	 * We would like to just call:
-+	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
-+	 * but doing that would radically increase the odds of a
-+	 * speculative access to the posion page because we'd have
-+	 * the virtual address of the kernel 1:1 mapping sitting
-+	 * around in registers.
-+	 * Instead we get tricky.  We create a non-canonical address
-+	 * that looks just like the one we want, but has bit 63 flipped.
-+	 * This relies on set_memory_np() not checking whether we passed
-+	 * a legal address.
-+	 */
-+
-+/*
-+ * Build time check to see if we have a spare virtual bit. Don't want
-+ * to leave this until run time because most developers don't have a
-+ * system that can exercise this code path. This will only become a
-+ * problem if/when we move beyond 5-level page tables.
-+ *
-+ * Hard code "9" here because cpp doesn't grok ilog2(PTRS_PER_PGD)
-+ */
-+#if PGDIR_SHIFT + 9 < 63
-+	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
-+#else
-+#error "no unused virtual bit available"
-+#endif
-+
-+	if (set_memory_np(decoy_addr, 1))
-+		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
-+#endif
-+}
-+
- static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
- 				void *data)
- {
-@@ -582,7 +622,8 @@ static int srao_decode_notifier(struct notifier_block *nb, unsigned long val,
- 
- 	if (mce_usable_address(mce) && (mce->severity == MCE_AO_SEVERITY)) {
- 		pfn = mce->addr >> PAGE_SHIFT;
--		memory_failure(pfn, MCE_VECTOR, 0);
-+		if (!memory_failure(pfn, MCE_VECTOR, 0))
-+			mce_unmap_kpfn(pfn);
- 	}
- 
- 	return NOTIFY_OK;
-@@ -1049,51 +1090,11 @@ static int do_memory_failure(struct mce *m)
- 	ret = memory_failure(m->addr >> PAGE_SHIFT, MCE_VECTOR, flags);
- 	if (ret)
- 		pr_err("Memory error not recovered");
-+	else
-+		mce_unmap_kpfn(m->addr >> PAGE_SHIFT);
- 	return ret;
- }
- 
--#if defined(arch_unmap_kpfn) && defined(CONFIG_MEMORY_FAILURE)
--
--void arch_unmap_kpfn(unsigned long pfn)
--{
--	unsigned long decoy_addr;
--
--	/*
--	 * Unmap this page from the kernel 1:1 mappings to make sure
--	 * we don't log more errors because of speculative access to
--	 * the page.
--	 * We would like to just call:
--	 *	set_memory_np((unsigned long)pfn_to_kaddr(pfn), 1);
--	 * but doing that would radically increase the odds of a
--	 * speculative access to the posion page because we'd have
--	 * the virtual address of the kernel 1:1 mapping sitting
--	 * around in registers.
--	 * Instead we get tricky.  We create a non-canonical address
--	 * that looks just like the one we want, but has bit 63 flipped.
--	 * This relies on set_memory_np() not checking whether we passed
--	 * a legal address.
--	 */
--
--/*
-- * Build time check to see if we have a spare virtual bit. Don't want
-- * to leave this until run time because most developers don't have a
-- * system that can exercise this code path. This will only become a
-- * problem if/when we move beyond 5-level page tables.
-- *
-- * Hard code "9" here because cpp doesn't grok ilog2(PTRS_PER_PGD)
-- */
--#if PGDIR_SHIFT + 9 < 63
--	decoy_addr = (pfn << PAGE_SHIFT) + (PAGE_OFFSET ^ BIT(63));
--#else
--#error "no unused virtual bit available"
--#endif
--
--	if (set_memory_np(decoy_addr, 1))
--		pr_warn("Could not invalidate pfn=0x%lx from 1:1 map\n", pfn);
--
--}
--#endif
--
- /*
-  * The actual machine check handler. This only handles real
-  * exceptions when something got corrupted coming in through int 18.
-diff --git a/include/linux/mm_inline.h b/include/linux/mm_inline.h
-index c30b32e3c862..10191c28fc04 100644
---- a/include/linux/mm_inline.h
-+++ b/include/linux/mm_inline.h
-@@ -127,10 +127,4 @@ static __always_inline enum lru_list page_lru(struct page *page)
- 
- #define lru_to_page(head) (list_entry((head)->prev, struct page, lru))
- 
--#ifdef arch_unmap_kpfn
--extern void arch_unmap_kpfn(unsigned long pfn);
--#else
--static __always_inline void arch_unmap_kpfn(unsigned long pfn) { }
--#endif
--
- #endif
-diff --git a/mm/memory-failure.c b/mm/memory-failure.c
-index 4acdf393a801..c85fa0038848 100644
---- a/mm/memory-failure.c
-+++ b/mm/memory-failure.c
-@@ -1146,8 +1146,6 @@ int memory_failure(unsigned long pfn, int trapno, int flags)
- 		return 0;
- 	}
- 
--	arch_unmap_kpfn(pfn);
--
- 	orig_head = hpage = compound_head(p);
- 	num_poisoned_pages_inc();
- 
 -- 
-2.14.1
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
