@@ -1,13 +1,15 @@
 From: Vinayak Menon <vinmenon@codeaurora.org>
-Subject: [PATCH 2/2] arm64: add faultaround mm hook
-Date: Tue, 28 Nov 2017 10:37:50 +0530
-Message-ID: <1511845670-12133-2-git-send-email-vinmenon@codeaurora.org>
+Subject: Re: [PATCH 1/2] mm: make faultaround produce old ptes
+Date: Wed, 29 Nov 2017 10:33:53 +0530
+Message-ID: <821b6c80-6f71-9f2e-20dd-3e66d51a7946@codeaurora.org>
 References: <1511845670-12133-1-git-send-email-vinmenon@codeaurora.org>
+ <20171128091234.GH5977@quack2.suse.cz>
 Mime-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Transfer-Encoding: 7bit
 Return-path: <linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org>
-In-Reply-To: <1511845670-12133-1-git-send-email-vinmenon@codeaurora.org>
+In-Reply-To: <20171128091234.GH5977@quack2.suse.cz>
+Content-Language: en-US
 List-Unsubscribe: <http://lists.infradead.org/mailman/options/linux-arm-kernel>,
  <mailto:linux-arm-kernel-request@lists.infradead.org?subject=unsubscribe>
 List-Archive: <http://lists.infradead.org/pipermail/linux-arm-kernel/>
@@ -17,69 +19,95 @@ List-Subscribe: <http://lists.infradead.org/mailman/listinfo/linux-arm-kernel>,
  <mailto:linux-arm-kernel-request@lists.infradead.org?subject=subscribe>
 Sender: "linux-arm-kernel" <linux-arm-kernel-bounces@lists.infradead.org>
 Errors-To: linux-arm-kernel-bounces+linux-arm-kernel=m.gmane.org@lists.infradead.org
-To: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org
-Cc: riel@redhat.com, jack@suse.cz, catalin.marinas@arm.com, dave.hansen@linux.intel.com, will.deacon@arm.com, minchan@kernel.org, Vinayak Menon <vinmenon@codeaurora.org>, mgorman@suse.de, ying.huang@intel.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com
+To: Jan Kara <jack@suse.cz>
+Cc: riel@redhat.com, minchan@kernel.org, catalin.marinas@arm.com, dave.hansen@linux.intel.com, will.deacon@arm.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, ying.huang@intel.com, akpm@linux-foundation.org, torvalds@linux-foundation.org, kirill.shutemov@linux.intel.com, mgorman@suse.de
 List-Id: linux-mm.kvack.org
 
-The ptes produced by faultaround feature are by default young
-and that is found to cause page reclaim issues [1]. But making
-the ptes old results in a unixbench regression for some
-architectures [2]. But arm64 doesn't show the regression.
+On 11/28/2017 2:42 PM, Jan Kara wrote:
+> On Tue 28-11-17 10:37:49, Vinayak Menon wrote:
+>> Based on Kirill's patch [1].
+>>
+>> Currently, faultaround code produces young pte.  This can screw up
+>> vmscan behaviour[2], as it makes vmscan think that these pages are hot
+>> and not push them out on first round.
+>>
+>> During sparse file access faultaround gets more pages mapped and all of
+>> them are young.  Under memory pressure, this makes vmscan swap out anon
+>> pages instead, or to drop other page cache pages which otherwise stay
+>> resident.
+>>
+>> Modify faultaround to produce old ptes, so they can easily be reclaimed
+>> under memory pressure.
+>>
+>> This can to some extend defeat the purpose of faultaround on machines
+>> without hardware accessed bit as it will not help us with reducing the
+>> number of minor page faults.
+>>
+>> Making the faultaround ptes old results in a unixbench regression for some
+>> architectures [3][4]. But on some architectures it is not found to cause
+>> any regression. So by default produce young ptes and provide an option for
+>> architectures to make the ptes old.
+>>
+>> [1] http://lkml.kernel.org/r/1463488366-47723-1-git-send-email-kirill.shutemov@linux.intel.com
+>> [2] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmenon@codeaurora.org
+>> [3] https://marc.info/?l=linux-kernel&m=146582237922378&w=2
+>> [4] https://marc.info/?l=linux-mm&m=146589376909424&w=2
+>>
+>> Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+>> ---
+>>  include/linux/mm-arch-hooks.h | 7 +++++++
+>>  include/linux/mm.h            | 2 ++
+>>  mm/filemap.c                  | 4 ++++
+>>  mm/memory.c                   | 5 +++++
+>>  4 files changed, 18 insertions(+)
+>>
+>> diff --git a/include/linux/mm-arch-hooks.h b/include/linux/mm-arch-hooks.h
+>> index 4efc3f56..0322b98 100644
+>> --- a/include/linux/mm-arch-hooks.h
+>> +++ b/include/linux/mm-arch-hooks.h
+>> @@ -22,4 +22,11 @@ static inline void arch_remap(struct mm_struct *mm,
+>>  #define arch_remap arch_remap
+>>  #endif
+>>  
+>> +#ifndef arch_faultaround_pte_mkold
+>> +static inline void arch_faultaround_pte_mkold(struct vm_fault *vmf)
+>> +{
+>> +}
+>> +#define arch_faultaround_pte_mkold arch_faultaround_pte_mkold
+>> +#endif
+>> +
+>>  #endif /* _LINUX_MM_ARCH_HOOKS_H */
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 7661156..be689a0 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -302,6 +302,7 @@ extern int overcommit_kbytes_handler(struct ctl_table *, int, void __user *,
+>>  #define FAULT_FLAG_USER		0x40	/* The fault originated in userspace */
+>>  #define FAULT_FLAG_REMOTE	0x80	/* faulting for non current tsk/mm */
+>>  #define FAULT_FLAG_INSTRUCTION  0x100	/* The fault was during an instruction fetch */
+>> +#define FAULT_FLAG_MKOLD	0x200	/* Make faultaround ptes old */
+> Nit: Can we make this FAULT_FLAG_PREFAULT_OLD or something like that so
+> that it is clear from the flag name that this is about prefaulting of
+> pages?
+Okay, will change the name.
 
-unixbench shell8 scores (5 runs min, max, avg):
-Base: (741,748,744)
-With this patch: (739,748,743)
+>>  #define FAULT_FLAG_TRACE \
+>>  	{ FAULT_FLAG_WRITE,		"WRITE" }, \
+>> @@ -330,6 +331,7 @@ struct vm_fault {
+>>  	gfp_t gfp_mask;			/* gfp mask to be used for allocations */
+>>  	pgoff_t pgoff;			/* Logical page offset based on vma */
+>>  	unsigned long address;		/* Faulting virtual address */
+>> +	unsigned long fault_address;    /* Saved faulting virtual address */
+> Ugh, so I dislike how you hide the decision about whether the *particular*
+> PTE should be old or young in the arch code. Sure the arch wants to decide
+> whether the prefaulted PTEs should be old or young and that it has to tell
+> us but the arch code has no business in checking whether this is prefault
+> or a normal fault - that decision belongs to filemap_map_pages(). So I'd do
+> in filemap_map_pages() something like:
+>
+> 	if (iter.index > start_pgoff && arch_wants_old_faultaround_pte())
+> 		vmf->flags |= FAULT_FLAG_PREFAULT_OLD;
+Okay, I will fix it.
 
-Add a faultaround mm hook to make the faultaround ptes old only for arm64.
-
-[1] https://lkml.kernel.org/r/1460992636-711-1-git-send-email-vinmenon@codeaurora.org
-[2] https://marc.info/?l=linux-kernel&m=146582237922378&w=2
-
-Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
----
- arch/arm64/include/asm/Kbuild          |  1 -
- arch/arm64/include/asm/mm-arch-hooks.h | 20 ++++++++++++++++++++
- 2 files changed, 20 insertions(+), 1 deletion(-)
- create mode 100644 arch/arm64/include/asm/mm-arch-hooks.h
-
-diff --git a/arch/arm64/include/asm/Kbuild b/arch/arm64/include/asm/Kbuild
-index e63d0a8..0043f7c 100644
---- a/arch/arm64/include/asm/Kbuild
-+++ b/arch/arm64/include/asm/Kbuild
-@@ -13,7 +13,6 @@ generic-y += kmap_types.h
- generic-y += local.h
- generic-y += local64.h
- generic-y += mcs_spinlock.h
--generic-y += mm-arch-hooks.h
- generic-y += msi.h
- generic-y += preempt.h
- generic-y += qrwlock.h
-diff --git a/arch/arm64/include/asm/mm-arch-hooks.h b/arch/arm64/include/asm/mm-arch-hooks.h
-new file mode 100644
-index 0000000..b34d730
---- /dev/null
-+++ b/arch/arm64/include/asm/mm-arch-hooks.h
-@@ -0,0 +1,20 @@
-+#ifndef _ASM_MM_ARCH_HOOKS_H
-+#define _ASM_MM_ARCH_HOOKS_H
-+
-+#ifdef CONFIG_ARM64_HW_AFDBM
-+static inline void arch_faultaround_pte_mkold(struct vm_fault *vmf)
-+{
-+	if (vmf->address != vmf->fault_address)
-+		vmf->flags |= FAULT_FLAG_MKOLD;
-+	else
-+		vmf->flags &= ~FAULT_FLAG_MKOLD;
-+}
-+#else
-+static inline void arch_faultaround_pte_mkold(struct vm_fault *vmf)
-+{
-+}
-+#endif
-+
-+#define arch_faultaround_pte_mkold arch_faultaround_pte_mkold
-+
-+#endif /* _ASM_MM_ARCH_HOOKS_H */
--- 
-QUALCOMM INDIA, on behalf of Qualcomm Innovation Center, Inc. is a
-member of the Code Aurora Forum, hosted by The Linux Foundation
+Thanks,
+Vinayak
