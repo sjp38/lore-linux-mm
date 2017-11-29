@@ -1,74 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EB4086B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:06:23 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id g2so3993173itf.7
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:06:23 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 7si1022522itx.12.2017.11.29.12.06.22
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5717E6B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:51:08 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id r51so3088408qtj.17
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 12:51:08 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id l5si2651432qtf.461.2017.11.29.12.51.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 12:06:22 -0800 (PST)
-Date: Wed, 29 Nov 2017 21:06:08 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 5/6] x86/mm/kaiser: Optimize RESTORE_CR3
-Message-ID: <20171129200608.q63o7mm2hdp26yk7@hirez.programming.kicks-ass.net>
-References: <20171129103301.131535445@infradead.org>
- <20171129103512.869504878@infradead.org>
- <20171129200212.gze3avcjofxrpy4t@pd.tnic>
+        Wed, 29 Nov 2017 12:51:07 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vATKnbhM146670
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:51:06 -0500
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ej205nykm-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:51:05 -0500
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 29 Nov 2017 15:51:02 -0500
+Date: Wed, 29 Nov 2017 12:50:59 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: WARNING: suspicious RCU usage (3)
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <94eb2c03c9bcc3b127055f11171d@google.com>
+ <20171128133026.cf03471c99d7a0c827c5a21c@linux-foundation.org>
+ <20171128223041.GZ3624@linux.vnet.ibm.com>
+ <CACT4Y+YLi5qw1z4t4greG05n_2NL3mpXjhT7F-Kh-YeN4HWC3g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171129200212.gze3avcjofxrpy4t@pd.tnic>
+In-Reply-To: <CACT4Y+YLi5qw1z4t4greG05n_2NL3mpXjhT7F-Kh-YeN4HWC3g@mail.gmail.com>
+Message-Id: <20171129205059.GI3624@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@alien8.de>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, Herbert Xu <herbert@gondor.apana.org.au>
 
-On Wed, Nov 29, 2017 at 09:02:12PM +0100, Borislav Petkov wrote:
-> On Wed, Nov 29, 2017 at 11:33:06AM +0100, Peter Zijlstra wrote:
-> > +.macro RESTORE_CR3 scratch_reg:req save_reg:req
-> >  	STATIC_JUMP_IF_FALSE .Lend_\@, kaiser_enabled_key, def=1
-> > +
-> > +	/* ASID bit 11 is for user */
-> > +	bt	$11, \save_reg
+On Wed, Nov 29, 2017 at 07:25:32AM +0100, Dmitry Vyukov wrote:
+> On Tue, Nov 28, 2017 at 11:30 PM, Paul E. McKenney
+> <paulmck@linux.vnet.ibm.com> wrote:
+> > On Tue, Nov 28, 2017 at 01:30:26PM -0800, Andrew Morton wrote:
+> >> On Tue, 28 Nov 2017 12:45:01 -0800 syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com> wrote:
+> >>
+> >> > Hello,
+> >> >
+> >> > syzkaller hit the following crash on
+> >> > b0a84f19a5161418d4360cd57603e94ed489915e
+> >> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> >> > compiler: gcc (GCC) 7.1.1 20170620
+> >> > .config is attached
+> >> > Raw console output is attached.
+> >> >
+> >> > Unfortunately, I don't have any reproducer for this bug yet.
+> >> >
+> >> > WARNING: suspicious RCU usage
+> >>
+> >> There's a bunch of other info which lockdep_rcu_suspicious() should
+> >> have printed out, but this trace doesn't have any of it.  I wonder why.
+> >
+> > Yes, there should be more info printed, no idea why it would go missing.
 > 
-> <---- newline here.
+> I think that's because while reporting "suspicious RCU usage" kernel hit:
+> 
+> BUG: unable to handle kernel NULL pointer dereference at 0000000000000074
+> 
+> and the rest of the report is actually about the NULL deref.
+> 
+> syzkaller hits too many crashes at the same time. And it's a problem
+> for us. We get reports with corrupted/intermixed titles,
+> corrupted/intermixed bodies, reports with same titles but about
+> different bugs, etc.
 
-Seems weird to me, the bt and jnc are a pair.
+Got it, thank you!
 
-> > +	/*
-> > +	 * KERNEL pages can always resume with NOFLUSH as we do
-> > +	 * explicit flushes.
-> > +	 */
-> > +	jnc	.Lnoflush_\@
-> > +
-> > +	/*
-> > +	 * Check if there's a pending flush for the user ASID we're
-> > +	 * about to set.
-> > +	 */
-> > +	movq	\save_reg, \scratch_reg
-> > +	andq	$(0x7FF), \scratch_reg
-> > +	bt	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
-> > +	jnc	.Lnoflush_\@
-> > +
-> > +	btr	\scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
-> > +	jmp	.Ldo_\@
-> 
-> Can you save yourself one of the BT-insns?
-> 
-> 	...
-> 	andq	$(0x7FF), \scratch_reg
-> 	btr     \scratch_reg, PER_CPU_VAR(user_asid_flush_mask)
-> 	jnc	.Lnoflush_\@
-> 	jmp     .Ldo_\@
-> 	...
-> 
-> or am I missing a case?
-
-BTR is an unconditional write and will modify the line and cause a
-write-back later. The common case is the bit not set, so BT, which is a
-pure read, avoids all that overhead.
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
