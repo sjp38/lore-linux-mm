@@ -1,61 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D81E6B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:25:55 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id 88so862536pla.14
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 22:25:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 33sor438219ply.83.2017.11.28.22.25.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 28 Nov 2017 22:25:54 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EA086B0253
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:26:10 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id d4so1527683pgv.4
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 22:26:10 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 5si790122plx.33.2017.11.28.22.26.08
+        for <linux-mm@kvack.org>;
+        Tue, 28 Nov 2017 22:26:09 -0800 (PST)
+Date: Wed, 29 Nov 2017 15:32:08 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
+ direct compaction
+Message-ID: <20171129063208.GC8125@js1304-P5Q-DELUXE>
+References: <20171122143321.29501-1-hannes@cmpxchg.org>
+ <20171123140843.is7cqatrdijkjqql@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20171128223041.GZ3624@linux.vnet.ibm.com>
-References: <94eb2c03c9bcc3b127055f11171d@google.com> <20171128133026.cf03471c99d7a0c827c5a21c@linux-foundation.org>
- <20171128223041.GZ3624@linux.vnet.ibm.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 29 Nov 2017 07:25:32 +0100
-Message-ID: <CACT4Y+YLi5qw1z4t4greG05n_2NL3mpXjhT7F-Kh-YeN4HWC3g@mail.gmail.com>
-Subject: Re: WARNING: suspicious RCU usage (3)
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171123140843.is7cqatrdijkjqql@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul McKenney <paulmck@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, Herbert Xu <herbert@gondor.apana.org.au>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-On Tue, Nov 28, 2017 at 11:30 PM, Paul E. McKenney
-<paulmck@linux.vnet.ibm.com> wrote:
-> On Tue, Nov 28, 2017 at 01:30:26PM -0800, Andrew Morton wrote:
->> On Tue, 28 Nov 2017 12:45:01 -0800 syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com> wrote:
->>
->> > Hello,
->> >
->> > syzkaller hit the following crash on
->> > b0a84f19a5161418d4360cd57603e94ed489915e
->> > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
->> > compiler: gcc (GCC) 7.1.1 20170620
->> > .config is attached
->> > Raw console output is attached.
->> >
->> > Unfortunately, I don't have any reproducer for this bug yet.
->> >
->> > WARNING: suspicious RCU usage
->>
->> There's a bunch of other info which lockdep_rcu_suspicious() should
->> have printed out, but this trace doesn't have any of it.  I wonder why.
->
-> Yes, there should be more info printed, no idea why it would go missing.
+On Thu, Nov 23, 2017 at 02:08:43PM +0000, Mel Gorman wrote:
 
-I think that's because while reporting "suspicious RCU usage" kernel hit:
+> 3. Another reason a linear scanner was used was because we wanted to
+>    clear entire pageblocks we were migrating from and pack the target
+>    pageblocks as much as possible. This was to reduce the amount of
+>    migration required overall even though the scanning hurts. This patch
+>    takes MIGRATE_MOVABLE pages from anywhere that is "not this pageblock".
+>    Those potentially have to be moved again and again trying to randomly
+>    fill a MIGRATE_MOVABLE block. Have you considered using the freelists
+>    as a hint? i.e. take a page from the freelist, then isolate all free
+>    pages in the same pageblock as migration targets? That would preserve
+>    the "packing property" of the linear scanner.
+> 
+>    This would increase the amount of scanning but that *might* be offset by
+>    the number of migrations the workload does overall. Note that migrations
+>    potentially are minor faults so if we do too many migrations, your
+>    workload may suffer.
+> 
+> 4. One problem the linear scanner avoids is that a migration target is
+>    subsequently used as a migration source and leads to a ping-pong effect.
+>    I don't know how bad this is in practice or even if it's a problem at
+>    all but it was a concern at the time
 
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000074
+IIUC, this potential advantage for a linear scanner would not be the
+actual advantage in the *running* system.
 
-and the rest of the report is actually about the NULL deref.
+Consider about following worst case scenario for "direct freepage
+allocation" that "moved again" happens.
 
-syzkaller hits too many crashes at the same time. And it's a problem
-for us. We get reports with corrupted/intermixed titles,
-corrupted/intermixed bodies, reports with same titles but about
-different bugs, etc.
+__M1___F1_________________F2__F3___
+
+M: migration source page (the number denotes the ID of the page)
+F: freepage (the number denotes the sequence in the freelist of the buddy)
+_: other pages
+migration scanner: move from left to right.
+
+If migration happens with "direct freepage allocation", memory state
+will be changed to:
+
+__F?___M1_________________F2__F3___
+
+And then, please assume that there is an another movable allocation
+before another migration. It's reasonable assumption since there are
+really many movable allocations in the *running* system.
+
+__F?___M1_________________M2__F3___
+
+If migration happens again, memory state will be:
+
+__F?___F?_________________M2__M1___
+
+M1 is moved twice and overall number of migration is two.
+
+Now, think about a linear scanner. With the same scenario,
+memory state will be as following.
+
+__M1___F1_________________F2__F3___
+__F?___F1_________________F2__M1___
+__F?___M2_________________F2__M1___
+__F?___F?_________________M2__M1___
+
+Although "move again" doesn't happen in a linear scanner, final memory
+state is the same and the same number of migration happens.
+
+So, I think that "direct freepage allocation" doesn't suffer from such
+a ping-poing effect. Am I missing something?
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
