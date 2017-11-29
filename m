@@ -1,73 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D2E56B025F
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:45:36 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 8so2564176pfv.12
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:45:36 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f31sor751266plb.58.2017.11.29.06.45.35
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 847D66B0069
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 10:19:51 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id y124so924967lfc.15
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 07:19:51 -0800 (PST)
+Received: from mail02.prevas.se (mail02.prevas.se. [62.95.78.10])
+        by mx.google.com with ESMTPS id y15si672264lfj.291.2017.11.29.07.19.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 Nov 2017 06:45:35 -0800 (PST)
-From: Michal Hocko <mhocko@kernel.org>
-Subject: [PATCH] mmap.2: document new MAP_FIXED_SAFE flag
-Date: Wed, 29 Nov 2017 15:45:24 +0100
-Message-Id: <20171129144524.23518-1-mhocko@kernel.org>
-In-Reply-To: <20171129144219.22867-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 29 Nov 2017 07:19:49 -0800 (PST)
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
 References: <20171129144219.22867-1-mhocko@kernel.org>
+From: Rasmus Villemoes <rasmus.villemoes@prevas.dk>
+Message-ID: <b154b794-7a8b-995e-0954-9234b9446b31@prevas.dk>
+Date: Wed, 29 Nov 2017 16:13:53 +0100
+MIME-Version: 1.0
+In-Reply-To: <20171129144219.22867-1-mhocko@kernel.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>
+To: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>
 
-From: Michal Hocko <mhocko@suse.com>
+On 2017-11-29 15:42, Michal Hocko wrote:
+> 
+> The first patch introduced MAP_FIXED_SAFE which enforces the given
+> address but unlike MAP_FIXED it fails with ENOMEM if the given range
+> conflicts with an existing one.
 
-4.16+ kernels offer a new MAP_FIXED_SAFE flag which allows to atomicaly
-probe for a given address range.
+[s/ENOMEM/EEXIST/, as it seems you also did in the actual patch and
+changelog]
 
-Signed-off-by: Michal Hocko <mhocko@suse.com>
----
- man2/mmap.2 | 18 ++++++++++++++++++
- 1 file changed, 18 insertions(+)
+>The flag is introduced as a completely
+> new one rather than a MAP_FIXED extension because of the backward
+> compatibility. We really want a never-clobber semantic even on older
+> kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+> flags evaluation because we do not EINVAL on unknown flags. On those
+> kernels we would simply use the traditional hint based semantic so the
+> caller can still get a different address (which sucks) but at least not
+> silently corrupt an existing mapping. I do not see a good way around
+> that.
 
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 385f3bfd5393..622a7000de83 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -225,6 +225,18 @@ will fail.
- Because requiring a fixed address for a mapping is less portable,
- the use of this option is discouraged.
- .TP
-+.B MAP_FIXED_SAFE (since 4.16)
-+Similar to MAP_FIXED wrt. to the
-+.I
-+addr
-+enforcement except it never clobbers a colliding mapped range and rather fail with
-+.B EEXIST
-+in such a case. This flag can therefore be used as a safe and atomic probe for the
-+the specific address range. Please note that older kernels which do not recognize
-+this flag can fallback to the hint based implementation and map to a different
-+location. Any backward compatible software should therefore check the returning
-+address with the given one.
-+.TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
- It indicates to the kernel virtual memory system that the mapping
-@@ -449,6 +461,12 @@ is not a valid file descriptor (and
- .B MAP_ANONYMOUS
- was not set).
- .TP
-+.B EEXIST
-+range covered by
-+.IR addr , 
-+.IR length
-+is clashing with an existing mapping.
-+.TP
- .B EINVAL
- We don't like
- .IR addr ,
+I think it would be nice if this rationale was in the 1/2 changelog,
+along with the hint about what userspace that wants to be compatible
+with old kernels will have to do (namely, check that it got what it
+requested) - which I see you did put in the man page.
+
 -- 
-2.15.0
+Rasmus Villemoes
+Software Developer
+Prevas A/S
+Hedeager 3
+DK-8200 Aarhus N
++45 51210274
+rasmus.villemoes@prevas.dk
+www.prevas.dk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
