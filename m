@@ -1,100 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE6696B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:21:52 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o20so1561401wro.8
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:21:52 -0800 (PST)
-Received: from huawei.com ([45.249.212.35])
-        by mx.google.com with ESMTPS id l18si1011949wre.410.2017.11.29.01.21.50
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E2E206B0069
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:22:36 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i83so1134025wma.4
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:22:36 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 36si1215850edf.188.2017.11.29.01.22.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 01:21:51 -0800 (PST)
-From: zhong jiang <zhongjiang@huawei.com>
-Subject: [PATCH] x86/numa: move setting parse numa node to num_add_memblk
-Date: Wed, 29 Nov 2017 17:13:27 +0800
-Message-ID: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 01:22:35 -0800 (PST)
+Date: Wed, 29 Nov 2017 10:22:34 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
+ during migration
+Message-ID: <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
+References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
+ <20171128141211.11117-1-mhocko@kernel.org>
+ <20171128141211.11117-3-mhocko@kernel.org>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171128141211.11117-3-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, lenb@kernel.org, mhocko@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org
-Cc: richard.weiyang@gmail.com, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
+To: linux-mm@kvack.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-Currently, Arm64 and x86 use the common code wehn parsing numa node
-in a acpi way. The arm64 will set the parsed node in numa_add_memblk,
-but the x86 is not set in that , then it will result in the repeatly
-setting. And the parsed node maybe is  unreasonable to the system.
-
-we would better not set it although it also still works. because the
-parsed node is unresonable. so we should skip related operate in this
-node. This patch just set node in various architecture individually.
-it is no functional change.
-
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+What about this on top. I haven't tested this yet though.
 ---
- arch/x86/mm/amdtopology.c | 1 -
- arch/x86/mm/numa.c        | 3 ++-
- drivers/acpi/numa.c       | 5 ++++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
-index 91f501b..7657042 100644
---- a/arch/x86/mm/amdtopology.c
-+++ b/arch/x86/mm/amdtopology.c
-@@ -151,7 +151,6 @@ int __init amd_numa_init(void)
- 
- 		prevbase = base;
- 		numa_add_memblk(nodeid, base, limit);
--		node_set(nodeid, numa_nodes_parsed);
- 	}
- 
- 	if (!nodes_weight(numa_nodes_parsed))
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 25504d5..8f87f26 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
- 	mi->blk[mi->nr_blks].end = end;
- 	mi->blk[mi->nr_blks].nid = nid;
- 	mi->nr_blks++;
-+
-+	node_set(nid, numa_nodes_parsed);
- 	return 0;
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index 1b6d7783c717..f5fcd4e355dc 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -119,6 +119,7 @@ long hugetlb_unreserve_pages(struct inode *inode, long start, long end,
+ 						long freed);
+ bool isolate_huge_page(struct page *page, struct list_head *list);
+ void putback_active_hugepage(struct page *page);
++void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason);
+ void free_huge_page(struct page *page);
+ void hugetlb_fix_reserve_counts(struct inode *inode);
+ extern struct mutex *hugetlb_fault_mutex_table;
+@@ -232,6 +233,7 @@ static inline bool isolate_huge_page(struct page *page, struct list_head *list)
+ 	return false;
  }
+ #define putback_active_hugepage(p)	do {} while (0)
++#define move_hugetlb_state(old, new, reason)	do {} while (0)
  
-@@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
- 	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
- 	       0LLU, PFN_PHYS(max_pfn) - 1);
+ static inline unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
+ 		unsigned long address, unsigned long end, pgprot_t newprot)
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 037bf0f89463..30601c1c62f3 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -34,6 +34,7 @@
+ #include <linux/hugetlb_cgroup.h>
+ #include <linux/node.h>
+ #include <linux/userfaultfd_k.h>
++#include <linux/page_owner.h>
+ #include "internal.h"
  
--	node_set(0, numa_nodes_parsed);
- 	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
+ int hugetlb_max_hstate __read_mostly;
+@@ -4830,3 +4831,34 @@ void putback_active_hugepage(struct page *page)
+ 	spin_unlock(&hugetlb_lock);
+ 	put_page(page);
+ }
++
++void move_hugetlb_state(struct page *oldpage, struct page *newpage, int reason)
++{
++	struct hstate *h = page_hstate(oldpage);
++
++	hugetlb_cgroup_migrate(oldpage, newpage);
++	set_page_owner_migrate_reason(newpage, reason);
++
++	/*
++	 * transfer temporary state of the new huge page. This is
++	 * reverse to other transitions because the newpage is going to
++	 * be final while the old one will be freed so it takes over
++	 * the temporary status.
++	 *
++	 * Also note that we have to transfer the per-node surplus state
++	 * here as well otherwise the global surplus count will not match
++	 * the per-node's.
++	 */
++	if (PageHugeTemporary(newpage)) {
++		int old_nid = page_to_nid(oldpage);
++		int new_nid = page_to_nid(newpage);
++
++		SetPageHugeTemporary(oldpage);
++		ClearPageHugeTemporary(newpage);
++
++		if (h->surplus_huge_pages_node[old_nid]) {
++			h->surplus_huge_pages_node[old_nid]--;
++			h->surplus_huge_pages_node[new_nid]++;
++		}
++	}
++}
+diff --git a/mm/migrate.c b/mm/migrate.c
+index b3345f8174a9..1e5525a25691 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -1323,22 +1323,8 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
+ 		put_anon_vma(anon_vma);
  
- 	return 0;
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-index 917f1cc..f2e33cb 100644
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- 		goto out_err_bad_srat;
+ 	if (rc == MIGRATEPAGE_SUCCESS) {
+-		hugetlb_cgroup_migrate(hpage, new_hpage);
++		move_hugetlb_state(hpage, new_hpage, reason);
+ 		put_new_page = NULL;
+-		set_page_owner_migrate_reason(new_hpage, reason);
+-
+-		/*
+-		 * transfer temporary state of the new huge page. This is
+-		 * reverse to other transitions because the newpage is going to
+-		 * be final while the old one will be freed so it takes over
+-		 * the temporary status.
+-		 * No need for any locking here because destructor cannot race
+-		 * with us.
+-		 */
+-		if (PageHugeTemporary(new_hpage)) {
+-			SetPageHugeTemporary(hpage);
+-			ClearPageHugeTemporary(new_hpage);
+-		}
  	}
  
--	node_set(node, numa_nodes_parsed);
-+	/* some architecture is likely to ignore a unreasonable node */
-+	if (!node_isset(node, numa_nodes_parsed))
-+		goto out;
- 
- 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
- 		node, pxm,
-@@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- 
- 	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
- 
-+out:
- 	return 0;
- out_err_bad_srat:
- 	bad_srat();
+ 	unlock_page(hpage);
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
