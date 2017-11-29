@@ -1,55 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 707066B0271
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:11:51 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id i14so2215825pgf.13
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:11:51 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id l70si1306764pge.568.2017.11.29.06.11.50
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 070856B0266
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:14:05 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id m6so618901wrf.1
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:14:04 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x4si1881770edd.371.2017.11.29.06.13.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 06:11:50 -0800 (PST)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v18 10/10] virtio-balloon: don't report free pages when page poisoning is enabled
-Date: Wed, 29 Nov 2017 21:55:26 +0800
-Message-Id: <1511963726-34070-11-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 06:13:55 -0800 (PST)
+Date: Wed, 29 Nov 2017 14:13:52 +0000
+From: Mel Gorman <mgorman@suse.de>
+Subject: Re: [PATCH] mm, compaction: direct freepage allocation for async
+ direct compaction
+Message-ID: <20171129141352.rguu6fgjll6bxrsh@suse.de>
+References: <20171122143321.29501-1-hannes@cmpxchg.org>
+ <20171123140843.is7cqatrdijkjqql@suse.de>
+ <20171129063208.GC8125@js1304-P5Q-DELUXE>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20171129063208.GC8125@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@fb.com
 
-The guest free pages should not be discarded by the live migration thread
-when page poisoning is enabled with PAGE_POISONING_NO_SANITY=n, because
-skipping the transfer of such poisoned free pages will trigger false
-positive when new pages are allocated and checked on the destination.
-This patch skips the reporting of free pages in the above case.
+On Wed, Nov 29, 2017 at 03:32:08PM +0900, Joonsoo Kim wrote:
+> On Thu, Nov 23, 2017 at 02:08:43PM +0000, Mel Gorman wrote:
+> 
+> > 3. Another reason a linear scanner was used was because we wanted to
+> >    clear entire pageblocks we were migrating from and pack the target
+> >    pageblocks as much as possible. This was to reduce the amount of
+> >    migration required overall even though the scanning hurts. This patch
+> >    takes MIGRATE_MOVABLE pages from anywhere that is "not this pageblock".
+> >    Those potentially have to be moved again and again trying to randomly
+> >    fill a MIGRATE_MOVABLE block. Have you considered using the freelists
+> >    as a hint? i.e. take a page from the freelist, then isolate all free
+> >    pages in the same pageblock as migration targets? That would preserve
+> >    the "packing property" of the linear scanner.
+> > 
+> >    This would increase the amount of scanning but that *might* be offset by
+> >    the number of migrations the workload does overall. Note that migrations
+> >    potentially are minor faults so if we do too many migrations, your
+> >    workload may suffer.
+> > 
+> > 4. One problem the linear scanner avoids is that a migration target is
+> >    subsequently used as a migration source and leads to a ping-pong effect.
+> >    I don't know how bad this is in practice or even if it's a problem at
+> >    all but it was a concern at the time
+> 
+> IIUC, this potential advantage for a linear scanner would not be the
+> actual advantage in the *running* system.
+> 
+> Consider about following worst case scenario for "direct freepage
+> allocation" that "moved again" happens.
+> 
 
-Reported-by: Michael S. Tsirkin <mst@redhat.com>
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Cc: Michal Hocko <mhocko@suse.com>
----
- drivers/virtio/virtio_balloon.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+The immediate case should be ok as long as the migration source and the
+pageblock a freepage is taken from is not the same pageblock. That might
+mean that more pages from the freelist would need to be examined until
+another pageblock was found.
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index 035bd3a..6ac4cff 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -652,7 +652,9 @@ static void report_free_page(struct work_struct *work)
- 	/* Start by sending the obtained cmd id to the host with an outbuf */
- 	send_one_desc(vb, vb->free_page_vq, virt_to_phys(&vb->start_cmd_id),
- 		      sizeof(uint32_t), false, true, false);
--	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-+	if (!(page_poisoning_enabled() &&
-+	    !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY)))
-+		walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
- 	/*
- 	 * End by sending the stop id to the host with an outbuf. Use the
- 	 * non-batching mode here to trigger a kick after adding the stop id.
+> 
+> So, I think that "direct freepage allocation" doesn't suffer from such
+> a ping-poing effect. Am I missing something?
+> 
+
+The ping-pong effect I'm concerned with is that a previous migration
+target is used as a migration source in the future. It's hard for that
+situation to occur with two linear scanners but care is needed when
+using direct freepage allocation.
+
 -- 
-2.7.4
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
