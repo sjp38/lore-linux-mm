@@ -1,334 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E63C6B0033
-	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 20:39:59 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id w198so1229668qka.3
-        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 17:39:59 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id z184si629344qkc.336.2017.11.28.17.39.58
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 24BAE6B0033
+	for <linux-mm@kvack.org>; Tue, 28 Nov 2017 20:53:35 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id h18so1240694pfi.2
+        for <linux-mm@kvack.org>; Tue, 28 Nov 2017 17:53:35 -0800 (PST)
+Received: from smtp.nue.novell.com (smtp.nue.novell.com. [195.135.221.5])
+        by mx.google.com with ESMTPS id o33si406819plb.588.2017.11.28.17.53.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 28 Nov 2017 17:39:58 -0800 (PST)
-Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
- during migration
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
- <20171128141211.11117-3-mhocko@kernel.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <29679b8f-53d9-b928-7721-9450dde38104@oracle.com>
-Date: Tue, 28 Nov 2017 17:39:50 -0800
+        Tue, 28 Nov 2017 17:53:33 -0800 (PST)
+Date: Wed, 29 Nov 2017 09:52:29 +0800
+From: joeyli <jlee@suse.com>
+Subject: Re: [PATCH v2 2/5] mm: memory_hotplug: Remove assumption on memory
+ state before hotremove
+Message-ID: <20171129015229.GD1469@linux-l9pv.suse>
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <4e21a27570f665793debf167c8567c6752116d0a.1511433386.git.ar@linux.vnet.ibm.com>
+ <20171129004913.GB1469@linux-l9pv.suse>
 MIME-Version: 1.0
-In-Reply-To: <20171128141211.11117-3-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171129004913.GB1469@linux-l9pv.suse>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andrea Reale <ar@linux.vnet.ibm.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, mhocko@suse.com, rafael.j.wysocki@intel.com, linux-acpi@vger.kernel.org
 
-On 11/28/2017 06:12 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Wed, Nov 29, 2017 at 08:49:13AM +0800, joeyli wrote:
+> Hi Andrea, 
 > 
-> hugepage migration relies on __alloc_buddy_huge_page to get a new page.
-> This has 2 main disadvantages.
-> 1) it doesn't allow to migrate any huge page if the pool is used
-> completely which is not an exceptional case as the pool is static and
-> unused memory is just wasted.
-> 2) it leads to a weird semantic when migration between two numa nodes
-> might increase the pool size of the destination NUMA node while the page
-> is in use. The issue is caused by per NUMA node surplus pages tracking
-> (see free_huge_page).
+> On Fri, Nov 24, 2017 at 10:22:35AM +0000, Andrea Reale wrote:
+> > Resending the patch adding linux-acpi in CC, as suggested by Rafael.
+> > Everyone else: apologies for the noise.
+> > 
+> > Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
+> > introduced an assumption whereas when control
+> > reaches remove_memory the corresponding memory has been already
+> > offlined. In that case, the acpi_memhotplug was making sure that
+> > the assumption held.
+> > This assumption, however, is not necessarily true if offlining
+> > and removal are not done by the same "controller" (for example,
+> > when first offlining via sysfs).
+> > 
+> > Removing this assumption for the generic remove_memory code
+> > and moving it in the specific acpi_memhotplug code. This is
+> > a dependency for the software-aided arm64 offlining and removal
+> > process.
+> > 
+> > Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> > Signed-off-by: Maciej Bielski <m.bielski@linux.vnet.ibm.com>
+> > ---
+> >  drivers/acpi/acpi_memhotplug.c |  2 +-
+> >  include/linux/memory_hotplug.h |  9 ++++++---
+> >  mm/memory_hotplug.c            | 13 +++++++++----
+> >  3 files changed, 16 insertions(+), 8 deletions(-)
+> > 
+> > diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> > index 6b0d3ef..b0126a0 100644
+> > --- a/drivers/acpi/acpi_memhotplug.c
+> > +++ b/drivers/acpi/acpi_memhotplug.c
+> > @@ -282,7 +282,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+> >  			nid = memory_add_physaddr_to_nid(info->start_addr);
+> >  
+> >  		acpi_unbind_memory_blocks(info);
+> > -		remove_memory(nid, info->start_addr, info->length);
+> > +		BUG_ON(remove_memory(nid, info->start_addr, info->length));
+> >  		list_del(&info->list);
+> >  		kfree(info);
+> >  	}
+> > diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> > index 58e110a..1a9c7b2 100644
+> > --- a/include/linux/memory_hotplug.h
+> > +++ b/include/linux/memory_hotplug.h
+> > @@ -295,7 +295,7 @@ static inline bool movable_node_is_enabled(void)
+> >  extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+> >  extern void try_offline_node(int nid);
+> >  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> > -extern void remove_memory(int nid, u64 start, u64 size);
+> > +extern int remove_memory(int nid, u64 start, u64 size);
+> >  
+> >  #else
+> >  static inline bool is_mem_section_removable(unsigned long pfn,
+> > @@ -311,7 +311,10 @@ static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+> >  	return -EINVAL;
+> >  }
+> >  
+> > -static inline void remove_memory(int nid, u64 start, u64 size) {}
+> > +static inline int remove_memory(int nid, u64 start, u64 size)
+> > +{
+> > +	return -EINVAL;
+> > +}
+> >  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> >  
+> >  extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+> > @@ -323,7 +326,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+> >  		unsigned long nr_pages);
+> >  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> >  extern bool is_memblock_offlined(struct memory_block *mem);
+> > -extern void remove_memory(int nid, u64 start, u64 size);
+> > +extern int remove_memory(int nid, u64 start, u64 size);
+> >  extern int sparse_add_one_section(struct pglist_data *pgdat, unsigned long start_pfn);
+> >  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+> >  		unsigned long map_offset);
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index d4b5f29..d5f15af 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1892,7 +1892,7 @@ EXPORT_SYMBOL(try_offline_node);
+> >   * and online/offline operations before this call, as required by
+> >   * try_offline_node().
+> >   */
+> > -void __ref remove_memory(int nid, u64 start, u64 size)
+> > +int __ref remove_memory(int nid, u64 start, u64 size)
+> >  {
+> >  	int ret;
+> >  
+> > @@ -1908,18 +1908,23 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+> >  	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> >  				check_memblock_offlined_cb);
+> >  	if (ret)
+> > -		BUG();
+> > +		goto end_remove;
+> > +
+> > +	ret = arch_remove_memory(start, size);
+
+Should not include arch_remove_memory() to BUG().
+
+> > +
+> > +	if (ret)
+> > +		goto end_remove;
 > 
-> Address both issues by changing the way how we allocate and account
-> pages allocated for migration. Those should temporal by definition.
-> So we mark them that way (we will abuse page flags in the 3rd page)
-> and update free_huge_page to free such pages to the page allocator.
-> Page migration path then just transfers the temporal status from the
-> new page to the old one which will be freed on the last reference.
-
-In general, I think this will work.  Some questions below.
-
-> The global surplus count will never change during this path but we still
-> have to be careful when freeing a page from a node with surplus pages
-> on the node.
-
-Not sure about the "freeing page from a node with surplus pages" comment.
-If allocating PageHugeTemporary pages does not adjust surplus counts, then
-there should be no concern at the time of freeing.
-
-Could this comment be a hold over from a previous implementation attempt?
-
+> The original code triggers BUG() when any memblock is not offlined. Why
+> the new logic includes the result of arch_remove_memory()?
 > 
-> Rename __alloc_buddy_huge_page to __alloc_surplus_huge_page to better
-> reflect its purpose. The new allocation routine for the migration path
-> is __alloc_migrate_huge_page.
-> 
-> The user visible effect of this patch is that migrated pages are really
-> temporal and they travel between NUMA nodes as per the migration
-> request:
-> Before migration
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:1
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
-> 
-> After
-> 
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:0
-> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:1
-> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
-> 
-> with the previous implementation, both nodes would have nr_hugepages:1
-> until the page is freed.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  include/linux/hugetlb.h | 35 +++++++++++++++++++++++++++++
->  mm/hugetlb.c            | 58 +++++++++++++++++++++++++++++++++++--------------
->  mm/migrate.c            | 13 +++++++++++
->  3 files changed, 90 insertions(+), 16 deletions(-)
-> 
-> diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-> index 6e3696c7b35a..1b6d7783c717 100644
-> --- a/include/linux/hugetlb.h
-> +++ b/include/linux/hugetlb.h
-> @@ -157,8 +157,43 @@ unsigned long hugetlb_change_protection(struct vm_area_struct *vma,
->  		unsigned long address, unsigned long end, pgprot_t newprot);
->  
->  bool is_hugetlb_entry_migration(pte_t pte);
-> +
-> +/*
-> + * Internal hugetlb specific page flag. Do not use outside of the hugetlb
-> + * code
-> + */
-> +static inline bool PageHugeTemporary(struct page *page)
-> +{
-> +	if (!PageHuge(page))
-> +		return false;
-> +
-> +	return page[2].flags == -1U;
-> +}
-> +
-> +static inline void SetPageHugeTemporary(struct page *page)
-> +{
-> +	page[2].flags = -1U;
-> +}
-> +
-> +static inline void ClearPageHugeTemporary(struct page *page)
-> +{
-> +	page[2].flags = 0;
-> +}
->  #else /* !CONFIG_HUGETLB_PAGE */
->  
-> +static inline bool PageHugeTemporary(struct page *page)
-> +{
-> +	return false;
-> +}
-> +
-> +static inline void SetPageHugeTemporary(struct page *page)
-> +{
-> +}
-> +
-> +static inline void ClearPageHugeTemporary(struct page *page)
-> +{
-> +}
-> +
->  static inline void reset_vma_resv_huge_pages(struct vm_area_struct *vma)
->  {
->  }
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 8189c92fac82..037bf0f89463 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1283,7 +1283,13 @@ void free_huge_page(struct page *page)
->  	if (restore_reserve)
->  		h->resv_huge_pages++;
->  
-> -	if (h->surplus_huge_pages_node[nid]) {
-> +	if (PageHugeTemporary(page)) {
-> +		list_del(&page->lru);
-> +		ClearPageHugeTemporary(page);
-> +		update_and_free_page(h, page);
-> +		if (h->surplus_huge_pages_node[nid])
-> +			h->surplus_huge_pages_node[nid]--;
+> But I agreed the we don't need BUG(). Returning a error is better.
 
-I think this is not correct.  Should the lines dealing with per-node
-surplus counts even be here?  If the lines above are correct, then it
-implies that the sum of per node surplus counts could exceed (or get out
-of sync with) the global surplus count.
+Actually, I lost one thing.
 
-> +	} else if (h->surplus_huge_pages_node[nid]) {
->  		/* remove the page from active list */
->  		list_del(&page->lru);
->  		update_and_free_page(h, page);
-> @@ -1531,7 +1537,11 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	return rc;
->  }
->  
-> -static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
-> +/*
-> + * Allocates a fresh surplus page from the page allocator. Temporary
-> + * requests (e.g. page migration) can pass enforce_overcommit == false
+The BUG() have caught a issue about the offline state doesn't sync between
+memory_block and device object. like:
+        mem->dev.offline != (mem->state == MEM_OFFLINE)
 
-'enforce_overcommit == false' perhaps part of an earlier implementation
-attempt?
+So, the BUG() is useful to capture state issue in memory subsystem. But, I
+understood your concern about the two steps offline/remove from userland. 
 
-> + */
-> +static struct page *__alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
->  		int nid, nodemask_t *nmask)
->  {
->  	struct page *page;
-> @@ -1595,6 +1605,28 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
->  	return page;
->  }
->  
-> +static struct page *__alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
-> +		int nid, nodemask_t *nmask)
-> +{
-> +	struct page *page;
-> +
-> +	if (hstate_is_gigantic(h))
-> +		return NULL;
-> +
-> +	page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask, nid, nmask);
-> +	if (!page)
-> +		return NULL;
-> +
-> +	/*
-> +	 * We do not account these pages as surplus because they are only
-> +	 * temporary and will be released properly on the last reference
-> +	 */
-> +	prep_new_huge_page(h, page, page_to_nid(page));
-> +	SetPageHugeTemporary(page);
-> +
-> +	return page;
-> +}
-> +
->  /*
->   * Use the VMA's mpolicy to allocate a huge page from the buddy.
->   */
-> @@ -1609,17 +1641,13 @@ struct page *__alloc_buddy_huge_page_with_mpol(struct hstate *h,
->  	nodemask_t *nodemask;
->  
->  	nid = huge_node(vma, addr, gfp_mask, &mpol, &nodemask);
-> -	page = __alloc_buddy_huge_page(h, gfp_mask, nid, nodemask);
-> +	page = __alloc_surplus_huge_page(h, gfp_mask, nid, nodemask);
->  	mpol_cond_put(mpol);
->  
->  	return page;
->  }
->  
-> -/*
-> - * This allocation function is useful in the context where vma is irrelevant.
-> - * E.g. soft-offlining uses this function because it only cares physical
-> - * address of error page.
-> - */
-> +/* page migration callback function */
->  struct page *alloc_huge_page_node(struct hstate *h, int nid)
->  {
->  	gfp_t gfp_mask = htlb_alloc_mask(h);
-> @@ -1634,12 +1662,12 @@ struct page *alloc_huge_page_node(struct hstate *h, int nid)
->  	spin_unlock(&hugetlb_lock);
->  
->  	if (!page)
-> -		page = __alloc_buddy_huge_page(h, gfp_mask, nid, NULL);
-> +		page = __alloc_migrate_huge_page(h, gfp_mask, nid, NULL);
->  
->  	return page;
->  }
->  
-> -
-> +/* page migration callback function */
->  struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
->  		nodemask_t *nmask)
->  {
-> @@ -1657,9 +1685,7 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
->  	}
->  	spin_unlock(&hugetlb_lock);
->  
-> -	/* No reservations, try to overcommit */
-> -
-> -	return __alloc_buddy_huge_page(h, gfp_mask, preferred_nid, nmask);
-> +	return __alloc_migrate_huge_page(h, gfp_mask, preferred_nid, nmask);
->  }
->  
->  /*
-> @@ -1687,7 +1713,7 @@ static int gather_surplus_pages(struct hstate *h, int delta)
->  retry:
->  	spin_unlock(&hugetlb_lock);
->  	for (i = 0; i < needed; i++) {
-> -		page = __alloc_buddy_huge_page(h, htlb_alloc_mask(h),
-> +		page = __alloc_surplus_huge_page(h, htlb_alloc_mask(h),
->  				NUMA_NO_NODE, NULL);
->  		if (!page) {
->  			alloc_ok = false;
-> @@ -2284,7 +2310,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
->  	 * First take pages out of surplus state.  Then make up the
->  	 * remaining difference by allocating fresh huge pages.
->  	 *
-> -	 * We might race with __alloc_buddy_huge_page() here and be unable
-> +	 * We might race with __alloc_surplus_huge_page() here and be unable
->  	 * to convert a surplus huge page to a normal huge page. That is
->  	 * not critical, though, it just means the overall size of the
->  	 * pool might be one hugepage larger than it needs to be, but
-> @@ -2330,7 +2356,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
->  	 * By placing pages into the surplus state independent of the
->  	 * overcommit value, we are allowing the surplus pool size to
->  	 * exceed overcommit. There are few sane options here. Since
-> -	 * __alloc_buddy_huge_page() is checking the global counter,
-> +	 * __alloc_surplus_huge_page() is checking the global counter,
->  	 * though, we'll note that we're not allowed to exceed surplus
->  	 * and won't grow the pool anywhere else. Not until one of the
->  	 * sysctls are changed, or the surplus pages go out of use.
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 4d0be47a322a..b3345f8174a9 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1326,6 +1326,19 @@ static int unmap_and_move_huge_page(new_page_t get_new_page,
->  		hugetlb_cgroup_migrate(hpage, new_hpage);
->  		put_new_page = NULL;
->  		set_page_owner_migrate_reason(new_hpage, reason);
-> +
-> +		/*
-> +		 * transfer temporary state of the new huge page. This is
-> +		 * reverse to other transitions because the newpage is going to
-> +		 * be final while the old one will be freed so it takes over
-> +		 * the temporary status.
-> +		 * No need for any locking here because destructor cannot race
-> +		 * with us.
-> +		 */
-> +		if (PageHugeTemporary(new_hpage)) {
-> +			SetPageHugeTemporary(hpage);
-> +			ClearPageHugeTemporary(new_hpage);
-> +		}
->  	}
->  
->  	unlock_page(hpage);
-> 
+Maybe we should move the BUG() to somewhere but not just remove it. Or if
+we think that the BUG() is too intense, at least we should print out a error
+message, and ACPI should checks the return value from subsystem to
+interrupt memory-hotplug process.
 
-I'm still trying to wrap my head around all the different scenarios.
-In general, this new code only 'kicks in' if the there is not a free
-pre-allocated huge page for migration.  Right?
-
-So, if there are free huge pages they are 'consumed' during migration
-and the number of available pre-allocated huge pages is reduced?  Or,
-is that not exactly how it works?  Or does it depend in the purpose
-of the migration?
-
-The only reason I ask is because this new method of allocating a surplus
-page (if successful) results in no decrease of available huge pages.
-Perhaps all migrations should attempt to allocate surplus pages and not
-impact the pre-allocated number of available huge pages.
-
-Or, perhaps I am just confused. :)
--- 
-Mike Kravetz
+Thanks a lot!
+Joey Lee 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
