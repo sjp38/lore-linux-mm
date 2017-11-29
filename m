@@ -1,116 +1,134 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87A4C6B0280
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:35:42 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id a72so3031922ioe.13
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:35:42 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id h10si1299576ioa.106.2017.11.29.06.35.41
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BEA276B0280
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 09:42:34 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id m5so2569191pfg.20
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 06:42:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q15sor505185pgv.189.2017.11.29.06.42.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 06:35:41 -0800 (PST)
-Date: Wed, 29 Nov 2017 15:35:26 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH] x86/mm/kaiser: Flush the correct ASID in
- __native_flush_tlb_single()
-Message-ID: <20171129143526.GP3326@worktop>
-References: <20171128095531.F32E1BC7@viggo.jf.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171128095531.F32E1BC7@viggo.jf.intel.com>
+        (Google Transport Security);
+        Wed, 29 Nov 2017 06:42:33 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Date: Wed, 29 Nov 2017 15:42:17 +0100
+Message-Id: <20171129144219.22867-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, tglx@linutronix.de, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, bp@alien8.de, x86@kernel.org
+To: linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Nov 28, 2017 at 01:55:31AM -0800, Dave Hansen wrote:
->  static inline void __native_flush_tlb_single(unsigned long addr)
->  {
-> +	u16 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
->  
->  	/*
-> +	 * Handle systems that do not support PCIDs.  This will also
-> +	 * get used in cases where this is called before PCID detection
-> +	 * is done.
->  	 */
->  	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
-> +		__invlpg(addr);
->  		return;
->  	}
-> +
-> +	/*
-> +	 * An "invalid" loaded_mm_asid means that we have not
-> +	 * initialized 'cpu_tlbstate' and are not using PCIDs.
-> +	 * Just flush the TLB as if PCIDs were not present.
-> +	 */
-> +	if (loaded_mm_asid == INVALID_HW_ASID) {
-> +		__invlpg(addr);
-> +		return;
-> +	}
-> +
->  	/* Flush the address out of both PCIDs. */
->  	/*
->  	 * An optimization here might be to determine addresses
-> @@ -451,6 +474,9 @@ static inline void __native_flush_tlb_si
->  	if (kern_asid(loaded_mm_asid) != user_asid(loaded_mm_asid))
->  		invpcid_flush_one(user_asid(loaded_mm_asid), addr);
->  	invpcid_flush_one(kern_asid(loaded_mm_asid), addr);
-> +
-> +	/* Check that we are flushing the active ASID: */
-> +	VM_WARN_ON_ONCE(kern_asid(loaded_mm_asid) != cr3_asid());
->  }
+Hi,
+I am resending with RFC dropped and ask for inclusion. There haven't
+been any fundamental objections for the RFC [1]. I have also prepared
+a man page patch which is 0/3 of this series.
 
-Can't we do this differently (after my recent patches)? It appears to me
-we can unconditionally do INVLPG to shoot down the kernel mapping, and
-then, depending on INVPCID support we can either use that to shoot down
-a single page or simply invalidate the entire user mapping.
+This has started as a follow up discussion [2][3] resulting in the
+runtime failure caused by hardening patch [4] which removes MAP_FIXED
+from the elf loader because MAP_FIXED is inherently dangerous as it
+might silently clobber an existing underlying mapping (e.g. stack). The
+reason for the failure is that some architectures enforce an alignment
+for the given address hint without MAP_FIXED used (e.g. for shared or
+file backed mappings).
 
----
- arch/x86/include/asm/tlbflush.h | 23 +++++++----------------
- 1 file changed, 7 insertions(+), 16 deletions(-)
+One way around this would be excluding those archs which do alignment
+tricks from the hardening [5]. The patch is really trivial but it has
+been objected, rightfully so, that this screams for a more generic
+solution. We basically want a non-destructive MAP_FIXED.
 
-diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
-index 481d5094559e..9587722162ee 100644
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -438,29 +438,20 @@ static inline void __native_flush_tlb_single(unsigned long addr)
- {
- 	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
- 
-+	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
-+
-+	if (!kaiser_enabled)
-+		return;
-+
- 	/*
- 	 * Some platforms #GP if we call invpcid(type=1/2) before
- 	 * CR4.PCIDE=1.  Just call invpcid in the case we are called
- 	 * early.
- 	 */
--	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE)) {
-+	if (!this_cpu_has(X86_FEATURE_INVPCID_SINGLE))
- 		flush_user_asid(loaded_mm_asid);
--		asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
--		return;
--	}
--	/* Flush the address out of both PCIDs. */
--	/*
--	 * An optimization here might be to determine addresses
--	 * that are only kernel-mapped and only flush the kernel
--	 * ASID.  But, userspace flushes are probably much more
--	 * important performance-wise.
--	 *
--	 * Make sure to do only a single invpcid when KAISER is
--	 * disabled and we have only a single ASID.
--	 */
--	if (kern_asid(loaded_mm_asid) != user_asid(loaded_mm_asid))
-+	else
- 		invpcid_flush_one(user_asid(loaded_mm_asid), addr);
--	invpcid_flush_one(kern_asid(loaded_mm_asid), addr);
- }
- 
- static inline void __flush_tlb_all(void)
+The first patch introduced MAP_FIXED_SAFE which enforces the given
+address but unlike MAP_FIXED it fails with ENOMEM if the given range
+conflicts with an existing one. The flag is introduced as a completely
+new one rather than a MAP_FIXED extension because of the backward
+compatibility. We really want a never-clobber semantic even on older
+kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+flags evaluation because we do not EINVAL on unknown flags. On those
+kernels we would simply use the traditional hint based semantic so the
+caller can still get a different address (which sucks) but at least not
+silently corrupt an existing mapping. I do not see a good way around
+that. Except we won't export expose the new semantic to the userspace at
+all. 
+
+It seems there are users who would like to have something like that.
+Jemalloc has been mentioned by Michael Ellerman [6]
+
+Florian Weimer has mentioned the following:
+: glibc ld.so currently maps DSOs without hints.  This means that the kernel
+: will map right next to each other, and the offsets between them a completely
+: predictable.  We would like to change that and supply a random address in a
+: window of the address space.  If there is a conflict, we do not want the
+: kernel to pick a non-random address. Instead, we would try again with a
+: random address.
+
+John Hubbard has mentioned CUDA example
+: a) Searches /proc/<pid>/maps for a "suitable" region of available
+: VA space.  "Suitable" generally means it has to have a base address
+: within a certain limited range (a particular device model might
+: have odd limitations, for example), it has to be large enough, and
+: alignment has to be large enough (again, various devices may have
+: constraints that lead us to do this).
+: 
+: This is of course subject to races with other threads in the process.
+: 
+: Let's say it finds a region starting at va.
+: 
+: b) Next it does: 
+:     p = mmap(va, ...) 
+: 
+: *without* setting MAP_FIXED, of course (so va is just a hint), to
+: attempt to safely reserve that region. If p != va, then in most cases,
+: this is a failure (almost certainly due to another thread getting a
+: mapping from that region before we did), and so this layer now has to
+: call munmap(), before returning a "failure: retry" to upper layers.
+: 
+:     IMPROVEMENT: --> if instead, we could call this:
+: 
+:             p = mmap(va, ... MAP_FIXED_SAFE ...)
+: 
+:         , then we could skip the munmap() call upon failure. This
+:         is a small thing, but it is useful here. (Thanks to Piotr
+:         Jaroszynski and Mark Hairgrove for helping me get that detail
+:         exactly right, btw.)
+: 
+: c) After that, CUDA suballocates from p, via: 
+:  
+:      q = mmap(sub_region_start, ... MAP_FIXED ...)
+: 
+: Interestingly enough, "freeing" is also done via MAP_FIXED, and
+: setting PROT_NONE to the subregion. Anyway, I just included (c) for
+: general interest.
+
+Atomic address range probing in the multithreaded programs in general
+sounds like an interesting thing to me.
+
+The second patch simply replaces MAP_FIXED use in elf loader by
+MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
+follow. Actually real MAP_FIXED usages should be docummented properly
+and they should be more of an exception.
+
+Does anybody see any fundamental reasons why this is a wrong approach?
+
+Diffstat says
+ arch/alpha/include/uapi/asm/mman.h   |  2 ++
+ arch/metag/kernel/process.c          |  6 +++++-
+ arch/mips/include/uapi/asm/mman.h    |  2 ++
+ arch/parisc/include/uapi/asm/mman.h  |  2 ++
+ arch/powerpc/include/uapi/asm/mman.h |  1 +
+ arch/sparc/include/uapi/asm/mman.h   |  1 +
+ arch/tile/include/uapi/asm/mman.h    |  1 +
+ arch/xtensa/include/uapi/asm/mman.h  |  2 ++
+ fs/binfmt_elf.c                      | 12 ++++++++----
+ include/uapi/asm-generic/mman.h      |  1 +
+ mm/mmap.c                            | 11 +++++++++++
+ 11 files changed, 36 insertions(+), 5 deletions(-)
+
+[1] http://lkml.kernel.org/r/20171116101900.13621-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20171107162217.382cd754@canb.auug.org.au
+[3] http://lkml.kernel.org/r/1510048229.12079.7.camel@abdul.in.ibm.com
+[4] http://lkml.kernel.org/r/20171023082608.6167-1-mhocko@kernel.org
+[5] http://lkml.kernel.org/r/20171113094203.aofz2e7kueitk55y@dhcp22.suse.cz
+[6] http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
