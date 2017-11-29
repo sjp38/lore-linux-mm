@@ -1,107 +1,216 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE636B0033
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 03:53:01 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id i7so1754082pgq.7
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 00:53:01 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id ay5si928003plb.457.2017.11.29.00.52.59
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8B0CF6B0033
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 04:03:33 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id z3so1020641pln.6
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 01:03:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bg5sor568190plb.53.2017.11.29.01.03.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 29 Nov 2017 00:53:00 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH] vfs: Add PERM_* symbolic helpers for common file mode/permissions
-In-Reply-To: <20171128111214.42esi4igzgnldsx5@gmail.com>
-References: <20171126231403.657575796@linutronix.de> <20171126232414.563046145@linutronix.de> <20171127094156.rbq7i7it7ojsblfj@hirez.programming.kicks-ass.net> <20171127100635.kfw2nspspqbrf2qm@gmail.com> <CA+55aFyLC9+S=MZueRXMmwwnx47bhovXr1YhRg+FAPFfQZXoYA@mail.gmail.com> <20171128111214.42esi4igzgnldsx5@gmail.com>
-Date: Wed, 29 Nov 2017 19:52:56 +1100
-Message-ID: <87tvxda2l3.fsf@concordia.ellerman.id.au>
+        (Google Transport Security);
+        Wed, 29 Nov 2017 01:03:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain
+In-Reply-To: <CAABZP2wHq-eCCLcN0xOxUTohJfkt0ZhUbVO=aW+5mYgxt=9oFA@mail.gmail.com>
+References: <1511841842-3786-1-git-send-email-zhouzhouyi@gmail.com>
+ <CAABZP2zEup53ZcNKOEUEMx_aRMLONZdYCLd7s5J4DLTccPxC-A@mail.gmail.com>
+ <CACT4Y+YE5POWUoDj2sUv2NDKeimTRyxCpg1yd7VpZnqeYJ+Qcg@mail.gmail.com>
+ <CAABZP2zB8vKswQXicYq5r8iNOKz21CRyw1cUiB2s9O+ZMb+JvQ@mail.gmail.com>
+ <CACT4Y+YkVbkwAm0h7UJH08woiohJT9EYObhxpE33dP0A4agtkw@mail.gmail.com>
+ <CAABZP2zjoSDTNkn_qMqi+NCHOzzQZSj-LvfCjPy_tg-FZeUWZg@mail.gmail.com>
+ <CACT4Y+ah6q-xoakyPL7v-+Knp8ZaFbnRRk_Ki6Wsmz3C8Pe8XQ@mail.gmail.com>
+ <CAABZP2yS524XEiyu=kkVx7ff1ySTtE=WWETNDrZ_toEm0mwqyQ@mail.gmail.com>
+ <CACT4Y+aAhHSW=qBFLy7S1wWLsJsjW83y8uC4nQy0N9Hf8HoMKQ@mail.gmail.com>
+ <CAABZP2wxDxAHJ_f022Ha7gyffukgo0PPOv2uJQphwFXGO_fL1w@mail.gmail.com>
+ <CACT4Y+bprRRzTD5DjSTZt8oobhYcD-eTOT_VwWwcTZBhRH1KUg@mail.gmail.com>
+ <CACT4Y+aRGC9vVaHCXmeEiL5ywjQRTK+yNn+TAWKPLB3Gpd4U_A@mail.gmail.com>
+ <CAABZP2xDmOT8-=eqjVF6dFAcJ2SZesX4CsJ7gmqGjHjsTXdt0w@mail.gmail.com> <CAABZP2wHq-eCCLcN0xOxUTohJfkt0ZhUbVO=aW+5mYgxt=9oFA@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Wed, 29 Nov 2017 10:03:10 +0100
+Message-ID: <CACT4Y+Zr0XwLmO5j_b4mxrGo3eGXh2wSR-gUdwiBishcn=5SfQ@mail.gmail.com>
+Subject: Re: [PATCH 1/1] kasan: fix livelock in qlist_move_cache
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Rik van Riel <riel@redhat.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Hugh Dickins <hughd@google.com>, Kees Cook <keescook@google.com>, linux-mm <linux-mm@kvack.org>, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Zhouyi Zhou <zhouzhouyi@gmail.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Ingo Molnar <mingo@kernel.org> writes:
-...
-> Index: tip/include/linux/stat.h
-> ===================================================================
-> --- tip.orig/include/linux/stat.h
-> +++ tip/include/linux/stat.h
-> @@ -6,6 +6,34 @@
->  #include <asm/stat.h>
->  #include <uapi/linux/stat.h>
->  
-> +/*
-> + * Human readable symbolic definitions for common
-> + * file permissions:
-> + */
-> +#define PERM_r________	0400
-> +#define PERM_r__r_____	0440
-> +#define PERM_r__r__r__	0444
-> +
-> +#define PERM_rw_______	0600
-> +#define PERM_rw_r_____	0640
-> +#define PERM_rw_r__r__	0644
-> +#define PERM_rw_rw_r__	0664
-> +#define PERM_rw_rw_rw_	0666
-> +
-> +#define PERM__w_______	0200
-> +#define PERM__w__w____	0220
-> +#define PERM__w__w__w_	0222
-> +
-> +#define PERM_r_x______	0500
-> +#define PERM_r_xr_x___	0550
-> +#define PERM_r_xr_xr_x	0555
-> +
-> +#define PERM_rwx______	0700
-> +#define PERM_rwxr_x___	0750
-> +#define PERM_rwxr_xr_x	0755
-> +#define PERM_rwxrwxr_x	0775
-> +#define PERM_rwxrwxrwx	0777
+On Wed, Nov 29, 2017 at 5:54 AM, Zhouyi Zhou <zhouzhouyi@gmail.com> wrote:
+> Hi,
+> There is new discoveries!
+>
+> When I find qlist_move_cache reappear in my environment,
+> I use kgdb to break into function qlist_move_cache. I found
+>  this function is called because of cgroup release.
+>
+> I also find libvirt allocate a memory croup for each qemu it started,
+> in my system, it looks like this:
+>
+> root@ednserver3:/sys/fs/cgroup/memory/machine.slice# ls
+> cgroup.clone_children machine-qemu\x2d491_25_30.scope
+> machine-qemu\x2d491_40_30.scope  machine-qemu\x2d491_6_30.scope
+> memory.limit_in_bytes
+> cgroup.event_control machine-qemu\x2d491_26_30.scope
+> machine-qemu\x2d491_41_30.scope  machine-qemu\x2d491_7_30.scope
+> memory.max_usage_in_bytes
+> cgroup.procs machine-qemu\x2d491_27_30.scope
+> machine-qemu\x2d491_4_30.scope   machine-qemu\x2d491_8_30.scope
+> memory.move_charge_at_immigrate
+> machine-qemu\x2d491_10_30.scope  machine-qemu\x2d491_28_30.scope
+> machine-qemu\x2d491_47_30.scope  machine-qemu\x2d491_9_30.scope
+> memory.numa_stat
+> machine-qemu\x2d491_11_30.scope  machine-qemu\x2d491_29_30.scope
+> machine-qemu\x2d491_48_30.scope  memory.failcnt
+> memory.oom_control
+> machine-qemu\x2d491_12_30.scope  machine-qemu\x2d491_30_30.scope
+> machine-qemu\x2d491_49_30.scope  memory.force_empty
+> memory.pressure_level
+> machine-qemu\x2d491_13_30.scope  machine-qemu\x2d491_31_30.scope
+> machine-qemu\x2d491_50_30.scope  memory.kmem.failcnt
+> memory.soft_limit_in_bytes
+> machine-qemu\x2d491_17_30.scope  machine-qemu\x2d491_32_30.scope
+> machine-qemu\x2d491_51_30.scope  memory.kmem.limit_in_bytes
+> memory.stat
+> machine-qemu\x2d491_18_30.scope  machine-qemu\x2d491_33_30.scope
+> machine-qemu\x2d491_52_30.scope  memory.kmem.max_usage_in_bytes
+> memory.swappiness
+> machine-qemu\x2d491_19_30.scope  machine-qemu\x2d491_34_30.scope
+> machine-qemu\x2d491_5_30.scope   memory.kmem.slabinfo
+> memory.usage_in_bytes
+> machine-qemu\x2d491_20_30.scope  machine-qemu\x2d491_35_30.scope
+> machine-qemu\x2d491_53_30.scope  memory.kmem.tcp.failcnt
+> memory.use_hierarchy
+> machine-qemu\x2d491_21_30.scope  machine-qemu\x2d491_36_30.scope
+> machine-qemu\x2d491_54_30.scope  memory.kmem.tcp.limit_in_bytes
+> notify_on_release
+> machine-qemu\x2d491_22_30.scope  machine-qemu\x2d491_37_30.scope
+> machine-qemu\x2d491_55_30.scope  memory.kmem.tcp.max_usage_in_bytes
+> tasks
+> machine-qemu\x2d491_23_30.scope  machine-qemu\x2d491_38_30.scope
+> machine-qemu\x2d491_56_30.scope  memory.kmem.tcp.usage_in_bytes
+> machine-qemu\x2d491_24_30.scope  machine-qemu\x2d491_39_30.scope
+> machine-qemu\x2d491_57_30.scope  memory.kmem.usage_in_bytes
+>
+> and in each memory cgroup there are many slabs:
+> root@ednserver3:/sys/fs/cgroup/memory/machine.slice/machine-qemu\x2d491_10_30.scope#
+> cat memory.kmem.slabinfo
+> slabinfo - version: 2.1
+> # name            <active_objs> <num_objs> <objsize> <objperslab>
+> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> :
+> slabdata <active_slabs> <num_slabs> <sharedavail>
+> kmalloc-2048           0      0   2240    3    2 : tunables   24   12
+>   8 : slabdata      0      0      0
+> kmalloc-512            0      0    704   11    2 : tunables   54   27
+>   8 : slabdata      0      0      0
+> skbuff_head_cache      0      0    384   10    1 : tunables   54   27
+>   8 : slabdata      0      0      0
+> kmalloc-1024           0      0   1216    3    1 : tunables   24   12
+>   8 : slabdata      0      0      0
+> kmalloc-192            0      0    320   12    1 : tunables  120   60
+>   8 : slabdata      0      0      0
+> pid                    3     21    192   21    1 : tunables  120   60
+>   8 : slabdata      1      1      0
+> signal_cache           0      0   1216    3    1 : tunables   24   12
+>   8 : slabdata      0      0      0
+> sighand_cache          0      0   2304    3    2 : tunables   24   12
+>   8 : slabdata      0      0      0
+> fs_cache               0      0    192   21    1 : tunables  120   60
+>   8 : slabdata      0      0      0
+> files_cache            0      0    896    4    1 : tunables   54   27
+>   8 : slabdata      0      0      0
+> task_delay_info        3     72    112   36    1 : tunables  120   60
+>   8 : slabdata      2      2      0
+> task_struct            3      3   3840    1    1 : tunables   24   12
+>   8 : slabdata      3      3      0
+> radix_tree_node        0      0    728    5    1 : tunables   54   27
+>   8 : slabdata      0      0      0
+> shmem_inode_cache      2      9    848    9    2 : tunables   54   27
+>   8 : slabdata      1      1      0
+> inode_cache           39     45    744    5    1 : tunables   54   27
+>   8 : slabdata      9      9      0
+> ext4_inode_cache       0      0   1224    3    1 : tunables   24   12
+>   8 : slabdata      0      0      0
+> sock_inode_cache       3      8    832    4    1 : tunables   54   27
+>   8 : slabdata      2      2      0
+> proc_inode_cache       0      0    816    5    1 : tunables   54   27
+>   8 : slabdata      0      0      0
+> dentry                52     90    272   15    1 : tunables  120   60
+>   8 : slabdata      6      6      0
+> anon_vma             140    348    136   29    1 : tunables  120   60
+>   8 : slabdata     12     12      0
+> anon_vma_chain       257    468    112   36    1 : tunables  120   60
+>   8 : slabdata     13     13      0
+> vm_area_struct       510    780    272   15    1 : tunables  120   60
+>   8 : slabdata     52     52      0
+> mm_struct              1      3   1280    3    1 : tunables   24   12
+>   8 : slabdata      1      1      0
+> cred_jar              12     24    320   12    1 : tunables  120   60
+>   8 : slabdata      2      2      0
+>
+> So, when I end the libvirt scenery, those slabs belong to those qemus
+> has to invoke quarantine_remove_cache,
+> I guess that's why  qlist_move_cache occupies so much CPU cycles. I
+> also guess this make libvirt complain
+> (wait for too long?)
+>
+> Sorry not to research deeply into system in the first place and submit
+> a patch in a hurry.
+>
+> And I propose a little sugguestion to  improve qlist_move_cache if you
+> like. Won't we design some kind of hash mechanism,
+> then we group the qlist_node according to their cache, so as not to
+> compare one by one to every qlist_node in the system.
 
-I see what you're trying to do with all the explicit underscores, but it
-does make them look kinda ugly.
+Yes, quarantine_remove_cache() is very slow because it walk a huge
+linked list and synchronize_srcu() does not help either. It would be
+great to make it faster rather than peppering over the problem with
+rescheds.
 
-What if you just used underscores to separate the user/group/other, and
-the unset permission bits are just omitted.
+Please detail your scheme.
+Note that quarantine needs to be [best-effort] global FIFO and that
+the main operations are actually kmalloc/kfree, so we should not
+penalize them either. We also have limited memory in memory blocks.
 
-Then the two most common cases would be:
+I had some ideas but I couldn't come up with a complete solution that
+I would like.
+One thing is that we could first check if the cache actually has _any_
+outstanding objects. Looking at your slabinfo dump, it seems that lots
+of them don't have active objects. In that case we can skip all of
+quarantine_remove_cache entirely. I see there is already a function
+for this:
 
-  PERM_rw_r_r
-  PERM_r_r_r
+static int shutdown_cache(struct kmem_cache *s)
+{
+        /* free asan quarantined objects */
+        kasan_cache_shutdown(s);
 
-Both of those read nicely I think. ie. the first is "perm read write,
-read, read".
+        if (__kmem_cache_shutdown(s) != 0)
+                return -EBUSY;
 
-Full set would be:
+So maybe we could do just:
 
-#define PERM_r			0400
-#define PERM_r_r		0440
-#define PERM_r_r_r		0444
-
-#define PERM_rw			0600
-#define PERM_rw_r		0640
-#define PERM_rw_r_r		0644
-#define PERM_rw_rw_r		0664
-#define PERM_rw_rw_rw		0666
-
-#define PERM_w			0200
-#define PERM_w_w		0220
-#define PERM_w_w_w		0222
-
-#define PERM_rx			0500
-#define PERM_rx_rx		0550
-#define PERM_rx_rx_rx		0555
-
-#define PERM_rwx		0700
-#define PERM_rwx_rx		0750
-#define PERM_rwx_rx_rx		0755
-#define PERM_rwx_rwx_rx		0775
-#define PERM_rwx_rwx_rwx	0777
+static int shutdown_cache(struct kmem_cache *s)
+{
+        if (__kmem_cache_shutdown(s) != 0) {
+               /* free asan quarantined objects */
+               kasan_cache_shutdown(s);
+               if (__kmem_cache_shutdown(s) != 0)
+                       return -EBUSY;
+        }
 
 
-cheers
+We could also make cache freeing asynchronous. Then we could either
+just wait when the cache doesn't have any active objects (walk and
+check all deferred caches after each quarantine_reduce()), or
+accumulate a batch of them and then walk quarantine once and remove
+objects for the batch of caches (this would amortize overhead by batch
+size). As far as I understand in lots of cases caches are freed in
+large batches (cgroups, namespaces), and that's exactly when
+quarantine_remove_cache() performance is a problem.
+
+Or we could make quarantine a doubly-linked list and then walk all
+active objects in the cache (is it possible?) and remove them from
+quarantine by shuffling next/prev pointers. However, this can increase
+memory consumption and penalize performance of other operations.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
