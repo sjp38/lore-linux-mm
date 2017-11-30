@@ -1,121 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E1A586B025F
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:47:48 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id w191so4400392iof.11
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:47:48 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u11sor1554640iou.243.2017.11.29.16.47.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 29 Nov 2017 16:47:47 -0800 (PST)
-Date: Wed, 29 Nov 2017 16:47:43 -0800
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: WARNING: suspicious RCU usage (3)
-Message-ID: <20171130004743.GB65846@gmail.com>
-References: <94eb2c03c9bcc3b127055f11171d@google.com>
- <20171128133026.cf03471c99d7a0c827c5a21c@linux-foundation.org>
- <20171129050606.GF24001@zzz.localdomain>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C7536B0261
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:53:05 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 200so3173797pge.12
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:53:05 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 34si2131453plz.343.2017.11.29.16.53.03
+        for <linux-mm@kvack.org>;
+        Wed, 29 Nov 2017 16:53:04 -0800 (PST)
+Date: Thu, 30 Nov 2017 09:53:01 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] list_lru: Prefetch neighboring list entries before
+ acquiring lock
+Message-ID: <20171130005301.GA2679@bbox>
+References: <1511965054-6328-1-git-send-email-longman@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171129050606.GF24001@zzz.localdomain>
+In-Reply-To: <1511965054-6328-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com>, cl@linux.com, iamjoonsoo.kim@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, penberg@kernel.org, rientjes@google.com, syzkaller-bugs@googlegroups.com, "Paul E. McKenney" <paulmck@us.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>
+To: Waiman Long <longman@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Nov 28, 2017 at 09:06:06PM -0800, Eric Biggers wrote:
-> On Tue, Nov 28, 2017 at 01:30:26PM -0800, Andrew Morton wrote:
-> > 
-> > It looks like blkcipher_walk_done() passed a bad address to kfree().
-> > 
-> 
-> Indeed, it's freeing uninitialized memory because the Salsa20 algorithms are
-> using the blkcipher_walk API incorrectly.  I've sent a patch to fix it:
-> 
-> "crypto: salsa20 - fix blkcipher_walk API usage"
-> 
-> I am not sure why the bug reports show up as "suspicious RCU usage", though.
-> 
-> There were also a few other syzbot reports of this same underlying bug; I marked
-> them as duplicates of this one.
-> 
+Hello,
 
-The reason the "suspicious RCU usage" warning appeared is that due to the
-incorrect call to blkcipher_walk_done(), kunmap_atomic() was being called
-without a preceding kmap_atomic(), causing the preemption count to get screwed
-up.  This was in addition to the uninitialized pointer being kfree()'d.
+On Wed, Nov 29, 2017 at 09:17:34AM -0500, Waiman Long wrote:
+> The list_lru_del() function removes the given item from the LRU list.
+> The operation looks simple, but it involves writing into the cachelines
+> of the two neighboring list entries in order to get the deletion done.
+> That can take a while if the cachelines aren't there yet, thus
+> prolonging the lock hold time.
+> 
+> To reduce the lock hold time, the cachelines of the two neighboring
+> list entries are now prefetched before acquiring the list_lru_node's
+> lock.
+> 
+> Using a multi-threaded test program that created a large number
+> of dentries and then killed them, the execution time was reduced
+> from 38.5s to 36.6s after applying the patch on a 2-socket 36-core
+> 72-thread x86-64 system.
+> 
+> Signed-off-by: Waiman Long <longman@redhat.com>
+> ---
+>  mm/list_lru.c | 10 +++++++++-
+>  1 file changed, 9 insertions(+), 1 deletion(-)
+> 
+> diff --git a/mm/list_lru.c b/mm/list_lru.c
+> index f141f0c..65aae44 100644
+> --- a/mm/list_lru.c
+> +++ b/mm/list_lru.c
+> @@ -132,8 +132,16 @@ bool list_lru_del(struct list_lru *lru, struct list_head *item)
+>  	struct list_lru_node *nlru = &lru->node[nid];
+>  	struct list_lru_one *l;
+>  
+> +	/*
+> +	 * Prefetch the neighboring list entries to reduce lock hold time.
+> +	 */
+> +	if (unlikely(list_empty(item)))
+> +		return false;
+> +	prefetchw(item->prev);
+> +	prefetchw(item->next);
+> +
 
-Running a reproducer does show more information after the "WARNING: suspicious
-RCU usage" (see below).  So it does look like the report from syzkaller was
-truncated, perhaps because two things went wrong right after each other.
+A question:
 
-Also, maybe enabling CONFIG_DEBUG_PREEMPT would be useful?
+A few month ago, I had a chance to measure prefetch effect with my testing
+workload. For the clarification, it's not list_lru_del but list traverse
+stuff so it might be similar.
 
-[    9.136392] 
-[    9.137202] =============================
-[    9.138014] WARNING: suspicious RCU usage
-[    9.138909] 4.15.0-rc1-00033-gef0010a30935 #113 Not tainted
-[    9.141195] -----------------------------
-[    9.142145] ./include/trace/events/kmem.h:142 suspicious rcu_dereference_check() usage!
-[    9.144400] 
-[    9.144400] other info that might help us debug this:
-[    9.144400] 
-[    9.146292] 
-[    9.146292] rcu_scheduler_active = 2, debug_locks = 1
-[    9.148203] 1 lock held by syz_salsa20/625:
-[    9.149215]  #0:  (sk_lock-AF_ALG){+.+.}, at: [<00000000e0f6099e>] af_alg_wait_for_data+0xd8/0x150
-[    9.151682] 
-[    9.151682] stack backtrace:
-[    9.152658] CPU: 1 PID: 625 Comm: syz_salsa20 Not tainted 4.15.0-rc1-00033-gef0010a30935 #113
-[    9.154669] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-[    9.156408] Call Trace:
-[    9.156964]  dump_stack+0x7c/0xb3
-[    9.157696]  kfree+0x1c1/0x210
-[    9.158377]  blkcipher_walk_done+0x21c/0x2c0
-[    9.159319]  encrypt+0x7b/0xd0
-[    9.160000]  ? skcipher_decrypt_blkcipher+0x40/0x50
-[    9.161061]  ? skcipher_recvmsg+0x37a/0x3a0
-[    9.161981]  ? sock_read_iter+0x93/0xd0
-[    9.162835]  ? __vfs_read+0xcc/0x140
-[    9.163582]  ? vfs_read+0x9c/0x130
-[    9.164282]  ? SyS_read+0x45/0xb0
-[    9.164974]  ? entry_SYSCALL_64_fastpath+0x1f/0x96
-[    9.166015] kfree_debugcheck: out of range ptr 28h
-[    9.166985] ------------[ cut here ]------------
-[    9.167834] kernel BUG at mm/slab.c:2753!
-[    9.168584] invalid opcode: 0000 [#1] SMP
-[    9.169335] CPU: 1 PID: 625 Comm: syz_salsa20 Not tainted 4.15.0-rc1-00033-gef0010a30935 #113
-[    9.171067] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
-[    9.172689] task: 00000000ee01d793 task.stack: 0000000004031a33
-[    9.173885] RIP: 0010:kfree_debugcheck+0x23/0x30
-[    9.174833] RSP: 0018:ffffb46b0092fc80 EFLAGS: 00010096
-[    9.175857] RAX: 0000000000000026 RBX: 0000000000000028 RCX: 0000000000000000
-[    9.177218] RDX: 0000000000000001 RSI: ffff99daff5cccc8 RDI: ffff99daff5cccc8
-[    9.178555] RBP: 0000000000000206 R08: 0000000000000001 R09: 0000000000000001
-[    9.179923] R10: 000000001f5d6993 R11: 0000000000000000 R12: ffffffff85b64b1c
-[    9.181284] R13: 0000000000000000 R14: ffffb46b0092fd98 R15: ffff99daf87b9000
-[    9.182617] FS:  00000000013bb880(0000) GS:ffff99daff400000(0000) knlGS:0000000000000000
-[    9.184148] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    9.185246] CR2: 00007f087bad7008 CR3: 0000000079f52003 CR4: 00000000001606e0
-[    9.186608] Call Trace:
-[    9.187081]  kfree+0x5a/0x210
-[    9.187602]  blkcipher_walk_done+0x21c/0x2c0
-[    9.188370]  encrypt+0x7b/0xd0
-[    9.188933]  ? skcipher_decrypt_blkcipher+0x40/0x50
-[    9.189796]  ? skcipher_recvmsg+0x37a/0x3a0
-[    9.190541]  ? sock_read_iter+0x93/0xd0
-[    9.191241]  ? __vfs_read+0xcc/0x140
-[    9.191897]  ? vfs_read+0x9c/0x130
-[    9.192502]  ? SyS_read+0x45/0xb0
-[    9.193110]  ? entry_SYSCALL_64_fastpath+0x1f/0x96
-[    9.193959] Code: 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 53 48 89 fb e8 32 f5 e1 ff 84 c0 74 02 5b c3 48 89 de 48 c7 c7 50 9c 21 86 e8 9a a0 f1 ff <0f> 0b 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 41 57 89 
-[    9.197364] RIP: kfree_debugcheck+0x23/0x30 RSP: ffffb46b0092fc80
-[    9.198455] ---[ end trace 833d54cb4ca6de67 ]---
-[    9.199291] Kernel panic - not syncing: Fatal exception in interrupt
-[    9.200595] Kernel Offset: 0x4600000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
-[    9.202405] Rebooting in 5 seconds..
+With my experiment at that time, it was really hard to find best place to
+add prefetchw. Sometimes, it was too eariler or late so the effect was
+not good, even worse on some cases.
+
+Also, the performance was different with each machine although my testing
+machines was just two. ;-)
+
+So my question is what's a rule of thumb to add prefetch command?
+Like your code, putting prefetch right before touching?
+
+I'm really wonder what's the rule to make every arch/machines happy
+with prefetch.
+
+>  	spin_lock(&nlru->lock);
+> -	if (!list_empty(item)) {
+> +	if (likely(!list_empty(item))) {
+>  		l = list_lru_from_kmem(nlru, item);
+>  		list_del_init(item);
+>  		l->nr_items--;
+> -- 
+> 1.8.3.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
