@@ -1,30 +1,33 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AABF6B0069
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:48:28 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id j7so4740033pgv.20
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:48:28 -0800 (PST)
-Received: from smtp-fw-33001.amazon.com (smtp-fw-33001.amazon.com. [207.171.190.10])
-        by mx.google.com with ESMTPS id i1si3423199pgp.722.2017.11.30.10.48.27
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 768D76B0069
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:56:26 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id w198so4937584qka.3
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:56:26 -0800 (PST)
+Received: from smtp-fw-6001.amazon.com (smtp-fw-6001.amazon.com. [52.95.48.154])
+        by mx.google.com with ESMTPS id n70si5111452qka.337.2017.11.30.10.56.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 10:48:27 -0800 (PST)
-Date: Thu, 30 Nov 2017 10:48:12 -0800
+        Thu, 30 Nov 2017 10:56:25 -0800 (PST)
+Date: Thu, 30 Nov 2017 10:56:04 -0800
 From: Eduardo Valentin <eduval@amazon.com>
-Subject: Kaiser backport to stable v4.9.y
-Message-ID: <20171130184812.GD435@u40b0340c692b58f6553c.ant.amazon.com>
+Subject: [RESEND] Kaiser backport to stable v4.9.y
+Message-ID: <20171130185604.GA18265@u40b0340c692b58f6553c.ant.amazon.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset="us-ascii"
 Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: stable@vger.amazon.com, Dave Hansen <dave.hansen@linux.intel.com>, Andy
- Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: linux-kernel@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys
+To: Dave Hansen <dave.hansen@linux.intel.com>, stable@vger.kernel.org, Andy
+ Lutomirski <luto@kernel.org>, Ingo Molnar <mingo@kernel.org>, Eduardo
+ Valentin <eduval@amazon.com>, Peter Zijlstra <peterz@infradead.org>, gregkh@linuxfoundation.org
+Cc: Thomas Gleixner <tglx@linutronix.de>, linux-kernel@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Denys
  Vlasenko <dvlasenk@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh
  Poimboeuf <jpoimboe@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at, aliguori@amazon.com
 
 Hello, 
+
+(correcting stable tree mailing list address and add GregKH)
 
 I have created this branch with the KAISER patches and dependencies to v4.9.y.
 This is massive, I know. But I attempted to include all dependencies I saw
