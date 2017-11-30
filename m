@@ -1,113 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DC186B0261
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:33:29 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id r88so5196952pfi.23
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:33:29 -0800 (PST)
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40112.outbound.protection.outlook.com. [40.107.4.112])
-        by mx.google.com with ESMTPS id s78si3507991pfj.225.2017.11.30.08.33.27
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 35A0D6B0268
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:39:53 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id f13so3017457oib.20
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:39:53 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id b58sor1857045otj.113.2017.11.30.08.39.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 08:33:27 -0800 (PST)
-Subject: Re: [PATCH v2 4/5] kasan: support LLVM-style asan parameters
-References: <20171129215050.158653-1-paullawrence@google.com>
- <20171129215050.158653-5-paullawrence@google.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <7e9f3194-17c1-9dc5-9392-748801c831bd@virtuozzo.com>
-Date: Thu, 30 Nov 2017 19:36:54 +0300
+        (Google Transport Security);
+        Thu, 30 Nov 2017 08:39:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171129215050.158653-5-paullawrence@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
+References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 30 Nov 2017 08:39:51 -0800
+Message-ID: <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
+Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Lawrence <paullawrence@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
-Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On 11/30/2017 12:50 AM, Paul Lawrence wrote:
-> Use cc-option to figure out whether the compiler's sanitizer uses
-> LLVM-style parameters ("-mllvm -asan-foo=bar") or GCC-style parameters
-> ("--param asan-foo=bar").
-> 
-> Signed-off-by: Greg Hackmann <ghackmann@google.com>
-> Signed-off-by: Paul Lawrence <paullawrence@google.com>
-> 
-> ---
->  scripts/Makefile.kasan | 39 +++++++++++++++++++++++++++------------
->  1 file changed, 27 insertions(+), 12 deletions(-)
-> 
+On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> On Wed 29-11-17 10:05:35, Dan Williams wrote:
+>> Until there is a solution to the dma-to-dax vs truncate problem it is
+>> not safe to allow long standing memory registrations against
+>> filesytem-dax vmas. Device-dax vmas do not have this problem and are
+>> explicitly allowed.
+>>
+>> This is temporary until a "memory registration with layout-lease"
+>> mechanism can be implemented for the affected sub-systems (RDMA and
+>> V4L2).
+>
+> One thing is not clear to me. Who is allowed to pin pages for ever?
+> Is it possible to pin LRU pages that way as well? If yes then there
+> absolutely has to be a limit for that. Sorry I could have studied the
+> code much more but from a quick glance it seems to me that this is not
+> limited to dax (or non-LRU in general) pages.
 
-It looks rather messy. Try the following patch.
-Note, that I didn't add asan-instrument-allocas=1 because it has nothing to do
-with LLVM-style params support.
-asan-instrument-allocas should probably be in the patch that adds alloca() support.
-
-
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH] kasan/Makefile: Support LLVM style asan parameters.
-
-LLVM doesn't understand GCC-style paramters ("--param asan-foo=bar"),
-thus we currently we don't use inline/globals/stack instrumentation
-when building the kernel with clang.
-
-Add support for LLVM-style parameters ("-mllvm -asan-foo=bar") to
-enable all KASAN features.
-
-Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
----
- scripts/Makefile.kasan | 29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
-
-diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-index 1ce7115aa499..2af5977c394d 100644
---- a/scripts/Makefile.kasan
-+++ b/scripts/Makefile.kasan
-@@ -10,10 +10,7 @@ KASAN_SHADOW_OFFSET ?= $(CONFIG_KASAN_SHADOW_OFFSET)
- 
- CFLAGS_KASAN_MINIMAL := -fsanitize=kernel-address
- 
--CFLAGS_KASAN := $(call cc-option, -fsanitize=kernel-address \
--		-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET) \
--		--param asan-stack=1 --param asan-globals=1 \
--		--param asan-instrumentation-with-call-threshold=$(call_threshold))
-+cc-param = $(call cc-option, --param $(1)) $(call cc-option, -mllvm -$(1))
- 
- ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
-    ifneq ($(CONFIG_COMPILE_TEST),y)
-@@ -21,13 +18,23 @@ ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
-             -fsanitize=kernel-address is not supported by compiler)
-    endif
- else
--    ifeq ($(CFLAGS_KASAN),)
--        ifneq ($(CONFIG_COMPILE_TEST),y)
--            $(warning CONFIG_KASAN: compiler does not support all options.\
--                Trying minimal configuration)
--        endif
--        CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
--    endif
-+   # -fasan-shadow-offset fails without -fsanitize
-+   CFLAGS_KASAN_SHADOW := $(call cc-option, -fsanitize=kernel-address \
-+			-fasan-shadow-offset=$(KASAN_SHADOW_OFFSET), \
-+			$(call cc-option, -fsanitize=kernel-address \
-+			-mllvm -asan-mapping-offset=$(KASAN_SHADOW_OFFSET)))
-+
-+   ifeq ($(CFLAGS_KASAN_SHADOW),)
-+      CFLAGS_KASAN := $(CFLAGS_KASAN_MINIMAL)
-+   else
-+      # Now add all the compiler specific options that are valid standalone
-+      CFLAGS_KASAN := $(CFLAGS_KASAN_SHADOW) \
-+	$(call cc-param,asan-globals=1) \
-+	$(call cc-param,asan-instrumentation-with-call-threshold=$(call_threshold)) \
-+	$(call cc-param,asan-stack=1) \
-+	$(call cc-param,asan-use-after-scope=1)
-+   endif
-+
- endif
- 
- CFLAGS_KASAN += $(call cc-option, -fsanitize-address-use-after-scope)
--- 
-2.13.6
+I would turn this question around. "who can not tolerate a page being
+pinned forever?". In the case of filesytem-dax a page is
+one-in-the-same object as a filesystem-block, and a filesystem expects
+that its operations will not be blocked indefinitely. LRU pages can
+continue to be pinned indefinitely because operations can continue
+around the pinned page, i.e. every agent, save for the dma agent,
+drops their reference to the page and its tolerable that the final
+put_page() never arrives. As far as I can tell it's only filesystems
+and dax that have this collision of wanting to revoke dma access to a
+page combined with not being able to wait indefinitely for dma to
+quiesce.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
