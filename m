@@ -1,80 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FAB76B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 06:06:57 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id a13so4120573pgt.0
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 03:06:57 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f5si2870190pgn.126.2017.11.30.03.06.55
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AFA76B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 06:20:54 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id i17so3257133otb.2
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 03:20:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j193si1195722oih.228.2017.11.30.03.20.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 03:06:55 -0800 (PST)
-From: "Wang, Kemi" <kemi.wang@intel.com>
-Subject: RE: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
-Date: Thu, 30 Nov 2017 11:06:51 +0000
-Message-ID: <25017BF213203E48912DB000DE5F5E1E6B70EA3C@SHSMSX101.ccr.corp.intel.com>
-References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
- <20171129121740.f6drkbktc43l5ib6@dhcp22.suse.cz>
- <4b840074-cb5f-3c10-d65b-916bc02fb1ee@intel.com>
- <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
- <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
- <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
-In-Reply-To: <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Thu, 30 Nov 2017 03:20:53 -0800 (PST)
+Subject: Re: BSOD with [PATCH 00/13] mmu_notifier kill invalidate_page
+ callback
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <20171130093320.66cxaoj45g2ttzoh@nora.maurer-it.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <39823aee-4918-f87c-8342-89eff622ee43@redhat.com>
+Date: Thu, 30 Nov 2017 12:20:47 +0100
 MIME-Version: 1.0
+In-Reply-To: <20171130093320.66cxaoj45g2ttzoh@nora.maurer-it.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, "Kleen, Andi" <andi.kleen@intel.com>, "Chen, Tim C" <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, "Huang, Ying" <ying.huang@intel.com>, "Lu, Aaron" <aaron.lu@intel.com>, "Li, Aubrey" <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>, Dan Williams <dan.j.williams@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Jack Steiner <steiner@sgi.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, kvm@vger.kernel.org
 
-Of course, we should do that AFAP. Thanks for your comments :)
+On 30/11/2017 10:33, Fabian GrA 1/4 nbichler wrote:
+> 
+> It was reverted in 785373b4c38719f4af6775845df6be1dfaea120f after which
+> the symptoms disappeared until this series was merged, which contains
+> 
+> 369ea8242c0fb5239b4ddf0dc568f694bd244de4 mm/rmap: update to new mmu_notifier semantic v2
+> 
+> We haven't bisected the individual commits of the series yet, but the
+> commit immediately preceding its merge exhibits no problems, while
+> everything after does. It is not known whether the bug is actually in
+> the series itself, or whether increasing the likelihood of triggering it
+> is just a side-effect. There is a similar report[2] concerning an
+> upgrade from 4.12.12 to 4.12.13, which does not contain this series in
+> any form AFAICT but might be worth another look as well.
 
------Original Message-----
-From: owner-linux-mm@kvack.org [mailto:owner-linux-mm@kvack.org] On Behalf =
-Of Michal Hocko
-Sent: Thursday, November 30, 2017 5:45 PM
-To: Wang, Kemi <kemi.wang@intel.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>; Andrew Morton <akpm@li=
-nux-foundation.org>; Vlastimil Babka <vbabka@suse.cz>; Mel Gorman <mgorman@=
-techsingularity.net>; Johannes Weiner <hannes@cmpxchg.org>; Christopher Lam=
-eter <cl@linux.com>; YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>; Andrey Rya=
-binin <aryabinin@virtuozzo.com>; Nikolay Borisov <nborisov@suse.com>; Pavel=
- Tatashin <pasha.tatashin@oracle.com>; David Rientjes <rientjes@google.com>=
-; Sebastian Andrzej Siewior <bigeasy@linutronix.de>; Dave <dave.hansen@linu=
-x.intel.com>; Kleen, Andi <andi.kleen@intel.com>; Chen, Tim C <tim.c.chen@i=
-ntel.com>; Jesper Dangaard Brouer <brouer@redhat.com>; Huang, Ying <ying.hu=
-ang@intel.com>; Lu, Aaron <aaron.lu@intel.com>; Li, Aubrey <aubrey.li@intel=
-.com>; Linux MM <linux-mm@kvack.org>; Linux Kernel <linux-kernel@vger.kerne=
-l.org>
-Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
+I know of one issue in this series (invalidate_page was removed from KVM
+without reimplementing it as invalidate_range).  I'll try to prioritize
+the fix, but I don't think I can do it before Monday.
 
-On Thu 30-11-17 17:32:08, kemi wrote:
-[...]
-> Your patch saves more code than mine because the node stats framework=20
-> is reused for numa stats. But it has a performance regression because=20
-> of the limitation of threshold size (125 at most, see=20
-> calculate_normal_threshold() in vmstat.c) in inc_node_state().
+Thanks,
 
-But this "regression" would be visible only on those workloads which really=
- need to squeeze every single cycle out of the allocation hot path and thos=
-e are supposed to disable the accounting altogether. Or is this visible on =
-a wider variety of workloads.
-
-Do not get me wrong. If we want to make per-node stats more optimal, then b=
-y all means let's do that. But having 3 sets of counters is just way to muc=
-h.
-
---
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in the body to m=
-ajordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+Paolo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
