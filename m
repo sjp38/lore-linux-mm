@@ -1,48 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F6F36B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:58:41 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u16so4293761pfh.7
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 22:58:41 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FAFD6B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:07:46 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a6so4303815pff.17
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 23:07:46 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l18si2740140pfi.159.2017.11.29.22.58.40
+        by mx.google.com with ESMTPS id l14si2607134pgn.172.2017.11.29.23.07.44
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 29 Nov 2017 22:58:40 -0800 (PST)
-Date: Thu, 30 Nov 2017 07:58:35 +0100
+        Wed, 29 Nov 2017 23:07:45 -0800 (PST)
+Date: Thu, 30 Nov 2017 08:07:38 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz>
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+Subject: Re: [PATCH v18 01/10] idr: add #include <linux/bug.h>
+Message-ID: <20171130070738.qxtbudfdvkool6lo@dhcp22.suse.cz>
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+ <1511963726-34070-2-git-send-email-wei.w.wang@intel.com>
+ <20171130005817.GA14785@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+In-Reply-To: <20171130005817.GA14785@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com, Masahiro Yamada <yamada.masahiro@socionext.com>
 
-On Wed 29-11-17 14:25:36, Kees Cook wrote:
-> On Wed, Nov 29, 2017 at 6:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > The first patch introduced MAP_FIXED_SAFE which enforces the given
-> > address but unlike MAP_FIXED it fails with ENOMEM if the given range
-> > conflicts with an existing one. The flag is introduced as a completely
+On Wed 29-11-17 16:58:17, Matthew Wilcox wrote:
+> On Wed, Nov 29, 2017 at 09:55:17PM +0800, Wei Wang wrote:
+> > The <linux/bug.h> was removed from radix-tree.h by the following commit:
+> > f5bba9d11a256ad2a1c2f8e7fc6aabe6416b7890.
+> > 
+> > Since that commit, tools/testing/radix-tree/ couldn't pass compilation
+> > due to: tools/testing/radix-tree/idr.c:17: undefined reference to
+> > WARN_ON_ONCE. This patch adds the bug.h header to idr.h to solve the
+> > issue.
 > 
-> I still think this name should be better. "SAFE" doesn't say what it's
-> safe from...
+> Thanks; I sent this same patch out yesterday.
+> 
+> Unfortunately, you didn't cc the author of this breakage, Masahiro Yamada.
+> I want to highlight that these kinds of header cleanups are risky,
+> and very low reward.  I really don't want to see patches going all over
+> the tree randomly touching header files.  If we've got a real problem
+> to solve, then sure.  But I want to see a strong justification for any
+> more header file cleanups.
 
-It is safe in a sense it doesn't perform any address space dangerous
-operations. mmap is _inherently_ about the address space so the context
-should be kind of clear.
-
-> MAP_FIXED_UNIQUE
-> MAP_FIXED_ONCE
-> MAP_FIXED_FRESH
-
-Well, I can open a poll for the best name, but none of those you are
-proposing sound much better to me. Yeah, naming sucks...
+I agree. It usually requires unexpected combination of config options to
+uncover some nasty include dependencies. So these patches might break
+build while their additional value is quite questionable.
 -- 
 Michal Hocko
 SUSE Labs
