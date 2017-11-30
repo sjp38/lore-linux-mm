@@ -1,93 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7656B0069
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 18:27:15 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id w22so3060954pge.10
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 15:27:15 -0800 (PST)
-Received: from mail.zytor.com (terminus.zytor.com. [65.50.211.136])
-        by mx.google.com with ESMTPS id o33si2018930plb.354.2017.11.29.15.27.13
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 8201A6B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:27:49 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c3so2937636wrd.0
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:27:49 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a6sor908157wma.78.2017.11.29.16.27.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 15:27:13 -0800 (PST)
-Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
- code
-References: <20171110220645.59944-1-kirill.shutemov@linux.intel.com>
- <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
- <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
- <alpine.DEB.2.20.1711291740050.1825@nanos>
- <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
- <20171129174851.jk2ai37uumxve6sg@pd.tnic>
- <793b9c55-e85b-97b5-c857-dd8edcda4081@zytor.com>
- <20171129191902.2iamm3m23e3gwnj4@pd.tnic>
- <e4463396-9b7c-2fe8-534c-73820c0bce5f@zytor.com>
- <20171129223103.in4qmtxbj2sawhpw@pd.tnic>
-From: "H. Peter Anvin" <hpa@zytor.com>
-Message-ID: <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
-Date: Wed, 29 Nov 2017 15:24:53 -0800
+        (Google Transport Security);
+        Wed, 29 Nov 2017 16:27:47 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171129223103.in4qmtxbj2sawhpw@pd.tnic>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <137a49f9-8286-8bf4-91c5-37b5f6b5a842@virtuozzo.com>
+References: <150583358557.26700.8490036563698102569.stgit@localhost.localdomain>
+ <20170927141530.25286286fb92a2573c4b548f@linux-foundation.org>
+ <fbb67bef-c13f-7fcb-fa6a-e3a7f6e5c82b@virtuozzo.com> <20170928140230.a9a0cd44a09eae9441a83bdc@linux-foundation.org>
+ <137a49f9-8286-8bf4-91c5-37b5f6b5a842@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Wed, 29 Nov 2017 16:27:45 -0800
+Message-ID: <CALvZod5AC-iRBRgP2O-4x6b6iSdTpVRPFu1kma9fh20yxJY7Xw@mail.gmail.com>
+Subject: Re: [PATCH] mm: Make count list_lru_one::nr_items lockless
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Borislav Petkov <bp@suse.de>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Kirill Tkhai <ktkhai@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, apolyakov@beget.ru, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-On 11/29/17 14:31, Borislav Petkov wrote:
-> 
-> A couple of points:
-> 
-> * so this box here has a normal grub installation and apparently grub
-> jumps to some other entry point.
-> 
+On Fri, Sep 29, 2017 at 1:15 AM, Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+> On 29.09.2017 00:02, Andrew Morton wrote:
+>> On Thu, 28 Sep 2017 10:48:55 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>
+>>>>> This patch aims to make super_cache_count() (and other functions,
+>>>>> which count LRU nr_items) more effective.
+>>>>> It allows list_lru_node::memcg_lrus to be RCU-accessed, and makes
+>>>>> __list_lru_count_one() count nr_items lockless to minimize
+>>>>> overhead introduced by locking operation, and to make parallel
+>>>>> reclaims more scalable.
+>>>>
+>>>> And...  what were the effects of the patch?  Did you not run the same
+>>>> performance tests after applying it?
+>>>
+>>> I've just detected the such high usage of shrink slab on production node. It's rather
+>>> difficult to make it use another kernel, than it uses, only kpatches are possible.
+>>> So, I haven't estimated how it acts on node's performance.
+>>> On test node I see, that the patch obviously removes raw_spin_lock from perf profile.
+>>> So, it's a little bit untested in this way.
+>>
+>> Well that's a problem.  The patch increases list_lru.o text size by a
+>> lot (4800->5696) which will have a cost.  And we don't have proof that
+>> any benefit is worth that cost.  It shouldn't be too hard to cook up a
+>> synthetic test to trigger memcg slab reclaim and then run a
+>> before-n-after benchmark?
+>
+> Ok, then, please, ignore this for a while, I'll try to do it a little bit later.
+>
 
-Yes, Grub as a matter of policy(!) does everything in the most braindead
-way possible.  You have to use "linux16" or "linuxefi" to make it do
-something sane.
+I rebased this patch on linus tree (replacing kfree_rcu with call_rcu
+as there is no kvfree_rcu) and did some experiments. I think the patch
+is worth to be included.
 
-> * I'm not convinced we need to do everything you typed because this is
-> only a temporary issue and once X86_5LEVEL is complete, it should work.
-> I mean, it needs to work otherwise forget single-system image and I
-> don't think we want to give that up.
-> 
->> However, if the bootloader jumps straight into the code what do you
->> expect it to do?  We have no real concept about what we'd need to do to
->> issue a message as we really don't know what devices are available on
->> the system, etc.  If the screen_info field in struct boot_params has
->> been initialized then we actually *do* know how to write to the screen
->> -- if you are okay with including a text font etc. since modern systems
->> boot in graphics mode.
-> 
-> We switch to text mode and dump our message. Can we do that?
+Setup: running a fork-bomb in a memcg of 200MiB on a 8GiB and 4 vcpu
+VM and recording the trace with 'perf record -g -a'.
 
-What is text mode?  It is hardware that is going away(*), and you don't
-even know if you have a display screen on your system at all, or how
-you'd have to configure your display hardware even if it is "mostly" VGA.
+The trace without the patch:
 
-> I wouldn't want to do any of this back'n'forth between kernel and boot
-> loader because that sounds fragile, at least to me. And again, I'm
-> not convinced we should spend too much energy on this as the issue is
-> temporary AFAICT.
++  34.19%     fb.sh  [kernel.kallsyms]  [k] queued_spin_lock_slowpath
++  30.77%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_lock
++   3.53%     fb.sh  [kernel.kallsyms]  [k] list_lru_count_one
++   2.26%     fb.sh  [kernel.kallsyms]  [k] super_cache_count
++   1.68%     fb.sh  [kernel.kallsyms]  [k] shrink_slab
++   0.59%     fb.sh  [kernel.kallsyms]  [k] down_read_trylock
++   0.48%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
++   0.38%     fb.sh  [kernel.kallsyms]  [k] shrink_node_memcg
++   0.32%     fb.sh  [kernel.kallsyms]  [k] queue_work_on
++   0.26%     fb.sh  [kernel.kallsyms]  [k] count_shadow_nodes
 
-Well, it's not just limited to 5-level mode; it's kind a general issue.
-We have had this issue for a very, very long time -- all the way back to
-i386 PAE at the very least.  I'm personally OK with triple-faulting the
-CPU in this case.
+With the patch:
 
-	-hpa
++   0.16%     swapper  [kernel.kallsyms]    [k] default_idle
++   0.13%     oom_reaper  [kernel.kallsyms]    [k] mutex_spin_on_owner
++   0.05%     perf  [kernel.kallsyms]    [k] copy_user_generic_string
++   0.05%     init.real  [kernel.kallsyms]    [k] wait_consider_task
++   0.05%     kworker/0:0  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/2:1  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/3:1  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/1:0  [kernel.kallsyms]    [k] finish_task_switch
++   0.03%     binary  [kernel.kallsyms]    [k] copy_page
 
 
-(*) And for good reason -- it is completely memory-latency-bound as you
-    have an indirect reference for every byte you fetch.  In a UMA
-    system this sucks up an insane amount of system bandwidth, unless
-    you are willing to burn the area of having a 16K SRAM cache.
-
-    VGA hardware, additionally, has a bunch of insane operations that
-    have to be memory-mapped.  The resulting hardware screws with
-    pretty much any sane GPU implementation, so I'm fully expecting that
-    as soon as GPUs no longer come with a CBIOS option ROM VGA hardware
-    will be dropped more or less immediately.
+Kirill, can you resend your patch with this info or do you want me
+send the rebased patch?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
