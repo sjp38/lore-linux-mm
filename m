@@ -1,108 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4D83E6B0038
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 20:27:17 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id f9so3575513qtf.6
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 17:27:17 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id m64si3091163qkf.263.2017.11.29.17.27.15
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C82D56B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 22:16:45 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n187so3923813pfn.10
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:16:45 -0800 (PST)
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id w125si2299639pgb.296.2017.11.29.19.16.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 17:27:16 -0800 (PST)
-Date: Wed, 29 Nov 2017 20:27:05 -0500
-From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
-Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
- code
-Message-ID: <20171130012705.GG31092@char.us.oracle.com>
-References: <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
- <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
- <alpine.DEB.2.20.1711291740050.1825@nanos>
- <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
- <20171129174851.jk2ai37uumxve6sg@pd.tnic>
- <793b9c55-e85b-97b5-c857-dd8edcda4081@zytor.com>
- <20171129191902.2iamm3m23e3gwnj4@pd.tnic>
- <e4463396-9b7c-2fe8-534c-73820c0bce5f@zytor.com>
- <20171129223103.in4qmtxbj2sawhpw@pd.tnic>
- <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
+        Wed, 29 Nov 2017 19:16:44 -0800 (PST)
+Subject: Re: [PATCH] mmap.2: document new MAP_FIXED_SAFE flag
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <20171129144524.23518-1-mhocko@kernel.org>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <593899ff-08ad-6c3f-d69d-346f6bc5d1f6@nvidia.com>
+Date: Wed, 29 Nov 2017 19:16:39 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
+In-Reply-To: <20171129144524.23518-1-mhocko@kernel.org>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "H. Peter Anvin" <hpa@zytor.com>, daniel.kiper@oracle.com
-Cc: Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Nov 29, 2017 at 03:24:53PM -0800, H. Peter Anvin wrote:
-> On 11/29/17 14:31, Borislav Petkov wrote:
-> > 
-> > A couple of points:
-> > 
-> > * so this box here has a normal grub installation and apparently grub
-> > jumps to some other entry point.
+On 11/29/2017 06:45 AM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> 4.16+ kernels offer a new MAP_FIXED_SAFE flag which allows to atomicaly
 
-Ouch. Perhaps you can report this on grub-devel mailing list? And also
-what version, since I am not sure if this is a distro-specific version?
+"allows the caller to atomically"
 
-> > 
-> 
-> Yes, Grub as a matter of policy(!) does everything in the most braindead
+, if you care about polishing the commit message...see the real review,
+below. :)
 
-There is a policy on this? Could you point me out to it - it would
-be enlightening to read it :-)
+> probe for a given address range.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  man2/mmap.2 | 18 ++++++++++++++++++
+>  1 file changed, 18 insertions(+)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 385f3bfd5393..622a7000de83 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -225,6 +225,18 @@ will fail.
+>  Because requiring a fixed address for a mapping is less portable,
+>  the use of this option is discouraged.
+>  .TP
+> +.B MAP_FIXED_SAFE (since 4.16)
+> +Similar to MAP_FIXED wrt. to the
+> +.I
+> +addr
+> +enforcement except it never clobbers a colliding mapped range and rather fail with
+> +.B EEXIST
+> +in such a case. This flag can therefore be used as a safe and atomic probe for the
+> +the specific address range. Please note that older kernels which do not recognize
+> +this flag can fallback to the hint based implementation and map to a different
+> +location. Any backward compatible software should therefore check the returning
+> +address with the given one.
+> +.TP
+>  .B MAP_GROWSDOWN
+>  This flag is used for stacks.
+>  It indicates to the kernel virtual memory system that the mapping
 
-> way possible.  You have to use "linux16" or "linuxefi" to make it do
-> something sane.
+Hi Michal,
 
-The Linux bootparams structure is _only_ for Linux. Or are there other
-OSes that use the same structure to pass information?
+I've taken the liberty of mostly rewriting this part, in order to more closely 
+match the existing paragraphs; to fix minor typos; and to attempt to slightly
+clarify the paragraph.
 
-AFAICT the linuxefi does not exist upstream.
-> 
-> > * I'm not convinced we need to do everything you typed because this is
-> > only a temporary issue and once X86_5LEVEL is complete, it should work.
-> > I mean, it needs to work otherwise forget single-system image and I
-> > don't think we want to give that up.
-> > 
-> >> However, if the bootloader jumps straight into the code what do you
-> >> expect it to do?  We have no real concept about what we'd need to do to
-> >> issue a message as we really don't know what devices are available on
-> >> the system, etc.  If the screen_info field in struct boot_params has
-> >> been initialized then we actually *do* know how to write to the screen
-> >> -- if you are okay with including a text font etc. since modern systems
-> >> boot in graphics mode.
-> > 
-> > We switch to text mode and dump our message. Can we do that?
-> 
-> What is text mode?  It is hardware that is going away(*), and you don't
-> even know if you have a display screen on your system at all, or how
-> you'd have to configure your display hardware even if it is "mostly" VGA.
-> 
-> > I wouldn't want to do any of this back'n'forth between kernel and boot
-> > loader because that sounds fragile, at least to me. And again, I'm
-> > not convinced we should spend too much energy on this as the issue is
-> > temporary AFAICT.
-> 
-> Well, it's not just limited to 5-level mode; it's kind a general issue.
-> We have had this issue for a very, very long time -- all the way back to
-> i386 PAE at the very least.  I'm personally OK with triple-faulting the
-> CPU in this case.
-> 
-> 	-hpa
-> 
-> 
-> (*) And for good reason -- it is completely memory-latency-bound as you
->     have an indirect reference for every byte you fetch.  In a UMA
->     system this sucks up an insane amount of system bandwidth, unless
->     you are willing to burn the area of having a 16K SRAM cache.
-> 
->     VGA hardware, additionally, has a bunch of insane operations that
->     have to be memory-mapped.  The resulting hardware screws with
->     pretty much any sane GPU implementation, so I'm fully expecting that
->     as soon as GPUs no longer come with a CBIOS option ROM VGA hardware
->     will be dropped more or less immediately.
++.BR MAP_FIXED_SAFE " (since Linux 4.16)"
++Similar to MAP_FIXED with respect to the
++.I
++addr
++enforcement, but different in that MAP_FIXED_SAFE never clobbers a pre-existing
++mapped range. If the requested range would collide with an existing
++mapping, then this call fails with
++.B EEXIST.
++This flag can therefore be used as a way to atomically (with respect to other
++threads) attempt to map an address range: one thread will succeed; all others
++will report failure. Please note that older kernels which do not recognize this
++flag will typically (upon detecting a collision with a pre-existing mapping)
++fall back a "non-MAP_FIXED" type of behavior: they will return an address that
++is different than the requested one. Therefore, backward-compatible software
++should check the returned address against the requested address.
++.TP
 
-Woot! RIP VGA..
+(I'm ignoring the naming, because there is another thread about that,
+so please just the above as "MAP_FIXED_whatever-is-chosen".)
+
+> @@ -449,6 +461,12 @@ is not a valid file descriptor (and
+>  .B MAP_ANONYMOUS
+>  was not set).
+>  .TP
+> +.B EEXIST
+> +range covered by
+> +.IR addr , 
+
+nit: trailing space on the above line.
+
+> +.IR length
+> +is clashing with an existing mapping.
+> +.TP
+>  .B EINVAL
+>  We don't like
+>  .IR addr ,
+> 
+
+One other thing: reading through mmap.2, I now want to add this as well:
+
+diff --git a/man2/mmap.2 b/man2/mmap.2
+index 622a7000d..780cad6d9 100644
+--- a/man2/mmap.2
++++ b/man2/mmap.2
+@@ -222,20 +222,25 @@ part of the existing mapping(s) will be discarded.
+ If the specified address cannot be used,
+ .BR mmap ()
+ will fail.
+-Because requiring a fixed address for a mapping is less portable,
+-the use of this option is discouraged.
++Software that aspires to be as portable as possible should use this option with
++care, keeping in mind that different kernels and C libraries may set up quite
++different mapping ranges.
+
+
+...because that advice is just wrong (it presumes that "less portable" ==
+"must be discouraged").
+
+Should I send out a separate patch for that, or is it better to glom it together 
+with this one?
+
+thanks,
+John Hubbard
+NVIDIA
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
