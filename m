@@ -1,57 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 35A0D6B0268
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:39:53 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id f13so3017457oib.20
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:39:53 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b58sor1857045otj.113.2017.11.30.08.39.52
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE366B026B
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:41:44 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id u3so5263675pfl.5
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:41:44 -0800 (PST)
+Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0130.outbound.protection.outlook.com. [104.47.2.130])
+        by mx.google.com with ESMTPS id x22si3279462pgc.53.2017.11.30.08.41.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Nov 2017 08:39:52 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 08:41:43 -0800 (PST)
+Subject: Re: [PATCH v2 5/5] kasan: add compiler support for clang
+References: <20171129215050.158653-1-paullawrence@google.com>
+ <20171129215050.158653-6-paullawrence@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <8b1a30b7-9c16-ac0a-3cc1-6fb70247add0@virtuozzo.com>
+Date: Thu, 30 Nov 2017 19:45:10 +0300
 MIME-Version: 1.0
-In-Reply-To: <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
-References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 30 Nov 2017 08:39:51 -0800
-Message-ID: <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
-Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171129215050.158653-6-paullawrence@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Paul Lawrence <paullawrence@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, Michal Marek <mmarek@suse.com>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>
 
-On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 29-11-17 10:05:35, Dan Williams wrote:
->> Until there is a solution to the dma-to-dax vs truncate problem it is
->> not safe to allow long standing memory registrations against
->> filesytem-dax vmas. Device-dax vmas do not have this problem and are
->> explicitly allowed.
->>
->> This is temporary until a "memory registration with layout-lease"
->> mechanism can be implemented for the affected sub-systems (RDMA and
->> V4L2).
->
-> One thing is not clear to me. Who is allowed to pin pages for ever?
-> Is it possible to pin LRU pages that way as well? If yes then there
-> absolutely has to be a limit for that. Sorry I could have studied the
-> code much more but from a quick glance it seems to me that this is not
-> limited to dax (or non-LRU in general) pages.
 
-I would turn this question around. "who can not tolerate a page being
-pinned forever?". In the case of filesytem-dax a page is
-one-in-the-same object as a filesystem-block, and a filesystem expects
-that its operations will not be blocked indefinitely. LRU pages can
-continue to be pinned indefinitely because operations can continue
-around the pinned page, i.e. every agent, save for the dma agent,
-drops their reference to the page and its tolerable that the final
-put_page() never arrives. As far as I can tell it's only filesystems
-and dax that have this collision of wanting to revoke dma access to a
-page combined with not being able to wait indefinitely for dma to
-quiesce.
+
+On 11/30/2017 12:50 AM, Paul Lawrence wrote:
+> For now we can hard-code ASAN ABI level 5, since historical clang builds
+> can't build the kernel anyway.  We also need to emulate gcc's
+> __SANITIZE_ADDRESS__ flag, or memset() calls won't be instrumented.
+> 
+> Signed-off-by: Greg Hackmann <ghackmann@google.com>
+> Signed-off-by: Paul Lawrence <paullawrence@google.com>
+> 
+> ---
+>  include/linux/compiler-clang.h | 8 ++++++++
+>  1 file changed, 8 insertions(+)
+> 
+> diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+> index 3b609edffa8f..d02a4df3f473 100644
+> --- a/include/linux/compiler-clang.h
+> +++ b/include/linux/compiler-clang.h
+> @@ -19,3 +19,11 @@
+>  
+>  #define randomized_struct_fields_start	struct {
+>  #define randomized_struct_fields_end	};
+> +
+> +/* all clang versions usable with the kernel support KASAN ABI version 5 */
+> +#define KASAN_ABI_VERSION 5
+> +
+
+This patch should be earlier in this series. Patch 4/5 breaks clang-built kernel, because
+we start using globals instrumentation with wrong KASAN_ABI_VERSION.
+
+> +/* emulate gcc's __SANITIZE_ADDRESS__ flag */
+> +#if __has_feature(address_sanitizer)
+> +#define __SANITIZE_ADDRESS__
+> +#endif
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
