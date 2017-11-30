@@ -1,99 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B15386B0069
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:31:14 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id h1so3186448plh.23
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:31:14 -0800 (PST)
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id v8si3576994plp.37.2017.11.30.10.31.13
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C5076B0253
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:32:44 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id s10so3874260oth.14
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:32:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 20sor1917251otd.69.2017.11.30.10.32.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 10:31:13 -0800 (PST)
-Subject: Re: [PATCH v2] mmap.2: document new MAP_FIXED_SAFE flag
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <20171129144524.23518-1-mhocko@kernel.org>
- <20171130082405.b77eknaiblgmpa4s@dhcp22.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <1a96e274-a986-12b7-6e47-fc6355cbf637@nvidia.com>
-Date: Thu, 30 Nov 2017 10:31:12 -0800
+        (Google Transport Security);
+        Thu, 30 Nov 2017 10:32:43 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171130082405.b77eknaiblgmpa4s@dhcp22.suse.cz>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171130181741.2y5nyflyhqxg6y5p@dhcp22.suse.cz>
+References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz> <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
+ <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz> <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
+ <20171130181741.2y5nyflyhqxg6y5p@dhcp22.suse.cz>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Thu, 30 Nov 2017 10:32:42 -0800
+Message-ID: <CAPcyv4hwsGQCUcTdpT7UVJyPN0RJz+CAqGNvTSK9Ka1nsypQjA@mail.gmail.com>
+Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On 11/30/2017 12:24 AM, Michal Hocko wrote:
-> Updated version based on feedback from John.
-> ---
-> From ade1eba229b558431581448e7d7838f0e1fe2c49 Mon Sep 17 00:00:00 2001
-> From: Michal Hocko <mhocko@suse.com>
-> Date: Wed, 29 Nov 2017 15:32:08 +0100
-> Subject: [PATCH] mmap.2: document new MAP_FIXED_SAFE flag
-> 
-> 4.16+ kernels offer a new MAP_FIXED_SAFE flag which allows the caller to
-> atomicaly probe for a given address range.
-> 
-> [wording heavily updated by John Hubbard <jhubbard@nvidia.com>]
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  man2/mmap.2 | 22 ++++++++++++++++++++++
->  1 file changed, 22 insertions(+)
-> 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 385f3bfd5393..923bbb290875 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -225,6 +225,22 @@ will fail.
->  Because requiring a fixed address for a mapping is less portable,
->  the use of this option is discouraged.
->  .TP
-> +.BR MAP_FIXED_SAFE " (since Linux 4.16)"
-> +Similar to MAP_FIXED with respect to the
-> +.I
-> +addr
-> +enforcement, but different in that MAP_FIXED_SAFE never clobbers a pre-existing
-> +mapped range. If the requested range would collide with an existing
-> +mapping, then this call fails with
-> +.B EEXIST.
-> +This flag can therefore be used as a way to atomically (with respect to other
-> +threads) attempt to map an address range: one thread will succeed; all others
-> +will report failure. Please note that older kernels which do not recognize this
-> +flag will typically (upon detecting a collision with a pre-existing mapping)
-> +fall back a "non-MAP_FIXED" type of behavior: they will return an address that
+[ adding linux-rdma ]
 
-...and now I've created my own typo: please make that "fall back to a"  (the 
-"to" was missing).
+On Thu, Nov 30, 2017 at 10:17 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Thu 30-11-17 10:03:26, Dan Williams wrote:
+> > On Thu, Nov 30, 2017 at 9:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Thu 30-11-17 08:39:51, Dan Williams wrote:
+> > > > On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > On Wed 29-11-17 10:05:35, Dan Williams wrote:
+> > > > >> Until there is a solution to the dma-to-dax vs truncate problem it is
+> > > > >> not safe to allow long standing memory registrations against
+> > > > >> filesytem-dax vmas. Device-dax vmas do not have this problem and are
+> > > > >> explicitly allowed.
+> > > > >>
+> > > > >> This is temporary until a "memory registration with layout-lease"
+> > > > >> mechanism can be implemented for the affected sub-systems (RDMA and
+> > > > >> V4L2).
+> > > > >
+> > > > > One thing is not clear to me. Who is allowed to pin pages for ever?
+> > > > > Is it possible to pin LRU pages that way as well? If yes then there
+> > > > > absolutely has to be a limit for that. Sorry I could have studied the
+> > > > > code much more but from a quick glance it seems to me that this is not
+> > > > > limited to dax (or non-LRU in general) pages.
+> > > >
+> > > > I would turn this question around. "who can not tolerate a page being
+> > > > pinned forever?".
+> > >
+> > > Any struct page on the movable zone or anything that is living on the
+> > > LRU list because such a memory is unreclaimable.
+> > >
+> > > > In the case of filesytem-dax a page is
+> > > > one-in-the-same object as a filesystem-block, and a filesystem expects
+> > > > that its operations will not be blocked indefinitely. LRU pages can
+> > > > continue to be pinned indefinitely because operations can continue
+> > > > around the pinned page, i.e. every agent, save for the dma agent,
+> > > > drops their reference to the page and its tolerable that the final
+> > > > put_page() never arrives.
+> > >
+> > > I do not understand. Are you saying that a user triggered IO can pin LRU
+> > > pages indefinitely. This would be _really_ wrong. It would be basically
+> > > an mlock without any limit. So I must be misreading you here
+> >
+> > You're not misreading. See ib_umem_get() for example, it pins pages in
+> > response to the userspace library call ibv_reg_mr() (memory
+> > registration), and will not release those pages unless/until a call to
+> > ibv_dereg_mr() is made.
+>
+> Who and how many LRU pages can pin that way and how do you prevent nasty
+> users to DoS systems this way?
 
-Sorry about the churn. It turns out that the compiler doesn't catch these. :)
+I assume this is something the RDMA community has had to contend with?
+I'm not an RDMA person, I'm just here to fix dax.
 
-thanks,
-John Hubbard
+> I remember PeterZ wanted to address a similar issue by vmpin syscall
+> that would be a subject of a rlimit control. Sorry but I cannot find a
+> reference here
 
+https://lwn.net/Articles/600502/
 
-> +is different than the requested one. Therefore, backward-compatible software
-> +should check the returned address against the requested address.
-> +.TP
->  .B MAP_GROWSDOWN
->  This flag is used for stacks.
->  It indicates to the kernel virtual memory system that the mapping
-> @@ -449,6 +465,12 @@ is not a valid file descriptor (and
->  .B MAP_ANONYMOUS
->  was not set).
->  .TP
-> +.B EEXIST
-> +range covered by
-> +.IR addr ,
-> +.IR length
-> +is clashing with an existing mapping.
-> +.TP
->  .B EINVAL
->  We don't like
->  .IR addr ,
-> 
+> but if this is at g-u-p level without any accounting then
+> it smells quite broken to me.
+
+It's certainly broken with respect to filesystem-dax and if there is
+other breakage we should get it all on the table.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
