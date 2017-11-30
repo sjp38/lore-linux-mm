@@ -1,146 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B23426B0273
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:10:44 -0500 (EST)
-Received: by mail-ua0-f200.google.com with SMTP id e26so4444793uaf.7
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:10:44 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p77sor352041vkd.8.2017.11.30.10.10.43
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 22D756B026F
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:17:47 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 73so5417300pfz.11
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:17:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q1si3551681plb.29.2017.11.30.10.17.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Nov 2017 10:10:43 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 10:17:46 -0800 (PST)
+Date: Thu, 30 Nov 2017 19:17:41 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
+Message-ID: <20171130181741.2y5nyflyhqxg6y5p@dhcp22.suse.cz>
+References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
+ <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
+ <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz>
+ <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
-References: <20171126063117.oytmra3tqoj5546u@wfg-t540p.sh.intel.com>
- <20171127210301.GA55812@localhost.corp.microsoft.com> <20171128124534.3jvuala525wvn64r@wfg-t540p.sh.intel.com>
- <20171129175430.GA58181@big-sky.attlocal.net> <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 30 Nov 2017 10:10:41 -0800
-Message-ID: <CAGXu5jLOojG_Nc50KhdHsXDQQ27G+kOPp6-5kQz7Yh5Vpgucnw@mail.gmail.com>
-Subject: Re: [pcpu] BUG: KASAN: use-after-scope in pcpu_setup_first_chunk+0x1e3b/0x29e2
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Dennis Zhou <dennisszhou@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-On Thu, Nov 30, 2017 at 1:59 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Wed, Nov 29, 2017 at 6:54 PM, Dennis Zhou <dennisszhou@gmail.com> wrote:
->> Hi everyone,
->>
->> I spent a bit of time learning more about this problem as Fengguang was
->> able to determine the root commit f7dd2507893cc3. I reproduced the bug
->> in userspace to make life a bit easier and below the assignment occurs
->> before the unpoison. This is fine if we're sequentially proceeding, but
->> as in the case in percpu, it's calling the function in a for loop
->> causing the assignment to happen after it has been poisoned in the prior
->> iteration.
->>
->> <bb 3> [0.00%]:
->>   _1 = (long unsigned int) i_4;
->>   _2 = _1 * 16;
->>   _3 = p_8 + _2;
->>   list_14 = _3;
->>   __u = {};
->>   ASAN_MARK (UNPOISON, &__u, 8);
->>   __u.__val = list_14;
->>
->> <bb 9> [0.00%]:
->>   _24 = __u.__val;
->>   ASAN_MARK (POISON, &__u, 8);
->>   list_14->prev = list_14;
->>   i_13 = i_4 + 1;
->>
->> <bb 10> [0.00%]:
->>   # i_4 = PHI <i_9(2), i_13(9)>
->>   if (i_4 <= 9)
->>     goto <bb 3>; [0.00%]
->>   else
->>     goto <bb 11>; [0.00%]
->>
->> I don't know how to go about fixing this though. The reproducing code is
->> below and was compiled with gcc-7 and the structleak_plugin.
->
->
-> Are we sure that structleak plugin is not at fault? If yes, then we
-> need to report this to https://gcc.gnu.org/bugzilla/ with instructions
-> on how to build/use the plugin.
+On Thu 30-11-17 10:03:26, Dan Williams wrote:
+> On Thu, Nov 30, 2017 at 9:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Thu 30-11-17 08:39:51, Dan Williams wrote:
+> > > On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > > > On Wed 29-11-17 10:05:35, Dan Williams wrote:
+> > > >> Until there is a solution to the dma-to-dax vs truncate problem it is
+> > > >> not safe to allow long standing memory registrations against
+> > > >> filesytem-dax vmas. Device-dax vmas do not have this problem and are
+> > > >> explicitly allowed.
+> > > >>
+> > > >> This is temporary until a "memory registration with layout-lease"
+> > > >> mechanism can be implemented for the affected sub-systems (RDMA and
+> > > >> V4L2).
+> > > >
+> > > > One thing is not clear to me. Who is allowed to pin pages for ever?
+> > > > Is it possible to pin LRU pages that way as well? If yes then there
+> > > > absolutely has to be a limit for that. Sorry I could have studied the
+> > > > code much more but from a quick glance it seems to me that this is not
+> > > > limited to dax (or non-LRU in general) pages.
+> > >
+> > > I would turn this question around. "who can not tolerate a page being
+> > > pinned forever?".
+> >
+> > Any struct page on the movable zone or anything that is living on the
+> > LRU list because such a memory is unreclaimable.
+> >
+> > > In the case of filesytem-dax a page is
+> > > one-in-the-same object as a filesystem-block, and a filesystem expects
+> > > that its operations will not be blocked indefinitely. LRU pages can
+> > > continue to be pinned indefinitely because operations can continue
+> > > around the pinned page, i.e. every agent, save for the dma agent,
+> > > drops their reference to the page and its tolerable that the final
+> > > put_page() never arrives.
+> >
+> > I do not understand. Are you saying that a user triggered IO can pin LRU
+> > pages indefinitely. This would be _really_ wrong. It would be basically
+> > an mlock without any limit. So I must be misreading you here
+> 
+> You're not misreading. See ib_umem_get() for example, it pins pages in
+> response to the userspace library call ibv_reg_mr() (memory
+> registration), and will not release those pages unless/until a call to
+> ibv_dereg_mr() is made.
 
-I thought from earlier in this thread that the bug just changed
-locations depending on the plugin. Does the issue still exist with the
-plugin disabled?
+Who and how many LRU pages can pin that way and how do you prevent nasty
+users to DoS systems this way?
 
--Kees
-
->
->
->> I hope this helps.
->>
->> Thanks,
->> Dennis
->>
->> ----
->> #include <stdint.h>
->> #include <stdlib.h>
->>
->> #define barrier()
->>
->> #define WRITE_ONCE(x, val) \
->> ({                                                      \
->>         union { typeof(x) __val; char __c[1]; } __u =   \
->>                 { .__val = (typeof(x)) (val) }; \
->>         __write_once_size(&(x), __u.__c, sizeof(x));    \
->>         __u.__val;                                      \
->> })
->>
->> typedef         uint8_t         __u8;
->> typedef         uint16_t        __u16;
->> typedef         uint32_t        __u32;
->> typedef         uint64_t        __u64;
->>
->> static inline __attribute__((always_inline)) void __write_once_size(volatile void *p, void *res, int size)
->> {
->>         switch (size) {
->>         case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
->>         case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
->>         case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
->>         case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
->>         default:
->>                 barrier();
->>                 __builtin_memcpy((void *)p, (const void *)res, size);
->>                 barrier();
->>         }
->> }
->>
->> struct list_head {
->>         struct list_head *next, *prev;
->> };
->>
->> static inline __attribute__((always_inline)) void INIT_LIST_HEAD(struct list_head *list)
->> {
->>         WRITE_ONCE(list->next, list);
->>         list->prev = list;
->> }
->>
->> int main(int argc, char *argv[])
->> {
->>         struct list_head *p = malloc(10 * sizeof(struct list_head));
->>         int i;
->>
->>         for (i = 0; i < 10; i++) {
->>                 INIT_LIST_HEAD(&p[i]);
->>         }
->>
->>         free(p);
->>
->>         return 0;
->> }
-
-
-
+I remember PeterZ wanted to address a similar issue by vmpin syscall
+that would be a subject of a rlimit control. Sorry but I cannot find a
+reference here but if this is at g-u-p level without any accounting then
+it smells quite broken to me.
 -- 
-Kees Cook
-Pixel Security
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
