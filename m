@@ -1,50 +1,241 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E83BF6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:45:16 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id n42so5425239ioe.12
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:45:16 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y203si3218138itb.91.2017.11.30.02.45.15
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 67AFC6B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:46:39 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id a6so4672612pff.17
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:46:39 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00130.outbound.protection.outlook.com. [40.107.0.130])
+        by mx.google.com with ESMTPS id i62si3050367pfj.336.2017.11.30.02.46.37
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 02:45:15 -0800 (PST)
-Subject: Re: [PATCH v18 10/10] virtio-balloon: don't report free pages when page poisoning is enabled
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-	<1511963726-34070-11-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1511963726-34070-11-git-send-email-wei.w.wang@intel.com>
-Message-Id: <201711301945.HJD69236.OSMQtOFHOJLVFF@I-love.SAKURA.ne.jp>
-Date: Thu, 30 Nov 2017 19:45:13 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 02:46:37 -0800 (PST)
+Subject: [PATCH v2-REBASED] mm: Make count list_lru_one::nr_items lockless
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Date: Thu, 30 Nov 2017 13:46:30 +0300
+Message-ID: <151203869520.3915.2587549826865799173.stgit@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org
+To: shakeelb@google.com, akpm@linux-foundation.org, vdavydov.dev@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, aryabinin@virtuozzo.com, ktkhai@virtuozzo.com
 
-Wei Wang wrote:
-> @@ -652,7 +652,9 @@ static void report_free_page(struct work_struct *work)
->  	/* Start by sending the obtained cmd id to the host with an outbuf */
->  	send_one_desc(vb, vb->free_page_vq, virt_to_phys(&vb->start_cmd_id),
->  		      sizeof(uint32_t), false, true, false);
-> -	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
-> +	if (!(page_poisoning_enabled() &&
-> +	    !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY)))
+During the reclaiming slab of a memcg, shrink_slab iterates
+over all registered shrinkers in the system, and tries to count
+and consume objects related to the cgroup. In case of memory
+pressure, this behaves bad: I observe high system time and
+time spent in list_lru_count_one() for many processes on RHEL7
+kernel.
 
-I think that checking IS_ENABLED() before checking page_poisoning_enabled()
-would generate better code, for IS_ENABLED() is build-time constant while
-page_poisoning_enabled() is a function which the compiler assumes that we
-need to call page_poisoning_enabled() even if IS_ENABLED() is known to be 0.
+This patch makes list_lru_node::memcg_lrus rcu protected, that
+allows to skip taking spinlock in list_lru_count_one().
 
-	if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY) ||
-	    !page_poisoning_enabled())
+Shakeel Butt with the patch observes signify perf graph change. He says:
 
-> +		walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
->  	/*
->  	 * End by sending the stop id to the host with an outbuf. Use the
->  	 * non-batching mode here to trigger a kick after adding the stop id.
-> -- 
-> 2.7.4
+========================================================================
+Setup: running a fork-bomb in a memcg of 200MiB on a 8GiB and 4 vcpu
+VM and recording the trace with 'perf record -g -a'.
+
+The trace without the patch:
+
++  34.19%     fb.sh  [kernel.kallsyms]  [k] queued_spin_lock_slowpath
++  30.77%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_lock
++   3.53%     fb.sh  [kernel.kallsyms]  [k] list_lru_count_one
++   2.26%     fb.sh  [kernel.kallsyms]  [k] super_cache_count
++   1.68%     fb.sh  [kernel.kallsyms]  [k] shrink_slab
++   0.59%     fb.sh  [kernel.kallsyms]  [k] down_read_trylock
++   0.48%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
++   0.38%     fb.sh  [kernel.kallsyms]  [k] shrink_node_memcg
++   0.32%     fb.sh  [kernel.kallsyms]  [k] queue_work_on
++   0.26%     fb.sh  [kernel.kallsyms]  [k] count_shadow_nodes
+
+With the patch:
+
++   0.16%     swapper  [kernel.kallsyms]    [k] default_idle
++   0.13%     oom_reaper  [kernel.kallsyms]    [k] mutex_spin_on_owner
++   0.05%     perf  [kernel.kallsyms]    [k] copy_user_generic_string
++   0.05%     init.real  [kernel.kallsyms]    [k] wait_consider_task
++   0.05%     kworker/0:0  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/2:1  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/3:1  [kernel.kallsyms]    [k] finish_task_switch
++   0.04%     kworker/1:0  [kernel.kallsyms]    [k] finish_task_switch
++   0.03%     binary  [kernel.kallsyms]    [k] copy_page
+========================================================================
+
+Thanks Shakeel for the testing.
+
+Tested-by: Shakeel Butt <shakeelb@google.com>
+Signed-off-by: Kirill Tkhai <ktkhai@virtuozzo.com>
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+
+v2: Rebase on kvmalloc() and kvfree(). Name of kvfree_rcu()
+was choosen to help not to skip this place, when someone
+will implement such the global interface.
+---
+ include/linux/list_lru.h |    3 +-
+ mm/list_lru.c            |   67 +++++++++++++++++++++++++++++++---------------
+ 2 files changed, 47 insertions(+), 23 deletions(-)
+
+diff --git a/include/linux/list_lru.h b/include/linux/list_lru.h
+index bb8129a3474d..96def9d15b1b 100644
+--- a/include/linux/list_lru.h
++++ b/include/linux/list_lru.h
+@@ -32,6 +32,7 @@ struct list_lru_one {
+ };
+ 
+ struct list_lru_memcg {
++	struct rcu_head		rcu;
+ 	/* array of per cgroup lists, indexed by memcg_cache_id */
+ 	struct list_lru_one	*lru[0];
+ };
+@@ -43,7 +44,7 @@ struct list_lru_node {
+ 	struct list_lru_one	lru;
+ #if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+ 	/* for cgroup aware lrus points to per cgroup lists, otherwise NULL */
+-	struct list_lru_memcg	*memcg_lrus;
++	struct list_lru_memcg	__rcu *memcg_lrus;
+ #endif
+ 	long nr_items;
+ } ____cacheline_aligned_in_smp;
+diff --git a/mm/list_lru.c b/mm/list_lru.c
+index f141f0c80ff3..dc42a964b896 100644
+--- a/mm/list_lru.c
++++ b/mm/list_lru.c
+@@ -52,14 +52,15 @@ static inline bool list_lru_memcg_aware(struct list_lru *lru)
+ static inline struct list_lru_one *
+ list_lru_from_memcg_idx(struct list_lru_node *nlru, int idx)
+ {
++	struct list_lru_memcg *memcg_lrus;
+ 	/*
+-	 * The lock protects the array of per cgroup lists from relocation
+-	 * (see memcg_update_list_lru_node).
++	 * Either lock or RCU protects the array of per cgroup lists
++	 * from relocation (see memcg_update_list_lru_node).
+ 	 */
+-	lockdep_assert_held(&nlru->lock);
+-	if (nlru->memcg_lrus && idx >= 0)
+-		return nlru->memcg_lrus->lru[idx];
+-
++	memcg_lrus = rcu_dereference_check(nlru->memcg_lrus,
++					   lockdep_is_held(&nlru->lock));
++	if (memcg_lrus && idx >= 0)
++		return memcg_lrus->lru[idx];
+ 	return &nlru->lru;
+ }
+ 
+@@ -168,10 +169,10 @@ static unsigned long __list_lru_count_one(struct list_lru *lru,
+ 	struct list_lru_one *l;
+ 	unsigned long count;
+ 
+-	spin_lock(&nlru->lock);
++	rcu_read_lock();
+ 	l = list_lru_from_memcg_idx(nlru, memcg_idx);
+ 	count = l->nr_items;
+-	spin_unlock(&nlru->lock);
++	rcu_read_unlock();
+ 
+ 	return count;
+ }
+@@ -323,24 +324,41 @@ static int __memcg_init_list_lru_node(struct list_lru_memcg *memcg_lrus,
+ 
+ static int memcg_init_list_lru_node(struct list_lru_node *nlru)
+ {
++	struct list_lru_memcg *memcg_lrus;
+ 	int size = memcg_nr_cache_ids;
+ 
+-	nlru->memcg_lrus = kvmalloc(size * sizeof(void *), GFP_KERNEL);
+-	if (!nlru->memcg_lrus)
++	memcg_lrus = kvmalloc(sizeof(*memcg_lrus) +
++			      size * sizeof(void *), GFP_KERNEL);
++	if (!memcg_lrus)
+ 		return -ENOMEM;
+ 
+-	if (__memcg_init_list_lru_node(nlru->memcg_lrus, 0, size)) {
+-		kvfree(nlru->memcg_lrus);
++	if (__memcg_init_list_lru_node(memcg_lrus, 0, size)) {
++		kvfree(memcg_lrus);
+ 		return -ENOMEM;
+ 	}
++	RCU_INIT_POINTER(nlru->memcg_lrus, memcg_lrus);
+ 
+ 	return 0;
+ }
+ 
+ static void memcg_destroy_list_lru_node(struct list_lru_node *nlru)
+ {
+-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, 0, memcg_nr_cache_ids);
+-	kvfree(nlru->memcg_lrus);
++	struct list_lru_memcg *memcg_lrus;
++	/*
++	 * This is called when shrinker has already been unregistered,
++	 * and nobody can use it. So, there is no need to use kvfree_rcu().
++	 */
++	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus, true);
++	__memcg_destroy_list_lru_node(memcg_lrus, 0, memcg_nr_cache_ids);
++	kvfree(memcg_lrus);
++}
++
++static void kvfree_rcu(struct rcu_head *head)
++{
++	struct list_lru_memcg *mlru;
++
++	mlru = container_of(head, struct list_lru_memcg, rcu);
++	kvfree(mlru);
+ }
+ 
+ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+@@ -350,8 +368,9 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 
+ 	BUG_ON(old_size > new_size);
+ 
+-	old = nlru->memcg_lrus;
+-	new = kvmalloc(new_size * sizeof(void *), GFP_KERNEL);
++	old = rcu_dereference_protected(nlru->memcg_lrus,
++					lockdep_is_held(&list_lrus_mutex));
++	new = kvmalloc(sizeof(*new) + new_size * sizeof(void *), GFP_KERNEL);
+ 	if (!new)
+ 		return -ENOMEM;
+ 
+@@ -360,29 +379,33 @@ static int memcg_update_list_lru_node(struct list_lru_node *nlru,
+ 		return -ENOMEM;
+ 	}
+ 
+-	memcpy(new, old, old_size * sizeof(void *));
++	memcpy(&new->lru, &old->lru, old_size * sizeof(void *));
+ 
+ 	/*
+-	 * The lock guarantees that we won't race with a reader
+-	 * (see list_lru_from_memcg_idx).
++	 * The locking below allows readers that hold nlru->lock avoid taking
++	 * rcu_read_lock (see list_lru_from_memcg_idx).
+ 	 *
+ 	 * Since list_lru_{add,del} may be called under an IRQ-safe lock,
+ 	 * we have to use IRQ-safe primitives here to avoid deadlock.
+ 	 */
+ 	spin_lock_irq(&nlru->lock);
+-	nlru->memcg_lrus = new;
++	rcu_assign_pointer(nlru->memcg_lrus, new);
+ 	spin_unlock_irq(&nlru->lock);
+ 
+-	kvfree(old);
++	call_rcu(&old->rcu, kvfree_rcu);
+ 	return 0;
+ }
+ 
+ static void memcg_cancel_update_list_lru_node(struct list_lru_node *nlru,
+ 					      int old_size, int new_size)
+ {
++	struct list_lru_memcg *memcg_lrus;
++
++	memcg_lrus = rcu_dereference_protected(nlru->memcg_lrus,
++					       lockdep_is_held(&list_lrus_mutex));
+ 	/* do not bother shrinking the array back to the old size, because we
+ 	 * cannot handle allocation failures here */
+-	__memcg_destroy_list_lru_node(nlru->memcg_lrus, old_size, new_size);
++	__memcg_destroy_list_lru_node(memcg_lrus, old_size, new_size);
+ }
+ 
+ static int memcg_init_list_lru(struct list_lru *lru, bool memcg_aware)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
