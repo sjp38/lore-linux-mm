@@ -1,161 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BD56B026C
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:15:49 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id r20so4564370wrg.23
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:15:49 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 052C76B026D
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:15:53 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id f132so86947wmf.6
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:15:52 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id c77si3964671wmh.269.2017.11.30.14.15.47
+        by mx.google.com with ESMTPS id h130si3845585wme.230.2017.11.30.14.15.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 14:15:48 -0800 (PST)
-Date: Thu, 30 Nov 2017 14:15:45 -0800
+        Thu, 30 Nov 2017 14:15:51 -0800 (PST)
+Date: Thu, 30 Nov 2017 14:15:48 -0800
 From: akpm@linux-foundation.org
-Subject: [patch 11/15] mm, hugetlb: remove hugepages_treat_as_movable
- sysctl
-Message-ID: <5a208311.vvx3YEzzBHqE41Qu%akpm@linux-foundation.org>
+Subject: [patch 12/15] mm: vmscan: do not pass reclaimed slab to
+ vmpressure
+Message-ID: <5a208314.aMnBGe53fNh99xn8%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, mhocko@suse.com, 00moses.alexander00@gmail.com, mgorman@suse.de, mike.kravetz@oracle.com
+To: linux-mm@kvack.org, akpm@linux-foundation.org, vinmenon@codeaurora.org, anton.vorontsov@linaro.org, hannes@cmpxchg.org, mgorman@techsingularity.net, mhocko@suse.com, minchan@kernel.org, riel@redhat.com, shashim@codeaurora.org, vbabka@suse.cz, vdavydov.dev@gmail.com
 
-From: Michal Hocko <mhocko@suse.com>
-Subject: mm, hugetlb: remove hugepages_treat_as_movable sysctl
+From: Vinayak Menon <vinmenon@codeaurora.org>
+Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
 
-hugepages_treat_as_movable has been introduced by 396faf0303d2 ("Allow
-huge page allocations to use GFP_HIGH_MOVABLE") to allow hugetlb
-allocations from ZONE_MOVABLE even when hugetlb pages were not
-migrateable.  The purpose of the movable zone was different at the time. 
-It aimed at reducing memory fragmentation and hugetlb pages being long
-lived and large werre not contributing to the fragmentation so it was
-acceptable to use the zone back then.
+During global reclaim, the nr_reclaimed passed to vmpressure includes
+the pages reclaimed from slab.  But the corresponding scanned slab
+pages is not passed.  There is an impact to the vmpressure values
+because of this.  While moving from kernel version 3.18 to 4.4, a
+difference is seen in the vmpressure values for the same workload
+resulting in a different behaviour of the vmpressure consumer.  One
+such case is of a vmpressure based lowmemorykiller.  It is observed
+that the vmpressure events are received late and less in number
+resulting in tasks not being killed at the right time.  In this use
+case, The number of critical vmpressure events received is around 50%
+less on 4.4 than 3.18.  The following numbers show the impact on
+reclaim activity due to the change in behaviour of lowmemorykiller on a
+4GB device.  The test launches a number of apps in sequence and repeats
+it multiple times.  The difference in reclaim behaviour is because of
+lesser number of kills and kills happening late, resulting in more
+swapping and page cache reclaim.
 
-Things have changed though and the primary purpose of the zone became
-migratability guarantee.  If we allow non migrateable hugetlb pages to be
-in ZONE_MOVABLE memory hotplug might fail to offline the memory.
+                      v4.4           v3.18
+pgpgin                163016456      145617236
+pgpgout               4366220        4188004
+workingset_refault    29857868       26781854
+workingset_activate   6293946        5634625
+pswpin                1327601        1133912
+pswpout               3593842        3229602
+pgalloc_dma           99520618       94402970
+pgalloc_normal        104046854      98124798
+pgfree                203772640      192600737
+pgmajfault            2126962        1851836
+pgsteal_kswapd_dma    19732899       18039462
+pgsteal_kswapd_normal 19945336       17977706
+pgsteal_direct_dma    206757         131376
+pgsteal_direct_normal 236783         138247
+pageoutrun            116622         108370
+allocstall            7220           4684
+compact_stall         931            856
 
-Remove the knob and only rely on hugepage_migration_supported to allow
-movable zones.
+The lowmemorykiller example above is just for indicating the difference
+in vmpressure events between 4.4 and 3.18.
 
-Mel said:
+Do not consider reclaimed slab pages for vmpressure calculation.  The
+reclaimed pages from slab can be excluded because the freeing of a page
+by slab shrinking depends on each slab's object population, making the
+cost model (i.e.  scan:free) different from that of LRU.  Also, not
+every shrinker accounts the pages it reclaims.  Ideally the pages
+reclaimed from slab should be passed to vmpressure, otherwise higher
+vmpressure levels can be triggered even when there is a reclaim
+progress.  But accounting only the reclaimed slab pages without the
+scanned, and adding something which does not fit into the cost model
+just adds noise to the vmpressure values.
 
-: Primarily it was aimed at allowing the hugetlb pool to safely shrink with
-: the ability to grow it again.  The use case was for batched jobs, some of
-: which needed huge pages and others that did not but didn't want the memory
-: useless pinned in the huge pages pool.
-: 
-: I suspect that more users rely on THP than hugetlbfs for flexible use of
-: huge pages with fallback options so I think that removing the option
-: should be ok.
-
-Link: http://lkml.kernel.org/r/20171003072619.8654-1-mhocko@kernel.org
-Signed-off-by: Michal Hocko <mhocko@suse.com>
-Reported-by: Alexandru Moise <00moses.alexander00@gmail.com>
-Acked-by: Mel Gorman <mgorman@suse.de>
-Cc: Alexandru Moise <00moses.alexander00@gmail.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Fixes: 6b4f7799c6a5 ("mm: vmscan: invoke slab shrinkers from shrink_zone()")
+Link: http://lkml.kernel.org/r/1486641577-11685-2-git-send-email-vinmenon@codeaurora.org
+Signed-off-by: Vinayak Menon <vinmenon@codeaurora.org>
+Acked-by: Minchan Kim <minchan@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Anton Vorontsov <anton.vorontsov@linaro.org>
+Cc: Shiraz Hashim <shashim@codeaurora.org>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
- Documentation/sysctl/vm.txt |   25 -------------------------
- include/linux/hugetlb.h     |    1 -
- kernel/sysctl.c             |    7 -------
- mm/hugetlb.c                |    4 +---
- 4 files changed, 1 insertion(+), 36 deletions(-)
+ mm/vmscan.c |   17 ++++++++++++-----
+ 1 file changed, 12 insertions(+), 5 deletions(-)
 
-diff -puN Documentation/sysctl/vm.txt~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl Documentation/sysctl/vm.txt
---- a/Documentation/sysctl/vm.txt~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl
-+++ a/Documentation/sysctl/vm.txt
-@@ -30,7 +30,6 @@ Currently, these files are in /proc/sys/
- - dirty_writeback_centisecs
- - drop_caches
- - extfrag_threshold
--- hugepages_treat_as_movable
- - hugetlb_shm_group
- - laptop_mode
- - legacy_va_layout
-@@ -261,30 +260,6 @@ any throttling.
+diff -puN mm/vmscan.c~mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure mm/vmscan.c
+--- a/mm/vmscan.c~mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure
++++ a/mm/vmscan.c
+@@ -2567,16 +2567,23 @@ static bool shrink_node(pg_data_t *pgdat
+ 			shrink_slab(sc->gfp_mask, pgdat->node_id, NULL,
+ 				    sc->priority);
  
- ==============================================================
++		/*
++		 * Record the subtree's reclaim efficiency. The reclaimed
++		 * pages from slab is excluded here because the corresponding
++		 * scanned pages is not accounted. Moreover, freeing a page
++		 * by slab shrinking depends on each slab's object population,
++		 * making the cost model (i.e. scan:free) different from that
++		 * of LRU.
++		 */
++		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
++			   sc->nr_scanned - nr_scanned,
++			   sc->nr_reclaimed - nr_reclaimed);
++
+ 		if (reclaim_state) {
+ 			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+ 			reclaim_state->reclaimed_slab = 0;
+ 		}
  
--hugepages_treat_as_movable
+-		/* Record the subtree's reclaim efficiency */
+-		vmpressure(sc->gfp_mask, sc->target_mem_cgroup, true,
+-			   sc->nr_scanned - nr_scanned,
+-			   sc->nr_reclaimed - nr_reclaimed);
 -
--This parameter controls whether we can allocate hugepages from ZONE_MOVABLE
--or not. If set to non-zero, hugepages can be allocated from ZONE_MOVABLE.
--ZONE_MOVABLE is created when kernel boot parameter kernelcore= is specified,
--so this parameter has no effect if used without kernelcore=.
--
--Hugepage migration is now available in some situations which depend on the
--architecture and/or the hugepage size. If a hugepage supports migration,
--allocation from ZONE_MOVABLE is always enabled for the hugepage regardless
--of the value of this parameter.
--IOW, this parameter affects only non-migratable hugepages.
--
--Assuming that hugepages are not migratable in your system, one usecase of
--this parameter is that users can make hugepage pool more extensible by
--enabling the allocation from ZONE_MOVABLE. This is because on ZONE_MOVABLE
--page reclaim/migration/compaction work more and you can get contiguous
--memory more likely. Note that using ZONE_MOVABLE for non-migratable
--hugepages can do harm to other features like memory hotremove (because
--memory hotremove expects that memory blocks on ZONE_MOVABLE are always
--removable,) so it's a trade-off responsible for the users.
--
--==============================================================
--
- hugetlb_shm_group
+ 		if (sc->nr_reclaimed - nr_reclaimed)
+ 			reclaimable = true;
  
- hugetlb_shm_group contains group id that is allowed to create SysV
-diff -puN include/linux/hugetlb.h~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl include/linux/hugetlb.h
---- a/include/linux/hugetlb.h~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl
-+++ a/include/linux/hugetlb.h
-@@ -129,7 +129,6 @@ u32 hugetlb_fault_mutex_hash(struct hsta
- 
- pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud);
- 
--extern int hugepages_treat_as_movable;
- extern int sysctl_hugetlb_shm_group;
- extern struct list_head huge_boot_pages;
- 
-diff -puN kernel/sysctl.c~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl kernel/sysctl.c
---- a/kernel/sysctl.c~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl
-+++ a/kernel/sysctl.c
-@@ -1374,13 +1374,6 @@ static struct ctl_table vm_table[] = {
- 		.mode		= 0644,
- 		.proc_handler	= proc_dointvec,
- 	 },
--	 {
--		.procname	= "hugepages_treat_as_movable",
--		.data		= &hugepages_treat_as_movable,
--		.maxlen		= sizeof(int),
--		.mode		= 0644,
--		.proc_handler	= proc_dointvec,
--	},
- 	{
- 		.procname	= "nr_overcommit_hugepages",
- 		.data		= NULL,
-diff -puN mm/hugetlb.c~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl mm/hugetlb.c
---- a/mm/hugetlb.c~mm-hugetlb-drop-hugepages_treat_as_movable-sysctl
-+++ a/mm/hugetlb.c
-@@ -36,8 +36,6 @@
- #include <linux/userfaultfd_k.h>
- #include "internal.h"
- 
--int hugepages_treat_as_movable;
--
- int hugetlb_max_hstate __read_mostly;
- unsigned int default_hstate_idx;
- struct hstate hstates[HUGE_MAX_HSTATE];
-@@ -926,7 +924,7 @@ retry_cpuset:
- /* Movability of hugepages depends on migration support. */
- static inline gfp_t htlb_alloc_mask(struct hstate *h)
- {
--	if (hugepages_treat_as_movable || hugepage_migration_supported(h))
-+	if (hugepage_migration_supported(h))
- 		return GFP_HIGHUSER_MOVABLE;
- 	else
- 		return GFP_HIGHUSER;
 _
 
 --
