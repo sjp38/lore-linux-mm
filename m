@@ -1,65 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 406A86B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:50:27 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id l4so4110591wre.10
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 07:50:27 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y22si1281488edm.479.2017.11.30.07.50.24
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 79F896B0253
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:19:45 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id 74so3630986otv.10
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:19:45 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t9si1422995oig.347.2017.11.30.08.19.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 07:50:25 -0800 (PST)
-Date: Thu, 30 Nov 2017 16:48:25 +0100
-From: David Sterba <dsterba@suse.cz>
-Subject: Re: [PATCH v2 03/11] lib: make the fprop batch size a multiple of
- PAGE_SIZE
-Message-ID: <20171130154825.GK3553@twin.jikos.cz>
-Reply-To: dsterba@suse.cz
-References: <1511385366-20329-1-git-send-email-josef@toxicpanda.com>
- <1511385366-20329-4-git-send-email-josef@toxicpanda.com>
- <20171129170443.GC28256@quack2.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Nov 2017 08:19:44 -0800 (PST)
+Date: Thu, 30 Nov 2017 17:19:34 +0100
+From: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
+Subject: Re: BSOD with [PATCH 00/13] mmu_notifier kill invalidate_page
+ callback
+Message-ID: <20171130161933.GB1606@flask>
+References: <20170829235447.10050-1-jglisse@redhat.com>
+ <20171130093320.66cxaoj45g2ttzoh@nora.maurer-it.com>
+ <39823aee-4918-f87c-8342-89eff622ee43@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171129170443.GC28256@quack2.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <39823aee-4918-f87c-8342-89eff622ee43@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>, Dan Williams <dan.j.williams@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Jack Steiner <steiner@sgi.com>, linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, kvm@vger.kernel.org
 
-On Wed, Nov 29, 2017 at 06:04:43PM +0100, Jan Kara wrote:
-> On Wed 22-11-17 16:15:58, Josef Bacik wrote:
-> > From: Josef Bacik <jbacik@fb.com>
+2017-11-30 12:20+0100, Paolo Bonzini:
+> On 30/11/2017 10:33, Fabian GrA 1/4 nbichler wrote:
 > > 
-> > We are converting the writeback counters to use bytes instead of pages,
-> > so we need to make the batch size for the percpu modifications align
-> > properly with the new units.  Since we used pages before, just multiply
-> > by PAGE_SIZE to get the equivalent bytes for the batch size.
+> > It was reverted in 785373b4c38719f4af6775845df6be1dfaea120f after which
+> > the symptoms disappeared until this series was merged, which contains
 > > 
-> > Signed-off-by: Josef Bacik <jbacik@fb.com>
-> 
-> Looks good to me, just please make this part of patch 5/11. Otherwise
-> bisection may get broken by too large errors in per-cpu counters of IO
-> completions... Thanks!
-> 
-> 								Honza
-> 
-> > ---
-> >  lib/flex_proportions.c | 2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > 369ea8242c0fb5239b4ddf0dc568f694bd244de4 mm/rmap: update to new mmu_notifier semantic v2
 > > 
-> > diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
-> > index 2cc1f94e03a1..b0343ae71f5e 100644
-> > --- a/lib/flex_proportions.c
-> > +++ b/lib/flex_proportions.c
-> > @@ -166,7 +166,7 @@ void fprop_fraction_single(struct fprop_global *p,
-> >  /*
-> >   * ---- PERCPU ----
-> >   */
-> > -#define PROP_BATCH (8*(1+ilog2(nr_cpu_ids)))
-> > +#define PROP_BATCH (8*PAGE_SIZE*(1+ilog2(nr_cpu_ids)))
+> > We haven't bisected the individual commits of the series yet, but the
+> > commit immediately preceding its merge exhibits no problems, while
+> > everything after does. It is not known whether the bug is actually in
+> > the series itself, or whether increasing the likelihood of triggering it
+> > is just a side-effect. There is a similar report[2] concerning an
+> > upgrade from 4.12.12 to 4.12.13, which does not contain this series in
+> > any form AFAICT but might be worth another look as well.
+> 
+> I know of one issue in this series (invalidate_page was removed from KVM
+> without reimplementing it as invalidate_range).  I'll try to prioritize
+> the fix, but I don't think I can do it before Monday.
 
-So when the patch is going to be updated, please fix the coding style here.
+The series also dropped the reloading of the APIC access page and we
+never had it in invalidate_range_start ... I'll look into it today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
