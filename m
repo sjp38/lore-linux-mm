@@ -1,132 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E8AC6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 04:59:27 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y62so4618228pfd.3
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:59:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l30sor1506544plg.33.2017.11.30.01.59.26
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 4FF056B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:12:39 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q3so4032825pgv.16
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:12:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v1si2995286pfi.8.2017.11.30.02.12.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Nov 2017 01:59:26 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 02:12:38 -0800 (PST)
+Date: Thu, 30 Nov 2017 11:12:29 +0100
+From: Borislav Petkov <bp@suse.de>
+Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
+ code
+Message-ID: <20171130101229.b6wqlesgwvx7xg6e@pd.tnic>
+References: <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
+ <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
+ <alpine.DEB.2.20.1711291740050.1825@nanos>
+ <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
+ <20171129174851.jk2ai37uumxve6sg@pd.tnic>
+ <793b9c55-e85b-97b5-c857-dd8edcda4081@zytor.com>
+ <20171129191902.2iamm3m23e3gwnj4@pd.tnic>
+ <e4463396-9b7c-2fe8-534c-73820c0bce5f@zytor.com>
+ <20171129223103.in4qmtxbj2sawhpw@pd.tnic>
+ <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
 MIME-Version: 1.0
-In-Reply-To: <20171129175430.GA58181@big-sky.attlocal.net>
-References: <20171126063117.oytmra3tqoj5546u@wfg-t540p.sh.intel.com>
- <20171127210301.GA55812@localhost.corp.microsoft.com> <20171128124534.3jvuala525wvn64r@wfg-t540p.sh.intel.com>
- <20171129175430.GA58181@big-sky.attlocal.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 30 Nov 2017 10:59:05 +0100
-Message-ID: <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
-Subject: Re: [pcpu] BUG: KASAN: use-after-scope in pcpu_setup_first_chunk+0x1e3b/0x29e2
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dennis Zhou <dennisszhou@gmail.com>
-Cc: Fengguang Wu <fengguang.wu@intel.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>
+To: "H. Peter Anvin" <hpa@zytor.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Wed, Nov 29, 2017 at 6:54 PM, Dennis Zhou <dennisszhou@gmail.com> wrote:
-> Hi everyone,
->
-> I spent a bit of time learning more about this problem as Fengguang was
-> able to determine the root commit f7dd2507893cc3. I reproduced the bug
-> in userspace to make life a bit easier and below the assignment occurs
-> before the unpoison. This is fine if we're sequentially proceeding, but
-> as in the case in percpu, it's calling the function in a for loop
-> causing the assignment to happen after it has been poisoned in the prior
-> iteration.
->
-> <bb 3> [0.00%]:
->   _1 = (long unsigned int) i_4;
->   _2 = _1 * 16;
->   _3 = p_8 + _2;
->   list_14 = _3;
->   __u = {};
->   ASAN_MARK (UNPOISON, &__u, 8);
->   __u.__val = list_14;
->
-> <bb 9> [0.00%]:
->   _24 = __u.__val;
->   ASAN_MARK (POISON, &__u, 8);
->   list_14->prev = list_14;
->   i_13 = i_4 + 1;
->
-> <bb 10> [0.00%]:
->   # i_4 = PHI <i_9(2), i_13(9)>
->   if (i_4 <= 9)
->     goto <bb 3>; [0.00%]
->   else
->     goto <bb 11>; [0.00%]
->
-> I don't know how to go about fixing this though. The reproducing code is
-> below and was compiled with gcc-7 and the structleak_plugin.
+On Wed, Nov 29, 2017 at 03:24:53PM -0800, H. Peter Anvin wrote:
+> Yes, Grub as a matter of policy(!) does everything in the most braindead
+> way possible.  You have to use "linux16" or "linuxefi" to make it do
+> something sane.
 
+Good to know, thx.
 
-Are we sure that structleak plugin is not at fault? If yes, then we
-need to report this to https://gcc.gnu.org/bugzilla/ with instructions
-on how to build/use the plugin.
+> What is text mode?  It is hardware that is going away(*), and you don't
+> even know if you have a display screen on your system at all, or how
+> you'd have to configure your display hardware even if it is "mostly" VGA.
 
+Ok, let me take a stab completely in the dark here: can we ask FW to
+switch to some mode which is "suitable" for printing messages?
 
-> I hope this helps.
->
-> Thanks,
-> Dennis
->
-> ----
-> #include <stdint.h>
-> #include <stdlib.h>
->
-> #define barrier()
->
-> #define WRITE_ONCE(x, val) \
-> ({                                                      \
->         union { typeof(x) __val; char __c[1]; } __u =   \
->                 { .__val = (typeof(x)) (val) }; \
->         __write_once_size(&(x), __u.__c, sizeof(x));    \
->         __u.__val;                                      \
-> })
->
-> typedef         uint8_t         __u8;
-> typedef         uint16_t        __u16;
-> typedef         uint32_t        __u32;
-> typedef         uint64_t        __u64;
->
-> static inline __attribute__((always_inline)) void __write_once_size(volatile void *p, void *res, int size)
-> {
->         switch (size) {
->         case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
->         case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
->         case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
->         case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
->         default:
->                 barrier();
->                 __builtin_memcpy((void *)p, (const void *)res, size);
->                 barrier();
->         }
-> }
->
-> struct list_head {
->         struct list_head *next, *prev;
-> };
->
-> static inline __attribute__((always_inline)) void INIT_LIST_HEAD(struct list_head *list)
-> {
->         WRITE_ONCE(list->next, list);
->         list->prev = list;
-> }
->
-> int main(int argc, char *argv[])
-> {
->         struct list_head *p = malloc(10 * sizeof(struct list_head));
->         int i;
->
->         for (i = 0; i < 10; i++) {
->                 INIT_LIST_HEAD(&p[i]);
->         }
->
->         free(p);
->
->         return 0;
-> }
+It would mean we'd have to switch back to real mode where we could do
+something ala arch/x86/boot/bioscall.S
+
+After we've printed something, we halt.
+
+If there's no screen, we only halt - it's not like we can magically get
+a fairy to connect a screen to the system.
+
+> Well, it's not just limited to 5-level mode; it's kind a general issue.
+> We have had this issue for a very, very long time -- all the way back to
+> i386 PAE at the very least.
+
+I realize that, judging by your reaction. And yes, we should try to find
+a proper solution here in the long run.
+
+> I'm personally OK with triple-faulting the CPU in this case.
+
+Except that is not really user-friendly, as I mentioned already, and
+could save other users a bunch of time looking for why TF the kernel
+doesn't boot only to realize they enabled an option which is not ready
+yet. Which should have depended on BROKEN when it went upstream, btw.
+
+-- 
+Regards/Gruss,
+    Boris.
+
+SUSE Linux GmbH, GF: Felix ImendA?rffer, Jane Smithard, Graham Norton, HRB 21284 (AG NA 1/4 rnberg)
+-- 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
