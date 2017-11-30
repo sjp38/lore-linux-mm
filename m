@@ -1,46 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BDE36B026E
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:15:56 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v8so92256wmh.2
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:15:56 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id F33156B026F
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:15:58 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id a141so83282wma.8
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:15:58 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m19si3943763wrf.445.2017.11.30.14.15.54
+        by mx.google.com with ESMTPS id d23si4149114wra.15.2017.11.30.14.15.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 14:15:54 -0800 (PST)
-Date: Thu, 30 Nov 2017 14:15:52 -0800
+        Thu, 30 Nov 2017 14:15:57 -0800 (PST)
+Date: Thu, 30 Nov 2017 14:15:55 -0800
 From: akpm@linux-foundation.org
-Subject: [patch 13/15] mm/page_owner: align with pageblock_nr pages
-Message-ID: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
+Subject: [patch 14/15] mm/vmstat.c: walk the zone in pageblock_nr_pages
+ steps
+Message-ID: <5a20831b.ULuDgReaEYdaW2tL%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, akpm@linux-foundation.org, zhongjiang@huawei.com, mhocko@kernel.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org, zhongjiang@huawei.com, iamjoonsoo.kim@lge.com
 
 From: zhong jiang <zhongjiang@huawei.com>
-Subject: mm/page_owner: align with pageblock_nr pages
+Subject: mm/vmstat.c: walk the zone in pageblock_nr_pages steps
 
-When pfn_valid(pfn) returns false, pfn should be aligned with
-pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
-because the skipped 2M may be valid pfn, as a result, early allocated
-count will not be accurate.
+when walking the zone, we can happens to the holes. we should not
+align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
 
-Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
+In addition, pagetypeinfo_showmixedcount_print reflect fragmentization.
+we hope to get more accurate data. therefore, I decide to fix it.
+
+Link: http://lkml.kernel.org/r/1469502526-24486-2-git-send-email-zhongjiang@huawei.com
 Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 ---
 
  mm/page_owner.c |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff -puN mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages mm/page_owner.c
---- a/mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages
+diff -puN mm/page_owner.c~mm-walk-the-zone-in-pageblock_nr_pages-steps mm/page_owner.c
+--- a/mm/page_owner.c~mm-walk-the-zone-in-pageblock_nr_pages-steps
 +++ a/mm/page_owner.c
-@@ -544,7 +544,7 @@ static void init_pages_in_zone(pg_data_t
+@@ -274,7 +274,7 @@ void pagetypeinfo_showmixedcount_print(s
  	 */
  	for (; pfn < end_pfn; ) {
  		if (!pfn_valid(pfn)) {
