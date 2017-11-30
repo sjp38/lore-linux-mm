@@ -1,79 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E42286B0271
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:03:28 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id y124so3131369oie.0
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:03:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o206sor1706706oia.170.2017.11.30.10.03.27
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D64C6B0273
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:06:06 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id l74so3105228oih.10
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:06:06 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id m4si1629254otb.356.2017.11.30.10.06.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 30 Nov 2017 10:03:27 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Nov 2017 10:06:05 -0800 (PST)
+From: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>
+Subject: [PATCH 1/2] KVM: x86: fix APIC page invalidation
+Date: Thu, 30 Nov 2017 19:05:45 +0100
+Message-Id: <20171130180546.4331-1-rkrcmar@redhat.com>
+In-Reply-To: <20171130161933.GB1606@flask>
+References: <20171130161933.GB1606@flask>
 MIME-Version: 1.0
-In-Reply-To: <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz>
-References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz> <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
- <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 30 Nov 2017 10:03:26 -0800
-Message-ID: <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
-Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: =?UTF-8?q?Fabian=20Gr=C3=BCnbichler?= <f.gruenbichler@proxmox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
 
-On Thu, Nov 30, 2017 at 9:42 AM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Thu 30-11-17 08:39:51, Dan Williams wrote:
-> > On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > > On Wed 29-11-17 10:05:35, Dan Williams wrote:
-> > >> Until there is a solution to the dma-to-dax vs truncate problem it is
-> > >> not safe to allow long standing memory registrations against
-> > >> filesytem-dax vmas. Device-dax vmas do not have this problem and are
-> > >> explicitly allowed.
-> > >>
-> > >> This is temporary until a "memory registration with layout-lease"
-> > >> mechanism can be implemented for the affected sub-systems (RDMA and
-> > >> V4L2).
-> > >
-> > > One thing is not clear to me. Who is allowed to pin pages for ever?
-> > > Is it possible to pin LRU pages that way as well? If yes then there
-> > > absolutely has to be a limit for that. Sorry I could have studied the
-> > > code much more but from a quick glance it seems to me that this is not
-> > > limited to dax (or non-LRU in general) pages.
-> >
-> > I would turn this question around. "who can not tolerate a page being
-> > pinned forever?".
->
-> Any struct page on the movable zone or anything that is living on the
-> LRU list because such a memory is unreclaimable.
->
-> > In the case of filesytem-dax a page is
-> > one-in-the-same object as a filesystem-block, and a filesystem expects
-> > that its operations will not be blocked indefinitely. LRU pages can
-> > continue to be pinned indefinitely because operations can continue
-> > around the pinned page, i.e. every agent, save for the dma agent,
-> > drops their reference to the page and its tolerable that the final
-> > put_page() never arrives.
->
-> I do not understand. Are you saying that a user triggered IO can pin LRU
-> pages indefinitely. This would be _really_ wrong. It would be basically
-> an mlock without any limit. So I must be misreading you here
+Implementation of the unpinned APIC page didn't update the VMCS address
+cache when invalidation was done through range mmu notifiers.
+This became a problem when the page notifier was removed.
 
-You're not misreading. See ib_umem_get() for example, it pins pages in
-response to the userspace library call ibv_reg_mr() (memory
-registration), and will not release those pages unless/until a call to
-ibv_dereg_mr() is made. The current plan to fix this is to create
-something like a ibv_reg_mr_lease() call that registers the memory
-with an F_SETLEASE semantic so that the kernel can notify userspace
-that a memory registration is being forcibly revoked by the kernel. A
-previous attempt at something like this was the proposed MAP_DIRECT
-mmap flag [1].
+Re-introduce the arch-specific helper and call it from ...range_start.
 
-[1]: https://lists.01.org/pipermail/linux-nvdimm/2017-October/012815.html
+Fixes: 38b9917350cb ("kvm: vmx: Implement set_apic_access_page_addr")
+Fixes: 369ea8242c0f ("mm/rmap: update to new mmu_notifier semantic v2")
+Signed-off-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
+---
+ arch/x86/include/asm/kvm_host.h |  3 +++
+ arch/x86/kvm/x86.c              | 14 ++++++++++++++
+ virt/kvm/kvm_main.c             |  8 ++++++++
+ 3 files changed, 25 insertions(+)
+
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 977de5fb968b..c16c3f924863 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -1435,4 +1435,7 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
+ #define put_smstate(type, buf, offset, val)                      \
+ 	*(type *)((buf) + (offset) - 0x7e00) = val
+ 
++void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
++		unsigned long start, unsigned long end);
++
+ #endif /* _ASM_X86_KVM_HOST_H */
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index eee8e7faf1af..a219974cdb89 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -6778,6 +6778,20 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
+ 	kvm_x86_ops->tlb_flush(vcpu);
+ }
+ 
++void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
++		unsigned long start, unsigned long end)
++{
++	unsigned long apic_address;
++
++	/*
++	 * The physical address of apic access page is stored in the VMCS.
++	 * Update it when it becomes invalid.
++	 */
++	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
++	if (start <= apic_address && apic_address < end)
++		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
++}
++
+ void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
+ {
+ 	struct page *page = NULL;
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index c01cff064ec5..b7f4689e373f 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -135,6 +135,11 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
+ static unsigned long long kvm_createvm_count;
+ static unsigned long long kvm_active_vms;
+ 
++__weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
++		unsigned long start, unsigned long end)
++{
++}
++
+ bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
+ {
+ 	if (pfn_valid(pfn))
+@@ -360,6 +365,9 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+ 		kvm_flush_remote_tlbs(kvm);
+ 
+ 	spin_unlock(&kvm->mmu_lock);
++
++	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
++
+ 	srcu_read_unlock(&kvm->srcu, idx);
+ }
+ 
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
