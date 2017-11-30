@@ -1,239 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A143F6B0069
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 04:34:06 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u3so4576639pfl.5
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:34:06 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id e23si2925238pfi.168.2017.11.30.01.34.04
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B3036B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 04:35:24 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id a22so366435wme.0
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:35:24 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l51si192394eda.40.2017.11.30.01.35.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 01:34:05 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
-References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
- <20171129121740.f6drkbktc43l5ib6@dhcp22.suse.cz>
- <4b840074-cb5f-3c10-d65b-916bc02fb1ee@intel.com>
- <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
-Date: Thu, 30 Nov 2017 17:32:08 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 01:35:22 -0800 (PST)
+Date: Thu, 30 Nov 2017 10:35:21 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: check pfn_valid first in zero_resv_unavail
+Message-ID: <20171130093521.3yxyq6xvo6zgaifc@dhcp22.suse.cz>
+References: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Dave Young <dyoung@redhat.com>
+Cc: linux-kernel@vger.kernel.org, pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org
 
+On Thu 30-11-17 14:04:31, Dave Young wrote:
+> With latest kernel I get below bug while testing kdump:
+> 
+> [    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
+> [    0.000000] IP: zero_resv_unavail+0xbd/0x126
+> [    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
+> [    0.000000] Oops: 0002 [#1] SMP
+> [    0.000000] Modules linked in:
+> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
+> [    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
+> [    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
+> [    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
+> [    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
+> [    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
+> [    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
+> [    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
+> [    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
+> [    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
+> [    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
+> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
+> [    0.000000] Call Trace:
+> [    0.000000]  ? free_area_init_nodes+0x640/0x664
+> [    0.000000]  ? zone_sizes_init+0x58/0x72
+> [    0.000000]  ? setup_arch+0xb50/0xc6c
+> [    0.000000]  ? start_kernel+0x64/0x43d
+> [    0.000000]  ? secondary_startup_64+0xa5/0xb0
+> [    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
+> c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
+> [    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
+> [    0.000000] CR2: ffffea00034b1040
+> [    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
+> 
+> This is introduced with below commit:
+> commit a4a3ede2132ae0863e2d43e06f9b5697c51a7a3b
+> Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Date:   Wed Nov 15 17:36:31 2017 -0800
+> 
+>     mm: zero reserved and unavailable struct pages
 
+the usual format when mentioning a commit is a4a3ede2132a ("mm: zero
+reserved and unavailable struct pages").
+ 
+> The reason is some efi reserved boot ranges is not reported in E820 ram.
+> In my case it is a bgrt buffer:
+> efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
+> 
+> Use "add_efi_memmap" can workaround the problem with another fix:
+> https://lkml.org/lkml/2017/11/30/5
 
-On 2017a1'11ae??30ae?JPY 16:53, Michal Hocko wrote:
-> On Thu 30-11-17 13:56:13, kemi wrote:
->>
->>
->> On 2017a1'11ae??29ae?JPY 20:17, Michal Hocko wrote:
->>> On Tue 28-11-17 14:00:23, Kemi Wang wrote:
->>>> The existed implementation of NUMA counters is per logical CPU along with
->>>> zone->vm_numa_stat[] separated by zone, plus a global numa counter array
->>>> vm_numa_stat[]. However, unlike the other vmstat counters, numa stats don't
->>>> effect system's decision and are only read from /proc and /sys, it is a
->>>> slow path operation and likely tolerate higher overhead. Additionally,
->>>> usually nodes only have a single zone, except for node 0. And there isn't
->>>> really any use where you need these hits counts separated by zone.
->>>>
->>>> Therefore, we can migrate the implementation of numa stats from per-zone to
->>>> per-node, and get rid of these global numa counters. It's good enough to
->>>> keep everything in a per cpu ptr of type u64, and sum them up when need, as
->>>> suggested by Andi Kleen. That's helpful for code cleanup and enhancement
->>>> (e.g. save more than 130+ lines code).
->>>
->>> I agree. Having these stats per zone is a bit of overcomplication. The
->>> only consumer is /proc/zoneinfo and I would argue this doesn't justify
->>> the additional complexity. Who does really need to know per zone broken
->>> out numbers?
->>>
->>> Anyway, I haven't checked your implementation too deeply but why don't
->>> you simply define static percpu array for each numa node?
->>
->> To be honest, there are another two ways I can think of listed below. but I don't
->> think they are simpler than my current implementation. Maybe you have better idea.
->>
->> static u64 __percpu vm_stat_numa[num_possible_nodes() * NR_VM_NUMA_STAT_ITEMS];
->> But it's not correct.
->>
->> Or we can add an u64 percpu array with size of NR_VM_NUMA_STAT_ITEMS in struct pglist_data.
->>
->> My current implementation is quite straightforward by combining all of local counters
->> together, only one percpu array with size of num_possible_nodes()*NR_VM_NUMA_STAT_ITEMS 
->> is enough for that.
-> 
-> Well, this is certainly a matter of taste. But let's have a look what we
-> have currently. We have per zone, per node and numa stats. That looks one
-> way to many to me. Why don't we simply move the whole numa stat thingy
-> into per node stats? The code would simplify even more. We are going to
-> lose /proc/zoneinfo per-zone data but we are losing those without your
-> patch anyway. So I've just scratched the following on your patch and the
-> cumulative diff looks even better
-> 
->  drivers/base/node.c    |  22 ++---
->  include/linux/mmzone.h |  22 ++---
->  include/linux/vmstat.h |  38 +--------
->  mm/mempolicy.c         |   2 +-
->  mm/page_alloc.c        |  20 ++---
->  mm/vmstat.c            | 221 +------------------------------------------------
->  6 files changed, 30 insertions(+), 295 deletions(-)
-> 
-> I haven't tested it at all yet. This is just to show the idea.
+lkml.org tends to be broken a lot, please use
+http://lkml.kernel.org/r/MSG_ID instead. It would be
+http://lkml.kernel.org/r/20171130052327.GA3500@dhcp-128-65.nay.redhat.com
+here
+
+> In zero_resv_unavail it would be better to check pfn_valid first before zero
+> the page struct. This fixes the problem and potential other similar problems.
+
+Can we exclude that range from the memblock allocator instead? E.g. what
+happens if somebody allocates from that range?
+
+> Signed-off-by: Dave Young <dyoung@redhat.com>
 > ---
-> commit 92f8f58d1b6cb5c54a5a197a42e02126a5f7ea1a
-> Author: Michal Hocko <mhocko@suse.com>
-> Date:   Thu Nov 30 09:49:45 2017 +0100
+>  mm/page_alloc.c |    2 ++
+>  1 file changed, 2 insertions(+)
 > 
->     - move NUMA stats to node stats
+> --- linux.orig/mm/page_alloc.c
+> +++ linux/mm/page_alloc.c
+> @@ -6253,6 +6253,8 @@ void __paginginit zero_resv_unavail(void
+>  	pgcnt = 0;
+>  	for_each_resv_unavail_range(i, &start, &end) {
+>  		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
+> +			if (!pfn_valid(pfn))
+> +				continue;
+>  			mm_zero_struct_page(pfn_to_page(pfn));
+>  			pgcnt++;
+>  		}
 > 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index 0be5fbdadaac..315156310c99 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -190,17 +190,9 @@ static ssize_t node_read_vmstat(struct device *dev,
->  		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
->  			     sum_zone_node_page_state(nid, i));
->  
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		n += sprintf(buf+n, "%s %lu\n",
-> -			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-> -			     node_numa_state_snapshot(nid, i));
-> -#endif
-> -
->  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
->  		n += sprintf(buf+n, "%s %lu\n",
-> -			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-> -			     NR_VM_NUMA_STAT_ITEMS],
-> +			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
->  			     node_page_state(pgdat, i));
->  
->  	return n;
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index b2d264f8c0c6..2c9c8b13c44b 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -115,20 +115,6 @@ struct zone_padding {
->  #define ZONE_PADDING(name)
->  #endif
->  
-> -#ifdef CONFIG_NUMA
-> -enum numa_stat_item {
-> -	NUMA_HIT,		/* allocated in intended node */
-> -	NUMA_MISS,		/* allocated in non intended node */
-> -	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
-> -	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-> -	NUMA_LOCAL,		/* allocation from local node */
-> -	NUMA_OTHER,		/* allocation from other node */
-> -	NR_VM_NUMA_STAT_ITEMS
-> -};
-> -#else
-> -#define NR_VM_NUMA_STAT_ITEMS 0
-> -#endif
-> -
->  enum zone_stat_item {
->  	/* First 128 byte cacheline (assuming 64 bit words) */
->  	NR_FREE_PAGES,
-> @@ -180,6 +166,12 @@ enum node_stat_item {
->  	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
->  	NR_DIRTIED,		/* page dirtyings since bootup */
->  	NR_WRITTEN,		/* page writings since bootup */
-> +	NUMA_HIT,		/* allocated in intended node */
-> +	NUMA_MISS,		/* allocated in non intended node */
-> +	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
-> +	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-> +	NUMA_LOCAL,		/* allocation from local node */
-> +	NUMA_OTHER,		/* allocation from other node */
->  	NR_VM_NODE_STAT_ITEMS
->  };
->  
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index c07850f413de..cc1edd95e949 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -187,19 +187,15 @@ static inline unsigned long zone_page_state_snapshot(struct zone *zone,
->  #endif
->  	return x;
->  }
-> -
->  #ifdef CONFIG_NUMA
-> -extern void __inc_numa_state(struct zone *zone, enum numa_stat_item item);
-> +extern unsigned long node_page_state(struct pglist_data *pgdat,
-> +                                               enum node_stat_item item);
->  extern unsigned long sum_zone_node_page_state(int node,
->  					      enum zone_stat_item item);
-> -extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
-> -extern unsigned long node_page_state(struct pglist_data *pgdat,
-> -						enum node_stat_item item);
->  #else
->  #define sum_zone_node_page_state(node, item) global_zone_page_state(item)
->  #define node_page_state(node, item) global_node_page_state(item)
->  #endif /* CONFIG_NUMA */
-> -
->  #define add_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, __d)
->  #define sub_zone_page_state(__z, __i, __d) mod_zone_page_state(__z, __i, -(__d))
->  #define add_node_page_state(__p, __i, __d) mod_node_page_state(__p, __i, __d)
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index f604b22ebb65..84e72f2b5748 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1939,7 +1939,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
->  		return page;
->  	if (page && page_to_nid(page) == nid) {
->  		preempt_disable();
-> -		__inc_numa_state(page_zone(page), NUMA_INTERLEAVE_HIT);
-> +		inc_node_page_state(page, NUMA_INTERLEAVE_HIT);
->  		preempt_enable();
->  	}
->  	return page;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 044daba8c11a..c8e34157f7b8 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2785,25 +2785,25 @@ int __isolate_free_page(struct page *page, unsigned int order)
->   *
->   * Must be called with interrupts disabled.
->   */
-> -static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
-> +static inline void zone_statistics(int preferred_nid, int page_nid)
->  {
->  #ifdef CONFIG_NUMA
-> -	enum numa_stat_item local_stat = NUMA_LOCAL;
-> +	enum node_stat_item local_stat = NUMA_LOCAL;
->  
->  	/* skip numa counters update if numa stats is disabled */
->  	if (!static_branch_likely(&vm_numa_stat_key))
->  		return;
->  
-> -	if (z->node != numa_node_id())
-> +	if (page_nid != numa_node_id())
->  		local_stat = NUMA_OTHER;
->  
-> -	if (z->node == preferred_zone->node)
-> -		__inc_numa_state(z, NUMA_HIT);
-> +	if (page_nid == preferred_nid)
-> +		inc_node_state(NODE_DATA(page_nid), NUMA_HIT);
->  	else {
-> -		__inc_numa_state(z, NUMA_MISS);
-> -		__inc_numa_state(preferred_zone, NUMA_FOREIGN);
-> +		inc_node_state(NODE_DATA(page_nid), NUMA_MISS);
-> +		inc_node_state(NODE_DATA(preferred_nid), NUMA_FOREIGN);
->  	}
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Your patch saves more code than mine because the node stats framework is reused
-for numa stats. But it has a performance regression because of the limitation of
-threshold size (125 at most, see calculate_normal_threshold() in vmstat.c) 
-in inc_node_state().
-
-You can check this patch "1d90ca8 mm: update NUMA counter threshold size" for details.
-This issue is reported by Jesper Dangaard Brouer originally.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
