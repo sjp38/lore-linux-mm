@@ -1,80 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CE2086B0038
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 22:49:49 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id z37so3737092qtz.16
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:49:49 -0800 (PST)
-Received: from userp1040.oracle.com (userp1040.oracle.com. [156.151.31.81])
-        by mx.google.com with ESMTPS id k6si3450282qta.161.2017.11.29.19.49.48
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C4E96B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 23:41:07 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w74so2418110wmf.0
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 20:41:06 -0800 (PST)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id j30si269370edb.274.2017.11.29.20.41.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 19:49:49 -0800 (PST)
-Received: from aserv0022.oracle.com (aserv0022.oracle.com [141.146.126.234])
-	by userp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id vAU3nlrV023467
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 03:49:47 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserv0022.oracle.com (8.14.4/8.14.4) with ESMTP id vAU3nkbP002497
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 03:49:46 GMT
-Received: from abhmp0014.oracle.com (abhmp0014.oracle.com [141.146.116.20])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id vAU3nkvk003350
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 03:49:46 GMT
-Received: by mail-oi0-f51.google.com with SMTP id t81so3952927oih.13
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:49:46 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 20:41:05 -0800 (PST)
+Message-ID: <5A1F8B7B.9050505@huawei.com>
+Date: Thu, 30 Nov 2017 12:39:23 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20171120170429.315726fb004905314ced614e@linux-foundation.org>
-References: <20171115085556.fla7upm3nkydlflp@techsingularity.net>
- <20171115115559.rjb5hy6d6332jgjj@dhcp22.suse.cz> <20171115141329.ieoqvyoavmv6gnea@techsingularity.net>
- <20171115142816.zxdgkad3ch2bih6d@dhcp22.suse.cz> <20171115144314.xwdi2sbcn6m6lqdo@techsingularity.net>
- <20171115145716.w34jaez5ljb3fssn@dhcp22.suse.cz> <06a33f82-7f83-7721-50ec-87bf1370c3d4@gmail.com>
- <20171116085433.qmz4w3y3ra42j2ih@dhcp22.suse.cz> <20171116100633.moui6zu33ctzpjsf@techsingularity.net>
- <CAOAebxt8ZjfCXND=1=UJQETbjVUGPJVcqKFuwGsrwyM2Mq1dhQ@mail.gmail.com> <20171120170429.315726fb004905314ced614e@linux-foundation.org>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Wed, 29 Nov 2017 22:49:45 -0500
-Message-ID: <CAOAebxsg=fM1B0sxKFenwShWTK1D2Xkcaw3qGD9dy6Lzw_iMLA@mail.gmail.com>
-Subject: Re: [PATCH] mm, meminit: Serially initialise deferred memory if
- trace_buf_size is specified
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH] x86/numa: move setting parse numa node to num_add_memblk
+References: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com> <20171129120328.dfbr26o4wsjpwct3@dhcp22.suse.cz> <5A1EAAF5.4040602@huawei.com> <20171129130158.hji24remijkaoydb@dhcp22.suse.cz> <5A1EB57B.2080101@huawei.com> <20171129133355.ybbhzpqhmjreyofi@dhcp22.suse.cz> <5A1EB9B1.9000907@huawei.com> <496c8895-ea17-b7c0-3ea4-df555ebc2edc@cn.fujitsu.com>
+In-Reply-To: <496c8895-ea17-b7c0-3ea4-df555ebc2edc@cn.fujitsu.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Linux Memory Management List <linux-mm@kvack.org>, linux-kernel@vger.kernel.org, koki.sanagi@us.fujitsu.com, Steve Sistare <steven.sistare@oracle.com>
+To: Dou Liyang <douly.fnst@cn.fujitsu.com>
+Cc: Michal Hocko <mhocko@kernel.org>, tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, lenb@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, richard.weiyang@gmail.com, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
 
->> Hi Mel,
+On 2017/11/29 22:14, Dou Liyang wrote:
+> Hi Jiang,
+>
+> At 11/29/2017 09:44 PM, zhong jiang wrote:
+>> On 2017/11/29 21:33, Michal Hocko wrote:
+>>> On Wed 29-11-17 21:26:19, zhong jiang wrote:
+>>>> On 2017/11/29 21:01, Michal Hocko wrote:
+>>>>> On Wed 29-11-17 20:41:25, zhong jiang wrote:
+>>>>>> On 2017/11/29 20:03, Michal Hocko wrote:
+>>>>>>> On Wed 29-11-17 17:13:27, zhong jiang wrote:
+>>>>>>>> Currently, Arm64 and x86 use the common code wehn parsing numa node
+>>>>>>>> in a acpi way. The arm64 will set the parsed node in numa_add_memblk,
+>>>>>>>> but the x86 is not set in that , then it will result in the repeatly
+>>>>>>>> setting. And the parsed node maybe is  unreasonable to the system.
+>>>>>>>>
+>>>>>>>> we would better not set it although it also still works. because the
+>>>>>>>> parsed node is unresonable. so we should skip related operate in this
+>>>>>>>> node. This patch just set node in various architecture individually.
+>>>>>>>> it is no functional change.
+>>>>>>> I really have hard time to understand what you try to say above. Could
+>>>>>>> you start by the problem description and then how you are addressing it?
+>>>>>>   I am so sorry for that.  I will make the issue clear.
+>>>>>>
+>>>>>>   Arm64  get numa information through acpi.  The code flow is as follows.
+>>>>>>
+>>>>>>   arm64_acpi_numa_init
+>>>>>>        acpi_parse_memory_affinity
+>>>>>>           acpi_numa_memory_affinity_init
+>>>>>>               numa_add_memblk(nid, start, end);      //it will set node to numa_nodes_parsed successfully.
+>>>>>>               node_set(node, numa_nodes_parsed);     // numa_add_memblk had set that.  it will repeat.
+>>>>>>
+>>>>>>  the root cause is that X86 parse numa also  go through above code.  and  arch-related
+>>>>>>  numa_add_memblk  is not set the parsed node to numa_nodes_parsed.  it need
+>>>>>>  additional node_set(node, numa_parsed) to handle.  therefore,  the issue will be introduced.
+>>>>>>
+>>>>> No it is not much more clear. I would have to go and re-study the whole
+>>>>> code flow to see what you mean here. So you could simply state what _the
+>>>>> issue_ is? How can user observe it and what are the consequences?
+>>>>   The patch do not fix a real issue.  it is a cleanup.
+>
+> > @@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+> >          goto out_err_bad_srat;
+> >      }
+> >
+> > -    node_set(node, numa_nodes_parsed);
+> > +    /* some architecture is likely to ignore a unreasonable node */
+> > +    if (!node_isset(node, numa_nodes_parsed))
+> > +        goto out;
+> >
+>
+> It is not just a cleanup patch,    Here you change the original logic.
+>
+  you are right.  cleanup and slightly change.
+> With this patch, we just set the *numa_nodes_parsed* after NUMA adds a
+> memblk successfully and also add a check here for bypassing the invalid
+> memblk node.
+>
+> I am not sure which arch may meet this situation? did you test this
+> patch?
+>
+  At least  X86 maybe meet the condition. we can see the following code.
+
+static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
+                                     struct numa_meminfo *mi)
+{
+        /* ignore zero length blks */
+        if (start == end)
+                return 0;
+
+        /* whine about and ignore invalid blks */
+        if (start > end || nid < 0 || nid >= MAX_NUMNODES) {
+                pr_warning("NUMA: Warning: invalid memblk node %d [mem %#010Lx-%#010Lx]\n",
+                           nid, start, end - 1);
+                return 0;
+        }
+
+        if (mi->nr_blks >= NR_NODE_MEMBLKS) {
+                pr_err("NUMA: too many memblk ranges\n");
+                return -EINVAL;
+        }
+
+        mi->blk[mi->nr_blks].start = start;
+        mi->blk[mi->nr_blks].end = end;
+        mi->blk[mi->nr_blks].nid = nid;
+        mi->nr_blks++;
+        return 0;
+}
+
+it is likely to fail and return 0.   e.g: start == end  etc.
+In this case, we expect it should bail out in time.
+> Anyway, AFAIK, The ACPI tables are very much like user input in that
+> respect and they are unreasonable. So the patch is better.
+>
+  yes,  Totally agree. 
+
+ Thanks
+ zhong jiang
+> Thanks,
+>     dou.
+>
+>>>>   because the acpi code  is public,  I find they are messy between
+>>>>   Arch64 and X86 when parsing numa message .  therefore,  I try to
+>>>>   make the code more clear between them.
+>>> So make this explicit in the changelog. Your previous wording sounded
+>>> like there is a _problem_ in the code.
+>>>
+>> :-[       please take some time to check.  if it works.  I will resend v2 with detailed changelog.
 >>
->> The forth approach is the best as it is seamless for admins and
->> engineers, it will also work on any system configuration with any
->> parameters without any special involvement.
+>> Thanks
+>> zhongjiang
+>>
+>>
+>>
+>>
 >
-> Apart from what-mel-said, I'd be concerned that this failsafe would
-> almost never get tested.  We should find some way to ensure that this
-> code gets exercised in some people's kernels on a permanent basis and
-> I'm not sure how to do that.
 >
-> One option might be to ask Fengguang to add the occasional
-> test_pavels_stuff=1 to the kernel boot commandline.  That's better
-> than nothing but 0-day only runs on a small number of machine types.
+>
+> .
 >
 
-Hi Andrew,
-
-Excellent point about testing. I think, that if I implement it the way
-I proposed in the previous e-mail:
-
-1. initialize very few struct pages initially
-2. initialize more as kernel needs them in every node
-3. finally initialize all the rest when other cpus are started
-
-We will have coverage for my code every time machine boots (and
-deferred page init feature configured), as the the initial very few
-struct pages is not going to be enough on any machine. Potentially, we
-will also see some small boot time improvement because we will
-initialize serially only as many pages as needed, and not do upper
-bound guessing about how many pages is needed beforehand.
-
-Thank you,
-Pavel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
