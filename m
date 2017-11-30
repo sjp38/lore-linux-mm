@@ -1,54 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 79F896B0253
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:19:45 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id 74so3630986otv.10
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:19:45 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t9si1422995oig.347.2017.11.30.08.19.43
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 80CCB6B025F
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:25:19 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 61so3051181plz.1
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:25:19 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id h9si3195355pli.42.2017.11.30.08.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 08:19:44 -0800 (PST)
-Date: Thu, 30 Nov 2017 17:19:34 +0100
-From: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
-Subject: Re: BSOD with [PATCH 00/13] mmu_notifier kill invalidate_page
- callback
-Message-ID: <20171130161933.GB1606@flask>
-References: <20170829235447.10050-1-jglisse@redhat.com>
- <20171130093320.66cxaoj45g2ttzoh@nora.maurer-it.com>
- <39823aee-4918-f87c-8342-89eff622ee43@redhat.com>
+        Thu, 30 Nov 2017 08:25:18 -0800 (PST)
+From: "Wang, Wei W" <wei.w.wang@intel.com>
+Subject: RE: [PATCH v18 07/10] virtio-balloon: VIRTIO_BALLOON_F_SG
+Date: Thu, 30 Nov 2017 16:25:09 +0000
+Message-ID: <286AC319A985734F985F78AFA26841F739376336@shsmsx102.ccr.corp.intel.com>
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+	<1511963726-34070-8-git-send-email-wei.w.wang@intel.com>
+ <201711301935.EHF86450.MSFLOOHFJtFOQV@I-love.SAKURA.ne.jp>
+In-Reply-To: <201711301935.EHF86450.MSFLOOHFJtFOQV@I-love.SAKURA.ne.jp>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <39823aee-4918-f87c-8342-89eff622ee43@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Joerg Roedel <jroedel@suse.de>, Dan Williams <dan.j.williams@intel.com>, Sudeep Dutt <sudeep.dutt@intel.com>, Ashutosh Dixit <ashutosh.dixit@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Jack Steiner <steiner@sgi.com>, linuxppc-dev@lists.ozlabs.org, iommu@lists.linux-foundation.org, xen-devel@lists.xenproject.org, kvm@vger.kernel.org
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
 
-2017-11-30 12:20+0100, Paolo Bonzini:
-> On 30/11/2017 10:33, Fabian GrA 1/4 nbichler wrote:
-> > 
-> > It was reverted in 785373b4c38719f4af6775845df6be1dfaea120f after which
-> > the symptoms disappeared until this series was merged, which contains
-> > 
-> > 369ea8242c0fb5239b4ddf0dc568f694bd244de4 mm/rmap: update to new mmu_notifier semantic v2
-> > 
-> > We haven't bisected the individual commits of the series yet, but the
-> > commit immediately preceding its merge exhibits no problems, while
-> > everything after does. It is not known whether the bug is actually in
-> > the series itself, or whether increasing the likelihood of triggering it
-> > is just a side-effect. There is a similar report[2] concerning an
-> > upgrade from 4.12.12 to 4.12.13, which does not contain this series in
-> > any form AFAICT but might be worth another look as well.
-> 
-> I know of one issue in this series (invalidate_page was removed from KVM
-> without reimplementing it as invalidate_range).  I'll try to prioritize
-> the fix, but I don't think I can do it before Monday.
+On Thursday, November 30, 2017 6:36 PM, Tetsuo Handa wrote:
+> Wei Wang wrote:
+> > +static inline int xb_set_page(struct virtio_balloon *vb,
+> > +			       struct page *page,
+> > +			       unsigned long *pfn_min,
+> > +			       unsigned long *pfn_max)
+> > +{
+> > +	unsigned long pfn =3D page_to_pfn(page);
+> > +	int ret;
+> > +
+> > +	*pfn_min =3D min(pfn, *pfn_min);
+> > +	*pfn_max =3D max(pfn, *pfn_max);
+> > +
+> > +	do {
+> > +		ret =3D xb_preload_and_set_bit(&vb->page_xb, pfn,
+> > +					     GFP_NOWAIT | __GFP_NOWARN);
+>=20
+> It is a bit of pity that __GFP_NOWARN here is applied to only xb_preload(=
+).
+> Memory allocation by xb_set_bit() will after all emit warnings. Maybe
+>=20
+>   xb_init(&vb->page_xb);
+>   vb->page_xb.gfp_mask |=3D __GFP_NOWARN;
+>=20
+> is tolerable? Or, unconditionally apply __GFP_NOWARN at xb_init()?
+>=20
 
-The series also dropped the reloading of the APIC access page and we
-never had it in invalidate_range_start ... I'll look into it today.
+
+
+Please have a check this one: radix_tree_node_alloc()
+
+In our case, I think the code path goes to=20
+
+if (!gfpflags_allow_blocking(gfp_mask) && !in_interrupt()) {
+...
+ret =3D kmem_cache_alloc(radix_tree_node_cachep,
+                                       gfp_mask | __GFP_NOWARN);
+...
+goto out;
+}
+
+So I think the __GFP_NOWARN is already there.
+
+
+
+>   static inline void xb_init(struct xb *xb)
+>   {
+>           INIT_RADIX_TREE(&xb->xbrt, IDR_RT_MARKER | GFP_NOWAIT);
+>   }
+>=20
+> > +	} while (unlikely(ret =3D=3D -EAGAIN));
+> > +
+> > +	return ret;
+> > +}
+> > +
+>=20
+>=20
+>=20
+> > @@ -172,11 +283,18 @@ static unsigned fill_balloon(struct virtio_balloo=
+n
+> *vb, size_t num)
+> >  	vb->num_pfns =3D 0;
+> >
+> >  	while ((page =3D balloon_page_pop(&pages))) {
+> > +		if (use_sg) {
+> > +			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
+> > +				__free_page(page);
+> > +				break;
+>=20
+> You cannot "break;" without consuming all pages in "pages".
+
+
+Right, I think it should be "continue" here. Thanks.=20
+
+>=20
+> > +			}
+> > +		} else {
+> > +			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+> > +		}
+> > +
+> >  		balloon_page_enqueue(&vb->vb_dev_info, page);
+> >
+> >  		vb->num_pfns +=3D VIRTIO_BALLOON_PAGES_PER_PAGE;
+> > -
+> > -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+> >  		vb->num_pages +=3D VIRTIO_BALLOON_PAGES_PER_PAGE;
+> >  		if (!virtio_has_feature(vb->vdev,
+> >
+> 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+>=20
+>=20
+>=20
+> > @@ -212,9 +334,12 @@ static unsigned leak_balloon(struct virtio_balloon
+> *vb, size_t num)
+> >  	struct page *page;
+> >  	struct balloon_dev_info *vb_dev_info =3D &vb->vb_dev_info;
+> >  	LIST_HEAD(pages);
+> > +	bool use_sg =3D virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
+>=20
+> You can pass use_sg as an argument to leak_balloon(). Then, you won't nee=
+d
+> to define leak_balloon_sg_oom(). Since xbitmap allocation does not use
+> __GFP_DIRECT_RECLAIM, it is safe to reuse leak_balloon() for OOM path.
+> Just be sure to pass use_sg =3D=3D false because memory allocation for us=
+e_sg =3D=3D
+> true likely fails when called from OOM path. (But trying use_sg =3D=3D tr=
+ue for
+> OOM path and then fallback to use_sg =3D=3D false is not bad?)
+>=20
+
+
+But once the SG mechanism is in use, we cannot use the non-SG mechanism, be=
+cause the interface between the guest and host is not the same for SG and n=
+on-SG. Methods to make the host support both mechanisms at the same time wo=
+uld complicate the interface and implementation.=20
+
+I also think the old non-SG mechanism should be deprecated to use since its=
+ implementation isn't perfect in some sense, e.g. it balloons pages using o=
+utbuf which implies that no changes are allowed to the balloon pages and th=
+is isn't true for ballooning. The new mechanism (SG) has changed it to use =
+inbuf.
+
+So I think using leak_balloon_sg_oom() would be better. Is there any reason=
+ that we couldn't use it?
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
