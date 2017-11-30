@@ -1,232 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A8F126B0261
-	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 19:59:29 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id t92so2965344wrc.13
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 16:59:29 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id p75si2120528wrc.194.2017.11.29.16.59.27
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D83E6B0038
+	for <linux-mm@kvack.org>; Wed, 29 Nov 2017 20:27:17 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id f9so3575513qtf.6
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 17:27:17 -0800 (PST)
+Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
+        by mx.google.com with ESMTPS id m64si3091163qkf.263.2017.11.29.17.27.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 16:59:28 -0800 (PST)
-Date: Wed, 29 Nov 2017 16:59:25 -0800
-From: akpm@linux-foundation.org
-Subject: mmotm 2017-11-29-16-58 uploaded
-Message-ID: <5a1f57ed.4Rv5FrsgMTOi/6KY%akpm@linux-foundation.org>
+        Wed, 29 Nov 2017 17:27:16 -0800 (PST)
+Date: Wed, 29 Nov 2017 20:27:05 -0500
+From: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Subject: Re: [PATCHv2 0/4] x86: 5-level related changes into decompression
+ code
+Message-ID: <20171130012705.GG31092@char.us.oracle.com>
+References: <20171129154908.6y4st6xc7hbsey2v@pd.tnic>
+ <20171129161349.d7ksuhwhdamloty6@node.shutemov.name>
+ <alpine.DEB.2.20.1711291740050.1825@nanos>
+ <20171129170831.2iqpop2u534mgrbc@node.shutemov.name>
+ <20171129174851.jk2ai37uumxve6sg@pd.tnic>
+ <793b9c55-e85b-97b5-c857-dd8edcda4081@zytor.com>
+ <20171129191902.2iamm3m23e3gwnj4@pd.tnic>
+ <e4463396-9b7c-2fe8-534c-73820c0bce5f@zytor.com>
+ <20171129223103.in4qmtxbj2sawhpw@pd.tnic>
+ <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
+Content-Disposition: inline
+In-Reply-To: <f0c0db4a-6196-d36d-cd1e-8dfc9c09767a@zytor.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
+To: "H. Peter Anvin" <hpa@zytor.com>, daniel.kiper@oracle.com
+Cc: Borislav Petkov <bp@suse.de>, "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The mm-of-the-moment snapshot 2017-11-29-16-58 has been uploaded to
+On Wed, Nov 29, 2017 at 03:24:53PM -0800, H. Peter Anvin wrote:
+> On 11/29/17 14:31, Borislav Petkov wrote:
+> > 
+> > A couple of points:
+> > 
+> > * so this box here has a normal grub installation and apparently grub
+> > jumps to some other entry point.
 
-   http://www.ozlabs.org/~akpm/mmotm/
+Ouch. Perhaps you can report this on grub-devel mailing list? And also
+what version, since I am not sure if this is a distro-specific version?
 
-mmotm-readme.txt says
+> > 
+> 
+> Yes, Grub as a matter of policy(!) does everything in the most braindead
 
-README for mm-of-the-moment:
+There is a policy on this? Could you point me out to it - it would
+be enlightening to read it :-)
 
-http://www.ozlabs.org/~akpm/mmotm/
+> way possible.  You have to use "linux16" or "linuxefi" to make it do
+> something sane.
 
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
+The Linux bootparams structure is _only_ for Linux. Or are there other
+OSes that use the same structure to pass information?
 
-You will need quilt to apply these patches to the latest Linus release (4.x
-or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
+AFAICT the linuxefi does not exist upstream.
+> 
+> > * I'm not convinced we need to do everything you typed because this is
+> > only a temporary issue and once X86_5LEVEL is complete, it should work.
+> > I mean, it needs to work otherwise forget single-system image and I
+> > don't think we want to give that up.
+> > 
+> >> However, if the bootloader jumps straight into the code what do you
+> >> expect it to do?  We have no real concept about what we'd need to do to
+> >> issue a message as we really don't know what devices are available on
+> >> the system, etc.  If the screen_info field in struct boot_params has
+> >> been initialized then we actually *do* know how to write to the screen
+> >> -- if you are okay with including a text font etc. since modern systems
+> >> boot in graphics mode.
+> > 
+> > We switch to text mode and dump our message. Can we do that?
+> 
+> What is text mode?  It is hardware that is going away(*), and you don't
+> even know if you have a display screen on your system at all, or how
+> you'd have to configure your display hardware even if it is "mostly" VGA.
+> 
+> > I wouldn't want to do any of this back'n'forth between kernel and boot
+> > loader because that sounds fragile, at least to me. And again, I'm
+> > not convinced we should spend too much energy on this as the issue is
+> > temporary AFAICT.
+> 
+> Well, it's not just limited to 5-level mode; it's kind a general issue.
+> We have had this issue for a very, very long time -- all the way back to
+> i386 PAE at the very least.  I'm personally OK with triple-faulting the
+> CPU in this case.
+> 
+> 	-hpa
+> 
+> 
+> (*) And for good reason -- it is completely memory-latency-bound as you
+>     have an indirect reference for every byte you fetch.  In a UMA
+>     system this sucks up an insane amount of system bandwidth, unless
+>     you are willing to burn the area of having a 16K SRAM cache.
+> 
+>     VGA hardware, additionally, has a bunch of insane operations that
+>     have to be memory-mapped.  The resulting hardware screws with
+>     pretty much any sane GPU implementation, so I'm fully expecting that
+>     as soon as GPUs no longer come with a CBIOS option ROM VGA hardware
+>     will be dropped more or less immediately.
 
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-A git tree which contains the memory management portion of this tree is
-maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-by Michal Hocko.  It contains the patches which are between the
-"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
-file, http://www.ozlabs.org/~akpm/mmotm/series.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
-
-To develop on top of mmotm git:
-
-  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
-  $ git remote update mmotm
-  $ git checkout -b topic mmotm/master
-  <make changes, commit>
-  $ git send-email mmotm/master.. [...]
-
-To rebase a branch with older patches to a new mmotm release:
-
-  $ git remote update mmotm
-  $ git rebase --onto mmotm/master <topic base> topic
-
-
-
-
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 4.15-rc1:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-  i-need-old-gcc.patch
-* mm-memory_hotplug-do-not-back-off-draining-pcp-free-pages-from-kworker-context.patch
-* mm-oom_reaper-gather-each-vma-to-prevent-leaking-tlb-entry.patch
-* mm-cma-fix-alloc_contig_range-ret-code-potential-leak-v2.patch
-* mm-fix-device-dax-pud-write-faults-triggered-by-get_user_pages.patch
-* mm-switch-to-define-pmd_write-instead-of-__have_arch_pmd_write.patch
-* mm-replace-pud_write-with-pud_access_permitted-in-fault-gup-paths.patch
-* mm-replace-pmd_write-with-pmd_access_permitted-in-fault-gup-paths.patch
-* mm-replace-pte_write-with-pte_access_permitted-in-fault-gup-paths.patch
-* scripts-faddr2line-extend-usage-on-generic-arch.patch
-* mm-hugetlbfs-introduce-split-to-vm_operations_struct.patch
-* device-dax-implement-split-to-catch-invalid-munmap-attempts.patch
-* mm-introduce-get_user_pages_longterm.patch
-* mm-fail-get_vaddr_frames-for-filesystem-dax-mappings.patch
-* v4l2-disable-filesystem-dax-mapping-support.patch
-* ib-core-disable-memory-registration-of-fileystem-dax-vmas.patch
-* exec-avoid-rlimit_stack-races-with-prlimit.patch
-* mmmadvise-bugfix-of-madvise-systemcall-infinite-loop-under-special-circumstances.patch
-* revert-mm-page-writebackc-print-a-warning-if-the-vm-dirtiness-settings-are-illogical-was-re-mm-print-a-warning-once-the-vm-dirtiness-settings-is-illogical.patch
-* fs-mbcache-make-count_objects-more-robust.patch
-* bloat-o-meter-dont-fail-with-division-by-0.patch
-* kmemleak-add-scheduling-point-to-kmemleak_scan.patch
-* mm-migrate-fix-an-incorrect-call-of-prep_transhuge_page.patch
-* mm-memcg-fix-mem_cgroup_swapout-for-thps.patch
-* fat-fix-sb_rdonly-change.patch
-* autofs-revert-take-more-care-to-not-update-last_used-on-path-walk.patch
-* autofs-revert-fix-at_no_automount-not-being-honored.patch
-* mm-hugetlb-fix-null-pointer-dereference-on-5-level-paging-machine.patch
-* hugetlbfs-change-put_page-unlock_page-order-in-hugetlbfs_fallocate.patch
-* frv-fix-build-failure.patch
-* scripts-decodecode-fix-decoding-for-aarch64-arm64-instructions.patch
-* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
-* lib-rbtreedrm-mm-add-rbtree_replace_node_cached.patch
-* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
-* prctl-add-pr_et_pdeathsig_proc.patch
-* ocfs2-dlm-clean-dead-code-up.patch
-* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names.patch
-* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names-v2.patch
-* ocfs2-move-some-definitions-to-header-file.patch
-* ocfs2-fix-some-small-problems.patch
-* ocfs2-add-kobject-for-online-file-check.patch
-* ocfs2-add-duplicative-ino-number-check.patch
-* ocfs2-fix-qs_holds-may-could-not-be-zero.patch
-* ocfs2-dlm-wait-for-dlm-recovery-done-when-migrating-all-lockres.patch
-* ocfs2-add-ocfs2_try_rw_lock-and-ocfs2_try_inode_lock.patch
-* ocfs2-add-ocfs2_try_rw_lock-and-ocfs2_try_inode_lock-v2.patch
-* ocfs2-add-ocfs2_overwrite_io-function.patch
-* ocfs2-add-ocfs2_overwrite_io-function-v2.patch
-* ocfs2-nowait-aio-support.patch
-* ocfs2-nowait-aio-support-v2.patch
-* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
-* dentry-fix-kmemcheck-splat-at-take_dentry_name_snapshot.patch
-  mm.patch
-* include-linux-sched-mmh-uninline-mmdrop_async-etc.patch
-* mm-kmemleak-remove-unused-hardirqh.patch
-* zswap-same-filled-pages-handling.patch
-* zswap-same-filled-pages-handling-v2.patch
-* mm-relax-deferred-struct-page-requirements.patch
-* mm-mempolicy-remove-redundant-check-in-get_nodes.patch
-* mm-mempolicy-fix-the-check-of-nodemask-from-user.patch
-* mm-mempolicy-add-nodes_empty-check-in-sysc_migrate_pages.patch
-* mm-drop-hotplug-lock-from-lru_add_drain_all.patch
-* mm-show-total-hugetlb-memory-consumption-in-proc-meminfo.patch
-* mm-use-sc-priority-for-slab-shrink-targets.patch
-* mm-mlock-vmscan-no-more-skipping-pagevecs.patch
-* mmvmscan-mark-register_shrinker-as-__must_check.patch
-* mm-split-deferred_init_range-into-initializing-and-freeing-parts.patch
-* mm-filemap-remove-include-of-hardirqh.patch
-* mm-memcontrol-eliminate-raw-access-to-stat-and-event-counters.patch
-* mm-memcontrol-implement-lruvec-stat-functions-on-top-of-each-other.patch
-* mm-memcontrol-fix-excessive-complexity-in-memorystat-reporting.patch
-* mm-swap-clean-up-swap-readahead.patch
-* mm-swap-unify-cluster-based-and-vma-based-swap-readahead.patch
-* mm-page_owner-use-ptr_err_or_zero.patch
-* mm-page_alloc-fix-comment-is-__get_free_pages.patch
-* mmoom-move-last-second-allocation-to-inside-the-oom-killer.patch
-* mmoom-use-alloc_oom-for-oom-victims-last-second-allocation.patch
-* mmoom-remove-oom_lock-serialization-from-the-oom-reaper.patch
-* mm-do-not-stall-register_shrinker.patch
-* mm-do-not-stall-register_shrinker-fix.patch
-* selftest-vm-move-128tb-mmap-boundary-test-to-generic-directory.patch
-* selftest-vm-move-128tb-mmap-boundary-test-to-generic-directory-fix.patch
-* mm-use-vma_pages-helper.patch
-* mm-remove-unused-pgdat_reclaimable_pages.patch
-* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
-* mm-make-count-list_lru_one-nr_items-lockless.patch
-* mm-madvise-enable-soft-offline-of-hugetlb-pages-at-pud-level.patch
-* mm-readahead-increase-maximum-readahead-window.patch
-* proc-do-not-show-vmexe-bigger-than-total-executable-virtual-memory.patch
-* mm-hugetlb-drop-hugepages_treat_as_movable-sysctl.patch
-* mm-vmscan-do-not-pass-reclaimed-slab-to-vmpressure.patch
-* mm-page_owner-align-with-pageblock_nr-pages.patch
-* mm-walk-the-zone-in-pageblock_nr_pages-steps.patch
-* proc-use-%u-for-pid-printing-and-slightly-less-stack.patch
-* proc-dont-use-read_once-write_once-for-proc-fail-nth.patch
-* proc-fix-proc-map_files-lookup.patch
-* proc-simpler-proc-vmcore-cleanup.patch
-* proc-less-memory-for-proc-map_files-readdir.patch
-* proc-delete-children_seq_release.patch
-* makefile-move-stack-protector-compiler-breakage-test-earlier.patch
-* makefile-move-stack-protector-availability-out-of-kconfig.patch
-* makefile-introduce-config_cc_stackprotector_auto.patch
-* docs-correct-documentation-for-%pk.patch
-* vsprintf-refactor-%pk-code-out-of-pointer.patch
-* printk-hash-addresses-printed-with-%p.patch
-* vsprintf-add-printk-specifier-%px.patch
-* kasan-use-%px-to-print-addresses-instead-of-%p.patch
-* revert-async-simplify-lowest_in_progress.patch
-* lib-stackdepot-use-a-non-instrumented-version-of-memcmp.patch
-* lib-test_find_bitc-rename-to-find_bit_benchmarkc.patch
-* lib-find_bit_benchmarkc-improvements.patch
-* lib-optimize-cpumask_next_and.patch
-* lib-optimize-cpumask_next_and-v6.patch
-* checkpatch-allow-long-lines-containing-url.patch
-* seq_file-delete-small-value-optimization.patch
-* forkc-check-error-and-return-early.patch
-* forkc-add-doc-about-usage-of-clone_fs-flags-and-namespaces.patch
-* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
-* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
-* pids-introduce-find_get_task_by_vpid-helper.patch
-  linux-next.patch
-  linux-next-rejects.patch
-* tools-objtool-makefile-dont-assume-sync-checksh-is-executable.patch
-* vfs-remove-might_sleep-from-clear_inode.patch
-* sparc64-ng4-memset-32-bits-overflow.patch
-* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
-  mm-add-strictlimit-knob-v2.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  mutex-subsystem-synchro-test-module.patch
-  slab-leaks3-default-y.patch
-  workaround-for-a-pci-restoring-bug.patch
+Woot! RIP VGA..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
