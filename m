@@ -1,130 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FA196B0069
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:36:35 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id h12so3175909oti.8
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:36:35 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id r44si1358539ote.142.2017.11.30.02.36.33
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C13C66B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:36:59 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id w191so5421621iof.11
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 02:36:59 -0800 (PST)
+Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50129.outbound.protection.outlook.com. [40.107.5.129])
+        by mx.google.com with ESMTPS id l187si3307220itb.54.2017.11.30.02.36.57
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 02:36:34 -0800 (PST)
-Subject: Re: [PATCH v18 07/10] virtio-balloon: VIRTIO_BALLOON_F_SG
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-	<1511963726-34070-8-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1511963726-34070-8-git-send-email-wei.w.wang@intel.com>
-Message-Id: <201711301935.EHF86450.MSFLOOHFJtFOQV@I-love.SAKURA.ne.jp>
-Date: Thu, 30 Nov 2017 19:35:55 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 02:36:57 -0800 (PST)
+Subject: Re: [PATCH] mm: Make count list_lru_one::nr_items lockless
+References: <150583358557.26700.8490036563698102569.stgit@localhost.localdomain>
+ <20170927141530.25286286fb92a2573c4b548f@linux-foundation.org>
+ <fbb67bef-c13f-7fcb-fa6a-e3a7f6e5c82b@virtuozzo.com>
+ <20170928140230.a9a0cd44a09eae9441a83bdc@linux-foundation.org>
+ <137a49f9-8286-8bf4-91c5-37b5f6b5a842@virtuozzo.com>
+ <CALvZod5AC-iRBRgP2O-4x6b6iSdTpVRPFu1kma9fh20yxJY7Xw@mail.gmail.com>
+From: Kirill Tkhai <ktkhai@virtuozzo.com>
+Message-ID: <b9d81b91-b73b-2ad2-1692-16f5a0fcbcd9@virtuozzo.com>
+Date: Thu, 30 Nov 2017 13:36:50 +0300
+MIME-Version: 1.0
+In-Reply-To: <CALvZod5AC-iRBRgP2O-4x6b6iSdTpVRPFu1kma9fh20yxJY7Xw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, apolyakov@beget.ru, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-Wei Wang wrote:
-> +static inline int xb_set_page(struct virtio_balloon *vb,
-> +			       struct page *page,
-> +			       unsigned long *pfn_min,
-> +			       unsigned long *pfn_max)
-> +{
-> +	unsigned long pfn = page_to_pfn(page);
-> +	int ret;
-> +
-> +	*pfn_min = min(pfn, *pfn_min);
-> +	*pfn_max = max(pfn, *pfn_max);
-> +
-> +	do {
-> +		ret = xb_preload_and_set_bit(&vb->page_xb, pfn,
-> +					     GFP_NOWAIT | __GFP_NOWARN);
+On 30.11.2017 03:27, Shakeel Butt wrote:
+> On Fri, Sep 29, 2017 at 1:15 AM, Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>> On 29.09.2017 00:02, Andrew Morton wrote:
+>>> On Thu, 28 Sep 2017 10:48:55 +0300 Kirill Tkhai <ktkhai@virtuozzo.com> wrote:
+>>>
+>>>>>> This patch aims to make super_cache_count() (and other functions,
+>>>>>> which count LRU nr_items) more effective.
+>>>>>> It allows list_lru_node::memcg_lrus to be RCU-accessed, and makes
+>>>>>> __list_lru_count_one() count nr_items lockless to minimize
+>>>>>> overhead introduced by locking operation, and to make parallel
+>>>>>> reclaims more scalable.
+>>>>>
+>>>>> And...  what were the effects of the patch?  Did you not run the same
+>>>>> performance tests after applying it?
+>>>>
+>>>> I've just detected the such high usage of shrink slab on production node. It's rather
+>>>> difficult to make it use another kernel, than it uses, only kpatches are possible.
+>>>> So, I haven't estimated how it acts on node's performance.
+>>>> On test node I see, that the patch obviously removes raw_spin_lock from perf profile.
+>>>> So, it's a little bit untested in this way.
+>>>
+>>> Well that's a problem.  The patch increases list_lru.o text size by a
+>>> lot (4800->5696) which will have a cost.  And we don't have proof that
+>>> any benefit is worth that cost.  It shouldn't be too hard to cook up a
+>>> synthetic test to trigger memcg slab reclaim and then run a
+>>> before-n-after benchmark?
+>>
+>> Ok, then, please, ignore this for a while, I'll try to do it a little bit later.
+>>
+> 
+> I rebased this patch on linus tree (replacing kfree_rcu with call_rcu
+> as there is no kvfree_rcu) and did some experiments. I think the patch
+> is worth to be included.
+> 
+> Setup: running a fork-bomb in a memcg of 200MiB on a 8GiB and 4 vcpu
+> VM and recording the trace with 'perf record -g -a'.
+> 
+> The trace without the patch:
+> 
+> +  34.19%     fb.sh  [kernel.kallsyms]  [k] queued_spin_lock_slowpath
+> +  30.77%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_lock
+> +   3.53%     fb.sh  [kernel.kallsyms]  [k] list_lru_count_one
+> +   2.26%     fb.sh  [kernel.kallsyms]  [k] super_cache_count
+> +   1.68%     fb.sh  [kernel.kallsyms]  [k] shrink_slab
+> +   0.59%     fb.sh  [kernel.kallsyms]  [k] down_read_trylock
+> +   0.48%     fb.sh  [kernel.kallsyms]  [k] _raw_spin_unlock_irqrestore
+> +   0.38%     fb.sh  [kernel.kallsyms]  [k] shrink_node_memcg
+> +   0.32%     fb.sh  [kernel.kallsyms]  [k] queue_work_on
+> +   0.26%     fb.sh  [kernel.kallsyms]  [k] count_shadow_nodes
+> 
+> With the patch:
+> 
+> +   0.16%     swapper  [kernel.kallsyms]    [k] default_idle
+> +   0.13%     oom_reaper  [kernel.kallsyms]    [k] mutex_spin_on_owner
+> +   0.05%     perf  [kernel.kallsyms]    [k] copy_user_generic_string
+> +   0.05%     init.real  [kernel.kallsyms]    [k] wait_consider_task
+> +   0.05%     kworker/0:0  [kernel.kallsyms]    [k] finish_task_switch
+> +   0.04%     kworker/2:1  [kernel.kallsyms]    [k] finish_task_switch
+> +   0.04%     kworker/3:1  [kernel.kallsyms]    [k] finish_task_switch
+> +   0.04%     kworker/1:0  [kernel.kallsyms]    [k] finish_task_switch
+> +   0.03%     binary  [kernel.kallsyms]    [k] copy_page
+> 
+> 
+> Kirill, can you resend your patch with this info or do you want me
+> send the rebased patch?
 
-It is a bit of pity that __GFP_NOWARN here is applied to only xb_preload().
-Memory allocation by xb_set_bit() will after all emit warnings. Maybe
-
-  xb_init(&vb->page_xb);
-  vb->page_xb.gfp_mask |= __GFP_NOWARN;
-
-is tolerable? Or, unconditionally apply __GFP_NOWARN at xb_init()?
-
-  static inline void xb_init(struct xb *xb)
-  {
-          INIT_RADIX_TREE(&xb->xbrt, IDR_RT_MARKER | GFP_NOWAIT);
-  }
-
-> +	} while (unlikely(ret == -EAGAIN));
-> +
-> +	return ret;
-> +}
-> +
-
-
-
-> @@ -172,11 +283,18 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
->  	vb->num_pfns = 0;
->  
->  	while ((page = balloon_page_pop(&pages))) {
-> +		if (use_sg) {
-> +			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
-> +				__free_page(page);
-> +				break;
-
-You cannot "break;" without consuming all pages in "pages".
-
-> +			}
-> +		} else {
-> +			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-> +		}
-> +
->  		balloon_page_enqueue(&vb->vb_dev_info, page);
->  
->  		vb->num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE;
-> -
-> -		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
->  		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
->  		if (!virtio_has_feature(vb->vdev,
->  					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-
-
-
-> @@ -212,9 +334,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
->  	struct page *page;
->  	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
->  	LIST_HEAD(pages);
-> +	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
-
-You can pass use_sg as an argument to leak_balloon(). Then, you won't
-need to define leak_balloon_sg_oom(). Since xbitmap allocation does not
-use __GFP_DIRECT_RECLAIM, it is safe to reuse leak_balloon() for OOM path.
-Just be sure to pass use_sg == false because memory allocation for
-use_sg == true likely fails when called from OOM path. (But trying
-use_sg == true for OOM path and then fallback to use_sg == false is not bad?)
-
-> +	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
->  
-> -	/* We can only do one array worth at a time. */
-> -	num = min(num, ARRAY_SIZE(vb->pfns));
-> +	/* Traditionally, we can only do one array worth at a time. */
-> +	if (!use_sg)
-> +		num = min(num, ARRAY_SIZE(vb->pfns));
->  
->  	mutex_lock(&vb->balloon_lock);
->  	/* We can't release more pages than taken */
-
-
-
-> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-> index 343d7dd..37780a7 100644
-> --- a/include/uapi/linux/virtio_balloon.h
-> +++ b/include/uapi/linux/virtio_balloon.h
-> @@ -34,6 +34,7 @@
->  #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
->  #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
->  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-> +#define VIRTIO_BALLOON_F_SG		3 /* Use sg instead of PFN lists */
-
-Want more explicit comment that PFN lists will be used on OOM and therefore
-the host side must be prepared for both sg and PFN lists even if negotiated?
+Shakeel, thanks you for the testing! I'll resend the patch as "v2".
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
