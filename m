@@ -1,63 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 337EE6B026D
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 12:25:19 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id c33so6775166itf.8
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 09:25:19 -0800 (PST)
-Received: from aserp1040.oracle.com (aserp1040.oracle.com. [141.146.126.69])
-        by mx.google.com with ESMTPS id c34si3397250iod.104.2017.11.30.09.25.17
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B61506B026F
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 12:42:05 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id e128so3393194wmg.1
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 09:42:05 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 31si3781293edr.330.2017.11.30.09.42.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 09:25:18 -0800 (PST)
-Received: from userv0021.oracle.com (userv0021.oracle.com [156.151.31.71])
-	by aserp1040.oracle.com (Sentrion-MTA-4.3.2/Sentrion-MTA-4.3.2) with ESMTP id vAUHPHDD002891
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:25:17 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userv0021.oracle.com (8.14.4/8.14.4) with ESMTP id vAUHPGH2026639
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK)
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:25:16 GMT
-Received: from abhmp0002.oracle.com (abhmp0002.oracle.com [141.146.116.8])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id vAUHPGJX010034
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:25:16 GMT
-Received: by mail-oi0-f49.google.com with SMTP id j17so5338662oih.3
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 09:25:15 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 30 Nov 2017 09:42:04 -0800 (PST)
+Date: Thu, 30 Nov 2017 18:42:01 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
+Message-ID: <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz>
+References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
+ <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
-References: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
-From: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date: Thu, 30 Nov 2017 12:25:14 -0500
-Message-ID: <CAOAebxti9DVyjb0dsR-E_8ULenaRf0OZ_WeWxppbdDVmFbt8mA@mail.gmail.com>
-Subject: Re: [PATCH] mm: check pfn_valid first in zero_resv_unavail
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
 
-Hi Dave,
+On Thu 30-11-17 08:39:51, Dan Williams wrote:
+> On Thu, Nov 30, 2017 at 1:53 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Wed 29-11-17 10:05:35, Dan Williams wrote:
+> >> Until there is a solution to the dma-to-dax vs truncate problem it is
+> >> not safe to allow long standing memory registrations against
+> >> filesytem-dax vmas. Device-dax vmas do not have this problem and are
+> >> explicitly allowed.
+> >>
+> >> This is temporary until a "memory registration with layout-lease"
+> >> mechanism can be implemented for the affected sub-systems (RDMA and
+> >> V4L2).
+> >
+> > One thing is not clear to me. Who is allowed to pin pages for ever?
+> > Is it possible to pin LRU pages that way as well? If yes then there
+> > absolutely has to be a limit for that. Sorry I could have studied the
+> > code much more but from a quick glance it seems to me that this is not
+> > limited to dax (or non-LRU in general) pages.
+> 
+> I would turn this question around. "who can not tolerate a page being
+> pinned forever?".
 
-Because unavailable memory can be in the middle of a section, I think
-a proper fix would be to do pfn_valid() check only at the beginning of
-section. Otherwise, we might miss zeroing  a struct page is in the
-middle of a section but pfn_valid() could potentially return false as
-that page is indeed invalid.
+Any struct page on the movable zone or anything that is living on the
+LRU list because such a memory is unreclaimable.
 
-So, I would do something like this:
-+                       if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages))
-+                               continue;
+> In the case of filesytem-dax a page is
+> one-in-the-same object as a filesystem-block, and a filesystem expects
+> that its operations will not be blocked indefinitely. LRU pages can
+> continue to be pinned indefinitely because operations can continue
+> around the pinned page, i.e. every agent, save for the dma agent,
+> drops their reference to the page and its tolerable that the final
+> put_page() never arrives.
 
-Could you please test if this fix works?
+I do not understand. Are you saying that a user triggered IO can pin LRU
+pages indefinitely. This would be _really_ wrong. It would be basically
+an mlock without any limit. So I must be misreading you here
 
-We should really look into this memory that is reserved by memblock
-but Linux is not aware of physical backing, so far I know that only
-x86 can have such scenarios, so we should really see if the problem
-can be addressed on x86 platform. It would be very nice if we could
-enforce inside memblock to reserve only memory that has real physical
-backing.
+> As far as I can tell it's only filesystems
+> and dax that have this collision of wanting to revoke dma access to a
+> page combined with not being able to wait indefinitely for dma to
+> quiesce.
 
-Thank you,
-Pavel
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
