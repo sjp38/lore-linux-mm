@@ -1,84 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EBC2C6B0274
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:06:10 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id u22so3841526otd.13
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:06:10 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z66si1644566otb.102.2017.11.30.10.06.09
+Received: from mail-ua0-f200.google.com (mail-ua0-f200.google.com [209.85.217.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B23426B0273
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:10:44 -0500 (EST)
+Received: by mail-ua0-f200.google.com with SMTP id e26so4444793uaf.7
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:10:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p77sor352041vkd.8.2017.11.30.10.10.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 10:06:10 -0800 (PST)
-From: =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>
-Subject: [PATCH 2/2] TESTING! KVM: x86: add invalidate_range mmu notifier
-Date: Thu, 30 Nov 2017 19:05:46 +0100
-Message-Id: <20171130180546.4331-2-rkrcmar@redhat.com>
-In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
-References: <20171130161933.GB1606@flask>
- <20171130180546.4331-1-rkrcmar@redhat.com>
+        (Google Transport Security);
+        Thu, 30 Nov 2017 10:10:43 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
+References: <20171126063117.oytmra3tqoj5546u@wfg-t540p.sh.intel.com>
+ <20171127210301.GA55812@localhost.corp.microsoft.com> <20171128124534.3jvuala525wvn64r@wfg-t540p.sh.intel.com>
+ <20171129175430.GA58181@big-sky.attlocal.net> <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
+From: Kees Cook <keescook@chromium.org>
+Date: Thu, 30 Nov 2017 10:10:41 -0800
+Message-ID: <CAGXu5jLOojG_Nc50KhdHsXDQQ27G+kOPp6-5kQz7Yh5Vpgucnw@mail.gmail.com>
+Subject: Re: [pcpu] BUG: KASAN: use-after-scope in pcpu_setup_first_chunk+0x1e3b/0x29e2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?q?Fabian=20Gr=C3=BCnbichler?= <f.gruenbichler@proxmox.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Dennis Zhou <dennisszhou@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>
 
-Does roughly what kvm_mmu_notifier_invalidate_page did before.
+On Thu, Nov 30, 2017 at 1:59 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Wed, Nov 29, 2017 at 6:54 PM, Dennis Zhou <dennisszhou@gmail.com> wrote:
+>> Hi everyone,
+>>
+>> I spent a bit of time learning more about this problem as Fengguang was
+>> able to determine the root commit f7dd2507893cc3. I reproduced the bug
+>> in userspace to make life a bit easier and below the assignment occurs
+>> before the unpoison. This is fine if we're sequentially proceeding, but
+>> as in the case in percpu, it's calling the function in a for loop
+>> causing the assignment to happen after it has been poisoned in the prior
+>> iteration.
+>>
+>> <bb 3> [0.00%]:
+>>   _1 = (long unsigned int) i_4;
+>>   _2 = _1 * 16;
+>>   _3 = p_8 + _2;
+>>   list_14 = _3;
+>>   __u = {};
+>>   ASAN_MARK (UNPOISON, &__u, 8);
+>>   __u.__val = list_14;
+>>
+>> <bb 9> [0.00%]:
+>>   _24 = __u.__val;
+>>   ASAN_MARK (POISON, &__u, 8);
+>>   list_14->prev = list_14;
+>>   i_13 = i_4 + 1;
+>>
+>> <bb 10> [0.00%]:
+>>   # i_4 = PHI <i_9(2), i_13(9)>
+>>   if (i_4 <= 9)
+>>     goto <bb 3>; [0.00%]
+>>   else
+>>     goto <bb 11>; [0.00%]
+>>
+>> I don't know how to go about fixing this though. The reproducing code is
+>> below and was compiled with gcc-7 and the structleak_plugin.
+>
+>
+> Are we sure that structleak plugin is not at fault? If yes, then we
+> need to report this to https://gcc.gnu.org/bugzilla/ with instructions
+> on how to build/use the plugin.
 
-I am not certain why this would be needed.  It might mean that we have
-another bug with start/end or just that I missed something.
+I thought from earlier in this thread that the bug just changed
+locations depending on the plugin. Does the issue still exist with the
+plugin disabled?
 
-Please try just [1/2] first and apply this one only if [1/2] still bugs,
-thanks!
----
- virt/kvm/kvm_main.c | 24 ++++++++++++++++++++++++
- 1 file changed, 24 insertions(+)
+-Kees
 
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index b7f4689e373f..0825ea624f16 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -342,6 +342,29 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
- 	srcu_read_unlock(&kvm->srcu, idx);
- }
- 
-+static void kvm_mmu_notifier_invalidate_range(struct mmu_notifier *mn,
-+						    struct mm_struct *mm,
-+						    unsigned long start,
-+						    unsigned long end)
-+{
-+	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-+	int need_tlb_flush = 0, idx;
-+
-+	idx = srcu_read_lock(&kvm->srcu);
-+	spin_lock(&kvm->mmu_lock);
-+	kvm->mmu_notifier_seq++;
-+	need_tlb_flush = kvm_unmap_hva_range(kvm, start, end);
-+	need_tlb_flush |= kvm->tlbs_dirty;
-+	if (need_tlb_flush)
-+		kvm_flush_remote_tlbs(kvm);
-+
-+	spin_unlock(&kvm->mmu_lock);
-+
-+	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
-+
-+	srcu_read_unlock(&kvm->srcu, idx);
-+}
-+
- static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
- 						    struct mm_struct *mm,
- 						    unsigned long start,
-@@ -476,6 +499,7 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
- }
- 
- static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-+	.invalidate_range	= kvm_mmu_notifier_invalidate_range,
- 	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
- 	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
- 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+>
+>
+>> I hope this helps.
+>>
+>> Thanks,
+>> Dennis
+>>
+>> ----
+>> #include <stdint.h>
+>> #include <stdlib.h>
+>>
+>> #define barrier()
+>>
+>> #define WRITE_ONCE(x, val) \
+>> ({                                                      \
+>>         union { typeof(x) __val; char __c[1]; } __u =   \
+>>                 { .__val = (typeof(x)) (val) }; \
+>>         __write_once_size(&(x), __u.__c, sizeof(x));    \
+>>         __u.__val;                                      \
+>> })
+>>
+>> typedef         uint8_t         __u8;
+>> typedef         uint16_t        __u16;
+>> typedef         uint32_t        __u32;
+>> typedef         uint64_t        __u64;
+>>
+>> static inline __attribute__((always_inline)) void __write_once_size(volatile void *p, void *res, int size)
+>> {
+>>         switch (size) {
+>>         case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
+>>         case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
+>>         case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
+>>         case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
+>>         default:
+>>                 barrier();
+>>                 __builtin_memcpy((void *)p, (const void *)res, size);
+>>                 barrier();
+>>         }
+>> }
+>>
+>> struct list_head {
+>>         struct list_head *next, *prev;
+>> };
+>>
+>> static inline __attribute__((always_inline)) void INIT_LIST_HEAD(struct list_head *list)
+>> {
+>>         WRITE_ONCE(list->next, list);
+>>         list->prev = list;
+>> }
+>>
+>> int main(int argc, char *argv[])
+>> {
+>>         struct list_head *p = malloc(10 * sizeof(struct list_head));
+>>         int i;
+>>
+>>         for (i = 0; i < 10; i++) {
+>>                 INIT_LIST_HEAD(&p[i]);
+>>         }
+>>
+>>         free(p);
+>>
+>>         return 0;
+>> }
+
+
+
 -- 
-2.14.2
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
