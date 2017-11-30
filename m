@@ -1,47 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B48016B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:40:51 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 81so5919143iof.4
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:40:51 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 65si3899296iti.86.2017.11.30.05.40.49
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 58AE36B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 08:43:44 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id m35so2789566oik.7
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 05:43:44 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q206si1263119oia.488.2017.11.30.05.43.43
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 05:40:50 -0800 (PST)
-Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-	<1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
-	<201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
-Message-Id: <201711302235.FAJ57385.OFJHOVQOFtMSFL@I-love.SAKURA.ne.jp>
-Date: Thu, 30 Nov 2017 22:35:03 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Nov 2017 05:43:43 -0800 (PST)
+Subject: Re: [PATCH] list_lru: Prefetch neighboring list entries before
+ acquiring lock
+References: <1511965054-6328-1-git-send-email-longman@redhat.com>
+ <20171130005301.GA2679@bbox>
+From: Waiman Long <longman@redhat.com>
+Message-ID: <414f9020-aba5-eef1-b689-36307dbdcfed@redhat.com>
+Date: Thu, 30 Nov 2017 08:43:41 -0500
+MIME-Version: 1.0
+In-Reply-To: <20171130005301.GA2679@bbox>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Tetsuo Handa wrote:
-> > +
-> > +			if (ebit >= BITS_PER_LONG)
-> > +				continue;
-> 
-> (I don't understand how radix tree works, but generally this patchset looks fuzzy
-> to me about boundary cases. Thus, I want to confirm that this is not an overlook.)
-> Why is making "ebit >= BITS_PER_LONG" (e.g. start == 62) case a no-op correct?
-> Aren't there bits which should have been cleared in this case?
+On 11/29/2017 07:53 PM, Minchan Kim wrote:
+> Hello,
+>
+> On Wed, Nov 29, 2017 at 09:17:34AM -0500, Waiman Long wrote:
+>> The list_lru_del() function removes the given item from the LRU list.
+>> The operation looks simple, but it involves writing into the cacheline=
+s
+>> of the two neighboring list entries in order to get the deletion done.=
 
-According to xb_set_bit(), it seems to me that we are trying to avoid memory allocation
-for "struct ida_bitmap" when all set bits within a 1024-bits bitmap reside in the first
-61 bits.
+>> That can take a while if the cachelines aren't there yet, thus
+>> prolonging the lock hold time.
+>>
+>> To reduce the lock hold time, the cachelines of the two neighboring
+>> list entries are now prefetched before acquiring the list_lru_node's
+>> lock.
+>>
+>> Using a multi-threaded test program that created a large number
+>> of dentries and then killed them, the execution time was reduced
+>> from 38.5s to 36.6s after applying the patch on a 2-socket 36-core
+>> 72-thread x86-64 system.
+>>
+>> Signed-off-by: Waiman Long <longman@redhat.com>
+>> ---
+>>  mm/list_lru.c | 10 +++++++++-
+>>  1 file changed, 9 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/mm/list_lru.c b/mm/list_lru.c
+>> index f141f0c..65aae44 100644
+>> --- a/mm/list_lru.c
+>> +++ b/mm/list_lru.c
+>> @@ -132,8 +132,16 @@ bool list_lru_del(struct list_lru *lru, struct li=
+st_head *item)
+>>  	struct list_lru_node *nlru =3D &lru->node[nid];
+>>  	struct list_lru_one *l;
+>> =20
+>> +	/*
+>> +	 * Prefetch the neighboring list entries to reduce lock hold time.
+>> +	 */
+>> +	if (unlikely(list_empty(item)))
+>> +		return false;
+>> +	prefetchw(item->prev);
+>> +	prefetchw(item->next);
+>> +
+> A question:
+>
+> A few month ago, I had a chance to measure prefetch effect with my test=
+ing
+> workload. For the clarification, it's not list_lru_del but list travers=
+e
+> stuff so it might be similar.
+>
+> With my experiment at that time, it was really hard to find best place =
+to
+> add prefetchw. Sometimes, it was too eariler or late so the effect was
+> not good, even worse on some cases.
+>
+> Also, the performance was different with each machine although my testi=
+ng
+> machines was just two. ;-)
+>
+> So my question is what's a rule of thumb to add prefetch command?
+> Like your code, putting prefetch right before touching?
+>
+> I'm really wonder what's the rule to make every arch/machines happy
+> with prefetch.
 
-But does such saving help? Is there characteristic bias that majority of set bits resides
-in the first 61 bits, for "bit" is "unsigned long" which holds a page number (isn't it)?
-If no such bias, wouldn't eliminating radix_tree_exception() case and always storing
-"struct ida_bitmap" simplifies the code (and make the processing faster)?
+I add the prefetchw() before spin_lock() because the latency of the
+lockinig operation can be highly variable. There will have high latency
+when the lock is contended. With the prefetch, lock hold time will be
+reduced. In turn, it helps to reduce the amount of lock contention as
+well. If there is no lock contention, the prefetch won't help.
+
+Cheers,
+Longman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
