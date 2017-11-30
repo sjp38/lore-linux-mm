@@ -1,71 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6476B6B0253
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 09:57:38 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id x1so2933292plb.2
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 06:57:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z100si3275071plh.172.2017.11.30.06.57.37
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C25E6B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 10:29:12 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id c9so3395342wrb.4
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 07:29:12 -0800 (PST)
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id w58si618617edb.269.2017.11.30.07.29.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 06:57:37 -0800 (PST)
-Date: Thu, 30 Nov 2017 15:57:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/5] Memory hotplug support for arm64 - complete
- patchset v2
-Message-ID: <20171130145734.c62ggrx3r7335etc@dhcp22.suse.cz>
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <20171123160258.xmw5lxnjfch2dxfw@dhcp22.suse.cz>
- <20171123173331.GA15535@samekh>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 30 Nov 2017 07:29:10 -0800 (PST)
+From: Roman Gushchin <guro@fb.com>
+Subject: [PATCH v13 1/7] mm, oom: refactor the oom_kill_process() function
+Date: Thu, 30 Nov 2017 15:28:18 +0000
+Message-ID: <20171130152824.1591-2-guro@fb.com>
+In-Reply-To: <20171130152824.1591-1-guro@fb.com>
+References: <20171130152824.1591-1-guro@fb.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171123173331.GA15535@samekh>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Reale <ar@linux.vnet.ibm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, realean2@ie.ibm.com
+To: linux-mm@vger.kernel.org
+Cc: Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 23-11-17 17:33:31, Andrea Reale wrote:
-> On Thu 23 Nov 2017, 17:02, Michal Hocko wrote:
-> 
-> Hi Michal,
-> 
-> > I will try to have a look but I do not expect to understand any of arm64
-> > specific changes so I will focus on the generic code but it would help a
-> > _lot_ if the cover letter provided some overview of what has been done
-> > from a higher level POV. What are the arch pieces and what is the
-> > generic code missing. A quick glance over patches suggests that
-> > changelogs for specific patches are modest as well. Could you give us
-> > more information please? Reviewing hundreds lines of code without
-> > context is a pain.
-> 
-> sorry for the lack of details. I will try to provide a better
-> overview in the following. Please, feel free to ask for more details
-> where needed.
-> 
-> Overall, the goal of the patchset is to implement arch_memory_add and
-> arch_memory_remove for arm64, to support the generic memory_hotplug
-> framework. 
-> 
-> Hot add
-> -------
-> Not so many surprises here. We implement the arch specific
-> arch_add_memory, which builds the kernel page tables via hotplug_paging()
-> and then calls arch specific add_pages(). We need the arch specific
-> add_pages() to implement a trick that makes the satus of pages being
-> added accepted by the asumptions made in the generic __add_pages. (See
-> code comments).
+The oom_kill_process() function consists of two logical parts:
+the first one is responsible for considering task's children as
+a potential victim and printing the debug information.
+The second half is responsible for sending SIGKILL to all
+tasks sharing the mm struct with the given victim.
 
-Actually I would like to see exactly this explained. The arch support of
-the hotplug should be basically only about arch_add_memory and add_pages
-resp. arch_remove_memory and __remove_pages. Nothing much more, really.
-The core hotplug code should take care of the rest. Ideally you
-shouldn't be really forced to touch the generic code. If yes than this
-should be called out explicitly.
+This commit splits the oom_kill_process() function with
+an intention to re-use the the second half: __oom_kill_process().
+
+The cgroup-aware OOM killer will kill multiple tasks
+belonging to the victim cgroup. We don't need to print
+the debug information for the each task, as well as play
+with task selection (considering task's children),
+so we can't use the existing oom_kill_process().
+
+Signed-off-by: Roman Gushchin <guro@fb.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+Acked-by: David Rientjes <rientjes@google.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: kernel-team@fb.com
+Cc: cgroups@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+---
+ mm/oom_kill.c | 123 +++++++++++++++++++++++++++++++---------------------------
+ 1 file changed, 65 insertions(+), 58 deletions(-)
+
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index 3b0d0fed8480..f041534d77d3 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -814,68 +814,12 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	return ret;
+ }
+ 
+-static void oom_kill_process(struct oom_control *oc, const char *message)
++static void __oom_kill_process(struct task_struct *victim)
+ {
+-	struct task_struct *p = oc->chosen;
+-	unsigned int points = oc->chosen_points;
+-	struct task_struct *victim = p;
+-	struct task_struct *child;
+-	struct task_struct *t;
++	struct task_struct *p;
+ 	struct mm_struct *mm;
+-	unsigned int victim_points = 0;
+-	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
+-					      DEFAULT_RATELIMIT_BURST);
+ 	bool can_oom_reap = true;
+ 
+-	/*
+-	 * If the task is already exiting, don't alarm the sysadmin or kill
+-	 * its children or threads, just give it access to memory reserves
+-	 * so it can die quickly
+-	 */
+-	task_lock(p);
+-	if (task_will_free_mem(p)) {
+-		mark_oom_victim(p);
+-		wake_oom_reaper(p);
+-		task_unlock(p);
+-		put_task_struct(p);
+-		return;
+-	}
+-	task_unlock(p);
+-
+-	if (__ratelimit(&oom_rs))
+-		dump_header(oc, p);
+-
+-	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
+-		message, task_pid_nr(p), p->comm, points);
+-
+-	/*
+-	 * If any of p's children has a different mm and is eligible for kill,
+-	 * the one with the highest oom_badness() score is sacrificed for its
+-	 * parent.  This attempts to lose the minimal amount of work done while
+-	 * still freeing memory.
+-	 */
+-	read_lock(&tasklist_lock);
+-	for_each_thread(p, t) {
+-		list_for_each_entry(child, &t->children, sibling) {
+-			unsigned int child_points;
+-
+-			if (process_shares_mm(child, p->mm))
+-				continue;
+-			/*
+-			 * oom_badness() returns 0 if the thread is unkillable
+-			 */
+-			child_points = oom_badness(child,
+-				oc->memcg, oc->nodemask, oc->totalpages);
+-			if (child_points > victim_points) {
+-				put_task_struct(victim);
+-				victim = child;
+-				victim_points = child_points;
+-				get_task_struct(victim);
+-			}
+-		}
+-	}
+-	read_unlock(&tasklist_lock);
+-
+ 	p = find_lock_task_mm(victim);
+ 	if (!p) {
+ 		put_task_struct(victim);
+@@ -949,6 +893,69 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ }
+ #undef K
+ 
++static void oom_kill_process(struct oom_control *oc, const char *message)
++{
++	struct task_struct *p = oc->chosen;
++	unsigned int points = oc->chosen_points;
++	struct task_struct *victim = p;
++	struct task_struct *child;
++	struct task_struct *t;
++	unsigned int victim_points = 0;
++	static DEFINE_RATELIMIT_STATE(oom_rs, DEFAULT_RATELIMIT_INTERVAL,
++					      DEFAULT_RATELIMIT_BURST);
++
++	/*
++	 * If the task is already exiting, don't alarm the sysadmin or kill
++	 * its children or threads, just give it access to memory reserves
++	 * so it can die quickly
++	 */
++	task_lock(p);
++	if (task_will_free_mem(p)) {
++		mark_oom_victim(p);
++		wake_oom_reaper(p);
++		task_unlock(p);
++		put_task_struct(p);
++		return;
++	}
++	task_unlock(p);
++
++	if (__ratelimit(&oom_rs))
++		dump_header(oc, p);
++
++	pr_err("%s: Kill process %d (%s) score %u or sacrifice child\n",
++		message, task_pid_nr(p), p->comm, points);
++
++	/*
++	 * If any of p's children has a different mm and is eligible for kill,
++	 * the one with the highest oom_badness() score is sacrificed for its
++	 * parent.  This attempts to lose the minimal amount of work done while
++	 * still freeing memory.
++	 */
++	read_lock(&tasklist_lock);
++	for_each_thread(p, t) {
++		list_for_each_entry(child, &t->children, sibling) {
++			unsigned int child_points;
++
++			if (process_shares_mm(child, p->mm))
++				continue;
++			/*
++			 * oom_badness() returns 0 if the thread is unkillable
++			 */
++			child_points = oom_badness(child,
++				oc->memcg, oc->nodemask, oc->totalpages);
++			if (child_points > victim_points) {
++				put_task_struct(victim);
++				victim = child;
++				victim_points = child_points;
++				get_task_struct(victim);
++			}
++		}
++	}
++	read_unlock(&tasklist_lock);
++
++	__oom_kill_process(victim);
++}
++
+ /*
+  * Determines whether the kernel must panic because of the panic_on_oom sysctl.
+  */
 -- 
-Michal Hocko
-SUSE Labs
+2.14.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
