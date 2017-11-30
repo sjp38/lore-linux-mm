@@ -1,73 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3072C6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 15:55:04 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id g134so3331646oib.8
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 12:55:04 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 3si1560647oil.157.2017.11.30.12.55.03
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20CCD6B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 16:17:11 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id t92so4616888wrc.13
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:17:11 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id m3si3616586wmc.29.2017.11.30.13.17.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 12:55:03 -0800 (PST)
-Subject: Re: [PATCH] list_lru: Prefetch neighboring list entries before
- acquiring lock
-References: <1511965054-6328-1-git-send-email-longman@redhat.com>
- <20171129135319.ab078fbed566be8fc90c92ec@linux-foundation.org>
- <20171130004252.GR4094@dastard>
- <209d1aea-2951-9d4f-5638-8bc037a6676c@redhat.com>
- <20171130203800.GS4094@dastard>
-From: Waiman Long <longman@redhat.com>
-Message-ID: <04d15b8d-d69f-660f-2196-a10aab2fefa6@redhat.com>
-Date: Thu, 30 Nov 2017 15:55:01 -0500
-MIME-Version: 1.0
-In-Reply-To: <20171130203800.GS4094@dastard>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
+        Thu, 30 Nov 2017 13:17:09 -0800 (PST)
+Date: Thu, 30 Nov 2017 13:17:06 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
+Message-Id: <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
+In-Reply-To: <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
+References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+	<20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
+	<20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
+	<20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
+	<20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-On 11/30/2017 03:38 PM, Dave Chinner wrote:
-> On Thu, Nov 30, 2017 at 08:54:04AM -0500, Waiman Long wrote:
->>
->> For the record, I add one more list_empty() check at the beginning of
->> list_lru_del() in the patch for 2 purpose:
->> 1. it allows the code to bail out early.
-> Which is what I said was wrong. You haven't addressed why you think
-> it's safe to add racy specualtive checks to this code in your quest
-> for speed.
->
-> Also, I'm curious about is how much of the gain is from the
-> prefetching, and how much of the gain is from avoiding the lock
-> altogether by the early bailout...
+On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-The early bailout doesn't improve the test at all. In the case of
-dentries, there is a flag that indicates that the dentry is in the LRU
-list. So list_lru_del is only called when it is in the LRU list.
+> > mm...  So we have a caller which hopes to be getting highmem pages but
+> > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
+> > why it isn't getting as much memory as it would like on 32-bit systems,
+> > etc.
+> 
+> How he can kmap the page when he gets a _virtual_ address?
 
->> 2. It make sure the cacheline of the list_head entry itself is loaded.=
+doh.
 
->>
->> Other than that, I only add a likely() qualifier to the existing
->> list_empty() check within the lock critical region.
-> Yup, but in many cases programmers get the static branch prediction
-> hints are wrong. In this case, you are supposing that nobody ever
-> calls list_lru_del() on objects that aren't on the lru. That's not
-> true - inodes that are being evicted may never have been on the LRU
-> at all, but we still call through list_lru_del() so it can determine
-> the LRU state correctly (e.g. cache cold rm -rf workloads)....
->
-> IOWs, I'm pretty sure even just adding static branch prediction
-> hints here is wrong....
+> > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
+> > would suffice.
+> 
+> This function has always been about lowmem pages. I seriously doubt we
+> have anybody confused and asking for a highmem page in the kernel. I
+> haven't checked that but it would already blow up as VM_BUG_ON tends to
+> be enabled on many setups.
 
-In the case of dentries, the static branch is right. However it may not
-be true for other users of list_lru, so I am OK to take them out. Thanks
-for the explanation.
+OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
+shouldn't be doing that in the first place.
 
-Cheers,
-Longman
+I wonder what happens if we just remove the WARN_ON and pass any
+__GFP_HIGHMEM straight through.  The caller gets a weird address from
+page_to_virt(highmem page) and usually goes splat?  Good enough
+treatment for something which never happens anyway?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
