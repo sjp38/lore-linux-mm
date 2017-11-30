@@ -1,91 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id CCA236B0253
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:04:40 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id c41so2906820otc.18
-        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 22:04:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u4si1210777otf.146.2017.11.29.22.04.39
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E76366B0038
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 01:53:40 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id i14so3742643pgf.13
+        for <linux-mm@kvack.org>; Wed, 29 Nov 2017 22:53:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q70si2724548pfa.284.2017.11.29.22.53.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 29 Nov 2017 22:04:39 -0800 (PST)
-Date: Thu, 30 Nov 2017 14:04:31 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: [PATCH] mm: check pfn_valid first in zero_resv_unavail
-Message-ID: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 29 Nov 2017 22:53:39 -0800 (PST)
+Date: Thu, 30 Nov 2017 07:53:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
+Message-ID: <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
+References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+ <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
+ <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
+ <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-With latest kernel I get below bug while testing kdump:
+On Wed 29-11-17 13:41:59, Andrew Morton wrote:
+> On Wed, 29 Nov 2017 17:04:46 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > On Mon 27-11-17 12:33:41, Michal Hocko wrote:
+> > > On Mon 27-11-17 19:09:24, JianKang Chen wrote:
+> > > > From: Jiankang Chen <chenjiankang1@huawei.com>
+> > > > 
+> > > > __get_free_pages will return an virtual address, 
+> > > > but it is not just 32-bit address, for example a 64-bit system. 
+> > > > And this comment really confuse new bigenner of mm.
+> > > 
+> > > s@bigenner@beginner@
+> > > 
+> > > Anyway, do we really need a bug on for this? Has this actually caught
+> > > any wrong usage? VM_BUG_ON tends to be enabled these days AFAIK and
+> > > panicking the kernel seems like an over-reaction. If there is a real
+> > > risk then why don't we simply mask __GFP_HIGHMEM off when calling
+> > > alloc_pages?
+> > 
+> > I meant this
+> > ---
+> > >From 000bb422fe07adbfa8cd8ed953b18f48647a45d6 Mon Sep 17 00:00:00 2001
+> > From: Michal Hocko <mhocko@suse.com>
+> > Date: Wed, 29 Nov 2017 17:02:33 +0100
+> > Subject: [PATCH] mm: drop VM_BUG_ON from __get_free_pages
+> > 
+> > There is no real reason to blow up just because the caller doesn't know
+> > that __get_free_pages cannot return highmem pages. Simply fix that up
+> > silently. Even if we have some confused users such a fixup will not be
+> > harmful.
+> 
+> mm...  So we have a caller which hopes to be getting highmem pages but
+> isn't.  Caller then proceeds to pointlessly kmap the page and wonders
+> why it isn't getting as much memory as it would like on 32-bit systems,
+> etc.
 
-[    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
-[    0.000000] IP: zero_resv_unavail+0xbd/0x126
-[    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
-[    0.000000] Oops: 0002 [#1] SMP
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
-[    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
-[    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
-[    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
-[    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
-[    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
-[    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
-[    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
-[    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
-[    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
-[    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
-[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
-[    0.000000] Call Trace:
-[    0.000000]  ? free_area_init_nodes+0x640/0x664
-[    0.000000]  ? zone_sizes_init+0x58/0x72
-[    0.000000]  ? setup_arch+0xb50/0xc6c
-[    0.000000]  ? start_kernel+0x64/0x43d
-[    0.000000]  ? secondary_startup_64+0xa5/0xb0
-[    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
-c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
-[    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
-[    0.000000] CR2: ffffea00034b1040
-[    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
+How he can kmap the page when he gets a _virtual_ address?
 
-This is introduced with below commit:
-commit a4a3ede2132ae0863e2d43e06f9b5697c51a7a3b
-Author: Pavel Tatashin <pasha.tatashin@oracle.com>
-Date:   Wed Nov 15 17:36:31 2017 -0800
+> I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
+> would suffice.
 
-    mm: zero reserved and unavailable struct pages
+This function has always been about lowmem pages. I seriously doubt we
+have anybody confused and asking for a highmem page in the kernel. I
+haven't checked that but it would already blow up as VM_BUG_ON tends to
+be enabled on many setups.
 
-The reason is some efi reserved boot ranges is not reported in E820 ram.
-In my case it is a bgrt buffer:
-efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
-
-Use "add_efi_memmap" can workaround the problem with another fix:
-https://lkml.org/lkml/2017/11/30/5
-
-In zero_resv_unavail it would be better to check pfn_valid first before zero
-the page struct. This fixes the problem and potential other similar problems.
-
-Signed-off-by: Dave Young <dyoung@redhat.com>
----
- mm/page_alloc.c |    2 ++
- 1 file changed, 2 insertions(+)
-
---- linux.orig/mm/page_alloc.c
-+++ linux/mm/page_alloc.c
-@@ -6253,6 +6253,8 @@ void __paginginit zero_resv_unavail(void
- 	pgcnt = 0;
- 	for_each_resv_unavail_range(i, &start, &end) {
- 		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-+			if (!pfn_valid(pfn))
-+				continue;
- 			mm_zero_struct_page(pfn_to_page(pfn));
- 			pgcnt++;
- 		}
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
