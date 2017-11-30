@@ -1,56 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DE4306B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 16:49:28 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id f4so4639040wre.9
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 13:49:28 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42BC86B0253
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 17:14:28 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id h12so4548124wre.12
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:14:28 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b9si3858419wrh.491.2017.11.30.13.49.27
+        by mx.google.com with ESMTPS id 30si4057677wra.131.2017.11.30.14.14.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 30 Nov 2017 13:49:27 -0800 (PST)
-Date: Thu, 30 Nov 2017 13:49:24 -0800
+        Thu, 30 Nov 2017 14:14:27 -0800 (PST)
+Date: Thu, 30 Nov 2017 14:14:23 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v18 01/10] idr: add #include <linux/bug.h>
-Message-Id: <20171130134924.e842ccd01e34eaf8834f4033@linux-foundation.org>
-In-Reply-To: <20171130005817.GA14785@bombadil.infradead.org>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-	<1511963726-34070-2-git-send-email-wei.w.wang@intel.com>
-	<20171130005817.GA14785@bombadil.infradead.org>
+Subject: stalled MM patches
+Message-Id: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Wei Wang <wei.w.wang@intel.com>, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com, Masahiro Yamada <yamada.masahiro@socionext.com>
+To: Alexandru Moise <00moses.alexander00@gmail.com>, Andi Kleen <ak@linux.intel.com>, Andrey Vagin <avagin@openvz.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, "Artem S. Tashkinov" <t.artem@lycos.com>, Balbir Singh <bsingharora@gmail.com>, Chris Salls <salls@cs.ucsb.edu>, Christopher Lameter <cl@linux.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Glauber Costa <glommer@openvz.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Maxim Patlasov <MPatlasov@parallels.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Punit Agrawal <punit.agrawal@arm.com>, Rik van Riel <riel@redhat.com>, Shiraz Hashim <shashim@codeaurora.org>, Tan Xiaojun <tanxiaojun@huawei.com>, Theodore Ts'o <tytso@mit.edu>, Vinayak Menon <vinmenon@codeaurora.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, zhong jiang <zhongjiang@huawei.com>
+Cc: linux-mm@kvack.org
 
-On Wed, 29 Nov 2017 16:58:17 -0800 Matthew Wilcox <willy@infradead.org> wrote:
 
-> On Wed, Nov 29, 2017 at 09:55:17PM +0800, Wei Wang wrote:
-> > The <linux/bug.h> was removed from radix-tree.h by the following commit:
-> > f5bba9d11a256ad2a1c2f8e7fc6aabe6416b7890.
-> > 
-> > Since that commit, tools/testing/radix-tree/ couldn't pass compilation
-> > due to: tools/testing/radix-tree/idr.c:17: undefined reference to
-> > WARN_ON_ONCE. This patch adds the bug.h header to idr.h to solve the
-> > issue.
-> 
-> Thanks; I sent this same patch out yesterday.
-> 
-> Unfortunately, you didn't cc the author of this breakage, Masahiro Yamada.
-> I want to highlight that these kinds of header cleanups are risky,
-> and very low reward.  I really don't want to see patches going all over
-> the tree randomly touching header files.  If we've got a real problem
-> to solve, then sure.  But I want to see a strong justification for any
-> more header file cleanups.
+I'm sitting on a bunch of patches of varying ages which are stuck for
+various reason.  Can people please take a look some time and assist
+with getting them merged, dropped or fixed?
 
-I tend to disagree.  We accumulate more and more cruft over time so it
-is good to be continually hacking away at it.  These little build
-breaks happen occasionally but they are trivially and quickly fixed. 
-If a small minority of these cleanups require a followup patch which
-consumes a global ten person minutes then that seems an acceptable
-price to pay.  Says the guy who pays most of that price :)
+I'll send them all out in a sec.  I have rough notes (which might be
+obsolete) and additional details can be found by following the Link: in
+the individual patches.
+
+Thanks.
+
+Subject: mm: skip HWPoisoned pages when onlining pages
+
+  mhocko had issues with this one.
+
+Subject: mm/mempolicy: remove redundant check in get_nodes
+Subject: mm/mempolicy: fix the check of nodemask from user
+Subject: mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
+
+  Three patch series.  Stuck because vbabka wasn't happy with #3.
+
+Subject: mm: memcontrol: eliminate raw access to stat and event counters
+Subject: mm: memcontrol: implement lruvec stat functions on top of each other
+Subject: mm: memcontrol: fix excessive complexity in memory.stat reporting
+
+  Three patch series.  Stuck because #3 caused fengguang-bot to
+  report "BUG: using __this_cpu_xchg() in preemptible"
+
+Subject: mm/madvise: enable soft offline of HugeTLB pages at PUD level
+
+  Hoping for Kirill review.  I wanted additional code comments (I
+  think).  mhocko nacked it.
+
+Subject: mm: readahead: increase maximum readahead window
+
+  Darrick said he was going to do some testing.
+
+Subject: fs/proc/task_mmu.c: do not show VmExe bigger than total executable virtual memory
+
+  I had some questions, but they were responded to, whcih made my
+  head spin a bit.  I guess I'll push this to Linus but would
+  appreciate additional review.
+
+Subject: mm, hugetlb: remove hugepages_treat_as_movable sysctl
+
+  I'm holding this for additional testing.  I guess I'll merge it in
+  4.16-rc1.
+
+Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
+
+  mhocko asked for a changelog update
+
+Subject: mm/page_owner: align with pageblock_nr pages
+
+  mhocko sounded confused and I don't think that was resolved?
+
+Subject: mm/vmstat.c: walk the zone in pageblock_nr_pages steps
+
+  Joonsoo asked for a new changelog.  Various other concerns.
+
+Subject: mm: add strictlimit knob
+
+  This is three years old and I don't think we ever saw a convincing
+  case for merging it.  Opinions>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
