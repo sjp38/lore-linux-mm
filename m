@@ -1,106 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 90B6D6B0038
-	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:57:47 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 33so3305788pll.9
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:57:47 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b3si3692597pli.459.2017.11.30.11.57.46
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BDEFC6B0069
+	for <linux-mm@kvack.org>; Thu, 30 Nov 2017 14:58:47 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id r70so6803521ioi.2
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 11:58:47 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id r185sor2477487itr.53.2017.11.30.11.58.46
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 11:57:46 -0800 (PST)
-Date: Thu, 30 Nov 2017 20:57:43 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH RFC 2/2] mm, hugetlb: do not rely on overcommit limit
- during migration
-Message-ID: <20171130195743.52vc6enr3rnivtdx@dhcp22.suse.cz>
-References: <20171128101907.jtjthykeuefxu7gl@dhcp22.suse.cz>
- <20171128141211.11117-1-mhocko@kernel.org>
- <20171128141211.11117-3-mhocko@kernel.org>
- <20171129092234.eluli2gl7gotj35x@dhcp22.suse.cz>
- <425a8947-d32a-d6bb-3a0a-2e30275c64c9@oracle.com>
- <20171130075742.3exagxg6y4j427ut@dhcp22.suse.cz>
- <e23f971e-cd62-afea-6567-0873a3e48db7@oracle.com>
+        (Google Transport Security);
+        Thu, 30 Nov 2017 11:58:46 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e23f971e-cd62-afea-6567-0873a3e48db7@oracle.com>
+In-Reply-To: <CAGXu5j+om_oZ63OkJwGJNpVgBPxm9Nwc_JwbR3cpfugDPN7X+w@mail.gmail.com>
+References: <20171126063117.oytmra3tqoj5546u@wfg-t540p.sh.intel.com>
+ <20171127210301.GA55812@localhost.corp.microsoft.com> <20171128124534.3jvuala525wvn64r@wfg-t540p.sh.intel.com>
+ <20171129175430.GA58181@big-sky.attlocal.net> <CACT4Y+bji1JMJVJZdv=+bD8JZ1kqrmJ0PWXvHdYzRFcnAKDSGw@mail.gmail.com>
+ <CAGXu5jLOojG_Nc50KhdHsXDQQ27G+kOPp6-5kQz7Yh5Vpgucnw@mail.gmail.com>
+ <20171130192257.GB1529@localhost> <CAGXu5j+om_oZ63OkJwGJNpVgBPxm9Nwc_JwbR3cpfugDPN7X+w@mail.gmail.com>
+From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
+Date: Thu, 30 Nov 2017 19:58:45 +0000
+Message-ID: <CAKv+Gu-4JqNiHLo+EAbiEQ+jBNUW0iuyZQs=Do+KajKaibsZuw@mail.gmail.com>
+Subject: Re: [pcpu] BUG: KASAN: use-after-scope in pcpu_setup_first_chunk+0x1e3b/0x29e2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
+To: Kees Cook <keescook@chromium.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Dennis Zhou <dennisszhou@gmail.com>, Fengguang Wu <fengguang.wu@intel.com>, Linux-MM <linux-mm@kvack.org>, Tejun Heo <tj@kernel.org>, Christoph Lameter <cl@linux.com>, Linus Torvalds <torvalds@linux-foundation.org>, Josef Bacik <jbacik@fb.com>, LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Mark Rutland <mark.rutland@arm.com>
 
-On Thu 30-11-17 11:35:11, Mike Kravetz wrote:
-> On 11/29/2017 11:57 PM, Michal Hocko wrote:
-> > On Wed 29-11-17 11:52:53, Mike Kravetz wrote:
-> >> On 11/29/2017 01:22 AM, Michal Hocko wrote:
-> >>> What about this on top. I haven't tested this yet though.
-> >>
-> >> Yes, this would work.
-> >>
-> >> However, I think a simple modification to your previous free_huge_page
-> >> changes would make this unnecessary.  I was confused in your previous
-> >> patch because you decremented the per-node surplus page count, but not
-> >> the global count.  I think it would have been correct (and made this
-> >> patch unnecessary) if you decremented the global counter there as well.
-> > 
-> > We cannot really increment the global counter because the over number of
-> > surplus pages during migration doesn't increase.
-> 
-> I was not suggesting we increment the global surplus count.  Rather,
-> your previous patch should have decremented the global surplus count in
-> free_huge_page.  Something like:
+On 30 November 2017 at 19:56, Kees Cook <keescook@chromium.org> wrote:
+> On Thu, Nov 30, 2017 at 11:22 AM, Dennis Zhou <dennisszhou@gmail.com> wrote:
+>> Hi Dmitry and Kees,
+>>
+>> On Thu, Nov 30, 2017 at 10:10:41AM -0800, Kees Cook wrote:
+>>> > Are we sure that structleak plugin is not at fault? If yes, then we
+>>> > need to report this to https://gcc.gnu.org/bugzilla/ with instructions
+>>> > on how to build/use the plugin.
+>>
+>> I believe this is an issue with the structleak plugin and not gcc. The
+>> bug does not show up if you compile without
+>> GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+>>
+>> It seems to be caused by the initializer not respecting the ASAN_MARK
+>> calls. Therefore, if an inlined function gets called from a for loop,
+>> the initializer code gets invoked bugging in the second iteration. Below
+>> is the tree dump for the structleak plugin from the reproducer in the
+>> previous email. In bb 2 of INIT_LIST_HEAD, the __u = {} is before the
+>> unpoison call. This is inlined in bb 3 of main.
+>
+> Ah-ha, okay. Thanks for the close examination. Ard, is this something
+> you have a few moment to take a look at?
+>
 
-sorry I meant to say decrement. The point is that overal suprlus count
-doesn't change after the migration. The only thing that _might_ change
-is the per node distribution of surplus pages. That is why I think we
-should handle that during the migration.
-
-> @@ -1283,7 +1283,13 @@ void free_huge_page(struct page *page)
->  	if (restore_reserve)
->  		h->resv_huge_pages++;
->  
-> -	if (h->surplus_huge_pages_node[nid]) {
-> +	if (PageHugeTemporary(page)) {
-> +		list_del(&page->lru);
-> +		ClearPageHugeTemporary(page);
-> +		update_and_free_page(h, page);
-> +		if (h->surplus_huge_pages_node[nid])
-> +			h->surplus_huge_pages--;
-> +			h->surplus_huge_pages_node[nid]--;
-> +		}
-> +	} else if (h->surplus_huge_pages_node[nid]) {
->  		/* remove the page from active list */
->  		list_del(&page->lru);
->  		update_and_free_page(h, page);
-> 
-> When we allocate one of these 'PageHugeTemporary' pages, we only increment
-> the global and node specific nr_huge_pages counters.  To me, this makes all
-> the huge page counters be the same as if there were simply one additional
-> pre-allocated huge page.  This 'extra' (PageHugeTemporary) page will go
-> away when free_huge_page is called.  So, my thought is that it is not
-> necessary to transfer per-node counts from the original to target node.
-> Of course, I may be missing something.
-
-The thing is that we do not know whether the original page is surplus
-until the deallocation time.
-
-> When thinking about transfering per-node counts as is done in your latest
-> patch, I took another look at all the per-node counts.  This may show my
-> ignorance of huge page migration, but do we need to handle the case where
-> the page being migrated is 'free'?  Is that possible?  If so, there will
-> be a count for free_huge_pages_node and the page will be on the per node
-> hugepage_freelists that must be handled
-
-I do not understand. What do you mean by free? Sitting on the pool? I do
-not think we ever try to migrate those. They simply do not have any
-state to migrate. We could very well just allocate fresh pages on the
-remote node and dissolve free ones. I am not sure we do that during the
-memory hotplug to preserve the pool size and I am too tired to check
-that now. This would be a different topic I guess.
--- 
-Michal Hocko
-SUSE Labs
+I must admit that I am a bit out of my depth here. Also, I am quite
+sure this is a pre-existing issue with the plugin which is triggered
+more easily because it affects many more initializers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
