@@ -1,96 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CFE3D6B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:22:13 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id o20so5880536wro.8
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:22:13 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f22si3809273eda.157.2017.12.01.07.22.12
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F5576B0253
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:27:16 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id u126so4422898oia.19
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:27:16 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f62si2308815otb.235.2017.12.01.07.27.15
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 07:22:12 -0800 (PST)
-Subject: Re: [patch 04/15] mm/mempolicy: add nodes_empty check in
- SYSC_migrate_pages
-References: <5a2082fa.bXLNoQ4bvY4J0ImP%akpm@linux-foundation.org>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <238af2fe-e8c2-5fe5-aa5b-1361e334058b@suse.cz>
-Date: Fri, 1 Dec 2017 16:20:46 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Dec 2017 07:27:15 -0800 (PST)
+Subject: Re: [PATCH 1/2] KVM: x86: fix APIC page invalidation
+References: <20171130161933.GB1606@flask>
+ <20171130180546.4331-1-rkrcmar@redhat.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <47491ef9-5de0-35ac-3358-29966db92541@redhat.com>
+Date: Fri, 1 Dec 2017 16:27:11 +0100
 MIME-Version: 1.0
-In-Reply-To: <5a2082fa.bXLNoQ4bvY4J0ImP%akpm@linux-foundation.org>
+In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org, linux-mm@kvack.org, xieyisheng1@huawei.com, ak@linux.intel.com, cl@linux.com, mingo@kernel.org, n-horiguchi@ah.jp.nec.com, rientjes@google.com, salls@cs.ucsb.edu, tanxiaojun@huawei.com
+To: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, =?UTF-8?Q?Fabian_Gr=c3=bcnbichler?= <f.gruenbichler@proxmox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On 11/30/2017 11:15 PM, akpm@linux-foundation.org wrote:
-> From: Yisheng Xie <xieyisheng1@huawei.com>
-> Subject: mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
+On 30/11/2017 19:05, Radim KrA?mA!A? wrote:
+> Implementation of the unpinned APIC page didn't update the VMCS address
+> cache when invalidation was done through range mmu notifiers.
+> This became a problem when the page notifier was removed.
 > 
-> As in manpage of migrate_pages, the errno should be set to EINVAL when
-> none of the node IDs specified by new_nodes are on-line and allowed by the
-> process's current cpuset context, or none of the specified nodes contain
-> memory.  However, when test by following case:
+> Re-introduce the arch-specific helper and call it from ...range_start.
 > 
-> 	new_nodes = 0;
-> 	old_nodes = 0xf;
-> 	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
-> 
-> The ret will be 0 and no errno is set.  As the new_nodes is empty, we
-> should expect EINVAL as documented.
-> 
-> To fix the case like above, this patch check whether target nodes AND
-> current task_nodes is empty, and then check whether AND
-> node_states[N_MEMORY] is empty.
-> 
-> Link: http://lkml.kernel.org/r/1510882624-44342-4-git-send-email-xieyisheng1@huawei.com
-> Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
-> Cc: Andi Kleen <ak@linux.intel.com>
-> Cc: Chris Salls <salls@cs.ucsb.edu>
-> Cc: Christopher Lameter <cl@linux.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> Cc: Tan Xiaojun <tanxiaojun@huawei.com>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-
-My previous concerns here were a mistake as I explained in my reply to
-v4. So you can add
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-and proceed with the series. Thanks.
-
+> Fixes: 38b9917350cb ("kvm: vmx: Implement set_apic_access_page_addr")
+> Fixes: 369ea8242c0f ("mm/rmap: update to new mmu_notifier semantic v2")
+> Signed-off-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
 > ---
+>  arch/x86/include/asm/kvm_host.h |  3 +++
+>  arch/x86/kvm/x86.c              | 14 ++++++++++++++
+>  virt/kvm/kvm_main.c             |  8 ++++++++
+>  3 files changed, 25 insertions(+)
 > 
->  mm/mempolicy.c |   10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
-> 
-> diff -puN mm/mempolicy.c~mm-mempolicy-add-nodes_empty-check-in-sysc_migrate_pages mm/mempolicy.c
-> --- a/mm/mempolicy.c~mm-mempolicy-add-nodes_empty-check-in-sysc_migrate_pages
-> +++ a/mm/mempolicy.c
-> @@ -1433,10 +1433,14 @@ SYSCALL_DEFINE4(migrate_pages, pid_t, pi
->  		goto out_put;
->  	}
+> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> index 977de5fb968b..c16c3f924863 100644
+> --- a/arch/x86/include/asm/kvm_host.h
+> +++ b/arch/x86/include/asm/kvm_host.h
+> @@ -1435,4 +1435,7 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
+>  #define put_smstate(type, buf, offset, val)                      \
+>  	*(type *)((buf) + (offset) - 0x7e00) = val
 >  
-> -	if (!nodes_subset(*new, node_states[N_MEMORY])) {
-> -		err = -EINVAL;
-> +	task_nodes = cpuset_mems_allowed(current);
-> +	nodes_and(*new, *new, task_nodes);
-> +	if (nodes_empty(*new))
-> +		goto out_put;
+> +void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> +		unsigned long start, unsigned long end);
 > +
-> +	nodes_and(*new, *new, node_states[N_MEMORY]);
-> +	if (nodes_empty(*new))
->  		goto out_put;
-> -	}
+>  #endif /* _ASM_X86_KVM_HOST_H */
+> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> index eee8e7faf1af..a219974cdb89 100644
+> --- a/arch/x86/kvm/x86.c
+> +++ b/arch/x86/kvm/x86.c
+> @@ -6778,6 +6778,20 @@ static void kvm_vcpu_flush_tlb(struct kvm_vcpu *vcpu)
+>  	kvm_x86_ops->tlb_flush(vcpu);
+>  }
 >  
->  	err = security_task_movememory(task);
->  	if (err)
-> _
+> +void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> +		unsigned long start, unsigned long end)
+> +{
+> +	unsigned long apic_address;
+> +
+> +	/*
+> +	 * The physical address of apic access page is stored in the VMCS.
+> +	 * Update it when it becomes invalid.
+> +	 */
+> +	apic_address = gfn_to_hva(kvm, APIC_DEFAULT_PHYS_BASE >> PAGE_SHIFT);
+> +	if (start <= apic_address && apic_address < end)
+> +		kvm_make_all_cpus_request(kvm, KVM_REQ_APIC_PAGE_RELOAD);
+> +}
+> +
+>  void kvm_vcpu_reload_apic_access_page(struct kvm_vcpu *vcpu)
+>  {
+>  	struct page *page = NULL;
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index c01cff064ec5..b7f4689e373f 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -135,6 +135,11 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm);
+>  static unsigned long long kvm_createvm_count;
+>  static unsigned long long kvm_active_vms;
+>  
+> +__weak void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> +		unsigned long start, unsigned long end)
+> +{
+> +}
+> +
+>  bool kvm_is_reserved_pfn(kvm_pfn_t pfn)
+>  {
+>  	if (pfn_valid(pfn))
+> @@ -360,6 +365,9 @@ static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+>  		kvm_flush_remote_tlbs(kvm);
+>  
+>  	spin_unlock(&kvm->mmu_lock);
+> +
+> +	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
+> +
+>  	srcu_read_unlock(&kvm->srcu, idx);
+>  }
+>  
 > 
+
+Reviewed-by: Paolo Bonzini <pbonzini@redhat.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
