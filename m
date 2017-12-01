@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A5966B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 02:53:19 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id 73so6836541pfz.11
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 23:53:19 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x128sor1448345pgb.311.2017.11.30.23.53.17
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 956E06B0069
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 02:53:24 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id w1so5973682pgq.21
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 23:53:24 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k73sor1645819pge.293.2017.11.30.23.53.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 30 Nov 2017 23:53:17 -0800 (PST)
+        Thu, 30 Nov 2017 23:53:22 -0800 (PST)
 From: js1304@gmail.com
-Subject: [PATCH v2 0/3] mm/cma: manage the memory of the CMA area by using the ZONE_MOVABLE
-Date: Fri,  1 Dec 2017 16:53:03 +0900
-Message-Id: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
+Subject: [PATCH v2 1/3] mm/cma: manage the memory of the CMA area by using the ZONE_MOVABLE
+Date: Fri,  1 Dec 2017 16:53:04 +0900
+Message-Id: <1512114786-5085-2-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
+References: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -20,55 +22,436 @@ Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura 
 
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-v2
-o previous failure in linux-next turned out that it's not the problem of
-this patchset. It was caused by the wrong assumption by specific
-architecture.
-
-lkml.kernel.org/r/20171114173719.GA28152@atomide.com
-
-o add missing cache flush to the patch "ARM: CMA: avoid double mapping
-to the CMA area if CONFIG_HIGHMEM = y"
-
+0. History
 
 This patchset is the follow-up of the discussion about the
 "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
 is needed.
 
-In this patchset, the memory of the CMA area is managed by using
-the ZONE_MOVABLE. Since there is another type of the memory in this zone,
-we need to maintain a migratetype for the CMA memory to account
-the number of the CMA memory. So, unlike previous patchset, there is
-less deletion of the code.
+1. What does this patch do?
 
-Otherwise, there is no big change.
+This patch changes the management way for the memory of the CMA area
+in the MM subsystem. Currently, The memory of the CMA area is managed
+by the zone where their pfn is belong to. However, this approach has
+some problems since MM subsystem doesn't have enough logic to handle
+the situation that different characteristic memories are in a single zone.
+To solve this issue, this patch try to manage all the memory of
+the CMA area by using the MOVABLE zone. In MM subsystem's point of view,
+characteristic of the memory on the MOVABLE zone and the memory of
+the CMA area are the same. So, managing the memory of the CMA area
+by using the MOVABLE zone will not have any problem.
 
-Motivation of this patchset is described in the commit description of
-the patch "mm/cma: manage the memory of the CMA area by using
-the ZONE_MOVABLE". Please refer it for more information.
+2. Motivation
 
-This patchset is based on linux-next-20170822 plus
-"mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE".
+There are some problems with current approach. See following.
+Although these problem would not be inherent and it could be fixed without
+this conception change, it requires many hooks addition in various
+code path and it would be intrusive to core MM and would be really
+error-prone. Therefore, I try to solve them with this new approach.
+Anyway, following is the problems of the current implementation.
 
-Thanks.
+o CMA memory utilization
+
+First, following is the freepage calculation logic in MM.
+
+- For movable allocation: freepage = total freepage
+- For unmovable allocation: freepage = total freepage - CMA freepage
+
+Freepages on the CMA area is used after the normal freepages in the zone
+where the memory of the CMA area is belong to are exhausted. At that moment
+that the number of the normal freepages is zero, so
+
+- For movable allocation: freepage = total freepage = CMA freepage
+- For unmovable allocation: freepage = 0
+
+If unmovable allocation comes at this moment, allocation request would
+fail to pass the watermark check and reclaim is started. After reclaim,
+there would exist the normal freepages so freepages on the CMA areas
+would not be used.
+
+FYI, there is another attempt [2] trying to solve this problem in lkml.
+And, as far as I know, Qualcomm also has out-of-tree solution for this
+problem.
+
+o useless reclaim
+
+There is no logic to distinguish CMA pages in the reclaim path. Hence,
+CMA page is reclaimed even if the system just needs the page that can
+be usable for the kernel allocation.
+
+o atomic allocation failure
+
+This is also related to the fallback allocation policy for the memory
+of the CMA area. Consider the situation that the number of the normal
+freepages is *zero* since the bunch of the movable allocation requests
+come. Kswapd would not be woken up due to following freepage calculation
+logic.
+
+- For movable allocation: freepage = total freepage = CMA freepage
+
+If atomic unmovable allocation request comes at this moment, it would
+fails due to following logic.
+
+- For unmovable allocation: freepage = total freepage - CMA freepage = 0
+
+It was reported by Aneesh [3].
+
+o useless compaction
+
+Usual high-order allocation request is unmovable allocation request and
+it cannot be served from the memory of the CMA area. In compaction,
+migration scanner try to migrate the page in the CMA area and make
+high-order page there. As mentioned above, it cannot be usable
+for the unmovable allocation request so it's just waste.
+
+3. Current approach and new approach
+
+Current approach is that the memory of the CMA area is managed by the zone
+where their pfn is belong to. However, these memory should be
+distinguishable since they have a strong limitation. So, they are marked
+as MIGRATE_CMA in pageblock flag and handled specially. However,
+as mentioned in section 2, the MM subsystem doesn't have enough logic
+to deal with this special pageblock so many problems raised.
+
+New approach is that the memory of the CMA area is managed by
+the MOVABLE zone. MM already have enough logic to deal with special zone
+like as HIGHMEM and MOVABLE zone. So, managing the memory of the CMA area
+by the MOVABLE zone just naturally work well because constraints
+for the memory of the CMA area that the memory should always be migratable
+is the same with the constraint for the MOVABLE zone.
+
+There is one side-effect for the usability of the memory of the CMA area.
+The use of MOVABLE zone is only allowed for a request with GFP_HIGHMEM &&
+GFP_MOVABLE so now the memory of the CMA area is also only allowed for
+this gfp flag. Before this patchset, a request with GFP_MOVABLE can use
+them. IMO, It would not be a big issue since most of GFP_MOVABLE request
+also has GFP_HIGHMEM flag. For example, file cache page and anonymous page.
+However, file cache page for blockdev file is an exception. Request for it
+has no GFP_HIGHMEM flag. There is pros and cons on this exception.
+In my experience, blockdev file cache pages are one of the top reason
+that causes cma_alloc() to fail temporarily. So, we can get more guarantee
+of cma_alloc() success by discarding this case.
+
+Note that there is no change in admin POV since this patchset is just
+for internal implementation change in MM subsystem. Just one minor
+difference for admin is that the memory stat for CMA area will be printed
+in the MOVABLE zone. That's all.
+
+4. Result
+
+Following is the experimental result related to utilization problem.
+
+8 CPUs, 1024 MB, VIRTUAL MACHINE
+make -j16
+
+<Before>
+CMA area:               0 MB            512 MB
+Elapsed-time:           92.4		186.5
+pswpin:                 82		18647
+pswpout:                160		69839
+
+<After>
+CMA        :            0 MB            512 MB
+Elapsed-time:           93.1		93.4
+pswpin:                 84		46
+pswpout:                183		92
 
 [1]: lkml.kernel.org/r/1491880640-9944-1-git-send-email-iamjoonsoo.kim@lge.com
+[2]: https://lkml.org/lkml/2014/10/15/623
+[3]: http://www.spinics.net/lists/linux-mm/msg100562.html
 
-
-Joonsoo Kim (3):
-  mm/cma: manage the memory of the CMA area by using the ZONE_MOVABLE
-  mm/cma: remove ALLOC_CMA
-  ARM: CMA: avoid double mapping to the CMA area if CONFIG_HIGHMEM = y
-
- arch/arm/mm/dma-mapping.c      | 16 +++++++-
+Reviewed-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Signed-off-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+---
  include/linux/memory_hotplug.h |  3 --
  include/linux/mm.h             |  1 +
  mm/cma.c                       | 83 ++++++++++++++++++++++++++++++++++++------
- mm/compaction.c                |  4 +-
- mm/internal.h                  |  4 +-
- mm/page_alloc.c                | 83 +++++++++++++++++++++++++++---------------
- 7 files changed, 145 insertions(+), 49 deletions(-)
+ mm/internal.h                  |  3 ++
+ mm/page_alloc.c                | 55 +++++++++++++++++++++++++---
+ 5 files changed, 126 insertions(+), 19 deletions(-)
 
+diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+index 58e110a..703069a 100644
+--- a/include/linux/memory_hotplug.h
++++ b/include/linux/memory_hotplug.h
+@@ -231,9 +231,6 @@ void put_online_mems(void);
+ void mem_hotplug_begin(void);
+ void mem_hotplug_done(void);
+ 
+-extern void set_zone_contiguous(struct zone *zone);
+-extern void clear_zone_contiguous(struct zone *zone);
+-
+ #else /* ! CONFIG_MEMORY_HOTPLUG */
+ #define pfn_to_online_page(pfn)			\
+ ({						\
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 7661156..1206585 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2090,6 +2090,7 @@ extern void setup_per_cpu_pageset(void);
+ 
+ extern void zone_pcp_update(struct zone *zone);
+ extern void zone_pcp_reset(struct zone *zone);
++extern void setup_zone_pageset(struct zone *zone);
+ 
+ /* page_alloc.c */
+ extern int min_free_kbytes;
+diff --git a/mm/cma.c b/mm/cma.c
+index 0607729..a8062af 100644
+--- a/mm/cma.c
++++ b/mm/cma.c
+@@ -38,6 +38,7 @@
+ #include <trace/events/cma.h>
+ 
+ #include "cma.h"
++#include "internal.h"
+ 
+ struct cma cma_areas[MAX_CMA_AREAS];
+ unsigned cma_area_count;
+@@ -108,23 +109,25 @@ static int __init cma_activate_area(struct cma *cma)
+ 	if (!cma->bitmap)
+ 		return -ENOMEM;
+ 
+-	WARN_ON_ONCE(!pfn_valid(pfn));
+-	zone = page_zone(pfn_to_page(pfn));
+-
+ 	do {
+ 		unsigned j;
+ 
+ 		base_pfn = pfn;
++		if (!pfn_valid(base_pfn))
++			goto err;
++
++		zone = page_zone(pfn_to_page(base_pfn));
+ 		for (j = pageblock_nr_pages; j; --j, pfn++) {
+-			WARN_ON_ONCE(!pfn_valid(pfn));
++			if (!pfn_valid(pfn))
++				goto err;
++
+ 			/*
+-			 * alloc_contig_range requires the pfn range
+-			 * specified to be in the same zone. Make this
+-			 * simple by forcing the entire CMA resv range
+-			 * to be in the same zone.
++			 * In init_cma_reserved_pageblock(), present_pages
++			 * is adjusted with assumption that all pages in
++			 * the pageblock come from a single zone.
+ 			 */
+ 			if (page_zone(pfn_to_page(pfn)) != zone)
+-				goto not_in_zone;
++				goto err;
+ 		}
+ 		init_cma_reserved_pageblock(pfn_to_page(base_pfn));
+ 	} while (--i);
+@@ -138,7 +141,7 @@ static int __init cma_activate_area(struct cma *cma)
+ 
+ 	return 0;
+ 
+-not_in_zone:
++err:
+ 	pr_err("CMA area %s could not be activated\n", cma->name);
+ 	kfree(cma->bitmap);
+ 	cma->count = 0;
+@@ -148,6 +151,41 @@ static int __init cma_activate_area(struct cma *cma)
+ static int __init cma_init_reserved_areas(void)
+ {
+ 	int i;
++	struct zone *zone;
++	pg_data_t *pgdat;
++
++	if (!cma_area_count)
++		return 0;
++
++	for_each_online_pgdat(pgdat) {
++		unsigned long start_pfn = UINT_MAX, end_pfn = 0;
++
++		zone = &pgdat->node_zones[ZONE_MOVABLE];
++
++		/*
++		 * In this case, we cannot adjust the zone range
++		 * since it is now maximum node span and we don't
++		 * know original zone range.
++		 */
++		if (populated_zone(zone))
++			continue;
++
++		for (i = 0; i < cma_area_count; i++) {
++			if (pfn_to_nid(cma_areas[i].base_pfn) !=
++				pgdat->node_id)
++				continue;
++
++			start_pfn = min(start_pfn, cma_areas[i].base_pfn);
++			end_pfn = max(end_pfn, cma_areas[i].base_pfn +
++						cma_areas[i].count);
++		}
++
++		if (!end_pfn)
++			continue;
++
++		zone->zone_start_pfn = start_pfn;
++		zone->spanned_pages = end_pfn - start_pfn;
++	}
+ 
+ 	for (i = 0; i < cma_area_count; i++) {
+ 		int ret = cma_activate_area(&cma_areas[i]);
+@@ -156,9 +194,32 @@ static int __init cma_init_reserved_areas(void)
+ 			return ret;
+ 	}
+ 
++	/*
++	 * Reserved pages for ZONE_MOVABLE are now activated and
++	 * this would change ZONE_MOVABLE's managed page counter and
++	 * the other zones' present counter. We need to re-calculate
++	 * various zone information that depends on this initialization.
++	 */
++	build_all_zonelists(NULL);
++	for_each_populated_zone(zone) {
++		if (zone_idx(zone) == ZONE_MOVABLE) {
++			zone_pcp_reset(zone);
++			setup_zone_pageset(zone);
++		} else
++			zone_pcp_update(zone);
++
++		set_zone_contiguous(zone);
++	}
++
++	/*
++	 * We need to re-init per zone wmark by calling
++	 * init_per_zone_wmark_min() but doesn't call here because it is
++	 * registered on core_initcall and it will be called later than us.
++	 */
++
+ 	return 0;
+ }
+-core_initcall(cma_init_reserved_areas);
++pure_initcall(cma_init_reserved_areas);
+ 
+ /**
+  * cma_init_reserved_mem() - create custom contiguous area from reserved memory
+diff --git a/mm/internal.h b/mm/internal.h
+index e6bd351..1cfa4c7 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -168,6 +168,9 @@ extern void post_alloc_hook(struct page *page, unsigned int order,
+ 					gfp_t gfp_flags);
+ extern int user_min_free_kbytes;
+ 
++extern void set_zone_contiguous(struct zone *zone);
++extern void clear_zone_contiguous(struct zone *zone);
++
+ #if defined CONFIG_COMPACTION || defined CONFIG_CMA
+ 
+ /*
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index b120f24..eb5cdd5 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -1635,16 +1635,38 @@ void __init page_alloc_init_late(void)
+ }
+ 
+ #ifdef CONFIG_CMA
++static void __init adjust_present_page_count(struct page *page, long count)
++{
++	struct zone *zone = page_zone(page);
++
++	/* We don't need to hold a lock since it is boot-up process */
++	zone->present_pages += count;
++}
++
+ /* Free whole pageblock and set its migration type to MIGRATE_CMA. */
+ void __init init_cma_reserved_pageblock(struct page *page)
+ {
+ 	unsigned i = pageblock_nr_pages;
++	unsigned long pfn = page_to_pfn(page);
+ 	struct page *p = page;
++	int nid = page_to_nid(page);
++
++	/*
++	 * ZONE_MOVABLE will steal present pages from other zones by
++	 * changing page links so page_zone() is changed. Before that,
++	 * we need to adjust previous zone's page count first.
++	 */
++	adjust_present_page_count(page, -pageblock_nr_pages);
+ 
+ 	do {
+ 		__ClearPageReserved(p);
+ 		set_page_count(p, 0);
+-	} while (++p, --i);
++
++		/* Steal pages from other zones */
++		set_page_links(p, ZONE_MOVABLE, nid, pfn);
++	} while (++p, ++pfn, --i);
++
++	adjust_present_page_count(page, pageblock_nr_pages);
+ 
+ 	set_pageblock_migratetype(page, MIGRATE_CMA);
+ 
+@@ -6066,6 +6088,7 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ {
+ 	enum zone_type j;
+ 	int nid = pgdat->node_id;
++	unsigned long node_end_pfn = 0;
+ 
+ 	pgdat_resize_init(pgdat);
+ #ifdef CONFIG_NUMA_BALANCING
+@@ -6093,9 +6116,13 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		struct zone *zone = pgdat->node_zones + j;
+ 		unsigned long size, realsize, freesize, memmap_pages;
+ 		unsigned long zone_start_pfn = zone->zone_start_pfn;
++		unsigned long movable_size = 0;
+ 
+ 		size = zone->spanned_pages;
+ 		realsize = freesize = zone->present_pages;
++		if (zone_end_pfn(zone) > node_end_pfn)
++			node_end_pfn = zone_end_pfn(zone);
++
+ 
+ 		/*
+ 		 * Adjust freesize so that it accounts for how much memory
+@@ -6144,12 +6171,30 @@ static void __paginginit free_area_init_core(struct pglist_data *pgdat)
+ 		zone_seqlock_init(zone);
+ 		zone_pcp_init(zone);
+ 
+-		if (!size)
++		/*
++		 * The size of the CMA area is unknown now so we need to
++		 * prepare the memory for the usemap at maximum.
++		 */
++		if (IS_ENABLED(CONFIG_CMA) && j == ZONE_MOVABLE &&
++			pgdat->node_spanned_pages) {
++			movable_size = node_end_pfn - pgdat->node_start_pfn;
++		}
++
++		if (!size && !movable_size)
+ 			continue;
+ 
+ 		set_pageblock_order();
+-		setup_usemap(pgdat, zone, zone_start_pfn, size);
+-		init_currently_empty_zone(zone, zone_start_pfn, size);
++		if (movable_size) {
++			zone->zone_start_pfn = pgdat->node_start_pfn;
++			zone->spanned_pages = movable_size;
++			setup_usemap(pgdat, zone,
++				pgdat->node_start_pfn, movable_size);
++			init_currently_empty_zone(zone,
++				pgdat->node_start_pfn, movable_size);
++		} else {
++			setup_usemap(pgdat, zone, zone_start_pfn, size);
++			init_currently_empty_zone(zone, zone_start_pfn, size);
++		}
+ 		memmap_init(size, nid, j, zone_start_pfn);
+ 	}
+ }
+@@ -7749,7 +7794,7 @@ void free_contig_range(unsigned long pfn, unsigned nr_pages)
+ }
+ #endif
+ 
+-#ifdef CONFIG_MEMORY_HOTPLUG
++#if defined CONFIG_MEMORY_HOTPLUG || defined CONFIG_CMA
+ /*
+  * The zone indicated has a new number of managed_pages; batch sizes and percpu
+  * page high values need to be recalulated.
 -- 
 2.7.4
 
