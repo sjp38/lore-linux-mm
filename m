@@ -1,75 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8771C6B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 06:18:58 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c82so838400wme.8
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 03:18:58 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b58si4651198eda.80.2017.12.01.03.18.48
+	by kanga.kvack.org (Postfix) with ESMTP id E7C806B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 07:21:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id a22so2024943wme.0
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 04:21:19 -0800 (PST)
+Received: from proxmox-new.maurer-it.com ([212.186.127.180])
+        by mx.google.com with ESMTPS id 36si5089474wrx.324.2017.12.01.04.21.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 03:18:48 -0800 (PST)
-Date: Fri, 1 Dec 2017 12:18:45 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-ID: <20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
- <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
- <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
- <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
- <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
- <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
- <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Dec 2017 04:21:18 -0800 (PST)
+Date: Fri, 1 Dec 2017 13:21:10 +0100
+From: Fabian =?iso-8859-1?Q?Gr=FCnbichler?= <f.gruenbichler@proxmox.com>
+Subject: Re: [PATCH 1/2] KVM: x86: fix APIC page invalidation
+Message-ID: <20171201122110.nxn7ulustwn2suqh@nora.maurer-it.com>
+References: <20171130161933.GB1606@flask>
+ <20171130180546.4331-1-rkrcmar@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
 
-On Fri 01-12-17 08:24:14, Michal Hocko wrote:
-> On Thu 30-11-17 13:17:06, Andrew Morton wrote:
-> > On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > 
-> > > > mm...  So we have a caller which hopes to be getting highmem pages but
-> > > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
-> > > > why it isn't getting as much memory as it would like on 32-bit systems,
-> > > > etc.
-> > > 
-> > > How he can kmap the page when he gets a _virtual_ address?
-> > 
-> > doh.
-> > 
-> > > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
-> > > > would suffice.
-> > > 
-> > > This function has always been about lowmem pages. I seriously doubt we
-> > > have anybody confused and asking for a highmem page in the kernel. I
-> > > haven't checked that but it would already blow up as VM_BUG_ON tends to
-> > > be enabled on many setups.
-> > 
-> > OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
-> > shouldn't be doing that in the first place.
+On Thu, Nov 30, 2017 at 07:05:45PM +0100, Radim KrA?mA!A? wrote:
+> Implementation of the unpinned APIC page didn't update the VMCS address
+> cache when invalidation was done through range mmu notifiers.
+> This became a problem when the page notifier was removed.
 > 
-> Yes, they shouldn't be.
+> Re-introduce the arch-specific helper and call it from ...range_start.
 > 
-> > I wonder what happens if we just remove the WARN_ON and pass any
-> > __GFP_HIGHMEM straight through.  The caller gets a weird address from
-> > page_to_virt(highmem page) and usually goes splat?  Good enough
-> > treatment for something which never happens anyway?
-> 
-> page_address will return NULL so they will blow up and leak the freshly
-> allocated memory.
+> Fixes: 38b9917350cb ("kvm: vmx: Implement set_apic_access_page_addr")
+> Fixes: 369ea8242c0f ("mm/rmap: update to new mmu_notifier semantic v2")
+> Signed-off-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
 
-let me be more specific. They will blow up and leak if the returned
-address is not checked. If it is then we just leak. None of that sounds
-good to me.
+Thanks for the fast reaction!
 
--- 
-Michal Hocko
-SUSE Labs
+Some initial test rounds with just Patch 1 applied on top of 4.13.8 show
+no blue screens, will do more tests also with 4.14.3 on Monday and
+report back.
+
+4.15-rc1 crashes for unrelated reasons, but I can re-run the tests once
+a stable-enough rc has been cut..
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
