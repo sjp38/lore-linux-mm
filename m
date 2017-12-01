@@ -1,81 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E3746B0261
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:15:19 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id c9so5500767wrb.4
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:15:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k39si2769378edd.267.2017.12.01.09.15.17
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D98986B0261
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:25:28 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id y2so6804894pgv.8
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:25:28 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id o3si5223411pls.289.2017.12.01.09.25.27
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 09:15:18 -0800 (PST)
-Date: Fri, 1 Dec 2017 18:15:17 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [patch 13/15] mm/page_owner: align with pageblock_nr pages
-Message-ID: <20171201171517.lyqukuvuh4cswnla@dhcp22.suse.cz>
-References: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
- <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Dec 2017 09:25:27 -0800 (PST)
+Date: Fri, 1 Dec 2017 09:25:19 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
+Message-ID: <20171201172519.GA27192@bombadil.infradead.org>
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+ <1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
+ <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
+ <5A210C96.8050208@intel.com>
+ <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
+ <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz>
+In-Reply-To: <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, zhongjiang@huawei.com
+To: "Wang, Wei W" <wei.w.wang@intel.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
 
-On Fri 01-12-17 17:58:28, Vlastimil Babka wrote:
-> On 11/30/2017 11:15 PM, akpm@linux-foundation.org wrote:
-> > From: zhong jiang <zhongjiang@huawei.com>
-> > Subject: mm/page_owner: align with pageblock_nr pages
+On Fri, Dec 01, 2017 at 03:09:08PM +0000, Wang, Wei W wrote:
+> On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
+> > If start == end is legal,
 > > 
-> > When pfn_valid(pfn) returns false, pfn should be aligned with
-> > pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
-> > because the skipped 2M may be valid pfn, as a result, early allocated
-> > count will not be accurate.
+> >    for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
 > > 
-> > Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
-> > Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> > Cc: Michal Hocko <mhocko@kernel.org>
-> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> > makes this loop do nothing because 10 < 10 is false.
 > 
-> The author never responded and Michal Hocko basically NAKed it in
-> https://lkml.kernel.org/r/<20160812130727.GI3639@dhcp22.suse.cz>
-> I think we should drop it.
+> How about "start <= end "?
 
-Or extend the changelog to actually describe what kind of problem it
-fixes and do an additional step to unigy
-MAX_ORDER_NR_PAGES/pageblock_nr_pages
- 
-> > ---
-> > 
-> >  mm/page_owner.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> > 
-> > diff -puN mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages mm/page_owner.c
-> > --- a/mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages
-> > +++ a/mm/page_owner.c
-> > @@ -544,7 +544,7 @@ static void init_pages_in_zone(pg_data_t
-> >  	 */
-> >  	for (; pfn < end_pfn; ) {
-> >  		if (!pfn_valid(pfn)) {
-> > -			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
-> > +			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
-> >  			continue;
-> >  		}
-> >  
-> > _
-> > 
-> > --
-> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> > the body to majordomo@kvack.org.  For more info on Linux MM,
-> > see: http://www.linux-mm.org/ .
-> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> > 
-
--- 
-Michal Hocko
-SUSE Labs
+Don't ask Tetsuo for his opinion, write some userspace code that uses it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
