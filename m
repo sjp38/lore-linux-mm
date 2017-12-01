@@ -1,43 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9373B6B025F
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 07:35:52 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id w141so939915wme.1
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 04:35:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 65si5251022edm.326.2017.12.01.04.35.51
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C91C06B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 08:03:03 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id i17so5103599otb.2
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 05:03:03 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y133si2087184oiy.238.2017.12.01.05.03.01
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 04:35:51 -0800 (PST)
-Date: Fri, 1 Dec 2017 13:35:46 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: stalled MM patches
-Message-ID: <20171201123546.GE8365@quack2.suse.cz>
-References: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
-MIME-Version: 1.0
+        Fri, 01 Dec 2017 05:03:02 -0800 (PST)
+Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+	<1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
+	<201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
+	<5A210C96.8050208@intel.com>
+In-Reply-To: <5A210C96.8050208@intel.com>
+Message-Id: <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
+Date: Fri, 1 Dec 2017 22:02:01 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Alexandru Moise <00moses.alexander00@gmail.com>, Andi Kleen <ak@linux.intel.com>, Andrey Vagin <avagin@openvz.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, "Artem S. Tashkinov" <t.artem@lycos.com>, Balbir Singh <bsingharora@gmail.com>, Chris Salls <salls@cs.ucsb.edu>, Christopher Lameter <cl@linux.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Glauber Costa <glommer@openvz.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Maxim Patlasov <MPatlasov@parallels.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Punit Agrawal <punit.agrawal@arm.com>, Rik van Riel <riel@redhat.com>, Shiraz Hashim <shashim@codeaurora.org>, Tan Xiaojun <tanxiaojun@huawei.com>, Theodore Ts'o <tytso@mit.edu>, Vinayak Menon <vinmenon@codeaurora.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, zhong jiang <zhongjiang@huawei.com>, linux-mm@kvack.org
+To: wei.w.wang@intel.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-On Thu 30-11-17 14:14:23, Andrew Morton wrote:
-> Subject: mm: readahead: increase maximum readahead window
+Wei Wang wrote:
+> On 11/30/2017 06:34 PM, Tetsuo Handa wrote:
+> > Wei Wang wrote:
+> >> + * @start: the start of the bit range, inclusive
+> >> + * @end: the end of the bit range, inclusive
+> >> + *
+> >> + * This function is used to clear a bit in the xbitmap. If all the bits of the
+> >> + * bitmap are 0, the bitmap will be freed.
+> >> + */
+> >> +void xb_clear_bit_range(struct xb *xb, unsigned long start, unsigned long end)
+> >> +{
+> >> +	struct radix_tree_root *root = &xb->xbrt;
+> >> +	struct radix_tree_node *node;
+> >> +	void **slot;
+> >> +	struct ida_bitmap *bitmap;
+> >> +	unsigned int nbits;
+> >> +
+> >> +	for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+> >> +		unsigned long index = start / IDA_BITMAP_BITS;
+> >> +		unsigned long bit = start % IDA_BITMAP_BITS;
+> >> +
+> >> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> >> +		if (radix_tree_exception(bitmap)) {
+> >> +			unsigned long ebit = bit + 2;
+> >> +			unsigned long tmp = (unsigned long)bitmap;
+> >> +
+> >> +			nbits = min(end - start + 1, BITS_PER_LONG - ebit);
+> > "nbits = min(end - start + 1," seems to expect that start == end is legal
+> > for clearing only 1 bit. But this function is no-op if start == end.
+> > Please clarify what "inclusive" intended.
 > 
->   Darrick said he was going to do some testing.
+> If xb_clear_bit_range(xb,10,10), then it is effectively the same as 
+> xb_clear_bit(10). Why would it be illegal?
+> 
+> "@start inclusive" means that the @start will also be included to be 
+> cleared.
 
-How I understood Darrick's comment was that he was surprised by XFS numbers
-we measured and he'd be interested if we see them also with the latest
-kernel.  Nothing against the patch as such. And I wrote him that I can
-queue XFS runs on current kernel (which didn't happen - my bad). I guess
-time for me to really queue a test with the latest kernel.
+If start == end is legal,
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+   for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+
+makes this loop do nothing because 10 < 10 is false.
+
+
+
+> 
+> >
+> >> +static inline __always_inline void bitmap_clear(unsigned long *map,
+> >> +						unsigned int start,
+> >> +						unsigned int nbits)
+> >> +{
+> >> +	if (__builtin_constant_p(nbits) && nbits == 1)
+> >> +		__clear_bit(start, map);
+> >> +	else if (__builtin_constant_p(start & 7) && IS_ALIGNED(start, 8) &&
+> >> +		 __builtin_constant_p(nbits & 7) && IS_ALIGNED(nbits, 8))
+> > It looks strange to apply __builtin_constant_p test to variables after "& 7".
+> >
+> 
+> I think this is normal - if the variables are known at compile time, the 
+> calculation will be done at compile time (termed constant folding).
+
+I think that
+
++	else if (__builtin_constant_p(start) && IS_ALIGNED(start, 8) &&
++		 __builtin_constant_p(nbits) && IS_ALIGNED(nbits, 8))
+
+is more readable.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
