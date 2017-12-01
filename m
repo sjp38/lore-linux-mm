@@ -1,44 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B703A6B025E
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:27:20 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 11so5893469wrb.18
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:27:20 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id c10si5315901wrg.214.2017.12.01.07.27.19
-        for <linux-mm@kvack.org>;
-        Fri, 01 Dec 2017 07:27:19 -0800 (PST)
-Date: Fri, 1 Dec 2017 16:27:10 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: KAISER: kexec triggers a warning
-Message-ID: <20171201152710.z2nushke5paoqhxc@pd.tnic>
-References: <03012d01-4d04-1d58-aa93-425f142f9292@canonical.com>
- <20171201151851.GK2198@x1>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C38F16B025F
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:27:55 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id q12so4566190pli.12
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:27:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u22si1588948pgb.549.2017.12.01.07.27.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Dec 2017 07:27:54 -0800 (PST)
+Date: Fri, 1 Dec 2017 16:26:40 +0100
+From: Cyril Hrubis <chrubis@suse.cz>
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171201152640.GA3765@rei>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+ <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201151851.GK2198@x1>
+In-Reply-To: <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de, peterz@infradead.org, dave.hansen@linux.intel.com, hughd@google.com, luto@kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Kees Cook <keescook@chromium.org>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>
 
-On Fri, Dec 01, 2017 at 11:18:51PM +0800, Baoquan He wrote:
-> On 12/01/17 at 02:52pm, Juerg Haefliger wrote:
-> > Loading a kexec kernel using today's linux-tip master with KAISER=y
-> > triggers the following warning:
+Hi!
+> > MAP_FIXED_UNIQUE
+> > MAP_FIXED_ONCE
+> > MAP_FIXED_FRESH
 > 
-> I also noticed this when trigger a crash to jump to kdump kernel, and
-> kdump kernel failed to bootup. I am trying to fix it on tip/WIP.x86/mm.
-> Maybe still need a little time.
+> Well, I can open a poll for the best name, but none of those you are
+> proposing sound much better to me. Yeah, naming sucks...
 
-Save yourself the energy, the WARN is wrong there and wil go away.
+Given that MAP_FIXED replaces the previous mapping MAP_FIXED_NOREPLACE
+would probably be a best fit.
 
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Cyril Hrubis
+chrubis@suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
