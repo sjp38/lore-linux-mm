@@ -1,71 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 555786B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 02:24:19 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 11so5198232wrb.18
-        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 23:24:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i47si1187635ede.137.2017.11.30.23.24.17
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 30 Nov 2017 23:24:18 -0800 (PST)
-Date: Fri, 1 Dec 2017 08:24:14 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-ID: <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
- <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
- <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
- <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
- <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
- <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 040356B0253
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 02:38:33 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id g13so4075679pln.20
+        for <linux-mm@kvack.org>; Thu, 30 Nov 2017 23:38:32 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id m11si4458771pls.698.2017.11.30.23.38.31
+        for <linux-mm@kvack.org>;
+        Thu, 30 Nov 2017 23:38:31 -0800 (PST)
+Date: Fri, 1 Dec 2017 16:44:33 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: [patch 14/15] mm/vmstat.c: walk the zone in pageblock_nr_pages
+ steps
+Message-ID: <20171201074432.GA21404@js1304-P5Q-DELUXE>
+References: <5a20831b.ULuDgReaEYdaW2tL%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
+In-Reply-To: <5a20831b.ULuDgReaEYdaW2tL%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, zhongjiang@huawei.com
 
-On Thu 30-11-17 13:17:06, Andrew Morton wrote:
-> On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Thu, Nov 30, 2017 at 02:15:55PM -0800, akpm@linux-foundation.org wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> Subject: mm/vmstat.c: walk the zone in pageblock_nr_pages steps
 > 
-> > > mm...  So we have a caller which hopes to be getting highmem pages but
-> > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
-> > > why it isn't getting as much memory as it would like on 32-bit systems,
-> > > etc.
-> > 
-> > How he can kmap the page when he gets a _virtual_ address?
-> 
-> doh.
-> 
-> > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
-> > > would suffice.
-> > 
-> > This function has always been about lowmem pages. I seriously doubt we
-> > have anybody confused and asking for a highmem page in the kernel. I
-> > haven't checked that but it would already blow up as VM_BUG_ON tends to
-> > be enabled on many setups.
-> 
-> OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
-> shouldn't be doing that in the first place.
+> when walking the zone, we can happens to the holes. we should not
+> align MAX_ORDER_NR_PAGES, so it can skip the normal memory.
 
-Yes, they shouldn't be.
+Even if this change is applied, we could skip the normal memory in
+some corner cases.
 
-> I wonder what happens if we just remove the WARN_ON and pass any
-> __GFP_HIGHMEM straight through.  The caller gets a weird address from
-> page_to_virt(highmem page) and usually goes splat?  Good enough
-> treatment for something which never happens anyway?
+However, pagetypeinfo_showblockcount_print() that is highly related to
+this function also jumps to the next pageblock when it found invalid
+pfn so this patch make the code more consistent.
 
-page_address will return NULL so they will blow up and leak the freshly
-allocated memory. I do not think this is really desirable. We _could_
-handle this case but I am not really sure this is a win. A silent fixup
-sounds like the most simply protection.
+Therefore,
 
--- 
-Michal Hocko
-SUSE Labs
+Acked-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
