@@ -1,138 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D973A6B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 03:28:32 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id i7so4141663plt.3
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 00:28:32 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 36A126B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 03:32:06 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e128so635372wmg.1
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 00:32:06 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h193sor1866724pfe.34.2017.12.01.00.28.31
+        by mx.google.com with SMTPS id d17sor2802354wra.10.2017.12.01.00.32.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 01 Dec 2017 00:28:31 -0800 (PST)
+        Fri, 01 Dec 2017 00:32:04 -0800 (PST)
+Date: Fri, 1 Dec 2017 09:31:55 +0100
+From: Alexandru Moise <00moses.alexander00@gmail.com>
+Subject: Re: stalled MM patches
+Message-ID: <20171201083154.GA7108@gmail.com>
+References: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ZOiEeS8wTDT-LP=biO7tmmJTsf-B82XjK-sEs-zGiMkA@mail.gmail.com>
-References: <94eb2c03c9bcc3b127055f11171d@google.com> <20171128133026.cf03471c99d7a0c827c5a21c@linux-foundation.org>
- <20171129050606.GF24001@zzz.localdomain> <20171130004743.GB65846@gmail.com> <CACT4Y+ZOiEeS8wTDT-LP=biO7tmmJTsf-B82XjK-sEs-zGiMkA@mail.gmail.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 1 Dec 2017 09:28:10 +0100
-Message-ID: <CACT4Y+a7bP2L8_AvtMza1h1XkxhmDNn0TvFd_Z6xm9d-iwy8fQ@mail.gmail.com>
-Subject: Re: WARNING: suspicious RCU usage (3)
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, syzbot <bot+73a7bec1bc0f4fc0512a246334081f8c671762a8@syzkaller.appspotmail.com>, Christoph Lameter <cl@linux.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, syzkaller-bugs@googlegroups.com, "Paul E. McKenney" <paulmck@us.ibm.com>, Herbert Xu <herbert@gondor.apana.org.au>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andi Kleen <ak@linux.intel.com>, Andrey Vagin <avagin@openvz.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, "Artem S. Tashkinov" <t.artem@lycos.com>, Balbir Singh <bsingharora@gmail.com>, Chris Salls <salls@cs.ucsb.edu>, Christopher Lameter <cl@linux.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Glauber Costa <glommer@openvz.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Maxim Patlasov <MPatlasov@parallels.com>, Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Punit Agrawal <punit.agrawal@arm.com>, Rik van Riel <riel@redhat.com>, Shiraz Hashim <shashim@codeaurora.org>, Tan Xiaojun <tanxiaojun@huawei.com>, Theodore Ts'o <tytso@mit.edu>, Vinayak Menon <vinmenon@codeaurora.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, zhong jiang <zhongjiang@huawei.com>, linux-mm@kvack.org
 
-On Thu, Nov 30, 2017 at 9:04 AM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Thu, Nov 30, 2017 at 1:47 AM, Eric Biggers <ebiggers3@gmail.com> wrote:
->> On Tue, Nov 28, 2017 at 09:06:06PM -0800, Eric Biggers wrote:
->>> On Tue, Nov 28, 2017 at 01:30:26PM -0800, Andrew Morton wrote:
->>> >
->>> > It looks like blkcipher_walk_done() passed a bad address to kfree().
->>> >
->>>
->>> Indeed, it's freeing uninitialized memory because the Salsa20 algorithms are
->>> using the blkcipher_walk API incorrectly.  I've sent a patch to fix it:
->>>
->>> "crypto: salsa20 - fix blkcipher_walk API usage"
+On Thu, Nov 30, 2017 at 02:14:23PM -0800, Andrew Morton wrote:
+> 
+> I'm sitting on a bunch of patches of varying ages which are stuck for
+> various reason.  Can people please take a look some time and assist
+> with getting them merged, dropped or fixed?
+> 
+> I'll send them all out in a sec.  I have rough notes (which might be
+> obsolete) and additional details can be found by following the Link: in
+> the individual patches.
+> 
+> Thanks.
+> 
+> Subject: mm: skip HWPoisoned pages when onlining pages
+> 
+>   mhocko had issues with this one.
+> 
+> Subject: mm/mempolicy: remove redundant check in get_nodes
+> Subject: mm/mempolicy: fix the check of nodemask from user
+> Subject: mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
+> 
+>   Three patch series.  Stuck because vbabka wasn't happy with #3.
+> 
+> Subject: mm: memcontrol: eliminate raw access to stat and event counters
+> Subject: mm: memcontrol: implement lruvec stat functions on top of each other
+> Subject: mm: memcontrol: fix excessive complexity in memory.stat reporting
+> 
+>   Three patch series.  Stuck because #3 caused fengguang-bot to
+>   report "BUG: using __this_cpu_xchg() in preemptible"
+> 
+> Subject: mm/madvise: enable soft offline of HugeTLB pages at PUD level
+> 
+>   Hoping for Kirill review.  I wanted additional code comments (I
+>   think).  mhocko nacked it.
 
-This is already applied to crypto tree, so let's do:
+TBH I'd rather give up this one if mhocko feels that there's no point to it.
+Rather drop it than risk adding crap in the kernel :).
 
-#syz fix: crypto: salsa20 - fix blkcipher_walk API usage
+It is a bit weird though that currently we have the behavior that on some PPC platforms
+you can migrate 1G hugepages but on x86_64 you cannot.
 
+../Alex
 
->>> I am not sure why the bug reports show up as "suspicious RCU usage", though.
->>>
->>> There were also a few other syzbot reports of this same underlying bug; I marked
->>> them as duplicates of this one.
->>>
->>
->> The reason the "suspicious RCU usage" warning appeared is that due to the
->> incorrect call to blkcipher_walk_done(), kunmap_atomic() was being called
->> without a preceding kmap_atomic(), causing the preemption count to get screwed
->> up.  This was in addition to the uninitialized pointer being kfree()'d.
->>
->> Running a reproducer does show more information after the "WARNING: suspicious
->> RCU usage" (see below).  So it does look like the report from syzkaller was
->> truncated, perhaps because two things went wrong right after each other.
->>
->> Also, maybe enabling CONFIG_DEBUG_PREEMPT would be useful?
->
->
-> DEBUG_PREEMPT depends on PREEMPT, which is not enabled. So it seems
-> there is nothing to debug. Or how would it help?
->
->
->
->> [    9.136392]
->> [    9.137202] =============================
->> [    9.138014] WARNING: suspicious RCU usage
->> [    9.138909] 4.15.0-rc1-00033-gef0010a30935 #113 Not tainted
->> [    9.141195] -----------------------------
->> [    9.142145] ./include/trace/events/kmem.h:142 suspicious rcu_dereference_check() usage!
->> [    9.144400]
->> [    9.144400] other info that might help us debug this:
->> [    9.144400]
->> [    9.146292]
->> [    9.146292] rcu_scheduler_active = 2, debug_locks = 1
->> [    9.148203] 1 lock held by syz_salsa20/625:
->> [    9.149215]  #0:  (sk_lock-AF_ALG){+.+.}, at: [<00000000e0f6099e>] af_alg_wait_for_data+0xd8/0x150
->> [    9.151682]
->> [    9.151682] stack backtrace:
->> [    9.152658] CPU: 1 PID: 625 Comm: syz_salsa20 Not tainted 4.15.0-rc1-00033-gef0010a30935 #113
->> [    9.154669] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->> [    9.156408] Call Trace:
->> [    9.156964]  dump_stack+0x7c/0xb3
->> [    9.157696]  kfree+0x1c1/0x210
->> [    9.158377]  blkcipher_walk_done+0x21c/0x2c0
->> [    9.159319]  encrypt+0x7b/0xd0
->> [    9.160000]  ? skcipher_decrypt_blkcipher+0x40/0x50
->> [    9.161061]  ? skcipher_recvmsg+0x37a/0x3a0
->> [    9.161981]  ? sock_read_iter+0x93/0xd0
->> [    9.162835]  ? __vfs_read+0xcc/0x140
->> [    9.163582]  ? vfs_read+0x9c/0x130
->> [    9.164282]  ? SyS_read+0x45/0xb0
->> [    9.164974]  ? entry_SYSCALL_64_fastpath+0x1f/0x96
->> [    9.166015] kfree_debugcheck: out of range ptr 28h
->> [    9.166985] ------------[ cut here ]------------
->> [    9.167834] kernel BUG at mm/slab.c:2753!
->> [    9.168584] invalid opcode: 0000 [#1] SMP
->> [    9.169335] CPU: 1 PID: 625 Comm: syz_salsa20 Not tainted 4.15.0-rc1-00033-gef0010a30935 #113
->> [    9.171067] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS Bochs 01/01/2011
->> [    9.172689] task: 00000000ee01d793 task.stack: 0000000004031a33
->> [    9.173885] RIP: 0010:kfree_debugcheck+0x23/0x30
->> [    9.174833] RSP: 0018:ffffb46b0092fc80 EFLAGS: 00010096
->> [    9.175857] RAX: 0000000000000026 RBX: 0000000000000028 RCX: 0000000000000000
->> [    9.177218] RDX: 0000000000000001 RSI: ffff99daff5cccc8 RDI: ffff99daff5cccc8
->> [    9.178555] RBP: 0000000000000206 R08: 0000000000000001 R09: 0000000000000001
->> [    9.179923] R10: 000000001f5d6993 R11: 0000000000000000 R12: ffffffff85b64b1c
->> [    9.181284] R13: 0000000000000000 R14: ffffb46b0092fd98 R15: ffff99daf87b9000
->> [    9.182617] FS:  00000000013bb880(0000) GS:ffff99daff400000(0000) knlGS:0000000000000000
->> [    9.184148] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->> [    9.185246] CR2: 00007f087bad7008 CR3: 0000000079f52003 CR4: 00000000001606e0
->> [    9.186608] Call Trace:
->> [    9.187081]  kfree+0x5a/0x210
->> [    9.187602]  blkcipher_walk_done+0x21c/0x2c0
->> [    9.188370]  encrypt+0x7b/0xd0
->> [    9.188933]  ? skcipher_decrypt_blkcipher+0x40/0x50
->> [    9.189796]  ? skcipher_recvmsg+0x37a/0x3a0
->> [    9.190541]  ? sock_read_iter+0x93/0xd0
->> [    9.191241]  ? __vfs_read+0xcc/0x140
->> [    9.191897]  ? vfs_read+0x9c/0x130
->> [    9.192502]  ? SyS_read+0x45/0xb0
->> [    9.193110]  ? entry_SYSCALL_64_fastpath+0x1f/0x96
->> [    9.193959] Code: 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 53 48 89 fb e8 32 f5 e1 ff 84 c0 74 02 5b c3 48 89 de 48 c7 c7 50 9c 21 86 e8 9a a0 f1 ff <0f> 0b 66 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 41 57 89
->> [    9.197364] RIP: kfree_debugcheck+0x23/0x30 RSP: ffffb46b0092fc80
->> [    9.198455] ---[ end trace 833d54cb4ca6de67 ]---
->> [    9.199291] Kernel panic - not syncing: Fatal exception in interrupt
->> [    9.200595] Kernel Offset: 0x4600000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
->> [    9.202405] Rebooting in 5 seconds..
->>
->> --
->> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
->> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
->> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/20171130004743.GB65846%40gmail.com.
->> For more options, visit https://groups.google.com/d/optout.
+> 
+> Subject: mm: readahead: increase maximum readahead window
+> 
+>   Darrick said he was going to do some testing.
+> 
+> Subject: fs/proc/task_mmu.c: do not show VmExe bigger than total executable virtual memory
+> 
+>   I had some questions, but they were responded to, whcih made my
+>   head spin a bit.  I guess I'll push this to Linus but would
+>   appreciate additional review.
+> 
+> Subject: mm, hugetlb: remove hugepages_treat_as_movable sysctl
+> 
+>   I'm holding this for additional testing.  I guess I'll merge it in
+>   4.16-rc1.
+> 
+> Subject: mm: vmscan: do not pass reclaimed slab to vmpressure
+> 
+>   mhocko asked for a changelog update
+> 
+> Subject: mm/page_owner: align with pageblock_nr pages
+> 
+>   mhocko sounded confused and I don't think that was resolved?
+> 
+> Subject: mm/vmstat.c: walk the zone in pageblock_nr_pages steps
+> 
+>   Joonsoo asked for a new changelog.  Various other concerns.
+> 
+> Subject: mm: add strictlimit knob
+> 
+>   This is three years old and I don't think we ever saw a convincing
+>   case for merging it.  Opinions>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
