@@ -1,64 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 545A36B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 04:49:46 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id c85so4075538oib.13
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 01:49:46 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F0D06B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 04:50:55 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id f13so4069811oib.20
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 01:50:55 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q23si1967294oic.84.2017.12.01.01.49.45
+        by mx.google.com with ESMTPS id e189si2051035oih.461.2017.12.01.01.50.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 01:49:45 -0800 (PST)
-Date: Fri, 1 Dec 2017 17:49:39 +0800
+        Fri, 01 Dec 2017 01:50:54 -0800 (PST)
+Date: Fri, 1 Dec 2017 17:50:48 +0800
 From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH] mm: check pfn_valid first in zero_resv_unavail
-Message-ID: <20171201094939.GA3335@dhcp-128-65.nay.redhat.com>
-References: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
- <20171130093521.3yxyq6xvo6zgaifc@dhcp22.suse.cz>
- <20171201085657.GA2291@dhcp-128-65.nay.redhat.com>
- <20171201091930.5ddygjl23owfovrz@dhcp22.suse.cz>
- <20171201092951.GA2943@dhcp-128-65.nay.redhat.com>
- <20171201094215.aenoqa5jepdc3jd5@dhcp22.suse.cz>
+Subject: [PATCH V2] mm: check pfn_valid first in zero_resv_unavail
+Message-ID: <20171201095048.GA3084@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201094215.aenoqa5jepdc3jd5@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: linux-kernel@vger.kernel.org
+Cc: pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>
 
-On 12/01/17 at 10:42am, Michal Hocko wrote:
-> On Fri 01-12-17 17:29:51, Dave Young wrote:
-> > On 12/01/17 at 10:19am, Michal Hocko wrote:
-> > > On Fri 01-12-17 16:56:57, Dave Young wrote:
-> > > > On 11/30/17 at 10:35am, Michal Hocko wrote:
-> > > [...]
-> > > > > Can we exclude that range from the memblock allocator instead? E.g. what
-> > > > > happens if somebody allocates from that range?
-> > > > 
-> > > > It is a EFI BGRT image buffer provided by firmware, they are reserved
-> > > > always and can not be used to allocate memory.
-> > > 
-> > > Hmm, I see but I was actually suggesting to remove this range from the
-> > > memblock allocator altogether (memblock_remove) as it shouldn't be there
-> > > in the first place.
-> > 
-> > Oh, I'm not sure because it is introduced as a way for efi to reserve
-> > boot services areas to be persistent across kexec reboot. See
-> > drivers/firmware/efi/efi.c: efi_mem_reserve(), BGRT is only one user
-> > of it, there is esrt and maybe other users, I do not know if it is safe
-> > :(
-> 
-> Hmm, so it this range ever backed by a valid pfn?
+With latest kernel I get below bug while testing kdump:
+[    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
+[    0.000000] IP: zero_resv_unavail+0xbd/0x126
+[    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
+[    0.000000] Oops: 0002 [#1] SMP
+[    0.000000] Modules linked in:
+[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
+[    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
+[    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
+[    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
+[    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
+[    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
+[    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
+[    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
+[    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
+[    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
+[    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
+[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
+[    0.000000] Call Trace:
+[    0.000000]  ? free_area_init_nodes+0x640/0x664
+[    0.000000]  ? zone_sizes_init+0x58/0x72
+[    0.000000]  ? setup_arch+0xb50/0xc6c
+[    0.000000]  ? start_kernel+0x64/0x43d
+[    0.000000]  ? secondary_startup_64+0xa5/0xb0
+[    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
+c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
+[    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
+[    0.000000] CR2: ffffea00034b1040
+[    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
 
-I think it is in normal boot, just it does not appear in e820 across kdump
-reboot. For kdump kexec_tools provided e820 the last pfn only covers the kdump
-crashkernel ranges thus it is not mapped.
+This is introduced with commit a4a3ede2132a ("mm: zero reserved and
+unavailable struct pages")
 
-> -- 
-> Michal Hocko
-> SUSE Labs
+The reason is some efi reserved boot ranges is not reported in E820 ram.
+In my case it is a bgrt buffer:
+efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
+
+Use "add_efi_memmap" can workaround the problem with another fix:
+http://lkml.kernel.org/r/20171130052327.GA3500@dhcp-128-65.nay.redhat.com
+
+In zero_resv_unavail it would be better to check pfn_valid first before zero
+the page struct. This fixes the problem and potential other similar problems.
+Also as Pavel Tatashin suggested checks pfn_valid at the beginning of the
+section.
+
+Signed-off-by: Dave Young <dyoung@redhat.com>
+---
+v1->v2: Michal Hocko: patch log improvement
+        Pavel Tatashin: check pfn at the beginning of the section
+ mm/page_alloc.c |    2 ++
+ 1 file changed, 2 insertions(+)
+
+--- linux-x86.orig/mm/page_alloc.c
++++ linux-x86/mm/page_alloc.c
+@@ -6253,6 +6253,8 @@ void __paginginit zero_resv_unavail(void
+ 	pgcnt = 0;
+ 	for_each_resv_unavail_range(i, &start, &end) {
+ 		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
++			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
++				continue;
+ 			mm_zero_struct_page(pfn_to_page(pfn));
+ 			pgcnt++;
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
