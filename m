@@ -1,88 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7F5566B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:09:14 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 88so4571308pla.14
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:09:14 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id g59si5090787plb.658.2017.12.01.07.09.13
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2785C6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:15:43 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id c85so4424300oib.13
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:15:43 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j23si2064747oih.99.2017.12.01.07.15.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 07:09:13 -0800 (PST)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v18 05/10] xbitmap: add more operations
-Date: Fri, 1 Dec 2017 15:09:08 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
-	<1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
-	<201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
-	<5A210C96.8050208@intel.com>
- <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
-In-Reply-To: <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        Fri, 01 Dec 2017 07:15:42 -0800 (PST)
+Subject: Re: [PATCH 2/2] TESTING! KVM: x86: add invalidate_range mmu notifier
+References: <20171130161933.GB1606@flask>
+ <20171130180546.4331-1-rkrcmar@redhat.com>
+ <20171130180546.4331-2-rkrcmar@redhat.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Message-ID: <4e0b6e81-b987-487e-b582-4d61aec9252d@redhat.com>
+Date: Fri, 1 Dec 2017 16:15:37 +0100
 MIME-Version: 1.0
+In-Reply-To: <20171130180546.4331-2-rkrcmar@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "willy@infradead.org" <willy@infradead.org>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
+To: =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, =?UTF-8?Q?Fabian_Gr=c3=bcnbichler?= <f.gruenbichler@proxmox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>
 
-On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
-> Wei Wang wrote:
-> > On 11/30/2017 06:34 PM, Tetsuo Handa wrote:
-> > > Wei Wang wrote:
-> > >> + * @start: the start of the bit range, inclusive
-> > >> + * @end: the end of the bit range, inclusive
-> > >> + *
-> > >> + * This function is used to clear a bit in the xbitmap. If all the
-> > >> +bits of the
-> > >> + * bitmap are 0, the bitmap will be freed.
-> > >> + */
-> > >> +void xb_clear_bit_range(struct xb *xb, unsigned long start,
-> > >> +unsigned long end) {
-> > >> +	struct radix_tree_root *root =3D &xb->xbrt;
-> > >> +	struct radix_tree_node *node;
-> > >> +	void **slot;
-> > >> +	struct ida_bitmap *bitmap;
-> > >> +	unsigned int nbits;
-> > >> +
-> > >> +	for (; start < end; start =3D (start | (IDA_BITMAP_BITS - 1)) + 1)=
- {
-> > >> +		unsigned long index =3D start / IDA_BITMAP_BITS;
-> > >> +		unsigned long bit =3D start % IDA_BITMAP_BITS;
-> > >> +
-> > >> +		bitmap =3D __radix_tree_lookup(root, index, &node, &slot);
-> > >> +		if (radix_tree_exception(bitmap)) {
-> > >> +			unsigned long ebit =3D bit + 2;
-> > >> +			unsigned long tmp =3D (unsigned long)bitmap;
-> > >> +
-> > >> +			nbits =3D min(end - start + 1, BITS_PER_LONG - ebit);
-> > > "nbits =3D min(end - start + 1," seems to expect that start =3D=3D en=
-d is
-> > > legal for clearing only 1 bit. But this function is no-op if start =
-=3D=3D end.
-> > > Please clarify what "inclusive" intended.
-> >
-> > If xb_clear_bit_range(xb,10,10), then it is effectively the same as
-> > xb_clear_bit(10). Why would it be illegal?
-> >
-> > "@start inclusive" means that the @start will also be included to be
-> > cleared.
->=20
-> If start =3D=3D end is legal,
->=20
->    for (; start < end; start =3D (start | (IDA_BITMAP_BITS - 1)) + 1) {
->=20
-> makes this loop do nothing because 10 < 10 is false.
+On 30/11/2017 19:05, Radim KrA?mA!A? wrote:
+> Does roughly what kvm_mmu_notifier_invalidate_page did before.
+> 
+> I am not certain why this would be needed.  It might mean that we have
+> another bug with start/end or just that I missed something.
 
+I don't think this is needed, because we don't have shared page tables.
+My understanding is that without shared page tables, you can assume that
+all page modifications go through invalidate_range_start/end.  With
+shared page tables, there are additional TLB flushes to take care of,
+which require invalidate_range.
 
-How about "start <=3D end "?
+Thanks,
 
-Best,
-Wei
+Paolo
 
-
+> Please try just [1/2] first and apply this one only if [1/2] still bugs,
+> thanks!
+> ---
+>  virt/kvm/kvm_main.c | 24 ++++++++++++++++++++++++
+>  1 file changed, 24 insertions(+)
+> 
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index b7f4689e373f..0825ea624f16 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -342,6 +342,29 @@ static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
+>  	srcu_read_unlock(&kvm->srcu, idx);
+>  }
+>  
+> +static void kvm_mmu_notifier_invalidate_range(struct mmu_notifier *mn,
+> +						    struct mm_struct *mm,
+> +						    unsigned long start,
+> +						    unsigned long end)
+> +{
+> +	struct kvm *kvm = mmu_notifier_to_kvm(mn);
+> +	int need_tlb_flush = 0, idx;
+> +
+> +	idx = srcu_read_lock(&kvm->srcu);
+> +	spin_lock(&kvm->mmu_lock);
+> +	kvm->mmu_notifier_seq++;
+> +	need_tlb_flush = kvm_unmap_hva_range(kvm, start, end);
+> +	need_tlb_flush |= kvm->tlbs_dirty;
+> +	if (need_tlb_flush)
+> +		kvm_flush_remote_tlbs(kvm);
+> +
+> +	spin_unlock(&kvm->mmu_lock);
+> +
+> +	kvm_arch_mmu_notifier_invalidate_range(kvm, start, end);
+> +
+> +	srcu_read_unlock(&kvm->srcu, idx);
+> +}
+> +
+>  static void kvm_mmu_notifier_invalidate_range_start(struct mmu_notifier *mn,
+>  						    struct mm_struct *mm,
+>  						    unsigned long start,
+> @@ -476,6 +499,7 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
+>  }
+>  
+>  static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
+> +	.invalidate_range	= kvm_mmu_notifier_invalidate_range,
+>  	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
+>  	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
+>  	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
