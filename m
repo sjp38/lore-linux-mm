@@ -1,43 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 923F66B0261
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:03:28 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id k126so1256039wmd.5
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:03:28 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [2a01:4f8:190:11c2::b:1457])
-        by mx.google.com with ESMTP id q16si2914918wre.202.2017.12.01.09.03.27
-        for <linux-mm@kvack.org>;
-        Fri, 01 Dec 2017 09:03:27 -0800 (PST)
-Date: Fri, 1 Dec 2017 18:03:18 +0100
-From: Borislav Petkov <bp@alien8.de>
-Subject: Re: KAISER: kexec triggers a warning
-Message-ID: <20171201170318.zlncyzuqksxivbhx@pd.tnic>
-References: <03012d01-4d04-1d58-aa93-425f142f9292@canonical.com>
- <84c7dd7d-5e01-627e-6f26-5c1e30a87683@linux.intel.com>
- <20171201153713.apdoi6em7c4iynlr@pd.tnic>
- <20171201163850.GC26327@u40b0340c692b58f6553c.ant.amazon.com>
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F486B0261
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:13:56 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id c3so6220414wrd.0
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:13:56 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j9si2610287edf.166.2017.12.01.09.13.54
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Dec 2017 09:13:55 -0800 (PST)
+Date: Fri, 1 Dec 2017 18:13:53 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v13 6/7] mm, oom, docs: describe the cgroup-aware OOM
+ killer
+Message-ID: <20171201171353.jkv2nq2m3y3hiejn@dhcp22.suse.cz>
+References: <20171130152824.1591-1-guro@fb.com>
+ <20171130152824.1591-7-guro@fb.com>
+ <20171201084154.l7i3fxtxd4fzrq7s@dhcp22.suse.cz>
+ <20171201170149.GB27436@castle.DHCP.thefacebook.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201163850.GC26327@u40b0340c692b58f6553c.ant.amazon.com>
+In-Reply-To: <20171201170149.GB27436@castle.DHCP.thefacebook.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eduardo Valentin <eduval@amazon.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Juerg Haefliger <juerg.haefliger@canonical.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mingo@kernel.org, tglx@linutronix.de, peterz@infradead.org, hughd@google.com, luto@kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: linux-mm@vger.kernel.org, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 01, 2017 at 08:38:50AM -0800, Eduardo Valentin wrote:
-> But a warn like that on the kexec/kdump path can be scary for regular
-> / unware users, specially considering that kexec is almost common
-> place for regular reboot.
+On Fri 01-12-17 17:01:49, Roman Gushchin wrote:
+[...]
+> diff --git a/Documentation/cgroup-v2.txt b/Documentation/cgroup-v2.txt
+> index c80a147f94b7..ff8e92db636d 100644
+> --- a/Documentation/cgroup-v2.txt
+> +++ b/Documentation/cgroup-v2.txt
+> @@ -1049,6 +1049,9 @@ PAGE_SIZE multiple when read back.
+>  	and will never kill the unkillable task, even if memory.oom_group
+>  	is set.
+>  
+> +	If cgroup-aware OOM killer is not enabled, ENOTSUPP error
+> +	is returned on attempt to access the file.
+> +
+>    memory.events
+>  	A read-only flat-keyed file which exists on non-root cgroups.
+>  	The following entries are defined.  Unless specified
+> @@ -1258,6 +1261,12 @@ OOM Killer
+>  Cgroup v2 memory controller implements a cgroup-aware OOM killer.
+>  It means that it treats cgroups as first class OOM entities.
+>  
+> +Cgroup-aware OOM logic is turned off by default and requires
+> +passing the "groupoom" option on mounting cgroupfs. It can also
+> +by remounting cgroupfs with the following command::
+> +
+> +  # mount -o remount,groupoom $MOUNT_POINT
+> +
+>  Under OOM conditions the memory controller tries to make the best
+>  choice of a victim, looking for a memory cgroup with the largest
+>  memory footprint, considering leaf cgroups and cgroups with the
 
-... thus the whitelisting/tracking/... of legitimate users so that we
-warn only for the abnormal cases.
+Looks good to me
 
+Thanks!
 -- 
-Regards/Gruss,
-    Boris.
-
-Good mailing practices for 400: avoid top-posting and trim the reply.
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
