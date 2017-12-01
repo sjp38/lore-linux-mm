@@ -1,44 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D98986B0261
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:25:28 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id y2so6804894pgv.8
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:25:28 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id o3si5223411pls.289.2017.12.01.09.25.27
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 310556B0261
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 12:26:55 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 73so7780328pfz.11
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 09:26:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t8si5413299pfh.310.2017.12.01.09.26.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 09:25:27 -0800 (PST)
-Date: Fri, 1 Dec 2017 09:25:19 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
-Message-ID: <20171201172519.GA27192@bombadil.infradead.org>
-References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
- <1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
- <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
- <5A210C96.8050208@intel.com>
- <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
- <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Dec 2017 09:26:53 -0800 (PST)
+Subject: Re: [PATCH] proc: do not show VmExe bigger than total executable
+ virtual memory
+References: <150728955451.743749.11276392315459539583.stgit@buzz>
+ <20171010152504.c0b84899a95e0bcd79b73290@linux-foundation.org>
+ <bfa040ba-7935-02b6-3736-4b71aac31619@yandex-team.ru>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8e7872bf-5af2-91db-f35e-921990849dda@suse.cz>
+Date: Fri, 1 Dec 2017 18:25:25 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
+In-Reply-To: <bfa040ba-7935-02b6-3736-4b71aac31619@yandex-team.ru>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wang, Wei W" <wei.w.wang@intel.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu@aliyun.com" <quan.xu@aliyun.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 01, 2017 at 03:09:08PM +0000, Wang, Wei W wrote:
-> On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
-> > If start == end is legal,
-> > 
-> >    for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
-> > 
-> > makes this loop do nothing because 10 < 10 is false.
+On 10/11/2017 09:00 AM, Konstantin Khlebnikov wrote:
+> On 11.10.2017 01:25, Andrew Morton wrote:
+>> On Fri, 06 Oct 2017 14:32:34 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
+>>
+>>> If start_code / end_code pointers are screwed then "VmExe" could be bigger
+>>> than total executable virtual memory and "VmLib" becomes negative:
+>>>
+>>> VmExe:	  294320 kB
+>>> VmLib:	18446744073709327564 kB
+>>>
+>>> VmExe and VmLib documented as text segment and shared library code size.
+>>>
+>>> Now their sum will be always equal to mm->exec_vm which sums size of
+>>> executable and not writable and not stack areas.
+>>
+>> When does this happen?  What causes start_code/end_code to get "screwed"?
 > 
-> How about "start <= end "?
+> I don't know exactly what happened.
+> I've seen this for huge (>2Gb) statically linked binary which has whole world inside.
+> 
+> For it start_code .. end_code range also covers one of rodata sections.
+> Probably this is bug in customized linker, elf loader or both.
+> 
+> Anyway CONFIG_CHECKPOINT_RESTORE allows to change these pointers,
+> thus we cannot trust them without validation.
 
-Don't ask Tetsuo for his opinion, write some userspace code that uses it.
+Please add this to changelog. I agree that it's better/safer after your
+patch. These counters are fundamentally heuristics so we can't guarantee
+"proper" values for weird binaries. exec_vm OTOH is an objective value
+so it makes sense to use it as a safe boundary.
+
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+
+>>
+>> When these pointers are screwed, the result of end_code-start_code can
+>> still be wrong while not necessarily being negative, yes?  In which
+>> case we'll still display incorrect output?
+>>
+> 
+> Here we split exec_vm into main code segment and libraries.
+> 
+> Range start_code .. end_code declared as main code segment.
+> In my case it's bigger than exec_vm, so libraries have to be negative.
+> 
+> After my patch libraries will be 0 and whole exec_vm show as VmExe.
+> At least sum VmExe + VmLib stays correct and both of them sane.
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
