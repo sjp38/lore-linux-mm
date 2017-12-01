@@ -1,74 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DA77E6B0253
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 05:17:39 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id l4so5563493wre.10
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 02:17:39 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i19si3552924eda.254.2017.12.01.02.17.38
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 12E386B0253
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 05:28:41 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id p129so3874183ybg.2
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 02:28:41 -0800 (PST)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id h192si1199301ybb.821.2017.12.01.02.28.38
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 02:17:38 -0800 (PST)
-Date: Fri, 1 Dec 2017 11:17:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: stalled MM patches
-Message-ID: <20171201101734.65tubivkejlduq34@dhcp22.suse.cz>
-References: <20171130141423.600101bcef07ab2900286865@linux-foundation.org>
- <20171201083154.GA7108@gmail.com>
- <20171201084510.4cztiv2o752zoqmt@dhcp22.suse.cz>
- <20171201101147.t62ouec3ebnv7lz5@node.shutemov.name>
+        Fri, 01 Dec 2017 02:28:39 -0800 (PST)
+From: zhong jiang <zhongjiang@huawei.com>
+Subject: [RESEND] x86/numa: move setting parsed numa node to num_add_memblk
+Date: Fri, 1 Dec 2017 18:13:52 +0800
+Message-ID: <1512123232-7263-1-git-send-email-zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171201101147.t62ouec3ebnv7lz5@node.shutemov.name>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Alexandru Moise <00moses.alexander00@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Andi Kleen <ak@linux.intel.com>, Andrey Vagin <avagin@openvz.org>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Anton Vorontsov <anton.vorontsov@linaro.org>, "Artem S. Tashkinov" <t.artem@lycos.com>, Balbir Singh <bsingharora@gmail.com>, Chris Salls <salls@cs.ucsb.edu>, Christopher Lameter <cl@linux.com>, "Darrick J. Wong" <darrick.wong@oracle.com>, Dave Chinner <david@fromorbit.com>, David Rientjes <rientjes@google.com>, Gerald Schaefer <gerald.schaefer@de.ibm.com>, Glauber Costa <glommer@openvz.org>, Henrique de Moraes Holschuh <hmh@hmh.eng.br>, Ingo Molnar <mingo@kernel.org>, Jan Kara <jack@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, Laurent Dufour <ldufour@linux.vnet.ibm.com>, Maxim Patlasov <MPatlasov@parallels.com>, Mel Gorman <mgorman@techsingularity.net>, Mike Kravetz <mike.kravetz@oracle.com>, Minchan Kim <minchan@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Punit Agrawal <punit.agrawal@arm.com>, Rik van Riel <riel@redhat.com>, Shiraz Hashim <shashim@codeaurora.org>, Tan Xiaojun <tanxiaojun@huawei.com>, Theodore Ts'o <tytso@mit.edu>, Vinayak Menon <vinmenon@codeaurora.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Wu Fengguang <fengguang.wu@intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, zhong jiang <zhongjiang@huawei.com>, linux-mm@kvack.org
+To: mhocko@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, minchan@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri 01-12-17 13:11:47, Kirill A. Shutemov wrote:
-> On Fri, Dec 01, 2017 at 09:45:10AM +0100, Michal Hocko wrote:
-> > On Fri 01-12-17 09:31:55, Alexandru Moise wrote:
-> > [...]
-> > > > Subject: mm/madvise: enable soft offline of HugeTLB pages at PUD level
-> > > > 
-> > > >   Hoping for Kirill review.  I wanted additional code comments (I
-> > > >   think).  mhocko nacked it.
-> > > 
-> > > TBH I'd rather give up this one if mhocko feels that there's no point to it.
-> > > Rather drop it than risk adding crap in the kernel :).
-> > > 
-> > > It is a bit weird though that currently we have the behavior that on some PPC platforms
-> > > you can migrate 1G hugepages but on x86_64 you cannot.
-> > 
-> > I _think_ we can apply this patch in the end. But there is more work to
-> > be done before we can do that. PPC is probably broken in that regard as
-> > well, we just haven't noticed before this got merged. I find the
-> > hwpoison based reasons for merging disputable at best but this is not
-> > serious enough to call for a revert. I am currently working on patches
-> > to make giga pages migratable for real and then we can apply your patch
-> > on top.
-> 
-> One way we can approach it is to make architecture code to provide
-> hugepage_migration_supported() with fallback to "return false;" in generic
-> code. It will give us more control on what can be migrated.
-> 
-> And we can kill CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION.
-> 
-> Then we can include new page sizes into migration one-by-one with proper
-> testing.
+The acpi table are very much like user input. it is likely to
+introduce some unreasonable node in some architecture. but
+they do not ingore the node and bail out in time. it will result
+in unnecessary print.
+e.g  x86:  start is equal to end is a unreasonable node.
+numa_blk_memblk will fails but return 0.
 
-I do not think this is the biggest problem here. The page migration code
-is basically generic for hugetlb pages. I seriously suspect anybody has
-tested PGD pages migration on PPC. This is all hwpoison driven thing.
+meanwhile, Arm64 node will double set it to "numa_node_parsed"
+after NUMA adds a memblk successfully.  but X86 is not. because
+numa_add_memblk is not set in X86.
 
-So, really, we should make giga pages migration work better first and
-then play with hugepage_migration_supported. Arch specific treatment
-might be needed but that is not the biggest problem we have.
+In view of the above problems. I think it need a better improvement.
+we add a check here for bypassing the invalid memblk node.
 
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+---
+ arch/x86/mm/amdtopology.c | 1 -
+ arch/x86/mm/numa.c        | 3 ++-
+ drivers/acpi/numa.c       | 5 ++++-
+ 3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
+index 91f501b..7657042 100644
+--- a/arch/x86/mm/amdtopology.c
++++ b/arch/x86/mm/amdtopology.c
+@@ -151,7 +151,6 @@ int __init amd_numa_init(void)
+ 
+ 		prevbase = base;
+ 		numa_add_memblk(nodeid, base, limit);
+-		node_set(nodeid, numa_nodes_parsed);
+ 	}
+ 
+ 	if (!nodes_weight(numa_nodes_parsed))
+diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+index 25504d5..8f87f26 100644
+--- a/arch/x86/mm/numa.c
++++ b/arch/x86/mm/numa.c
+@@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
+ 	mi->blk[mi->nr_blks].end = end;
+ 	mi->blk[mi->nr_blks].nid = nid;
+ 	mi->nr_blks++;
++
++	node_set(nid, numa_nodes_parsed);
+ 	return 0;
+ }
+ 
+@@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
+ 	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
+ 	       0LLU, PFN_PHYS(max_pfn) - 1);
+ 
+-	node_set(0, numa_nodes_parsed);
+ 	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
+ 
+ 	return 0;
+diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+index 917f1cc..f2e33cb 100644
+--- a/drivers/acpi/numa.c
++++ b/drivers/acpi/numa.c
+@@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+ 		goto out_err_bad_srat;
+ 	}
+ 
+-	node_set(node, numa_nodes_parsed);
++	/* some architecture is likely to ignore a unreasonable node */
++	if (!node_isset(node, numa_nodes_parsed))
++		goto out;
+ 
+ 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+ 		node, pxm,
+@@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+ 
+ 	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
+ 
++out:
+ 	return 0;
+ out_err_bad_srat:
+ 	bad_srat();
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
