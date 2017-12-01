@@ -1,110 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 096C16B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 03:50:28 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id f132so643186wmf.6
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 00:50:27 -0800 (PST)
-Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id d30si1830352edb.88.2017.12.01.00.50.26
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1BCFE6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 03:57:06 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id u126so3984087oif.23
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 00:57:06 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id e199si1980297oib.16.2017.12.01.00.57.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 00:50:26 -0800 (PST)
-Message-ID: <5A211759.5080800@huawei.com>
-Date: Fri, 1 Dec 2017 16:48:25 +0800
-From: zhong jiang <zhongjiang@huawei.com>
+        Fri, 01 Dec 2017 00:57:05 -0800 (PST)
+Date: Fri, 1 Dec 2017 16:56:57 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH] mm: check pfn_valid first in zero_resv_unavail
+Message-ID: <20171201085657.GA2291@dhcp-128-65.nay.redhat.com>
+References: <20171130060431.GA2290@dhcp-128-65.nay.redhat.com>
+ <20171130093521.3yxyq6xvo6zgaifc@dhcp22.suse.cz>
 MIME-Version: 1.0
-Subject: Re: [PATCH] x86/numa: move setting parse numa node to num_add_memblk
-References: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
-In-Reply-To: <1511946807-22024-1-git-send-email-zhongjiang@huawei.com>
-Content-Type: text/plain; charset="ISO-8859-1"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171130093521.3yxyq6xvo6zgaifc@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, mingo@redhat.com, x86@kernel.org, lenb@kernel.org, mhocko@kernel.org, akpm@linux-foundation.org, vbabka@suse.cz, linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Minchan Kim <minchan@kernel.org>, Johannes
- Weiner <hannes@cmpxchg.org>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: richard.weiyang@gmail.com, pombredanne@nexb.com, linux-kernel@vger.kernel.org, linux-acpi@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org
 
-+cc more mm maintainer.
+On 11/30/17 at 10:35am, Michal Hocko wrote:
+> On Thu 30-11-17 14:04:31, Dave Young wrote:
+> > With latest kernel I get below bug while testing kdump:
+> > 
+> > [    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
+> > [    0.000000] IP: zero_resv_unavail+0xbd/0x126
+> > [    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
+> > [    0.000000] Oops: 0002 [#1] SMP
+> > [    0.000000] Modules linked in:
+> > [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
+> > [    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
+> > [    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
+> > [    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
+> > [    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
+> > [    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
+> > [    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
+> > [    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
+> > [    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
+> > [    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
+> > [    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
+> > [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > [    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
+> > [    0.000000] Call Trace:
+> > [    0.000000]  ? free_area_init_nodes+0x640/0x664
+> > [    0.000000]  ? zone_sizes_init+0x58/0x72
+> > [    0.000000]  ? setup_arch+0xb50/0xc6c
+> > [    0.000000]  ? start_kernel+0x64/0x43d
+> > [    0.000000]  ? secondary_startup_64+0xa5/0xb0
+> > [    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
+> > c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
+> > [    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
+> > [    0.000000] CR2: ffffea00034b1040
+> > [    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
+> > 
+> > This is introduced with below commit:
+> > commit a4a3ede2132ae0863e2d43e06f9b5697c51a7a3b
+> > Author: Pavel Tatashin <pasha.tatashin@oracle.com>
+> > Date:   Wed Nov 15 17:36:31 2017 -0800
+> > 
+> >     mm: zero reserved and unavailable struct pages
+> 
+> the usual format when mentioning a commit is a4a3ede2132a ("mm: zero
+> reserved and unavailable struct pages").
 
-Any one has any object.  please let me know.  
+Will use the short flavor commit
+
+>  
+> > The reason is some efi reserved boot ranges is not reported in E820 ram.
+> > In my case it is a bgrt buffer:
+> > efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
+> > 
+> > Use "add_efi_memmap" can workaround the problem with another fix:
+> > https://lkml.org/lkml/2017/11/30/5
+> 
+> lkml.org tends to be broken a lot, please use
+> http://lkml.kernel.org/r/MSG_ID instead. It would be
+> http://lkml.kernel.org/r/20171130052327.GA3500@dhcp-128-65.nay.redhat.com
+> here
+
+I also say unstable lkml, but still used to use it since it is simpler
+but if you prefer lkml.kernel.org I can change it.
+
+> 
+> > In zero_resv_unavail it would be better to check pfn_valid first before zero
+> > the page struct. This fixes the problem and potential other similar problems.
+> 
+> Can we exclude that range from the memblock allocator instead? E.g. what
+> happens if somebody allocates from that range?
+
+It is a EFI BGRT image buffer provided by firmware, they are reserved
+always and can not be used to allocate memory.
+
+> 
+> > Signed-off-by: Dave Young <dyoung@redhat.com>
+> > ---
+> >  mm/page_alloc.c |    2 ++
+> >  1 file changed, 2 insertions(+)
+> > 
+> > --- linux.orig/mm/page_alloc.c
+> > +++ linux/mm/page_alloc.c
+> > @@ -6253,6 +6253,8 @@ void __paginginit zero_resv_unavail(void
+> >  	pgcnt = 0;
+> >  	for_each_resv_unavail_range(i, &start, &end) {
+> >  		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
+> > +			if (!pfn_valid(pfn))
+> > +				continue;
+> >  			mm_zero_struct_page(pfn_to_page(pfn));
+> >  			pgcnt++;
+> >  		}
+> > 
+> > --
+> > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > see: http://www.linux-mm.org/ .
+> > Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 Thanks
-zhongjiang
-On 2017/11/29 17:13, zhong jiang wrote:
-> Currently, Arm64 and x86 use the common code wehn parsing numa node
-> in a acpi way. The arm64 will set the parsed node in numa_add_memblk,
-> but the x86 is not set in that , then it will result in the repeatly
-> setting. And the parsed node maybe is  unreasonable to the system.
->
-> we would better not set it although it also still works. because the
-> parsed node is unresonable. so we should skip related operate in this
-> node. This patch just set node in various architecture individually.
-> it is no functional change.
->
-> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> ---
->  arch/x86/mm/amdtopology.c | 1 -
->  arch/x86/mm/numa.c        | 3 ++-
->  drivers/acpi/numa.c       | 5 ++++-
->  3 files changed, 6 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
-> index 91f501b..7657042 100644
-> --- a/arch/x86/mm/amdtopology.c
-> +++ b/arch/x86/mm/amdtopology.c
-> @@ -151,7 +151,6 @@ int __init amd_numa_init(void)
->  
->  		prevbase = base;
->  		numa_add_memblk(nodeid, base, limit);
-> -		node_set(nodeid, numa_nodes_parsed);
->  	}
->  
->  	if (!nodes_weight(numa_nodes_parsed))
-> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-> index 25504d5..8f87f26 100644
-> --- a/arch/x86/mm/numa.c
-> +++ b/arch/x86/mm/numa.c
-> @@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
->  	mi->blk[mi->nr_blks].end = end;
->  	mi->blk[mi->nr_blks].nid = nid;
->  	mi->nr_blks++;
-> +
-> +	node_set(nid, numa_nodes_parsed);
->  	return 0;
->  }
->  
-> @@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
->  	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
->  	       0LLU, PFN_PHYS(max_pfn) - 1);
->  
-> -	node_set(0, numa_nodes_parsed);
->  	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
->  
->  	return 0;
-> diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-> index 917f1cc..f2e33cb 100644
-> --- a/drivers/acpi/numa.c
-> +++ b/drivers/acpi/numa.c
-> @@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
->  		goto out_err_bad_srat;
->  	}
->  
-> -	node_set(node, numa_nodes_parsed);
-> +	/* some architecture is likely to ignore a unreasonable node */
-> +	if (!node_isset(node, numa_nodes_parsed))
-> +		goto out;
->  
->  	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
->  		node, pxm,
-> @@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
->  
->  	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
->  
-> +out:
->  	return 0;
->  out_err_bad_srat:
->  	bad_srat();
-
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
