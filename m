@@ -1,104 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 12E386B0253
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 05:28:41 -0500 (EST)
-Received: by mail-yb0-f199.google.com with SMTP id p129so3874183ybg.2
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 02:28:41 -0800 (PST)
-Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id h192si1199301ybb.821.2017.12.01.02.28.38
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8771C6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 06:18:58 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id c82so838400wme.8
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 03:18:58 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b58si4651198eda.80.2017.12.01.03.18.48
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 02:28:39 -0800 (PST)
-From: zhong jiang <zhongjiang@huawei.com>
-Subject: [RESEND] x86/numa: move setting parsed numa node to num_add_memblk
-Date: Fri, 1 Dec 2017 18:13:52 +0800
-Message-ID: <1512123232-7263-1-git-send-email-zhongjiang@huawei.com>
+        Fri, 01 Dec 2017 03:18:48 -0800 (PST)
+Date: Fri, 1 Dec 2017 12:18:45 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
+Message-ID: <20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
+References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+ <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
+ <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
+ <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
+ <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
+ <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
+ <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, minchan@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-The acpi table are very much like user input. it is likely to
-introduce some unreasonable node in some architecture. but
-they do not ingore the node and bail out in time. it will result
-in unnecessary print.
-e.g  x86:  start is equal to end is a unreasonable node.
-numa_blk_memblk will fails but return 0.
+On Fri 01-12-17 08:24:14, Michal Hocko wrote:
+> On Thu 30-11-17 13:17:06, Andrew Morton wrote:
+> > On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > > > mm...  So we have a caller which hopes to be getting highmem pages but
+> > > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
+> > > > why it isn't getting as much memory as it would like on 32-bit systems,
+> > > > etc.
+> > > 
+> > > How he can kmap the page when he gets a _virtual_ address?
+> > 
+> > doh.
+> > 
+> > > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
+> > > > would suffice.
+> > > 
+> > > This function has always been about lowmem pages. I seriously doubt we
+> > > have anybody confused and asking for a highmem page in the kernel. I
+> > > haven't checked that but it would already blow up as VM_BUG_ON tends to
+> > > be enabled on many setups.
+> > 
+> > OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
+> > shouldn't be doing that in the first place.
+> 
+> Yes, they shouldn't be.
+> 
+> > I wonder what happens if we just remove the WARN_ON and pass any
+> > __GFP_HIGHMEM straight through.  The caller gets a weird address from
+> > page_to_virt(highmem page) and usually goes splat?  Good enough
+> > treatment for something which never happens anyway?
+> 
+> page_address will return NULL so they will blow up and leak the freshly
+> allocated memory.
 
-meanwhile, Arm64 node will double set it to "numa_node_parsed"
-after NUMA adds a memblk successfully.  but X86 is not. because
-numa_add_memblk is not set in X86.
+let me be more specific. They will blow up and leak if the returned
+address is not checked. If it is then we just leak. None of that sounds
+good to me.
 
-In view of the above problems. I think it need a better improvement.
-we add a check here for bypassing the invalid memblk node.
-
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- arch/x86/mm/amdtopology.c | 1 -
- arch/x86/mm/numa.c        | 3 ++-
- drivers/acpi/numa.c       | 5 ++++-
- 3 files changed, 6 insertions(+), 3 deletions(-)
-
-diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
-index 91f501b..7657042 100644
---- a/arch/x86/mm/amdtopology.c
-+++ b/arch/x86/mm/amdtopology.c
-@@ -151,7 +151,6 @@ int __init amd_numa_init(void)
- 
- 		prevbase = base;
- 		numa_add_memblk(nodeid, base, limit);
--		node_set(nodeid, numa_nodes_parsed);
- 	}
- 
- 	if (!nodes_weight(numa_nodes_parsed))
-diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
-index 25504d5..8f87f26 100644
---- a/arch/x86/mm/numa.c
-+++ b/arch/x86/mm/numa.c
-@@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
- 	mi->blk[mi->nr_blks].end = end;
- 	mi->blk[mi->nr_blks].nid = nid;
- 	mi->nr_blks++;
-+
-+	node_set(nid, numa_nodes_parsed);
- 	return 0;
- }
- 
-@@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
- 	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
- 	       0LLU, PFN_PHYS(max_pfn) - 1);
- 
--	node_set(0, numa_nodes_parsed);
- 	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
- 
- 	return 0;
-diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
-index 917f1cc..f2e33cb 100644
---- a/drivers/acpi/numa.c
-+++ b/drivers/acpi/numa.c
-@@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- 		goto out_err_bad_srat;
- 	}
- 
--	node_set(node, numa_nodes_parsed);
-+	/* some architecture is likely to ignore a unreasonable node */
-+	if (!node_isset(node, numa_nodes_parsed))
-+		goto out;
- 
- 	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
- 		node, pxm,
-@@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
- 
- 	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
- 
-+out:
- 	return 0;
- out_err_bad_srat:
- 	bad_srat();
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
