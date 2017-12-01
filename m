@@ -1,90 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0D06B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 04:50:55 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id f13so4069811oib.20
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 01:50:55 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e189si2051035oih.461.2017.12.01.01.50.54
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4B1AF6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 05:04:27 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 97so4252636ple.5
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 02:04:27 -0800 (PST)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id l3si4574575pgs.302.2017.12.01.02.04.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 01:50:54 -0800 (PST)
-Date: Fri, 1 Dec 2017 17:50:48 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: [PATCH V2] mm: check pfn_valid first in zero_resv_unavail
-Message-ID: <20171201095048.GA3084@dhcp-128-65.nay.redhat.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 01 Dec 2017 02:04:25 -0800 (PST)
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Subject: [PATCH v4 3/3] mm/mempolicy: add nodes_empty check in SYSC_migrate_pages
+Date: Fri, 1 Dec 2017 17:55:28 +0800
+Message-ID: <1512122128-6220-1-git-send-email-xieyisheng1@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org, Michal Hocko <mhocko@kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, Yisheng Xie <xieyisheng1@huawei.com>, Andi Kleen <ak@linux.intel.com>, Chris Salls <salls@cs.ucsb.edu>, Christopher Lameter <cl@linux.com>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Tan Xiaojun <tanxiaojun@huawei.com>, Vlastimil Babka <vbabka@suse.cz>
 
-With latest kernel I get below bug while testing kdump:
-[    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
-[    0.000000] IP: zero_resv_unavail+0xbd/0x126
-[    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
-[    0.000000] Oops: 0002 [#1] SMP
-[    0.000000] Modules linked in:
-[    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
-[    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
-[    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
-[    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
-[    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
-[    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
-[    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
-[    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
-[    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
-[    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
-[    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
-[    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
-[    0.000000] Call Trace:
-[    0.000000]  ? free_area_init_nodes+0x640/0x664
-[    0.000000]  ? zone_sizes_init+0x58/0x72
-[    0.000000]  ? setup_arch+0xb50/0xc6c
-[    0.000000]  ? start_kernel+0x64/0x43d
-[    0.000000]  ? secondary_startup_64+0xa5/0xb0
-[    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
-c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
-[    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
-[    0.000000] CR2: ffffea00034b1040
-[    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
+As in manpage of migrate_pages, the errno should be set to EINVAL when
+none of the node IDs specified by new_nodes are on-line and allowed by the
+process's current cpuset context, or none of the specified nodes contain
+memory.  However, when test by following case:
 
-This is introduced with commit a4a3ede2132a ("mm: zero reserved and
-unavailable struct pages")
+	new_nodes = 0;
+	old_nodes = 0xf;
+	ret = migrate_pages(pid, old_nodes, new_nodes, MAX);
 
-The reason is some efi reserved boot ranges is not reported in E820 ram.
-In my case it is a bgrt buffer:
-efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
+The ret will be 0 and no errno is set.  As the new_nodes is empty, we
+should expect EINVAL as documented.
 
-Use "add_efi_memmap" can workaround the problem with another fix:
-http://lkml.kernel.org/r/20171130052327.GA3500@dhcp-128-65.nay.redhat.com
+To fix the case like above, this patch check whether target nodes AND
+current task_nodes is empty, and then check whether AND
+node_states[N_MEMORY] is empty.
 
-In zero_resv_unavail it would be better to check pfn_valid first before zero
-the page struct. This fixes the problem and potential other similar problems.
-Also as Pavel Tatashin suggested checks pfn_valid at the beginning of the
-section.
+Meanwhile,this patch also remove the check of EPERM on CAP_SYS_NICE. 
+The caller of migrate_pages should be able to migrate the target process
+pages anywhere the caller can allocate memory, if the caller can access
+the mm_struct.
 
-Signed-off-by: Dave Young <dyoung@redhat.com>
+Signed-off-by: Yisheng Xie <xieyisheng1@huawei.com>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Chris Salls <salls@cs.ucsb.edu>
+Cc: Christopher Lameter <cl@linux.com>
+Cc: David Rientjes <rientjes@google.com>
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Tan Xiaojun <tanxiaojun@huawei.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 ---
-v1->v2: Michal Hocko: patch log improvement
-        Pavel Tatashin: check pfn at the beginning of the section
- mm/page_alloc.c |    2 ++
- 1 file changed, 2 insertions(+)
+v3:
+ * check whether node is empty after AND current task node, and then nodes
+   which have memory
+v4:
+ * remove the check of EPERM on CAP_SYS_NICE.
 
---- linux-x86.orig/mm/page_alloc.c
-+++ linux-x86/mm/page_alloc.c
-@@ -6253,6 +6253,8 @@ void __paginginit zero_resv_unavail(void
- 	pgcnt = 0;
- 	for_each_resv_unavail_range(i, &start, &end) {
- 		for (pfn = PFN_DOWN(start); pfn < PFN_UP(end); pfn++) {
-+			if (!pfn_valid(ALIGN_DOWN(pfn, pageblock_nr_pages)))
-+				continue;
- 			mm_zero_struct_page(pfn_to_page(pfn));
- 			pgcnt++;
- 		}
+Hi Vlastimil and Christopher,
+
+Could you please help to review this version?
+
+Thanks
+Yisheng Xie
+
+ mm/mempolicy.c | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index 65df28d..4da74b6 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1426,17 +1426,14 @@ static int copy_nodes_to_user(unsigned long __user *mask, unsigned long maxnode,
+ 	}
+ 	rcu_read_unlock();
+ 
+-	task_nodes = cpuset_mems_allowed(task);
+-	/* Is the user allowed to access the target nodes? */
+-	if (!nodes_subset(*new, task_nodes) && !capable(CAP_SYS_NICE)) {
+-		err = -EPERM;
++	task_nodes = cpuset_mems_allowed(current);
++	nodes_and(*new, *new, task_nodes);
++	if (nodes_empty(*new))
+ 		goto out_put;
+-	}
+ 
+-	if (!nodes_subset(*new, node_states[N_MEMORY])) {
+-		err = -EINVAL;
++	nodes_and(*new, *new, node_states[N_MEMORY]);
++	if (nodes_empty(*new))
+ 		goto out_put;
+-	}
+ 
+ 	err = security_task_movememory(task);
+ 	if (err)
+-- 
+1.7.12.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
