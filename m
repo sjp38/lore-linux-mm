@@ -1,72 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F2CE16B025F
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 08:54:58 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id m17so6507086pgu.19
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 05:54:58 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z5si3187975pgp.129.2017.12.01.05.54.57
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E4E4D6B0069
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 08:57:54 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id v8so1030132wmh.2
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 05:57:54 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id s11si5808748edj.532.2017.12.01.05.57.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 05:54:57 -0800 (PST)
-Date: Fri, 1 Dec 2017 14:54:53 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, oom: simplify alloc_pages_before_oomkill handling
-Message-ID: <20171201135453.jrldrcrwpped4b5d@dhcp22.suse.cz>
-References: <20171130152824.1591-1-guro@fb.com>
- <20171201091425.ekrpxsmkwcusozua@dhcp22.suse.cz>
- <20171201133214.GB7741@castle.DHCP.thefacebook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 01 Dec 2017 05:57:53 -0800 (PST)
+Date: Fri, 1 Dec 2017 13:57:50 +0000
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [patch 07/15] mm: memcontrol: fix excessive complexity in
+ memory.stat reporting
+Message-ID: <20171201135750.GB8097@cmpxchg.org>
+References: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201133214.GB7741@castle.DHCP.thefacebook.com>
+In-Reply-To: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, mhocko@suse.com, vdavydov.dev@gmail.com
 
-On Fri 01-12-17 13:32:15, Roman Gushchin wrote:
-> Hi, Michal!
-> 
-> I totally agree that out_of_memory() function deserves some refactoring.
-> 
-> But I think there is an issue with your patch (see below):
-> 
-> On Fri, Dec 01, 2017 at 10:14:25AM +0100, Michal Hocko wrote:
-> > Recently added alloc_pages_before_oomkill gained new caller with this
-> > patchset and I think it just grown to deserve a simpler code flow.
-> > What do you think about this on top of the series?
-> > 
-> > ---
-[...]
-> > @@ -1112,13 +1111,8 @@ bool out_of_memory(struct oom_control *oc)
-> >  	}
-> >  
-> >  	if (mem_cgroup_select_oom_victim(oc)) {
-> > -		oc->page = alloc_pages_before_oomkill(oc);
-> > -		if (oc->page) {
-> > -			if (oc->chosen_memcg &&
-> > -			    oc->chosen_memcg != INFLIGHT_VICTIM)
-> > -				mem_cgroup_put(oc->chosen_memcg);
-> 
-> You're removing chosen_memcg releasing here, but I don't see where you
-> do this instead. And I'm not sure that putting mem_cgroup_put() into
-> alloc_pages_before_oomkill() is a way towards simpler code.
+On Thu, Nov 30, 2017 at 02:15:31PM -0800, akpm@linux-foundation.org wrote:
+> @@ -1858,9 +1824,44 @@ static void drain_all_stock(struct mem_c
+>  static int memcg_hotplug_cpu_dead(unsigned int cpu)
+>  {
+>  	struct memcg_stock_pcp *stock;
+> +	struct mem_cgroup *memcg;
+>  
+>  	stock = &per_cpu(memcg_stock, cpu);
+>  	drain_stock(stock);
+> +
+> +	for_each_mem_cgroup(memcg) {
+> +		int i;
+> +
+> +		for (i = 0; i < MEMCG_NR_STAT; i++) {
+> +			int nid;
+> +			long x;
+> +
+> +			x = __this_cpu_xchg(memcg->stat_cpu->count[i], 0);
+> +			if (x)
+> +				atomic_long_add(x, &memcg->stat[i]);
+> +
+> +			if (i >= NR_VM_NODE_STAT_ITEMS)
+> +				continue;
+> +
+> +			for_each_node(nid) {
+> +				struct mem_cgroup_per_node *pn;
+> +
+> +				pn = mem_cgroup_nodeinfo(memcg, nid);
+> +				x = __this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
+> +				if (x)
+> +					atomic_long_add(x, &pn->lruvec_stat[i]);
+> +			}
+> +		}
+> +
+> +		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
+> +			long x;
+> +
+> +			x = __this_cpu_xchg(memcg->stat_cpu->events[i], 0);
+> +			if (x)
+> +				atomic_long_add(x, &memcg->events[i]);
+> +		}
+> +	}
+> +
+>  	return 0;
+>  }
 
-Dohh, I though I did. But obviously it is not there.
+The memcg cpu_dead callback can be called early during startup
+(CONFIG_DEBUG_HOTPLUG_CPU0) with preemption enabled, which triggers a
+warning in its __this_cpu_xchg() calls. But CPU locality is always
+guaranteed, which is the only thing we really care about here.
 
-> I was thinking about a bit larger refactoring: splitting out_of_memory()
-> into the following parts (defined as separate functions): victim selection
-> (per-process, memcg-aware or just allocating task), last allocation attempt,
-> OOM action (kill process, kill memcg, panic). Hopefully it can simplify the things,
-> but I don't have code yet.
+Using the preemption-safe this_cpu_xchg() addresses this problem.
 
-OK, I will not push if you have further plans of course. This just hit
-my eyes...
+Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+---
 
--- 
-Michal Hocko
-SUSE Labs
+Andrew, can you please merge this fixlet into the original patch?
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 40d1ef65fbd2..e616c1b0e458 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1836,7 +1836,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ 			int nid;
+ 			long x;
+ 
+-			x = __this_cpu_xchg(memcg->stat_cpu->count[i], 0);
++			x = this_cpu_xchg(memcg->stat_cpu->count[i], 0);
+ 			if (x)
+ 				atomic_long_add(x, &memcg->stat[i]);
+ 
+@@ -1847,7 +1847,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ 				struct mem_cgroup_per_node *pn;
+ 
+ 				pn = mem_cgroup_nodeinfo(memcg, nid);
+-				x = __this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
++				x = this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
+ 				if (x)
+ 					atomic_long_add(x, &pn->lruvec_stat[i]);
+ 			}
+@@ -1856,7 +1856,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
+ 		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
+ 			long x;
+ 
+-			x = __this_cpu_xchg(memcg->stat_cpu->events[i], 0);
++			x = this_cpu_xchg(memcg->stat_cpu->events[i], 0);
+ 			if (x)
+ 				atomic_long_add(x, &memcg->events[i]);
+ 		}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
