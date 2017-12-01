@@ -1,84 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FFC86B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 11:52:45 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id p144so2474154itc.9
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 08:52:45 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 16si5157363iob.23.2017.12.01.08.52.43
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1606B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 11:59:58 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id 55so6141106wrx.21
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 08:59:58 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k8si83127eda.24.2017.12.01.08.59.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 01 Dec 2017 08:52:43 -0800 (PST)
-Subject: Re: [PATCH 1/3] mm,oom: Move last second allocation to inside the OOM killer.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171201143317.GC8097@cmpxchg.org>
-	<20171201144634.sc4cn6hyyt6zawms@dhcp22.suse.cz>
-	<20171201145638.GA10280@cmpxchg.org>
-	<20171201151715.yiep5wkmxmp77nxn@dhcp22.suse.cz>
-	<20171201155711.GA11057@cmpxchg.org>
-In-Reply-To: <20171201155711.GA11057@cmpxchg.org>
-Message-Id: <201712020152.GCI81290.QtLHOFJMFFSOVO@I-love.SAKURA.ne.jp>
-Date: Sat, 2 Dec 2017 01:52:30 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        Fri, 01 Dec 2017 08:59:56 -0800 (PST)
+Subject: Re: [patch 13/15] mm/page_owner: align with pageblock_nr pages
+References: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz>
+Date: Fri, 1 Dec 2017 17:58:28 +0100
+MIME-Version: 1.0
+In-Reply-To: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: hannes@cmpxchg.org, mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com
+To: akpm@linux-foundation.org, linux-mm@kvack.org, zhongjiang@huawei.com, mhocko@kernel.org
 
-Johannes Weiner wrote:
-> On Fri, Dec 01, 2017 at 04:17:15PM +0100, Michal Hocko wrote:
-> > On Fri 01-12-17 14:56:38, Johannes Weiner wrote:
-> > > On Fri, Dec 01, 2017 at 03:46:34PM +0100, Michal Hocko wrote:
-> > > > On Fri 01-12-17 14:33:17, Johannes Weiner wrote:
-> > > > > On Sat, Nov 25, 2017 at 07:52:47PM +0900, Tetsuo Handa wrote:
-> > > > > > @@ -1068,6 +1071,17 @@ bool out_of_memory(struct oom_control *oc)
-> > > > > >  	}
-> > > > > >  
-> > > > > >  	select_bad_process(oc);
-> > > > > > +	/*
-> > > > > > +	 * Try really last second allocation attempt after we selected an OOM
-> > > > > > +	 * victim, for somebody might have managed to free memory while we were
-> > > > > > +	 * selecting an OOM victim which can take quite some time.
-> > > > > 
-> > > > > Somebody might free some memory right after this attempt fails. OOM
-> > > > > can always be a temporary state that resolves on its own.
-
-"[PATCH 3/3] mm,oom: Remove oom_lock serialization from the OOM reaper." says
-that doing last second allocation attempt after select_bad_process() should
-help the OOM reaper to free memory compared to doing last second allocation
-before select_bad_process().
-
-> > > > > 
-> > > > > What keeps us from declaring OOM prematurely is the fact that we
-> > > > > already scanned the entire LRU list without success, not last second
-> > > > > or last-last second, or REALLY last-last-last-second allocations.
-> > > > 
-> > > > You are right that this is inherently racy. The point here is, however,
-> > > > that the race window between the last check and the kill can be _huge_!
-> > > 
-> > > My point is that it's irrelevant. We already sampled the entire LRU
-> > > list; compared to that, the delay before the kill is immaterial.
-> > 
-> > Well, I would disagree. I have seen OOM reports with a free memory.
-> > Closer debugging shown that an existing process was on the way out and
-> > the oom victim selection took way too long and fired after a large
-> > process manage. There were different hacks^Wheuristics to cover those
-> > cases but they turned out to just cause different corner cases. Moving
-> > the existing last moment allocation after a potentially very time
-> > consuming action is relatively cheap and safe measure to cover those
-> > cases without any negative side effects I can think of.
+On 11/30/2017 11:15 PM, akpm@linux-foundation.org wrote:
+> From: zhong jiang <zhongjiang@huawei.com>
+> Subject: mm/page_owner: align with pageblock_nr pages
 > 
-> An existing process can exit right after you pull the trigger. How big
-> is *that* race window? By this logic you could add a sleep(5) before
-> the last-second allocation because it would increase the likelihood of
-> somebody else exiting voluntarily.
+> When pfn_valid(pfn) returns false, pfn should be aligned with
+> pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
+> because the skipped 2M may be valid pfn, as a result, early allocated
+> count will not be accurate.
+> 
+> Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
+> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 
-Sleeping with oom_lock held is bad. Even schedule_timeout_killable(1) at
-out_of_memory() can allow the owner of oom_lock sleep effectively forever
-when many threads are hitting mutex_trylock(&oom_lock) at
-__alloc_pages_may_oom(). Let alone adding sleep(5) before sending SIGKILL
-and waking up the OOM reaper.
+The author never responded and Michal Hocko basically NAKed it in
+https://lkml.kernel.org/r/<20160812130727.GI3639@dhcp22.suse.cz>
+I think we should drop it.
+
+> ---
+> 
+>  mm/page_owner.c |    2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff -puN mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages mm/page_owner.c
+> --- a/mm/page_owner.c~mm-page_owner-align-with-pageblock_nr-pages
+> +++ a/mm/page_owner.c
+> @@ -544,7 +544,7 @@ static void init_pages_in_zone(pg_data_t
+>  	 */
+>  	for (; pfn < end_pfn; ) {
+>  		if (!pfn_valid(pfn)) {
+> -			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
+> +			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+>  			continue;
+>  		}
+>  
+> _
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
