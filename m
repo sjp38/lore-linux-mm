@@ -1,98 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D5A656B0038
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 10:57:20 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id t92so6090005wrc.13
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 07:57:20 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id v12si5461429edk.355.2017.12.01.07.57.19
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B3966B0253
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 11:02:10 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id 74so5313050otv.10
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 08:02:10 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p69sor3652441ioi.30.2017.12.01.08.02.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 01 Dec 2017 07:57:19 -0800 (PST)
-Date: Fri, 1 Dec 2017 15:57:11 +0000
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [PATCH 1/3] mm,oom: Move last second allocation to inside the
- OOM killer.
-Message-ID: <20171201155711.GA11057@cmpxchg.org>
-References: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171201143317.GC8097@cmpxchg.org>
- <20171201144634.sc4cn6hyyt6zawms@dhcp22.suse.cz>
- <20171201145638.GA10280@cmpxchg.org>
- <20171201151715.yiep5wkmxmp77nxn@dhcp22.suse.cz>
+        (Google Transport Security);
+        Fri, 01 Dec 2017 08:02:09 -0800 (PST)
+Date: Fri, 1 Dec 2017 09:02:04 -0700
+From: Jason Gunthorpe <jgg@ziepe.ca>
+Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
+Message-ID: <20171201160204.GI7754@ziepe.ca>
+References: <151197872943.26211.6551382719053304996.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151197873499.26211.11687422577653326365.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
+ <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
+ <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz>
+ <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
+ <20171130181741.2y5nyflyhqxg6y5p@dhcp22.suse.cz>
+ <CAPcyv4hwsGQCUcTdpT7UVJyPN0RJz+CAqGNvTSK9Ka1nsypQjA@mail.gmail.com>
+ <20171130190117.GF7754@ziepe.ca>
+ <20171201101218.mxjyv4fc4cjwhf2o@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201151715.yiep5wkmxmp77nxn@dhcp22.suse.cz>
+In-Reply-To: <20171201101218.mxjyv4fc4cjwhf2o@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dan Williams <dan.j.williams@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma <linux-rdma@vger.kernel.org>
 
-On Fri, Dec 01, 2017 at 04:17:15PM +0100, Michal Hocko wrote:
-> On Fri 01-12-17 14:56:38, Johannes Weiner wrote:
-> > On Fri, Dec 01, 2017 at 03:46:34PM +0100, Michal Hocko wrote:
-> > > On Fri 01-12-17 14:33:17, Johannes Weiner wrote:
-> > > > On Sat, Nov 25, 2017 at 07:52:47PM +0900, Tetsuo Handa wrote:
-> > > > > @@ -1068,6 +1071,17 @@ bool out_of_memory(struct oom_control *oc)
-> > > > >  	}
-> > > > >  
-> > > > >  	select_bad_process(oc);
-> > > > > +	/*
-> > > > > +	 * Try really last second allocation attempt after we selected an OOM
-> > > > > +	 * victim, for somebody might have managed to free memory while we were
-> > > > > +	 * selecting an OOM victim which can take quite some time.
-> > > > 
-> > > > Somebody might free some memory right after this attempt fails. OOM
-> > > > can always be a temporary state that resolves on its own.
-> > > > 
-> > > > What keeps us from declaring OOM prematurely is the fact that we
-> > > > already scanned the entire LRU list without success, not last second
-> > > > or last-last second, or REALLY last-last-last-second allocations.
+On Fri, Dec 01, 2017 at 11:12:18AM +0100, Michal Hocko wrote:
+> On Thu 30-11-17 12:01:17, Jason Gunthorpe wrote:
+> > On Thu, Nov 30, 2017 at 10:32:42AM -0800, Dan Williams wrote:
+> > > > Who and how many LRU pages can pin that way and how do you prevent nasty
+> > > > users to DoS systems this way?
 > > > 
-> > > You are right that this is inherently racy. The point here is, however,
-> > > that the race window between the last check and the kill can be _huge_!
+> > > I assume this is something the RDMA community has had to contend with?
+> > > I'm not an RDMA person, I'm just here to fix dax.
 > > 
-> > My point is that it's irrelevant. We already sampled the entire LRU
-> > list; compared to that, the delay before the kill is immaterial.
+> > The RDMA implementation respects the mlock rlimit
 > 
-> Well, I would disagree. I have seen OOM reports with a free memory.
-> Closer debugging shown that an existing process was on the way out and
-> the oom victim selection took way too long and fired after a large
-> process manage. There were different hacks^Wheuristics to cover those
-> cases but they turned out to just cause different corner cases. Moving
-> the existing last moment allocation after a potentially very time
-> consuming action is relatively cheap and safe measure to cover those
-> cases without any negative side effects I can think of.
+> OK, so then I am kind of lost in why do we need a special g-u-p variant.
+> The documentation doesn't say and quite contrary it assumes that the
+> caller knows what he is doing. This cannot be the right approach.
 
-An existing process can exit right after you pull the trigger. How big
-is *that* race window? By this logic you could add a sleep(5) before
-the last-second allocation because it would increase the likelihood of
-somebody else exiting voluntarily.
+I thought it was because get_user_pages_longterm is supposed to fail
+on DAX mappings?
 
-This patch is making the time it takes to select a victim an integral
-part of OOM semantics. Think about it: if somebody later speeds up the
-OOM selection process, they shrink the window in which somebody could
-volunteer memory for the last-second allocation. By optimizing that
-code, you're probabilistically increasing the rate of OOM kills.
+And maybe we should think about moving the rlimit accounting into this
+new function too someday?
 
-A guaranteed 5 second window would in fact be better behavior.
-
-This is bananas. I'm sticking with my nak.
-
-> > > Another argument is that the allocator itself could have changed its
-> > > allocation capabilities - e.g. become the OOM victim itself since the
-> > > last time it the allocator could have reflected that fact.
-> > 
-> > Can you outline how this would happen exactly?
-> 
-> http://lkml.kernel.org/r/20171101135855.bqg2kuj6ao2cicqi@dhcp22.suse.cz
-> 
-> As I try to explain the workload is really pathological but this (resp.
-> the follow up based on this patch) as a workaround is moderately ugly
-> wrt. it actually can help.
-
-That's not a real case which matters. It's really unfortunate how much
-churn the OOM killer has been seeing based on artificial stress tests.
+Jason
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
