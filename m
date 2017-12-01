@@ -1,118 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E4D6B0069
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 08:57:54 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id v8so1030132wmh.2
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 05:57:54 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id s11si5808748edj.532.2017.12.01.05.57.53
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D2F1F6B0038
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 09:13:19 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g8so5306602pgs.14
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 06:13:19 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id j185si4831252pgd.620.2017.12.01.06.13.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 01 Dec 2017 05:57:53 -0800 (PST)
-Date: Fri, 1 Dec 2017 13:57:50 +0000
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 07/15] mm: memcontrol: fix excessive complexity in
- memory.stat reporting
-Message-ID: <20171201135750.GB8097@cmpxchg.org>
-References: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Dec 2017 06:13:18 -0800 (PST)
+Date: Fri, 1 Dec 2017 06:13:07 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
+Message-ID: <20171201141307.GA4722@bombadil.infradead.org>
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com>
+ <1511963726-34070-6-git-send-email-wei.w.wang@intel.com>
+ <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
+ <5A210C96.8050208@intel.com>
+ <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
+In-Reply-To: <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, mhocko@suse.com, vdavydov.dev@gmail.com
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-On Thu, Nov 30, 2017 at 02:15:31PM -0800, akpm@linux-foundation.org wrote:
-> @@ -1858,9 +1824,44 @@ static void drain_all_stock(struct mem_c
->  static int memcg_hotplug_cpu_dead(unsigned int cpu)
->  {
->  	struct memcg_stock_pcp *stock;
-> +	struct mem_cgroup *memcg;
->  
->  	stock = &per_cpu(memcg_stock, cpu);
->  	drain_stock(stock);
-> +
-> +	for_each_mem_cgroup(memcg) {
-> +		int i;
-> +
-> +		for (i = 0; i < MEMCG_NR_STAT; i++) {
-> +			int nid;
-> +			long x;
-> +
-> +			x = __this_cpu_xchg(memcg->stat_cpu->count[i], 0);
-> +			if (x)
-> +				atomic_long_add(x, &memcg->stat[i]);
-> +
-> +			if (i >= NR_VM_NODE_STAT_ITEMS)
-> +				continue;
-> +
-> +			for_each_node(nid) {
-> +				struct mem_cgroup_per_node *pn;
-> +
-> +				pn = mem_cgroup_nodeinfo(memcg, nid);
-> +				x = __this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
-> +				if (x)
-> +					atomic_long_add(x, &pn->lruvec_stat[i]);
-> +			}
-> +		}
-> +
-> +		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
-> +			long x;
-> +
-> +			x = __this_cpu_xchg(memcg->stat_cpu->events[i], 0);
-> +			if (x)
-> +				atomic_long_add(x, &memcg->events[i]);
-> +		}
-> +	}
-> +
->  	return 0;
->  }
+On Fri, Dec 01, 2017 at 10:02:01PM +0900, Tetsuo Handa wrote:
+> If start == end is legal,
+> 
+>    for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+> 
+> makes this loop do nothing because 10 < 10 is false.
 
-The memcg cpu_dead callback can be called early during startup
-(CONFIG_DEBUG_HOTPLUG_CPU0) with preemption enabled, which triggers a
-warning in its __this_cpu_xchg() calls. But CPU locality is always
-guaranteed, which is the only thing we really care about here.
-
-Using the preemption-safe this_cpu_xchg() addresses this problem.
-
-Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
----
-
-Andrew, can you please merge this fixlet into the original patch?
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 40d1ef65fbd2..e616c1b0e458 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1836,7 +1836,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 			int nid;
- 			long x;
- 
--			x = __this_cpu_xchg(memcg->stat_cpu->count[i], 0);
-+			x = this_cpu_xchg(memcg->stat_cpu->count[i], 0);
- 			if (x)
- 				atomic_long_add(x, &memcg->stat[i]);
- 
-@@ -1847,7 +1847,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 				struct mem_cgroup_per_node *pn;
- 
- 				pn = mem_cgroup_nodeinfo(memcg, nid);
--				x = __this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
-+				x = this_cpu_xchg(pn->lruvec_stat_cpu->count[i], 0);
- 				if (x)
- 					atomic_long_add(x, &pn->lruvec_stat[i]);
- 			}
-@@ -1856,7 +1856,7 @@ static int memcg_hotplug_cpu_dead(unsigned int cpu)
- 		for (i = 0; i < MEMCG_NR_EVENTS; i++) {
- 			long x;
- 
--			x = __this_cpu_xchg(memcg->stat_cpu->events[i], 0);
-+			x = this_cpu_xchg(memcg->stat_cpu->events[i], 0);
- 			if (x)
- 				atomic_long_add(x, &memcg->events[i]);
- 		}
+... and this is why we add tests to the test-suite!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
