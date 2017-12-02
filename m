@@ -1,50 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 469286B0033
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 22:34:40 -0500 (EST)
-Received: by mail-oi0-f72.google.com with SMTP id u128so62945oib.8
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 19:34:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j5si1712400oif.26.2017.12.01.19.34.38
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 40F496B0033
+	for <linux-mm@kvack.org>; Sat,  2 Dec 2017 10:05:59 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m5so9313487pfg.20
+        for <linux-mm@kvack.org>; Sat, 02 Dec 2017 07:05:59 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id x25si6974815pfe.264.2017.12.02.07.05.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 01 Dec 2017 19:34:39 -0800 (PST)
-Date: Sat, 2 Dec 2017 11:34:30 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: [PATCH] fix system_state checking in early_ioremap
-Message-ID: <20171202033430.GA2619@dhcp-128-65.nay.redhat.com>
+        Sat, 02 Dec 2017 07:05:57 -0800 (PST)
+Date: Sat, 2 Dec 2017 07:05:55 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] mmap.2: MAP_FIXED is no longer discouraged
+Message-ID: <20171202150554.GA30203@bombadil.infradead.org>
+References: <20171202021626.26478-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20171202021626.26478-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: tglx@linutronix.de, bp@suse.de, mingo@kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-efi@vger.kernel.org
+To: john.hubbard@gmail.com
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>
 
-Since below commit earlyprintk=efi,keep does not work any more with a warning
-in mm/early_ioremap.c: WARN_ON(system_state >= SYSTEM_RUNNING):
-commit 69a78ff226fe ("init: Introduce SYSTEM_SCHEDULING state")
+On Fri, Dec 01, 2017 at 06:16:26PM -0800, john.hubbard@gmail.com wrote:
+> MAP_FIXED has been widely used for a very long time, yet the man
+> page still claims that "the use of this option is discouraged".
 
-Reason is the the original assumption is SYSTEM_BOOTING equal to
-system_state < SYSTEM_RUNNING. But with commit 69a78ff226fe it is not true
-any more. Change the WARN_ON to check system_state >= SYSTEM_RUNNING instead.
+I think we should continue to discourage the use of this option, but
+I'm going to include some of your text in my replacement paragraph ...
 
-Signed-off-by: Dave Young <dyoung@redhat.com>
----
- mm/early_ioremap.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+-Because requiring a fixed address for a mapping is less portable,
+-the use of this option is discouraged.
++The use of this option is discouraged because it forcibly unmaps any
++existing mapping at that address.  Programs which use this option need
++to be aware that their memory map may change significantly from one run to
++the next, depending on library versions, kernel versions and random numbers.
++In a threaded process, checking the existing mappings can race against
++a new dynamic library being loaded, for example in response to another
++thread making a library call which causes a PAM module to be loaded.
 
---- linux-x86.orig/mm/early_ioremap.c
-+++ linux-x86/mm/early_ioremap.c
-@@ -111,7 +111,7 @@ __early_ioremap(resource_size_t phys_add
- 	enum fixed_addresses idx;
- 	int i, slot;
- 
--	WARN_ON(system_state != SYSTEM_BOOTING);
-+	WARN_ON(system_state >= SYSTEM_RUNNING);
- 
- 	slot = -1;
- 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+(I don't love this text, in particular "PAM module".  I'm going off to
+use the ATM machine now.  Please edit.)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
