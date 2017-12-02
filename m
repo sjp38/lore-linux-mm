@@ -1,61 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E8E926B0033
-	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 21:16:35 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q3so7509478pgv.16
-        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 18:16:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y73sor2203240pff.7.2017.12.01.18.16.34
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 469286B0033
+	for <linux-mm@kvack.org>; Fri,  1 Dec 2017 22:34:40 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id u128so62945oib.8
+        for <linux-mm@kvack.org>; Fri, 01 Dec 2017 19:34:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j5si1712400oif.26.2017.12.01.19.34.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 01 Dec 2017 18:16:34 -0800 (PST)
-From: john.hubbard@gmail.com
-Subject: [PATCH] mmap.2: MAP_FIXED is no longer discouraged
-Date: Fri,  1 Dec 2017 18:16:26 -0800
-Message-Id: <20171202021626.26478-1-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 01 Dec 2017 19:34:39 -0800 (PST)
+Date: Sat, 2 Dec 2017 11:34:30 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: [PATCH] fix system_state checking in early_ioremap
+Message-ID: <20171202033430.GA2619@dhcp-128-65.nay.redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>
+To: tglx@linutronix.de, bp@suse.de, mingo@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-efi@vger.kernel.org
 
-From: John Hubbard <jhubbard@nvidia.com>
+Since below commit earlyprintk=efi,keep does not work any more with a warning
+in mm/early_ioremap.c: WARN_ON(system_state >= SYSTEM_RUNNING):
+commit 69a78ff226fe ("init: Introduce SYSTEM_SCHEDULING state")
 
-MAP_FIXED has been widely used for a very long time, yet the man
-page still claims that "the use of this option is discouraged".
+Reason is the the original assumption is SYSTEM_BOOTING equal to
+system_state < SYSTEM_RUNNING. But with commit 69a78ff226fe it is not true
+any more. Change the WARN_ON to check system_state >= SYSTEM_RUNNING instead.
 
-The documentation assumes that "less portable" == "must be discouraged".
-
-Instead of discouraging something that is so useful and widely used,
-change the documentation to explain its limitations better.
-
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Signed-off-by: Dave Young <dyoung@redhat.com>
 ---
-While reviewing Michal Hocko's man page update for MAP_FIXED_SAFE,
-I noticed that MAP_FIXED was no longer reflecting the current
-situation, so here is a patch to bring it into the year 2017.
+ mm/early_ioremap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
- man2/mmap.2 | 6 ++++--
- 1 file changed, 4 insertions(+), 2 deletions(-)
-
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 385f3bfd5..a5a8eb47a 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -222,8 +222,10 @@ part of the existing mapping(s) will be discarded.
- If the specified address cannot be used,
- .BR mmap ()
- will fail.
--Because requiring a fixed address for a mapping is less portable,
--the use of this option is discouraged.
-+Software that aspires to be portable should use this option with care, keeping
-+in mind that the exact layout of a process' memory map is allowed to change
-+significantly between kernel versions, C library versions, and operating system
-+releases.
- .TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
--- 
-2.15.1
+--- linux-x86.orig/mm/early_ioremap.c
++++ linux-x86/mm/early_ioremap.c
+@@ -111,7 +111,7 @@ __early_ioremap(resource_size_t phys_add
+ 	enum fixed_addresses idx;
+ 	int i, slot;
+ 
+-	WARN_ON(system_state != SYSTEM_BOOTING);
++	WARN_ON(system_state >= SYSTEM_RUNNING);
+ 
+ 	slot = -1;
+ 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
