@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 87BC96B026F
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 14:17:50 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id z142so13399232itc.6
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 11:17:50 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 0D4776B0272
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 14:17:52 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id r196so13394259itc.4
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 11:17:52 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k86sor7193618ioo.217.2017.12.04.11.17.49
+        by mx.google.com with SMTPS id g19sor7234925iob.128.2017.12.04.11.17.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Dec 2017 11:17:49 -0800 (PST)
+        Mon, 04 Dec 2017 11:17:50 -0800 (PST)
 From: Paul Lawrence <paullawrence@google.com>
-Subject: [PATCH v4 4/5] kasan: Add tests for alloca poisoning
-Date: Mon,  4 Dec 2017 11:17:34 -0800
-Message-Id: <20171204191735.132544-5-paullawrence@google.com>
+Subject: [PATCH v4 5/5] kasan: added functions for unpoisoning stack variables
+Date: Mon,  4 Dec 2017 11:17:35 -0800
+Message-Id: <20171204191735.132544-6-paullawrence@google.com>
 In-Reply-To: <20171204191735.132544-1-paullawrence@google.com>
 References: <20171204191735.132544-1-paullawrence@google.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,52 +20,50 @@ List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>
 Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>
 
+From: Alexander Potapenko <glider@google.com>
+
+As a code-size optimization, LLVM builds since r279383 may
+bulk-manipulate the shadow region when (un)poisoning large memory
+blocks.  This requires new callbacks that simply do an uninstrumented
+memset().
+
+This fixes linking the Clang-built kernel when using KASAN.
+
+Signed-off-by: Alexander Potapenko <glider@google.com>
+[ghackmann@google.com: fix memset() parameters, and tweak
+ commit message to describe new callbacks]
 Signed-off-by: Greg Hackmann <ghackmann@google.com>
 Signed-off-by: Paul Lawrence <paullawrence@google.com>
 ---
- lib/test_kasan.c | 22 ++++++++++++++++++++++
- 1 file changed, 22 insertions(+)
+ mm/kasan/kasan.c | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
 
-diff --git a/lib/test_kasan.c b/lib/test_kasan.c
-index ef1a3ac1397e..2724f86c4cef 100644
---- a/lib/test_kasan.c
-+++ b/lib/test_kasan.c
-@@ -472,6 +472,26 @@ static noinline void __init use_after_scope_test(void)
- 	p[1023] = 1;
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index d96b36088b2f..8aaee42fcfab 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -770,6 +770,21 @@ void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom)
  }
+ EXPORT_SYMBOL(__asan_allocas_unpoison);
  
-+static noinline void __init kasan_alloca_oob_left(void)
-+{
-+	volatile int i = 10;
-+	char alloca_array[i];
-+	char *p = alloca_array - 1;
++/* Emitted by the compiler to [un]poison local variables. */
++#define DEFINE_ASAN_SET_SHADOW(byte) \
++	void __asan_set_shadow_##byte(const void *addr, size_t size)	\
++	{								\
++		__memset((void *)addr, 0x##byte, size);			\
++	}								\
++	EXPORT_SYMBOL(__asan_set_shadow_##byte)
 +
-+	pr_info("out-of-bounds to left on alloca\n");
-+	*(volatile char *)p;
-+}
++DEFINE_ASAN_SET_SHADOW(00);
++DEFINE_ASAN_SET_SHADOW(f1);
++DEFINE_ASAN_SET_SHADOW(f2);
++DEFINE_ASAN_SET_SHADOW(f3);
++DEFINE_ASAN_SET_SHADOW(f5);
++DEFINE_ASAN_SET_SHADOW(f8);
 +
-+static noinline void __init kasan_alloca_oob_right(void)
-+{
-+	volatile int i = 10;
-+	char alloca_array[i];
-+	char *p = alloca_array + i;
-+
-+	pr_info("out-of-bounds to right on alloca\n");
-+	*(volatile char *)p;
-+}
-+
- static int __init kmalloc_tests_init(void)
- {
- 	/*
-@@ -502,6 +522,8 @@ static int __init kmalloc_tests_init(void)
- 	memcg_accounted_kmem_cache();
- 	kasan_stack_oob();
- 	kasan_global_oob();
-+	kasan_alloca_oob_left();
-+	kasan_alloca_oob_right();
- 	ksize_unpoisons_memory();
- 	copy_user_test();
- 	use_after_scope_test();
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+ 			unsigned long action, void *data)
 -- 
 2.15.0.531.g2ccb3012c9-goog
 
