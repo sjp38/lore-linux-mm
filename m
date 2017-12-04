@@ -1,92 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C69D6B0293
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 07:48:36 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 11so9989796wrb.18
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 04:48:36 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q50si3659050edq.170.2017.12.04.04.48.34
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B6A66B0296
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 07:57:35 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id f13so7639569oib.20
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 04:57:35 -0800 (PST)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id g2si4434617otb.63.2017.12.04.04.57.31
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Dec 2017 04:48:34 -0800 (PST)
-Date: Mon, 4 Dec 2017 13:48:31 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/5] mm: memory_hotplug: memblock to track partially
- removed vmemmap mem
-Message-ID: <20171204124831.mkrg32vverjkqsx7@dhcp22.suse.cz>
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <e17d447381b3f13d4d7d314916ca273b6f60d287.1511433386.git.ar@linux.vnet.ibm.com>
- <20171130145134.el3qq7pr3q4xqglz@dhcp22.suse.cz>
- <20171204114908.GC6373@samekh>
- <20171204123244.vfm6znonfqt6fien@dhcp22.suse.cz>
- <20171204124230.GA10599@samekh>
+        Mon, 04 Dec 2017 04:57:34 -0800 (PST)
+Message-ID: <5A25460F.9050206@huawei.com>
+Date: Mon, 4 Dec 2017 20:56:47 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171204124230.GA10599@samekh>
+Subject: Re: [patch 13/15] mm/page_owner: align with pageblock_nr pages
+References: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org> <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz> <20171201171517.lyqukuvuh4cswnla@dhcp22.suse.cz> <5A2536B0.5060804@huawei.com> <20171204120114.iezicg6pmyj2z6lq@dhcp22.suse.cz> <5A253E55.7040706@huawei.com> <20171204123546.lhhcbpulihz3upm6@dhcp22.suse.cz>
+In-Reply-To: <20171204123546.lhhcbpulihz3upm6@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Reale <ar@linux.vnet.ibm.com>
-Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, realean2@ie.ibm.com
+To: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, linux-mm@kvack.org
 
-On Mon 04-12-17 12:42:31, Andrea Reale wrote:
-> On Mon  4 Dec 2017, 13:32, Michal Hocko wrote:
-> > On Mon 04-12-17 11:49:09, Andrea Reale wrote:
-> > > On Thu 30 Nov 2017, 15:51, Michal Hocko wrote:
-> > > > On Thu 23-11-17 11:14:38, Andrea Reale wrote:
-> > > > > When hot-removing memory we need to free vmemmap memory.
-> > > > > However, depending on the memory is being removed, it might
-> > > > > not be always possible to free a full vmemmap page / huge-page
-> > > > > because part of it might still be used.
-> > > > > 
-> > > > > Commit ae9aae9eda2d ("memory-hotplug: common APIs to support page tables
-> > > > > hot-remove") introduced a workaround for x86
-> > > > > hot-remove, by which partially unused areas are filled with
-> > > > > the 0xFD constant. Full pages are only removed when fully
-> > > > > filled by 0xFDs.
-> > > > > 
-> > > > > This commit introduces a MEMBLOCK_UNUSED_VMEMMAP memblock flag, with
-> > > > > the goal of using it in place of 0xFDs. For now, this will be used for
-> > > > > the arm64 port of memory hot remove, but the idea is to eventually use
-> > > > > the same mechanism for x86 as well.
-> > > > 
-> > > > Why cannot you use the same approach as x86 have? Have a look at the
-> > > > vmemmap_free at al.
-> > > > 
-> > > 
-> > > This arm64 hot-remove version (including vmemmap_free) is indeed an
-> > > almost 1-to-1 port of the x86 approach. 
-> > > 
-> > > If you look at the first version of the patchset we submitted a while 
-> > > ago (https://lkml.org/lkml/2017/4/11/540), we were initially using the
-> > > x86 approach of filling unsued page structs with 0xFDs. Commenting on
-> > > that, Mark suggested (and, indeed, I agree with him) that relying on a
-> > > magic constant for marking some portions of physical memory was quite
-> > > ugly. That is why we have used memblock for the purpose in this revised
-> > > patchset.
-> > > 
-> > > If you have a different view and any concrete suggestion on how to
-> > > improve this, it is definitely very well welcome. 
-> > 
-> > I would really prefer if those archictectues shared the code (and
-> > concept) as much as possible. It is really a PITA to wrap your head
-> > around each architectures for reasons which are not inherent to that
-> > specific architecture. If you find the way how x86 is implemented ugly,
-> > then all right, but making arm64 special just for the matter of taste is
-> > far from ideal IMHO.
-> 
-> The plan is indeed to use this memblock flag in x86 hot remove as well,
-> in place of the 0xFDs. The change is quite straightforward and we could
-> push it in a next patchset release. Our rationale was to first use it in
-> the new architecture and then, once proven stable, back port it to x86.
-> 
-> However, I am not in principle against of pushing it right now.
+On 2017/12/4 20:35, Michal Hocko wrote:
+> On Mon 04-12-17 20:23:49, zhong jiang wrote:
+>> On 2017/12/4 20:01, Michal Hocko wrote:
+>>> On Mon 04-12-17 19:51:12, zhong jiang wrote:
+>>>> On 2017/12/2 1:15, Michal Hocko wrote:
+>>>>> On Fri 01-12-17 17:58:28, Vlastimil Babka wrote:
+>>>>>> On 11/30/2017 11:15 PM, akpm@linux-foundation.org wrote:
+>>>>>>> From: zhong jiang <zhongjiang@huawei.com>
+>>>>>>> Subject: mm/page_owner: align with pageblock_nr pages
+>>>>>>>
+>>>>>>> When pfn_valid(pfn) returns false, pfn should be aligned with
+>>>>>>> pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
+>>>>>>> because the skipped 2M may be valid pfn, as a result, early allocated
+>>>>>>> count will not be accurate.
+>>>>>>>
+>>>>>>> Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
+>>>>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>>>>>>> Cc: Michal Hocko <mhocko@kernel.org>
+>>>>>>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>>>>>> The author never responded and Michal Hocko basically NAKed it in
+>>>>>> https://lkml.kernel.org/r/<20160812130727.GI3639@dhcp22.suse.cz>
+>>>>>> I think we should drop it.
+>>>>> Or extend the changelog to actually describe what kind of problem it
+>>>>> fixes and do an additional step to unigy
+>>>>> MAX_ORDER_NR_PAGES/pageblock_nr_pages
+>>>>>  
+>>>>   Hi, Michal
+>>>>    
+>>>>         IIRC,  I had explained the reason for patch.  if it not. I am so sorry for that.
+>>>>     
+>>>>         when we select MAX_ORDER_NR_PAGES,   the second 2M will be skiped.
+>>>>        it maybe result in normal pages leak.
+>>>>
+>>>>         meanwhile.  as you had said.  it make the code consistent.  why do not we do it.
+>>>>    
+>>>>         I think it is reasonable to upstream the patch.  maybe I should rewrite the changelog
+>>>>        and repost it.
+>>>>
+>>>>     Michal,  Do you think ?
+>>> Yes, rewrite the patch changelog and make it _clear_ what it fixes and
+>>> under _what_ conditions. There are also other places using
+>>> MAX_ORDER_NR_PAGES rathern than pageblock_nr_pages. Do they need to be
+>>> updated as well?
+>>  in the lastest kernel.  according to correspond context,   I  can not find the candidate. :-)
+> git grep says some in page_ext.c, memory_hotplug.c and few in the arch
+> code. I belive we really want to describe and document the distinction
+> between the two constants and explain when to use which one.
+>
+ yes,   limited by my knowledge and english.  Maybe Vlastimil  can  address it  in detail.  
 
-So please start with a simpler (cleanup) patch for x86. It will make the
-life so much easier.
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+zhongjiang
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
