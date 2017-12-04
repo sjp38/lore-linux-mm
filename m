@@ -1,55 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EA2DD6B025F
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 14:17:43 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id g69so13372267ita.9
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 11:17:43 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 372626B0261
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 14:17:45 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id h200so13424053itb.3
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 11:17:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a66sor1708754ioe.261.2017.12.04.11.17.41
+        by mx.google.com with SMTPS id h5sor6228204iob.346.2017.12.04.11.17.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Dec 2017 11:17:42 -0800 (PST)
+        Mon, 04 Dec 2017 11:17:44 -0800 (PST)
 From: Paul Lawrence <paullawrence@google.com>
-Subject: [PATCH v4 0/5] kasan: support alloca, LLVM
-Date: Mon,  4 Dec 2017 11:17:30 -0800
-Message-Id: <20171204191735.132544-1-paullawrence@google.com>
+Subject: [PATCH v4 1/5] kasan: add compiler support for clang
+Date: Mon,  4 Dec 2017 11:17:31 -0800
+Message-Id: <20171204191735.132544-2-paullawrence@google.com>
+In-Reply-To: <20171204191735.132544-1-paullawrence@google.com>
+References: <20171204191735.132544-1-paullawrence@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>
 Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>
 
-[PATCH v3 1/5] kasan: add compiler support for clang
-  No change
+For now we can hard-code ASAN ABI level 5, since historical clang builds
+can't build the kernel anyway.  We also need to emulate gcc's
+__SANITIZE_ADDRESS__ flag, or memset() calls won't be instrumented.
 
-[PATCH v3 2/5] kasan/Makefile: Support LLVM style asan parameters.
-  Correctly attributed
-  Changed to use strip to work in all environments
+Signed-off-by: Greg Hackmann <ghackmann@google.com>
+Signed-off-by: Paul Lawrence <paullawrence@google.com>
+---
+ include/linux/compiler-clang.h | 8 ++++++++
+ 1 file changed, 8 insertions(+)
 
-[PATCH v3 3/5] kasan: support alloca() poisoning
-  No change
-
-[PATCH v3 4/5] kasan: Add tests for alloca poisoning
-  No change
-
-[PATCH v3 5/5] kasan: added functions for unpoisoning stack variables
-  No change
+diff --git a/include/linux/compiler-clang.h b/include/linux/compiler-clang.h
+index 3b609edffa8f..d02a4df3f473 100644
+--- a/include/linux/compiler-clang.h
++++ b/include/linux/compiler-clang.h
+@@ -19,3 +19,11 @@
  
-
-Paul Lawrence (5):
-  kasan: add compiler support for clang
-  kasan/Makefile: Support LLVM style asan parameters.
-  kasan: support alloca() poisoning
-  kasan: Add tests for alloca poisonong
-  kasan: added functions for unpoisoning stack variables
-
- include/linux/compiler-clang.h |  8 +++++++
- lib/test_kasan.c               | 22 +++++++++++++++++++
- mm/kasan/kasan.c               | 49 ++++++++++++++++++++++++++++++++++++++++++
- mm/kasan/kasan.h               |  8 +++++++
- mm/kasan/report.c              |  4 ++++
- scripts/Makefile.kasan         | 30 ++++++++++++++++----------
- 6 files changed, 110 insertions(+), 11 deletions(-)
-
+ #define randomized_struct_fields_start	struct {
+ #define randomized_struct_fields_end	};
++
++/* all clang versions usable with the kernel support KASAN ABI version 5 */
++#define KASAN_ABI_VERSION 5
++
++/* emulate gcc's __SANITIZE_ADDRESS__ flag */
++#if __has_feature(address_sanitizer)
++#define __SANITIZE_ADDRESS__
++#endif
 -- 
 2.15.0.531.g2ccb3012c9-goog
 
