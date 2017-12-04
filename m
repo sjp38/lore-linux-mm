@@ -1,64 +1,181 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B2EC6B026E
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 09:01:29 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id l33so10353035wrl.5
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:01:29 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 23E626B026F
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 09:01:31 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id p190so4321061wmd.0
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:01:31 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m123sor1932196wme.17.2017.12.04.06.01.27
+        by mx.google.com with SMTPS id n7sor5887458wrh.18.2017.12.04.06.01.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Dec 2017 06:01:27 -0800 (PST)
+        Mon, 04 Dec 2017 06:01:28 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration improvements
-Date: Mon,  4 Dec 2017 15:01:12 +0100
-Message-Id: <20171204140117.7191-1-mhocko@kernel.org>
+Subject: [RFC PATCH 1/5] mm, hugetlb: unify core page allocation accounting and initialization
+Date: Mon,  4 Dec 2017 15:01:13 +0100
+Message-Id: <20171204140117.7191-2-mhocko@kernel.org>
+In-Reply-To: <20171204140117.7191-1-mhocko@kernel.org>
+References: <20171204140117.7191-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-Hi,
-this is a follow up for [1] for the allocation API and [2] for the
-hugetlb migration. It wasn't really easy to split those into two
-separate patch series as they share some code.
+From: Michal Hocko <mhocko@suse.com>
 
-My primary motivation to touch this code is to make the gigantic pages
-migration working. The giga pages allocation code is just too fragile
-and hacked into the hugetlb code now. This series tries to move giga
-pages closer to the first class citizen. We are not there yet but having
-5 patches is quite a lot already and it will already make the code much
-easier to follow. I will come with other changes on top after this sees
-some review.
+hugetlb allocator has two entry points to the page allocator
+- alloc_fresh_huge_page_node
+- __hugetlb_alloc_buddy_huge_page
 
-The first two patches should be trivial to review. The third patch
-changes the way how we migrate huge pages. Newly allocated pages are a
-subject of the overcommit check and they participate surplus accounting
-which is quite unfortunate as the changelog explains. This patch doesn't
-change anything wrt. giga pages.
-Patch #4 removes the surplus accounting hack from
-__alloc_surplus_huge_page.  I hope I didn't miss anything there and a
-deeper review is really due there.
-Patch #5 finally unifies allocation paths and giga pages shouldn't be
-any special anymore. There is also some renaming going on as well.
+The two differ very subtly in two aspects. The first one doesn't care
+about HTLB_BUDDY_* stats and it doesn't initialize the huge page.
+prep_new_huge_page is not used because it not only initializes hugetlb
+specific stuff but because it also put_page and releases the page to
+the hugetlb pool which is not what is required in some contexts. This
+makes things more complicated than necessary.
 
-Shortlog
-Michal Hocko (5):
-      mm, hugetlb: unify core page allocation accounting and initialization
-      mm, hugetlb: integrate giga hugetlb more naturally to the allocation path
-      mm, hugetlb: do not rely on overcommit limit during migration
-      mm, hugetlb: get rid of surplus page accounting tricks
-      mm, hugetlb: further simplify hugetlb allocation API
+Simplify things by a) removing the page allocator entry point duplicity
+and only keep __hugetlb_alloc_buddy_huge_page and b) make
+prep_new_huge_page more reusable by removing the put_page which moves
+the page to the allocator pool. All current callers are updated to call
+put_page explicitly. Later patches will add new callers which won't
+need it.
 
-Diffstat:
- include/linux/hugetlb.h |   3 +
- mm/hugetlb.c            | 305 +++++++++++++++++++++++++++---------------------
- mm/migrate.c            |   3 +-
- 3 files changed, 175 insertions(+), 136 deletions(-)
+This patch shouldn't introduce any functional change.
 
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------
+ 1 file changed, 29 insertions(+), 32 deletions(-)
 
-[1] http://lkml.kernel.org/r/20170622193034.28972-1-mhocko@kernel.org
-[2] http://lkml.kernel.org/r/20171122152832.iayefrlxbugphorp@dhcp22.suse.cz
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 2c9033d39bfe..8189c92fac82 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
+ 	if (page) {
+ 		prep_compound_gigantic_page(page, huge_page_order(h));
+ 		prep_new_huge_page(h, page, nid);
++		put_page(page); /* free it into the hugepage allocator */
+ 	}
+ 
+ 	return page;
+@@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
+ 	h->nr_huge_pages++;
+ 	h->nr_huge_pages_node[nid]++;
+ 	spin_unlock(&hugetlb_lock);
+-	put_page(page); /* free it into the hugepage allocator */
+ }
+ 
+ static void prep_compound_gigantic_page(struct page *page, unsigned int order)
+@@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)
+ 	return (index << compound_order(page_head)) + compound_idx;
+ }
+ 
+-static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
++static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
++		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+ {
++	int order = huge_page_order(h);
+ 	struct page *page;
+ 
+-	page = __alloc_pages_node(nid,
+-		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
+-						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
+-		huge_page_order(h));
+-	if (page) {
+-		prep_new_huge_page(h, page, nid);
+-	}
++	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
++	if (nid == NUMA_NO_NODE)
++		nid = numa_mem_id();
++	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
++	if (page)
++		__count_vm_event(HTLB_BUDDY_PGALLOC);
++	else
++		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 
+ 	return page;
+ }
+ 
++/*
++ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
++ * manner.
++ */
+ static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+ {
+ 	struct page *page;
+ 	int nr_nodes, node;
+-	int ret = 0;
++	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+ 
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+-		page = alloc_fresh_huge_page_node(h, node);
+-		if (page) {
+-			ret = 1;
++		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
++				node, nodes_allowed);
++		if (page)
+ 			break;
+-		}
++
+ 	}
+ 
+-	if (ret)
+-		count_vm_event(HTLB_BUDDY_PGALLOC);
+-	else
+-		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
++	if (!page)
++		return 0;
+ 
+-	return ret;
++	prep_new_huge_page(h, page, page_to_nid(page));
++	put_page(page); /* free it into the hugepage allocator */
++
++	return 1;
+ }
+ 
+ /*
+@@ -1523,17 +1531,6 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+ 	return rc;
+ }
+ 
+-static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
+-		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+-{
+-	int order = huge_page_order(h);
+-
+-	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
+-	if (nid == NUMA_NO_NODE)
+-		nid = numa_mem_id();
+-	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+-}
+-
+ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 		int nid, nodemask_t *nmask)
+ {
+@@ -1589,11 +1586,9 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 		 */
+ 		h->nr_huge_pages_node[r_nid]++;
+ 		h->surplus_huge_pages_node[r_nid]++;
+-		__count_vm_event(HTLB_BUDDY_PGALLOC);
+ 	} else {
+ 		h->nr_huge_pages--;
+ 		h->surplus_huge_pages--;
+-		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+ 	}
+ 	spin_unlock(&hugetlb_lock);
+ 
+@@ -2148,6 +2143,8 @@ static void __init gather_bootmem_prealloc(void)
+ 		prep_compound_huge_page(page, h->order);
+ 		WARN_ON(PageReserved(page));
+ 		prep_new_huge_page(h, page, page_to_nid(page));
++		put_page(page); /* free it into the hugepage allocator */
++
+ 		/*
+ 		 * If we had gigantic hugepages allocated at boot time, we need
+ 		 * to restore the 'stolen' pages to totalram_pages in order to
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
