@@ -1,196 +1,194 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 288056B0033
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 11:20:50 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id v187so1660374ybv.23
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 08:20:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j8sor4603312ywm.56.2017.12.04.08.20.49
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FAA56B0033
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 11:35:22 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q186so11773748pga.23
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 08:35:22 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id l28si10509016pfg.215.2017.12.04.08.35.21
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Dec 2017 08:20:49 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Dec 2017 08:35:21 -0800 (PST)
+Date: Mon, 4 Dec 2017 19:34:45 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
+Message-ID: <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
+References: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
+ <d177df77-cdc7-1507-08f8-fcdb3b443709@amd.com>
+ <20171204145755.6xu2w6a6og56rq5v@node.shutemov.name>
+ <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
 MIME-Version: 1.0
-In-Reply-To: <33f13b1a-494c-67d5-a470-294867c06f9a@virtuozzo.com>
-References: <20171201213643.2506-1-paullawrence@google.com>
- <20171201213643.2506-3-paullawrence@google.com> <33f13b1a-494c-67d5-a470-294867c06f9a@virtuozzo.com>
-From: Paul Lawrence <paullawrence@google.com>
-Date: Mon, 4 Dec 2017 08:20:47 -0800
-Message-ID: <CAL=UVf7LO5BDWVEeLXLkrLDBxwV0aO2sLv_htkpcL_Gp7sT07Q@mail.gmail.com>
-Subject: Re: [PATCH v3 2/5] kasan/Makefile: Support LLVM style asan parameters.
-Content-Type: multipart/alternative; boundary="94eb2c129ab0e9b54a055f86191b"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
---94eb2c129ab0e9b54a055f86191b
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+On Mon, Dec 04, 2017 at 04:00:26PM +0000, Tom Lendacky wrote:
+> On 12/4/2017 8:57 AM, Kirill A. Shutemov wrote:
+> > On Mon, Dec 04, 2017 at 08:19:11AM -0600, Tom Lendacky wrote:
+> > > On 12/4/2017 5:23 AM, Kirill A. Shutemov wrote:
+> > > > sme_populate_pgd() open-codes a lot of things that are not needed to be
+> > > > open-coded.
+> > > > 
+> > > > Let's rewrite it in a more stream-lined way.
+> > > > 
+> > > > This would also buy us boot-time switching between support between
+> > > > paging modes, when rest of the pieces will be upstream.
+> > > 
+> > > Hi Kirill,
+> > > 
+> > > Unfortunately, some of these can't be changed.  The use of p4d_offset(),
+> > > pud_offset(), etc., use non-identity mapped virtual addresses which cause
+> > > failures at this point of the boot process.
+> > 
+> > Wat? Virtual address is virtual address. p?d_offset() doesn't care about
+> > what mapping you're using.
+> 
+> Yes it does.  For example, pmd_offset() issues a pud_page_addr() call,
+> which does a __va() returning a non-identity mapped address (0xffff88...).
+> Only identity mapped virtual addresses have been setup at this point, so
+> the use of that virtual address panics the kernel.
 
-On Mon, Dec 4, 2017 at 8:14 AM, Andrey Ryabinin <aryabinin@virtuozzo.com>
-wrote:
+Stupid me. You are right.
 
->
-> On 12/02/2017 12:36 AM, Paul Lawrence wrote:
-> >
->
-> Missing:
->         From: Andrey Ryabinin <aryabinin@virtuozzo.com>
->
-> Please, don't change authorship of the patches.
+What about something like this:
 
-
-=E2=80=8BSorry - I'll fix this when I next upload.=E2=80=8B
-
->
-> > LLVM doesn't understand GCC-style paramters ("--param asan-foo=3Dbar"),
-> > thus we currently we don't use inline/globals/stack instrumentation
-> > when building the kernel with clang.
-> >
-> > Add support for LLVM-style parameters ("-mllvm -asan-foo=3Dbar") to
-> > enable all KASAN features.
-> >
-> > Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> > ---
-> >  scripts/Makefile.kasan | 29 ++++++++++++++++++-----------
-> >  1 file changed, 18 insertions(+), 11 deletions(-)
-> >
-> > diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-> > index 1ce7115aa499..7c00be9216f4 100644
-> > --- a/scripts/Makefile.kasan
-> > +++ b/scripts/Makefile.kasan
-> > @@ -10,10 +10,7 @@ KASAN_SHADOW_OFFSET ?=3D $(CONFIG_KASAN_SHADOW_OFFSE=
-T)
-> >
->
->
->
-> > +   # -fasan-shadow-offset fails without -fsanitize
-> > +   CFLAGS_KASAN_SHADOW :=3D $(call cc-option, -fsanitize=3Dkernel-addr=
-ess \
-> > +                     -fasan-shadow-offset=3D$(KASAN_SHADOW_OFFSET), \
-> > +                     $(call cc-option, -fsanitize=3Dkernel-address \
-> > +                     -mllvm -asan-mapping-offset=3D$(KASAN_
-> SHADOW_OFFSET)))
-> > +
-> > +   ifeq ("$(CFLAGS_KASAN_SHADOW)"," ")
->
-> This not how it was in my original patch. Why you changed this?
-> Condition is always false now, so it breaks kasan with 4.9.x gcc.
->
-
-=E2=80=8BI had the opposite problem - CFLAGS_KASAN_SHADOW is always at leas=
-t a
-space, and the
-original condition would always be false, which is why I changed it.=E2=80=
-=8B On
-investigation, I found
-that if the line was split it would always be a space -
-$(false,whatever,empty-string) would be
-truly empty, but if the line was split after the second comma it would be
-one space. Is this a
-difference in our make systems?
-
-
-> > +      CFLAGS_KASAN :=3D $(CFLAGS_KASAN_MINIMAL)
-> > +   else
-> > +      # Now add all the compiler specific options that are valid
-> standalone
-> > +      CFLAGS_KASAN :=3D $(CFLAGS_KASAN_SHADOW) \
-> > +     $(call cc-param,asan-globals=3D1) \
->
-
---94eb2c129ab0e9b54a055f86191b
-Content-Type: text/html; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-
-<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-family:tahoma,s=
-ans-serif;font-size:small"><span style=3D"font-family:arial,sans-serif">On =
-Mon, Dec 4, 2017 at 8:14 AM, Andrey Ryabinin </span><span dir=3D"ltr" style=
-=3D"font-family:arial,sans-serif">&lt;<a href=3D"mailto:aryabinin@virtuozzo=
-.com" target=3D"_blank">aryabinin@virtuozzo.com</a>&gt;</span><span style=
-=3D"font-family:arial,sans-serif"> wrote:</span><br></div><div class=3D"gma=
-il_extra"><div class=3D"gmail_quote"><blockquote class=3D"gmail_quote" styl=
-e=3D"margin:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex"><br>
-On 12/02/2017 12:36 AM, Paul Lawrence wrote:<br>
-&gt;<br>
-<br>
-Missing:<br>
-=C2=A0 =C2=A0 =C2=A0 =C2=A0 From: Andrey Ryabinin &lt;<a href=3D"mailto:ary=
-abinin@virtuozzo.com">aryabinin@virtuozzo.com</a>&gt;<br>
-<br>
-Please, don&#39;t change authorship of the patches.</blockquote><div><br></=
-div><div class=3D"gmail_default" style=3D"font-family:tahoma,sans-serif;fon=
-t-size:small">=E2=80=8BSorry - I&#39;ll fix this when I next upload.=E2=80=
-=8B</div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;borde=
-r-left:1px #ccc solid;padding-left:1ex"><span class=3D""><br>
-&gt; LLVM doesn&#39;t understand GCC-style paramters (&quot;--param asan-fo=
-o=3Dbar&quot;),<br>
-&gt; thus we currently we don&#39;t use inline/globals/stack instrumentatio=
-n<br>
-&gt; when building the kernel with clang.<br>
-&gt;<br>
-&gt; Add support for LLVM-style parameters (&quot;-mllvm -asan-foo=3Dbar&qu=
-ot;) to<br>
-&gt; enable all KASAN features.<br>
-&gt;<br>
-&gt; Signed-off-by: Andrey Ryabinin &lt;<a href=3D"mailto:aryabinin@virtuoz=
-zo.com">aryabinin@virtuozzo.com</a>&gt;<br>
-&gt; ---<br>
-&gt;=C2=A0 scripts/Makefile.kasan | 29 ++++++++++++++++++-----------<br>
-&gt;=C2=A0 1 file changed, 18 insertions(+), 11 deletions(-)<br>
-&gt;<br>
-&gt; diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan<br>
-&gt; index 1ce7115aa499..7c00be9216f4 100644<br>
-&gt; --- a/scripts/Makefile.kasan<br>
-&gt; +++ b/scripts/Makefile.kasan<br>
-&gt; @@ -10,10 +10,7 @@ KASAN_SHADOW_OFFSET ?=3D $(CONFIG_KASAN_SHADOW_OFFS=
-ET)<br>
-&gt;<br>
-<br>
-<br>
-<br>
-</span><span class=3D"">&gt; +=C2=A0 =C2=A0# -fasan-shadow-offset fails wit=
-hout -fsanitize<br>
-&gt; +=C2=A0 =C2=A0CFLAGS_KASAN_SHADOW :=3D $(call cc-option, -fsanitize=3D=
-kernel-address \<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0-fasan-shadow-offset=3D$(KASAN_<wbr>SHADOW_OFFSET), \<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0$(call cc-option, -fsanitize=3Dkernel-address \<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0=
- =C2=A0-mllvm -asan-mapping-offset=3D$(KASAN_<wbr>SHADOW_OFFSET)))<br>
-&gt; +<br>
-&gt; +=C2=A0 =C2=A0ifeq (&quot;$(CFLAGS_KASAN_SHADOW)&quot;,&quot; &quot;)<=
-br>
-<br>
-</span>This not how it was in my original patch. Why you changed this?<br>
-Condition is always false now, so it breaks kasan with 4.9.x gcc.<br></bloc=
-kquote><div><br></div><div class=3D"gmail_default" style=3D"font-family:tah=
-oma,sans-serif;font-size:small">=E2=80=8BI had the opposite problem - CFLAG=
-S_KASAN_SHADOW is always at least a space, and the</div><div class=3D"gmail=
-_default" style=3D"font-family:tahoma,sans-serif;font-size:small">original =
-condition would always be false, which is why I changed it.=E2=80=8B On inv=
-estigation, I found=C2=A0</div><div class=3D"gmail_default" style=3D"font-f=
-amily:tahoma,sans-serif;font-size:small">that if the line was split it woul=
-d always be a space - $(false,whatever,empty-string) would be</div><div cla=
-ss=3D"gmail_default" style=3D"font-family:tahoma,sans-serif;font-size:small=
-">truly empty, but if the line was split after the second comma it would be=
- one space. Is this a</div><div class=3D"gmail_default" style=3D"font-famil=
-y:tahoma,sans-serif;font-size:small">difference in our make systems?</div><=
-div class=3D"gmail_default" style=3D"font-family:tahoma,sans-serif;font-siz=
-e:small"><br></div><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 =
-.8ex;border-left:1px #ccc solid;padding-left:1ex">
-<div class=3D"HOEnZb"><div class=3D"h5"><br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 CFLAGS_KASAN :=3D $(CFLAGS_KASAN_MINIMAL)<br>
-&gt; +=C2=A0 =C2=A0else<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 # Now add all the compiler specific options that=
- are valid standalone<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0 CFLAGS_KASAN :=3D $(CFLAGS_KASAN_SHADOW) \<br>
-&gt; +=C2=A0 =C2=A0 =C2=A0$(call cc-param,asan-globals=3D1) \<br>
-</div></div></blockquote></div><br></div></div>
-
---94eb2c129ab0e9b54a055f86191b--
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index d9a9e9fc75dd..65e0d68f863f 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -12,6 +12,23 @@
+ 
+ #define DISABLE_BRANCH_PROFILING
+ 
++/*
++ * Since we're dealing with identity mappings, physical and virtual
++ * addresses are the same, so override these defines which are ultimately
++ * used by the headers in misc.h.
++ */
++#define __pa(x)  ((unsigned long)(x))
++#define __va(x)  ((void *)((unsigned long)(x)))
++
++/*
++ * Special hack: we have to be careful, because no indirections are
++ * allowed here, and paravirt_ops is a kind of one. As it will only run in
++ * baremetal anyway, we just keep it from happening. (This list needs to
++ * be extended when new paravirt and debugging variants are added.)
++ */
++#undef CONFIG_PARAVIRT
++#undef CONFIG_PARAVIRT_SPINLOCKS
++
+ #include <linux/linkage.h>
+ #include <linux/init.h>
+ #include <linux/mm.h>
+@@ -489,73 +506,42 @@ static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
+ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+ 				     unsigned long vaddr, pmdval_t pmd_val)
+ {
+-	pgd_t *pgd_p;
+-	p4d_t *p4d_p;
+-	pud_t *pud_p;
+-	pmd_t *pmd_p;
+-
+-	pgd_p = pgd_base + pgd_index(vaddr);
+-	if (native_pgd_val(*pgd_p)) {
+-		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+-			p4d_p = (p4d_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+-		else
+-			pud_p = (pud_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+-	} else {
+-		pgd_t pgd;
+-
+-		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+-			p4d_p = pgtable_area;
+-			memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
+-			pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
+-
+-			pgd = native_make_pgd((pgdval_t)p4d_p + PGD_FLAGS);
+-		} else {
+-			pud_p = pgtable_area;
+-			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+-
+-			pgd = native_make_pgd((pgdval_t)pud_p + PGD_FLAGS);
+-		}
+-		native_set_pgd(pgd_p, pgd);
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_base + pgd_index(vaddr);
++	if (pgd_none(*pgd)) {
++		p4d = pgtable_area;
++		memset(p4d, 0, sizeof(*p4d) * PTRS_PER_P4D);
++		pgtable_area += sizeof(*p4d) * PTRS_PER_P4D;
++		set_pgd(pgd, __pgd(PGD_FLAGS | __pa(p4d)));
+ 	}
+ 
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+-		p4d_p += p4d_index(vaddr);
+-		if (native_p4d_val(*p4d_p)) {
+-			pud_p = (pud_t *)(native_p4d_val(*p4d_p) & ~PTE_FLAGS_MASK);
+-		} else {
+-			p4d_t p4d;
+-
+-			pud_p = pgtable_area;
+-			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+-
+-			p4d = native_make_p4d((pudval_t)pud_p + P4D_FLAGS);
+-			native_set_p4d(p4d_p, p4d);
+-		}
++	p4d = p4d_offset(pgd, vaddr);
++	if (p4d_none(*p4d)) {
++		pud = pgtable_area;
++		memset(pud, 0, sizeof(*pud) * PTRS_PER_PUD);
++		pgtable_area += sizeof(*pud) * PTRS_PER_PUD;
++		set_p4d(p4d, __p4d(P4D_FLAGS | __pa(pud)));
+ 	}
+ 
+-	pud_p += pud_index(vaddr);
+-	if (native_pud_val(*pud_p)) {
+-		if (native_pud_val(*pud_p) & _PAGE_PSE)
+-			goto out;
+-
+-		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
+-	} else {
+-		pud_t pud;
+-
+-		pmd_p = pgtable_area;
+-		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
+-		pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
+-
+-		pud = native_make_pud((pmdval_t)pmd_p + PUD_FLAGS);
+-		native_set_pud(pud_p, pud);
++	pud = pud_offset(p4d, vaddr);
++	if (pud_none(*pud)) {
++		pmd = pgtable_area;
++		memset(pmd, 0, sizeof(*pmd) * PTRS_PER_PMD);
++		pgtable_area += sizeof(*pmd) * PTRS_PER_PMD;
++		set_pud(pud, __pud(PUD_FLAGS | __pa(pmd)));
+ 	}
++	if (pud_large(*pud))
++		goto out;
+ 
+-	pmd_p += pmd_index(vaddr);
+-	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
+-		native_set_pmd(pmd_p, native_make_pmd(pmd_val));
++	pmd = pmd_offset(pud, vaddr);
++	if (pmd_large(*pmd))
++		goto out;
+ 
++	set_pmd(pmd, __pmd(pmd_val));
+ out:
+ 	return pgtable_area;
+ }
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
