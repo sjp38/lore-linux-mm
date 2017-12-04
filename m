@@ -1,128 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FC4B6B0253
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 06:08:33 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id c33so10931481itf.8
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 03:08:33 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id n22si9670149ioc.210.2017.12.04.03.08.31
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 163196B025F
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 06:23:37 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id z1so12874434pfl.9
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 03:23:37 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id e12si3001230pgu.403.2017.12.04.03.23.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Dec 2017 03:08:32 -0800 (PST)
-Subject: Re: BUG: workqueue lockup (2)
-References: <94eb2c03c9bc75aff2055f70734c@google.com>
- <CACT4Y+bGNU1WkyHW3nNBg49rhg8uN1j0sA0DxRj5cmZOSmsWSQ@mail.gmail.com>
- <alpine.DEB.2.20.1712031547010.2199@nanos>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <111af2fa-c3ef-e892-13fe-f745e6046d4c@I-love.SAKURA.ne.jp>
-Date: Mon, 4 Dec 2017 20:08:17 +0900
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1712031547010.2199@nanos>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Dec 2017 03:23:35 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
+Date: Mon,  4 Dec 2017 14:23:23 +0300
+Message-Id: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>, Dmitry Vyukov <dvyukov@google.com>
-Cc: syzbot <bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Philippe Ombredanne <pombredanne@nexb.com>, syzkaller-bugs@googlegroups.com
+To: Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On 2017/12/03 23:48, Thomas Gleixner wrote:
-> On Sun, 3 Dec 2017, Dmitry Vyukov wrote:
-> 
->> On Sun, Dec 3, 2017 at 3:31 PM, syzbot
->> <bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com>
->> wrote:
->>> Hello,
->>>
->>> syzkaller hit the following crash on
->>> 2db767d9889cef087149a5eaa35c1497671fa40f
->>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
->>> compiler: gcc (GCC) 7.1.1 20170620
->>> .config is attached
->>> Raw console output is attached.
->>>
->>> Unfortunately, I don't have any reproducer for this bug yet.
->>>
->>>
->>> BUG: workqueue lockup - pool cpus=0 node=0 flags=0x0 nice=0 stuck for 48s!
->>> BUG: workqueue lockup - pool cpus=0-1 flags=0x4 nice=0 stuck for 47s!
->>> Showing busy workqueues and worker pools:
->>> workqueue events: flags=0x0
->>>   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=4/256
->>>     pending: perf_sched_delayed, vmstat_shepherd, jump_label_update_timeout,
->>> cache_reap
->>> workqueue events_power_efficient: flags=0x80
->>>   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=4/256
->>>     pending: neigh_periodic_work, neigh_periodic_work, do_cache_clean,
->>> reg_check_chans_work
->>> workqueue mm_percpu_wq: flags=0x8
->>>   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
->>>     pending: vmstat_update
->>> workqueue writeback: flags=0x4e
->>>   pwq 4: cpus=0-1 flags=0x4 nice=0 active=1/256
->>>     in-flight: 3401:wb_workfn
->>> workqueue kblockd: flags=0x18
->>>   pwq 1: cpus=0 node=0 flags=0x0 nice=-20 active=1/256
->>>     pending: blk_mq_timeout_work
->>> pool 4: cpus=0-1 flags=0x4 nice=0 hung=0s workers=11 idle: 3423 4249 92 21
->>
->>
->> This error report does not look actionable. Perhaps if code that
->> detect it would dump cpu/task stacks, it would be actionable.
-> 
-> That might be related to the RCU stall issue we are chasing, where a timer
-> does not fire for yet unknown reasons. We have a reproducer now and
-> hopefully a solution in the next days.
+sme_populate_pgd() open-codes a lot of things that are not needed to be
+open-coded.
 
-Can you tell me where "the RCU stall issue" is discussed at? According to my
-stress tests, wb_workfn is in-flight and other work items remain pending is a
-possible sign of OOM lockup that wb_workfn is unable to invoke the OOM killer
-(due to GFP_NOFS allocation request like an example shown below).
+Let's rewrite it in a more stream-lined way.
 
-[  162.810797] kworker/u16:27: page allocation stalls for 10001ms, order:0, mode:0x1400040(GFP_NOFS), nodemask=(null)
-[  162.810805] kworker/u16:27 cpuset=/ mems_allowed=0
-[  162.810812] CPU: 2 PID: 354 Comm: kworker/u16:27 Not tainted 4.12.0-next-20170713+ #629
-[  162.810813] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 07/02/2015
-[  162.810819] Workqueue: writeback wb_workfn (flush-8:0)
-[  162.810822] Call Trace:
-[  162.810829]  dump_stack+0x67/0x9e
-[  162.810835]  warn_alloc+0x10f/0x1b0
-[  162.810843]  ? wake_all_kswapds+0x56/0x96
-[  162.810850]  __alloc_pages_nodemask+0xabd/0xeb0
-[  162.810873]  alloc_pages_current+0x65/0xb0
-[  162.810879]  xfs_buf_allocate_memory+0x15b/0x298
-[  162.810886]  xfs_buf_get_map+0xf4/0x150
-[  162.810893]  xfs_buf_read_map+0x29/0xd0
-[  162.810900]  xfs_trans_read_buf_map+0x9a/0x1a0
-[  162.810906]  xfs_btree_read_buf_block.constprop.35+0x73/0xc0
-[  162.810915]  xfs_btree_lookup_get_block+0x83/0x160
-[  162.810922]  xfs_btree_lookup+0xcb/0x3b0
-[  162.810930]  ? xfs_allocbt_init_cursor+0x3c/0xe0
-[  162.810936]  xfs_alloc_ag_vextent_near+0x216/0x840
-[  162.810949]  xfs_alloc_ag_vextent+0x137/0x150
-[  162.810952]  xfs_alloc_vextent+0x2ff/0x370
-[  162.810958]  xfs_bmap_btalloc+0x211/0x760
-[  162.810980]  xfs_bmap_alloc+0x9/0x10
-[  162.810983]  xfs_bmapi_write+0x618/0xc00
-[  162.811015]  xfs_iomap_write_allocate+0x18e/0x390
-[  162.811034]  xfs_map_blocks+0x160/0x170
-[  162.811042]  xfs_do_writepage+0x1b9/0x6b0
-[  162.811056]  write_cache_pages+0x1f6/0x490
-[  162.811061]  ? xfs_aops_discard_page+0x130/0x130
-[  162.811079]  xfs_vm_writepages+0x66/0xa0
-[  162.811088]  do_writepages+0x17/0x80
-[  162.811092]  __writeback_single_inode+0x33/0x170
-[  162.811097]  writeback_sb_inodes+0x2cb/0x5e0
-[  162.811116]  __writeback_inodes_wb+0x87/0xc0
-[  162.811122]  wb_writeback+0x1d9/0x210
-[  162.811135]  wb_workfn+0x1a2/0x260
-[  162.811148]  process_one_work+0x1d0/0x3e0
-[  162.811150]  ? process_one_work+0x16a/0x3e0
-[  162.811159]  worker_thread+0x48/0x3c0
-[  162.811169]  kthread+0x10d/0x140
-[  162.811170]  ? process_one_work+0x3e0/0x3e0
-[  162.811173]  ? kthread_create_on_node+0x60/0x60
-[  162.811179]  ret_from_fork+0x27/0x40
+This would also buy us boot-time switching between support between
+paging modes, when rest of the pieces will be upstream.
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+
+The patch is only build tested. I don't have hardware. Tom, could you give it a try?
+
+---
+ arch/x86/mm/mem_encrypt.c | 89 +++++++++++++++--------------------------------
+ 1 file changed, 29 insertions(+), 60 deletions(-)
+
+diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+index d9a9e9fc75dd..16038f7472ca 100644
+--- a/arch/x86/mm/mem_encrypt.c
++++ b/arch/x86/mm/mem_encrypt.c
+@@ -489,73 +489,42 @@ static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
+ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+ 				     unsigned long vaddr, pmdval_t pmd_val)
+ {
+-	pgd_t *pgd_p;
+-	p4d_t *p4d_p;
+-	pud_t *pud_p;
+-	pmd_t *pmd_p;
+-
+-	pgd_p = pgd_base + pgd_index(vaddr);
+-	if (native_pgd_val(*pgd_p)) {
+-		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+-			p4d_p = (p4d_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+-		else
+-			pud_p = (pud_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+-	} else {
+-		pgd_t pgd;
+-
+-		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+-			p4d_p = pgtable_area;
+-			memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
+-			pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
+-
+-			pgd = native_make_pgd((pgdval_t)p4d_p + PGD_FLAGS);
+-		} else {
+-			pud_p = pgtable_area;
+-			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+-
+-			pgd = native_make_pgd((pgdval_t)pud_p + PGD_FLAGS);
+-		}
+-		native_set_pgd(pgd_p, pgd);
++	pgd_t *pgd;
++	p4d_t *p4d;
++	pud_t *pud;
++	pmd_t *pmd;
++
++	pgd = pgd_base + pgd_index(vaddr);
++	if (pgd_none(*pgd)) {
++		p4d = pgtable_area;
++		memset(p4d, 0, sizeof(*p4d) * PTRS_PER_P4D);
++		pgtable_area += sizeof(*p4d) * PTRS_PER_P4D;
++		native_set_pgd(pgd, __pgd(PGD_FLAGS | __pa(p4d)));
+ 	}
+ 
+-	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+-		p4d_p += p4d_index(vaddr);
+-		if (native_p4d_val(*p4d_p)) {
+-			pud_p = (pud_t *)(native_p4d_val(*p4d_p) & ~PTE_FLAGS_MASK);
+-		} else {
+-			p4d_t p4d;
+-
+-			pud_p = pgtable_area;
+-			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+-			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+-
+-			p4d = native_make_p4d((pudval_t)pud_p + P4D_FLAGS);
+-			native_set_p4d(p4d_p, p4d);
+-		}
++	p4d = p4d_offset(pgd, vaddr);
++	if (p4d_none(*p4d)) {
++		pud = pgtable_area;
++		memset(pud, 0, sizeof(*pud) * PTRS_PER_PUD);
++		pgtable_area += sizeof(*pud) * PTRS_PER_PUD;
++		native_set_p4d(p4d, __p4d(P4D_FLAGS | __pa(pud)));
+ 	}
+ 
+-	pud_p += pud_index(vaddr);
+-	if (native_pud_val(*pud_p)) {
+-		if (native_pud_val(*pud_p) & _PAGE_PSE)
+-			goto out;
+-
+-		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
+-	} else {
+-		pud_t pud;
+-
+-		pmd_p = pgtable_area;
+-		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
+-		pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
+-
+-		pud = native_make_pud((pmdval_t)pmd_p + PUD_FLAGS);
+-		native_set_pud(pud_p, pud);
++	pud = pud_offset(p4d, vaddr);
++	if (pud_none(*pud)) {
++		pmd = pgtable_area;
++		memset(pmd, 0, sizeof(*pmd) * PTRS_PER_PMD);
++		pgtable_area += sizeof(*pmd) * PTRS_PER_PMD;
++		native_set_pud(pud, __pud(PUD_FLAGS | __pa(pmd)));
+ 	}
++	if (pud_large(*pud))
++		goto out;
+ 
+-	pmd_p += pmd_index(vaddr);
+-	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
+-		native_set_pmd(pmd_p, native_make_pmd(pmd_val));
++	pmd = pmd_offset(pud, vaddr);
++	if (pmd_large(*pmd))
++		goto out;
+ 
++	native_set_pmd(pmd, native_make_pmd(pmd_val));
+ out:
+ 	return pgtable_area;
+ }
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
