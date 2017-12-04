@@ -1,17 +1,17 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 945756B025E
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 00:16:49 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id n6so12073522pfg.19
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 019A66B0253
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 00:16:50 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id p1so12083522pfp.13
         for <linux-mm@kvack.org>; Sun, 03 Dec 2017 21:16:49 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id k23si9552484pff.141.2017.12.03.21.16.47
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id f19si484448plr.481.2017.12.03.21.16.47
         for <linux-mm@kvack.org>;
         Sun, 03 Dec 2017 21:16:48 -0800 (PST)
 From: Byungchul Park <byungchul.park@lge.com>
-Subject: [PATCH v2 2/4] lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
-Date: Mon,  4 Dec 2017 14:16:21 +0900
-Message-Id: <1512364583-26070-3-git-send-email-byungchul.park@lge.com>
+Subject: [PATCH v2 4/4] lockdep: Add a boot parameter enabling to track page locks using lockdep and disable it by default
+Date: Mon,  4 Dec 2017 14:16:23 +0900
+Message-Id: <1512364583-26070-5-git-send-email-byungchul.park@lge.com>
 In-Reply-To: <1512364583-26070-1-git-send-email-byungchul.park@lge.com>
 References: <1512364583-26070-1-git-send-email-byungchul.park@lge.com>
 Sender: owner-linux-mm@kvack.org
@@ -19,68 +19,102 @@ List-ID: <linux-mm.kvack.org>
 To: peterz@infradead.org, mingo@kernel.org, akpm@linux-foundation.org
 Cc: tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com, jack@suse.cz, jlayton@redhat.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, npiggin@gmail.com, rgoldwyn@suse.com, vbabka@suse.cz, mhocko@suse.com, pombredanne@nexb.com, vinmenon@codeaurora.org, gregkh@linuxfoundation.org
 
-Usually PG_locked bit is updated by lock_page() or unlock_page().
-However, it can be also updated through __SetPageLocked() or
-__ClearPageLockded(). They have to be considered, to get paired between
-acquire and release.
+To track page locks using lockdep, we need a huge memory space for
+lockdep_map per page. So, it would be better to make it disabled by
+default and provide a boot parameter to turn it on. Do it.
 
-Furthermore, e.g. __SetPageLocked() in add_to_page_cache_lru() is called
-frequently. We might miss many chances to check deadlock if we ignore it.
-Make __Set(__Clear)PageLockded considered as well.
-
+Suggested-by: Michal Hocko <mhocko@kernel.org>
 Signed-off-by: Byungchul Park <byungchul.park@lge.com>
 ---
- include/linux/page-flags.h | 30 +++++++++++++++++++++++++++++-
- 1 file changed, 29 insertions(+), 1 deletion(-)
+ Documentation/admin-guide/kernel-parameters.txt |  7 +++++++
+ lib/Kconfig.debug                               |  5 ++++-
+ mm/filemap.c                                    | 23 +++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 1 deletion(-)
 
-diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-index 584b14c..108d2dd 100644
---- a/include/linux/page-flags.h
-+++ b/include/linux/page-flags.h
-@@ -262,7 +262,6 @@ static __always_inline int PageCompound(struct page *page)
- #define TESTSCFLAG_FALSE(uname)						\
- 	TESTSETFLAG_FALSE(uname) TESTCLEARFLAG_FALSE(uname)
+diff --git a/Documentation/admin-guide/kernel-parameters.txt b/Documentation/admin-guide/kernel-parameters.txt
+index f20ed5e..5e8d15d 100644
+--- a/Documentation/admin-guide/kernel-parameters.txt
++++ b/Documentation/admin-guide/kernel-parameters.txt
+@@ -712,6 +712,13 @@
+ 	crossrelease_fullstack
+ 			[KNL] Allow to record full stack trace in cross-release
  
--__PAGEFLAG(Locked, locked, PF_NO_TAIL)
- PAGEFLAG(Waiters, waiters, PF_ONLY_HEAD) __CLEARPAGEFLAG(Waiters, waiters, PF_ONLY_HEAD)
- PAGEFLAG(Error, error, PF_NO_COMPOUND) TESTCLEARFLAG(Error, error, PF_NO_COMPOUND)
- PAGEFLAG(Referenced, referenced, PF_HEAD)
-@@ -374,6 +373,35 @@ static __always_inline int PageSwapCache(struct page *page)
- PAGEFLAG(Idle, idle, PF_ANY)
- #endif
++	lockdep_pagelock=
++			[KNL] Boot-time lockdep_pagelock enabling option.
++			Storage of lockdep_map per page to track lock_page()/
++			unlock_page() is disabled by default. With this switch,
++			we can turn it on.
++			on: enable the feature
++
+ 	cryptomgr.notests
+                         [KNL] Disable crypto self-tests
  
-+#ifdef CONFIG_LOCKDEP_PAGELOCK
-+#include <linux/lockdep.h>
-+
-+TESTPAGEFLAG(Locked, locked, PF_NO_TAIL)
-+
-+static __always_inline void __SetPageLocked(struct page *page)
+diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
+index 45fdb3a..c609e97 100644
+--- a/lib/Kconfig.debug
++++ b/lib/Kconfig.debug
+@@ -1185,7 +1185,10 @@ config LOCKDEP_PAGELOCK
+ 	select PAGE_EXTENSION
+ 	help
+ 	 PG_locked lock is a kind of crosslock. Using crossrelease feature,
+-	 PG_locked lock can work with lockdep.
++	 PG_locked lock can work with lockdep. Even if you include this
++	 feature on your build, it is disabled in default. You should pass
++	 "lockdep_pagelock=on" to boot parameter in order to enable it. It
++	 consumes a fair amount of memory if enabled.
+ 
+ config BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK
+ 	bool "Enable the boot parameter, crossrelease_fullstack"
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 34251fb..cb7b20b 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1231,8 +1231,24 @@ int __lock_page_or_retry(struct page *page, struct mm_struct *mm,
+ 
+ #ifdef CONFIG_LOCKDEP_PAGELOCK
+ 
++static int lockdep_pagelock;
++static int __init allow_lockdep_pagelock(char *str)
 +{
-+	__set_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
++	if (!str)
++		return -EINVAL;
 +
-+	page = compound_head(page);
-+	lock_acquire_exclusive((struct lockdep_map *)&page->map, 0, 1, NULL, _RET_IP_);
++	if (!strcmp(str, "on"))
++		lockdep_pagelock = 1;
++
++	return 0;
 +}
++early_param("lockdep_pagelock", allow_lockdep_pagelock);
 +
-+static __always_inline void __ClearPageLocked(struct page *page)
-+{
-+	__clear_bit(PG_locked, &PF_NO_TAIL(page, 1)->flags);
+ static bool need_lockdep_pagelock(void)
+ {
++	if (!lockdep_pagelock)
++		return false;
 +
-+	page = compound_head(page);
-+	/*
-+	 * lock_commit_crosslock() is necessary for crosslock
-+	 * when the lock is released, before lock_release().
-+	 */
-+	lock_commit_crosslock((struct lockdep_map *)&page->map);
-+	lock_release((struct lockdep_map *)&page->map, 0, _RET_IP_);
-+}
-+#else
-+__PAGEFLAG(Locked, locked, PF_NO_TAIL)
-+#endif
+ 	return true;
+ }
+ 
+@@ -1286,6 +1302,10 @@ static void init_zones_in_node(pg_data_t *pgdat)
+ static void init_lockdep_pagelock(void)
+ {
+ 	pg_data_t *pgdat;
 +
- /*
-  * On an anonymous page mapped into a user virtual memory area,
-  * page->mapping points to its anon_vma, not to a struct address_space;
++	if (!lockdep_pagelock)
++		return;
++
+ 	for_each_online_pgdat(pgdat)
+ 		init_zones_in_node(pgdat);
+ }
+@@ -1305,6 +1325,9 @@ struct lockdep_map *get_page_map(struct page *p)
+ {
+ 	struct page_ext *e;
+ 
++	if (!lockdep_pagelock)
++		return NULL;
++
+ 	e = lookup_page_ext(p);
+ 	if (!e)
+ 		return NULL;
 -- 
 1.9.1
 
