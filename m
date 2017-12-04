@@ -1,77 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 22A386B0299
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 08:35:45 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id 18so11768732qtt.10
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 05:35:45 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id v33si2022976qtk.21.2017.12.04.05.35.43
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B754F6B025E
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 08:56:32 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id 200so11474270pge.12
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 05:56:32 -0800 (PST)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id b123si9437943pgc.288.2017.12.04.05.56.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Dec 2017 05:35:44 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vB4DZ1gS010472
-	for <linux-mm@kvack.org>; Mon, 4 Dec 2017 08:35:43 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2en4h71dvc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 04 Dec 2017 08:35:42 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 4 Dec 2017 13:35:38 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH] mm: update comment describing tlb_gather_mmu
-Date: Mon,  4 Dec 2017 15:35:31 +0200
-Message-Id: <1512394531-2264-1-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 04 Dec 2017 05:56:31 -0800 (PST)
+From: zhong jiang <zhongjiang@huawei.com>
+Subject: [mmotm] mm/page_owner: align with pageblock_nr_pages
+Date: Mon, 4 Dec 2017 21:48:04 +0800
+Message-ID: <1512395284-13588-1-git-send-email-zhongjiang@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: mhocko@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org
 
-The comment describes @fullmm argument, but the function have no such
-parameter.
+Currently, init_pages_in_zone walk the zone in pageblock_nr_pages
+steps.  MAX_ORDER_NR_PAGES is possible to have holes when
+CONFIG_HOLES_IN_ZONE is set. it is likely to be different between
+MAX_ORDER_NR_PAGES and pageblock_nr_pages. if we skip the size of
+MAX_ORDER_NR_PAGES, it will result in the second 2M memroy leak.
 
-Update the comment to match the code and convert it to kernel-doc markup.
+meanwhile, the change will make the code consistent. because the
+entire function is based on the pageblock_nr_pages steps.
 
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Signed-off-by: zhong jiang <zhongjiang@huawei.com>
 ---
+ mm/page_owner.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-When I tried to see the result of the markup conversion, I've found that
-most of the mm documentation is marked as :export: in kernel-api.rst.
-Is this intentional?
-
- mm/memory.c | 15 +++++++++++----
- 1 file changed, 11 insertions(+), 4 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 5eb3d2524bdc..3b445f2062d5 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -400,10 +400,17 @@ void tlb_remove_table(struct mmu_gather *tlb, void *table)
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 60634dc..754efdd 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -527,7 +527,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
+ 	 */
+ 	for (; pfn < end_pfn; ) {
+ 		if (!pfn_valid(pfn)) {
+-			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
++			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
+ 			continue;
+ 		}
  
- #endif /* CONFIG_HAVE_RCU_TABLE_FREE */
- 
--/* tlb_gather_mmu
-- *	Called to initialize an (on-stack) mmu_gather structure for page-table
-- *	tear-down from @mm. The @fullmm argument is used when @mm is without
-- *	users and we're going to destroy the full address space (exit/execve).
-+/**
-+ * tlb_gather_mmu - initialize an mmu_gather structure for page-table tear-down
-+ * @tlb: the mmu_gather structure to initialize
-+ * @mm: the mm_struct of the target address space
-+ * @start: start of the region that will be removed from the page-table
-+ * @end: end of the region that will be removed from the page-table
-+ *
-+ * Called to initialize an (on-stack) mmu_gather structure for page-table
-+ * tear-down from @mm. The @start and @end are set to 0 and -1
-+ * respectively when @mm is without users and we're going to destroy
-+ * the full address space (exit/execve).
-  */
- void tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
- 			unsigned long start, unsigned long end)
 -- 
-2.7.4
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
