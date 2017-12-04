@@ -1,43 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C5806B0033
-	for <linux-mm@kvack.org>; Sun,  3 Dec 2017 12:28:31 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id 74so8206447otv.10
-        for <linux-mm@kvack.org>; Sun, 03 Dec 2017 09:28:31 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 71si3893759otd.467.2017.12.03.09.28.30
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 03 Dec 2017 09:28:30 -0800 (PST)
-Date: Sun, 3 Dec 2017 18:28:27 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 1/2] KVM: x86: fix APIC page invalidation
-Message-ID: <20171203172827.GA6673@redhat.com>
-References: <20171130161933.GB1606@flask>
- <20171130180546.4331-1-rkrcmar@redhat.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C190A6B0033
+	for <linux-mm@kvack.org>; Sun,  3 Dec 2017 19:16:08 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id w7so11430624pfd.4
+        for <linux-mm@kvack.org>; Sun, 03 Dec 2017 16:16:08 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id w8si3191810pfa.267.2017.12.03.16.16.06
+        for <linux-mm@kvack.org>;
+        Sun, 03 Dec 2017 16:16:07 -0800 (PST)
+Date: Mon, 4 Dec 2017 09:15:46 +0900
+From: Byungchul Park <byungchul.park@lge.com>
+Subject: Re: [PATCH] locking/Documentation: Revise
+ Documentation/locking/crossrelease.txt
+Message-ID: <20171204001546.GA12169@X58A-UD3R>
+References: <1510406792-28676-1-git-send-email-byungchul.park@lge.com>
+ <1510407214-31452-1-git-send-email-byungchul.park@lge.com>
+ <20171111134524.GA16714@X58A-UD3R>
+ <20171116000456.GB4394@X58A-UD3R>
+ <20171116072237.jcztqvlnzerzyozh@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
+In-Reply-To: <20171116072237.jcztqvlnzerzyozh@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>
-Cc: Fabian =?iso-8859-1?Q?Gr=FCnbichler?= <f.gruenbichler@proxmox.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: peterz@infradead.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com
 
-On Thu, Nov 30, 2017 at 07:05:45PM +0100, Radim KrA?mA!A? wrote:
-> Implementation of the unpinned APIC page didn't update the VMCS address
-> cache when invalidation was done through range mmu notifiers.
-> This became a problem when the page notifier was removed.
+On Thu, Nov 16, 2017 at 08:22:37AM +0100, Ingo Molnar wrote:
 > 
-> Re-introduce the arch-specific helper and call it from ...range_start.
+> * Byungchul Park <byungchul.park@lge.com> wrote:
+> 
+> > On Sat, Nov 11, 2017 at 10:45:24PM +0900, Byungchul Park wrote:
+> > > This is the big one including all of version 3.
+> > > 
+> > > You can take only this.
+> > 
+> > Hello Ingo,
+> > 
+> > Could you consider this?
+> 
+> Yeah, I'll have a look in a few days, but right now we are in the middle of the 
+> merge window.
 
-Reviewed-by: Andrea Arcangeli <aarcange@redhat.com>
-
-Cc: <stable@vger.kernel.org>
-
-Thanks,
-Andrea
+Excuse me but, could you take a look?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
