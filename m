@@ -1,149 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 163196B025F
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 06:23:37 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id z1so12874434pfl.9
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 03:23:37 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id e12si3001230pgu.403.2017.12.04.03.23.35
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 23C666B0261
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 06:29:11 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id o20so9876423wro.8
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 03:29:11 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p92si4387199edd.308.2017.12.04.03.29.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Dec 2017 03:23:35 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
-Date: Mon,  4 Dec 2017 14:23:23 +0300
-Message-Id: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
+        Mon, 04 Dec 2017 03:29:09 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vB4BT7G9014317
+	for <linux-mm@kvack.org>; Mon, 4 Dec 2017 06:29:08 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2en5a38t09-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:29:07 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <ar@linux.vnet.ibm.com>;
+	Mon, 4 Dec 2017 11:29:01 -0000
+Date: Mon, 4 Dec 2017 11:28:55 +0000
+From: Andrea Reale <ar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v2 2/5] mm: memory_hotplug: Remove assumption on memory
+ state before hotremove
+References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
+ <4e21a27570f665793debf167c8567c6752116d0a.1511433386.git.ar@linux.vnet.ibm.com>
+ <20171129004913.GB1469@linux-l9pv.suse>
+ <20171129015229.GD1469@linux-l9pv.suse>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <20171129015229.GD1469@linux-l9pv.suse>
+Message-Id: <20171204112855.GA6373@samekh>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: joeyli <jlee@suse.com>
+Cc: linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, mhocko@suse.com, rafael.j.wysocki@intel.com, linux-acpi@vger.kernel.org
 
-sme_populate_pgd() open-codes a lot of things that are not needed to be
-open-coded.
+Hi Joey,
 
-Let's rewrite it in a more stream-lined way.
+and thanks for your comments. Response inline:
 
-This would also buy us boot-time switching between support between
-paging modes, when rest of the pieces will be upstream.
+On Wed 29 Nov 2017, 09:52, joeyli wrote:
+> On Wed, Nov 29, 2017 at 08:49:13AM +0800, joeyli wrote:
+> > Hi Andrea, 
+> > 
+> > On Fri, Nov 24, 2017 at 10:22:35AM +0000, Andrea Reale wrote:
+> > > Resending the patch adding linux-acpi in CC, as suggested by Rafael.
+> > > Everyone else: apologies for the noise.
+> > > 
+> > > Commit 242831eb15a0 ("Memory hotplug / ACPI: Simplify memory removal")
+> > > introduced an assumption whereas when control
+> > > reaches remove_memory the corresponding memory has been already
+> > > offlined. In that case, the acpi_memhotplug was making sure that
+> > > the assumption held.
+> > > This assumption, however, is not necessarily true if offlining
+> > > and removal are not done by the same "controller" (for example,
+> > > when first offlining via sysfs).
+> > > 
+> > > Removing this assumption for the generic remove_memory code
+> > > and moving it in the specific acpi_memhotplug code. This is
+> > > a dependency for the software-aided arm64 offlining and removal
+> > > process.
+> > > 
+> > > Signed-off-by: Andrea Reale <ar@linux.vnet.ibm.com>
+> > > Signed-off-by: Maciej Bielski <m.bielski@linux.vnet.ibm.com>
+> > > ---
+> > >  drivers/acpi/acpi_memhotplug.c |  2 +-
+> > >  include/linux/memory_hotplug.h |  9 ++++++---
+> > >  mm/memory_hotplug.c            | 13 +++++++++----
+> > >  3 files changed, 16 insertions(+), 8 deletions(-)
+> > > 
+> > > diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
+> > > index 6b0d3ef..b0126a0 100644
+> > > --- a/drivers/acpi/acpi_memhotplug.c
+> > > +++ b/drivers/acpi/acpi_memhotplug.c
+> > > @@ -282,7 +282,7 @@ static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+> > >  			nid = memory_add_physaddr_to_nid(info->start_addr);
+> > >  
+> > >  		acpi_unbind_memory_blocks(info);
+> > > -		remove_memory(nid, info->start_addr, info->length);
+> > > +		BUG_ON(remove_memory(nid, info->start_addr, info->length));
+> > >  		list_del(&info->list);
+> > >  		kfree(info);
+> > >  	}
+> > > diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> > > index 58e110a..1a9c7b2 100644
+> > > --- a/include/linux/memory_hotplug.h
+> > > +++ b/include/linux/memory_hotplug.h
+> > > @@ -295,7 +295,7 @@ static inline bool movable_node_is_enabled(void)
+> > >  extern bool is_mem_section_removable(unsigned long pfn, unsigned long nr_pages);
+> > >  extern void try_offline_node(int nid);
+> > >  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> > > -extern void remove_memory(int nid, u64 start, u64 size);
+> > > +extern int remove_memory(int nid, u64 start, u64 size);
+> > >  
+> > >  #else
+> > >  static inline bool is_mem_section_removable(unsigned long pfn,
+> > > @@ -311,7 +311,10 @@ static inline int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
+> > >  	return -EINVAL;
+> > >  }
+> > >  
+> > > -static inline void remove_memory(int nid, u64 start, u64 size) {}
+> > > +static inline int remove_memory(int nid, u64 start, u64 size)
+> > > +{
+> > > +	return -EINVAL;
+> > > +}
+> > >  #endif /* CONFIG_MEMORY_HOTREMOVE */
+> > >  
+> > >  extern int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+> > > @@ -323,7 +326,7 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+> > >  		unsigned long nr_pages);
+> > >  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+> > >  extern bool is_memblock_offlined(struct memory_block *mem);
+> > > -extern void remove_memory(int nid, u64 start, u64 size);
+> > > +extern int remove_memory(int nid, u64 start, u64 size);
+> > >  extern int sparse_add_one_section(struct pglist_data *pgdat, unsigned long start_pfn);
+> > >  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+> > >  		unsigned long map_offset);
+> > > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > > index d4b5f29..d5f15af 100644
+> > > --- a/mm/memory_hotplug.c
+> > > +++ b/mm/memory_hotplug.c
+> > > @@ -1892,7 +1892,7 @@ EXPORT_SYMBOL(try_offline_node);
+> > >   * and online/offline operations before this call, as required by
+> > >   * try_offline_node().
+> > >   */
+> > > -void __ref remove_memory(int nid, u64 start, u64 size)
+> > > +int __ref remove_memory(int nid, u64 start, u64 size)
+> > >  {
+> > >  	int ret;
+> > >  
+> > > @@ -1908,18 +1908,23 @@ void __ref remove_memory(int nid, u64 start, u64 size)
+> > >  	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
+> > >  				check_memblock_offlined_cb);
+> > >  	if (ret)
+> > > -		BUG();
+> > > +		goto end_remove;
+> > > +
+> > > +	ret = arch_remove_memory(start, size);
+> 
+> Should not include arch_remove_memory() to BUG().
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
+arch_remove_memory might also fail in some cases. In the arm64
+implementation of this patchset, for example, it might fail in the
+(very rare) case when we would have to split a P[UM]D mapped section for
+removal (and we do not support that - see email thread here:
+https://lkml.org/lkml/2017/11/23/456).
 
-The patch is only build tested. I don't have hardware. Tom, could you give it a try?
 
----
- arch/x86/mm/mem_encrypt.c | 89 +++++++++++++++--------------------------------
- 1 file changed, 29 insertions(+), 60 deletions(-)
+> > > +
+> > > +	if (ret)
+> > > +		goto end_remove;
+> > 
+> > The original code triggers BUG() when any memblock is not offlined. Why
+> > the new logic includes the result of arch_remove_memory()?
+> > 
+> > But I agreed the we don't need BUG(). Returning a error is better.
+> 
+> Actually, I lost one thing.
+> 
+> The BUG() have caught a issue about the offline state doesn't sync between
+> memory_block and device object. like:
+>         mem->dev.offline != (mem->state == MEM_OFFLINE)
+> 
+> So, the BUG() is useful to capture state issue in memory subsystem. But, I
+> understood your concern about the two steps offline/remove from userland. 
+> 
+> Maybe we should move the BUG() to somewhere but not just remove it. Or if
+> we think that the BUG() is too intense, at least we should print out a error
+> message, and ACPI should checks the return value from subsystem to
+> interrupt memory-hotplug process.
 
-diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-index d9a9e9fc75dd..16038f7472ca 100644
---- a/arch/x86/mm/mem_encrypt.c
-+++ b/arch/x86/mm/mem_encrypt.c
-@@ -489,73 +489,42 @@ static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
- static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
- 				     unsigned long vaddr, pmdval_t pmd_val)
- {
--	pgd_t *pgd_p;
--	p4d_t *p4d_p;
--	pud_t *pud_p;
--	pmd_t *pmd_p;
--
--	pgd_p = pgd_base + pgd_index(vaddr);
--	if (native_pgd_val(*pgd_p)) {
--		if (IS_ENABLED(CONFIG_X86_5LEVEL))
--			p4d_p = (p4d_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
--		else
--			pud_p = (pud_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
--	} else {
--		pgd_t pgd;
--
--		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
--			p4d_p = pgtable_area;
--			memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
--			pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
--
--			pgd = native_make_pgd((pgdval_t)p4d_p + PGD_FLAGS);
--		} else {
--			pud_p = pgtable_area;
--			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
--			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
--
--			pgd = native_make_pgd((pgdval_t)pud_p + PGD_FLAGS);
--		}
--		native_set_pgd(pgd_p, pgd);
-+	pgd_t *pgd;
-+	p4d_t *p4d;
-+	pud_t *pud;
-+	pmd_t *pmd;
-+
-+	pgd = pgd_base + pgd_index(vaddr);
-+	if (pgd_none(*pgd)) {
-+		p4d = pgtable_area;
-+		memset(p4d, 0, sizeof(*p4d) * PTRS_PER_P4D);
-+		pgtable_area += sizeof(*p4d) * PTRS_PER_P4D;
-+		native_set_pgd(pgd, __pgd(PGD_FLAGS | __pa(p4d)));
- 	}
- 
--	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
--		p4d_p += p4d_index(vaddr);
--		if (native_p4d_val(*p4d_p)) {
--			pud_p = (pud_t *)(native_p4d_val(*p4d_p) & ~PTE_FLAGS_MASK);
--		} else {
--			p4d_t p4d;
--
--			pud_p = pgtable_area;
--			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
--			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
--
--			p4d = native_make_p4d((pudval_t)pud_p + P4D_FLAGS);
--			native_set_p4d(p4d_p, p4d);
--		}
-+	p4d = p4d_offset(pgd, vaddr);
-+	if (p4d_none(*p4d)) {
-+		pud = pgtable_area;
-+		memset(pud, 0, sizeof(*pud) * PTRS_PER_PUD);
-+		pgtable_area += sizeof(*pud) * PTRS_PER_PUD;
-+		native_set_p4d(p4d, __p4d(P4D_FLAGS | __pa(pud)));
- 	}
- 
--	pud_p += pud_index(vaddr);
--	if (native_pud_val(*pud_p)) {
--		if (native_pud_val(*pud_p) & _PAGE_PSE)
--			goto out;
--
--		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
--	} else {
--		pud_t pud;
--
--		pmd_p = pgtable_area;
--		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
--		pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
--
--		pud = native_make_pud((pmdval_t)pmd_p + PUD_FLAGS);
--		native_set_pud(pud_p, pud);
-+	pud = pud_offset(p4d, vaddr);
-+	if (pud_none(*pud)) {
-+		pmd = pgtable_area;
-+		memset(pmd, 0, sizeof(*pmd) * PTRS_PER_PMD);
-+		pgtable_area += sizeof(*pmd) * PTRS_PER_PMD;
-+		native_set_pud(pud, __pud(PUD_FLAGS | __pa(pmd)));
- 	}
-+	if (pud_large(*pud))
-+		goto out;
- 
--	pmd_p += pmd_index(vaddr);
--	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
--		native_set_pmd(pmd_p, native_make_pmd(pmd_val));
-+	pmd = pmd_offset(pud, vaddr);
-+	if (pmd_large(*pmd))
-+		goto out;
- 
-+	native_set_pmd(pmd, native_make_pmd(pmd_val));
- out:
- 	return pgtable_area;
- }
--- 
-2.15.0
+In this patchset, BUG() is moved to acpi_memory_remove_memory(),
+the caller of arch_remove_memory(). However, I agree with Michal, that
+we should not BUG() here but rather halt the hotremove process and print
+some errors. 
+Is there any state in ACPI that should be undone in case of hotremove
+errors or we can just stop the process "halfway"?
+
+> Thanks a lot!
+> Joey Lee 
+
+Thanks,
+Andrea
+
+> --
+> To unsubscribe from this list: send the line "unsubscribe linux-acpi" in
+> the body of a message to majordomo@vger.kernel.org
+> More majordomo info at  http://vger.kernel.org/majordomo-info.html
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
