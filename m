@@ -1,86 +1,81 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C08126B0282
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 12:01:17 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id 105so9689672oth.22
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 09:01:17 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a79sor4863285oih.255.2017.12.04.09.01.13
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D10196B0038
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 12:05:59 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j3so13574411pfh.16
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 09:05:59 -0800 (PST)
+Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40106.outbound.protection.outlook.com. [40.107.4.106])
+        by mx.google.com with ESMTPS id h8si10459596pfi.0.2017.12.04.09.05.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Dec 2017 09:01:13 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 Dec 2017 09:05:58 -0800 (PST)
+Subject: Re: [PATCH v3 3/5] kasan: support alloca() poisoning
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+References: <20171201213643.2506-1-paullawrence@google.com>
+ <20171201213643.2506-4-paullawrence@google.com>
+ <20171204164240.GA24425@infradead.org>
+ <fb09a40f-1fae-ce4c-9d7c-a13c284b19e9@virtuozzo.com>
+Message-ID: <e85d8503-b149-b90f-7737-684e8122d95b@virtuozzo.com>
+Date: Mon, 4 Dec 2017 20:09:25 +0300
 MIME-Version: 1.0
-In-Reply-To: <20171204093156.mp36zkcwrxkenixb@dhcp22.suse.cz>
-References: <20171130095323.ovrq2nenb6ztiapy@dhcp22.suse.cz>
- <CAPcyv4giMvMfP=yZr=EDRAdTWyCwWydb4JVhT6YSWP8W0PHgGQ@mail.gmail.com>
- <20171130174201.stbpuye4gu5rxwkm@dhcp22.suse.cz> <CAPcyv4h5GUueqB-QhbWbn39SBPDE-rOte6UcmAHSWQdVyrF2Rw@mail.gmail.com>
- <20171130181741.2y5nyflyhqxg6y5p@dhcp22.suse.cz> <CAPcyv4hwsGQCUcTdpT7UVJyPN0RJz+CAqGNvTSK9Ka1nsypQjA@mail.gmail.com>
- <20171130190117.GF7754@ziepe.ca> <20171201101218.mxjyv4fc4cjwhf2o@dhcp22.suse.cz>
- <20171201160204.GI7754@ziepe.ca> <CAPcyv4hvk8rfV_=5EX3QPFLZ=LB4=hWG5h4Z42koNYim9DB3FQ@mail.gmail.com>
- <20171204093156.mp36zkcwrxkenixb@dhcp22.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 4 Dec 2017 09:01:12 -0800
-Message-ID: <CAPcyv4gpaYwOuq9WJ=WoDeFknw=1ZrGzV0CVDgqLEmUqAuQc9A@mail.gmail.com>
-Subject: Re: [PATCH v3 1/4] mm: introduce get_user_pages_longterm
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <fb09a40f-1fae-ce4c-9d7c-a13c284b19e9@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Christoph Hellwig <hch@lst.de>, "stable@vger.kernel.org" <stable@vger.kernel.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linux-rdma <linux-rdma@vger.kernel.org>
+To: Christoph Hellwig <hch@infradead.org>, Paul Lawrence <paullawrence@google.com>
+Cc: Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>
 
-On Mon, Dec 4, 2017 at 1:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Fri 01-12-17 08:29:53, Dan Williams wrote:
-> > On Fri, Dec 1, 2017 at 8:02 AM, Jason Gunthorpe <jgg@ziepe.ca> wrote:
-> > >
-> > > On Fri, Dec 01, 2017 at 11:12:18AM +0100, Michal Hocko wrote:
-> > > > On Thu 30-11-17 12:01:17, Jason Gunthorpe wrote:
-> > > > > On Thu, Nov 30, 2017 at 10:32:42AM -0800, Dan Williams wrote:
-> > > > > > > Who and how many LRU pages can pin that way and how do you prevent nasty
-> > > > > > > users to DoS systems this way?
-> > > > > >
-> > > > > > I assume this is something the RDMA community has had to contend with?
-> > > > > > I'm not an RDMA person, I'm just here to fix dax.
-> > > > >
-> > > > > The RDMA implementation respects the mlock rlimit
-> > > >
-> > > > OK, so then I am kind of lost in why do we need a special g-u-p variant.
-> > > > The documentation doesn't say and quite contrary it assumes that the
-> > > > caller knows what he is doing. This cannot be the right approach.
-> > >
-> > > I thought it was because get_user_pages_longterm is supposed to fail
-> > > on DAX mappings?
-> >
-> > Correct, the rlimit checks are a separate issue,
-> > get_user_pages_longterm is only there to avoid open coding vma lookup
-> > and vma_is_fsdax() checks in multiple code paths.
->
-> Then it is a terrible misnomer. One would expect this is a proper way to
-> get a longterm pin on a page.
 
-Yes, I can see that. The "get_user_pages_longterm" symbol name is
-encoding the lifetime expectations of the caller vs properly
-implementing 'longterm' pinning. However the proper interface to
-establish a long term pin does not currently exist needs and
-ultimately needs more coordination with userspace. We need a way for
-the kernel to explicitly revoke the pin. So, this
-get_user_pages_longterm change is only a stop-gap to prevent data
-corruption and userspace from growing further expectations that
-filesystem-dax supports long term pinning through the legacy
-interfaces.
 
-> > > And maybe we should think about moving the rlimit accounting into this
-> > > new function too someday?
-> >
-> > DAX pages are not accounted in any rlimit because they are statically
-> > allocated reserved memory regions.
->
-> Which is OK, but how do you prevent anybody calling this function on
-> normal LRU pages?
+On 12/04/2017 07:55 PM, Andrey Ryabinin wrote:
+> 
+> 
+> On 12/04/2017 07:42 PM, Christoph Hellwig wrote:
+>> I don't think we are using alloca in kernel mode code, and we shouldn't.
+>> What do I miss?  Is this hidden support for on-stack VLAs?  I thought
+>> we'd get rid of them as well.
+>>
+> 
+> Yes, this is for on-stack VLA. Last time I checked, we still had a few.
+> 
 
-I don't, and didn't consider this angle as it's a consideration that
-is missing from the existing gup interfaces. It is an additional gap
-we need to fill.
+E.g. building with -Wvla:
+
+
+/home/andrew/linux/sound/core/pcm_native.c: In function a??constrain_params_by_rulesa??:
+/home/andrew/linux/sound/core/pcm_native.c:326:2: warning: ISO C90 forbids variable length array a??rstampsa?? [-Wvla]
+  unsigned int rstamps[constrs->rules_num];
+  ^~~~~~~~
+In file included from /home/andrew/linux/crypto/cbc.c:14:0:
+/home/andrew/linux/include/crypto/cbc.h: In function a??crypto_cbc_decrypt_inplacea??:
+/home/andrew/linux/include/crypto/cbc.h:116:2: warning: ISO C90 forbids variable length array a??last_iva?? [-Wvla]
+  u8 last_iv[bsize];
+  ^~
+/home/andrew/linux/crypto/pcbc.c: In function a??crypto_pcbc_encrypt_inplacea??:
+/home/andrew/linux/crypto/pcbc.c:75:2: warning: ISO C90 forbids variable length array a??tmpbufa?? [-Wvla]
+  u8 tmpbuf[bsize];
+  ^~
+/home/andrew/linux/crypto/pcbc.c: In function a??crypto_pcbc_decrypt_inplacea??:
+/home/andrew/linux/crypto/pcbc.c:147:2: warning: ISO C90 forbids variable length array a??tmpbufa?? [-Wvla]
+  u8 tmpbuf[bsize] __aligned(__alignof__(u32));
+  ^~
+/home/andrew/linux/crypto/cts.c: In function a??cts_cbc_encrypta??:
+/home/andrew/linux/crypto/cts.c:107:2: warning: ISO C90 forbids variable length array a??da?? [-Wvla]
+  u8 d[bsize * 2] __aligned(__alignof__(u32));
+  ^~
+/home/andrew/linux/crypto/cts.c: In function a??cts_cbc_decrypta??:
+/home/andrew/linux/crypto/cts.c:186:2: warning: ISO C90 forbids variable length array a??da?? [-Wvla]
+  u8 d[bsize * 2] __aligned(__alignof__(u32));
+  ^~
+/home/andrew/linux/crypto/ctr.c: In function a??crypto_ctr_crypt_finala??:
+/home/andrew/linux/crypto/ctr.c:61:2: warning: ISO C90 forbids variable length array a??tmpa?? [-Wvla]
+  u8 tmp[bsize + alignmask];
+  ^~
+/home/andrew/linux/crypto/ctr.c: In function a??crypto_ctr_crypt_inplacea??:
+/home/andrew/linux/crypto/ctr.c:109:2: warning: ISO C90 forbids variable length array a??tmpa?? [-Wvla]
+  u8 tmp[bsize + alignmask];
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
