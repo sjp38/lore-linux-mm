@@ -1,47 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 391A26B027C
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 11:52:38 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id e128so4385025wmg.1
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 08:52:38 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6D56B027E
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 11:52:43 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id a45so10677053wra.14
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 08:52:43 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id e30si10645730wrc.555.2017.12.04.08.52.37
+        by mx.google.com with ESMTPS id j134si4540401wmd.234.2017.12.04.08.52.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Dec 2017 08:52:37 -0800 (PST)
-Message-Id: <20171204150609.511885345@linutronix.de>
-Date: Mon, 04 Dec 2017 15:08:03 +0100
+        Mon, 04 Dec 2017 08:52:42 -0800 (PST)
+Message-Id: <20171204150609.768212535@linutronix.de>
+Date: Mon, 04 Dec 2017 15:08:06 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch 57/60] x86/mm/kpti: Add Kconfig
+Subject: [patch 60/60] x86/mm/debug_pagetables: Allow dumping current
+ pagetables
 References: <20171204140706.296109558@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=x86-mm-kpti--Add_Kconfig.patch
+Content-Disposition: inline;
+ filename=x86-mm-debug_pagetables--Allow_dumping_current_pagetables.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, moritz.lipp@iaik.tugraz.at, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, linux-mm@kvack.org, Dave Hansen <dave.hansen@linux.intel.com>, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+From: Thomas Gleixner <tglx@linutronix.de>
 
-Finally allow CONFIG_KERNEL_PAGE_TABLE_ISOLATION to be enabled.
+Add two debugfs files which allow to dump the pagetable of the current
+task.
 
-PARAVIRT generally requires that the kernel not manage its own page tables.
-It also means that the hypervisor and kernel must agree wholeheartedly
-about what format the page tables are in and what they contain.
-KERNEL_PAGE_TABLE_ISOLATION, unfortunately, changes the rules and they
-can not be used together.
+current_kernel dumps the regular page table. This is the page table which
+is normally shared between kernel and user space. If kernel page table
+isolation is enabled this is the kernel space mapping.
 
-I've seen conflicting feedback from maintainers lately about whether they
-want the Kconfig magic to go first or last in a patch series.  It's going
-last here because the partially-applied series leads to kernels that can
-not boot in a bunch of cases.  I did a run through the entire series with
-CONFIG_KERNEL_PAGE_TABLE_ISOLATION=y to look for build errors, though.
+If kernel page table isolation is enabled the second file, current_user,
+dumps the user space page table.
 
-[ tglx: Removed SMP and !PARAVIRT dependencies as they not longer exist ]
+These files allow to verify the resulting page tables for page table
+isolation, but even in the normal case its useful to be able to inspect
+user space page tables of current for debugging purposes.
 
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Rik van Riel <riel@redhat.com>
 Cc: keescook@google.com
@@ -50,6 +48,7 @@ Cc: moritz.lipp@iaik.tugraz.at
 Cc: linux-mm@kvack.org
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: hughd@google.com
 Cc: daniel.gruss@iaik.tugraz.at
 Cc: Borislav Petkov <bp@alien8.de>
@@ -58,31 +57,135 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: michael.schwarz@iaik.tugraz.at
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: richard.fellner@student.tugraz.at
-Link: https://lkml.kernel.org/r/20171123003524.88C90659@viggo.jf.intel.com
 
 ---
- security/Kconfig |   10 ++++++++++
- 1 file changed, 10 insertions(+)
+ arch/x86/include/asm/pgtable.h |    2 -
+ arch/x86/mm/debug_pagetables.c |   71 ++++++++++++++++++++++++++++++++++++++---
+ arch/x86/mm/dump_pagetables.c  |    6 ++-
+ 3 files changed, 73 insertions(+), 6 deletions(-)
 
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -54,6 +54,16 @@ config SECURITY_NETWORK
- 	  implement socket and networking access controls.
- 	  If you are unsure how to answer this question, answer N.
+--- a/arch/x86/include/asm/pgtable.h
++++ b/arch/x86/include/asm/pgtable.h
+@@ -28,7 +28,7 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD]
+ int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
  
-+config KERNEL_PAGE_TABLE_ISOLATION
-+	bool "Remove the kernel mapping in user mode"
-+	depends on X86_64 && JUMP_LABEL
-+	help
-+	  This feature reduces the number of hardware side channels by
-+	  ensuring that the majority of kernel addresses are not mapped
-+	  into userspace.
+ void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd);
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
+ void ptdump_walk_pgd_level_checkwx(void);
+ 
+ #ifdef CONFIG_DEBUG_WX
+--- a/arch/x86/mm/debug_pagetables.c
++++ b/arch/x86/mm/debug_pagetables.c
+@@ -5,7 +5,7 @@
+ 
+ static int ptdump_show(struct seq_file *m, void *v)
+ {
+-	ptdump_walk_pgd_level_debugfs(m, NULL);
++	ptdump_walk_pgd_level_debugfs(m, NULL, false);
+ 	return 0;
+ }
+ 
+@@ -22,7 +22,57 @@ static const struct file_operations ptdu
+ 	.release	= single_release,
+ };
+ 
+-static struct dentry *dir, *pe;
++static int ptdump_show_curknl(struct seq_file *m, void *v)
++{
++	if (current->mm->pgd) {
++		down_read(&current->mm->mmap_sem);
++		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, false);
++		up_read(&current->mm->mmap_sem);
++	}
++	return 0;
++}
 +
-+	  See Documentation/x86/pagetable-isolation.txt for more details.
++static int ptdump_open_curknl(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, ptdump_show_curknl, NULL);
++}
 +
- config SECURITY_INFINIBAND
- 	bool "Infiniband Security Hooks"
- 	depends on SECURITY && INFINIBAND
++static const struct file_operations ptdump_curknl_fops = {
++	.owner		= THIS_MODULE,
++	.open		= ptdump_open_curknl,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
++#ifdef CONFIG_KERNEL_PAGE_TABLE_ISOLATION
++static struct dentry *pe_curusr;
++
++static int ptdump_show_curusr(struct seq_file *m, void *v)
++{
++	if (current->mm->pgd) {
++		down_read(&current->mm->mmap_sem);
++		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, true);
++		up_read(&current->mm->mmap_sem);
++	}
++	return 0;
++}
++
++static int ptdump_open_curusr(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, ptdump_show_curusr, NULL);
++}
++
++static const struct file_operations ptdump_curusr_fops = {
++	.owner		= THIS_MODULE,
++	.open		= ptdump_open_curusr,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++#endif
++
++static struct dentry *dir, *pe_knl, *pe_curknl;
+ 
+ static int __init pt_dump_debug_init(void)
+ {
+@@ -30,9 +80,22 @@ static int __init pt_dump_debug_init(voi
+ 	if (!dir)
+ 		return -ENOMEM;
+ 
+-	pe = debugfs_create_file("kernel", 0400, dir, NULL, &ptdump_fops);
+-	if (!pe)
++	pe_knl = debugfs_create_file("kernel", 0400, dir, NULL,
++				     &ptdump_fops);
++	if (!pe_knl)
++		goto err;
++
++	pe_curknl = debugfs_create_file("current_kernel", 0400,
++					dir, NULL, &ptdump_curknl_fops);
++	if (!pe_curknl)
++		goto err;
++
++#ifdef CONFIG_KERNEL_PAGE_TABLE_ISOLATION
++	pe_curusr = debugfs_create_file("current_user", 0400,
++					dir, NULL, &ptdump_curusr_fops);
++	if (!pe_curusr)
+ 		goto err;
++#endif
+ 	return 0;
+ err:
+ 	debugfs_remove_recursive(dir);
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -501,8 +501,12 @@ void ptdump_walk_pgd_level(struct seq_fi
+ 	ptdump_walk_pgd_level_core(m, pgd, false, true);
+ }
+ 
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
+ {
++#ifdef CONFIG_KERNEL_PAGE_TABLE_ISOLATION
++	if (user && static_cpu_has_bug(X86_BUG_CPU_SECURE_MODE_KPTI))
++		pgd = kernel_to_user_pgdp(pgd);
++#endif
+ 	ptdump_walk_pgd_level_core(m, pgd, false, false);
+ }
+ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
 
 
 --
