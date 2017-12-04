@@ -1,84 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7D2006B0281
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 07:35:49 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id w1so11386743pgq.21
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 04:35:49 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q3si7895053pgp.97.2017.12.04.04.35.48
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8973A6B0283
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 07:41:08 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id x24so11419712pgv.5
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 04:41:08 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id p89si10250400pfj.113.2017.12.04.04.41.06
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 04 Dec 2017 04:35:48 -0800 (PST)
-Date: Mon, 4 Dec 2017 13:35:46 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [patch 13/15] mm/page_owner: align with pageblock_nr pages
-Message-ID: <20171204123546.lhhcbpulihz3upm6@dhcp22.suse.cz>
-References: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
- <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz>
- <20171201171517.lyqukuvuh4cswnla@dhcp22.suse.cz>
- <5A2536B0.5060804@huawei.com>
- <20171204120114.iezicg6pmyj2z6lq@dhcp22.suse.cz>
- <5A253E55.7040706@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5A253E55.7040706@huawei.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 04 Dec 2017 04:41:07 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv3 3/5] x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
+Date: Mon,  4 Dec 2017 15:40:57 +0300
+Message-Id: <20171204124059.63515-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171204124059.63515-1-kirill.shutemov@linux.intel.com>
+References: <20171204124059.63515-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org, linux-mm@kvack.org
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Mon 04-12-17 20:23:49, zhong jiang wrote:
-> On 2017/12/4 20:01, Michal Hocko wrote:
-> > On Mon 04-12-17 19:51:12, zhong jiang wrote:
-> >> On 2017/12/2 1:15, Michal Hocko wrote:
-> >>> On Fri 01-12-17 17:58:28, Vlastimil Babka wrote:
-> >>>> On 11/30/2017 11:15 PM, akpm@linux-foundation.org wrote:
-> >>>>> From: zhong jiang <zhongjiang@huawei.com>
-> >>>>> Subject: mm/page_owner: align with pageblock_nr pages
-> >>>>>
-> >>>>> When pfn_valid(pfn) returns false, pfn should be aligned with
-> >>>>> pageblock_nr_pages other than MAX_ORDER_NR_PAGES in init_pages_in_zone,
-> >>>>> because the skipped 2M may be valid pfn, as a result, early allocated
-> >>>>> count will not be accurate.
-> >>>>>
-> >>>>> Link: http://lkml.kernel.org/r/1468938136-24228-1-git-send-email-zhongjiang@huawei.com
-> >>>>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
-> >>>>> Cc: Michal Hocko <mhocko@kernel.org>
-> >>>>> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
-> >>>> The author never responded and Michal Hocko basically NAKed it in
-> >>>> https://lkml.kernel.org/r/<20160812130727.GI3639@dhcp22.suse.cz>
-> >>>> I think we should drop it.
-> >>> Or extend the changelog to actually describe what kind of problem it
-> >>> fixes and do an additional step to unigy
-> >>> MAX_ORDER_NR_PAGES/pageblock_nr_pages
-> >>>  
-> >>   Hi, Michal
-> >>    
-> >>         IIRC,  I had explained the reason for patch.  if it not. I am so sorry for that.
-> >>     
-> >>         when we select MAX_ORDER_NR_PAGES,   the second 2M will be skiped.
-> >>        it maybe result in normal pages leak.
-> >>
-> >>         meanwhile.  as you had said.  it make the code consistent.  why do not we do it.
-> >>    
-> >>         I think it is reasonable to upstream the patch.  maybe I should rewrite the changelog
-> >>        and repost it.
-> >>
-> >>     Michal,  Do you think ?
-> > Yes, rewrite the patch changelog and make it _clear_ what it fixes and
-> > under _what_ conditions. There are also other places using
-> > MAX_ORDER_NR_PAGES rathern than pageblock_nr_pages. Do they need to be
-> > updated as well?
->  in the lastest kernel.  according to correspond context,   I  can not find the candidate. :-)
+The name of the file -- pagetable.c -- is misleading: it only contains
+helpers used for KASLR in 64-bin mode.
 
-git grep says some in page_ext.c, memory_hotplug.c and few in the arch
-code. I belive we really want to describe and document the distinction
-between the two constants and explain when to use which one.
+Let's rename the file to reflect its content.
 
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/Makefile                    | 2 +-
+ arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+ rename arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} (100%)
+
+diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+index f25e1530e064..1f734cd98fd3 100644
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -78,7 +78,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
+ vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
+ vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
+ ifdef CONFIG_X86_64
+-	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
++	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr_64.o
+ 	vmlinux-objs-y += $(obj)/mem_encrypt.o
+ 	vmlinux-objs-y += $(obj)/pgtable_64.o
+ endif
+diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/kaslr_64.c
+similarity index 100%
+rename from arch/x86/boot/compressed/pagetable.c
+rename to arch/x86/boot/compressed/kaslr_64.c
 -- 
-Michal Hocko
-SUSE Labs
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
