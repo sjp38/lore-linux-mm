@@ -1,108 +1,185 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 521A26B0033
-	for <linux-mm@kvack.org>; Sun,  3 Dec 2017 21:14:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id f7so11680734pfa.21
-        for <linux-mm@kvack.org>; Sun, 03 Dec 2017 18:14:19 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q4sor2714748plb.144.2017.12.03.18.14.17
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 36F856B0033
+	for <linux-mm@kvack.org>; Sun,  3 Dec 2017 22:44:52 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id k1so10427579pgq.2
+        for <linux-mm@kvack.org>; Sun, 03 Dec 2017 19:44:52 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id u73si9485186pfi.245.2017.12.03.19.44.50
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 03 Dec 2017 18:14:18 -0800 (PST)
-From: john.hubbard@gmail.com
-Subject: [PATCH v2] mmap.2: MAP_FIXED updated documentation
-Date: Sun,  3 Dec 2017 18:14:11 -0800
-Message-Id: <20171204021411.4786-1-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 03 Dec 2017 19:44:50 -0800 (PST)
+Message-ID: <5A24C526.2060400@intel.com>
+Date: Mon, 04 Dec 2017 11:46:46 +0800
+From: Wei Wang <wei.w.wang@intel.com>
+MIME-Version: 1.0
+Subject: Re: [PATCH v18 07/10] virtio-balloon: VIRTIO_BALLOON_F_SG
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com> <1511963726-34070-8-git-send-email-wei.w.wang@intel.com> <20171201171746-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171201171746-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-From: John Hubbard <jhubbard@nvidia.com>
+On 12/01/2017 11:38 PM, Michael S. Tsirkin wrote:
+> On Wed, Nov 29, 2017 at 09:55:23PM +0800, Wei Wang wrote:
+>> +static void send_one_desc(struct virtio_balloon *vb,
+>> +			  struct virtqueue *vq,
+>> +			  uint64_t addr,
+>> +			  uint32_t len,
+>> +			  bool inbuf,
+>> +			  bool batch)
+>> +{
+>> +	int err;
+>> +	unsigned int size;
+>> +
+>> +	/* Detach all the used buffers from the vq */
+>> +	while (virtqueue_get_buf(vq, &size))
+>> +		;
+>> +
+>> +	err = virtqueue_add_one_desc(vq, addr, len, inbuf, vq);
+>> +	/*
+>> +	 * This is expected to never fail: there is always at least 1 entry
+>> +	 * available on the vq, because when the vq is full the worker thread
+>> +	 * that adds the desc will be put into sleep until at least 1 entry is
+>> +	 * available to use.
+>> +	 */
+>> +	BUG_ON(err);
+>> +
+>> +	/* If batching is requested, we batch till the vq is full */
+>> +	if (!batch || !vq->num_free)
+>> +		kick_and_wait(vq, vb->acked);
+>> +}
+>> +
+> This internal kick complicates callers. I suggest that instead,
+> you move this to callers, just return a "kick required" boolean.
+> This way callers do not need to play with num_free at all.
 
-Previously, MAP_FIXED was "discouraged", due to portability
-issues with the fixed address. In fact, there are other, more
-serious issues. Also, in some limited cases, this option can
-be used safely.
+Then in what situation would the function return true of "kick required"?
 
-Expand the documentation to discuss both the hazards, and how
-to use it safely.
+I think this wouldn't make a difference fundamentally. For example, we 
+have 257 sgs (batching size=256) to send to host:
 
-The "Portability issues" wording is lifted directly from
-Matthew Wilcox's review. The notes about other libraries
-creating mappings is also from Matthew (lightly edited).
+while (i < 257) {
+     kick_required = send_sgs();
+     if (kick_required)
+         kick(); // After the 256 sgs have been added, the caller 
+performs a kick().
+}
 
-The suggestion to explain how to use MAP_FIXED safely is
-from Jann Horn.
+Do we still need a kick here for the 257th sg as before? Only the caller 
+knows if the last added sgs need a kick (when the send_sgs receives one 
+sg, it doesn't know if there are more to come).
 
-Suggested-by: Matthew Wilcox <willy@infradead.org>
-Suggested-by: Jann Horn <jannh@google.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
+There is another approach to checking if the last added sgs haven't been 
+sync-ed to the host: expose "vring_virtqueue->num_added" to the caller 
+via a virtio_ring API:
 
-Changed from v1:
+     unsigned int virtqueue_num_added(struct virtqueue *_vq)
+    {
+         struct vring_virtqueue *vq = to_vvq(_vq);
 
-    -- Covered topics recommended by Matthew Wilcox
-       and Jann Horn, in their recent review: the hazards
-       of overwriting pre-exising mappings, and some notes
-       about how to use MAP_FIXED safely.
+         return vq->num_added;
+   }
 
-    -- Rewrote the commit description accordingly.
 
- man2/mmap.2 | 38 ++++++++++++++++++++++++++++++++++++--
- 1 file changed, 36 insertions(+), 2 deletions(-)
 
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 385f3bfd5..9038256d4 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -222,8 +222,42 @@ part of the existing mapping(s) will be discarded.
- If the specified address cannot be used,
- .BR mmap ()
- will fail.
--Because requiring a fixed address for a mapping is less portable,
--the use of this option is discouraged.
-+.IP
-+This option is extremely hazardous (when used on its own) and moderately
-+non-portable.
-+.IP
-+Portability issues: a process's memory map may change significantly from one
-+run to the next, depending on library versions, kernel versions and random
-+numbers.
-+.IP
-+Hazards: this option forcibly removes pre-existing mappings, making it easy
-+for a multi-threaded process to corrupt its own address space.
-+.IP
-+For example, thread A looks through /proc/<pid>/maps and locates an available
-+address range, while thread B simultaneously acquires part or all of that same
-+address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
-+thread B's mapping.
-+.IP
-+Thread B need not create a mapping directly; simply making a library call
-+that, internally, uses dlopen(3) to load some other shared library, will
-+suffice. The dlopen(3) call will map the library into the process's address
-+space. Furthermore, almost any library call may be implemented using this
-+technique.
-+Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-+(http://www.linux-pam.org).
-+.IP
-+Given the above limitations, one of the very few ways to use this option
-+safely is: mmap() a region, without specifying MAP_FIXED. Then, within that
-+region, call mmap(MAP_FIXED) to suballocate regions. This avoids both the
-+portability problem (because the first mmap call lets the kernel pick the
-+address), and the address space corruption problem (because the region being
-+overwritten is already owned by the calling thread).
-+.IP
-+Newer kernels
-+(Linux 4.16 and later) have a
-+.B MAP_FIXED_SAFE
-+option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-+should be preferred over MAP_FIXED.
- .TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
--- 
-2.15.1
+>> +/*
+>> + * Send balloon pages in sgs to host. The balloon pages are recorded in the
+>> + * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
+>> + * The page xbitmap is searched for continuous "1" bits, which correspond
+>> + * to continuous pages, to chunk into sgs.
+>> + *
+>> + * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
+>> + * need to be searched.
+>> + */
+>> +static void tell_host_sgs(struct virtio_balloon *vb,
+>> +			  struct virtqueue *vq,
+>> +			  unsigned long page_xb_start,
+>> +			  unsigned long page_xb_end)
+>> +{
+>> +	unsigned long pfn_start, pfn_end;
+>> +	uint64_t addr;
+>> +	uint32_t len, max_len = round_down(UINT_MAX, PAGE_SIZE);
+>> +
+>> +	pfn_start = page_xb_start;
+>> +	while (pfn_start < page_xb_end) {
+>> +		pfn_start = xb_find_next_set_bit(&vb->page_xb, pfn_start,
+>> +						 page_xb_end);
+>> +		if (pfn_start == page_xb_end + 1)
+>> +			break;
+>> +		pfn_end = xb_find_next_zero_bit(&vb->page_xb,
+>> +						pfn_start + 1,
+>> +						page_xb_end);
+>> +		addr = pfn_start << PAGE_SHIFT;
+>> +		len = (pfn_end - pfn_start) << PAGE_SHIFT;
+> This assugnment can overflow. Next line compares with UINT_MAX but by
+> that time it is too late.  I think you should do all math in 64 bit to
+> avoid surprises, then truncate to max_len and then it's safe to assign
+> to sg.
+
+Sounds reasonable, thanks.
+
+
+>> +
+>> +	xb_clear_bit_range(&vb->page_xb, page_xb_start, page_xb_end);
+>> +}
+>> +
+>> +static inline int xb_set_page(struct virtio_balloon *vb,
+>> +			       struct page *page,
+>> +			       unsigned long *pfn_min,
+>> +			       unsigned long *pfn_max)
+>> +{
+>> +	unsigned long pfn = page_to_pfn(page);
+>> +	int ret;
+>> +
+>> +	*pfn_min = min(pfn, *pfn_min);
+>> +	*pfn_max = max(pfn, *pfn_max);
+>> +
+>> +	do {
+>> +		ret = xb_preload_and_set_bit(&vb->page_xb, pfn,
+>> +					     GFP_NOWAIT | __GFP_NOWARN);
+>> +	} while (unlikely(ret == -EAGAIN));
+> what exactly does this loop do? Does this wait
+> forever until there is some free memory? why GFP_NOWAIT?
+
+Basically, "-EAGAIN" is returned from xb_set_bit() in the case when the 
+pre-allocated per-cpu ida_bitmap is NULL. In that case, the caller 
+re-invokes xb_preload_and_set_bit(), which re-invokes xb_preload to 
+allocate ida_bitmap. So "-EAGAIN" actually does not indicate a status 
+about memory allocation. "-ENOMEM" is the one to indicate the failure of 
+memory allocation, but the loop doesn't re-try on "-ENOMEM".
+
+GFP_NOWAIT is used to avoid memory reclaiming, which could cause the 
+deadlock issue we discussed before.
+
+
+
+
+>   	return num_freed_pages;
+>   }
+>   
+> +/*
+> + * The regular leak_balloon() with VIRTIO_BALLOON_F_SG needs memory allocation
+> + * for xbitmap, which is not suitable for the oom case. This function does not
+> + * use xbitmap to chunk pages, so it can be used by oom notifier to deflate
+> + * pages when VIRTIO_BALLOON_F_SG is negotiated.
+> + */
+> I guess we can live with this for now.
+
+Agree, the patchset has been big. We can get the basic implementation in 
+first, and leave the following as future work. I can add it in the 
+commit log.
+
+> Two things to consider
+> - adding support for pre-allocating indirect buffers
+> - sorting the internal page queue (how?)
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
