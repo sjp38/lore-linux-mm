@@ -1,54 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B754F6B025E
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 08:56:32 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 200so11474270pge.12
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 05:56:32 -0800 (PST)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id b123si9437943pgc.288.2017.12.04.05.56.30
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B2EC6B026E
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 09:01:29 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l33so10353035wrl.5
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:01:29 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m123sor1932196wme.17.2017.12.04.06.01.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Dec 2017 05:56:31 -0800 (PST)
-From: zhong jiang <zhongjiang@huawei.com>
-Subject: [mmotm] mm/page_owner: align with pageblock_nr_pages
-Date: Mon, 4 Dec 2017 21:48:04 +0800
-Message-ID: <1512395284-13588-1-git-send-email-zhongjiang@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (Google Transport Security);
+        Mon, 04 Dec 2017 06:01:27 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration improvements
+Date: Mon,  4 Dec 2017 15:01:12 +0100
+Message-Id: <20171204140117.7191-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org
+To: linux-mm@kvack.org
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-Currently, init_pages_in_zone walk the zone in pageblock_nr_pages
-steps.  MAX_ORDER_NR_PAGES is possible to have holes when
-CONFIG_HOLES_IN_ZONE is set. it is likely to be different between
-MAX_ORDER_NR_PAGES and pageblock_nr_pages. if we skip the size of
-MAX_ORDER_NR_PAGES, it will result in the second 2M memroy leak.
+Hi,
+this is a follow up for [1] for the allocation API and [2] for the
+hugetlb migration. It wasn't really easy to split those into two
+separate patch series as they share some code.
 
-meanwhile, the change will make the code consistent. because the
-entire function is based on the pageblock_nr_pages steps.
+My primary motivation to touch this code is to make the gigantic pages
+migration working. The giga pages allocation code is just too fragile
+and hacked into the hugetlb code now. This series tries to move giga
+pages closer to the first class citizen. We are not there yet but having
+5 patches is quite a lot already and it will already make the code much
+easier to follow. I will come with other changes on top after this sees
+some review.
 
-Signed-off-by: zhong jiang <zhongjiang@huawei.com>
----
- mm/page_owner.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+The first two patches should be trivial to review. The third patch
+changes the way how we migrate huge pages. Newly allocated pages are a
+subject of the overcommit check and they participate surplus accounting
+which is quite unfortunate as the changelog explains. This patch doesn't
+change anything wrt. giga pages.
+Patch #4 removes the surplus accounting hack from
+__alloc_surplus_huge_page.  I hope I didn't miss anything there and a
+deeper review is really due there.
+Patch #5 finally unifies allocation paths and giga pages shouldn't be
+any special anymore. There is also some renaming going on as well.
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 60634dc..754efdd 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -527,7 +527,7 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
- 	 */
- 	for (; pfn < end_pfn; ) {
- 		if (!pfn_valid(pfn)) {
--			pfn = ALIGN(pfn + 1, MAX_ORDER_NR_PAGES);
-+			pfn = ALIGN(pfn + 1, pageblock_nr_pages);
- 			continue;
- 		}
- 
--- 
-1.8.3.1
+Shortlog
+Michal Hocko (5):
+      mm, hugetlb: unify core page allocation accounting and initialization
+      mm, hugetlb: integrate giga hugetlb more naturally to the allocation path
+      mm, hugetlb: do not rely on overcommit limit during migration
+      mm, hugetlb: get rid of surplus page accounting tricks
+      mm, hugetlb: further simplify hugetlb allocation API
+
+Diffstat:
+ include/linux/hugetlb.h |   3 +
+ mm/hugetlb.c            | 305 +++++++++++++++++++++++++++---------------------
+ mm/migrate.c            |   3 +-
+ 3 files changed, 175 insertions(+), 136 deletions(-)
+
+
+[1] http://lkml.kernel.org/r/20170622193034.28972-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20171122152832.iayefrlxbugphorp@dhcp22.suse.cz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
