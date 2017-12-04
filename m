@@ -1,102 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E723A6B0253
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 13:50:30 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a141so4508475wma.8
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 10:50:30 -0800 (PST)
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id EA2DD6B025F
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 14:17:43 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id g69so13372267ita.9
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 11:17:43 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f9sor7331103edm.44.2017.12.04.10.50.29
+        by mx.google.com with SMTPS id a66sor1708754ioe.261.2017.12.04.11.17.41
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Dec 2017 10:50:29 -0800 (PST)
-Date: Mon, 4 Dec 2017 21:50:27 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
-Message-ID: <20171204185027.gn6gu3b5vdq7lxx3@node.shutemov.name>
-References: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
- <d177df77-cdc7-1507-08f8-fcdb3b443709@amd.com>
- <20171204145755.6xu2w6a6og56rq5v@node.shutemov.name>
- <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
- <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
- <d73f4ce1-b959-f54c-c30b-ed2c4dc8b67e@amd.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d73f4ce1-b959-f54c-c30b-ed2c4dc8b67e@amd.com>
+        Mon, 04 Dec 2017 11:17:42 -0800 (PST)
+From: Paul Lawrence <paullawrence@google.com>
+Subject: [PATCH v4 0/5] kasan: support alloca, LLVM
+Date: Mon,  4 Dec 2017 11:17:30 -0800
+Message-Id: <20171204191735.132544-1-paullawrence@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tom Lendacky <thomas.lendacky@amd.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>
+Cc: linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kbuild@vger.kernel.org, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>
 
-On Mon, Dec 04, 2017 at 12:33:01PM -0600, Tom Lendacky wrote:
-> On 12/4/2017 10:34 AM, Kirill A. Shutemov wrote:
-> > On Mon, Dec 04, 2017 at 04:00:26PM +0000, Tom Lendacky wrote:
-> > > On 12/4/2017 8:57 AM, Kirill A. Shutemov wrote:
-> > > > On Mon, Dec 04, 2017 at 08:19:11AM -0600, Tom Lendacky wrote:
-> > > > > On 12/4/2017 5:23 AM, Kirill A. Shutemov wrote:
-> > > > > > sme_populate_pgd() open-codes a lot of things that are not needed to be
-> > > > > > open-coded.
-> > > > > > 
-> > > > > > Let's rewrite it in a more stream-lined way.
-> > > > > > 
-> > > > > > This would also buy us boot-time switching between support between
-> > > > > > paging modes, when rest of the pieces will be upstream.
-> > > > > 
-> > > > > Hi Kirill,
-> > > > > 
-> > > > > Unfortunately, some of these can't be changed.  The use of p4d_offset(),
-> > > > > pud_offset(), etc., use non-identity mapped virtual addresses which cause
-> > > > > failures at this point of the boot process.
-> > > > 
-> > > > Wat? Virtual address is virtual address. p?d_offset() doesn't care about
-> > > > what mapping you're using.
-> > > 
-> > > Yes it does.  For example, pmd_offset() issues a pud_page_addr() call,
-> > > which does a __va() returning a non-identity mapped address (0xffff88...).
-> > > Only identity mapped virtual addresses have been setup at this point, so
-> > > the use of that virtual address panics the kernel.
-> > 
-> > Stupid me. You are right.
-> > 
-> > What about something like this:
-> > 
-> > diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
-> > index d9a9e9fc75dd..65e0d68f863f 100644
-> > --- a/arch/x86/mm/mem_encrypt.c
-> > +++ b/arch/x86/mm/mem_encrypt.c
-> > @@ -12,6 +12,23 @@
-> >   #define DISABLE_BRANCH_PROFILING
-> > +/*
-> > + * Since we're dealing with identity mappings, physical and virtual
-> > + * addresses are the same, so override these defines which are ultimately
-> > + * used by the headers in misc.h.
-> > + */
-> > +#define __pa(x)  ((unsigned long)(x))
-> > +#define __va(x)  ((void *)((unsigned long)(x)))
-> 
-> No, you can't do this.  There are routines in this file that are called
-> after the kernel has switched to its standard virtual address map where
-> this definition of __va() will likely cause a failure.
+[PATCH v3 1/5] kasan: add compiler support for clang
+  No change
 
-Let's than split it up into separate compilation unit.
+[PATCH v3 2/5] kasan/Makefile: Support LLVM style asan parameters.
+  Correctly attributed
+  Changed to use strip to work in all environments
 
-> > +/*
-> > + * Special hack: we have to be careful, because no indirections are
-> > + * allowed here, and paravirt_ops is a kind of one. As it will only run in
-> > + * baremetal anyway, we just keep it from happening. (This list needs to
-> > + * be extended when new paravirt and debugging variants are added.)
-> > + */
-> > +#undef CONFIG_PARAVIRT
-> > +#undef CONFIG_PARAVIRT_SPINLOCKS
-> 
-> I'd really, really like to avoid doing something like this.
+[PATCH v3 3/5] kasan: support alloca() poisoning
+  No change
 
-Any other proposals?
+[PATCH v3 4/5] kasan: Add tests for alloca poisoning
+  No change
 
-Current code is way too hairy and hard to modify.
+[PATCH v3 5/5] kasan: added functions for unpoisoning stack variables
+  No change
+ 
+
+Paul Lawrence (5):
+  kasan: add compiler support for clang
+  kasan/Makefile: Support LLVM style asan parameters.
+  kasan: support alloca() poisoning
+  kasan: Add tests for alloca poisonong
+  kasan: added functions for unpoisoning stack variables
+
+ include/linux/compiler-clang.h |  8 +++++++
+ lib/test_kasan.c               | 22 +++++++++++++++++++
+ mm/kasan/kasan.c               | 49 ++++++++++++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.h               |  8 +++++++
+ mm/kasan/report.c              |  4 ++++
+ scripts/Makefile.kasan         | 30 ++++++++++++++++----------
+ 6 files changed, 110 insertions(+), 11 deletions(-)
 
 -- 
- Kirill A. Shutemov
+2.15.0.531.g2ccb3012c9-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
