@@ -1,85 +1,207 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f200.google.com (mail-yw0-f200.google.com [209.85.161.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DB316B025F
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 12:50:51 -0500 (EST)
-Received: by mail-yw0-f200.google.com with SMTP id r137so8291228ywg.4
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 09:50:51 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id d5si3408446vkg.202.2017.12.04.09.50.50
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD5576B0033
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 13:33:08 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id x24so12072845pgv.5
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 10:33:08 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0056.outbound.protection.outlook.com. [104.47.41.56])
+        by mx.google.com with ESMTPS id b184si9674194pgc.787.2017.12.04.10.33.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 04 Dec 2017 09:50:50 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vB4HoYgu084937
-	for <linux-mm@kvack.org>; Mon, 4 Dec 2017 12:50:49 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2en8w88mtj-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 04 Dec 2017 12:50:48 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <arbab@linux.vnet.ibm.com>;
-	Mon, 4 Dec 2017 10:50:47 -0700
-Date: Mon, 4 Dec 2017 11:50:41 -0600
-From: Reza Arbab <arbab@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 4/5] mm: memory_hotplug: Add memory hotremove probe
- device
-References: <cover.1511433386.git.ar@linux.vnet.ibm.com>
- <22d34fe30df0fbacbfceeb47e20cb1184af73585.1511433386.git.ar@linux.vnet.ibm.com>
- <5A17F5DF.2040108@huawei.com>
- <20171124104401.GD18120@samekh>
- <5A180DF1.8060009@huawei.com>
- <20171124142948.GA1966@samekh>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Mon, 04 Dec 2017 10:33:06 -0800 (PST)
+Subject: Re: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
+References: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
+ <d177df77-cdc7-1507-08f8-fcdb3b443709@amd.com>
+ <20171204145755.6xu2w6a6og56rq5v@node.shutemov.name>
+ <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
+ <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <d73f4ce1-b959-f54c-c30b-ed2c4dc8b67e@amd.com>
+Date: Mon, 4 Dec 2017 12:33:01 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20171124142948.GA1966@samekh>
-Message-Id: <20171204175040.2vgc6ccdcr5m77hm@arbab-laptop.localdomain>
+In-Reply-To: <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrea Reale <ar@linux.vnet.ibm.com>
-Cc: zhong jiang <zhongjiang@huawei.com>, linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, m.bielski@virtualopensystems.com, arunks@qti.qualcomm.com, mark.rutland@arm.com, scott.branden@broadcom.com, will.deacon@arm.com, qiuxishi@huawei.com, catalin.marinas@arm.com, mhocko@suse.com, realean2@ie.ibm.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Nov 24, 2017 at 02:29:48PM +0000, Andrea Reale wrote:
->But, at least in my understanding, the implementation is not as
->straightfoward as it looks. If I declare a memory node in the fdt, then,
->at boot, the kernel will expect that memory to actually be there to be
->used: this is not true if I want to plug my dimms only later at runtime.
->So I think that declaring the hotpluggable memory in an fdt memory
->node might not feasible without changes.
+On 12/4/2017 10:34 AM, Kirill A. Shutemov wrote:
+> On Mon, Dec 04, 2017 at 04:00:26PM +0000, Tom Lendacky wrote:
+>> On 12/4/2017 8:57 AM, Kirill A. Shutemov wrote:
+>>> On Mon, Dec 04, 2017 at 08:19:11AM -0600, Tom Lendacky wrote:
+>>>> On 12/4/2017 5:23 AM, Kirill A. Shutemov wrote:
+>>>>> sme_populate_pgd() open-codes a lot of things that are not needed to be
+>>>>> open-coded.
+>>>>>
+>>>>> Let's rewrite it in a more stream-lined way.
+>>>>>
+>>>>> This would also buy us boot-time switching between support between
+>>>>> paging modes, when rest of the pieces will be upstream.
+>>>>
+>>>> Hi Kirill,
+>>>>
+>>>> Unfortunately, some of these can't be changed.  The use of p4d_offset(),
+>>>> pud_offset(), etc., use non-identity mapped virtual addresses which cause
+>>>> failures at this point of the boot process.
+>>>
+>>> Wat? Virtual address is virtual address. p?d_offset() doesn't care about
+>>> what mapping you're using.
+>>
+>> Yes it does.  For example, pmd_offset() issues a pud_page_addr() call,
+>> which does a __va() returning a non-identity mapped address (0xffff88...).
+>> Only identity mapped virtual addresses have been setup at this point, so
+>> the use of that virtual address panics the kernel.
+> 
+> Stupid me. You are right.
+> 
+> What about something like this:
+> 
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index d9a9e9fc75dd..65e0d68f863f 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -12,6 +12,23 @@
+>   
+>   #define DISABLE_BRANCH_PROFILING
+>   
+> +/*
+> + * Since we're dealing with identity mappings, physical and virtual
+> + * addresses are the same, so override these defines which are ultimately
+> + * used by the headers in misc.h.
+> + */
+> +#define __pa(x)  ((unsigned long)(x))
+> +#define __va(x)  ((void *)((unsigned long)(x)))
 
-On the power arch, we do this today using "linux,usable-memory".
+No, you can't do this.  There are routines in this file that are called
+after the kernel has switched to its standard virtual address map where
+this definition of __va() will likely cause a failure.
 
-memory@10000000000 {
-  device_type = "memory";
-  reg = <0x100 0x0 0x0 0x80000000>;
-  linux,usable-memory = <0x100 0x0 0x0 0x40000000>;
-  :
-}
+> +
+> +/*
+> + * Special hack: we have to be careful, because no indirections are
+> + * allowed here, and paravirt_ops is a kind of one. As it will only run in
+> + * baremetal anyway, we just keep it from happening. (This list needs to
+> + * be extended when new paravirt and debugging variants are added.)
+> + */
+> +#undef CONFIG_PARAVIRT
+> +#undef CONFIG_PARAVIRT_SPINLOCKS
 
-The reg range defines the node, but at at boot, memblocks are only 
-created for the linux,usable-memory range. The rest can be hotplugged 
-later. YMMV, because this depends on your arch's implementation of 
-memory_add_physaddr_to_nid().
+I'd really, really like to avoid doing something like this.
 
->One idea could be to add a new property to memory nodes, to specify 
->what memory is potentially hotplugguable.
+Thanks,
+Tom
 
-Somewhat related, there is already a "hotpluggable" property.
-
-memory@10040000000 {
-  device_type = "memory";
-  reg = <0x100 0x40000000 0x0 0x40000000>;
-  hotpluggable;
-  :
-}
-
-This is subtly different from the earlier example. This memory IS 
-present at boot. The hotpluggable property ensures that it resides in 
-ZONE_MOVABLE so it can potentially be removed.
-
--- 
-Reza Arbab
+> +
+>   #include <linux/linkage.h>
+>   #include <linux/init.h>
+>   #include <linux/mm.h>
+> @@ -489,73 +506,42 @@ static void __init sme_clear_pgd(pgd_t *pgd_base, unsigned long start,
+>   static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+>   				     unsigned long vaddr, pmdval_t pmd_val)
+>   {
+> -	pgd_t *pgd_p;
+> -	p4d_t *p4d_p;
+> -	pud_t *pud_p;
+> -	pmd_t *pmd_p;
+> -
+> -	pgd_p = pgd_base + pgd_index(vaddr);
+> -	if (native_pgd_val(*pgd_p)) {
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL))
+> -			p4d_p = (p4d_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+> -		else
+> -			pud_p = (pud_t *)(native_pgd_val(*pgd_p) & ~PTE_FLAGS_MASK);
+> -	} else {
+> -		pgd_t pgd;
+> -
+> -		if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> -			p4d_p = pgtable_area;
+> -			memset(p4d_p, 0, sizeof(*p4d_p) * PTRS_PER_P4D);
+> -			pgtable_area += sizeof(*p4d_p) * PTRS_PER_P4D;
+> -
+> -			pgd = native_make_pgd((pgdval_t)p4d_p + PGD_FLAGS);
+> -		} else {
+> -			pud_p = pgtable_area;
+> -			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+> -			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+> -
+> -			pgd = native_make_pgd((pgdval_t)pud_p + PGD_FLAGS);
+> -		}
+> -		native_set_pgd(pgd_p, pgd);
+> +	pgd_t *pgd;
+> +	p4d_t *p4d;
+> +	pud_t *pud;
+> +	pmd_t *pmd;
+> +
+> +	pgd = pgd_base + pgd_index(vaddr);
+> +	if (pgd_none(*pgd)) {
+> +		p4d = pgtable_area;
+> +		memset(p4d, 0, sizeof(*p4d) * PTRS_PER_P4D);
+> +		pgtable_area += sizeof(*p4d) * PTRS_PER_P4D;
+> +		set_pgd(pgd, __pgd(PGD_FLAGS | __pa(p4d)));
+>   	}
+>   
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> -		p4d_p += p4d_index(vaddr);
+> -		if (native_p4d_val(*p4d_p)) {
+> -			pud_p = (pud_t *)(native_p4d_val(*p4d_p) & ~PTE_FLAGS_MASK);
+> -		} else {
+> -			p4d_t p4d;
+> -
+> -			pud_p = pgtable_area;
+> -			memset(pud_p, 0, sizeof(*pud_p) * PTRS_PER_PUD);
+> -			pgtable_area += sizeof(*pud_p) * PTRS_PER_PUD;
+> -
+> -			p4d = native_make_p4d((pudval_t)pud_p + P4D_FLAGS);
+> -			native_set_p4d(p4d_p, p4d);
+> -		}
+> +	p4d = p4d_offset(pgd, vaddr);
+> +	if (p4d_none(*p4d)) {
+> +		pud = pgtable_area;
+> +		memset(pud, 0, sizeof(*pud) * PTRS_PER_PUD);
+> +		pgtable_area += sizeof(*pud) * PTRS_PER_PUD;
+> +		set_p4d(p4d, __p4d(P4D_FLAGS | __pa(pud)));
+>   	}
+>   
+> -	pud_p += pud_index(vaddr);
+> -	if (native_pud_val(*pud_p)) {
+> -		if (native_pud_val(*pud_p) & _PAGE_PSE)
+> -			goto out;
+> -
+> -		pmd_p = (pmd_t *)(native_pud_val(*pud_p) & ~PTE_FLAGS_MASK);
+> -	} else {
+> -		pud_t pud;
+> -
+> -		pmd_p = pgtable_area;
+> -		memset(pmd_p, 0, sizeof(*pmd_p) * PTRS_PER_PMD);
+> -		pgtable_area += sizeof(*pmd_p) * PTRS_PER_PMD;
+> -
+> -		pud = native_make_pud((pmdval_t)pmd_p + PUD_FLAGS);
+> -		native_set_pud(pud_p, pud);
+> +	pud = pud_offset(p4d, vaddr);
+> +	if (pud_none(*pud)) {
+> +		pmd = pgtable_area;
+> +		memset(pmd, 0, sizeof(*pmd) * PTRS_PER_PMD);
+> +		pgtable_area += sizeof(*pmd) * PTRS_PER_PMD;
+> +		set_pud(pud, __pud(PUD_FLAGS | __pa(pmd)));
+>   	}
+> +	if (pud_large(*pud))
+> +		goto out;
+>   
+> -	pmd_p += pmd_index(vaddr);
+> -	if (!native_pmd_val(*pmd_p) || !(native_pmd_val(*pmd_p) & _PAGE_PSE))
+> -		native_set_pmd(pmd_p, native_make_pmd(pmd_val));
+> +	pmd = pmd_offset(pud, vaddr);
+> +	if (pmd_large(*pmd))
+> +		goto out;
+>   
+> +	set_pmd(pmd, __pmd(pmd_val));
+>   out:
+>   	return pgtable_area;
+>   }
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
