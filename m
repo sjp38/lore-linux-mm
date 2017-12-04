@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 23E626B026F
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 09:01:31 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id p190so4321061wmd.0
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:01:31 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 219D26B0270
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 09:01:32 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id f132so4144651wmf.6
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 06:01:32 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n7sor5887458wrh.18.2017.12.04.06.01.28
+        by mx.google.com with SMTPS id z16sor5751201wrc.34.2017.12.04.06.01.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 04 Dec 2017 06:01:28 -0800 (PST)
+        Mon, 04 Dec 2017 06:01:30 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/5] mm, hugetlb: unify core page allocation accounting and initialization
-Date: Mon,  4 Dec 2017 15:01:13 +0100
-Message-Id: <20171204140117.7191-2-mhocko@kernel.org>
+Subject: [RFC PATCH 2/5] mm, hugetlb: integrate giga hugetlb more naturally to the allocation path
+Date: Mon,  4 Dec 2017 15:01:14 +0100
+Message-Id: <20171204140117.7191-3-mhocko@kernel.org>
 In-Reply-To: <20171204140117.7191-1-mhocko@kernel.org>
 References: <20171204140117.7191-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,158 +22,127 @@ Cc: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.n
 
 From: Michal Hocko <mhocko@suse.com>
 
-hugetlb allocator has two entry points to the page allocator
-- alloc_fresh_huge_page_node
-- __hugetlb_alloc_buddy_huge_page
+Gigantic hugetlb pages were ingrown to the hugetlb code as an alien
+specie with a lot of special casing. The allocation path is not an
+exception. Unnecessarily so to be honest. It is true that the underlying
+allocator is different but that is an implementation detail.
 
-The two differ very subtly in two aspects. The first one doesn't care
-about HTLB_BUDDY_* stats and it doesn't initialize the huge page.
-prep_new_huge_page is not used because it not only initializes hugetlb
-specific stuff but because it also put_page and releases the page to
-the hugetlb pool which is not what is required in some contexts. This
-makes things more complicated than necessary.
-
-Simplify things by a) removing the page allocator entry point duplicity
-and only keep __hugetlb_alloc_buddy_huge_page and b) make
-prep_new_huge_page more reusable by removing the put_page which moves
-the page to the allocator pool. All current callers are updated to call
-put_page explicitly. Later patches will add new callers which won't
-need it.
-
-This patch shouldn't introduce any functional change.
+This patch unifies the hugetlb allocation path that a prepares fresh
+pool pages. alloc_fresh_gigantic_page basically copies alloc_fresh_huge_page
+logic so we can move everything there. This will simplify set_max_huge_pages
+which doesn't have to care about what kind of huge page we allocate.
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------
- 1 file changed, 29 insertions(+), 32 deletions(-)
+ mm/hugetlb.c | 53 ++++++++++++-----------------------------------------
+ 1 file changed, 12 insertions(+), 41 deletions(-)
 
 diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index 2c9033d39bfe..8189c92fac82 100644
+index 8189c92fac82..ac105fb32620 100644
 --- a/mm/hugetlb.c
 +++ b/mm/hugetlb.c
-@@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
- 	if (page) {
- 		prep_compound_gigantic_page(page, huge_page_order(h));
- 		prep_new_huge_page(h, page, nid);
-+		put_page(page); /* free it into the hugepage allocator */
- 	}
- 
- 	return page;
-@@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
- 	h->nr_huge_pages++;
- 	h->nr_huge_pages_node[nid]++;
- 	spin_unlock(&hugetlb_lock);
--	put_page(page); /* free it into the hugepage allocator */
+@@ -1106,7 +1106,8 @@ static bool zone_spans_last_pfn(const struct zone *zone,
+ 	return zone_spans_pfn(zone, last_pfn);
  }
  
- static void prep_compound_gigantic_page(struct page *page, unsigned int order)
-@@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)
- 	return (index << compound_order(page_head)) + compound_idx;
- }
- 
--static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
-+static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-+		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+-static struct page *alloc_gigantic_page(int nid, struct hstate *h)
++static struct page *alloc_gigantic_page(struct hstate *h, gfp_t gfp_mask,
++		int nid, nodemask_t *nodemask)
  {
-+	int order = huge_page_order(h);
- 	struct page *page;
+ 	unsigned int order = huge_page_order(h);
+ 	unsigned long nr_pages = 1 << order;
+@@ -1114,11 +1115,9 @@ static struct page *alloc_gigantic_page(int nid, struct hstate *h)
+ 	struct zonelist *zonelist;
+ 	struct zone *zone;
+ 	struct zoneref *z;
+-	gfp_t gfp_mask;
  
--	page = __alloc_pages_node(nid,
--		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
--						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
--		huge_page_order(h));
--	if (page) {
--		prep_new_huge_page(h, page, nid);
--	}
-+	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
-+	if (nid == NUMA_NO_NODE)
-+		nid = numa_mem_id();
-+	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
-+	if (page)
-+		__count_vm_event(HTLB_BUDDY_PGALLOC);
-+	else
-+		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
+-	gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+ 	zonelist = node_zonelist(nid, gfp_mask);
+-	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), NULL) {
++	for_each_zone_zonelist_nodemask(zone, z, zonelist, gfp_zone(gfp_mask), nodemask) {
+ 		spin_lock_irqsave(&zone->lock, flags);
  
- 	return page;
- }
+ 		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
+@@ -1149,42 +1148,11 @@ static struct page *alloc_gigantic_page(int nid, struct hstate *h)
+ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid);
+ static void prep_compound_gigantic_page(struct page *page, unsigned int order);
  
-+/*
-+ * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
-+ * manner.
-+ */
- static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
- {
- 	struct page *page;
- 	int nr_nodes, node;
--	int ret = 0;
-+	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
- 
- 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
--		page = alloc_fresh_huge_page_node(h, node);
--		if (page) {
--			ret = 1;
-+		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
-+				node, nodes_allowed);
-+		if (page)
- 			break;
--		}
-+
- 	}
- 
--	if (ret)
--		count_vm_event(HTLB_BUDDY_PGALLOC);
--	else
--		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
-+	if (!page)
-+		return 0;
- 
--	return ret;
-+	prep_new_huge_page(h, page, page_to_nid(page));
-+	put_page(page); /* free it into the hugepage allocator */
-+
-+	return 1;
- }
- 
- /*
-@@ -1523,17 +1531,6 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
- 	return rc;
- }
- 
--static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
--		gfp_t gfp_mask, int nid, nodemask_t *nmask)
+-static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
 -{
--	int order = huge_page_order(h);
+-	struct page *page;
 -
--	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
--	if (nid == NUMA_NO_NODE)
--		nid = numa_mem_id();
--	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+-	page = alloc_gigantic_page(nid, h);
+-	if (page) {
+-		prep_compound_gigantic_page(page, huge_page_order(h));
+-		prep_new_huge_page(h, page, nid);
+-		put_page(page); /* free it into the hugepage allocator */
+-	}
+-
+-	return page;
 -}
 -
- static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
- 		int nid, nodemask_t *nmask)
- {
-@@ -1589,11 +1586,9 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
- 		 */
- 		h->nr_huge_pages_node[r_nid]++;
- 		h->surplus_huge_pages_node[r_nid]++;
--		__count_vm_event(HTLB_BUDDY_PGALLOC);
- 	} else {
- 		h->nr_huge_pages--;
- 		h->surplus_huge_pages--;
--		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
- 	}
- 	spin_unlock(&hugetlb_lock);
+-static int alloc_fresh_gigantic_page(struct hstate *h,
+-				nodemask_t *nodes_allowed)
+-{
+-	struct page *page = NULL;
+-	int nr_nodes, node;
+-
+-	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+-		page = alloc_fresh_gigantic_page_node(h, node);
+-		if (page)
+-			return 1;
+-	}
+-
+-	return 0;
+-}
+-
+ #else /* !CONFIG_ARCH_HAS_GIGANTIC_PAGE */
+ static inline bool gigantic_page_supported(void) { return false; }
+ static inline void free_gigantic_page(struct page *page, unsigned int order) { }
+ static inline void destroy_compound_gigantic_page(struct page *page,
+ 						unsigned int order) { }
+-static inline int alloc_fresh_gigantic_page(struct hstate *h,
+-					nodemask_t *nodes_allowed) { return 0; }
+ #endif
  
-@@ -2148,6 +2143,8 @@ static void __init gather_bootmem_prealloc(void)
- 		prep_compound_huge_page(page, h->order);
- 		WARN_ON(PageReserved(page));
- 		prep_new_huge_page(h, page, page_to_nid(page));
-+		put_page(page); /* free it into the hugepage allocator */
-+
- 		/*
- 		 * If we had gigantic hugepages allocated at boot time, we need
- 		 * to restore the 'stolen' pages to totalram_pages in order to
+ static void update_and_free_page(struct hstate *h, struct page *page)
+@@ -1410,8 +1378,12 @@ static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+ 	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+ 
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+-		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
+-				node, nodes_allowed);
++		if (hstate_is_gigantic(h))
++			page = alloc_gigantic_page(h, gfp_mask,
++					node, nodes_allowed);
++		else
++			page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
++					node, nodes_allowed);
+ 		if (page)
+ 			break;
+ 
+@@ -1420,6 +1392,8 @@ static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
+ 	if (!page)
+ 		return 0;
+ 
++	if (hstate_is_gigantic(h))
++		prep_compound_gigantic_page(page, huge_page_order(h));
+ 	prep_new_huge_page(h, page, page_to_nid(page));
+ 	put_page(page); /* free it into the hugepage allocator */
+ 
+@@ -2307,10 +2281,7 @@ static unsigned long set_max_huge_pages(struct hstate *h, unsigned long count,
+ 		/* yield cpu to avoid soft lockup */
+ 		cond_resched();
+ 
+-		if (hstate_is_gigantic(h))
+-			ret = alloc_fresh_gigantic_page(h, nodes_allowed);
+-		else
+-			ret = alloc_fresh_huge_page(h, nodes_allowed);
++		ret = alloc_fresh_huge_page(h, nodes_allowed);
+ 		spin_lock(&hugetlb_lock);
+ 		if (!ret)
+ 			goto out;
 -- 
 2.15.0
 
