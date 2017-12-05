@@ -1,65 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 728D06B0253
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 16:28:00 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g202so3360566ita.4
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 13:28:00 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id x87si682932ioi.163.2017.12.05.13.27.58
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AFFE6B0069
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 17:21:07 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id f4so895927wre.9
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 14:21:06 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id b8si820551wrf.273.2017.12.05.14.21.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 13:27:59 -0800 (PST)
-Date: Tue, 5 Dec 2017 22:27:27 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH 5/9] x86/uv: Use the right tlbflush API
-Message-ID: <20171205212727.GU3165@worktop.lehotels.local>
-References: <20171205123444.990868007@infradead.org>
- <20171205123820.134563117@infradead.org>
- <5aed7d7f-b093-b65c-403e-46bdbcf9bc5a@hpe.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5aed7d7f-b093-b65c-403e-46bdbcf9bc5a@hpe.com>
+        Tue, 05 Dec 2017 14:21:05 -0800 (PST)
+Date: Tue, 5 Dec 2017 14:21:02 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH v3 2/7] ktask: multithread CPU-intensive kernel work
+Message-Id: <20171205142102.8b53c7d6eca231b07dbf422e@linux-foundation.org>
+In-Reply-To: <20171205195220.28208-3-daniel.m.jordan@oracle.com>
+References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
+	<20171205195220.28208-3-daniel.m.jordan@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Banman <abanman@hpe.com>
-Cc: linux-kernel@vger.kernel.org, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, moritz.lipp@iaik.tugraz.at, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Mike Travis <mike.travis@hpe.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
 
-On Tue, Dec 05, 2017 at 03:09:48PM -0600, Andrew Banman wrote:
-> On 12/5/17 6:34 AM, Peter Zijlstra wrote:
-> >Since uv_flush_tlb_others() implements flush_tlb_others() which is
-> >about flushing user mappings, we should use __flush_tlb_single(),
-> >which too is about flushing user mappings.
-> >
-> >Cc: Andrew Banman<abanman@hpe.com>
-> >Cc: Mike Travis<mike.travis@hpe.com>
-> >Signed-off-by: Peter Zijlstra (Intel)<peterz@infradead.org>
-> >---
-> >  arch/x86/platform/uv/tlb_uv.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> >--- a/arch/x86/platform/uv/tlb_uv.c
-> >+++ b/arch/x86/platform/uv/tlb_uv.c
-> >@@ -299,7 +299,7 @@ static void bau_process_message(struct m
-> >  		local_flush_tlb();
-> >  		stat->d_alltlb++;
-> >  	} else {
-> >-		__flush_tlb_one(msg->address);
-> >+		__flush_tlb_single(msg->address);
-> >  		stat->d_onetlb++;
-> >  	}
-> >  	stat->d_requestee++;
+On Tue,  5 Dec 2017 14:52:15 -0500 Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+
+> ktask is a generic framework for parallelizing CPU-intensive work in the
+> kernel.  The intended use is for big machines that can use their CPU power to
+> speed up large tasks that can't otherwise be multithreaded in userland.  The
+> API is generic enough to add concurrency to many different kinds of tasks--for
+> example, zeroing a range of pages or evicting a list of inodes--and aims to
+> save its clients the trouble of splitting up the work, choosing the number of
+> threads to use, maintaining an efficient concurrency level, starting these
+> threads, and load balancing the work between them.
 > 
-> This looks like the right thing to do. We'll be testing it and complain later if
-> we find any problems, but I'm not expecting any since this patch looks to
-> maintain our status quo.
+> The Documentation patch earlier in this series has more background.
+> 
+> Introduces the ktask API; consumers appear in subsequent patches.
+> 
+> Based on work by Pavel Tatashin, Steve Sistare, and Jonathan Adams.
+>
+> ...
+>
+> --- a/init/Kconfig
+> +++ b/init/Kconfig
+> @@ -319,6 +319,18 @@ config AUDIT_TREE
+>  	depends on AUDITSYSCALL
+>  	select FSNOTIFY
+>  
+> +config KTASK
+> +	bool "Multithread cpu-intensive kernel tasks"
+> +	depends on SMP
+> +	depends on NR_CPUS > 16
 
-Well, with KPTI (the-patch-set-formerly-known-as-kaiser), there will be
-a distinct difference between the two.
+Why this?
 
-With KPTI __flush_tlb_one() would end up invalidating all kernel
-mappings while __flush_tlb_single() will end up only invalidating the
-user mappings of the current mm.
+It would make sense to relax (or eliminate) this at least for the
+development/test period, so more people actually run and test the new
+code.
+
+> +	default n
+> +	help
+> +	  Parallelize expensive kernel tasks such as zeroing huge pages.  This
+> +          feature is designed for big machines that can take advantage of their
+> +          cpu count to speed up large kernel tasks.
+> +
+> +          If unsure, say 'N'.
+> +
+>  source "kernel/irq/Kconfig"
+>  source "kernel/time/Kconfig"
+>  
+>
+> ...
+>
+> +/*
+> + * Initialize internal limits on work items queued.  Work items submitted to
+> + * cmwq capped at 80% of online cpus both system-wide and per-node to maintain
+> + * an efficient level of parallelization at these respective levels.
+> + */
+> +bool ktask_rlim_init(void)
+
+Why not static __init?
+
+> +{
+> +	int node;
+> +	unsigned nr_node_cpus;
+> +
+> +	spin_lock_init(&ktask_rlim_lock);
+
+This can be done at compile time.  Unless there's a real reason for
+ktask_rlim_init to be non-static, non-__init, in which case I'm
+worried: reinitializing a static spinlock is weird.
+
+> +	ktask_rlim_node_cur = kcalloc(num_possible_nodes(),
+> +					       sizeof(size_t),
+> +					       GFP_KERNEL);
+> +	if (!ktask_rlim_node_cur) {
+> +		pr_warn("can't alloc rlim counts (ktask disabled)");
+> +		return false;
+> +	}
+> +
+> +	ktask_rlim_node_max = kmalloc_array(num_possible_nodes(),
+> +						     sizeof(size_t),
+> +						     GFP_KERNEL);
+> +	if (!ktask_rlim_node_max) {
+> +		kfree(ktask_rlim_node_cur);
+> +		pr_warn("can't alloc rlim maximums (ktask disabled)");
+> +		return false;
+> +	}
+> +
+> +	ktask_rlim_max = mult_frac(num_online_cpus(), KTASK_CPUFRAC_NUMER,
+> +						      KTASK_CPUFRAC_DENOM);
+> +	for_each_node(node) {
+> +		nr_node_cpus = cpumask_weight(cpumask_of_node(node));
+> +		ktask_rlim_node_max[node] = mult_frac(nr_node_cpus,
+> +						      KTASK_CPUFRAC_NUMER,
+> +						      KTASK_CPUFRAC_DENOM);
+> +	}
+> +
+> +	return true;
+> +}
+>
+> ...
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
