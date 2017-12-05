@@ -1,56 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DD956B0033
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 09:01:32 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j3so215543pfh.16
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 06:01:32 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id p3si116208pld.717.2017.12.05.06.01.30
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C3EAE6B0069
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 09:08:07 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id c58so154280otd.17
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 06:08:07 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id d142si65335oih.411.2017.12.05.06.08.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 06:01:30 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 2/4] x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
-Date: Tue,  5 Dec 2017 16:59:40 +0300
-Message-Id: <20171205135942.24634-3-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20171205135942.24634-1-kirill.shutemov@linux.intel.com>
-References: <20171205135942.24634-1-kirill.shutemov@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Dec 2017 06:08:06 -0800 (PST)
+Subject: Re: [PATCH 1/3] mm,oom: Move last second allocation to inside the OOM killer.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <20171201163830.on5mykdtet2wa5is@dhcp22.suse.cz>
+	<20171205104601.GA1898@cmpxchg.org>
+	<20171205130215.bxkgzbzo25sljmgd@dhcp22.suse.cz>
+	<201712052217.DGB21370.FHOFMLOJOFtVQS@I-love.SAKURA.ne.jp>
+	<20171205134220.vwz5d23vtr3nocfs@dhcp22.suse.cz>
+In-Reply-To: <20171205134220.vwz5d23vtr3nocfs@dhcp22.suse.cz>
+Message-Id: <201712052307.EEG40339.OFFJQMLOtHOFVS@I-love.SAKURA.ne.jp>
+Date: Tue, 5 Dec 2017 23:07:53 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: mhocko@suse.com
+Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, mjaggi@caviumnetworks.com
 
-The name of the file -- pagetable.c -- is misleading: it only contains
-helpers used for KASLR in 64-bin mode.
+Michal Hocko wrote:
+> On Tue 05-12-17 22:17:27, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> > > > I do understand the upsides you're advocating for - although you
+> > > > haven't quantified them. They're just not worth the downsides.
+> > > 
+> > > OK, fair enough. Let's drop the patch then. There is no _strong_
+> > > justification for it and what I've seen as "nice to have" is indeed
+> > > really hard to quantify and not really worth merging without a full
+> > > consensus.
+> > 
+> > Dropping "mm,oom: move last second allocation to inside the OOM killer"
+> > means dropping "mm,oom: remove oom_lock serialization from the OOM reaper"
+> > together, right?
+> 
+> No, I believe that we can drop the lock even without this patch. This
+> will need more investigation though.
 
-Let's rename the file to reflect its content.
+We cannot drop the lock without this patch.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/Makefile                    | 2 +-
- arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} | 0
- 2 files changed, 1 insertion(+), 1 deletion(-)
- rename arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} (100%)
+> 
+> > The latter patch helped mitigating
+> > schedule_timeout_killable(1) lockup problem though...
+> > 
+> > Also, what is the alternative for "mm,oom: use ALLOC_OOM for OOM victim's
+> > last second allocation" ? I proposed "mm, oom: task_will_free_mem(current)
+> > should ignore MMF_OOM_SKIP for once." and rejected by you. I also proposed
+> > "mm,oom: Set ->signal->oom_mm to all thread groups sharing the victim's mm."
+> > and rejected by you.
+> 
+> Yes, and so far I am not really sure we have to care all that much. I
+> haven't seen any real world workload actually hitting this condition.
+> 
 
-diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
-index f25e1530e064..1f734cd98fd3 100644
---- a/arch/x86/boot/compressed/Makefile
-+++ b/arch/x86/boot/compressed/Makefile
-@@ -78,7 +78,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
- vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
- vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
- ifdef CONFIG_X86_64
--	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
-+	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr_64.o
- 	vmlinux-objs-y += $(obj)/mem_encrypt.o
- 	vmlinux-objs-y += $(obj)/pgtable_64.o
- endif
-diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/kaslr_64.c
-similarity index 100%
-rename from arch/x86/boot/compressed/pagetable.c
-rename to arch/x86/boot/compressed/kaslr_64.c
--- 
-2.15.0
+Somebody will observe what Manish Jaggi observed. OOM with mlock()ed and/or
+MAP_SHARED is irrelevant. There is always possibility that the OOM reaper
+fails to reclaim memory due to mmap_sem contention (and results in extra
+OOM kills).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
