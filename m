@@ -1,97 +1,247 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E594F6B0271
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:54:04 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id m17so914489pgu.19
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:54:04 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id k4si547871pls.297.2017.12.05.11.54.03
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 834246B0033
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 15:59:45 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 80so838049wmb.7
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 12:59:45 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 5si961358edm.313.2017.12.05.12.59.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 11:54:03 -0800 (PST)
-Date: Tue, 5 Dec 2017 11:54:00 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] dax: fix potential overflow on 32bit machine
-Message-ID: <20171205195400.GC26021@bombadil.infradead.org>
-References: <20171205033210.38338-1-yi.zhang@huawei.com>
- <20171205052407.GA20757@bombadil.infradead.org>
- <20171205170709.GA21010@linux.intel.com>
- <20171205173713.GA26021@bombadil.infradead.org>
- <20171205191928.GB21010@linux.intel.com>
+        Tue, 05 Dec 2017 12:59:44 -0800 (PST)
+Subject: Re: [RFC PATCH v3 1/7] ktask: add documentation
+References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
+ <20171205195220.28208-2-daniel.m.jordan@oracle.com>
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+Message-ID: <d5f3ff84-50cd-15c4-56b6-26f94f127d53@oracle.com>
+Date: Tue, 5 Dec 2017 15:59:03 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171205191928.GB21010@linux.intel.com>
+In-Reply-To: <20171205195220.28208-2-daniel.m.jordan@oracle.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ross Zwisler <ross.zwisler@linux.intel.com>, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mawilcox@microsoft.com, viro@zeniv.linux.org.uk, miaoxie@huawei.com
+To: Daniel Jordan <daniel.m.jordan@oracle.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com, rdunlap@infradead.org
 
-On Tue, Dec 05, 2017 at 12:19:28PM -0700, Ross Zwisler wrote:
-> On Tue, Dec 05, 2017 at 09:37:13AM -0800, Matthew Wilcox wrote:
-> > On Tue, Dec 05, 2017 at 10:07:09AM -0700, Ross Zwisler wrote:
-> > > >  /* The 'colour' (ie low bits) within a PMD of a page offset.  */
-> > > >  #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
-> > > > +#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
-> > > 
-> > > I wonder if it's confusing that PG_PMD_COLOUR is a mask, but PG_PMD_NR is a
-> > > count?  Would "PAGES_PER_PMD" be clearer, in the spirit of
-> > > PTRS_PER_{PGD,PMD,PTE}? 
-> > 
-> > Maybe.  I don't think that 'NR' can ever be confused with a mask.
-> > I went with PG_PMD_NR because I didn't want to use HPAGE_PMD_NR, but
-> > in retrospect I just needed to go to sleep and leave thinking about
-> > hard problems like naming things for the morning.  I decided to call it
-> > 'colour' rather than 'mask' originally because I got really confused with
-> > PMD_MASK masking off the low bits.  If you ask 'What colour is this page
-> > within the PMD', you know you're talking about the low bits.
-> > 
-> > I actually had cause to define PMD_ORDER in a separate unrelated patch
-> > I was working on this morning.  How does this set of definitions grab you?
-> > 
-> > #define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
-> > #define PMD_PAGES	(1UL << PMD_ORDER)
-> > #define PMD_PAGE_COLOUR	(PMD_PAGES - 1)
-> > 
-> > and maybe put them in linux/mm.h so everybody can see them?
-> 
-> Yep, I personally like these better, and putting them in a global header seems
-> like the right way to go.
+Forgot to cc Randy Dunlap and add his Reviewed-by from v2.
 
-Ugh.  ARM, MIPS and PARISC all define a rather interesting PMD_ORDER.
-I'm going to have to rename them first.
+On 12/05/2017 02:52 PM, Daniel Jordan wrote:
+> Motivates and explains the ktask API for kernel clients.
+> 
+> Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
+> Reviewed-by: Steve Sistare <steven.sistare@oracle.com
+Reviewed-by: Randy Dunlap <rdunlap@infradead.org>
 
-> > > Also, can we use the same define both in fs/dax.c and in mm/truncate.c,
-> > > instead of the latter using HPAGE_PMD_NR?
-> > 
-> > I'm OK with the latter using HPAGE_PMD_NR because it's explicitly "is
-> > this a huge page?"  But I'd kind of like to get rid of a lot of the HPAGE_*
-> > definitions, so 
-> 
-> I would also like to get rid of them if possible, but quick grep makes me
-> think that unfortunately they may not be entirely equivalent to other defines
-> we have?
-> 
-> i.e:
-> 
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      13
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      14
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      15
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      16
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      17
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      18
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      19
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      20
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      21
-> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      22
-> 
-> this arch has no PMD_SHIFT definition...
-> 
-> I'm not really familiar with the HPAGE defines, though, so maybe it's not as
-> complex as it seems.
+Daniel
 
-I think it's more complex than it seems.  Some of the HPAGE definitions
-(like the ones you've found) are for hugetlbfs hugepages which are a
-bit different from the transparent hugepages.
+> Cc: Aaron Lu <aaron.lu@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Dave Hansen <dave.hansen@linux.intel.com>
+> Cc: Mel Gorman <mgorman@techsingularity.net>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
+> Cc: Tim Chen <tim.c.chen@intel.com>
+> ---
+>   Documentation/core-api/index.rst |   1 +
+>   Documentation/core-api/ktask.rst | 173 +++++++++++++++++++++++++++++++++++++++
+>   2 files changed, 174 insertions(+)
+>   create mode 100644 Documentation/core-api/ktask.rst
+> 
+> diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
+> index d5bbe035316d..255724095814 100644
+> --- a/Documentation/core-api/index.rst
+> +++ b/Documentation/core-api/index.rst
+> @@ -15,6 +15,7 @@ Core utilities
+>      assoc_array
+>      atomic_ops
+>      cpu_hotplug
+> +   ktask
+>      local_ops
+>      workqueue
+>      genericirq
+> diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
+> new file mode 100644
+> index 000000000000..703f200c7d36
+> --- /dev/null
+> +++ b/Documentation/core-api/ktask.rst
+> @@ -0,0 +1,173 @@
+> +============================================
+> +ktask: parallelize CPU-intensive kernel work
+> +============================================
+> +
+> +:Date: December, 2017
+> +:Author: Daniel Jordan <daniel.m.jordan@oracle.com>
+> +
+> +
+> +Introduction
+> +============
+> +
+> +ktask is a generic framework for parallelizing CPU-intensive work in the
+> +kernel.  The intended use is for big machines that can use their CPU power to
+> +speed up large tasks that can't otherwise be multithreaded in userland.  The
+> +API is generic enough to add concurrency to many different kinds of tasks--for
+> +example, zeroing a range of pages or evicting a list of inodes--and aims to
+> +save its clients the trouble of splitting up the work, choosing the number of
+> +threads to use, maintaining an efficient concurrency level, starting these
+> +threads, and load balancing the work between them.
+> +
+> +
+> +Motivation
+> +==========
+> +
+> +To ensure that applications and the kernel itself continue to perform well as
+> +core counts and memory sizes increase, the kernel needs to scale.  For example,
+> +when a system call requests a certain fraction of system resources, the kernel
+> +should respond in kind by devoting a similar fraction of system resources to
+> +service the request.
+> +
+> +Before ktask, for example, when booting a NUMA machine with many CPUs, only one
+> +thread per node was used to initialize struct pages.  Using additional CPUs
+> +that would otherwise be idle until the machine is fully up avoids a needless
+> +bottleneck during system boot and allows the kernel to take advantage of unused
+> +memory bandwidth.
+> +
+> +Why a new framework when there are existing kernel APIs for managing
+> +concurrency and other ways to improve performance?  Of the existing facilities,
+> +workqueues aren't designed to divide work up (although ktask is built on
+> +unbound workqueues), and kthread_worker supports only one thread.  Existing
+> +scalability techniques in the kernel such as doing work or holding locks in
+> +batches are helpful and should be applied first for performance problems, but
+> +eventually a single thread hits a wall.
+> +
+> +
+> +Concept
+> +=======
+> +
+> +A little terminology up front:  A 'task' is the total work there is to do and a
+> +'chunk' is a unit of work given to a thread.
+> +
+> +To complete a task using the ktask framework, a client provides a thread
+> +function that is responsible for completing one chunk.  The thread function is
+> +defined in a standard way, with start and end arguments that delimit the chunk
+> +as well as an argument that the client uses to pass data specific to the task.
+> +
+> +In addition, the client supplies an object representing the start of the task
+> +and an iterator function that knows how to advance some number of units in the
+> +task to yield another object representing the new task position.  The framework
+> +uses the start object and iterator internally to divide the task into chunks.
+> +
+> +Finally, the client passes the total task size and a minimum chunk size to
+> +indicate the minimum amount of work that's appropriate to do in one chunk.  The
+> +sizes are given in task-specific units (e.g. pages, inodes, bytes).  The
+> +framework uses these sizes, along with the number of online CPUs and an
+> +internal maximum number of threads, to decide how many threads to start and how
+> +many chunks to divide the task into.
+> +
+> +For example, consider the task of clearing a gigantic page.  This used to be
+> +done in a single thread with a for loop that calls a page clearing function for
+> +each constituent base page.  To parallelize with ktask, the client first moves
+> +the for loop to the thread function, adapting it to operate on the range passed
+> +to the function.  In this simple case, the thread function's start and end
+> +arguments are just addresses delimiting the portion of the gigantic page to
+> +clear.  Then, where the for loop used to be, the client calls into ktask with
+> +the start address of the gigantic page, the total size of the gigantic page,
+> +and the thread function.  Internally, ktask will divide the address range into
+> +an appropriate number of chunks and start an appropriate number of threads to
+> +complete these chunks.
+> +
+> +
+> +Configuration
+> +=============
+> +
+> +To use ktask, configure the kernel with CONFIG_KTASK=y.
+> +
+> +If CONFIG_KTASK=n, calls to the ktask API are simply #define'd to run the
+> +thread function that the client provides so that the task is completed without
+> +concurrency in the current thread.
+> +
+> +
+> +Interface
+> +=========
+> +
+> +.. Include ktask.h inline here.  This file is heavily commented and documents
+> +.. the ktask interface.
+> +.. kernel-doc:: include/linux/ktask.h
+> +
+> +
+> +Resource Limits and Auto-Tuning
+> +===============================
+> +
+> +ktask has resource limits on the number of workqueue items it queues.  In
+> +ktask, a workqueue item is a thread that runs chunks of the task until the task
+> +is finished.
+> +
+> +These limits support the different ways ktask uses workqueues:
+> + - ktask_run to run threads on the calling thread's node.
+> + - ktask_run_numa to run threads on the node(s) specified.
+> + - ktask_run_numa with nid=NUMA_NO_NODE to run threads on any node in the
+> +   system.
+> +
+> +To support these different ways of queueing work while maintaining an efficient
+> +concurrency level, we need both system-wide and per-node limits on the number
+> +of threads.  Without per-node limits, a node might become oversubscribed
+> +despite ktask staying within the system-wide limit, and without a system-wide
+> +limit, we can't properly account for work that can run on any node.
+> +
+> +The system-wide limit is based on the total number of CPUs, and the per-node
+> +limit on the CPU count for each node.  A per-node work item counts against the
+> +system-wide limit.  Workqueue's max_active can't accommodate both types of
+> +limit, no matter how many workqueues are used, so ktask implements its own.
+> +
+> +If a per-node limit is reached, the work item is allowed to run anywhere on the
+> +machine to avoid overwhelming the node.  If the global limit is also reached,
+> +ktask won't queue additional work items until we fall below the limit again.
+> +
+> +These limits apply only to workqueue items--that is, additional threads beyond
+> +the one starting the task.  That way, one thread per task is always allowed to
+> +run.
+> +
+> +Within the resource limits, ktask uses a default maximum number of threads per
+> +task to avoid disturbing other processes on the system.  Callers can change the
+> +limit with ktask_ctl_set_max_threads.  For example, this might be used to raise
+> +the maximum number of threads for a boot-time initialization task when more
+> +CPUs than usual are idle.
+> +
+> +
+> +Backward Compatibility
+> +======================
+> +
+> +ktask is written so that existing calls to the API will be backwards compatible
+> +should the API gain new features in the future.  This is accomplished by
+> +restricting API changes to members of struct ktask_ctl and having clients make
+> +an opaque initialization call (DEFINE_KTASK_CTL).  This initialization can then
+> +be modified to include any new arguments so that existing call sites stay the
+> +same.
+> +
+> +
+> +Error Handling
+> +==============
+> +
+> +Calls to ktask fail only if the provided thread function fails.  In particular,
+> +ktask avoids allocating memory internally during a task, so it's safe to use in
+> +sensitive contexts.
+> +
+> +To avoid adding features before they're used, ktask currently has only basic
+> +error handling.  Each call to ktask_run and ktask_run_numa returns a simple
+> +error code, KTASK_RETURN_SUCCESS or KTASK_RETURN_ERROR.  As usage of the
+> +framework expands, however, error handling will likely need to be enhanced in
+> +two ways.
+> +
+> +First, ktask may need client-specific error reporting.  It's possible for tasks
+> +to fail for different reasons, so the framework should have a way to
+> +communicate client-specific error information.  For this purpose, allow the
+> +client to pass a pointer for its own error information in struct ktask_ctl.
+> +
+> +Second, tasks can fail midway through their work.  To recover, the finished
+> +chunks of work need to be undone in a task-specific way, so ktask should allow
+> +clients to pass an "undo" callback that is responsible for undoing one chunk of
+> +work.  To avoid multiple levels of error handling, this "undo" callback should
+> +not be allowed to fail.  The iterator used for the original task can simply be
+> +reused for the undo operation.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
