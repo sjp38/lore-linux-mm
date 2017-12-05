@@ -1,234 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D6FC6B0033
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:49:30 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id i68so801143vkd.15
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:49:30 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id y125si660300vkf.22.2017.12.05.11.49.28
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C5F7D6B0253
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:49:31 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id f9so1094906qtf.6
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:49:31 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id 13si216146qtp.385.2017.12.05.11.49.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 11:49:28 -0800 (PST)
+        Tue, 05 Dec 2017 11:49:30 -0800 (PST)
 From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v3 1/7] ktask: add documentation
-Date: Tue,  5 Dec 2017 14:52:14 -0500
-Message-Id: <20171205195220.28208-2-daniel.m.jordan@oracle.com>
-In-Reply-To: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
-References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
+Subject: [RFC PATCH v3 0/7] ktask: multithread CPU-intensive kernel work
+Date: Tue,  5 Dec 2017 14:52:13 -0500
+Message-Id: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
 
-Motivates and explains the ktask API for kernel clients.
+What do people think of the overall design and direction?
 
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
-Cc: Aaron Lu <aaron.lu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
----
+There's documentation describing the design in the first patch of the
+series and the second patch has the API in ktask.h.
+
+         Thanks,
+            Daniel
+
+
+Changelog:
+
+v2 -> v3:
+ - Changed cpu to CPU in the ktask Documentation, as suggested by Randy Dunlap
+ - Saved more boot time now that Pavel Tatashin's deferred struct page init
+   patches are in mainline (https://lkml.org/lkml/2017/10/13/692).  New
+   performance results in patch 7.
+ - Added resource limits, per-node and system-wide, to maintain efficient
+   concurrency levels (addresses a concern from my Plumbers talk)
+ - ktask no longer allocates memory internally during a task so it can be used
+   in sensitive contexts
+ - Added the option to run work anywhere on the system rather than always
+   confining it to a specific node
+ - Updated Documentation patch with these changes and reworked motivation
+   section
+
+v1 -> v2:
+ - Added deferred struct page initialization use case.
+ - Explained the source of the performance improvement from parallelizing
+   clear_gigantic_page (comment from Dave Hansen).
+ - Fixed Documentation and build warnings from CONFIG_KTASK=n kernels.
+
+My Linux Plumbers Unconference Talk:
+  https://www.linuxplumbersconf.org/2017/ocw/proposals/4837
+  (please ignore OpenID's misapprehension that James Bottomley was speaker)
+
+ktask is a generic framework for parallelizing CPU-intensive work in the
+kernel.  The intended use is for big machines that can use their CPU power
+to speed up large tasks that can't otherwise be multithreaded in userland.
+The API is generic enough to add concurrency to many different kinds of
+tasks--for example, zeroing a range of pages or evicting a list of
+inodes--and aims to save its clients the trouble of splitting up the work,
+choosing the number of threads to use, starting these threads, and load
+balancing the work between them.
+
+This patchset is based on 4.15-rc2 plus one mmots fix[*] and contains three
+ktask users:
+ - deferred struct page initialization at boot time
+ - clearing gigantic pages
+ - fallocate for HugeTLB pages
+
+Work in progress:
+ - Parallelizing page freeing in the exit/munmap paths
+ - CPU hotplug support
+
+The core ktask code is based on work by Pavel Tatashin, Steve Sistare, and
+Jonathan Adams.
+
+ktask v1 RFC: https://lkml.org/lkml/2017/7/14/666
+ktask v2 RFC: https://lkml.org/lkml/2017/8/24/801
+
+[*] http://ozlabs.org/~akpm/mmots/broken-out/mm-split-deferred_init_range-into-initializing-and-freeing-parts.patch
+
+
+Daniel Jordan (7):
+  ktask: add documentation
+  ktask: multithread CPU-intensive kernel work
+  ktask: add /proc/sys/debug/ktask_max_threads
+  mm: enlarge type of offset argument in mem_map_offset and mem_map_next
+  mm: parallelize clear_gigantic_page
+  hugetlbfs: parallelize hugetlbfs_fallocate with ktask
+  mm: parallelize deferred struct page initialization within each node
+
  Documentation/core-api/index.rst |   1 +
- Documentation/core-api/ktask.rst | 173 +++++++++++++++++++++++++++++++++++++++
- 2 files changed, 174 insertions(+)
+ Documentation/core-api/ktask.rst | 173 ++++++++++++
+ fs/hugetlbfs/inode.c             | 116 ++++++--
+ include/linux/ktask.h            | 255 ++++++++++++++++++
+ include/linux/ktask_internal.h   |  22 ++
+ include/linux/mm.h               |   6 +
+ init/Kconfig                     |  12 +
+ init/main.c                      |   2 +
+ kernel/Makefile                  |   2 +-
+ kernel/ktask.c                   | 556 +++++++++++++++++++++++++++++++++++++++
+ kernel/sysctl.c                  |  10 +
+ mm/internal.h                    |   7 +-
+ mm/memory.c                      |  35 ++-
+ mm/page_alloc.c                  |  78 ++++--
+ 14 files changed, 1226 insertions(+), 49 deletions(-)
  create mode 100644 Documentation/core-api/ktask.rst
+ create mode 100644 include/linux/ktask.h
+ create mode 100644 include/linux/ktask_internal.h
+ create mode 100644 kernel/ktask.c
 
-diff --git a/Documentation/core-api/index.rst b/Documentation/core-api/index.rst
-index d5bbe035316d..255724095814 100644
---- a/Documentation/core-api/index.rst
-+++ b/Documentation/core-api/index.rst
-@@ -15,6 +15,7 @@ Core utilities
-    assoc_array
-    atomic_ops
-    cpu_hotplug
-+   ktask
-    local_ops
-    workqueue
-    genericirq
-diff --git a/Documentation/core-api/ktask.rst b/Documentation/core-api/ktask.rst
-new file mode 100644
-index 000000000000..703f200c7d36
---- /dev/null
-+++ b/Documentation/core-api/ktask.rst
-@@ -0,0 +1,173 @@
-+============================================
-+ktask: parallelize CPU-intensive kernel work
-+============================================
-+
-+:Date: December, 2017
-+:Author: Daniel Jordan <daniel.m.jordan@oracle.com>
-+
-+
-+Introduction
-+============
-+
-+ktask is a generic framework for parallelizing CPU-intensive work in the
-+kernel.  The intended use is for big machines that can use their CPU power to
-+speed up large tasks that can't otherwise be multithreaded in userland.  The
-+API is generic enough to add concurrency to many different kinds of tasks--for
-+example, zeroing a range of pages or evicting a list of inodes--and aims to
-+save its clients the trouble of splitting up the work, choosing the number of
-+threads to use, maintaining an efficient concurrency level, starting these
-+threads, and load balancing the work between them.
-+
-+
-+Motivation
-+==========
-+
-+To ensure that applications and the kernel itself continue to perform well as
-+core counts and memory sizes increase, the kernel needs to scale.  For example,
-+when a system call requests a certain fraction of system resources, the kernel
-+should respond in kind by devoting a similar fraction of system resources to
-+service the request.
-+
-+Before ktask, for example, when booting a NUMA machine with many CPUs, only one
-+thread per node was used to initialize struct pages.  Using additional CPUs
-+that would otherwise be idle until the machine is fully up avoids a needless
-+bottleneck during system boot and allows the kernel to take advantage of unused
-+memory bandwidth.
-+
-+Why a new framework when there are existing kernel APIs for managing
-+concurrency and other ways to improve performance?  Of the existing facilities,
-+workqueues aren't designed to divide work up (although ktask is built on
-+unbound workqueues), and kthread_worker supports only one thread.  Existing
-+scalability techniques in the kernel such as doing work or holding locks in
-+batches are helpful and should be applied first for performance problems, but
-+eventually a single thread hits a wall.
-+
-+
-+Concept
-+=======
-+
-+A little terminology up front:  A 'task' is the total work there is to do and a
-+'chunk' is a unit of work given to a thread.
-+
-+To complete a task using the ktask framework, a client provides a thread
-+function that is responsible for completing one chunk.  The thread function is
-+defined in a standard way, with start and end arguments that delimit the chunk
-+as well as an argument that the client uses to pass data specific to the task.
-+
-+In addition, the client supplies an object representing the start of the task
-+and an iterator function that knows how to advance some number of units in the
-+task to yield another object representing the new task position.  The framework
-+uses the start object and iterator internally to divide the task into chunks.
-+
-+Finally, the client passes the total task size and a minimum chunk size to
-+indicate the minimum amount of work that's appropriate to do in one chunk.  The
-+sizes are given in task-specific units (e.g. pages, inodes, bytes).  The
-+framework uses these sizes, along with the number of online CPUs and an
-+internal maximum number of threads, to decide how many threads to start and how
-+many chunks to divide the task into.
-+
-+For example, consider the task of clearing a gigantic page.  This used to be
-+done in a single thread with a for loop that calls a page clearing function for
-+each constituent base page.  To parallelize with ktask, the client first moves
-+the for loop to the thread function, adapting it to operate on the range passed
-+to the function.  In this simple case, the thread function's start and end
-+arguments are just addresses delimiting the portion of the gigantic page to
-+clear.  Then, where the for loop used to be, the client calls into ktask with
-+the start address of the gigantic page, the total size of the gigantic page,
-+and the thread function.  Internally, ktask will divide the address range into
-+an appropriate number of chunks and start an appropriate number of threads to
-+complete these chunks.
-+
-+
-+Configuration
-+=============
-+
-+To use ktask, configure the kernel with CONFIG_KTASK=y.
-+
-+If CONFIG_KTASK=n, calls to the ktask API are simply #define'd to run the
-+thread function that the client provides so that the task is completed without
-+concurrency in the current thread.
-+
-+
-+Interface
-+=========
-+
-+.. Include ktask.h inline here.  This file is heavily commented and documents
-+.. the ktask interface.
-+.. kernel-doc:: include/linux/ktask.h
-+
-+
-+Resource Limits and Auto-Tuning
-+===============================
-+
-+ktask has resource limits on the number of workqueue items it queues.  In
-+ktask, a workqueue item is a thread that runs chunks of the task until the task
-+is finished.
-+
-+These limits support the different ways ktask uses workqueues:
-+ - ktask_run to run threads on the calling thread's node.
-+ - ktask_run_numa to run threads on the node(s) specified.
-+ - ktask_run_numa with nid=NUMA_NO_NODE to run threads on any node in the
-+   system.
-+
-+To support these different ways of queueing work while maintaining an efficient
-+concurrency level, we need both system-wide and per-node limits on the number
-+of threads.  Without per-node limits, a node might become oversubscribed
-+despite ktask staying within the system-wide limit, and without a system-wide
-+limit, we can't properly account for work that can run on any node.
-+
-+The system-wide limit is based on the total number of CPUs, and the per-node
-+limit on the CPU count for each node.  A per-node work item counts against the
-+system-wide limit.  Workqueue's max_active can't accommodate both types of
-+limit, no matter how many workqueues are used, so ktask implements its own.
-+
-+If a per-node limit is reached, the work item is allowed to run anywhere on the
-+machine to avoid overwhelming the node.  If the global limit is also reached,
-+ktask won't queue additional work items until we fall below the limit again.
-+
-+These limits apply only to workqueue items--that is, additional threads beyond
-+the one starting the task.  That way, one thread per task is always allowed to
-+run.
-+
-+Within the resource limits, ktask uses a default maximum number of threads per
-+task to avoid disturbing other processes on the system.  Callers can change the
-+limit with ktask_ctl_set_max_threads.  For example, this might be used to raise
-+the maximum number of threads for a boot-time initialization task when more
-+CPUs than usual are idle.
-+
-+
-+Backward Compatibility
-+======================
-+
-+ktask is written so that existing calls to the API will be backwards compatible
-+should the API gain new features in the future.  This is accomplished by
-+restricting API changes to members of struct ktask_ctl and having clients make
-+an opaque initialization call (DEFINE_KTASK_CTL).  This initialization can then
-+be modified to include any new arguments so that existing call sites stay the
-+same.
-+
-+
-+Error Handling
-+==============
-+
-+Calls to ktask fail only if the provided thread function fails.  In particular,
-+ktask avoids allocating memory internally during a task, so it's safe to use in
-+sensitive contexts.
-+
-+To avoid adding features before they're used, ktask currently has only basic
-+error handling.  Each call to ktask_run and ktask_run_numa returns a simple
-+error code, KTASK_RETURN_SUCCESS or KTASK_RETURN_ERROR.  As usage of the
-+framework expands, however, error handling will likely need to be enhanced in
-+two ways.
-+
-+First, ktask may need client-specific error reporting.  It's possible for tasks
-+to fail for different reasons, so the framework should have a way to
-+communicate client-specific error information.  For this purpose, allow the
-+client to pass a pointer for its own error information in struct ktask_ctl.
-+
-+Second, tasks can fail midway through their work.  To recover, the finished
-+chunks of work need to be undone in a task-specific way, so ktask should allow
-+clients to pass an "undo" callback that is responsible for undoing one chunk of
-+work.  To avoid multiple levels of error handling, this "undo" callback should
-+not be allowed to fail.  The iterator used for the original task can simply be
-+reused for the undo operation.
 -- 
 2.15.0
 
