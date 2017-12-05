@@ -1,63 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 372816B026D
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:19:30 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id m9so15844850pff.0
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:19:30 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j25sor3606067pgn.17.2017.12.05.01.19.28
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C6106B026F
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:34:56 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 11so11642108wrb.18
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:34:56 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id d82si6384041wmd.237.2017.12.05.01.34.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 05 Dec 2017 01:19:28 -0800 (PST)
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Dec 2017 01:34:54 -0800 (PST)
+Date: Tue, 5 Dec 2017 10:34:08 +0100 (CET)
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [patch 57/60] x86/mm/kpti: Add Kconfig
+In-Reply-To: <alpine.DEB.2.20.1712041757110.1788@nanos>
+Message-ID: <alpine.DEB.2.20.1712051033010.1676@nanos>
+References: <20171204140706.296109558@linutronix.de> <20171204150609.511885345@linutronix.de> <CALCETrVfasJMa_++EB-bFm_MzHAzKqvjRPsaBo2m8YTzRomkxg@mail.gmail.com> <alpine.DEB.2.20.1712041757110.1788@nanos>
 MIME-Version: 1.0
-In-Reply-To: <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
-References: <94eb2c0d010a4e7897055f70535b@google.com> <20171204083339.GF8365@quack2.suse.cz>
- <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 5 Dec 2017 10:19:07 +0100
-Message-ID: <CACT4Y+arqmp6RW4mt3EyaPqxqxPyY31kjDLftnof5DkwfyoyRQ@mail.gmail.com>
-Subject: Re: possible deadlock in generic_file_write_iter (2)
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Jan Kara <jack@suse.cz>, syzbot <bot+045a1f65bdea780940bf0f795a292f4cd0b773d1@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, Peter Zijlstra <peterz@infradead.org>, kernel-team@lge.com
+To: Andy Lutomirski <luto@kernel.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, moritz.lipp@iaik.tugraz.at, "linux-mm@kvack.org" <linux-mm@kvack.org>, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at
 
-On Tue, Dec 5, 2017 at 5:58 AM, Byungchul Park <byungchul.park@lge.com> wrote:
-> On 12/4/2017 5:33 PM, Jan Kara wrote:
->>
->> Hello,
->>
->> adding Peter and Byungchul to CC since the lockdep report just looks
->> strange and cross-release seems to be involved. Guys, how did #5 get into
->> the lock chain and what does put_ucounts() have to do with sb_writers
->> there? Thanks!
->
->
-> Hello Jan,
->
-> In order to get full stack of #5, we have to pass a boot param,
-> "crossrelease_fullstack", to the kernel. Now that it only informs
-> put_ucounts() in the call trace, it's hard to find out what exactly
-> happened at that time, but I can tell #5 shows:
->
-> When acquire(sb_writers) in put_ucounts(), it was on the way to
-> complete((completion)&req.done) of wait_for_completion() in
-> devtmpfs_create_node().
->
-> If acquire(sb_writers) in put_ucounts() is stuck, then
-> wait_for_completion() in devtmpfs_create_node() would be also
-> stuck, since complete() being in the context of acquire(sb_writers)
-> cannot be called.
->
-> This is why cross-release added the lock chain.
+On Mon, 4 Dec 2017, Thomas Gleixner wrote:
+> On Mon, 4 Dec 2017, Andy Lutomirski wrote:
+> > On Mon, Dec 4, 2017 at 6:08 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > > --- a/security/Kconfig
+> > > +++ b/security/Kconfig
+> > > @@ -54,6 +54,16 @@ config SECURITY_NETWORK
+> > >           implement socket and networking access controls.
+> > >           If you are unsure how to answer this question, answer N.
+> > >
+> > > +config KERNEL_PAGE_TABLE_ISOLATION
+> > > +       bool "Remove the kernel mapping in user mode"
+> > > +       depends on X86_64 && JUMP_LABEL
+> > 
+> > select JUMP_LABEL perhaps?
+> 
+> Silly me. Yes.
 
-Hi,
+Peter just pointed out that we switched everything to cpu_has() which is
+using alternatives so jump label is not longer required at all.
 
-What is cross-release? Is it something new? Should we always enable
-crossrelease_fullstack during testing?
+Thanks,
 
-Thanks
+	tglx
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
