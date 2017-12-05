@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 20EE16B0253
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 01:19:51 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id p1so15392624pfp.13
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 22:19:51 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id z19si10427437pgv.738.2017.12.04.22.19.49
-        for <linux-mm@kvack.org>;
-        Mon, 04 Dec 2017 22:19:49 -0800 (PST)
-Subject: Re: [PATCH v2 0/4] lockdep/crossrelease: Apply crossrelease to page
- locks
-From: Byungchul Park <byungchul.park@lge.com>
-References: <1512364583-26070-1-git-send-email-byungchul.park@lge.com>
- <20171205053023.GB20757@bombadil.infradead.org>
- <0aad02e4-f477-1ee3-471a-3e1371ebba1e@lge.com>
-Message-ID: <55674f0a-7886-f1d2-d7f1-6bf42c1e89e3@lge.com>
-Date: Tue, 5 Dec 2017 15:19:46 +0900
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F4F26B0033
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 02:05:13 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 96so11537153wrk.7
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 23:05:13 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 5si1390826edm.313.2017.12.04.23.05.11
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 04 Dec 2017 23:05:12 -0800 (PST)
+Date: Tue, 5 Dec 2017 08:05:10 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mmap.2: MAP_FIXED updated documentation
+Message-ID: <20171205070510.aojohhvixijk3i27@dhcp22.suse.cz>
+References: <20171204021411.4786-1-jhubbard@nvidia.com>
+ <20171204105549.GA31332@rei>
+ <efb6eae4-7f30-42c3-0efe-0ab5fbf0fdb4@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <0aad02e4-f477-1ee3-471a-3e1371ebba1e@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <efb6eae4-7f30-42c3-0efe-0ab5fbf0fdb4@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: peterz@infradead.org, mingo@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com, jack@suse.cz, jlayton@redhat.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, npiggin@gmail.com, rgoldwyn@suse.com, vbabka@suse.cz, mhocko@suse.com, pombredanne@nexb.com, vinmenon@codeaurora.org, gregkh@linuxfoundation.org
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Cyril Hrubis <chrubis@suse.cz>, Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>
 
-On 12/5/2017 2:46 PM, Byungchul Park wrote:
-> On 12/5/2017 2:30 PM, Matthew Wilcox wrote:
->> On Mon, Dec 04, 2017 at 02:16:19PM +0900, Byungchul Park wrote:
->>> For now, wait_for_completion() / complete() works with lockdep, add
->>> lock_page() / unlock_page() and its family to lockdep support.
->>>
->>> Changes from v1
->>> A  - Move lockdep_map_cross outside of page_ext to make it flexible
->>> A  - Prevent allocating lockdep_map per page by default
->>> A  - Add a boot parameter allowing the allocation for debugging
->>>
->>> Byungchul Park (4):
->>> A A  lockdep: Apply crossrelease to PG_locked locks
->>> A A  lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
->>> A A  lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
->>> A A  lockdep: Add a boot parameter enabling to track page locks using
->>> A A A A  lockdep and disable it by default
->>
->> I don't like the way you've structured this patch series; first adding
->> the lockdep map to struct page, then moving it to page_ext.
+On Mon 04-12-17 18:14:18, John Hubbard wrote:
+> On 12/04/2017 02:55 AM, Cyril Hrubis wrote:
+> > Hi!
+> > I know that we are not touching the rest of the existing description for
+> > MAP_FIXED however the second sentence in the manual page says that "addr
+> > must be a multiple of the page size." Which however is misleading as
+> > this is not enough on some architectures. Code in the wild seems to
+> > (mis)use SHMLBA for aligment purposes but I'm not sure that we should
+> > advise something like that in the manpages.
+> > 
+> > So what about something as:
+> > 
+> > "addr must be suitably aligned, for most architectures multiple of page
+> > size is sufficient, however some may impose additional restrictions for
+> > page mapping addresses."
+> > 
 > 
-> Hello,
+> Hi Cyril,
 > 
-> I will make them into one patch.
+> Right, so I've been looking into this today, and I think we can go a bit
+> further than that, even. The kernel, as far back as the *original* git
+> commit in 2005, implements mmap on ARM by requiring that the address is
+> aligned to SHMLBA:
+> 
+> arch/arm/mm/mmap.c:50:
+> 
+> 	if (flags & MAP_FIXED) {
+> 		if (aliasing && flags & MAP_SHARED &&
+> 		    (addr - (pgoff << PAGE_SHIFT)) & (SHMLBA - 1))
+> 			return -EINVAL;
+> 		return addr;
+> 	}
+> 
+> So, given that this has been the implementation for the last 12+ years (and
+> probably the whole time, in fact), I think we can be bold enough to use this
+> wording for the second sentence of MAP_FIXED:
+> 
+> "addr must be a multiple of SHMLBA (<sys/shm.h>), which in turn is either
+> the system page size (on many architectures) or a multiple of the system
+> page size (on some architectures)."
+> 
+> What do you think?
 
-I've thought it more.
-
-Actually I did it because I thought I'd better make it into two
-patches since it makes reviewers easier to review. It doesn't matter
-which one I choose, but I prefer to split it.
-
-But, if you are strongly against it, then I will follow you.
+I am not sure this is a good idea. This is pulling way too many
+implementation details into the man page IMHO. Note that your wording is
+even incorrect because this applies only to shared mappings and on some
+architectures it even requires special memory regions. We do not want
+all that in the man page...
 
 -- 
-Thanks,
-Byungchul
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
