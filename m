@@ -1,176 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 613726B0268
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:49:35 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id z37so1076331qtz.16
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:49:35 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id c19si210040qta.479.2017.12.05.11.49.33
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E594F6B0271
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:54:04 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id m17so914489pgu.19
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:54:04 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id k4si547871pls.297.2017.12.05.11.54.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 11:49:34 -0800 (PST)
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: [RFC PATCH v3 5/7] mm: parallelize clear_gigantic_page
-Date: Tue,  5 Dec 2017 14:52:18 -0500
-Message-Id: <20171205195220.28208-6-daniel.m.jordan@oracle.com>
-In-Reply-To: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
-References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
+        Tue, 05 Dec 2017 11:54:03 -0800 (PST)
+Date: Tue, 5 Dec 2017 11:54:00 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] dax: fix potential overflow on 32bit machine
+Message-ID: <20171205195400.GC26021@bombadil.infradead.org>
+References: <20171205033210.38338-1-yi.zhang@huawei.com>
+ <20171205052407.GA20757@bombadil.infradead.org>
+ <20171205170709.GA21010@linux.intel.com>
+ <20171205173713.GA26021@bombadil.infradead.org>
+ <20171205191928.GB21010@linux.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171205191928.GB21010@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mawilcox@microsoft.com, viro@zeniv.linux.org.uk, miaoxie@huawei.com
 
-Parallelize clear_gigantic_page, which zeroes any page size larger than
-8M (e.g. 1G on x86 or 2G on SPARC).
+On Tue, Dec 05, 2017 at 12:19:28PM -0700, Ross Zwisler wrote:
+> On Tue, Dec 05, 2017 at 09:37:13AM -0800, Matthew Wilcox wrote:
+> > On Tue, Dec 05, 2017 at 10:07:09AM -0700, Ross Zwisler wrote:
+> > > >  /* The 'colour' (ie low bits) within a PMD of a page offset.  */
+> > > >  #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+> > > > +#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
+> > > 
+> > > I wonder if it's confusing that PG_PMD_COLOUR is a mask, but PG_PMD_NR is a
+> > > count?  Would "PAGES_PER_PMD" be clearer, in the spirit of
+> > > PTRS_PER_{PGD,PMD,PTE}? 
+> > 
+> > Maybe.  I don't think that 'NR' can ever be confused with a mask.
+> > I went with PG_PMD_NR because I didn't want to use HPAGE_PMD_NR, but
+> > in retrospect I just needed to go to sleep and leave thinking about
+> > hard problems like naming things for the morning.  I decided to call it
+> > 'colour' rather than 'mask' originally because I got really confused with
+> > PMD_MASK masking off the low bits.  If you ask 'What colour is this page
+> > within the PMD', you know you're talking about the low bits.
+> > 
+> > I actually had cause to define PMD_ORDER in a separate unrelated patch
+> > I was working on this morning.  How does this set of definitions grab you?
+> > 
+> > #define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
+> > #define PMD_PAGES	(1UL << PMD_ORDER)
+> > #define PMD_PAGE_COLOUR	(PMD_PAGES - 1)
+> > 
+> > and maybe put them in linux/mm.h so everybody can see them?
+> 
+> Yep, I personally like these better, and putting them in a global header seems
+> like the right way to go.
 
-Performance results (the default number of threads is 4; higher thread
-counts shown for context only):
+Ugh.  ARM, MIPS and PARISC all define a rather interesting PMD_ORDER.
+I'm going to have to rename them first.
 
-Machine: SPARC T7-4, 1024 CPUs, 504G memory
-Test:    Clear a range of gigantic pages
+> > > Also, can we use the same define both in fs/dax.c and in mm/truncate.c,
+> > > instead of the latter using HPAGE_PMD_NR?
+> > 
+> > I'm OK with the latter using HPAGE_PMD_NR because it's explicitly "is
+> > this a huge page?"  But I'd kind of like to get rid of a lot of the HPAGE_*
+> > definitions, so 
+> 
+> I would also like to get rid of them if possible, but quick grep makes me
+> think that unfortunately they may not be entirely equivalent to other defines
+> we have?
+> 
+> i.e:
+> 
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      13
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      14
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      15
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      16
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      17
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      18
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      19
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      20
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      21
+> arch/metag/include/asm/page.h:# define HPAGE_SHIFT      22
+> 
+> this arch has no PMD_SHIFT definition...
+> 
+> I'm not really familiar with the HPAGE defines, though, so maybe it's not as
+> complex as it seems.
 
-nthread   speedup   size (GiB)   min time (s)   stdev
-      1                     50           7.77    0.02
-      2     1.97x           50           3.95    0.04
-      4     3.85x           50           2.02    0.05
-      8     6.27x           50           1.24    0.10
-     16     9.84x           50           0.79    0.06
-
-      1                    100          15.50    0.07
-      2     1.91x          100           8.10    0.05
-      4     3.48x          100           4.45    0.07
-      8     5.18x          100           2.99    0.05
-     16     7.79x          100           1.99    0.12
-
-      1                    200          31.03    0.15
-      2     1.88x          200          16.47    0.02
-      4     3.37x          200           9.20    0.14
-      8     5.16x          200           6.01    0.19
-     16     7.04x          200           4.41    0.06
-
-Machine:  Intel(R) Xeon(R) CPU E7-8895 v3 @ 2.60GHz, 288 CPUs, 1T memory
-Test:     Clear a range of gigantic pages
-
-nthread   speedup   size (GiB)   min time (s)   stdev
-      1                    100          41.13    0.03
-      2     2.03x          100          20.26    0.14
-      4     4.28x          100           9.62    0.09
-      8     8.39x          100           4.90    0.05
-     16    10.44x          100           3.94    0.03
-
-      1                    200          89.68    0.35
-      2     2.21x          200          40.64    0.18
-      4     4.64x          200          19.33    0.32
-      8     8.99x          200           9.98    0.04
-     16    11.27x          200           7.96    0.04
-
-      1                    400         188.20    1.57
-      2     2.30x          400          81.84    0.09
-      4     4.63x          400          40.62    0.26
-      8     8.92x          400          21.09    0.50
-     16    11.78x          400          15.97    0.25
-
-      1                    800         434.91    1.81
-      2     2.54x          800         170.97    1.46
-      4     4.98x          800          87.38    1.91
-      8    10.15x          800          42.86    2.59
-     16    12.99x          800          33.48    0.83
-
-The speedups are mostly due to the fact that more threads can use more
-memory bandwidth.  The loop we're stressing on the x86 chip in this test
-is clear_page_erms, which tops out at a bandwidth of 2550 MiB/s with one
-thread.  We get the same bandwidth per thread for 2, 4, or 8 threads,
-but at 16 threads the per-thread bandwidth drops to 1420 MiB/s.
-
-However, the performance also improves over a single thread because of
-the ktask threads' NUMA awareness (ktask migrates worker threads to the
-node local to the work being done).  This becomes a bigger factor as the
-amount of pages to zero grows to include memory from multiple nodes, so
-that speedups increase as the size increases.
-
-Signed-off-by: Daniel Jordan <daniel.m.jordan@oracle.com>
-Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
-Cc: Aaron Lu <aaron.lu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: Pavel Tatashin <pasha.tatashin@oracle.com>
-Cc: Tim Chen <tim.c.chen@intel.com>
----
- mm/memory.c | 35 +++++++++++++++++++++++++++--------
- 1 file changed, 27 insertions(+), 8 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 5eb3d2524bdc..ca0a9a05ac7a 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -70,6 +70,7 @@
- #include <linux/userfaultfd_k.h>
- #include <linux/dax.h>
- #include <linux/oom.h>
-+#include <linux/ktask.h>
- 
- #include <asm/io.h>
- #include <asm/mmu_context.h>
-@@ -4532,20 +4533,31 @@ EXPORT_SYMBOL(__might_fault);
- #endif
- 
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLBFS)
--static void clear_gigantic_page(struct page *page,
--				unsigned long addr,
--				unsigned int pages_per_huge_page)
-+
-+struct cgp_args {
-+	struct page	*base_page;
-+	unsigned long	addr;
-+};
-+
-+static int clear_gigantic_page_chunk(unsigned long start, unsigned long end,
-+				     struct cgp_args *args)
- {
--	int i;
--	struct page *p = page;
-+	struct page *base_page = args->base_page;
-+	struct page *p = base_page;
-+	unsigned long addr = args->addr;
-+	unsigned long i;
- 
- 	might_sleep();
--	for (i = 0; i < pages_per_huge_page;
--	     i++, p = mem_map_next(p, page, i)) {
-+	for (i = start; i < end; ++i) {
- 		cond_resched();
- 		clear_user_highpage(p, addr + i * PAGE_SIZE);
-+
-+		p = mem_map_next(p, base_page, i);
- 	}
-+
-+	return KTASK_RETURN_SUCCESS;
- }
-+
- void clear_huge_page(struct page *page,
- 		     unsigned long addr_hint, unsigned int pages_per_huge_page)
- {
-@@ -4554,7 +4566,14 @@ void clear_huge_page(struct page *page,
- 		~(((unsigned long)pages_per_huge_page << PAGE_SHIFT) - 1);
- 
- 	if (unlikely(pages_per_huge_page > MAX_ORDER_NR_PAGES)) {
--		clear_gigantic_page(page, addr, pages_per_huge_page);
-+		struct cgp_args args = {page, addr};
-+		struct ktask_node node = {0, pages_per_huge_page,
-+					  page_to_nid(page)};
-+		DEFINE_KTASK_CTL(ctl, clear_gigantic_page_chunk, &args,
-+				 KTASK_BPGS_MINCHUNK);
-+
-+		ktask_run_numa(&node, 1, &ctl);
-+
- 		return;
- 	}
- 
--- 
-2.15.0
+I think it's more complex than it seems.  Some of the HPAGE definitions
+(like the ones you've found) are for hugetlbfs hugepages which are a
+bit different from the transparent hugepages.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
