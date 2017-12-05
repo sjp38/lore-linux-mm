@@ -1,131 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B3B786B0033
-	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 22:13:04 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id t9so13140122pgu.1
-        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 19:13:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x23sor2638306pgc.322.2017.12.04.19.13.03
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 04 Dec 2017 19:13:03 -0800 (PST)
-From: john.hubbard@gmail.com
-Subject: [PATCH v3] mmap.2: MAP_FIXED updated documentation
-Date: Mon,  4 Dec 2017 19:12:57 -0800
-Message-Id: <20171205031257.14407-1-jhubbard@nvidia.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B7FB16B0033
+	for <linux-mm@kvack.org>; Mon,  4 Dec 2017 23:58:13 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id p17so15098265pfh.18
+        for <linux-mm@kvack.org>; Mon, 04 Dec 2017 20:58:13 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id f12si10752260plo.19.2017.12.04.20.58.10
+        for <linux-mm@kvack.org>;
+        Mon, 04 Dec 2017 20:58:11 -0800 (PST)
+Subject: Re: possible deadlock in generic_file_write_iter (2)
+References: <94eb2c0d010a4e7897055f70535b@google.com>
+ <20171204083339.GF8365@quack2.suse.cz>
+From: Byungchul Park <byungchul.park@lge.com>
+Message-ID: <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
+Date: Tue, 5 Dec 2017 13:58:09 +0900
+MIME-Version: 1.0
+In-Reply-To: <20171204083339.GF8365@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>
+To: Jan Kara <jack@suse.cz>, syzbot <bot+045a1f65bdea780940bf0f795a292f4cd0b773d1@syzkaller.appspotmail.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, peterz@infradead.org, kernel-team@lge.com
 
-From: John Hubbard <jhubbard@nvidia.com>
+On 12/4/2017 5:33 PM, Jan Kara wrote:
+> Hello,
+> 
+> adding Peter and Byungchul to CC since the lockdep report just looks
+> strange and cross-release seems to be involved. Guys, how did #5 get into
+> the lock chain and what does put_ucounts() have to do with sb_writers
+> there? Thanks!
 
-Previously, MAP_FIXED was "discouraged", due to portability
-issues with the fixed address. In fact, there are other, more
-serious issues. Also, in some limited cases, this option can
-be used safely.
+Hello Jan,
 
-Expand the documentation to discuss both the hazards, and how
-to use it safely.
+In order to get full stack of #5, we have to pass a boot param,
+"crossrelease_fullstack", to the kernel. Now that it only informs
+put_ucounts() in the call trace, it's hard to find out what exactly
+happened at that time, but I can tell #5 shows:
 
-Some of the wording is lifted from Matthew Wilcox's review
-(the "Portability issues" section).
+When acquire(sb_writers) in put_ucounts(), it was on the way to
+complete((completion)&req.done) of wait_for_completion() in
+devtmpfs_create_node().
 
-Suggested-by: Matthew Wilcox <willy@infradead.org>
-Suggested-by: Jann Horn <jannh@google.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
+If acquire(sb_writers) in put_ucounts() is stuck, then
+wait_for_completion() in devtmpfs_create_node() would be also
+stuck, since complete() being in the context of acquire(sb_writers)
+cannot be called.
 
-Changes since v2:
+This is why cross-release added the lock chain.
 
-    -- Fixed up the "how to use safely" example, in response
-       to Mike Rapoport's review.
-
-    -- Changed the alignment requirement from system page
-       size, to SHMLBA. This was inspired by (but not yet
-       recommended by) Cyril Hrubis' review.
-
-    -- Formatting: underlined /proc/<pid>/maps 
-
-Changes since v1:
-
-    -- Covered topics recommended by Matthew Wilcox
-       and Jann Horn, in their recent review: the hazards
-       of overwriting pre-exising mappings, and some notes
-       about how to use MAP_FIXED safely.
-
-    -- Rewrote the commit description accordingly.
-
- man2/mmap.2 | 47 ++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 44 insertions(+), 3 deletions(-)
-
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index 385f3bfd5..0db8fad80 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -212,7 +212,9 @@ Don't interpret
- .I addr
- as a hint: place the mapping at exactly that address.
- .I addr
--must be a multiple of the page size.
-+must be a multiple of SHMLBA (<sys/shm.h>), which in turn is either
-+the system page size (on many architectures) or a multiple of the system
-+page size (on some architectures).
- If the memory region specified by
- .I addr
- and
-@@ -222,8 +224,47 @@ part of the existing mapping(s) will be discarded.
- If the specified address cannot be used,
- .BR mmap ()
- will fail.
--Because requiring a fixed address for a mapping is less portable,
--the use of this option is discouraged.
-+.IP
-+This option is extremely hazardous (when used on its own) and moderately
-+non-portable.
-+.IP
-+Portability issues: a process's memory map may change significantly from one
-+run to the next, depending on library versions, kernel versions and random
-+numbers.
-+.IP
-+Hazards: this option forcibly removes pre-existing mappings, making it easy
-+for a multi-threaded process to corrupt its own address space.
-+.IP
-+For example, thread A looks through
-+.I /proc/<pid>/maps
-+and locates an available
-+address range, while thread B simultaneously acquires part or all of that same
-+address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
-+thread B's mapping.
-+.IP
-+Thread B need not create a mapping directly; simply making a library call
-+that, internally, uses
-+.I dlopen(3)
-+to load some other shared library, will
-+suffice. The dlopen(3) call will map the library into the process's address
-+space. Furthermore, almost any library call may be implemented using this
-+technique.
-+Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-+(http://www.linux-pam.org).
-+.IP
-+Given the above limitations, one of the very few ways to use this option
-+safely is: mmap() an enclosing region, without specifying MAP_FIXED.
-+Then, within that region, call mmap(MAP_FIXED) to suballocate regions
-+within the enclosing region. This avoids both the portability problem
-+(because the first mmap call lets the kernel pick the address), and the
-+address space corruption problem (because implicit calls to mmap will
-+not affect the already-mapped enclosing region).
-+.IP
-+Newer kernels
-+(Linux 4.16 and later) have a
-+.B MAP_FIXED_SAFE
-+option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-+should be preferred over MAP_FIXED.
- .TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
 -- 
-2.15.1
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
