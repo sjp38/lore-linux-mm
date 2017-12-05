@@ -1,72 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B62626B0273
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:46:41 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id e70so9014wmc.6
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:46:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h38si13212ede.369.2017.12.05.01.46.40
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BE4796B0275
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 05:46:13 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c9so11333313wrb.4
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 02:46:13 -0800 (PST)
+Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
+        by mx.google.com with ESMTPS id y102si88529ede.315.2017.12.05.02.46.11
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 01:46:40 -0800 (PST)
-Date: Tue, 5 Dec 2017 10:46:38 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH V2] mm: check pfn_valid first in zero_resv_unavail
-Message-ID: <20171205094638.q7kyfuijt7e2ztth@dhcp22.suse.cz>
-References: <20171201095048.GA3084@dhcp-128-65.nay.redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 05 Dec 2017 02:46:11 -0800 (PST)
+Date: Tue, 5 Dec 2017 10:46:01 +0000
+From: Johannes Weiner <hannes@cmpxchg.org>
+Subject: Re: [PATCH 1/3] mm,oom: Move last second allocation to inside the
+ OOM killer.
+Message-ID: <20171205104601.GA1898@cmpxchg.org>
+References: <1511607169-5084-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171201143317.GC8097@cmpxchg.org>
+ <20171201144634.sc4cn6hyyt6zawms@dhcp22.suse.cz>
+ <20171201145638.GA10280@cmpxchg.org>
+ <20171201151715.yiep5wkmxmp77nxn@dhcp22.suse.cz>
+ <20171201155711.GA11057@cmpxchg.org>
+ <20171201163830.on5mykdtet2wa5is@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201095048.GA3084@dhcp-128-65.nay.redhat.com>
+In-Reply-To: <20171201163830.on5mykdtet2wa5is@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: linux-kernel@vger.kernel.org, pasha.tatashin@oracle.com, linux-mm@kvack.org, akpm@linux-foundation.org
+To: Michal Hocko <mhocko@suse.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, akpm@linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>
 
-On Fri 01-12-17 17:50:48, Dave Young wrote:
-> With latest kernel I get below bug while testing kdump:
-> [    0.000000] BUG: unable to handle kernel paging request at ffffea00034b1040
-> [    0.000000] IP: zero_resv_unavail+0xbd/0x126
-> [    0.000000] PGD 37b98067 P4D 37b98067 PUD 37b97067 PMD 0 
-> [    0.000000] Oops: 0002 [#1] SMP
-> [    0.000000] Modules linked in:
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.15.0-rc1+ #316
-> [    0.000000] Hardware name: LENOVO 20ARS1BJ02/20ARS1BJ02, BIOS GJET92WW (2.42 ) 03/03/2017
-> [    0.000000] task: ffffffff81a0e4c0 task.stack: ffffffff81a00000
-> [    0.000000] RIP: 0010:zero_resv_unavail+0xbd/0x126
-> [    0.000000] RSP: 0000:ffffffff81a03d88 EFLAGS: 00010006
-> [    0.000000] RAX: 0000000000000000 RBX: ffffea00034b1040 RCX: 0000000000000010
-> [    0.000000] RDX: 0000000000000000 RSI: 0000000000000092 RDI: ffffea00034b1040
-> [    0.000000] RBP: 00000000000d2c41 R08: 00000000000000c0 R09: 0000000000000a0d
-> [    0.000000] R10: 0000000000000002 R11: 0000000000007f01 R12: ffffffff81a03d90
-> [    0.000000] R13: ffffea0000000000 R14: 0000000000000063 R15: 0000000000000062
-> [    0.000000] FS:  0000000000000000(0000) GS:ffffffff81c73000(0000) knlGS:0000000000000000
-> [    0.000000] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    0.000000] CR2: ffffea00034b1040 CR3: 0000000037609000 CR4: 00000000000606b0
-> [    0.000000] Call Trace:
-> [    0.000000]  ? free_area_init_nodes+0x640/0x664
-> [    0.000000]  ? zone_sizes_init+0x58/0x72
-> [    0.000000]  ? setup_arch+0xb50/0xc6c
-> [    0.000000]  ? start_kernel+0x64/0x43d
-> [    0.000000]  ? secondary_startup_64+0xa5/0xb0
-> [    0.000000] Code: c1 e8 0c 48 39 d8 76 27 48 89 de 48 c1 e3 06 48 c7 c7 7a 87 79 81 e8 b0 c0 3e ff 4c 01 eb b9 10 00 00 00 31 c0 48 89 df 49 ff c6 <f3> ab eb bc 6a 00 49 
-> c7 c0 f0 93 d1 81 31 d2 83 ce ff 41 54 49 
-> [    0.000000] RIP: zero_resv_unavail+0xbd/0x126 RSP: ffffffff81a03d88
-> [    0.000000] CR2: ffffea00034b1040
-> [    0.000000] ---[ end trace f5ba9e8f73c7ee26 ]---
+On Fri, Dec 01, 2017 at 05:38:30PM +0100, Michal Hocko wrote:
+> On Fri 01-12-17 15:57:11, Johannes Weiner wrote:
+> > On Fri, Dec 01, 2017 at 04:17:15PM +0100, Michal Hocko wrote:
+> > > On Fri 01-12-17 14:56:38, Johannes Weiner wrote:
+> > > > On Fri, Dec 01, 2017 at 03:46:34PM +0100, Michal Hocko wrote:
+> > > > > On Fri 01-12-17 14:33:17, Johannes Weiner wrote:
+> > > > > > On Sat, Nov 25, 2017 at 07:52:47PM +0900, Tetsuo Handa wrote:
+> > > > > > > @@ -1068,6 +1071,17 @@ bool out_of_memory(struct oom_control *oc)
+> > > > > > >  	}
+> > > > > > >  
+> > > > > > >  	select_bad_process(oc);
+> > > > > > > +	/*
+> > > > > > > +	 * Try really last second allocation attempt after we selected an OOM
+> > > > > > > +	 * victim, for somebody might have managed to free memory while we were
+> > > > > > > +	 * selecting an OOM victim which can take quite some time.
+> > > > > > 
+> > > > > > Somebody might free some memory right after this attempt fails. OOM
+> > > > > > can always be a temporary state that resolves on its own.
+> > > > > > 
+> > > > > > What keeps us from declaring OOM prematurely is the fact that we
+> > > > > > already scanned the entire LRU list without success, not last second
+> > > > > > or last-last second, or REALLY last-last-last-second allocations.
+> > > > > 
+> > > > > You are right that this is inherently racy. The point here is, however,
+> > > > > that the race window between the last check and the kill can be _huge_!
+> > > > 
+> > > > My point is that it's irrelevant. We already sampled the entire LRU
+> > > > list; compared to that, the delay before the kill is immaterial.
+> > > 
+> > > Well, I would disagree. I have seen OOM reports with a free memory.
+> > > Closer debugging shown that an existing process was on the way out and
+> > > the oom victim selection took way too long and fired after a large
+> > > process manage. There were different hacks^Wheuristics to cover those
+> > > cases but they turned out to just cause different corner cases. Moving
+> > > the existing last moment allocation after a potentially very time
+> > > consuming action is relatively cheap and safe measure to cover those
+> > > cases without any negative side effects I can think of.
+> > 
+> > An existing process can exit right after you pull the trigger. How big
+> > is *that* race window? By this logic you could add a sleep(5) before
+> > the last-second allocation because it would increase the likelihood of
+> > somebody else exiting voluntarily.
 > 
-> This is introduced with commit a4a3ede2132a ("mm: zero reserved and
-> unavailable struct pages")
-> 
-> The reason is some efi reserved boot ranges is not reported in E820 ram.
-> In my case it is a bgrt buffer:
-> efi: mem00: [Boot Data          |RUN|  |  |  |  |  |  |   |WB|WT|WC|UC] range=[0x00000000d2c41000-0x00000000d2c85fff] (0MB)
+> Please read what I wrote above again. I am not saying this is _closing_
+> the any race. It however reduces the race window which I find generally
+> a good thing. Especially when there are no other negative side effects.
 
-I am still confused. Could you clarify why does efi code reserve this
-range when it is not backed by any real memory?
--- 
-Michal Hocko
-SUSE Labs
+Please read what I wrote. OOM conditions are not steady states, so you
+are shaving cycles off a race window that is indefinite in size.
+
+> > This patch is making the time it takes to select a victim an integral
+> > part of OOM semantics. Think about it: if somebody later speeds up the
+> > OOM selection process, they shrink the window in which somebody could
+> > volunteer memory for the last-second allocation. By optimizing that
+> > code, you're probabilistically increasing the rate of OOM kills.
+> >
+> > A guaranteed 5 second window would in fact be better behavior.
+> > 
+> > This is bananas. I'm sticking with my nak.
+> 
+> So are you saying that the existing last allocation attempt is more
+> reasonable? I've tried to remove it [1] and you were against that.
+> 
+> All I'am trying to tell is that _if_ we want to have something like
+> the last moment allocation after reclaim gave up then it should happen
+> closer to the killing the actual disruptive operation. The current
+> attempt in __alloc_pages_may_oom makes only very little sense to me.
+
+Yes, you claim that, but you're not making a convincing case to me.
+
+That last attempt serializes OOM conditions. It doesn't matter where
+it is before the OOM kill as long as it's inside the OOM lock, because
+these are the outcomes from the locked section:
+
+	1. It's the first invocation, nothing is on the freelist, no
+	task has TIF_MEMDIE set. Choose a victim and kill.
+
+	2. It's the second invocation, the first invocation is still
+	active. The trylock fails and we retry.
+
+	3. It's the second invocation, a victim has been dispatched
+	but nothing has been freed. TIF_MEMDIE is found, we retry.
+
+	4. It's the second invocation, a victim has died (or been
+	reaped) and freed memory. The allocation succeeds.
+
+That's how the OOM state machine works in the presence of multiple
+allocating threads, and the code as is makes perfect sense to me.
+
+Your argument for moving the allocation attempt closer to the kill is
+because the OOM kill is destructive and we don't want it to happen
+when something unrelated happens to free memory during the victim
+selection. I do understand that.
+
+My argument against doing that is that the OOM kill is destructive and
+we want it tied to memory pressure as determined by reclaim, not
+random events we don't have control over, so that users can test the
+safety of the memory pressure created by their applications before
+putting them into production environments.
+
+We'd give up a certain amount of determinism and reproducibility, and
+introduce unexpected implementation-defined semantics (currently the
+sampling window for pressure is reclaim time, afterwards it would
+include OOM victim selection time), in an attempt to probabilistically
+reduce OOM kills under severe memory pressure by an unknown factor.
+
+This might sound intriguing when you only focus on the split second
+between the last reclaim attempt and when we issue the kill - "hey,
+look, here is one individual instance of a kill I could have avoided
+by exploiting a race condition."
+
+But it's bad system behavior. For most users OOM kills are extremely
+disruptive. Literally the only way to make them any worse is by making
+them unpredictable and less reproducible.
+
+I do understand the upsides you're advocating for - although you
+haven't quantified them. They're just not worth the downsides.
+
+Hence the nak.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
