@@ -1,50 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C6106B026F
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:34:56 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 11so11642108wrb.18
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:34:56 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id d82si6384041wmd.237.2017.12.05.01.34.54
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E9C46B0271
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:41:55 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id 80so185wmb.7
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:41:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id d38si20986ede.45.2017.12.05.01.41.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 01:34:54 -0800 (PST)
-Date: Tue, 5 Dec 2017 10:34:08 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch 57/60] x86/mm/kpti: Add Kconfig
-In-Reply-To: <alpine.DEB.2.20.1712041757110.1788@nanos>
-Message-ID: <alpine.DEB.2.20.1712051033010.1676@nanos>
-References: <20171204140706.296109558@linutronix.de> <20171204150609.511885345@linutronix.de> <CALCETrVfasJMa_++EB-bFm_MzHAzKqvjRPsaBo2m8YTzRomkxg@mail.gmail.com> <alpine.DEB.2.20.1712041757110.1788@nanos>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 05 Dec 2017 01:41:53 -0800 (PST)
+Date: Tue, 5 Dec 2017 10:41:50 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: possible deadlock in generic_file_write_iter (2)
+Message-ID: <20171205094150.GA6076@quack2.suse.cz>
+References: <94eb2c0d010a4e7897055f70535b@google.com>
+ <20171204083339.GF8365@quack2.suse.cz>
+ <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Lutomirski <luto@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, moritz.lipp@iaik.tugraz.at, "linux-mm@kvack.org" <linux-mm@kvack.org>, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Jan Kara <jack@suse.cz>, syzbot <bot+045a1f65bdea780940bf0f795a292f4cd0b773d1@syzkaller.appspotmail.com>, akpm@linux-foundation.org, hannes@cmpxchg.org, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, peterz@infradead.org, kernel-team@lge.com
 
-On Mon, 4 Dec 2017, Thomas Gleixner wrote:
-> On Mon, 4 Dec 2017, Andy Lutomirski wrote:
-> > On Mon, Dec 4, 2017 at 6:08 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > > --- a/security/Kconfig
-> > > +++ b/security/Kconfig
-> > > @@ -54,6 +54,16 @@ config SECURITY_NETWORK
-> > >           implement socket and networking access controls.
-> > >           If you are unsure how to answer this question, answer N.
-> > >
-> > > +config KERNEL_PAGE_TABLE_ISOLATION
-> > > +       bool "Remove the kernel mapping in user mode"
-> > > +       depends on X86_64 && JUMP_LABEL
-> > 
-> > select JUMP_LABEL perhaps?
+
+Hello Byungchul,
+
+On Tue 05-12-17 13:58:09, Byungchul Park wrote:
+> On 12/4/2017 5:33 PM, Jan Kara wrote:
+> >adding Peter and Byungchul to CC since the lockdep report just looks
+> >strange and cross-release seems to be involved. Guys, how did #5 get into
+> >the lock chain and what does put_ucounts() have to do with sb_writers
+> >there? Thanks!
 > 
-> Silly me. Yes.
+> Hello Jan,
+> 
+> In order to get full stack of #5, we have to pass a boot param,
+> "crossrelease_fullstack", to the kernel. Now that it only informs
+> put_ucounts() in the call trace, it's hard to find out what exactly
+> happened at that time, but I can tell #5 shows:
 
-Peter just pointed out that we switched everything to cpu_has() which is
-using alternatives so jump label is not longer required at all.
+OK, thanks for the tip.
 
-Thanks,
+> When acquire(sb_writers) in put_ucounts(), it was on the way to
+> complete((completion)&req.done) of wait_for_completion() in
+> devtmpfs_create_node().
+> 
+> If acquire(sb_writers) in put_ucounts() is stuck, then
+> wait_for_completion() in devtmpfs_create_node() would be also
+> stuck, since complete() being in the context of acquire(sb_writers)
+> cannot be called.
 
-	tglx
+But this is something I don't get: There aren't sb_writers anywhere near
+put_ucounts(). So why the heck did lockdep think that sb_writers are
+acquired by put_ucounts()?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
