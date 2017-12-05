@@ -1,58 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A0326B0033
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:14:41 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id f4so650266wre.9
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:14:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si813495edo.285.2017.12.05.11.14.39
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5506B0033
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 14:19:33 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m9so952096pff.0
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 11:19:33 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id r15si486117pgt.604.2017.12.05.11.19.31
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 11:14:39 -0800 (PST)
-Date: Tue, 5 Dec 2017 20:14:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] arch, mm: introduce arch_tlb_gather_mmu_exit
-Message-ID: <20171205191410.f2rvaluftnd6dqer@dhcp22.suse.cz>
-References: <20171205145853.26614-1-mhocko@kernel.org>
- <CA+55aFw3NKzVO3xivjV1MzFH_wC1-eVAvgkHjpp7T7__CF6+eg@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Dec 2017 11:19:31 -0800 (PST)
+Date: Tue, 5 Dec 2017 12:19:28 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH] dax: fix potential overflow on 32bit machine
+Message-ID: <20171205191928.GB21010@linux.intel.com>
+References: <20171205033210.38338-1-yi.zhang@huawei.com>
+ <20171205052407.GA20757@bombadil.infradead.org>
+ <20171205170709.GA21010@linux.intel.com>
+ <20171205173713.GA26021@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CA+55aFw3NKzVO3xivjV1MzFH_wC1-eVAvgkHjpp7T7__CF6+eg@mail.gmail.com>
+In-Reply-To: <20171205173713.GA26021@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, Minchan Kim <minchan@kernel.org>, Andrea Argangeli <andrea@kernel.org>, Ingo Molnar <mingo@redhat.com>, linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, mawilcox@microsoft.com, viro@zeniv.linux.org.uk, miaoxie@huawei.com
 
-On Tue 05-12-17 10:31:12, Linus Torvalds wrote:
-> On Tue, Dec 5, 2017 at 6:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > This all is nice but tlb_gather users are not aware of that and this can
-> > actually cause some real problems. E.g. the oom_reaper tries to reap the
-> > whole address space but it might race with threads accessing the memory [1].
-> > It is possible that soft-dirty handling might suffer from the same
-> > problem [2] as soon as it starts supporting the feature.
+On Tue, Dec 05, 2017 at 09:37:13AM -0800, Matthew Wilcox wrote:
+> On Tue, Dec 05, 2017 at 10:07:09AM -0700, Ross Zwisler wrote:
+> > >  /* The 'colour' (ie low bits) within a PMD of a page offset.  */
+> > >  #define PG_PMD_COLOUR	((PMD_SIZE >> PAGE_SHIFT) - 1)
+> > > +#define PG_PMD_NR	(PMD_SIZE >> PAGE_SHIFT)
+> > 
+> > I wonder if it's confusing that PG_PMD_COLOUR is a mask, but PG_PMD_NR is a
+> > count?  Would "PAGES_PER_PMD" be clearer, in the spirit of
+> > PTRS_PER_{PGD,PMD,PTE}? 
 > 
-> So we fixed the oom reaper to just do proper TLB invalidates in commit
-> 687cb0884a71 ("mm, oom_reaper: gather each vma to prevent leaking TLB
-> entry").
+> Maybe.  I don't think that 'NR' can ever be confused with a mask.
+> I went with PG_PMD_NR because I didn't want to use HPAGE_PMD_NR, but
+> in retrospect I just needed to go to sleep and leave thinking about
+> hard problems like naming things for the morning.  I decided to call it
+> 'colour' rather than 'mask' originally because I got really confused with
+> PMD_MASK masking off the low bits.  If you ask 'What colour is this page
+> within the PMD', you know you're talking about the low bits.
 > 
-> So now "fullmm" should be the expected "exit" case, and it all should
-> be unambiguous.
+> I actually had cause to define PMD_ORDER in a separate unrelated patch
+> I was working on this morning.  How does this set of definitions grab you?
 > 
-> Do we really have any reason to apply this patch any more?
+> #define PMD_ORDER	(PMD_SHIFT - PAGE_SHIFT)
+> #define PMD_PAGES	(1UL << PMD_ORDER)
+> #define PMD_PAGE_COLOUR	(PMD_PAGES - 1)
+> 
+> and maybe put them in linux/mm.h so everybody can see them?
 
-Well, the point was the clarity. The bad behavior came as a surprise for
-the oom reaper and as Minchan mentioned we would see a similar problem
-with soft-dirty bits as soon as they are supported on arm64 or
-potentially other architectures which might do special handling for exit
-case.
+Yep, I personally like these better, and putting them in a global header seems
+like the right way to go.
 
-So strictly speaking, this doesn't fix any known bug to me. But I would
-find it more robust if the very special handling was explicit.
--- 
-Michal Hocko
-SUSE Labs
+> > Also, can we use the same define both in fs/dax.c and in mm/truncate.c,
+> > instead of the latter using HPAGE_PMD_NR?
+> 
+> I'm OK with the latter using HPAGE_PMD_NR because it's explicitly "is
+> this a huge page?"  But I'd kind of like to get rid of a lot of the HPAGE_*
+> definitions, so 
+
+I would also like to get rid of them if possible, but quick grep makes me
+think that unfortunately they may not be entirely equivalent to other defines
+we have?
+
+i.e:
+
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      13
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      14
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      15
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      16
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      17
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      18
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      19
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      20
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      21
+arch/metag/include/asm/page.h:# define HPAGE_SHIFT      22
+
+this arch has no PMD_SHIFT definition...
+
+I'm not really familiar with the HPAGE defines, though, so maybe it's not as
+complex as it seems.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
