@@ -1,52 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F4806B0038
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 11:39:19 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id e41so2063442itd.5
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 08:39:19 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 123sor430843itw.107.2017.12.05.08.39.17
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 05 Dec 2017 08:39:17 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A65646B0038
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 11:48:07 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id u16so599116pfh.7
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 08:48:07 -0800 (PST)
+Received: from muru.com (muru.com. [72.249.23.125])
+        by mx.google.com with ESMTP id s90si326961pfk.415.2017.12.05.08.48.06
+        for <linux-mm@kvack.org>;
+        Tue, 05 Dec 2017 08:48:06 -0800 (PST)
+Date: Tue, 5 Dec 2017 08:48:00 -0800
+From: Tony Lindgren <tony@atomide.com>
+Subject: Re: [PATCH v2 0/3] mm/cma: manage the memory of the CMA area by
+ using the ZONE_MOVABLE
+Message-ID: <20171205164800.GV28152@atomide.com>
+References: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
 MIME-Version: 1.0
-In-Reply-To: <20171205121614.ek45btdgrpbmvf45@armageddon.cambridge.arm.com>
-References: <1511845670-12133-1-git-send-email-vinmenon@codeaurora.org>
- <CAADWXX8FmAs1qB9=fsWZjt8xTEnGOAMS=eCHnuDLJrZiX6x=7w@mail.gmail.com> <20171205121614.ek45btdgrpbmvf45@armageddon.cambridge.arm.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 5 Dec 2017 08:39:16 -0800
-Message-ID: <CA+55aFyFc-+pAx80zx0xsYpCiU25KUFVzUEL=z-gj+iRDzUgbQ@mail.gmail.com>
-Subject: Re: [PATCH 1/2] mm: make faultaround produce old ptes
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Catalin Marinas <catalin.marinas@arm.com>
-Cc: Vinayak Menon <vinmenon@codeaurora.org>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, Huang Ying <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Mel Gorman <mgorman@suse.de>
+To: js1304@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
 
-On Tue, Dec 5, 2017 at 4:16 AM, Catalin Marinas <catalin.marinas@arm.com> wrote:
->
-> I would be more in favour of some heuristics to dynamically reduce the
-> fault-around bytes based on the memory pressure rather than choosing
-> between young or old ptes. Or, if we are to go with old vs young ptes,
-> make this choice dependent on the memory pressure regardless of whether
-> the CPU supports hardware accessed bit.
+* js1304@gmail.com <js1304@gmail.com> [171201 07:55]:
+> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> 
+> v2
+> o previous failure in linux-next turned out that it's not the problem of
+> this patchset. It was caused by the wrong assumption by specific
+> architecture.
+> 
+> lkml.kernel.org/r/20171114173719.GA28152@atomide.com
 
-That sounds like a good idea, but possibly a bit _too_ smart for
-something that likely isn't a big deal.
+Thanks works me, I've sent a pull request for the related fix for
+v4.15-rc cycle. So feel free to add for the whole series:
 
-The current behavior definitely is based on a "swapping is not a big
-deal" mindset, and that getting the best LRU isn't worth it. That's
-probably true in most circumstances, but if you really do have low
-memory, and you really do have fairly random access behavior that
-where the actual working set size is close to the actual memory size,
-then a "get rid of faultaround pages earlier" mode would be a good
-thing.
-
-So I'm not at all against your idea - it sounds like the
-RightThing(tm) to do - I just wonder how painful it is to generate a
-sane heuristic that actually works in practice..
-
-                  Linus
+Tested-by: Tony Lindgren <tony@atomide.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
