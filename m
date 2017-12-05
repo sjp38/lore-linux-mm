@@ -1,48 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 14CE36B025F
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 17:23:04 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id a107so879771wrc.11
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 14:23:04 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a26si800602wrd.396.2017.12.05.14.23.02
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BB5BC6B0261
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 18:01:26 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a6so1380720pff.17
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 15:01:26 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id i2si783163pgq.7.2017.12.05.15.01.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 14:23:03 -0800 (PST)
-Date: Tue, 5 Dec 2017 14:23:00 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH v3 0/7] ktask: multithread CPU-intensive kernel work
-Message-Id: <20171205142300.67489b1a90605e1089c5aaa9@linux-foundation.org>
-In-Reply-To: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
-References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 05 Dec 2017 15:01:24 -0800 (PST)
+Date: Tue, 5 Dec 2017 16:01:23 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v2] mm: Add unmap_mapping_pages
+Message-ID: <20171205230123.GB20978@linux.intel.com>
+References: <20171205154453.GD28760@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171205154453.GD28760@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org
 
-On Tue,  5 Dec 2017 14:52:13 -0500 Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+On Tue, Dec 05, 2017 at 07:44:53AM -0800, Matthew Wilcox wrote:
+> v2:
+>  - Fix inverted mask in dax.c
+>  - Pass 'false' instead of '0' for 'only_cows'
+>  - nommu definition
+> 
+> >From ceee2e58548a5264b61000c02371956a1da3bee4 Mon Sep 17 00:00:00 2001
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> Date: Tue, 5 Dec 2017 00:15:54 -0500
+> Subject: [PATCH] mm: Add unmap_mapping_pages
+> 
+> Several users of unmap_mapping_range() would much prefer to express
+> their range in pages rather than bytes.  Unfortuately, on a 32-bit
+> kernel, you have to remember to cast your page number to a 64-bit type
+> before shifting it, and four places in the current tree didn't remember
+> to do that.  That's a sign of a bad interface.
+> 
+> Conveniently, unmap_mapping_range() actually converts from bytes into
+> pages, so hoist the guts of unmap_mapping_range() into the new function
+> unmap_mapping_pages() and convert the callers which want to use pages.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> Reported-by: "zhangyi (F)" <yi.zhang@huawei.com>
 
-> This patchset is based on 4.15-rc2 plus one mmots fix[*] and contains three
-> ktask users:
->  - deferred struct page initialization at boot time
->  - clearing gigantic pages
->  - fallocate for HugeTLB pages
+Looks good.  You can add:
 
-Performance improvements are nice.  How much overall impact is there in
-real-world worklaods?
-
-> Work in progress:
->  - Parallelizing page freeing in the exit/munmap paths
-
-Also sounds interesting.  Have you identified any other parallelizable
-operations?  vfs object teardown at umount time may be one...
-
->  - CPU hotplug support
-
-Of what?  The ktask infrastructure itself?
+Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
