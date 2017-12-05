@@ -1,55 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BB5BC6B0261
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 18:01:26 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a6so1380720pff.17
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 15:01:26 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id i2si783163pgq.7.2017.12.05.15.01.24
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 061456B0268
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 18:04:58 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id y62so1414787pfd.3
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 15:04:57 -0800 (PST)
+Received: from g2t2353.austin.hpe.com (g2t2353.austin.hpe.com. [15.233.44.26])
+        by mx.google.com with ESMTPS id c2si797329plk.671.2017.12.05.15.04.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 15:01:24 -0800 (PST)
-Date: Tue, 5 Dec 2017 16:01:23 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v2] mm: Add unmap_mapping_pages
-Message-ID: <20171205230123.GB20978@linux.intel.com>
-References: <20171205154453.GD28760@bombadil.infradead.org>
+        Tue, 05 Dec 2017 15:04:56 -0800 (PST)
+Subject: Re: [PATCH 5/9] x86/uv: Use the right tlbflush API
+References: <20171205123444.990868007@infradead.org>
+ <20171205123820.134563117@infradead.org>
+ <5aed7d7f-b093-b65c-403e-46bdbcf9bc5a@hpe.com>
+ <20171205212727.GU3165@worktop.lehotels.local>
+From: Andrew Banman <abanman@hpe.com>
+Message-ID: <f5e07104-9262-851d-c8a3-7544653df9b6@hpe.com>
+Date: Tue, 5 Dec 2017 17:04:44 -0600
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171205154453.GD28760@bombadil.infradead.org>
+In-Reply-To: <20171205212727.GU3165@worktop.lehotels.local>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, moritz.lipp@iaik.tugraz.at, linux-mm@kvack.org, Borislav Petkov <bp@alien8.de>, michael.schwarz@iaik.tugraz.at, richard.fellner@student.tugraz.at, Mike Travis <mike.travis@hpe.com>
 
-On Tue, Dec 05, 2017 at 07:44:53AM -0800, Matthew Wilcox wrote:
-> v2:
->  - Fix inverted mask in dax.c
->  - Pass 'false' instead of '0' for 'only_cows'
->  - nommu definition
-> 
-> >From ceee2e58548a5264b61000c02371956a1da3bee4 Mon Sep 17 00:00:00 2001
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> Date: Tue, 5 Dec 2017 00:15:54 -0500
-> Subject: [PATCH] mm: Add unmap_mapping_pages
-> 
-> Several users of unmap_mapping_range() would much prefer to express
-> their range in pages rather than bytes.  Unfortuately, on a 32-bit
-> kernel, you have to remember to cast your page number to a 64-bit type
-> before shifting it, and four places in the current tree didn't remember
-> to do that.  That's a sign of a bad interface.
-> 
-> Conveniently, unmap_mapping_range() actually converts from bytes into
-> pages, so hoist the guts of unmap_mapping_range() into the new function
-> unmap_mapping_pages() and convert the callers which want to use pages.
-> 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Reported-by: "zhangyi (F)" <yi.zhang@huawei.com>
 
-Looks good.  You can add:
 
-Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+On 12/5/17 3:27 PM, Peter Zijlstra wrote:
+> On Tue, Dec 05, 2017 at 03:09:48PM -0600, Andrew Banman wrote:
+>> On 12/5/17 6:34 AM, Peter Zijlstra wrote:
+>>> Since uv_flush_tlb_others() implements flush_tlb_others() which is
+>>> about flushing user mappings, we should use __flush_tlb_single(),
+>>> which too is about flushing user mappings.
+>>>
+>>> Cc: Andrew Banman<abanman@hpe.com>
+>>> Cc: Mike Travis<mike.travis@hpe.com>
+>>> Signed-off-by: Peter Zijlstra (Intel)<peterz@infradead.org>
+>>> ---
+>>>   arch/x86/platform/uv/tlb_uv.c |    2 +-
+>>>   1 file changed, 1 insertion(+), 1 deletion(-)
+>>>
+>>> --- a/arch/x86/platform/uv/tlb_uv.c
+>>> +++ b/arch/x86/platform/uv/tlb_uv.c
+>>> @@ -299,7 +299,7 @@ static void bau_process_message(struct m
+>>>   		local_flush_tlb();
+>>>   		stat->d_alltlb++;
+>>>   	} else {
+>>> -		__flush_tlb_one(msg->address);
+>>> +		__flush_tlb_single(msg->address);
+>>>   		stat->d_onetlb++;
+>>>   	}
+>>>   	stat->d_requestee++;
+>>
+>> This looks like the right thing to do. We'll be testing it and complain later if
+>> we find any problems, but I'm not expecting any since this patch looks to
+>> maintain our status quo.
+> 
+> Well, with KPTI (the-patch-set-formerly-known-as-kaiser), there will be
+> a distinct difference between the two.
+> 
+> With KPTI __flush_tlb_one() would end up invalidating all kernel
+> mappings while __flush_tlb_single() will end up only invalidating the
+> user mappings of the current mm.
+> 
+
+Right! Now the KPTI __flush_tlb_single() equals the old
+__flush_tlb_one(), less the call to count_vm_tlb_event().
+
+ACK
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
