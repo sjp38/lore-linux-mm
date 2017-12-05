@@ -1,78 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6AC696B026B
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 03:58:41 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b82so5362708wmd.5
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 00:58:41 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d58si1568844ede.268.2017.12.05.00.58.40
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 372816B026D
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 04:19:30 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id m9so15844850pff.0
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 01:19:30 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id j25sor3606067pgn.17.2017.12.05.01.19.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 00:58:40 -0800 (PST)
-Date: Tue, 5 Dec 2017 09:58:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/4] lockdep/crossrelease: Apply crossrelease to page
- locks
-Message-ID: <20171205085837.7oo6j5bp6y3xqope@dhcp22.suse.cz>
-References: <1512364583-26070-1-git-send-email-byungchul.park@lge.com>
- <20171205053023.GB20757@bombadil.infradead.org>
- <0aad02e4-f477-1ee3-471a-3e1371ebba1e@lge.com>
- <55674f0a-7886-f1d2-d7f1-6bf42c1e89e3@lge.com>
- <20171205074517.GA11477@bombadil.infradead.org>
+        (Google Transport Security);
+        Tue, 05 Dec 2017 01:19:28 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171205074517.GA11477@bombadil.infradead.org>
+In-Reply-To: <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
+References: <94eb2c0d010a4e7897055f70535b@google.com> <20171204083339.GF8365@quack2.suse.cz>
+ <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 5 Dec 2017 10:19:07 +0100
+Message-ID: <CACT4Y+arqmp6RW4mt3EyaPqxqxPyY31kjDLftnof5DkwfyoyRQ@mail.gmail.com>
+Subject: Re: possible deadlock in generic_file_write_iter (2)
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Byungchul Park <byungchul.park@lge.com>, peterz@infradead.org, mingo@kernel.org, akpm@linux-foundation.org, tglx@linutronix.de, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, kernel-team@lge.com, jack@suse.cz, jlayton@redhat.com, viro@zeniv.linux.org.uk, hannes@cmpxchg.org, npiggin@gmail.com, rgoldwyn@suse.com, vbabka@suse.cz, pombredanne@nexb.com, vinmenon@codeaurora.org, gregkh@linuxfoundation.org
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Jan Kara <jack@suse.cz>, syzbot <bot+045a1f65bdea780940bf0f795a292f4cd0b773d1@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, Peter Zijlstra <peterz@infradead.org>, kernel-team@lge.com
 
-On Mon 04-12-17 23:45:17, Matthew Wilcox wrote:
-> On Tue, Dec 05, 2017 at 03:19:46PM +0900, Byungchul Park wrote:
-> > On 12/5/2017 2:46 PM, Byungchul Park wrote:
-> > > On 12/5/2017 2:30 PM, Matthew Wilcox wrote:
-> > > > On Mon, Dec 04, 2017 at 02:16:19PM +0900, Byungchul Park wrote:
-> > > > > For now, wait_for_completion() / complete() works with lockdep, add
-> > > > > lock_page() / unlock_page() and its family to lockdep support.
-> > > > > 
-> > > > > Changes from v1
-> > > > >   - Move lockdep_map_cross outside of page_ext to make it flexible
-> > > > >   - Prevent allocating lockdep_map per page by default
-> > > > >   - Add a boot parameter allowing the allocation for debugging
-> > > > > 
-> > > > > Byungchul Park (4):
-> > > > >    lockdep: Apply crossrelease to PG_locked locks
-> > > > >    lockdep: Apply lock_acquire(release) on __Set(__Clear)PageLocked
-> > > > >    lockdep: Move data of CONFIG_LOCKDEP_PAGELOCK from page to page_ext
-> > > > >    lockdep: Add a boot parameter enabling to track page locks using
-> > > > >      lockdep and disable it by default
-> > > > 
-> > > > I don't like the way you've structured this patch series; first adding
-> > > > the lockdep map to struct page, then moving it to page_ext.
-> > > 
-> > > Hello,
-> > > 
-> > > I will make them into one patch.
-> > 
-> > I've thought it more.
-> > 
-> > Actually I did it because I thought I'd better make it into two
-> > patches since it makes reviewers easier to review. It doesn't matter
-> > which one I choose, but I prefer to split it.
-> 
-> I don't know whether it's better to make it all one patch or split it
-> into multiple patches.  But it makes no sense to introduce it in struct
-> page, then move it to struct page_ext.
+On Tue, Dec 5, 2017 at 5:58 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+> On 12/4/2017 5:33 PM, Jan Kara wrote:
+>>
+>> Hello,
+>>
+>> adding Peter and Byungchul to CC since the lockdep report just looks
+>> strange and cross-release seems to be involved. Guys, how did #5 get into
+>> the lock chain and what does put_ucounts() have to do with sb_writers
+>> there? Thanks!
+>
+>
+> Hello Jan,
+>
+> In order to get full stack of #5, we have to pass a boot param,
+> "crossrelease_fullstack", to the kernel. Now that it only informs
+> put_ucounts() in the call trace, it's hard to find out what exactly
+> happened at that time, but I can tell #5 shows:
+>
+> When acquire(sb_writers) in put_ucounts(), it was on the way to
+> complete((completion)&req.done) of wait_for_completion() in
+> devtmpfs_create_node().
+>
+> If acquire(sb_writers) in put_ucounts() is stuck, then
+> wait_for_completion() in devtmpfs_create_node() would be also
+> stuck, since complete() being in the context of acquire(sb_writers)
+> cannot be called.
+>
+> This is why cross-release added the lock chain.
 
-I would tend to agree. It is not like anybody would like to apply only
-the first part alone. Adding the necessary infrastructure to page_ext is
-not such a big deal.
+Hi,
 
--- 
-Michal Hocko
-SUSE Labs
+What is cross-release? Is it something new? Should we always enable
+crossrelease_fullstack during testing?
+
+Thanks
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
