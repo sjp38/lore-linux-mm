@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A27F6B0033
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 09:44:26 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id k104so229656wrc.19
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 06:44:26 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D4DD66B0033
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 09:49:50 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id e128so390345wmg.1
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 06:49:50 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i4si395352edd.36.2017.12.05.06.44.25
+        by mx.google.com with ESMTPS id 93si370150ede.482.2017.12.05.06.49.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 06:44:25 -0800 (PST)
-Date: Tue, 5 Dec 2017 15:44:22 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm: memory_hotplug: Remove unnecesary check from
- register_page_bootmem_info_section()
-Message-ID: <20171205144422.ecg5k4n6zhyjm7ks@dhcp22.suse.cz>
-References: <20171205143422.GA31458@techadventures.net>
+        Tue, 05 Dec 2017 06:49:49 -0800 (PST)
+Date: Tue, 5 Dec 2017 15:49:48 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] list_lru: Prefetch neighboring list entries before
+ acquiring lock
+Message-ID: <20171205144948.ezgo3xpjeytkq6ua@dhcp22.suse.cz>
+References: <1511965054-6328-1-git-send-email-longman@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171205143422.GA31458@techadventures.net>
+In-Reply-To: <1511965054-6328-1-git-send-email-longman@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, vbabka@suse.cz
+To: Andrew Morton <akpm@linux-foundation.org>, Waiman Long <longman@redhat.com>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Dave Chinner <david@fromorbit.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue 05-12-17 15:34:22, Oscar Salvador wrote:
-> When we call register_page_bootmem_info_section() having CONFIG_SPARSEMEM_VMEMMAP enabled,
-> we check if the pfn is valid.
-> This check is redundant as we already checked this in register_page_bootmem_info_node()
-> before calling register_page_bootmem_info_section(), so let's get rid of it.
-
-there is quite a lot of legacy and confused code in memory hotplug. Some
-of it is really subtle but this one is really straightforward
-
-> Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  mm/memory_hotplug.c | 3 ---
->  1 file changed, 3 deletions(-)
+On Wed 29-11-17 09:17:34, Waiman Long wrote:
+> The list_lru_del() function removes the given item from the LRU list.
+> The operation looks simple, but it involves writing into the cachelines
+> of the two neighboring list entries in order to get the deletion done.
+> That can take a while if the cachelines aren't there yet, thus
+> prolonging the lock hold time.
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index d0856ab2f28d..7452a53b027f 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -200,9 +200,6 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
->  	struct mem_section *ms;
->  	struct page *page, *memmap;
->  
-> -	if (!pfn_valid(start_pfn))
-> -		return;
-> -
->  	section_nr = pfn_to_section_nr(start_pfn);
->  	ms = __nr_to_section(section_nr);
->  
-> -- 
-> 2.13.5
+> To reduce the lock hold time, the cachelines of the two neighboring
+> list entries are now prefetched before acquiring the list_lru_node's
+> lock.
 > 
+> Using a multi-threaded test program that created a large number
+> of dentries and then killed them, the execution time was reduced
+> from 38.5s to 36.6s after applying the patch on a 2-socket 36-core
+> 72-thread x86-64 system.
+> 
+> Signed-off-by: Waiman Long <longman@redhat.com>
 
+The patch still seems to be in the mmotm tree while it breaks
+compilation. At least m32r defconfig complains with
+mm/list_lru.c: In function 'list_lru_del':
+mm/list_lru.c:141:2: error: implicit declaration of function 'prefetchw' [-Werror=implicit-function-declaration]
+  prefetchw(item->prev);
+
+It also seems that there is no general agreement in the patch. Andrew,
+do you plan to keep it?
 -- 
 Michal Hocko
 SUSE Labs
