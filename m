@@ -1,42 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A65646B0038
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 11:48:07 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u16so599116pfh.7
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 08:48:07 -0800 (PST)
-Received: from muru.com (muru.com. [72.249.23.125])
-        by mx.google.com with ESMTP id s90si326961pfk.415.2017.12.05.08.48.06
-        for <linux-mm@kvack.org>;
-        Tue, 05 Dec 2017 08:48:06 -0800 (PST)
-Date: Tue, 5 Dec 2017 08:48:00 -0800
-From: Tony Lindgren <tony@atomide.com>
-Subject: Re: [PATCH v2 0/3] mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE
-Message-ID: <20171205164800.GV28152@atomide.com>
-References: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 684046B0038
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 11:57:30 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id z25so554993pgu.18
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 08:57:30 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id w24si324187pll.230.2017.12.05.08.57.28
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Dec 2017 08:57:29 -0800 (PST)
+Date: Tue, 5 Dec 2017 08:57:27 -0800
+From: Andi Kleen <ak@linux.intel.com>
+Subject: Re: [question] handle the page table RAS error
+Message-ID: <20171205165727.GG3070@tassilo.jf.intel.com>
+References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: js1304@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: gengdongjiu <gengdongjiu@huawei.com>
+Cc: "tony.luck@intel.com" <tony.luck@intel.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "npiggin@gmail.com" <npiggin@gmail.com>, "vbabka@suse.cz" <vbabka@suse.cz>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "wangxiongfeng (C)" <wangxiongfeng2@huawei.com>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>
 
-* js1304@gmail.com <js1304@gmail.com> [171201 07:55]:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+On Sun, Dec 03, 2017 at 01:22:25PM +0000, gengdongjiu wrote:
+> Hi all,
+>    Sorry to disturb you. Now the ARM64 has supported the RAS, when enabling this feature, we encounter a issue. If the user space application happen page table RAS error,
+> Memory error handler(memory_failure()) will do nothing except make a poisoned page flag, and fault handler in arch/arm64/mm/fault.c will deliver a signal to kill this
+> application. when this application exit, it will call unmap_vmas () to release his vma resource, but here it will touch the error page table again, then will trigger RAS error again, so
+> this application cannot be killed and system will be panic, the log is shown in [2].
 > 
-> v2
-> o previous failure in linux-next turned out that it's not the problem of
-> this patchset. It was caused by the wrong assumption by specific
-> architecture.
-> 
-> lkml.kernel.org/r/20171114173719.GA28152@atomide.com
+> As shown the stack in [1], unmap_page_range() will touch the error page table, so system will panic, does this panic behavior is expected?  How the x86 handle the page table
+> RAS error? If user space application happen page table RAS error, I think the expected behavior should be killing the application instead of panic OS. In current code, when release 
+> application vma resource, I do not see it will check whether table page is poisoned, could you give me some suggestion about how to handle this case? Thanks a lot. 
 
-Thanks works me, I've sent a pull request for the related fix for
-v4.15-rc cycle. So feel free to add for the whole series:
+x86 doesn't handle it.
 
-Tested-by: Tony Lindgren <tony@atomide.com>
+There are lots of memory types that are not handled by MCE recovery
+because it is just too difficult.  In general MCE recovery focuses on
+memory types that use up significant percent of total memory.  Page tables
+are normally not that big, so not really worth handling.
+
+I wouldn't bother about them unless you measure them to big a significant
+portion of memory on a real world workload.
+
+-Andi
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
