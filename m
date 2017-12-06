@@ -1,108 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5D26B0329
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 21:58:11 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id n42so908917ioe.12
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 18:58:11 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r194sor1063035itr.62.2017.12.05.18.58.10
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB8466B032A
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 22:14:39 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id t9so1783395pgu.1
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 19:14:39 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p13sor46222plo.99.2017.12.05.19.14.38
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 05 Dec 2017 18:58:10 -0800 (PST)
-Date: Tue, 5 Dec 2017 18:58:08 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with
- exit_mmap
-In-Reply-To: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1712051857450.98120@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        Tue, 05 Dec 2017 19:14:38 -0800 (PST)
+From: john.hubbard@gmail.com
+Subject: [PATCH v4] mmap.2: MAP_FIXED updated documentation
+Date: Tue,  5 Dec 2017 19:14:34 -0800
+Message-Id: <20171206031434.29087-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Michael Kerrisk <mtk.manpages@gmail.com>
+Cc: linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@suse.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Tue, 5 Dec 2017, David Rientjes wrote:
+From: John Hubbard <jhubbard@nvidia.com>
 
-> One way to solve the issue is to have two mm flags: one to indicate the mm 
-> is entering unmap_vmas(): set the flag, do down_write(&mm->mmap_sem); 
-> up_write(&mm->mmap_sem), then unmap_vmas().  The oom reaper needs this 
-> flag clear, not MMF_OOM_SKIP, while holding down_read(&mm->mmap_sem) to be 
-> allowed to call unmap_page_range().  The oom killer will still defer 
-> selecting this victim for MMF_OOM_SKIP after unmap_vmas() returns.
-> 
-> The result of that change would be that we do not oom reap from any mm 
-> entering unmap_vmas(): we let unmap_vmas() do the work itself and avoid 
-> racing with it.
-> 
+Previously, MAP_FIXED was "discouraged", due to portability
+issues with the fixed address. In fact, there are other, more
+serious issues. Also, alignment requirements were a bit vague.
+So:
 
-I think we need something like the following?
+    -- Expand the documentation to discuss the hazards in
+       enough detail to allow avoiding them.
 
-diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
---- a/include/linux/sched/coredump.h
-+++ b/include/linux/sched/coredump.h
-@@ -70,6 +70,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
- #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
- #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
-+#define MMF_REAPING		25	/* mm is undergoing reaping */
- #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3014,16 +3014,11 @@ void exit_mmap(struct mm_struct *mm)
- 
- 	lru_add_drain();
- 	flush_cache_mm(mm);
--	tlb_gather_mmu(&tlb, mm, 0, -1);
--	/* update_hiwater_rss(mm) here? but nobody should be looking */
--	/* Use -1 here to ensure all VMAs in the mm are unmapped */
--	unmap_vmas(&tlb, vma, 0, -1);
--
--	set_bit(MMF_OOM_SKIP, &mm->flags);
-+	set_bit(MMF_REAPING, &mm->flags);
- 	if (unlikely(tsk_is_oom_victim(current))) {
- 		/*
- 		 * Wait for oom_reap_task() to stop working on this
--		 * mm. Because MMF_OOM_SKIP is already set before
-+		 * mm. Because MMF_REAPING is already set before
- 		 * calling down_read(), oom_reap_task() will not run
- 		 * on this "mm" post up_write().
- 		 *
-@@ -3036,6 +3031,11 @@ void exit_mmap(struct mm_struct *mm)
- 		down_write(&mm->mmap_sem);
- 		up_write(&mm->mmap_sem);
- 	}
-+	tlb_gather_mmu(&tlb, mm, 0, -1);
-+	/* update_hiwater_rss(mm) here? but nobody should be looking */
-+	/* Use -1 here to ensure all VMAs in the mm are unmapped */
-+	unmap_vmas(&tlb, vma, 0, -1);
-+	set_bit(MMF_OOM_SKIP, &mm->flags);
- 	free_pgtables(&tlb, vma, FIRST_USER_ADDRESS, USER_PGTABLES_CEILING);
- 	tlb_finish_mmu(&tlb, 0, -1);
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -529,12 +529,12 @@ static bool __oom_reap_task_mm(struct task_struct *tsk, struct mm_struct *mm)
- 	}
- 
- 	/*
--	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
--	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
-+	 * MMF_REAPING is set by exit_mmap when the OOM reaper can't
-+	 * work on the mm anymore. The check for MMF_REAPING must run
- 	 * under mmap_sem for reading because it serializes against the
- 	 * down_write();up_write() cycle in exit_mmap().
- 	 */
--	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
-+	if (test_bit(MMF_REAPING, &mm->flags)) {
- 		up_read(&mm->mmap_sem);
- 		trace_skip_task_reaping(tsk->pid);
- 		goto unlock_oom;
+    -- Mention the upcoming MAP_FIXED_SAFE flag.
+
+    -- Enhance the alignment requirement slightly.
+
+Some of the wording is lifted from Matthew Wilcox's review
+(the "Portability issues" section). The alignment requirements
+section uses Cyril Hrubis' wording, with light editing applied.
+
+Suggested-by: Matthew Wilcox <willy@infradead.org>
+Suggested-by: Cyril Hrubis <chrubis@suse.cz>
+Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+---
+
+Changes since v3:
+
+    -- Removed the "how to use this safely" part, and
+       the SHMLBA part, both as a result of Michal Hocko's
+       review.
+
+    -- A few tiny wording fixes, at the not-quite-typo level.
+
+Changes since v2:
+
+    -- Fixed up the "how to use safely" example, in response
+       to Mike Rapoport's review.
+
+    -- Changed the alignment requirement from system page
+       size, to SHMLBA. This was inspired by (but not yet
+       recommended by) Cyril Hrubis' review.
+
+    -- Formatting: underlined /proc/<pid>/maps 
+
+Changes since v1:
+
+    -- Covered topics recommended by Matthew Wilcox
+       and Jann Horn, in their recent review: the hazards
+       of overwriting pre-exising mappings, and some notes
+       about how to use MAP_FIXED safely.
+
+    -- Rewrote the commit description accordingly.
+
+ man2/mmap.2 | 40 ++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/man2/mmap.2 b/man2/mmap.2
+index 385f3bfd5..56b05cff1 100644
+--- a/man2/mmap.2
++++ b/man2/mmap.2
+@@ -212,8 +212,9 @@ Don't interpret
+ .I addr
+ as a hint: place the mapping at exactly that address.
+ .I addr
+-must be a multiple of the page size.
+-If the memory region specified by
++must be suitably aligned: for most architectures a multiple of page
++size is sufficient; however, some architectures may impose additional
++restrictions. If the memory region specified by
+ .I addr
+ and
+ .I len
+@@ -222,8 +223,39 @@ part of the existing mapping(s) will be discarded.
+ If the specified address cannot be used,
+ .BR mmap ()
+ will fail.
+-Because requiring a fixed address for a mapping is less portable,
+-the use of this option is discouraged.
++.IP
++This option is extremely hazardous (when used on its own) and moderately
++non-portable.
++.IP
++Portability issues: a process's memory map may change significantly from one
++run to the next, depending on library versions, kernel versions and random
++numbers.
++.IP
++Hazards: this option forcibly removes pre-existing mappings, making it easy
++for a multi-threaded process to corrupt its own address space.
++.IP
++For example, thread A looks through
++.I /proc/<pid>/maps
++and locates an available
++address range, while thread B simultaneously acquires part or all of that same
++address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
++the mapping that thread B created.
++.IP
++Thread B need not create a mapping directly; simply making a library call
++that, internally, uses
++.I dlopen(3)
++to load some other shared library, will
++suffice. The dlopen(3) call will map the library into the process's address
++space. Furthermore, almost any library call may be implemented using this
++technique.
++Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
++(http://www.linux-pam.org).
++.IP
++Newer kernels
++(Linux 4.16 and later) have a
++.B MAP_FIXED_SAFE
++option that avoids the corruption problem; if available, MAP_FIXED_SAFE
++should be preferred over MAP_FIXED.
+ .TP
+ .B MAP_GROWSDOWN
+ This flag is used for stacks.
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
