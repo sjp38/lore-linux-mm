@@ -1,77 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C43116B0375
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:50:29 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id c3so1707559wrd.0
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:50:29 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b15si1248425edf.329.2017.12.06.00.50.28
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DE18A6B037B
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:54:40 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id w78so1317684oiw.6
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:54:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id v50si796534otf.455.2017.12.06.00.54.35
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Dec 2017 00:50:28 -0800 (PST)
-Date: Wed, 6 Dec 2017 09:50:27 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
-Message-ID: <20171206085027.GD16386@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1712051857450.98120@chino.kir.corp.google.com>
- <201712060328.vB63SrDK069830@www262.sakura.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Dec 2017 00:54:35 -0800 (PST)
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+ <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz> <20171201152640.GA3765@rei>
+ <87wp20e9wf.fsf@concordia.ellerman.id.au>
+ <20171206045433.GQ26021@bombadil.infradead.org>
+ <20171206070355.GA32044@bombadil.infradead.org>
+ <5f4fc834-274a-b8f1-bda0-5bcddc5902ed@nvidia.com>
+ <b4cc4225-d49c-51b0-dd18-e8038b5136e1@redhat.com>
+ <27ee1755-76d8-f086-5760-9c973b31108a@nvidia.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <66677640-5c4a-0758-9560-e45de2d5ba06@redhat.com>
+Date: Wed, 6 Dec 2017 09:54:30 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201712060328.vB63SrDK069830@www262.sakura.ne.jp>
+In-Reply-To: <27ee1755-76d8-f086-5760-9c973b31108a@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Michael Ellerman <mpe@ellerman.id.au>
+Cc: Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@kernel.org>, Kees Cook <keescook@chromium.org>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>
 
-On Wed 06-12-17 12:28:53, Tetsuo Handa wrote:
-> David Rientjes wrote:
-> > On Tue, 5 Dec 2017, David Rientjes wrote:
-> > 
-> > > One way to solve the issue is to have two mm flags: one to indicate the mm 
-> > > is entering unmap_vmas(): set the flag, do down_write(&mm->mmap_sem); 
-> > > up_write(&mm->mmap_sem), then unmap_vmas().  The oom reaper needs this 
-> > > flag clear, not MMF_OOM_SKIP, while holding down_read(&mm->mmap_sem) to be 
-> > > allowed to call unmap_page_range().  The oom killer will still defer 
-> > > selecting this victim for MMF_OOM_SKIP after unmap_vmas() returns.
-> > > 
-> > > The result of that change would be that we do not oom reap from any mm 
-> > > entering unmap_vmas(): we let unmap_vmas() do the work itself and avoid 
-> > > racing with it.
-> > > 
-> > 
-> > I think we need something like the following?
+On 12/06/2017 09:06 AM, John Hubbard wrote:
+> On 12/05/2017 11:35 PM, Florian Weimer wrote:
+>> On 12/06/2017 08:33 AM, John Hubbard wrote:
+>>> In that case, maybe:
+>>>
+>>>  A A A A  MAP_EXACT
+>>>
+>>> ? ...because that's the characteristic behavior.
+>>
+>> Is that true?A  mmap still silently rounding up the length to the page size, I assume, so even that name is misleading.
 > 
-> This patch does not work. __oom_reap_task_mm() can find MMF_REAPING and
-> return true and sets MMF_OOM_SKIP before exit_mmap() calls down_write().
+> Hi Florian,
 > 
-> Also, I don't know what exit_mmap() is doing but I think that there is a
-> possibility that the OOM reaper tries to reclaim mlocked pages as soon as
-> exit_mmap() cleared VM_LOCKED flag by calling munlock_vma_pages_all().
+> Not as far as I can tell, it's not doing that.
 > 
-> 	if (mm->locked_vm) {
-> 		vma = mm->mmap;
-> 		while (vma) {
-> 			if (vma->vm_flags & VM_LOCKED)
-> 				munlock_vma_pages_all(vma);
-> 			vma = vma->vm_next;
-> 		}
-> 	}
+> For both MAP_FIXED, and this new flag, the documented (and actual)
+> behavior is *not* to do any such rounding. Instead, the requested
+> input address is required to be page-aligned itself, and mmap()
+> should be honoring the exact addr.
 
-I do not really see, why this would matter. munlock_vma_pages_all is
-mostly about accounting and clearing the per-page state. It relies on
-follow_page which crawls page tables and unmap_page_range clears ptes
-under the lock which is taken when resolving a locked page as well.
+I meant the length, not the address.
 
-I still have to think about all the consequences when we are effectively
-reaping VM_LOCKED vmas - I suspect we can do some misaccounting but I
-yet do not see how this could lead to crashes. Maybe we can move
-VM_LOCKED clearing _after_ the munlock bussiness is done but this is
-really hard to tell before I re-read the mlock code more throughly.
--- 
-Michal Hocko
-SUSE Labs
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
