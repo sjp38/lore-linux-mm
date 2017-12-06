@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C742F6B02E4
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E40FE6B02E7
 	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:44:03 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id d4so1509059pgv.4
+Received: by mail-pg0-f69.google.com with SMTP id t9so1517402pgu.1
         for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:44:03 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q64si963404pfi.330.2017.12.05.16.42.12
+        by mx.google.com with ESMTPS id c3si901967pld.674.2017.12.05.16.42.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:12 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:10 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 41/73] shmem: Convert replace to XArray
-Date: Tue,  5 Dec 2017 16:41:27 -0800
-Message-Id: <20171206004159.3755-42-willy@infradead.org>
+Subject: [PATCH v4 25/73] page cache: Convert page deletion to XArray
+Date: Tue,  5 Dec 2017 16:41:11 -0800
+Message-Id: <20171206004159.3755-26-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,77 +21,57 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-shmem_radix_tree_replace() is renamed to shmem_xa_replace() and
-converted to use the XArray API.
+The code is slightly shorter and simpler.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 22 ++++++++--------------
- 1 file changed, 8 insertions(+), 14 deletions(-)
+ mm/filemap.c | 26 ++++++++++++--------------
+ 1 file changed, 12 insertions(+), 14 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index c5731bb954a1..fad6c9e7402e 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -321,24 +321,20 @@ void shmem_uncharge(struct inode *inode, long pages)
- }
- 
- /*
-- * Replace item expected in radix tree by a new item, while holding tree lock.
-+ * Replace item expected in xarray by a new item, while holding xa_lock.
-  */
--static int shmem_radix_tree_replace(struct address_space *mapping,
-+static int shmem_xa_replace(struct address_space *mapping,
- 			pgoff_t index, void *expected, void *replacement)
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 2439747a0a17..6e2808fd3c06 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -115,27 +115,25 @@
+ static void page_cache_tree_delete(struct address_space *mapping,
+ 				   struct page *page, void *shadow)
  {
--	struct radix_tree_node *node;
--	void **pslot;
-+	XA_STATE(xas, &mapping->pages, index);
- 	void *item;
+-	int i, nr;
++	XA_STATE(xas, &mapping->pages, page->index);
++	unsigned int i, nr;
  
- 	VM_BUG_ON(!expected);
- 	VM_BUG_ON(!replacement);
--	item = __radix_tree_lookup(&mapping->pages, index, &node, &pslot);
--	if (!item)
--		return -ENOENT;
-+	item = xas_load(&xas);
- 	if (item != expected)
- 		return -ENOENT;
--	__radix_tree_replace(&mapping->pages, node, pslot,
--			     replacement, NULL);
-+	xas_store(&xas, replacement);
- 	return 0;
- }
+-	/* hugetlb pages are represented by one entry in the radix tree */
++	xas_set_update(&xas, workingset_lookup_update(mapping));
++
++	/* hugetlb pages are represented by a single entry in the xarray */
+ 	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
  
-@@ -605,8 +601,7 @@ static int shmem_add_to_page_cache(struct page *page,
- 	} else if (!expected) {
- 		error = radix_tree_insert(&mapping->pages, index, page);
- 	} else {
--		error = shmem_radix_tree_replace(mapping, index, expected,
--								 page);
-+		error = shmem_xa_replace(mapping, index, expected, page);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+ 
+-	for (i = 0; i < nr; i++) {
+-		struct radix_tree_node *node;
+-		void **slot;
+-
+-		__radix_tree_lookup(&mapping->pages, page->index + i,
+-				    &node, &slot);
+-
+-		VM_BUG_ON_PAGE(!node && nr != 1, page);
+-
+-		radix_tree_clear_tags(&mapping->pages, node, slot);
+-		__radix_tree_replace(&mapping->pages, node, slot, shadow,
+-				workingset_lookup_update(mapping));
++	i = nr;
++repeat:
++	xas_store(&xas, shadow);
++	xas_init_tags(&xas);
++	if (--i) {
++		xas_next(&xas);
++		goto repeat;
  	}
  
- 	if (!error) {
-@@ -635,7 +630,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
- 	VM_BUG_ON_PAGE(PageCompound(page), page);
- 
- 	xa_lock_irq(&mapping->pages);
--	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
-+	error = shmem_xa_replace(mapping, page->index, page, radswap);
  	page->mapping = NULL;
- 	mapping->nrpages--;
- 	__dec_node_page_state(page, NR_FILE_PAGES);
-@@ -1550,8 +1545,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
- 	 * a nice clean interface for us to replace oldpage by newpage there.
- 	 */
- 	xa_lock_irq(&swap_mapping->pages);
--	error = shmem_radix_tree_replace(swap_mapping, swap_index, oldpage,
--								   newpage);
-+	error = shmem_xa_replace(swap_mapping, swap_index, oldpage, newpage);
- 	if (!error) {
- 		__inc_node_page_state(newpage, NR_FILE_PAGES);
- 		__dec_node_page_state(oldpage, NR_FILE_PAGES);
 -- 
 2.15.0
 
