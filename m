@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FAA06B026F
+	by kanga.kvack.org (Postfix) with ESMTP id 7398D6B0270
 	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:11 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id n187so1616983pfn.10
+Received: by mail-pf0-f199.google.com with SMTP id z1so1613402pfl.9
         for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:11 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v12si911332plg.663.2017.12.05.16.42.09
+        by mx.google.com with ESMTPS id t10si923436plh.272.2017.12.05.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 05 Dec 2017 16:42:09 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 12/73] xarray: Add xa_cmpxchg
-Date: Tue,  5 Dec 2017 16:40:58 -0800
-Message-Id: <20171206004159.3755-13-willy@infradead.org>
+Subject: [PATCH v4 19/73] xarray: Add MAINTAINERS entry
+Date: Tue,  5 Dec 2017 16:41:05 -0800
+Message-Id: <20171206004159.3755-20-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,79 +21,36 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This works like doing cmpxchg() on an array entry.  Code which wants
-the radix_tree_insert() semantic of not overwriting an existing entry
-can cmpxchg() with NULL and get the action it wants.  Plus, instead of
-having an error returned, they get the value currently stored in the
-array, which often saves them a subsequent lookup.
+Add myself as XArray and IDR maintainer.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h |  2 ++
- lib/xarray.c           | 37 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 39 insertions(+)
+ MAINTAINERS | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 6f1f55d9fc94..a570d7d9a252 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -72,6 +72,8 @@ static inline void xa_init(struct xarray *xa)
+diff --git a/MAINTAINERS b/MAINTAINERS
+index d4fdcb12616c..b2f8d606756b 100644
+--- a/MAINTAINERS
++++ b/MAINTAINERS
+@@ -14874,6 +14874,18 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git x86/vdso
+ S:	Maintained
+ F:	arch/x86/entry/vdso/
  
- void *xa_load(struct xarray *, unsigned long index);
- void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
-+void *xa_cmpxchg(struct xarray *, unsigned long index,
-+			void *old, void *entry, gfp_t);
- 
- /**
-  * xa_erase() - Erase this entry from the XArray.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index fbbb02c25b6d..6625b1763123 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -852,6 +852,43 @@ void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
- }
- EXPORT_SYMBOL(xa_store);
- 
-+/**
-+ * xa_cmpxchg() - Conditionally replace an entry in the XArray.
-+ * @xa: XArray.
-+ * @index: Index into array.
-+ * @old: Old value to test against.
-+ * @entry: New value to place in array.
-+ * @gfp: Allocation flags.
-+ *
-+ * If the entry at @index is the same as @old, replace it with @entry.
-+ * If the return value is equal to @old, then the exchange was successful.
-+ *
-+ * Return: The old value at this index or ERR_PTR() if an error happened.
-+ */
-+void *xa_cmpxchg(struct xarray *xa, unsigned long index,
-+			void *old, void *entry, gfp_t gfp)
-+{
-+	XA_STATE(xas, xa, index);
-+	unsigned long flags;
-+	void *curr;
++XARRAY
++M:	Matthew Wilcox <mawilcox@microsoft.com>
++M:	Matthew Wilcox <willy@infradead.org>
++L:	linux-fsdevel@vger.kernel.org
++S:	Supported
++F:	Documentation/core-api/xarray.rst
++F:	lib/idr.c
++F:	lib/xarray.c
++F:	include/linux/idr.h
++F:	include/linux/xarray.h
++F:	tools/testing/radix-tree
 +
-+	if (WARN_ON_ONCE(xa_is_internal(entry)))
-+		return ERR_PTR(-EINVAL);
-+
-+	do {
-+		xa_lock_irqsave(xa, flags);
-+		curr = xas_create(&xas);
-+		if (curr == old)
-+			xas_store(&xas, entry);
-+		xa_unlock_irqrestore(xa, flags);
-+	} while (xas_nomem(&xas, gfp));
-+
-+	if (xas_error(&xas))
-+		curr = ERR_PTR(xas_error(&xas));
-+	return curr;
-+}
-+EXPORT_SYMBOL(xa_cmpxchg);
-+
- /**
-  * __xa_set_tag() - Set this tag on this entry while locked.
-  * @xa: XArray.
+ XC2028/3028 TUNER DRIVER
+ M:	Mauro Carvalho Chehab <mchehab@s-opensource.com>
+ M:	Mauro Carvalho Chehab <mchehab@kernel.org>
 -- 
 2.15.0
 
