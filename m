@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EFEC6B02E3
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:44:02 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id a13so1517411pgt.0
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:44:02 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C742F6B02E4
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:44:03 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id d4so1509059pgv.4
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:44:03 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 62si471384ply.175.2017.12.05.16.42.15
+        by mx.google.com with ESMTPS id q64si963404pfi.330.2017.12.05.16.42.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:15 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:12 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 62/73] dax: Convert dax_insert_pfn_mkwrite to XArray
-Date: Tue,  5 Dec 2017 16:41:48 -0800
-Message-Id: <20171206004159.3755-63-willy@infradead.org>
+Subject: [PATCH v4 41/73] shmem: Convert replace to XArray
+Date: Tue,  5 Dec 2017 16:41:27 -0800
+Message-Id: <20171206004159.3755-42-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,41 +21,77 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
+shmem_radix_tree_replace() is renamed to shmem_xa_replace() and
+converted to use the XArray API.
+
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/shmem.c | 22 ++++++++--------------
+ 1 file changed, 8 insertions(+), 14 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 7bd94f1b61d0..619aff70583f 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1498,21 +1498,21 @@ static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
- 	void *entry;
- 	int vmf_ret, error;
+diff --git a/mm/shmem.c b/mm/shmem.c
+index c5731bb954a1..fad6c9e7402e 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -321,24 +321,20 @@ void shmem_uncharge(struct inode *inode, long pages)
+ }
  
--	xa_lock_irq(&mapping->pages);
-+	xas_lock_irq(&xas);
- 	entry = get_unlocked_mapping_entry(&xas);
- 	/* Did we race with someone splitting entry or so? */
- 	if (!entry ||
- 	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
- 	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
- 		put_unlocked_mapping_entry(&xas, entry);
--		xa_unlock_irq(&mapping->pages);
-+		xas_unlock_irq(&xas);
- 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
- 						      VM_FAULT_NOPAGE);
- 		return VM_FAULT_NOPAGE;
+ /*
+- * Replace item expected in radix tree by a new item, while holding tree lock.
++ * Replace item expected in xarray by a new item, while holding xa_lock.
+  */
+-static int shmem_radix_tree_replace(struct address_space *mapping,
++static int shmem_xa_replace(struct address_space *mapping,
+ 			pgoff_t index, void *expected, void *replacement)
+ {
+-	struct radix_tree_node *node;
+-	void **pslot;
++	XA_STATE(xas, &mapping->pages, index);
+ 	void *item;
+ 
+ 	VM_BUG_ON(!expected);
+ 	VM_BUG_ON(!replacement);
+-	item = __radix_tree_lookup(&mapping->pages, index, &node, &pslot);
+-	if (!item)
+-		return -ENOENT;
++	item = xas_load(&xas);
+ 	if (item != expected)
+ 		return -ENOENT;
+-	__radix_tree_replace(&mapping->pages, node, pslot,
+-			     replacement, NULL);
++	xas_store(&xas, replacement);
+ 	return 0;
+ }
+ 
+@@ -605,8 +601,7 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	} else if (!expected) {
+ 		error = radix_tree_insert(&mapping->pages, index, page);
+ 	} else {
+-		error = shmem_radix_tree_replace(mapping, index, expected,
+-								 page);
++		error = shmem_xa_replace(mapping, index, expected, page);
  	}
--	radix_tree_tag_set(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
-+	xas_set_tag(&xas, PAGECACHE_TAG_DIRTY);
- 	entry = lock_slot(&xas);
--	xa_unlock_irq(&mapping->pages);
-+	xas_unlock_irq(&xas);
- 	switch (pe_size) {
- 	case PE_SIZE_PTE:
- 		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
+ 
+ 	if (!error) {
+@@ -635,7 +630,7 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
+ 	VM_BUG_ON_PAGE(PageCompound(page), page);
+ 
+ 	xa_lock_irq(&mapping->pages);
+-	error = shmem_radix_tree_replace(mapping, page->index, page, radswap);
++	error = shmem_xa_replace(mapping, page->index, page, radswap);
+ 	page->mapping = NULL;
+ 	mapping->nrpages--;
+ 	__dec_node_page_state(page, NR_FILE_PAGES);
+@@ -1550,8 +1545,7 @@ static int shmem_replace_page(struct page **pagep, gfp_t gfp,
+ 	 * a nice clean interface for us to replace oldpage by newpage there.
+ 	 */
+ 	xa_lock_irq(&swap_mapping->pages);
+-	error = shmem_radix_tree_replace(swap_mapping, swap_index, oldpage,
+-								   newpage);
++	error = shmem_xa_replace(swap_mapping, swap_index, oldpage, newpage);
+ 	if (!error) {
+ 		__inc_node_page_state(newpage, NR_FILE_PAGES);
+ 		__dec_node_page_state(oldpage, NR_FILE_PAGES);
 -- 
 2.15.0
 
