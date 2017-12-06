@@ -1,56 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 08CA36B026D
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:09:33 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id o16so1031626wmf.4
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:09:32 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 124si1021234wmf.110.2017.12.05.16.09.31
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FAA06B026F
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:11 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n187so1616983pfn.10
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:11 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id v12si911332plg.663.2017.12.05.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:09:31 -0800 (PST)
-Date: Tue, 5 Dec 2017 16:09:28 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [linux-next:master 2148/2944] lib/find_bit_benchmark.c:115:7:
- error: implicit declaration of function 'find_next_and_bit'; did you mean
- 'find_next_bit'?
-Message-Id: <20171205160928.8eef0f54c63cb05d67c5c7b9@linux-foundation.org>
-In-Reply-To: <201712052024.0kVygoFI%fengguang.wu@intel.com>
-References: <201712052024.0kVygoFI%fengguang.wu@intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Tue, 05 Dec 2017 16:42:09 -0800 (PST)
+From: Matthew Wilcox <willy@infradead.org>
+Subject: [PATCH v4 12/73] xarray: Add xa_cmpxchg
+Date: Tue,  5 Dec 2017 16:40:58 -0800
+Message-Id: <20171206004159.3755-13-willy@infradead.org>
+In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
+References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>
-Cc: Clement Courbet <courbet@google.com>, kbuild-all@01.org, Linux Memory Management List <linux-mm@kvack.org>, Geert Uytterhoeven <geert@linux-m68k.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Tue, 5 Dec 2017 20:31:28 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
-> head:   7ceb97a071e80f1b5e4cd5a36de135612a836388
-> commit: e49c614e6b37254b1e7bf55c631ce3cb5e3b6433 [2148/2944] lib: optimize cpumask_next_and()
-> config: m68k-allmodconfig (attached as .config)
-> compiler: m68k-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
-> reproduce:
->         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
->         chmod +x ~/bin/make.cross
->         git checkout e49c614e6b37254b1e7bf55c631ce3cb5e3b6433
->         # save the attached .config to linux build tree
->         make.cross ARCH=m68k 
-> 
-> All errors (new ones prefixed by >>):
-> 
->    lib/find_bit_benchmark.c: In function 'test_find_next_and_bit':
-> >> lib/find_bit_benchmark.c:115:7: error: implicit declaration of function 'find_next_and_bit'; did you mean 'find_next_bit'? [-Werror=implicit-function-declaration]
->       i = find_next_and_bit(bitmap, bitmap2, BITMAP_LEN, i+1);
->           ^~~~~~~~~~~~~~~~~
->           find_next_bit
->    cc1: some warnings being treated as errors
+This works like doing cmpxchg() on an array entry.  Code which wants
+the radix_tree_insert() semantic of not overwriting an existing entry
+can cmpxchg() with NULL and get the action it wants.  Plus, instead of
+having an error returned, they get the value currently stored in the
+array, which often saves them a subsequent lookup.
 
-For some reason m68k doesn't include asm-generic/bitops/find.h from
-arch/m68k/include/asm/bitops.h.  One for Clement and Geert to puzzle
-out, please.
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+---
+ include/linux/xarray.h |  2 ++
+ lib/xarray.c           | 37 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)
+
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index 6f1f55d9fc94..a570d7d9a252 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -72,6 +72,8 @@ static inline void xa_init(struct xarray *xa)
+ 
+ void *xa_load(struct xarray *, unsigned long index);
+ void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
++void *xa_cmpxchg(struct xarray *, unsigned long index,
++			void *old, void *entry, gfp_t);
+ 
+ /**
+  * xa_erase() - Erase this entry from the XArray.
+diff --git a/lib/xarray.c b/lib/xarray.c
+index fbbb02c25b6d..6625b1763123 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -852,6 +852,43 @@ void *xa_store(struct xarray *xa, unsigned long index, void *entry, gfp_t gfp)
+ }
+ EXPORT_SYMBOL(xa_store);
+ 
++/**
++ * xa_cmpxchg() - Conditionally replace an entry in the XArray.
++ * @xa: XArray.
++ * @index: Index into array.
++ * @old: Old value to test against.
++ * @entry: New value to place in array.
++ * @gfp: Allocation flags.
++ *
++ * If the entry at @index is the same as @old, replace it with @entry.
++ * If the return value is equal to @old, then the exchange was successful.
++ *
++ * Return: The old value at this index or ERR_PTR() if an error happened.
++ */
++void *xa_cmpxchg(struct xarray *xa, unsigned long index,
++			void *old, void *entry, gfp_t gfp)
++{
++	XA_STATE(xas, xa, index);
++	unsigned long flags;
++	void *curr;
++
++	if (WARN_ON_ONCE(xa_is_internal(entry)))
++		return ERR_PTR(-EINVAL);
++
++	do {
++		xa_lock_irqsave(xa, flags);
++		curr = xas_create(&xas);
++		if (curr == old)
++			xas_store(&xas, entry);
++		xa_unlock_irqrestore(xa, flags);
++	} while (xas_nomem(&xas, gfp));
++
++	if (xas_error(&xas))
++		curr = ERR_PTR(xas_error(&xas));
++	return curr;
++}
++EXPORT_SYMBOL(xa_cmpxchg);
++
+ /**
+  * __xa_set_tag() - Set this tag on this entry while locked.
+  * @xa: XArray.
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
