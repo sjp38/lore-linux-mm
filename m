@@ -1,114 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E466B6B0366
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:31:34 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id w74so1506711wmf.0
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:31:34 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j63si2109851edc.538.2017.12.06.00.31.33
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 86FC66B0369
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:42:09 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id e2so2666408qti.3
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:42:09 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g98sor1372766qkh.152.2017.12.06.00.42.08
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Dec 2017 00:31:33 -0800 (PST)
-Date: Wed, 6 Dec 2017 09:31:30 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
-Message-ID: <20171206083130.GC16386@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
+        (Google Transport Security);
+        Wed, 06 Dec 2017 00:42:08 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
+In-Reply-To: <20171205160928.8eef0f54c63cb05d67c5c7b9@linux-foundation.org>
+References: <201712052024.0kVygoFI%fengguang.wu@intel.com> <20171205160928.8eef0f54c63cb05d67c5c7b9@linux-foundation.org>
+From: Geert Uytterhoeven <geert@linux-m68k.org>
+Date: Wed, 6 Dec 2017 09:42:07 +0100
+Message-ID: <CAMuHMdW4W5T_KX-bm4zD=yOOnHBRn9BiTNg3DN=+izjknVo4uQ@mail.gmail.com>
+Subject: Re: [linux-next:master 2148/2944] lib/find_bit_benchmark.c:115:7:
+ error: implicit declaration of function 'find_next_and_bit'; did you mean 'find_next_bit'?
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: kbuild test robot <fengguang.wu@intel.com>, Clement Courbet <courbet@google.com>, "kbuild-all@01.org" <kbuild-all@01.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-On Tue 05-12-17 18:43:48, David Rientjes wrote:
-> Hi,
-> 
-> I'd like to understand the synchronization between the oom_reaper's 
-> unmap_page_range() and exit_mmap().  The latter does not hold 
-> mm->mmap_sem: it's supposed to be the last thread operating on the mm 
-> before it is destroyed.
-> 
-> If unmap_page_range() races with unmap_vmas(), we trivially call 
-> page_remove_rmap() twice on the same page:
+Hi Andrew,
 
-Well, the oom reaper is basically MADV_DONTNEED and that allows
-parallel tear down (it takes only mmap_sem for read). The exit path
-doesn't take the mmap_sem during unmap_vmas but that shouldn't make any
-difference because both path would take it for read anyway. The
-essential synchronization between oom reaper and exit_mmap is
-exit_mmap:	
-	set_bit(MMF_OOM_SKIP, &mm->flags);
-	if (unlikely(tsk_is_oom_victim(current))) {
-		/*
-		 * Wait for oom_reap_task() to stop working on this
-		 * mm. Because MMF_OOM_SKIP is already set before
-		 * calling down_read(), oom_reap_task() will not run
-		 * on this "mm" post up_write().
-		 *
-		 * tsk_is_oom_victim() cannot be set from under us
-		 * either because current->mm is already set to NULL
-		 * under task_lock before calling mmput and oom_mm is
-		 * set not NULL by the OOM killer only if current->mm
-		 * is found not NULL while holding the task_lock.
-		 */
-		down_write(&mm->mmap_sem);
-		up_write(&mm->mmap_sem);
-	}
+On Wed, Dec 6, 2017 at 1:09 AM, Andrew Morton <akpm@linux-foundation.org> wrote:
+> On Tue, 5 Dec 2017 20:31:28 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+>> tree:   https://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git master
+>> head:   7ceb97a071e80f1b5e4cd5a36de135612a836388
+>> commit: e49c614e6b37254b1e7bf55c631ce3cb5e3b6433 [2148/2944] lib: optimize cpumask_next_and()
+>> config: m68k-allmodconfig (attached as .config)
+>> compiler: m68k-linux-gnu-gcc (Debian 7.2.0-11) 7.2.0
+>> reproduce:
+>>         wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+>>         chmod +x ~/bin/make.cross
+>>         git checkout e49c614e6b37254b1e7bf55c631ce3cb5e3b6433
+>>         # save the attached .config to linux build tree
+>>         make.cross ARCH=m68k
+>>
+>> All errors (new ones prefixed by >>):
+>>
+>>    lib/find_bit_benchmark.c: In function 'test_find_next_and_bit':
+>> >> lib/find_bit_benchmark.c:115:7: error: implicit declaration of function 'find_next_and_bit'; did you mean 'find_next_bit'? [-Werror=implicit-function-declaration]
+>>       i = find_next_and_bit(bitmap, bitmap2, BITMAP_LEN, i+1);
+>>           ^~~~~~~~~~~~~~~~~
+>>           find_next_bit
+>>    cc1: some warnings being treated as errors
+>
+> For some reason m68k doesn't include asm-generic/bitops/find.h from
+> arch/m68k/include/asm/bitops.h.  One for Clement and Geert to puzzle
+> out, please.
 
-oom_reaper
-	if (!down_read_trylock(&mm->mmap_sem)) {
+Oh it does, but only for the CONFIG_CPU_HAS_NO_BITFIELDS=y case.
+Which used to be fine, as the code for CONFIG_CPU_HAS_NO_BITFIELDS=n
+implemented everything in find.h, until find_next_and_bit() was added.
 
-	/*
-	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
-	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
-	 * under mmap_sem for reading because it serializes against the
-	 * down_write();up_write() cycle in exit_mmap().
-	 */
-	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
+Thanks, will fix...
 
-which makes sure that the reaper doesn't race with free_pgtables.
+Gr{oetje,eeting}s,
 
-> BUG: Bad page map in process oom_reaper  pte:6353826300000000 pmd:00000000
+                        Geert
 
-Hmm, this is really strange. This is a pte without a pmd or is the
-output just incomplete.
+--
+Geert Uytterhoeven -- There's lots of Linux beyond ia32 -- geert@linux-m68k.org
 
-> addr:00007f50cab1d000 vm_flags:08100073 anon_vma:ffff9eea335603f0 mapping:          (null) index:7f50cab1d
-> file:          (null) fault:          (null) mmap:          (null) readpage:          (null)
-> CPU: 2 PID: 1001 Comm: oom_reaper
-> Call Trace:
->  [<ffffffffa4bd967d>] dump_stack+0x4d/0x70
->  [<ffffffffa4a03558>] unmap_page_range+0x1068/0x1130
-
-could you use addr2line to get the exact spot where this triggered
-please?
-
->  [<ffffffffa4a2e07f>] __oom_reap_task_mm+0xd5/0x16b
->  [<ffffffffa4a2e226>] oom_reaper+0xff/0x14c
->  [<ffffffffa48d6ad1>] kthread+0xc1/0xe0
-> 
-> And there are more examples of badness from an unmap_page_range() racing 
-> with unmap_vmas().  In this case, MMF_OOM_SKIP is doing two things: (1) 
-> avoiding additional oom kills until unmap_vmas() returns and (2) avoid the 
-> oom_reaper working on the mm after unmap_vmas().  In (2), there's nothing 
-> preventing the oom reaper from calling unmap_page_range() in parallel with 
-> the final thread doing unmap_vmas() -- we no longer do mmget() to prevent 
-> exit_mmap() from being called.
-
-Yes and that is an intentional behavior. There shouldn't be any reason
-to exclude the two because this should be equivalent to calling
-MADV_DONTNEED in parallel.
-
-I will get to the rest of your email later because the above is the
-essential assumption 212925802454 ("mm: oom: let oom_reap_task and
-exit_mmap run concurrently") builds on. If it is not correct then we
-have a bigger problem.
--- 
-Michal Hocko
-SUSE Labs
+In personal conversations with technical people, I call myself a hacker. But
+when I'm talking to journalists I just say "programmer" or something like that.
+                                -- Linus Torvalds
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
