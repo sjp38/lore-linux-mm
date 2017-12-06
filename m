@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4DAA6B02ED
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:44:09 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a6so1610865pff.17
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:44:09 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1807E6B02EB
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:44:10 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a13so1517637pgt.0
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:44:10 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v26si859475pge.759.2017.12.05.16.42.15
+        by mx.google.com with ESMTPS id z1si910648plo.785.2017.12.05.16.42.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:15 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:12 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 61/73] dax: Convert dax_writeback_one to XArray
-Date: Tue,  5 Dec 2017 16:41:47 -0800
-Message-Id: <20171206004159.3755-62-willy@infradead.org>
+Subject: [PATCH v4 37/73] mm: Convert huge_memory to XArray
+Date: Tue,  5 Dec 2017 16:41:23 -0800
+Message-Id: <20171206004159.3755-38-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,75 +21,72 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Likewise easy
+Quite a straightforward conversion.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 17 +++++++----------
- 1 file changed, 7 insertions(+), 10 deletions(-)
+ mm/huge_memory.c | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 66f6c4ea18f7..7bd94f1b61d0 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -633,8 +633,7 @@ static int dax_writeback_one(struct block_device *bdev,
- 		struct dax_device *dax_dev, struct address_space *mapping,
- 		pgoff_t index, void *entry)
- {
--	struct radix_tree_root *pages = &mapping->pages;
--	XA_STATE(xas, pages, index);
-+	XA_STATE(xas, &mapping->pages, index);
- 	void *entry2, *kaddr;
- 	long ret = 0, id;
- 	sector_t sector;
-@@ -649,7 +648,7 @@ static int dax_writeback_one(struct block_device *bdev,
- 	if (WARN_ON(!xa_is_value(entry)))
- 		return -EIO;
- 
--	xa_lock_irq(&mapping->pages);
-+	xas_lock_irq(&xas);
- 	entry2 = get_unlocked_mapping_entry(&xas);
- 	/* Entry got punched out / reallocated? */
- 	if (!entry2 || WARN_ON_ONCE(!xa_is_value(entry2)))
-@@ -668,7 +667,7 @@ static int dax_writeback_one(struct block_device *bdev,
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 28909c475ee5..5a41b00d86bd 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2379,7 +2379,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	if (PageAnon(head) && !PageSwapCache(head)) {
+ 		page_ref_inc(page_tail);
+ 	} else {
+-		/* Additional pin to radix tree */
++		/* Additional pin to page cache */
+ 		page_ref_add(page_tail, 2);
  	}
  
- 	/* Another fsync thread may have already written back this entry */
--	if (!radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE))
-+	if (!xas_get_tag(&xas, PAGECACHE_TAG_TOWRITE))
- 		goto put_unlocked;
- 	/* Lock the entry to serialize with page faults */
- 	entry = lock_slot(&xas);
-@@ -679,8 +678,8 @@ static int dax_writeback_one(struct block_device *bdev,
- 	 * at the entry only under xa_lock and once they do that they will
- 	 * see the entry locked and wait for it to unlock.
- 	 */
--	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_TOWRITE);
--	xa_unlock_irq(&mapping->pages);
-+	xas_clear_tag(&xas, PAGECACHE_TAG_TOWRITE);
-+	xas_unlock_irq(&xas);
+@@ -2450,13 +2450,13 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	ClearPageCompound(head);
+ 	/* See comment in __split_huge_page_tail() */
+ 	if (PageAnon(head)) {
+-		/* Additional pin to radix tree of swap cache */
++		/* Additional pin to swap cache */
+ 		if (PageSwapCache(head))
+ 			page_ref_add(head, 2);
+ 		else
+ 			page_ref_inc(head);
+ 	} else {
+-		/* Additional pin to radix tree */
++		/* Additional pin to page cache */
+ 		page_ref_add(head, 2);
+ 		xa_unlock(&head->mapping->pages);
+ 	}
+@@ -2568,7 +2568,7 @@ bool can_split_huge_page(struct page *page, int *pextra_pins)
+ {
+ 	int extra_pins;
  
- 	/*
- 	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
-@@ -718,9 +717,7 @@ static int dax_writeback_one(struct block_device *bdev,
- 	 * the pfn mappings are writeprotected and fault waits for mapping
- 	 * entry lock.
- 	 */
--	xa_lock_irq(&mapping->pages);
--	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_DIRTY);
--	xa_unlock_irq(&mapping->pages);
-+	xa_clear_tag(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
- 	trace_dax_writeback_one(mapping->host, index, size >> PAGE_SHIFT);
-  dax_unlock:
- 	dax_read_unlock(id);
-@@ -729,7 +726,7 @@ static int dax_writeback_one(struct block_device *bdev,
+-	/* Additional pins from radix tree */
++	/* Additional pins from page cache */
+ 	if (PageAnon(page))
+ 		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
+ 	else
+@@ -2664,17 +2664,14 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
  
-  put_unlocked:
- 	put_unlocked_mapping_entry(&xas, entry2);
--	xa_unlock_irq(&mapping->pages);
-+	xas_unlock_irq(&xas);
- 	return ret;
- }
+ 	if (mapping) {
+-		void **pslot;
++		XA_STATE(xas, &mapping->pages, page_index(head));
+ 
+-		xa_lock(&mapping->pages);
+-		pslot = radix_tree_lookup_slot(&mapping->pages,
+-				page_index(head));
+ 		/*
+-		 * Check if the head page is present in radix tree.
++		 * Check if the head page is present in page cache.
+ 		 * We assume all tail are present too, if head is there.
+ 		 */
+-		if (radix_tree_deref_slot_protected(pslot,
+-					&mapping->pages.xa_lock) != head)
++		xa_lock(&mapping->pages);
++		if (xas_load(&xas) != head)
+ 			goto fail;
+ 	}
  
 -- 
 2.15.0
