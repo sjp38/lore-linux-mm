@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A0DC6B0271
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:12 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 3so1632681pfo.1
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:12 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 251576B0276
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:13 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id i14so1500141pgf.13
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:13 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id r10si943657pli.600.2017.12.05.16.42.09
+        by mx.google.com with ESMTPS id j10si894617plg.317.2017.12.05.16.42.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:09 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:10 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 24/73] page cache: Add and replace pages using the XArray
-Date: Tue,  5 Dec 2017 16:41:10 -0800
-Message-Id: <20171206004159.3755-25-willy@infradead.org>
+Subject: [PATCH v4 23/73] page cache: Add page_cache_range_empty function
+Date: Tue,  5 Dec 2017 16:41:09 -0800
+Message-Id: <20171206004159.3755-24-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,220 +21,166 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Use the XArray APIs to add and replace pages in the page cache.  This
-removes two uses of the radix tree preload API and is significantly
-shorter code.
+btrfs has its own custom function for determining whether the page cache
+has any pages in a particular range.  Move this functionality to the
+page cache, and call it from btrfs.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 142 +++++++++++++++++++++++++----------------------------------
- 1 file changed, 61 insertions(+), 81 deletions(-)
+ fs/btrfs/btrfs_inode.h  |  7 ++++-
+ fs/btrfs/inode.c        | 70 -------------------------------------------------
+ include/linux/pagemap.h |  2 ++
+ mm/filemap.c            | 26 ++++++++++++++++++
+ 4 files changed, 34 insertions(+), 71 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 51f88ffc5319..2439747a0a17 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -112,34 +112,6 @@
-  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
-  */
+diff --git a/fs/btrfs/btrfs_inode.h b/fs/btrfs/btrfs_inode.h
+index 63f0ccc92a71..a48bd6e0a0bb 100644
+--- a/fs/btrfs/btrfs_inode.h
++++ b/fs/btrfs/btrfs_inode.h
+@@ -365,6 +365,11 @@ static inline void btrfs_print_data_csum_error(struct btrfs_inode *inode,
+ 			logical_start, csum, csum_expected, mirror_num);
+ }
  
--static int page_cache_tree_insert(struct address_space *mapping,
--				  struct page *page, void **shadowp)
+-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end);
++static inline bool btrfs_page_exists_in_range(struct inode *inode,
++						loff_t start, loff_t end)
++{
++	return page_cache_range_empty(inode->i_mapping, start >> PAGE_SHIFT,
++							end >> PAGE_SHIFT);
++}
+ 
+ #endif
+diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
+index 72f763c56127..a2692bceaa98 100644
+--- a/fs/btrfs/inode.c
++++ b/fs/btrfs/inode.c
+@@ -7539,76 +7539,6 @@ noinline int can_nocow_extent(struct inode *inode, u64 offset, u64 *len,
+ 	return ret;
+ }
+ 
+-bool btrfs_page_exists_in_range(struct inode *inode, loff_t start, loff_t end)
 -{
--	struct radix_tree_node *node;
--	void **slot;
--	int error;
+-	struct radix_tree_root *root = &inode->i_mapping->pages;
+-	bool found = false;
+-	void **pagep = NULL;
+-	struct page *page = NULL;
+-	unsigned long start_idx;
+-	unsigned long end_idx;
 -
--	error = __radix_tree_create(&mapping->pages, page->index, 0,
--				    &node, &slot);
--	if (error)
--		return error;
--	if (*slot) {
--		void *p;
+-	start_idx = start >> PAGE_SHIFT;
 -
--		p = radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock);
--		if (!xa_is_value(p))
--			return -EEXIST;
+-	/*
+-	 * end is the last byte in the last page.  end == start is legal
+-	 */
+-	end_idx = end >> PAGE_SHIFT;
 -
--		mapping->nrexceptional--;
--		if (shadowp)
--			*shadowp = p;
+-	rcu_read_lock();
+-
+-	/* Most of the code in this while loop is lifted from
+-	 * find_get_page.  It's been modified to begin searching from a
+-	 * page and return just the first page found in that range.  If the
+-	 * found idx is less than or equal to the end idx then we know that
+-	 * a page exists.  If no pages are found or if those pages are
+-	 * outside of the range then we're fine (yay!) */
+-	while (page == NULL &&
+-	       radix_tree_gang_lookup_slot(root, &pagep, NULL, start_idx, 1)) {
+-		page = radix_tree_deref_slot(pagep);
+-		if (unlikely(!page))
+-			break;
+-
+-		if (radix_tree_exception(page)) {
+-			if (radix_tree_deref_retry(page)) {
+-				page = NULL;
+-				continue;
+-			}
+-			/*
+-			 * Otherwise, shmem/tmpfs must be storing a swap entry
+-			 * here so return it without attempting to raise page
+-			 * count.
+-			 */
+-			page = NULL;
+-			break; /* TODO: Is this relevant for this use case? */
+-		}
+-
+-		if (!page_cache_get_speculative(page)) {
+-			page = NULL;
+-			continue;
+-		}
+-
+-		/*
+-		 * Has the page moved?
+-		 * This is part of the lockless pagecache protocol. See
+-		 * include/linux/pagemap.h for details.
+-		 */
+-		if (unlikely(page != *pagep)) {
+-			put_page(page);
+-			page = NULL;
+-		}
 -	}
--	__radix_tree_replace(&mapping->pages, node, slot, page,
--			     workingset_lookup_update(mapping));
--	mapping->nrpages++;
--	return 0;
+-
+-	if (page) {
+-		if (page->index <= end_idx)
+-			found = true;
+-		put_page(page);
+-	}
+-
+-	rcu_read_unlock();
+-	return found;
 -}
 -
- static void page_cache_tree_delete(struct address_space *mapping,
- 				   struct page *page, void *shadow)
+ static int lock_extent_direct(struct inode *inode, u64 lockstart, u64 lockend,
+ 			      struct extent_state **cached_state, int writing)
  {
-@@ -775,51 +747,44 @@ EXPORT_SYMBOL(file_write_and_wait_range);
-  * locked.  This function does not add the new page to the LRU, the
-  * caller must do that.
-  *
-- * The remove + add is atomic.  The only way this function can fail is
-- * memory allocation failure.
-+ * The remove + add is atomic.  This function cannot fail.
-  */
- int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- {
--	int error;
-+	struct address_space *mapping = old->mapping;
-+	void (*freepage)(struct page *) = mapping->a_ops->freepage;
-+	pgoff_t offset = old->index;
-+	XA_STATE(xas, &mapping->pages, offset);
-+	unsigned long flags;
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index 0db127c3ccac..34d4fa3ad1c5 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -245,6 +245,8 @@ pgoff_t page_cache_next_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan);
+ pgoff_t page_cache_prev_gap(struct address_space *mapping,
+ 			     pgoff_t index, unsigned long max_scan);
++bool page_cache_range_empty(struct address_space *mapping,
++				pgoff_t index, pgoff_t max);
  
- 	VM_BUG_ON_PAGE(!PageLocked(old), old);
- 	VM_BUG_ON_PAGE(!PageLocked(new), new);
- 	VM_BUG_ON_PAGE(new->mapping, new);
- 
--	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
--	if (!error) {
--		struct address_space *mapping = old->mapping;
--		void (*freepage)(struct page *);
--		unsigned long flags;
--
--		pgoff_t offset = old->index;
--		freepage = mapping->a_ops->freepage;
--
--		get_page(new);
--		new->mapping = mapping;
--		new->index = offset;
-+	get_page(new);
-+	new->mapping = mapping;
-+	new->index = offset;
- 
--		xa_lock_irqsave(&mapping->pages, flags);
--		__delete_from_page_cache(old, NULL);
--		error = page_cache_tree_insert(mapping, new, NULL);
--		BUG_ON(error);
-+	xas_lock_irqsave(&xas, flags);
-+	xas_store(&xas, new);
- 
--		/*
--		 * hugetlb pages do not participate in page cache accounting.
--		 */
--		if (!PageHuge(new))
--			__inc_node_page_state(new, NR_FILE_PAGES);
--		if (PageSwapBacked(new))
--			__inc_node_page_state(new, NR_SHMEM);
--		xa_unlock_irqrestore(&mapping->pages, flags);
--		mem_cgroup_migrate(old, new);
--		radix_tree_preload_end();
--		if (freepage)
--			freepage(old);
--		put_page(old);
--	}
-+	old->mapping = NULL;
-+	/* hugetlb pages do not participate in page cache accounting. */
-+	if (!PageHuge(old))
-+		__dec_node_page_state(new, NR_FILE_PAGES);
-+	if (!PageHuge(new))
-+		__inc_node_page_state(new, NR_FILE_PAGES);
-+	if (PageSwapBacked(old))
-+		__dec_node_page_state(new, NR_SHMEM);
-+	if (PageSwapBacked(new))
-+		__inc_node_page_state(new, NR_SHMEM);
-+	xas_unlock_irqrestore(&xas, flags);
-+	mem_cgroup_migrate(old, new);
-+	if (freepage)
-+		freepage(old);
-+	put_page(old);
- 
--	return error;
-+	return 0;
+ #define FGP_ACCESSED		0x00000001
+ #define FGP_LOCK		0x00000002
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 650624f7b79d..51f88ffc5319 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -1397,6 +1397,32 @@ pgoff_t page_cache_prev_gap(struct address_space *mapping,
  }
- EXPORT_SYMBOL_GPL(replace_page_cache_page);
+ EXPORT_SYMBOL(page_cache_prev_gap);
  
-@@ -828,12 +793,15 @@ static int __add_to_page_cache_locked(struct page *page,
- 				      pgoff_t offset, gfp_t gfp_mask,
- 				      void **shadowp)
- {
-+	XA_STATE(xas, &mapping->pages, offset);
- 	int huge = PageHuge(page);
- 	struct mem_cgroup *memcg;
- 	int error;
-+	void *old;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
-+	xas_set_update(&xas, workingset_lookup_update(mapping));
- 
- 	if (!huge) {
- 		error = mem_cgroup_try_charge(page, current->mm,
-@@ -842,39 +810,51 @@ static int __add_to_page_cache_locked(struct page *page,
- 			return error;
- 	}
- 
--	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
--	if (error) {
--		if (!huge)
--			mem_cgroup_cancel_charge(page, memcg, false);
--		return error;
--	}
--
- 	get_page(page);
- 	page->mapping = mapping;
- 	page->index = offset;
- 
--	xa_lock_irq(&mapping->pages);
--	error = page_cache_tree_insert(mapping, page, shadowp);
--	radix_tree_preload_end();
--	if (unlikely(error))
--		goto err_insert;
++bool page_cache_range_empty(struct address_space *mapping, pgoff_t index,
++				pgoff_t max)
++{
++	struct page *page;
++	XA_STATE(xas, &mapping->pages, index);
++
++	rcu_read_lock();
 +	do {
-+		xas_lock_irq(&xas);
-+		old = xas_create(&xas);
-+		if (xas_error(&xas))
-+			goto unlock;
-+		if (xa_is_value(old)) {
-+			mapping->nrexceptional--;
-+			if (shadowp)
-+				*shadowp = old;
-+		} else if (old) {
-+			xas_set_err(&xas, -EEXIST);
-+			goto unlock;
-+		}
-+
-+		xas_store(&xas, page);
-+		mapping->nrpages++;
-+
++		page = xas_find(&xas, max);
++		if (xas_retry(&xas, page))
++			continue;
++		/* Shadow entries don't count */
++		if (xa_is_value(page))
++			continue;
 +		/*
-+		 * hugetlb pages do not participate in
-+		 * page cache accounting.
++		 * We don't need to try to pin this page; we're about to
++		 * release the RCU lock anyway.  It is enough to know that
++		 * there was a page here recently.
 +		 */
-+		if (!huge)
-+			__inc_node_page_state(page, NR_FILE_PAGES);
-+unlock:
-+		xas_unlock_irq(&xas);
-+	} while (xas_nomem(&xas, gfp_mask & ~__GFP_HIGHMEM));
++	} while (0);
++	rcu_read_unlock();
 +
-+	if (xas_error(&xas))
-+		goto error;
- 
--	/* hugetlb pages do not participate in page cache accounting. */
--	if (!huge)
--		__inc_node_page_state(page, NR_FILE_PAGES);
--	xa_unlock_irq(&mapping->pages);
- 	if (!huge)
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 	trace_mm_filemap_add_to_page_cache(page);
- 	return 0;
--err_insert:
-+error:
- 	page->mapping = NULL;
- 	/* Leave page->index set: truncation relies upon it */
--	xa_unlock_irq(&mapping->pages);
- 	if (!huge)
- 		mem_cgroup_cancel_charge(page, memcg, false);
- 	put_page(page);
--	return error;
-+	return xas_error(&xas);
- }
- 
++	return page != NULL;
++}
++EXPORT_SYMBOL_GPL(page_cache_range_empty);
++
  /**
+  * find_get_entry - find and get a page cache entry
+  * @mapping: the address_space to search
 -- 
 2.15.0
 
