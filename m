@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D76376B0275
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:11 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q3so1489702pgv.16
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:11 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A0DC6B0271
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:12 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id 3so1632681pfo.1
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:12 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q15si972829pfl.112.2017.12.05.16.42.09
+        by mx.google.com with ESMTPS id r10si943657pli.600.2017.12.05.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 05 Dec 2017 16:42:09 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 02/73] xarray: Add the xa_lock to the radix_tree_root
-Date: Tue,  5 Dec 2017 16:40:48 -0800
-Message-Id: <20171206004159.3755-3-willy@infradead.org>
+Subject: [PATCH v4 24/73] page cache: Add and replace pages using the XArray
+Date: Tue,  5 Dec 2017 16:41:10 -0800
+Message-Id: <20171206004159.3755-25-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,161 +21,220 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This results in no change in structure size on 64-bit x86 as it fits in
-the padding between the gfp_t and the void *.
+Use the XArray APIs to add and replace pages in the page cache.  This
+removes two uses of the radix tree preload API and is significantly
+shorter code.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/f2fs/gc.c                   |  2 +-
- include/linux/idr.h            | 12 ++++++------
- include/linux/radix-tree.h     |  7 +++++--
- include/linux/xarray.h         | 34 ++++++++++++++++++++++++++++++++++
- kernel/pid.c                   |  2 +-
- tools/include/linux/spinlock.h |  1 +
- 6 files changed, 48 insertions(+), 10 deletions(-)
- create mode 100644 include/linux/xarray.h
+ mm/filemap.c | 142 +++++++++++++++++++++++++----------------------------------
+ 1 file changed, 61 insertions(+), 81 deletions(-)
 
-diff --git a/fs/f2fs/gc.c b/fs/f2fs/gc.c
-index d844dcb80570..aac1e02f75df 100644
---- a/fs/f2fs/gc.c
-+++ b/fs/f2fs/gc.c
-@@ -991,7 +991,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi, bool sync,
- 	unsigned int init_segno = segno;
- 	struct gc_inode_list gc_list = {
- 		.ilist = LIST_HEAD_INIT(gc_list.ilist),
--		.iroot = RADIX_TREE_INIT(GFP_NOFS),
-+		.iroot = RADIX_TREE_INIT(gc_list.iroot, GFP_NOFS),
- 	};
+diff --git a/mm/filemap.c b/mm/filemap.c
+index 51f88ffc5319..2439747a0a17 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -112,34 +112,6 @@
+  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
+  */
  
- 	trace_f2fs_gc_begin(sbi->sb, sync, background,
-diff --git a/include/linux/idr.h b/include/linux/idr.h
-index 5f55e119d128..4ffdb7058121 100644
---- a/include/linux/idr.h
-+++ b/include/linux/idr.h
-@@ -30,11 +30,11 @@ struct idr {
- /* Set the IDR flag and the IDR_FREE tag */
- #define IDR_RT_MARKER		((__force gfp_t)(3 << __GFP_BITS_SHIFT))
+-static int page_cache_tree_insert(struct address_space *mapping,
+-				  struct page *page, void **shadowp)
+-{
+-	struct radix_tree_node *node;
+-	void **slot;
+-	int error;
+-
+-	error = __radix_tree_create(&mapping->pages, page->index, 0,
+-				    &node, &slot);
+-	if (error)
+-		return error;
+-	if (*slot) {
+-		void *p;
+-
+-		p = radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock);
+-		if (!xa_is_value(p))
+-			return -EEXIST;
+-
+-		mapping->nrexceptional--;
+-		if (shadowp)
+-			*shadowp = p;
+-	}
+-	__radix_tree_replace(&mapping->pages, node, slot, page,
+-			     workingset_lookup_update(mapping));
+-	mapping->nrpages++;
+-	return 0;
+-}
+-
+ static void page_cache_tree_delete(struct address_space *mapping,
+ 				   struct page *page, void *shadow)
+ {
+@@ -775,51 +747,44 @@ EXPORT_SYMBOL(file_write_and_wait_range);
+  * locked.  This function does not add the new page to the LRU, the
+  * caller must do that.
+  *
+- * The remove + add is atomic.  The only way this function can fail is
+- * memory allocation failure.
++ * The remove + add is atomic.  This function cannot fail.
+  */
+ int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
+ {
+-	int error;
++	struct address_space *mapping = old->mapping;
++	void (*freepage)(struct page *) = mapping->a_ops->freepage;
++	pgoff_t offset = old->index;
++	XA_STATE(xas, &mapping->pages, offset);
++	unsigned long flags;
  
--#define IDR_INIT							\
-+#define IDR_INIT(name)							\
- {									\
--	.idr_rt = RADIX_TREE_INIT(IDR_RT_MARKER)			\
-+	.idr_rt = RADIX_TREE_INIT(name, IDR_RT_MARKER)			\
+ 	VM_BUG_ON_PAGE(!PageLocked(old), old);
+ 	VM_BUG_ON_PAGE(!PageLocked(new), new);
+ 	VM_BUG_ON_PAGE(new->mapping, new);
+ 
+-	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
+-	if (!error) {
+-		struct address_space *mapping = old->mapping;
+-		void (*freepage)(struct page *);
+-		unsigned long flags;
+-
+-		pgoff_t offset = old->index;
+-		freepage = mapping->a_ops->freepage;
+-
+-		get_page(new);
+-		new->mapping = mapping;
+-		new->index = offset;
++	get_page(new);
++	new->mapping = mapping;
++	new->index = offset;
+ 
+-		xa_lock_irqsave(&mapping->pages, flags);
+-		__delete_from_page_cache(old, NULL);
+-		error = page_cache_tree_insert(mapping, new, NULL);
+-		BUG_ON(error);
++	xas_lock_irqsave(&xas, flags);
++	xas_store(&xas, new);
+ 
+-		/*
+-		 * hugetlb pages do not participate in page cache accounting.
+-		 */
+-		if (!PageHuge(new))
+-			__inc_node_page_state(new, NR_FILE_PAGES);
+-		if (PageSwapBacked(new))
+-			__inc_node_page_state(new, NR_SHMEM);
+-		xa_unlock_irqrestore(&mapping->pages, flags);
+-		mem_cgroup_migrate(old, new);
+-		radix_tree_preload_end();
+-		if (freepage)
+-			freepage(old);
+-		put_page(old);
+-	}
++	old->mapping = NULL;
++	/* hugetlb pages do not participate in page cache accounting. */
++	if (!PageHuge(old))
++		__dec_node_page_state(new, NR_FILE_PAGES);
++	if (!PageHuge(new))
++		__inc_node_page_state(new, NR_FILE_PAGES);
++	if (PageSwapBacked(old))
++		__dec_node_page_state(new, NR_SHMEM);
++	if (PageSwapBacked(new))
++		__inc_node_page_state(new, NR_SHMEM);
++	xas_unlock_irqrestore(&xas, flags);
++	mem_cgroup_migrate(old, new);
++	if (freepage)
++		freepage(old);
++	put_page(old);
+ 
+-	return error;
++	return 0;
  }
--#define DEFINE_IDR(name)	struct idr name = IDR_INIT
-+#define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
+ EXPORT_SYMBOL_GPL(replace_page_cache_page);
+ 
+@@ -828,12 +793,15 @@ static int __add_to_page_cache_locked(struct page *page,
+ 				      pgoff_t offset, gfp_t gfp_mask,
+ 				      void **shadowp)
+ {
++	XA_STATE(xas, &mapping->pages, offset);
+ 	int huge = PageHuge(page);
+ 	struct mem_cgroup *memcg;
+ 	int error;
++	void *old;
+ 
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
++	xas_set_update(&xas, workingset_lookup_update(mapping));
+ 
+ 	if (!huge) {
+ 		error = mem_cgroup_try_charge(page, current->mm,
+@@ -842,39 +810,51 @@ static int __add_to_page_cache_locked(struct page *page,
+ 			return error;
+ 	}
+ 
+-	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
+-	if (error) {
+-		if (!huge)
+-			mem_cgroup_cancel_charge(page, memcg, false);
+-		return error;
+-	}
+-
+ 	get_page(page);
+ 	page->mapping = mapping;
+ 	page->index = offset;
+ 
+-	xa_lock_irq(&mapping->pages);
+-	error = page_cache_tree_insert(mapping, page, shadowp);
+-	radix_tree_preload_end();
+-	if (unlikely(error))
+-		goto err_insert;
++	do {
++		xas_lock_irq(&xas);
++		old = xas_create(&xas);
++		if (xas_error(&xas))
++			goto unlock;
++		if (xa_is_value(old)) {
++			mapping->nrexceptional--;
++			if (shadowp)
++				*shadowp = old;
++		} else if (old) {
++			xas_set_err(&xas, -EEXIST);
++			goto unlock;
++		}
++
++		xas_store(&xas, page);
++		mapping->nrpages++;
++
++		/*
++		 * hugetlb pages do not participate in
++		 * page cache accounting.
++		 */
++		if (!huge)
++			__inc_node_page_state(page, NR_FILE_PAGES);
++unlock:
++		xas_unlock_irq(&xas);
++	} while (xas_nomem(&xas, gfp_mask & ~__GFP_HIGHMEM));
++
++	if (xas_error(&xas))
++		goto error;
+ 
+-	/* hugetlb pages do not participate in page cache accounting. */
+-	if (!huge)
+-		__inc_node_page_state(page, NR_FILE_PAGES);
+-	xa_unlock_irq(&mapping->pages);
+ 	if (!huge)
+ 		mem_cgroup_commit_charge(page, memcg, false, false);
+ 	trace_mm_filemap_add_to_page_cache(page);
+ 	return 0;
+-err_insert:
++error:
+ 	page->mapping = NULL;
+ 	/* Leave page->index set: truncation relies upon it */
+-	xa_unlock_irq(&mapping->pages);
+ 	if (!huge)
+ 		mem_cgroup_cancel_charge(page, memcg, false);
+ 	put_page(page);
+-	return error;
++	return xas_error(&xas);
+ }
  
  /**
-  * idr_get_cursor - Return the current position of the cyclic allocator
-@@ -193,10 +193,10 @@ struct ida {
- 	struct radix_tree_root	ida_rt;
- };
- 
--#define IDA_INIT	{						\
--	.ida_rt = RADIX_TREE_INIT(IDR_RT_MARKER | GFP_NOWAIT),		\
-+#define IDA_INIT(name)	{						\
-+	.ida_rt = RADIX_TREE_INIT(name, IDR_RT_MARKER | GFP_NOWAIT),	\
- }
--#define DEFINE_IDA(name)	struct ida name = IDA_INIT
-+#define DEFINE_IDA(name)	struct ida name = IDA_INIT(name)
- 
- int ida_pre_get(struct ida *ida, gfp_t gfp_mask);
- int ida_get_new_above(struct ida *ida, int starting_id, int *p_id);
-diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
-index fc55ff31eca7..d2253b540cd7 100644
---- a/include/linux/radix-tree.h
-+++ b/include/linux/radix-tree.h
-@@ -109,20 +109,23 @@ struct radix_tree_node {
- #define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT + 1)
- 
- struct radix_tree_root {
-+	spinlock_t		xa_lock;
- 	gfp_t			gfp_mask;
- 	struct radix_tree_node	__rcu *rnode;
- };
- 
--#define RADIX_TREE_INIT(mask)	{					\
-+#define RADIX_TREE_INIT(name, mask)	{				\
-+	.xa_lock = __SPIN_LOCK_UNLOCKED(name.xa_lock),			\
- 	.gfp_mask = (mask),						\
- 	.rnode = NULL,							\
- }
- 
- #define RADIX_TREE(name, mask) \
--	struct radix_tree_root name = RADIX_TREE_INIT(mask)
-+	struct radix_tree_root name = RADIX_TREE_INIT(name, mask)
- 
- #define INIT_RADIX_TREE(root, mask)					\
- do {									\
-+	spin_lock_init(&(root)->xa_lock);				\
- 	(root)->gfp_mask = (mask);					\
- 	(root)->rnode = NULL;						\
- } while (0)
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-new file mode 100644
-index 000000000000..a5a933925b85
---- /dev/null
-+++ b/include/linux/xarray.h
-@@ -0,0 +1,34 @@
-+#ifndef _LINUX_XARRAY_H
-+#define _LINUX_XARRAY_H
-+/*
-+ * eXtensible Arrays
-+ * Copyright (c) 2017 Microsoft Corporation
-+ * Author: Matthew Wilcox <mawilcox@microsoft.com>
-+ *
-+ * This program is free software; you can redistribute it and/or
-+ * modify it under the terms of the GNU General Public License as
-+ * published by the Free Software Foundation; either version 2 of
-+ * the License, or (at your option) any later version.
-+ *
-+ * This program is distributed in the hope that it will be useful,
-+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
-+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+ * GNU General Public License for more details.
-+ */
-+
-+#include <linux/spinlock.h>
-+
-+#define xa_trylock(xa)		spin_trylock(&(xa)->xa_lock)
-+#define xa_lock(xa)		spin_lock(&(xa)->xa_lock)
-+#define xa_unlock(xa)		spin_unlock(&(xa)->xa_lock)
-+#define xa_lock_bh(xa)		spin_lock_bh(&(xa)->xa_lock)
-+#define xa_unlock_bh(xa)	spin_unlock_bh(&(xa)->xa_lock)
-+#define xa_lock_irq(xa)		spin_lock_irq(&(xa)->xa_lock)
-+#define xa_unlock_irq(xa)	spin_unlock_irq(&(xa)->xa_lock)
-+#define xa_lock_irqsave(xa, flags) \
-+				spin_lock_irqsave(&(xa)->xa_lock, flags)
-+#define xa_unlock_irqrestore(xa, flags) \
-+				spin_unlock_irqrestore(&(xa)->xa_lock, flags)
-+#define xa_lock_held(xa)	lockdep_is_held(&(xa)->xa_lock)
-+
-+#endif /* _LINUX_XARRAY_H */
-diff --git a/kernel/pid.c b/kernel/pid.c
-index b13b624e2c49..b050b4643eee 100644
---- a/kernel/pid.c
-+++ b/kernel/pid.c
-@@ -58,7 +58,7 @@ int pid_max_max = PID_MAX_LIMIT;
-  */
- struct pid_namespace init_pid_ns = {
- 	.kref = KREF_INIT(2),
--	.idr = IDR_INIT,
-+	.idr = IDR_INIT(init_pid_ns.idr),
- 	.pid_allocated = PIDNS_ADDING,
- 	.level = 0,
- 	.child_reaper = &init_task,
-diff --git a/tools/include/linux/spinlock.h b/tools/include/linux/spinlock.h
-index 4ed569fcb139..b21b586b9854 100644
---- a/tools/include/linux/spinlock.h
-+++ b/tools/include/linux/spinlock.h
-@@ -7,6 +7,7 @@
- 
- #define spinlock_t		pthread_mutex_t
- #define DEFINE_SPINLOCK(x)	pthread_mutex_t x = PTHREAD_MUTEX_INITIALIZER;
-+#define __SPIN_LOCK_UNLOCKED(x)	(pthread_mutex_t)PTHREAD_MUTEX_INITIALIZER
- 
- #define spin_lock_irqsave(x, f)		(void)f, pthread_mutex_lock(x)
- #define spin_unlock_irqrestore(x, f)	(void)f, pthread_mutex_unlock(x)
 -- 
 2.15.0
 
