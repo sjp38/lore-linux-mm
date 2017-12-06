@@ -1,84 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F9C66B030C
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 20:51:13 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id a12so30470pll.21
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 17:51:13 -0800 (PST)
-Received: from ipmail06.adl6.internode.on.net (ipmail06.adl6.internode.on.net. [150.101.137.145])
-        by mx.google.com with ESMTP id u2si994917pge.188.2017.12.05.17.51.11
-        for <linux-mm@kvack.org>;
-        Tue, 05 Dec 2017 17:51:12 -0800 (PST)
-Date: Wed, 6 Dec 2017 12:51:08 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v4 00/73] XArray version 4
-Message-ID: <20171206015108.GB4094@dastard>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B70A06B030E
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 20:53:44 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g8so1657805pgs.14
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 17:53:44 -0800 (PST)
+Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0121.outbound.protection.outlook.com. [104.47.41.121])
+        by mx.google.com with ESMTPS id v75si1056949pfd.392.2017.12.05.17.53.43
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 05 Dec 2017 17:53:43 -0800 (PST)
+From: Matthew Wilcox <mawilcox@microsoft.com>
+Subject: RE: [PATCH v4 00/73] XArray version 4
+Date: Wed, 6 Dec 2017 01:53:41 +0000
+Message-ID: <MWHPR21MB0845A83B9E89E4A9499AEC2FCB320@MWHPR21MB0845.namprd21.prod.outlook.com>
 References: <20171206004159.3755-1-willy@infradead.org>
- <20171206014536.GA4094@dastard>
+ <20171206014536.GA4094@dastard> <20171206015108.GB4094@dastard>
+In-Reply-To: <20171206015108.GB4094@dastard>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20171206014536.GA4094@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-f2fs-devel@lists.sourceforge.net" <linux-f2fs-devel@lists.sourceforge.net>, "linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Wed, Dec 06, 2017 at 12:45:49PM +1100, Dave Chinner wrote:
-> On Tue, Dec 05, 2017 at 04:40:46PM -0800, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > I looked through some notes and decided this was version 4 of the XArray.
-> > Last posted two weeks ago, this version includes a *lot* of changes.
-> > I'd like to thank Dave Chinner for his feedback, encouragement and
-> > distracting ideas for improvement, which I'll get to once this is merged.
-> 
-> BTW, you need to fix the "To:" line on your patchbombs:
-> 
-> > To: unlisted-recipients: ;, no To-header on input <@gmail-pop.l.google.com> 
-> 
-> This bad email address getting quoted to the cc line makes some MTAs
-> very unhappy.
-> 
-> > 
-> > Highlights:
-> >  - Over 2000 words of documentation in patch 8!  And lots more kernel-doc.
-> >  - The page cache is now fully converted to the XArray.
-> >  - Many more tests in the test-suite.
-> > 
-> > This patch set is not for applying.  0day is still reporting problems,
-> > and I'd feel bad for eating someone's data.  These patches apply on top
-> > of a set of prepatory patches which just aren't interesting.  If you
-> > want to see the patches applied to a tree, I suggest pulling my git tree:
-> > http://git.infradead.org/users/willy/linux-dax.git/shortlog/refs/heads/xarray-2017-12-04
-> > I also left out the idr_preload removals.  They're still in the git tree,
-> > but I'm not looking for feedback on them.
-> 
-> I'll give this a quick burn this afternoon and see what catches fire...
-
-Build warnings/errors:
-
-.....
-lib/radix-tree.c:700:13: warning: ?radix_tree_free_nodes? defined but not used [-Wunused-function]
- static void radix_tree_free_nodes(struct radix_tree_node *node)
-.....
-lib/xarray.c: In function ?xas_max?:
-lib/xarray.c:291:16: warning: unused variable ?mask?
-[-Wunused-variable]
-  unsigned long mask, max = xas->xa_index;
-                  ^~~~
-......
-fs/dax.c: In function ?grab_mapping_entry?:
-fs/dax.c:305:2: error: implicit declaration of function ?xas_set_order?; did you mean ?xas_set_err??  [-Werror=implicit-function-declaration]
-  xas_set_order(&xas, index, size_flag ? PMD_ORDER : 0);
-    ^~~~~~~~~~~~~
-scripts/Makefile.build:310: recipe for target 'fs/dax.o' failed
-make[1]: *** [fs/dax.o] Error 1
-
--Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+SHVoLCB5b3UndmUgY2F1Z2h0IGEgY291cGxlIG9mIHByb2JsZW1zIHRoYXQgMGRheSBoYXNuJ3Qg
+c2VudCBtZSB5ZXQuICBUcnkgdHVybmluZyBvbiBEQVggb3IgVFJBTlNQQVJFTlRfSFVHRVBBR0Uu
+ICBUaGFua3MhDQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogRGF2ZSBD
+aGlubmVyIFttYWlsdG86ZGF2aWRAZnJvbW9yYml0LmNvbV0NCj4gU2VudDogVHVlc2RheSwgRGVj
+ZW1iZXIgNSwgMjAxNyA4OjUxIFBNDQo+IFRvOiBNYXR0aGV3IFdpbGNveCA8d2lsbHlAaW5mcmFk
+ZWFkLm9yZz4NCj4gQ2M6IE1hdHRoZXcgV2lsY294IDxtYXdpbGNveEBtaWNyb3NvZnQuY29tPjsg
+Um9zcyBad2lzbGVyDQo+IDxyb3NzLnp3aXNsZXJAbGludXguaW50ZWwuY29tPjsgSmVucyBBeGJv
+ZSA8YXhib2VAa2VybmVsLmRrPjsgUmVoYXMNCj4gU2FjaGRldmEgPGFxdWFubmllQGdtYWlsLmNv
+bT47IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgtDQo+IGZzZGV2ZWxAdmdlci5rZXJuZWwub3Jn
+OyBsaW51eC1mMmZzLWRldmVsQGxpc3RzLnNvdXJjZWZvcmdlLm5ldDsgbGludXgtDQo+IG5pbGZz
+QHZnZXIua2VybmVsLm9yZzsgbGludXgtYnRyZnNAdmdlci5rZXJuZWwub3JnOyBsaW51eC14ZnNA
+dmdlci5rZXJuZWwub3JnOw0KPiBsaW51eC11c2JAdmdlci5rZXJuZWwub3JnOyBsaW51eC1rZXJu
+ZWxAdmdlci5rZXJuZWwub3JnDQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0ggdjQgMDAvNzNdIFhBcnJh
+eSB2ZXJzaW9uIDQNCj4gDQo+IE9uIFdlZCwgRGVjIDA2LCAyMDE3IGF0IDEyOjQ1OjQ5UE0gKzEx
+MDAsIERhdmUgQ2hpbm5lciB3cm90ZToNCj4gPiBPbiBUdWUsIERlYyAwNSwgMjAxNyBhdCAwNDo0
+MDo0NlBNIC0wODAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToNCj4gPiA+IEZyb206IE1hdHRoZXcg
+V2lsY294IDxtYXdpbGNveEBtaWNyb3NvZnQuY29tPg0KPiA+ID4NCj4gPiA+IEkgbG9va2VkIHRo
+cm91Z2ggc29tZSBub3RlcyBhbmQgZGVjaWRlZCB0aGlzIHdhcyB2ZXJzaW9uIDQgb2YgdGhlIFhB
+cnJheS4NCj4gPiA+IExhc3QgcG9zdGVkIHR3byB3ZWVrcyBhZ28sIHRoaXMgdmVyc2lvbiBpbmNs
+dWRlcyBhICpsb3QqIG9mIGNoYW5nZXMuDQo+ID4gPiBJJ2QgbGlrZSB0byB0aGFuayBEYXZlIENo
+aW5uZXIgZm9yIGhpcyBmZWVkYmFjaywgZW5jb3VyYWdlbWVudCBhbmQNCj4gPiA+IGRpc3RyYWN0
+aW5nIGlkZWFzIGZvciBpbXByb3ZlbWVudCwgd2hpY2ggSSdsbCBnZXQgdG8gb25jZSB0aGlzIGlz
+IG1lcmdlZC4NCj4gPg0KPiA+IEJUVywgeW91IG5lZWQgdG8gZml4IHRoZSAiVG86IiBsaW5lIG9u
+IHlvdXIgcGF0Y2hib21iczoNCj4gPg0KPiA+ID4gVG86IHVubGlzdGVkLXJlY2lwaWVudHM6IDss
+IG5vIFRvLWhlYWRlciBvbiBpbnB1dCA8QGdtYWlsLQ0KPiBwb3AubC5nb29nbGUuY29tPg0KPiA+
+DQo+ID4gVGhpcyBiYWQgZW1haWwgYWRkcmVzcyBnZXR0aW5nIHF1b3RlZCB0byB0aGUgY2MgbGlu
+ZSBtYWtlcyBzb21lIE1UQXMNCj4gPiB2ZXJ5IHVuaGFwcHkuDQo+ID4NCj4gPiA+DQo+ID4gPiBI
+aWdobGlnaHRzOg0KPiA+ID4gIC0gT3ZlciAyMDAwIHdvcmRzIG9mIGRvY3VtZW50YXRpb24gaW4g
+cGF0Y2ggOCEgIEFuZCBsb3RzIG1vcmUga2VybmVsLWRvYy4NCj4gPiA+ICAtIFRoZSBwYWdlIGNh
+Y2hlIGlzIG5vdyBmdWxseSBjb252ZXJ0ZWQgdG8gdGhlIFhBcnJheS4NCj4gPiA+ICAtIE1hbnkg
+bW9yZSB0ZXN0cyBpbiB0aGUgdGVzdC1zdWl0ZS4NCj4gPiA+DQo+ID4gPiBUaGlzIHBhdGNoIHNl
+dCBpcyBub3QgZm9yIGFwcGx5aW5nLiAgMGRheSBpcyBzdGlsbCByZXBvcnRpbmcgcHJvYmxlbXMs
+DQo+ID4gPiBhbmQgSSdkIGZlZWwgYmFkIGZvciBlYXRpbmcgc29tZW9uZSdzIGRhdGEuICBUaGVz
+ZSBwYXRjaGVzIGFwcGx5IG9uIHRvcA0KPiA+ID4gb2YgYSBzZXQgb2YgcHJlcGF0b3J5IHBhdGNo
+ZXMgd2hpY2gganVzdCBhcmVuJ3QgaW50ZXJlc3RpbmcuICBJZiB5b3UNCj4gPiA+IHdhbnQgdG8g
+c2VlIHRoZSBwYXRjaGVzIGFwcGxpZWQgdG8gYSB0cmVlLCBJIHN1Z2dlc3QgcHVsbGluZyBteSBn
+aXQgdHJlZToNCj4gPiA+DQo+IGh0dHBzOi8vbmEwMS5zYWZlbGlua3MucHJvdGVjdGlvbi5vdXRs
+b29rLmNvbS8/dXJsPWh0dHAlM0ElMkYlMkZnaXQuaW5mcmFkZQ0KPiBhZC5vcmclMkZ1c2VycyUy
+RndpbGx5JTJGbGludXgtDQo+IGRheC5naXQlMkZzaG9ydGxvZyUyRnJlZnMlMkZoZWFkcyUyRnhh
+cnJheS0yMDE3LTEyLQ0KPiAwNCZkYXRhPTAyJTdDMDElN0NtYXdpbGNveCU0MG1pY3Jvc29mdC5j
+b20lN0NhM2U3MjE1NDVmOGI0YjlkZmYxDQo+IDYwOGQ1M2M0YmQ0MmYlN0M3MmY5ODhiZjg2ZjE0
+MWFmOTFhYjJkN2NkMDExZGI0NyU3QzElN0MwJTdDNjM2NA0KPiA4MTIxODc0MDM0MTMxMiZzZGF0
+YT1JWE5aWFhMVGY5NjRPUTBlTERwSnQyTEN2JTJCR0dXRlclMkZRZDRLYw0KPiBLWXU2em8lM0Qm
+cmVzZXJ2ZWQ9MA0KPiA+ID4gSSBhbHNvIGxlZnQgb3V0IHRoZSBpZHJfcHJlbG9hZCByZW1vdmFs
+cy4gIFRoZXkncmUgc3RpbGwgaW4gdGhlIGdpdCB0cmVlLA0KPiA+ID4gYnV0IEknbSBub3QgbG9v
+a2luZyBmb3IgZmVlZGJhY2sgb24gdGhlbS4NCj4gPg0KPiA+IEknbGwgZ2l2ZSB0aGlzIGEgcXVp
+Y2sgYnVybiB0aGlzIGFmdGVybm9vbiBhbmQgc2VlIHdoYXQgY2F0Y2hlcyBmaXJlLi4uDQo+IA0K
+PiBCdWlsZCB3YXJuaW5ncy9lcnJvcnM6DQo+IA0KPiAuLi4uLg0KPiBsaWIvcmFkaXgtdHJlZS5j
+OjcwMDoxMzogd2FybmluZzogwr9yYWRpeF90cmVlX2ZyZWVfbm9kZXPCvyBkZWZpbmVkIGJ1dCBu
+b3QgdXNlZA0KPiBbLVd1bnVzZWQtZnVuY3Rpb25dDQo+ICBzdGF0aWMgdm9pZCByYWRpeF90cmVl
+X2ZyZWVfbm9kZXMoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqbm9kZSkNCj4gLi4uLi4NCj4gbGli
+L3hhcnJheS5jOiBJbiBmdW5jdGlvbiDCv3hhc19tYXjCvzoNCj4gbGliL3hhcnJheS5jOjI5MTox
+Njogd2FybmluZzogdW51c2VkIHZhcmlhYmxlIMK/bWFza8K/DQo+IFstV3VudXNlZC12YXJpYWJs
+ZV0NCj4gICB1bnNpZ25lZCBsb25nIG1hc2ssIG1heCA9IHhhcy0+eGFfaW5kZXg7DQo+ICAgICAg
+ICAgICAgICAgICAgIF5+fn4NCj4gLi4uLi4uDQo+IGZzL2RheC5jOiBJbiBmdW5jdGlvbiDCv2dy
+YWJfbWFwcGluZ19lbnRyecK/Og0KPiBmcy9kYXguYzozMDU6MjogZXJyb3I6IGltcGxpY2l0IGRl
+Y2xhcmF0aW9uIG9mIGZ1bmN0aW9uIMK/eGFzX3NldF9vcmRlcsK/OyBkaWQgeW91DQo+IG1lYW4g
+wr94YXNfc2V0X2VycsK/PyAgWy1XZXJyb3I9aW1wbGljaXQtZnVuY3Rpb24tZGVjbGFyYXRpb25d
+DQo+ICAgeGFzX3NldF9vcmRlcigmeGFzLCBpbmRleCwgc2l6ZV9mbGFnID8gUE1EX09SREVSIDog
+MCk7DQo+ICAgICBefn5+fn5+fn5+fn5+DQo+IHNjcmlwdHMvTWFrZWZpbGUuYnVpbGQ6MzEwOiBy
+ZWNpcGUgZm9yIHRhcmdldCAnZnMvZGF4Lm8nIGZhaWxlZA0KPiBtYWtlWzFdOiAqKiogW2ZzL2Rh
+eC5vXSBFcnJvciAxDQo+IA0KPiAtRGF2ZS4NCj4gLS0NCj4gRGF2ZSBDaGlubmVyDQo+IGRhdmlk
+QGZyb21vcmJpdC5jb20NCg==
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
