@@ -1,86 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B120C6B028A
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 06:49:00 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y62so2664783pfd.3
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 03:49:00 -0800 (PST)
-Received: from mailout1.samsung.com (mailout1.samsung.com. [203.254.224.24])
-        by mx.google.com with ESMTPS id d126si1954381pfg.11.2017.12.06.03.48.56
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CBAA16B026B
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 07:38:52 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id v69so2039629wrb.3
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 04:38:52 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o63si1647289edb.23.2017.12.06.04.38.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Dec 2017 03:48:56 -0800 (PST)
-Received: from epcas5p2.samsung.com (unknown [182.195.41.40])
-	by mailout1.samsung.com (KnoxPortal) with ESMTP id 20171206114854epoutp01620e4f01f9e3e0e97a56844c9d78fd8f~9sifhGO552866728667epoutp01P
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 11:48:54 +0000 (GMT)
-Mime-Version: 1.0
-Subject: [PATCH v2] zswap: Update with same-value filled page feature
-Reply-To: srividya.dr@samsung.com
-From: Srividya Desireddy <srividya.dr@samsung.com>
-In-Reply-To: <20171129153437epcms5p64b04efa370cc42bb0f9e5677e298704e@epcms5p6>
-Message-ID: <20171206114852epcms5p6973b02a9f455d5d3c765eafda0fe2631@epcms5p6>
-Date: Wed, 06 Dec 2017 11:48:52 +0000
-Content-Transfer-Encoding: 7bit
-Content-Type: text/plain; charset="utf-8"
-References: <20171129153437epcms5p64b04efa370cc42bb0f9e5677e298704e@epcms5p6>
-	<CALZtONA1R8HyODqUP8Z-0yxvRAsV=Zo8OD2PQT3HwWWmqE6Hig@mail.gmail.com>
-	<20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
-	<20171120154648.6c2f96804c4c1668bd8d572a@linux-foundation.org>
-	<CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p6>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Dec 2017 04:38:43 -0800 (PST)
+Date: Wed, 6 Dec 2017 13:38:42 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Get 7% more pages in a pagevec
+Message-ID: <20171206123842.GB7515@dhcp22.suse.cz>
+References: <20171206022521.GM26021@bombadil.infradead.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206022521.GM26021@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Streetman <ddstreet@ieee.org>, "sjenning@redhat.com" <sjenning@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Srividya Desireddy <srividya.dr@samsung.com>
-Cc: Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, Srikanth Mandalapu <srikanth.m@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org
 
-From: Srividya Desireddy <srividya.dr@samsung.com>
-Date: Wed, 6 Dec 2017 16:29:50 +0530
-Subject: [PATCH v2] zswap: Update with same-value filled page feature
+On Tue 05-12-17 18:25:21, Matthew Wilcox wrote:
+[...]
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> We don't have to use an entire 'long' for the number of elements in the
+> pagevec; we know it's a number between 0 and 14 (now 15).  So we can
+> store it in a char, and then the bool packs next to it and we still have
+> two or six bytes of padding for more elements in the header.  That gives
+> us space to cram in an extra page.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> diff --git a/include/linux/pagevec.h b/include/linux/pagevec.h
+> index 5fb6580f7f23..6dc456ac6136 100644
+> --- a/include/linux/pagevec.h
+> +++ b/include/linux/pagevec.h
+> @@ -9,14 +9,14 @@
+>  #ifndef _LINUX_PAGEVEC_H
+>  #define _LINUX_PAGEVEC_H
+>  
+> -/* 14 pointers + two long's align the pagevec structure to a power of two */
+> -#define PAGEVEC_SIZE	14
+> +/* 15 pointers + header align the pagevec structure to a power of two */
+> +#define PAGEVEC_SIZE	15
 
-Changes since v1:
-Updated to clarify about zswap.same_filled_pages_enabled parameter.
+And now you have ruined the ultimate constant of the whole MM :p
+But seriously, I have completely missed that pagevec has such a bad
+layout.
 
-Updated zswap document with details on same-value filled
-pages identification feature.
-The usage of zswap.same_filled_pages_enabled module parameter
-is explained.
+>  struct page;
+>  struct address_space;
+>  
+>  struct pagevec {
+> -	unsigned long nr;
+> +	unsigned char nr;
+>  	bool percpu_pvec_drained;
+>  	struct page *pages[PAGEVEC_SIZE];
+>  };
 
-Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
----
- Documentation/vm/zswap.txt | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
+Anyway the change looks good to me.
 
-diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
-index 89fff7d..0b3a114 100644
---- a/Documentation/vm/zswap.txt
-+++ b/Documentation/vm/zswap.txt
-@@ -98,5 +98,25 @@ request is made for a page in an old zpool, it is uncompressed using its
- original compressor.  Once all pages are removed from an old zpool, the zpool
- and its compressor are freed.
- 
-+Some of the pages in zswap are same-value filled pages (i.e. contents of the
-+page have same value or repetitive pattern). These pages include zero-filled
-+pages and they are handled differently. During store operation, a page is
-+checked if it is a same-value filled page before compressing it. If true, the
-+compressed length of the page is set to zero and the pattern or same-filled
-+value is stored.
-+
-+Same-value filled pages identification feature is enabled by default and can be
-+disabled at boot time by setting the "same_filled_pages_enabled" attribute to 0,
-+e.g. zswap.same_filled_pages_enabled=0. It can also be enabled and disabled at
-+runtime using the sysfs "same_filled_pages_enabled" attribute, e.g.
-+
-+echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
-+
-+When zswap same-filled page identification is disabled at runtime, it will stop
-+checking for the same-value filled pages during store operation. However, the
-+existing pages which are marked as same-value filled pages remain stored
-+unchanged in zswap until they are either loaded or invalidated.
-+
- A debugfs interface is provided for various statistic about pool size, number
--of pages stored, and various counters for the reasons pages are rejected.
-+of pages stored, same-value filled pages and various counters for the reasons
-+pages are rejected.
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
