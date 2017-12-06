@@ -1,39 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E03876B0038
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 10:41:03 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id j4so2340293wrg.15
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 07:41:03 -0800 (PST)
-Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id m3si140084wmc.18.2017.12.06.07.41.02
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DCCE6B0038
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 12:22:48 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id d4so1339479plr.8
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 09:22:48 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f33sor1278124plf.76.2017.12.06.09.22.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Dec 2017 07:41:02 -0800 (PST)
-Date: Wed, 6 Dec 2017 16:41:02 +0100
-From: Christoph Hellwig <hch@lst.de>
-Subject: Re: [PATCH] mm: Export unmapped_area*() functions
-Message-ID: <20171206154102.GA26419@lst.de>
-References: <1512486927-32349-1-git-send-email-hareeshg@codeaurora.org> <20171205152944.GA10573@lst.de> <d5c9b199-7379-f6e1-d5a4-f072d7f9cd93@codeaurora.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d5c9b199-7379-f6e1-d5a4-f072d7f9cd93@codeaurora.org>
+        (Google Transport Security);
+        Wed, 06 Dec 2017 09:22:47 -0800 (PST)
+From: Pravin Shedge <pravin.shedge4linux@gmail.com>
+Subject: [PATCH 26/45] mm: remove duplicate includes
+Date: Wed,  6 Dec 2017 22:52:37 +0530
+Message-Id: <1512580957-6071-1-git-send-email-pravin.shedge4linux@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hareesh Gundu <hareeshg@codeaurora.org>
-Cc: Christoph Hellwig <hch@lst.de>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, jcrouse@codeaurora.org
+To: linux-mm@kvack.org, akpm@linux-foundation.org, rppt@linux.vnet.ibm.com, mhocko@suse.com
+Cc: linux-kernel@vger.kernel.org, pravin.shedge4linux@gmail.com
 
-On Wed, Dec 06, 2017 at 09:00:57PM +0530, Hareesh Gundu wrote:
-> On 12/5/2017 8:59 PM, Christoph Hellwig wrote:
->> On Tue, Dec 05, 2017 at 08:45:27PM +0530, Hareesh Gundu wrote:
->>> Add EXPORT_SYMBOL to unmapped_area()
->>> and unmapped_area_topdown(). So they
->>> are usable from modules.
-> This change is not for in-tree kernel module. It's for modules built 
-> outside of kernel tree modules.
+These duplicate includes have been found with scripts/checkincludes.pl but
+they have been removed manually to avoid removing false positives.
 
-Please prepare the modules for kernel inclusion first, and then we
-can understand what you are doing and propose the right solution.
+Signed-off-by: Pravin Shedge <pravin.shedge4linux@gmail.com>
+---
+ mm/userfaultfd.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
+index 8119270..39791b8 100644
+--- a/mm/userfaultfd.c
++++ b/mm/userfaultfd.c
+@@ -16,7 +16,6 @@
+ #include <linux/userfaultfd_k.h>
+ #include <linux/mmu_notifier.h>
+ #include <linux/hugetlb.h>
+-#include <linux/pagemap.h>
+ #include <linux/shmem_fs.h>
+ #include <asm/tlbflush.h>
+ #include "internal.h"
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
