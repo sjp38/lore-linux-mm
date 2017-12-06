@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 583336B02CD
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B47B96B02D2
 	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:43:54 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id 8so1608130pfv.12
+Received: by mail-pg0-f70.google.com with SMTP id f8so1499508pgs.9
         for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:43:54 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id m8si963201pfi.343.2017.12.05.16.42.13
+        by mx.google.com with ESMTPS id 1si922710plz.113.2017.12.05.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:13 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:10 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 49/73] shmem: Convert shmem_partial_swap_usage to XArray
-Date: Tue,  5 Dec 2017 16:41:35 -0800
-Message-Id: <20171206004159.3755-50-willy@infradead.org>
+Subject: [PATCH v4 16/73] xarray: Add xa_destroy
+Date: Tue,  5 Dec 2017 16:41:02 -0800
+Message-Id: <20171206004159.3755-17-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,51 +21,64 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Simpler code because the xarray takes care of things like the limit and
-dereferencing the slot.
+This function frees all the internal memory allocated to the xarray
+and reinitialises it to be empty.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 18 +++---------------
- 1 file changed, 3 insertions(+), 15 deletions(-)
+ include/linux/xarray.h |  1 +
+ lib/xarray.c           | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ca45ff493587..01102e2e0ef3 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -658,29 +658,17 @@ static int shmem_free_swap(struct address_space *mapping,
- unsigned long shmem_partial_swap_usage(struct address_space *mapping,
- 						pgoff_t start, pgoff_t end)
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index c3efcc3432f7..b648c1b93d9f 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -74,6 +74,7 @@ void *xa_load(struct xarray *, unsigned long index);
+ void *xa_store(struct xarray *, unsigned long index, void *entry, gfp_t);
+ void *xa_cmpxchg(struct xarray *, unsigned long index,
+ 			void *old, void *entry, gfp_t);
++void xa_destroy(struct xarray *);
+ 
+ /**
+  * xa_erase() - Erase this entry from the XArray.
+diff --git a/lib/xarray.c b/lib/xarray.c
+index 251724f62b11..f3875b251b41 100644
+--- a/lib/xarray.c
++++ b/lib/xarray.c
+@@ -1341,6 +1341,32 @@ int xa_get_tagged(struct xarray *xa, void **dst, unsigned long start,
+ }
+ EXPORT_SYMBOL(xa_get_tagged);
+ 
++/**
++ * xa_destroy() - Free all internal data structures.
++ * @xa: XArray.
++ *
++ * After calling this function, the XArray is empty and has freed all memory
++ * allocated for its internal data structures.  You are responsible for
++ * freeing the objects referenced by the XArray.
++ */
++void xa_destroy(struct xarray *xa)
++{
++	XA_STATE(xas, xa, 0);
++	unsigned long flags;
++	void *entry;
++
++	xas.xa_node = NULL;
++	xa_lock_irqsave(xa, flags);
++	entry = xa_head_locked(xa);
++	RCU_INIT_POINTER(xa->xa_head, NULL);
++	xas_init_tags(&xas);
++	/* lockdep checks we're still holding the lock in xas_free_nodes() */
++	if (xa_is_node(entry))
++		xas_free_nodes(&xas, xa_to_node(entry));
++	xa_unlock_irqrestore(xa, flags);
++}
++EXPORT_SYMBOL(xa_destroy);
++
+ #ifdef XA_DEBUG
+ void xa_dump_entry(void *entry, unsigned long index)
  {
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->pages, start);
- 	struct page *page;
- 	unsigned long swapped = 0;
- 
- 	rcu_read_lock();
--
--	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
--		if (iter.index >= end)
--			break;
--
--		page = radix_tree_deref_slot(slot);
--
--		if (radix_tree_deref_retry(page)) {
--			slot = radix_tree_iter_retry(&iter);
--			continue;
--		}
--
-+	xas_for_each(&xas, page, end - 1) {
- 		if (xa_is_value(page))
- 			swapped++;
- 
- 		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
-+			xas_pause(&xas);
- 			cond_resched_rcu();
- 		}
- 	}
 -- 
 2.15.0
 
