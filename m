@@ -1,93 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B70A06B030E
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 20:53:44 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g8so1657805pgs.14
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 17:53:44 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0121.outbound.protection.outlook.com. [104.47.41.121])
-        by mx.google.com with ESMTPS id v75si1056949pfd.392.2017.12.05.17.53.43
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C1CF46B0310
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 21:02:12 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id b192so1201195yba.20
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 18:02:12 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id j3si362362ywa.746.2017.12.05.18.02.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 05 Dec 2017 17:53:43 -0800 (PST)
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Subject: RE: [PATCH v4 00/73] XArray version 4
-Date: Wed, 6 Dec 2017 01:53:41 +0000
-Message-ID: <MWHPR21MB0845A83B9E89E4A9499AEC2FCB320@MWHPR21MB0845.namprd21.prod.outlook.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 05 Dec 2017 18:02:11 -0800 (PST)
+Date: Tue, 5 Dec 2017 18:02:08 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+Message-ID: <20171206020208.GK26021@bombadil.infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
- <20171206014536.GA4094@dastard> <20171206015108.GB4094@dastard>
-In-Reply-To: <20171206015108.GB4094@dastard>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+ <20171206004159.3755-73-willy@infradead.org>
+ <20171206012901.GZ4094@dastard>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206012901.GZ4094@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-f2fs-devel@lists.sourceforge.net" <linux-f2fs-devel@lists.sourceforge.net>, "linux-nilfs@vger.kernel.org" <linux-nilfs@vger.kernel.org>, "linux-btrfs@vger.kernel.org" <linux-btrfs@vger.kernel.org>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, "linux-usb@vger.kernel.org" <linux-usb@vger.kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-SHVoLCB5b3UndmUgY2F1Z2h0IGEgY291cGxlIG9mIHByb2JsZW1zIHRoYXQgMGRheSBoYXNuJ3Qg
-c2VudCBtZSB5ZXQuICBUcnkgdHVybmluZyBvbiBEQVggb3IgVFJBTlNQQVJFTlRfSFVHRVBBR0Uu
-ICBUaGFua3MhDQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogRGF2ZSBD
-aGlubmVyIFttYWlsdG86ZGF2aWRAZnJvbW9yYml0LmNvbV0NCj4gU2VudDogVHVlc2RheSwgRGVj
-ZW1iZXIgNSwgMjAxNyA4OjUxIFBNDQo+IFRvOiBNYXR0aGV3IFdpbGNveCA8d2lsbHlAaW5mcmFk
-ZWFkLm9yZz4NCj4gQ2M6IE1hdHRoZXcgV2lsY294IDxtYXdpbGNveEBtaWNyb3NvZnQuY29tPjsg
-Um9zcyBad2lzbGVyDQo+IDxyb3NzLnp3aXNsZXJAbGludXguaW50ZWwuY29tPjsgSmVucyBBeGJv
-ZSA8YXhib2VAa2VybmVsLmRrPjsgUmVoYXMNCj4gU2FjaGRldmEgPGFxdWFubmllQGdtYWlsLmNv
-bT47IGxpbnV4LW1tQGt2YWNrLm9yZzsgbGludXgtDQo+IGZzZGV2ZWxAdmdlci5rZXJuZWwub3Jn
-OyBsaW51eC1mMmZzLWRldmVsQGxpc3RzLnNvdXJjZWZvcmdlLm5ldDsgbGludXgtDQo+IG5pbGZz
-QHZnZXIua2VybmVsLm9yZzsgbGludXgtYnRyZnNAdmdlci5rZXJuZWwub3JnOyBsaW51eC14ZnNA
-dmdlci5rZXJuZWwub3JnOw0KPiBsaW51eC11c2JAdmdlci5rZXJuZWwub3JnOyBsaW51eC1rZXJu
-ZWxAdmdlci5rZXJuZWwub3JnDQo+IFN1YmplY3Q6IFJlOiBbUEFUQ0ggdjQgMDAvNzNdIFhBcnJh
-eSB2ZXJzaW9uIDQNCj4gDQo+IE9uIFdlZCwgRGVjIDA2LCAyMDE3IGF0IDEyOjQ1OjQ5UE0gKzEx
-MDAsIERhdmUgQ2hpbm5lciB3cm90ZToNCj4gPiBPbiBUdWUsIERlYyAwNSwgMjAxNyBhdCAwNDo0
-MDo0NlBNIC0wODAwLCBNYXR0aGV3IFdpbGNveCB3cm90ZToNCj4gPiA+IEZyb206IE1hdHRoZXcg
-V2lsY294IDxtYXdpbGNveEBtaWNyb3NvZnQuY29tPg0KPiA+ID4NCj4gPiA+IEkgbG9va2VkIHRo
-cm91Z2ggc29tZSBub3RlcyBhbmQgZGVjaWRlZCB0aGlzIHdhcyB2ZXJzaW9uIDQgb2YgdGhlIFhB
-cnJheS4NCj4gPiA+IExhc3QgcG9zdGVkIHR3byB3ZWVrcyBhZ28sIHRoaXMgdmVyc2lvbiBpbmNs
-dWRlcyBhICpsb3QqIG9mIGNoYW5nZXMuDQo+ID4gPiBJJ2QgbGlrZSB0byB0aGFuayBEYXZlIENo
-aW5uZXIgZm9yIGhpcyBmZWVkYmFjaywgZW5jb3VyYWdlbWVudCBhbmQNCj4gPiA+IGRpc3RyYWN0
-aW5nIGlkZWFzIGZvciBpbXByb3ZlbWVudCwgd2hpY2ggSSdsbCBnZXQgdG8gb25jZSB0aGlzIGlz
-IG1lcmdlZC4NCj4gPg0KPiA+IEJUVywgeW91IG5lZWQgdG8gZml4IHRoZSAiVG86IiBsaW5lIG9u
-IHlvdXIgcGF0Y2hib21iczoNCj4gPg0KPiA+ID4gVG86IHVubGlzdGVkLXJlY2lwaWVudHM6IDss
-IG5vIFRvLWhlYWRlciBvbiBpbnB1dCA8QGdtYWlsLQ0KPiBwb3AubC5nb29nbGUuY29tPg0KPiA+
-DQo+ID4gVGhpcyBiYWQgZW1haWwgYWRkcmVzcyBnZXR0aW5nIHF1b3RlZCB0byB0aGUgY2MgbGlu
-ZSBtYWtlcyBzb21lIE1UQXMNCj4gPiB2ZXJ5IHVuaGFwcHkuDQo+ID4NCj4gPiA+DQo+ID4gPiBI
-aWdobGlnaHRzOg0KPiA+ID4gIC0gT3ZlciAyMDAwIHdvcmRzIG9mIGRvY3VtZW50YXRpb24gaW4g
-cGF0Y2ggOCEgIEFuZCBsb3RzIG1vcmUga2VybmVsLWRvYy4NCj4gPiA+ICAtIFRoZSBwYWdlIGNh
-Y2hlIGlzIG5vdyBmdWxseSBjb252ZXJ0ZWQgdG8gdGhlIFhBcnJheS4NCj4gPiA+ICAtIE1hbnkg
-bW9yZSB0ZXN0cyBpbiB0aGUgdGVzdC1zdWl0ZS4NCj4gPiA+DQo+ID4gPiBUaGlzIHBhdGNoIHNl
-dCBpcyBub3QgZm9yIGFwcGx5aW5nLiAgMGRheSBpcyBzdGlsbCByZXBvcnRpbmcgcHJvYmxlbXMs
-DQo+ID4gPiBhbmQgSSdkIGZlZWwgYmFkIGZvciBlYXRpbmcgc29tZW9uZSdzIGRhdGEuICBUaGVz
-ZSBwYXRjaGVzIGFwcGx5IG9uIHRvcA0KPiA+ID4gb2YgYSBzZXQgb2YgcHJlcGF0b3J5IHBhdGNo
-ZXMgd2hpY2gganVzdCBhcmVuJ3QgaW50ZXJlc3RpbmcuICBJZiB5b3UNCj4gPiA+IHdhbnQgdG8g
-c2VlIHRoZSBwYXRjaGVzIGFwcGxpZWQgdG8gYSB0cmVlLCBJIHN1Z2dlc3QgcHVsbGluZyBteSBn
-aXQgdHJlZToNCj4gPiA+DQo+IGh0dHBzOi8vbmEwMS5zYWZlbGlua3MucHJvdGVjdGlvbi5vdXRs
-b29rLmNvbS8/dXJsPWh0dHAlM0ElMkYlMkZnaXQuaW5mcmFkZQ0KPiBhZC5vcmclMkZ1c2VycyUy
-RndpbGx5JTJGbGludXgtDQo+IGRheC5naXQlMkZzaG9ydGxvZyUyRnJlZnMlMkZoZWFkcyUyRnhh
-cnJheS0yMDE3LTEyLQ0KPiAwNCZkYXRhPTAyJTdDMDElN0NtYXdpbGNveCU0MG1pY3Jvc29mdC5j
-b20lN0NhM2U3MjE1NDVmOGI0YjlkZmYxDQo+IDYwOGQ1M2M0YmQ0MmYlN0M3MmY5ODhiZjg2ZjE0
-MWFmOTFhYjJkN2NkMDExZGI0NyU3QzElN0MwJTdDNjM2NA0KPiA4MTIxODc0MDM0MTMxMiZzZGF0
-YT1JWE5aWFhMVGY5NjRPUTBlTERwSnQyTEN2JTJCR0dXRlclMkZRZDRLYw0KPiBLWXU2em8lM0Qm
-cmVzZXJ2ZWQ9MA0KPiA+ID4gSSBhbHNvIGxlZnQgb3V0IHRoZSBpZHJfcHJlbG9hZCByZW1vdmFs
-cy4gIFRoZXkncmUgc3RpbGwgaW4gdGhlIGdpdCB0cmVlLA0KPiA+ID4gYnV0IEknbSBub3QgbG9v
-a2luZyBmb3IgZmVlZGJhY2sgb24gdGhlbS4NCj4gPg0KPiA+IEknbGwgZ2l2ZSB0aGlzIGEgcXVp
-Y2sgYnVybiB0aGlzIGFmdGVybm9vbiBhbmQgc2VlIHdoYXQgY2F0Y2hlcyBmaXJlLi4uDQo+IA0K
-PiBCdWlsZCB3YXJuaW5ncy9lcnJvcnM6DQo+IA0KPiAuLi4uLg0KPiBsaWIvcmFkaXgtdHJlZS5j
-OjcwMDoxMzogd2FybmluZzogwr9yYWRpeF90cmVlX2ZyZWVfbm9kZXPCvyBkZWZpbmVkIGJ1dCBu
-b3QgdXNlZA0KPiBbLVd1bnVzZWQtZnVuY3Rpb25dDQo+ICBzdGF0aWMgdm9pZCByYWRpeF90cmVl
-X2ZyZWVfbm9kZXMoc3RydWN0IHJhZGl4X3RyZWVfbm9kZSAqbm9kZSkNCj4gLi4uLi4NCj4gbGli
-L3hhcnJheS5jOiBJbiBmdW5jdGlvbiDCv3hhc19tYXjCvzoNCj4gbGliL3hhcnJheS5jOjI5MTox
-Njogd2FybmluZzogdW51c2VkIHZhcmlhYmxlIMK/bWFza8K/DQo+IFstV3VudXNlZC12YXJpYWJs
-ZV0NCj4gICB1bnNpZ25lZCBsb25nIG1hc2ssIG1heCA9IHhhcy0+eGFfaW5kZXg7DQo+ICAgICAg
-ICAgICAgICAgICAgIF5+fn4NCj4gLi4uLi4uDQo+IGZzL2RheC5jOiBJbiBmdW5jdGlvbiDCv2dy
-YWJfbWFwcGluZ19lbnRyecK/Og0KPiBmcy9kYXguYzozMDU6MjogZXJyb3I6IGltcGxpY2l0IGRl
-Y2xhcmF0aW9uIG9mIGZ1bmN0aW9uIMK/eGFzX3NldF9vcmRlcsK/OyBkaWQgeW91DQo+IG1lYW4g
-wr94YXNfc2V0X2VycsK/PyAgWy1XZXJyb3I9aW1wbGljaXQtZnVuY3Rpb24tZGVjbGFyYXRpb25d
-DQo+ICAgeGFzX3NldF9vcmRlcigmeGFzLCBpbmRleCwgc2l6ZV9mbGFnID8gUE1EX09SREVSIDog
-MCk7DQo+ICAgICBefn5+fn5+fn5+fn5+DQo+IHNjcmlwdHMvTWFrZWZpbGUuYnVpbGQ6MzEwOiBy
-ZWNpcGUgZm9yIHRhcmdldCAnZnMvZGF4Lm8nIGZhaWxlZA0KPiBtYWtlWzFdOiAqKiogW2ZzL2Rh
-eC5vXSBFcnJvciAxDQo+IA0KPiAtRGF2ZS4NCj4gLS0NCj4gRGF2ZSBDaGlubmVyDQo+IGRhdmlk
-QGZyb21vcmJpdC5jb20NCg==
+On Wed, Dec 06, 2017 at 12:36:48PM +1100, Dave Chinner wrote:
+> > -	if (radix_tree_preload(GFP_NOFS))
+> > -		return -ENOMEM;
+> > -
+> >  	INIT_LIST_HEAD(&elem->list_node);
+> >  	elem->key = key;
+> >  
+> > -	spin_lock(&mru->lock);
+> > -	error = radix_tree_insert(&mru->store, key, elem);
+> > -	radix_tree_preload_end();
+> > -	if (!error)
+> > -		_xfs_mru_cache_list_insert(mru, elem);
+> > -	spin_unlock(&mru->lock);
+> > +	do {
+> > +		xas_lock(&xas);
+> > +		xas_store(&xas, elem);
+> > +		error = xas_error(&xas);
+> > +		if (!error)
+> > +			_xfs_mru_cache_list_insert(mru, elem);
+> > +		xas_unlock(&xas);
+> > +	} while (xas_nomem(&xas, GFP_NOFS));
+> 
+> Ok, so why does this have a retry loop on ENOMEM despite the
+> existing code handling that error? And why put such a loop in this
+> code and not any of the other XFS code that used
+> radix_tree_preload() and is arguably much more important to avoid
+> ENOMEM on insert (e.g. the inode cache)?
+
+If we need more nodes in the tree, xas_store() will try to allocate them
+with GFP_NOWAIT | __GFP_NOWARN.  If that fails, it signals it in xas_error().
+xas_nomem() will notice that we're in an ENOMEM situation, and allocate
+a node using your preferred GFP flags (NOIO in your case).  Then we retry,
+guaranteeing forward progress. [1]
+
+The other conversions use the normal API instead of the advanced API, so
+all of this gets hidden away.  For example, the inode cache does this:
+
++       curr = xa_cmpxchg(&pag->pag_ici_xa, agino, NULL, ip, GFP_NOFS);
+
+and xa_cmpxchg internally does:
+
+        do {
+                xa_lock_irqsave(xa, flags);
+                curr = xas_create(&xas);
+                if (curr == old)
+                        xas_store(&xas, entry);
+                xa_unlock_irqrestore(xa, flags);
+        } while (xas_nomem(&xas, gfp));
+
+
+> Also, I really don't like the pattern of using xa_lock()/xa_unlock()
+> to protect access to an external structure. i.e. the mru->lock
+> context is protecting multiple fields and operations in the MRU
+> structure, not just the radix tree operations. Turning that around
+> so that a larger XFS structure and algorithm is now protected by an
+> opaque internal lock from generic storage structure the forms part
+> of the larger structure seems like a bad design pattern to me...
+
+It's the design pattern I've always intended to use.  Naturally, the
+xfs radix trees weren't my initial target; it was the page cache, and
+the page cache does the same thing; uses the tree_lock to protect both
+the radix tree and several other fields in that same data structure.
+
+I'm open to argument on this though ... particularly if you have a better
+design pattern in mind!
+
+[1] I actually have this documented!  It's in the xas_nomem() kernel-doc:
+
+ * If we need to add new nodes to the XArray, we try to allocate memory
+ * with GFP_NOWAIT while holding the lock, which will usually succeed.
+ * If it fails, @xas is flagged as needing memory to continue.  The caller
+ * should drop the lock and call xas_nomem().  If xas_nomem() succeeds,
+ * the caller should retry the operation.
+ *
+ * Forward progress is guaranteed as one node is allocated here and
+ * stored in the xa_state where it will be found by xas_alloc().  More
+ * nodes will likely be found in the slab allocator, but we do not tie
+ * them up here.
+ *
+ * Return: true if memory was needed, and was successfully allocated.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
