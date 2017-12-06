@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C213C6B0281
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:15 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 200so1483836pge.12
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:15 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FD326B0281
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:16 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z12so1500769pgv.6
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:16 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id t4si915422plb.550.2017.12.05.16.42.14
+        by mx.google.com with ESMTPS id h72si990495pfj.20.2017.12.05.16.42.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 05 Dec 2017 16:42:14 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 55/73] f2fs: Convert to XArray
-Date: Tue,  5 Dec 2017 16:41:41 -0800
-Message-Id: <20171206004159.3755-56-willy@infradead.org>
+Subject: [PATCH v4 58/73] dax: Convert lock_slot to XArray
+Date: Tue,  5 Dec 2017 16:41:44 -0800
+Message-Id: <20171206004159.3755-59-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,109 +21,107 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a straightforward conversion.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/f2fs/data.c   |  3 +--
- fs/f2fs/dir.c    |  5 +----
- fs/f2fs/inline.c |  6 +-----
- fs/f2fs/node.c   | 10 ++--------
- 4 files changed, 5 insertions(+), 19 deletions(-)
+ fs/dax.c | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index c8f6d9806896..1f3f192f152f 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -2175,8 +2175,7 @@ void f2fs_set_page_dirty_nobuffers(struct page *page)
- 	xa_lock_irqsave(&mapping->pages, flags);
- 	WARN_ON_ONCE(!PageUptodate(page));
- 	account_page_dirtied(page, mapping);
--	radix_tree_tag_set(&mapping->pages,
--			page_index(page), PAGECACHE_TAG_DIRTY);
-+	__xa_set_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
- 	xa_unlock_irqrestore(&mapping->pages, flags);
- 	unlock_page_memcg(page);
+diff --git a/fs/dax.c b/fs/dax.c
+index 03bfa599f75c..d2007a17d257 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -188,15 +188,13 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
+ }
  
-diff --git a/fs/f2fs/dir.c b/fs/f2fs/dir.c
-index b5515ea6bb2f..296070016ec9 100644
---- a/fs/f2fs/dir.c
-+++ b/fs/f2fs/dir.c
-@@ -708,7 +708,6 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
- 	unsigned int bit_pos;
- 	int slots = GET_DENTRY_SLOTS(le16_to_cpu(dentry->name_len));
- 	struct address_space *mapping = page_mapping(page);
--	unsigned long flags;
- 	int i;
- 
- 	f2fs_update_time(F2FS_I_SB(dir), REQ_TIME);
-@@ -739,10 +738,8 @@ void f2fs_delete_entry(struct f2fs_dir_entry *dentry, struct page *page,
- 
- 	if (bit_pos == NR_DENTRY_IN_BLOCK &&
- 			!truncate_hole(dir, page->index, page->index + 1)) {
--		xa_lock_irqsave(&mapping->pages, flags);
--		radix_tree_tag_clear(&mapping->pages, page_index(page),
-+		xa_clear_tag(&mapping->pages, page_index(page),
- 				     PAGECACHE_TAG_DIRTY);
--		xa_unlock_irqrestore(&mapping->pages, flags);
- 
- 		clear_page_dirty_for_io(page);
- 		ClearPagePrivate(page);
-diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
-index 7858b8e15f33..d3c3f84beca9 100644
---- a/fs/f2fs/inline.c
-+++ b/fs/f2fs/inline.c
-@@ -204,7 +204,6 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
- 	void *src_addr, *dst_addr;
- 	struct dnode_of_data dn;
- 	struct address_space *mapping = page_mapping(page);
--	unsigned long flags;
- 	int err;
- 
- 	set_new_dnode(&dn, inode, NULL, NULL, 0);
-@@ -226,10 +225,7 @@ int f2fs_write_inline_data(struct inode *inode, struct page *page)
- 	kunmap_atomic(src_addr);
- 	set_page_dirty(dn.inode_page);
- 
--	xa_lock_irqsave(&mapping->pages, flags);
--	radix_tree_tag_clear(&mapping->pages, page_index(page),
--			     PAGECACHE_TAG_DIRTY);
--	xa_unlock_irqrestore(&mapping->pages, flags);
-+	xa_clear_tag(&mapping->pages, page_index(page), PAGECACHE_TAG_DIRTY);
- 
- 	set_inode_flag(inode, FI_APPEND_WRITE);
- 	set_inode_flag(inode, FI_DATA_EXIST);
-diff --git a/fs/f2fs/node.c b/fs/f2fs/node.c
-index 6b64a3009d55..0a6d5c2f996e 100644
---- a/fs/f2fs/node.c
-+++ b/fs/f2fs/node.c
-@@ -88,14 +88,10 @@ bool available_free_memory(struct f2fs_sb_info *sbi, int type)
- static void clear_node_page_dirty(struct page *page)
+ /*
+- * Mark the given slot is locked. The function must be called with
+- * mapping xa_lock held
++ * Mark the given slot as locked.  Must be called with xa_lock held.
+  */
+-static inline void *lock_slot(struct address_space *mapping, void **slot)
++static inline void *lock_slot(struct xa_state *xas)
  {
- 	struct address_space *mapping = page->mapping;
--	unsigned int long flags;
+-	unsigned long v = xa_to_value(
+-		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
++	unsigned long v = xa_to_value(xas_load(xas));
+ 	void *entry = xa_mk_value(v | DAX_ENTRY_LOCK);
+-	radix_tree_replace_slot(&mapping->pages, slot, entry);
++	xas_store(xas, entry);
+ 	return entry;
+ }
  
- 	if (PageDirty(page)) {
--		xa_lock_irqsave(&mapping->pages, flags);
--		radix_tree_tag_clear(&mapping->pages,
--				page_index(page),
-+		xa_clear_tag(&mapping->pages, page_index(page),
- 				PAGECACHE_TAG_DIRTY);
--		xa_unlock_irqrestore(&mapping->pages, flags);
+@@ -247,7 +245,7 @@ static void dax_unlock_mapping_entry(struct address_space *mapping,
  
- 		clear_page_dirty_for_io(page);
- 		dec_page_count(F2FS_M_SB(mapping), F2FS_DIRTY_NODES);
-@@ -1142,9 +1138,7 @@ void ra_node_page(struct f2fs_sb_info *sbi, nid_t nid)
+ 	xas_lock_irq(&xas);
+ 	entry = xas_load(&xas);
+-	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) || !dax_locked(entry))) {
++	if (WARN_ON_ONCE(!xa_is_value(entry) || !dax_locked(entry))) {
+ 		xas_unlock_irq(&xas);
  		return;
- 	f2fs_bug_on(sbi, check_nid_range(sbi, nid));
+ 	}
+@@ -306,6 +304,7 @@ static void put_unlocked_mapping_entry(struct address_space *mapping,
+ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
+ 		unsigned long size_flag)
+ {
++	XA_STATE(xas, &mapping->pages, index);
+ 	bool pmd_downgrade = false; /* splitting 2MiB entry into 4k entries? */
+ 	void *entry, **slot;
  
--	rcu_read_lock();
--	apage = radix_tree_lookup(&NODE_MAPPING(sbi)->pages, nid);
--	rcu_read_unlock();
-+	apage = xa_load(&NODE_MAPPING(sbi)->pages, nid);
- 	if (apage)
- 		return;
+@@ -344,7 +343,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
+ 			 * Make sure 'entry' remains valid while we drop
+ 			 * mapping xa_lock.
+ 			 */
+-			entry = lock_slot(mapping, slot);
++			entry = lock_slot(&xas);
+ 		}
  
+ 		xa_unlock_irq(&mapping->pages);
+@@ -411,7 +410,7 @@ static void *grab_mapping_entry(struct address_space *mapping, pgoff_t index,
+ 		xa_unlock_irq(&mapping->pages);
+ 		return entry;
+ 	}
+-	entry = lock_slot(mapping, slot);
++	entry = lock_slot(&xas);
+  out_unlock:
+ 	xa_unlock_irq(&mapping->pages);
+ 	return entry;
+@@ -643,6 +642,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		pgoff_t index, void *entry)
+ {
+ 	struct radix_tree_root *pages = &mapping->pages;
++	XA_STATE(xas, pages, index);
+ 	void *entry2, **slot, *kaddr;
+ 	long ret = 0, id;
+ 	sector_t sector;
+@@ -679,7 +679,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	if (!radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE))
+ 		goto put_unlocked;
+ 	/* Lock the entry to serialize with page faults */
+-	entry = lock_slot(mapping, slot);
++	entry = lock_slot(&xas);
+ 	/*
+ 	 * We can clear the tag now but we have to be careful so that concurrent
+ 	 * dax_writeback_one() calls for the same index cannot finish before we
+@@ -1504,8 +1504,9 @@ static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
+ 				  pfn_t pfn)
+ {
+ 	struct address_space *mapping = vmf->vma->vm_file->f_mapping;
+-	void *entry, **slot;
+ 	pgoff_t index = vmf->pgoff;
++	XA_STATE(xas, &mapping->pages, index);
++	void *entry, **slot;
+ 	int vmf_ret, error;
+ 
+ 	xa_lock_irq(&mapping->pages);
+@@ -1521,7 +1522,7 @@ static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
+ 		return VM_FAULT_NOPAGE;
+ 	}
+ 	radix_tree_tag_set(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
+-	entry = lock_slot(mapping, slot);
++	entry = lock_slot(&xas);
+ 	xa_unlock_irq(&mapping->pages);
+ 	switch (pe_size) {
+ 	case PE_SIZE_PTE:
 -- 
 2.15.0
 
