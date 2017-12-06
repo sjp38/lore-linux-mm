@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EAB6E6B02B4
-	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:43:39 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id e26so1614025pfi.15
-        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:43:39 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 271B96B02B6
+	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:43:40 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id n6so1609712pfg.19
+        for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:43:40 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id o1si903383pld.780.2017.12.05.16.42.14
+        by mx.google.com with ESMTPS id u39si890436pgn.488.2017.12.05.16.42.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 05 Dec 2017 16:42:14 -0800 (PST)
+        Tue, 05 Dec 2017 16:42:16 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 56/73] lustre: Convert to XArray
-Date: Tue,  5 Dec 2017 16:41:42 -0800
-Message-Id: <20171206004159.3755-57-willy@infradead.org>
+Subject: [PATCH v4 73/73] usb: Convert xhci-mem to XArray
+Date: Tue,  5 Dec 2017 16:41:59 -0800
+Message-Id: <20171206004159.3755-74-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,85 +21,181 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
+The XArray API is a slightly better fit for xhci_insert_segment_mapping()
+than the radix tree API was.
+
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- drivers/staging/lustre/lustre/llite/glimpse.c   | 12 +++++-------
- drivers/staging/lustre/lustre/mdc/mdc_request.c | 16 ++++++++--------
- 2 files changed, 13 insertions(+), 15 deletions(-)
+ drivers/usb/host/xhci-mem.c | 70 +++++++++++++++++++++------------------------
+ drivers/usb/host/xhci.h     |  6 ++--
+ 2 files changed, 35 insertions(+), 41 deletions(-)
 
-diff --git a/drivers/staging/lustre/lustre/llite/glimpse.c b/drivers/staging/lustre/lustre/llite/glimpse.c
-index 5f2843da911c..25232fdf5797 100644
---- a/drivers/staging/lustre/lustre/llite/glimpse.c
-+++ b/drivers/staging/lustre/lustre/llite/glimpse.c
-@@ -57,7 +57,7 @@ static const struct cl_lock_descr whole_file = {
- };
+diff --git a/drivers/usb/host/xhci-mem.c b/drivers/usb/host/xhci-mem.c
+index e1fba4688509..533d813bdc52 100644
+--- a/drivers/usb/host/xhci-mem.c
++++ b/drivers/usb/host/xhci-mem.c
+@@ -149,70 +149,64 @@ static void xhci_link_rings(struct xhci_hcd *xhci, struct xhci_ring *ring,
+ }
  
  /*
-- * Check whether file has possible unwriten pages.
-+ * Check whether file has possible unwritten pages.
+- * We need a radix tree for mapping physical addresses of TRBs to which stream
+- * ID they belong to.  We need to do this because the host controller won't tell
++ * We need to map physical addresses of TRBs to the stream ID they belong to.
++ * We need to do this because the host controller won't tell
+  * us which stream ring the TRB came from.  We could store the stream ID in an
+  * event data TRB, but that doesn't help us for the cancellation case, since the
+  * endpoint may stop before it reaches that event data TRB.
   *
-  * \retval 1    file is mmap-ed or has dirty pages
-  *	 0    otherwise
-@@ -66,16 +66,14 @@ blkcnt_t dirty_cnt(struct inode *inode)
+- * The radix tree maps the upper portion of the TRB DMA address to a ring
++ * The xarray maps the upper portion of the TRB DMA address to a ring
+  * segment that has the same upper portion of DMA addresses.  For example, say I
+  * have segments of size 1KB, that are always 1KB aligned.  A segment may
+  * start at 0x10c91000 and end at 0x10c913f0.  If I use the upper 10 bits, the
+- * key to the stream ID is 0x43244.  I can use the DMA address of the TRB to
+- * pass the radix tree a key to get the right stream ID:
++ * index of the stream ID is 0x43244.  I can use the DMA address of the TRB as
++ * the xarray index to get the right stream ID:
+  *
+  *	0x10c90fff >> 10 = 0x43243
+  *	0x10c912c0 >> 10 = 0x43244
+  *	0x10c91400 >> 10 = 0x43245
+  *
+  * Obviously, only those TRBs with DMA addresses that are within the segment
+- * will make the radix tree return the stream ID for that ring.
++ * will make the xarray return the stream ID for that ring.
+  *
+- * Caveats for the radix tree:
++ * Caveats for the xarray:
+  *
+- * The radix tree uses an unsigned long as a key pair.  On 32-bit systems, an
++ * The xarray uses an unsigned long for the index.  On 32-bit systems, an
+  * unsigned long will be 32-bits; on a 64-bit system an unsigned long will be
+  * 64-bits.  Since we only request 32-bit DMA addresses, we can use that as the
+- * key on 32-bit or 64-bit systems (it would also be fine if we asked for 64-bit
+- * PCI DMA addresses on a 64-bit system).  There might be a problem on 32-bit
+- * extended systems (where the DMA address can be bigger than 32-bits),
++ * index on 32-bit or 64-bit systems (it would also be fine if we asked for
++ * 64-bit PCI DMA addresses on a 64-bit system).  There might be a problem on
++ * 32-bit extended systems (where the DMA address can be bigger than 32-bits),
+  * if we allow the PCI dma mask to be bigger than 32-bits.  So don't do that.
+  */
+-static int xhci_insert_segment_mapping(struct radix_tree_root *trb_address_map,
++
++static unsigned long trb_index(dma_addr_t dma)
++{
++	return (unsigned long)(dma >> TRB_SEGMENT_SHIFT);
++}
++
++static int xhci_insert_segment_mapping(struct xarray *trb_address_map,
+ 		struct xhci_ring *ring,
+ 		struct xhci_segment *seg,
+-		gfp_t mem_flags)
++		gfp_t gfp)
  {
- 	blkcnt_t cnt = 0;
- 	struct vvp_object *vob = cl_inode2vvp(inode);
--	void	      *results[1];
+-	unsigned long key;
+-	int ret;
+-
+-	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
+ 	/* Skip any segments that were already added. */
+-	if (radix_tree_lookup(trb_address_map, key))
+-		return 0;
++	void *entry = xa_cmpxchg(trb_address_map, trb_index(seg->dma), NULL,
++								ring, gfp);
  
--	if (inode->i_mapping)
--		cnt += radix_tree_gang_lookup_tag(&inode->i_mapping->pages,
--						  results, 0, 1,
--						  PAGECACHE_TAG_DIRTY);
-+	if (inode->i_mapping && xa_tagged(&inode->i_mapping->pages,
-+				PAGECACHE_TAG_DIRTY))
-+		cnt = 1;
- 	if (cnt == 0 && atomic_read(&vob->vob_mmap_cnt) > 0)
- 		cnt = 1;
- 
--	return (cnt > 0) ? 1 : 0;
-+	return cnt;
+-	ret = radix_tree_maybe_preload(mem_flags);
+-	if (ret)
+-		return ret;
+-	ret = radix_tree_insert(trb_address_map,
+-			key, ring);
+-	radix_tree_preload_end();
+-	return ret;
++	if (IS_ERR(entry))
++		return PTR_ERR(entry);
++	return 0;
  }
  
- int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
-diff --git a/drivers/staging/lustre/lustre/mdc/mdc_request.c b/drivers/staging/lustre/lustre/mdc/mdc_request.c
-index 2ec79a6b17da..ea23247e9e02 100644
---- a/drivers/staging/lustre/lustre/mdc/mdc_request.c
-+++ b/drivers/staging/lustre/lustre/mdc/mdc_request.c
-@@ -934,17 +934,18 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
- 	 * hash _smaller_ than one we are looking for.
+-static void xhci_remove_segment_mapping(struct radix_tree_root *trb_address_map,
++static void xhci_remove_segment_mapping(struct xarray *trb_address_map,
+ 		struct xhci_segment *seg)
+ {
+-	unsigned long key;
+-
+-	key = (unsigned long)(seg->dma >> TRB_SEGMENT_SHIFT);
+-	if (radix_tree_lookup(trb_address_map, key))
+-		radix_tree_delete(trb_address_map, key);
++	xa_erase(trb_address_map, trb_index(seg->dma));
+ }
+ 
+ static int xhci_update_stream_segment_mapping(
+-		struct radix_tree_root *trb_address_map,
++		struct xarray *trb_address_map,
+ 		struct xhci_ring *ring,
+ 		struct xhci_segment *first_seg,
+ 		struct xhci_segment *last_seg,
+@@ -574,8 +568,8 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
+ 		u64 address)
+ {
+ 	if (ep->ep_state & EP_HAS_STREAMS)
+-		return radix_tree_lookup(&ep->stream_info->trb_address_map,
+-				address >> TRB_SEGMENT_SHIFT);
++		return xa_load(&ep->stream_info->trb_address_map,
++				trb_index(address));
+ 	return ep->ring;
+ }
+ 
+@@ -654,10 +648,10 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
+ 	if (!stream_info->free_streams_command)
+ 		goto cleanup_ctx;
+ 
+-	INIT_RADIX_TREE(&stream_info->trb_address_map, GFP_ATOMIC);
++	xa_init(&stream_info->trb_address_map);
+ 
+ 	/* Allocate rings for all the streams that the driver will use,
+-	 * and add their segment DMA addresses to the radix tree.
++	 * and add their segment DMA addresses to the map.
+ 	 * Stream 0 is reserved.
  	 */
- 	unsigned long offset = hash_x_index(*hash, hash64);
-+	XA_STATE(xas, &mapping->pages, offset);
- 	struct page *page;
--	int found;
  
--	xa_lock_irq(&mapping->pages);
--	found = radix_tree_gang_lookup(&mapping->pages,
--				       (void **)&page, offset, 1);
--	if (found > 0 && !xa_is_value(page)) {
-+	xas_lock_irq(&xas);
-+	page = xas_find(&xas, ULONG_MAX);
-+	if (xa_is_value(page))
-+		page = NULL;
-+	if (page) {
- 		struct lu_dirpage *dp;
+@@ -2362,7 +2356,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
+ 	 * Initialize the ring segment pool.  The ring must be a contiguous
+ 	 * structure comprised of TRBs.  The TRBs must be 16 byte aligned,
+ 	 * however, the command ring segment needs 64-byte aligned segments
+-	 * and our use of dma addresses in the trb_address_map radix tree needs
++	 * and our use of dma addresses in the trb_address_map xarray needs
+ 	 * TRB_SEGMENT_SIZE alignment, so we pick the greater alignment need.
+ 	 */
+ 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
+diff --git a/drivers/usb/host/xhci.h b/drivers/usb/host/xhci.h
+index 054ce74524af..e8208a3eee3c 100644
+--- a/drivers/usb/host/xhci.h
++++ b/drivers/usb/host/xhci.h
+@@ -15,7 +15,7 @@
+ #include <linux/usb.h>
+ #include <linux/timer.h>
+ #include <linux/kernel.h>
+-#include <linux/radix-tree.h>
++#include <linux/xarray.h>
+ #include <linux/usb/hcd.h>
+ #include <linux/io-64-nonatomic-lo-hi.h>
  
- 		get_page(page);
--		xa_unlock_irq(&mapping->pages);
-+		xas_unlock_irq(&xas);
- 		/*
- 		 * In contrast to find_lock_page() we are sure that directory
- 		 * page cannot be truncated (while DLM lock is held) and,
-@@ -992,8 +993,7 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
- 			page = ERR_PTR(-EIO);
- 		}
- 	} else {
--		xa_unlock_irq(&mapping->pages);
--		page = NULL;
-+		xas_unlock_irq(&xas);
- 	}
- 	return page;
- }
+@@ -837,7 +837,7 @@ struct xhci_stream_info {
+ 	unsigned int			num_stream_ctxs;
+ 	dma_addr_t			ctx_array_dma;
+ 	/* For mapping physical TRB addresses to segments in stream rings */
+-	struct radix_tree_root		trb_address_map;
++	struct xarray			trb_address_map;
+ 	struct xhci_command		*free_streams_command;
+ };
+ 
+@@ -1584,7 +1584,7 @@ struct xhci_ring {
+ 	unsigned int		bounce_buf_len;
+ 	enum xhci_ring_type	type;
+ 	bool			last_td_was_short;
+-	struct radix_tree_root	*trb_address_map;
++	struct xarray		*trb_address_map;
+ };
+ 
+ struct xhci_erst_entry {
 -- 
 2.15.0
 
