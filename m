@@ -1,83 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7CE246B0038
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 13:26:27 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 3so3249958pfo.1
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 10:26:27 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id j9si2280957pgp.46.2017.12.06.10.26.16
+Received: from mail-yw0-f197.google.com (mail-yw0-f197.google.com [209.85.161.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E93E06B0038
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 14:20:44 -0500 (EST)
+Received: by mail-yw0-f197.google.com with SMTP id w141so2347276ywa.2
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 11:20:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t3sor1244052ybc.208.2017.12.06.11.20.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Dec 2017 10:26:17 -0800 (PST)
-Date: Wed, 6 Dec 2017 11:26:15 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3] mm: Add unmap_mapping_pages
-Message-ID: <20171206182615.GA22533@linux.intel.com>
-References: <20171205154453.GD28760@bombadil.infradead.org>
- <20171206142627.GD32044@bombadil.infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171206142627.GD32044@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 06 Dec 2017 11:20:42 -0800 (PST)
+From: Suren Baghdasaryan <surenb@google.com>
+Subject: [PATCH] mm: terminate shrink_slab loop if signal is pending
+Date: Wed,  6 Dec 2017 11:20:26 -0800
+Message-Id: <20171206192026.25133-1-surenb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: timmurray@google.com, tkjos@google.com, Suren Baghdasaryan <surenb@google.com>
 
-On Wed, Dec 06, 2017 at 06:26:27AM -0800, Matthew Wilcox wrote:
-> v3:
->  - Fix compilation
->    (I forgot to git commit --amend)
->  - Added Ross' Reviewed-by
-> v2:
->  - Fix inverted mask in dax.c
->  - Pass 'false' instead of '0' for 'only_cows'
->  - nommu definition
-> 
-> --- 8< ---
-> 
-> From df142c51e111f7c386f594d5443530ea17abba5f Mon Sep 17 00:00:00 2001
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> Date: Tue, 5 Dec 2017 00:15:54 -0500
-> Subject: [PATCH v3] mm: Add unmap_mapping_pages
+Slab shrinkers can be quite time consuming and when signal
+is pending they can delay handling of the signal. If fatal
+signal is pending there is no point in shrinking that process
+since it will be killed anyway. This change checks for pending
+fatal signals inside shrink_slab loop and if one is detected
+terminates this loop early.
 
-Just FYI, the above scissors doesn't allow me to apply the patch using git
-version 2.14.3:
+Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+---
+ mm/vmscan.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
 
-  $ git am --scissors  ~/patch/out.patch
-  Patch is empty.
-  When you have resolved this problem, run "git am --continue".
-  If you prefer to skip this patch, run "git am --skip" instead.
-  To restore the original branch and stop patching, run "git am --abort".
-
-It's mad about the second set of mail headers in the body of your mail, and
-tries to separate into a second patch.
-
-You can get around this either by a) not having the second set of headers
-(From:, Date:, Subject:), or by including the extra info in a separate block
-below the --- line, i.e.:
-
-  ...
-  Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-  Reported-by: "zhangyi (F)" <yi.zhang@huawei.com>
-  Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
-  ---
-  
-  v3:
-   - Fix compilation
-     (I forgot to git commit --amend)
-   - Added Ross' Reviewed-by
-  v2:
-   - Fix inverted mask in dax.c
-   - Pass 'false' instead of '0' for 'only_cows'
-   - nommu definition
-  
-  ---
-   fs/dax.c           | 19 ++++++-------------
-   include/linux/mm.h | 26 ++++++++++++++++----------
-  ...
-
-- Ross
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c02c850ea349..69296528ff33 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+ 			.memcg = memcg,
+ 		};
+ 
++		/*
++		 * We are about to die and free our memory.
++		 * Stop shrinking which might delay signal handling.
++		 */
++		if (unlikely(fatal_signal_pending(current))
++			break;
++
+ 		/*
+ 		 * If kernel memory accounting is disabled, we ignore
+ 		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+-- 
+2.15.1.424.g9478a66081-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
