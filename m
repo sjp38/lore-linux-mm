@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 56F896B027D
+	by kanga.kvack.org (Postfix) with ESMTP id 814AF6B027E
 	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:14 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id w22so1497302pge.10
+Received: by mail-pg0-f70.google.com with SMTP id a10so1511326pgq.3
         for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:14 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w31si921295pla.679.2017.12.05.16.42.12
+        by mx.google.com with ESMTPS id m3si924635pld.71.2017.12.05.16.42.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 05 Dec 2017 16:42:13 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 44/73] shmem: Convert shmem_tag_pins to XArray
-Date: Tue,  5 Dec 2017 16:41:30 -0800
-Message-Id: <20171206004159.3755-45-willy@infradead.org>
+Subject: [PATCH v4 46/73] shmem: Convert shmem_add_to_page_cache to XArray
+Date: Tue,  5 Dec 2017 16:41:32 -0800
+Message-Id: <20171206004159.3755-47-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,75 +21,161 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Simplify the locking by taking the spinlock while we walk the tree on
-the assumption that many acquires and releases of the lock will be
-worse than holding the lock for a (potentially) long time.
-
-We could replicate the same locking behaviour with the xarray, but would
-have to be careful that the xa_node wasn't RCU-freed under us before we
-took the lock.
+This removes the last caller of radix_tree_maybe_preload_order().
+Simpler code, unless we run out of memory for new xa_nodes partway through
+inserting entries into the xarray.  Hopefully we can support multi-index
+entries in the page cache soon and all the awful code goes away.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 39 ++++++++++++++++-----------------------
- 1 file changed, 16 insertions(+), 23 deletions(-)
+ mm/shmem.c | 87 ++++++++++++++++++++++++++++----------------------------------
+ 1 file changed, 39 insertions(+), 48 deletions(-)
 
 diff --git a/mm/shmem.c b/mm/shmem.c
-index ce285ae635ea..2f41c7ceea18 100644
+index e4a2eb1336be..54fbfc2c6c09 100644
 --- a/mm/shmem.c
 +++ b/mm/shmem.c
-@@ -2601,35 +2601,28 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
- 
- static void shmem_tag_pins(struct address_space *mapping)
+@@ -558,9 +558,10 @@ static unsigned long shmem_unused_huge_shrink(struct shmem_sb_info *sbinfo,
+  */
+ static int shmem_add_to_page_cache(struct page *page,
+ 				   struct address_space *mapping,
+-				   pgoff_t index, void *expected)
++				   pgoff_t index, void *expected, gfp_t gfp)
  {
--	struct radix_tree_iter iter;
--	void **slot;
--	pgoff_t start;
-+	XA_STATE(xas, &mapping->pages, 0);
- 	struct page *page;
-+	unsigned int tagged = 0;
+-	int error, nr = hpage_nr_pages(page);
++	XA_STATE(xas, &mapping->pages, index);
++	unsigned int i, nr = compound_order(page);
  
- 	lru_add_drain();
--	start = 0;
--	rcu_read_lock();
+ 	VM_BUG_ON_PAGE(PageTail(page), page);
+ 	VM_BUG_ON_PAGE(index != round_down(index, nr), page);
+@@ -569,49 +570,47 @@ static int shmem_add_to_page_cache(struct page *page,
+ 	VM_BUG_ON(expected && PageTransHuge(page));
  
--	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
--		page = radix_tree_deref_slot(slot);
--		if (!page || radix_tree_exception(page)) {
--			if (radix_tree_deref_retry(page)) {
--				slot = radix_tree_iter_retry(&iter);
--				continue;
--			}
--		} else if (page_count(page) - page_mapcount(page) > 1) {
--			xa_lock_irq(&mapping->pages);
--			radix_tree_tag_set(&mapping->pages, iter.index,
--					   SHMEM_TAG_PINNED);
--			xa_unlock_irq(&mapping->pages);
--		}
-+	xas_lock_irq(&xas);
-+	xas_for_each(&xas, page, ULONG_MAX) {
-+		if (xa_is_value(page))
-+			continue;
-+		if (page_count(page) - page_mapcount(page) > 1)
-+			xas_set_tag(&xas, SHMEM_TAG_PINNED);
+ 	page_ref_add(page, nr);
+-	page->mapping = mapping;
+ 	page->index = index;
++	page->mapping = mapping;
  
--		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
--			cond_resched_rcu();
--		}
-+		if (++tagged % XA_CHECK_SCHED)
-+			continue;
-+
-+		xas_pause(&xas);
-+		xas_unlock_irq(&xas);
-+		cond_resched();
+-	xa_lock_irq(&mapping->pages);
+-	if (PageTransHuge(page)) {
+-		void __rcu **results;
+-		pgoff_t idx;
+-		int i;
+-
+-		error = 0;
+-		if (radix_tree_gang_lookup_slot(&mapping->pages,
+-					&results, &idx, index, 1) &&
+-				idx < index + HPAGE_PMD_NR) {
+-			error = -EEXIST;
++	do {
 +		xas_lock_irq(&xas);
++		xas_create_range(&xas, index + nr - 1);
++		if (xas_error(&xas))
++			goto unlock;
++		for (i = 0; i < nr; i++) {
++			void *entry = xas_load(&xas);
++			if (entry != expected)
++				xas_set_err(&xas, -ENOENT);
++			if (xas_error(&xas))
++				goto undo;
++			xas_store(&xas, page + i);
++			xas_next(&xas);
+ 		}
+-
+-		if (!error) {
+-			for (i = 0; i < HPAGE_PMD_NR; i++) {
+-				error = radix_tree_insert(&mapping->pages,
+-						index + i, page + i);
+-				VM_BUG_ON(error);
+-			}
++		if (PageTransHuge(page)) {
+ 			count_vm_event(THP_FILE_ALLOC);
++			__inc_node_page_state(page, NR_SHMEM_THPS);
+ 		}
+-	} else if (!expected) {
+-		error = radix_tree_insert(&mapping->pages, index, page);
+-	} else {
+-		error = shmem_xa_replace(mapping, index, expected, page);
+-	}
+-
+-	if (!error) {
+ 		mapping->nrpages += nr;
+-		if (PageTransHuge(page))
+-			__inc_node_page_state(page, NR_SHMEM_THPS);
+ 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+ 		__mod_node_page_state(page_pgdat(page), NR_SHMEM, nr);
+-		xa_unlock_irq(&mapping->pages);
+-	} else {
++		goto unlock;
++undo:
++		while (i-- > 0) {
++			xas_store(&xas, NULL);
++			xas_prev(&xas);
++		}
++unlock:
++		xas_unlock_irq(&xas);
++	} while (xas_nomem(&xas, gfp));
++
++	if (xas_error(&xas)) {
+ 		page->mapping = NULL;
+-		xa_unlock_irq(&mapping->pages);
+ 		page_ref_sub(page, nr);
++		return xas_error(&xas);
  	}
--	rcu_read_unlock();
-+	xas_unlock_irq(&xas);
+-	return error;
++
++	return 0;
  }
  
  /*
+@@ -1159,7 +1158,7 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
+ 	 */
+ 	if (!error)
+ 		error = shmem_add_to_page_cache(*pagep, mapping, index,
+-						radswap);
++						radswap, gfp);
+ 	if (error != -ENOMEM) {
+ 		/*
+ 		 * Truncation and eviction use free_swap_and_cache(), which
+@@ -1677,7 +1676,7 @@ static int shmem_getpage_gfp(struct inode *inode, pgoff_t index,
+ 				false);
+ 		if (!error) {
+ 			error = shmem_add_to_page_cache(page, mapping, index,
+-						swp_to_radix_entry(swap));
++						swp_to_radix_entry(swap), gfp);
+ 			/*
+ 			 * We already confirmed swap under page lock, and make
+ 			 * no memory allocation here, so usually no possibility
+@@ -1783,13 +1782,8 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
+ 				PageTransHuge(page));
+ 		if (error)
+ 			goto unacct;
+-		error = radix_tree_maybe_preload_order(gfp & GFP_RECLAIM_MASK,
+-				compound_order(page));
+-		if (!error) {
+-			error = shmem_add_to_page_cache(page, mapping, hindex,
+-							NULL);
+-			radix_tree_preload_end();
+-		}
++		error = shmem_add_to_page_cache(page, mapping, hindex,
++						NULL, gfp & GFP_RECLAIM_MASK);
+ 		if (error) {
+ 			mem_cgroup_cancel_charge(page, memcg,
+ 					PageTransHuge(page));
+@@ -2256,11 +2250,8 @@ static int shmem_mfill_atomic_pte(struct mm_struct *dst_mm,
+ 	if (ret)
+ 		goto out_release;
+ 
+-	ret = radix_tree_maybe_preload(gfp & GFP_RECLAIM_MASK);
+-	if (!ret) {
+-		ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL);
+-		radix_tree_preload_end();
+-	}
++	ret = shmem_add_to_page_cache(page, mapping, pgoff, NULL,
++						gfp & GFP_RECLAIM_MASK);
+ 	if (ret)
+ 		goto out_release_uncharge;
+ 
 -- 
 2.15.0
 
