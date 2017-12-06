@@ -1,91 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 74FC96B025E
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 09:18:54 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w95so2200719wrc.20
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 06:18:54 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id x7si3045120edl.469.2017.12.06.06.18.52
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E73296B025E
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 09:23:30 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id c82so1956551wme.8
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 06:23:30 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a56si2383696edd.224.2017.12.06.06.23.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 06 Dec 2017 06:18:53 -0800 (PST)
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Subject: Re: [RFC PATCH v3 0/7] ktask: multithread CPU-intensive kernel work
-References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
- <20171205142300.67489b1a90605e1089c5aaa9@linux-foundation.org>
-Message-ID: <03c1726f-5e6b-f879-5518-c77376adece4@oracle.com>
-Date: Wed, 6 Dec 2017 09:21:49 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 06 Dec 2017 06:23:29 -0800 (PST)
+Date: Wed, 6 Dec 2017 15:23:29 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] Get 7% more pages in a pagevec
+Message-ID: <20171206142329.GF7515@dhcp22.suse.cz>
+References: <20171206022521.GM26021@bombadil.infradead.org>
+ <20171206123842.GB7515@dhcp22.suse.cz>
+ <20171206141535.GC32044@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171205142300.67489b1a90605e1089c5aaa9@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206141535.GC32044@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mhocko@kernel.org, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org
 
-On 12/05/2017 05:23 PM, Andrew Morton wrote:
-> On Tue,  5 Dec 2017 14:52:13 -0500 Daniel Jordan <daniel.m.jordan@oracle.com> wrote:
+On Wed 06-12-17 06:15:35, Matthew Wilcox wrote:
+> On Wed, Dec 06, 2017 at 01:38:42PM +0100, Michal Hocko wrote:
+> > On Tue 05-12-17 18:25:21, Matthew Wilcox wrote:
+> > > -/* 14 pointers + two long's align the pagevec structure to a power of two */
+> > > -#define PAGEVEC_SIZE	14
+> > > +/* 15 pointers + header align the pagevec structure to a power of two */
+> > > +#define PAGEVEC_SIZE	15
+> > 
+> > And now you have ruined the ultimate constant of the whole MM :p
+> > But seriously, I have completely missed that pagevec has such a bad
+> > layout.
 > 
->> This patchset is based on 4.15-rc2 plus one mmots fix[*] and contains three
->> ktask users:
->>   - deferred struct page initialization at boot time
->>   - clearing gigantic pages
->>   - fallocate for HugeTLB pages
+> It's fun to go back into the historical tree and see why.
 > 
-> Performance improvements are nice.  How much overall impact is there in
-> real-world worklaods?
-
-All of the users so far are mainly for initialization/startup, so the 
-impact depends on how often users are rebooting (deferred struct page 
-init) and starting applications such as RDBMS'es (hugetlbfs_fallocate).
-
-ktask saves 5 seconds of boot time on the two-socket machine I tested on 
-with deferred init, which is half the time it takes for the kernel to 
-get to systemd, so for big machines that are frequently updated, the 
-savings would add up.
-
+> First it was two 'int's and an array of 16 pointers.  Marcelo noticed that
+> was three cachelines instead of two, so he shrank it to two shorts and
+> an array of 15 pointers:
 > 
->> Work in progress:
->>   - Parallelizing page freeing in the exit/munmap paths
+> https://git.kernel.org/pub/scm/linux/kernel/git/tglx/history.git/commit/include/linux/pagevec.h?id=afead7df5a05118052a238c54285e7119da65831
 > 
-> Also sounds interesting.
-
-Parallelizing this efficiently depends on scaling lru_lock and 
-zone->lock, which I've been working on separately.
-
-Have you identified any other parallelizable
-> operations?  vfs object teardown at umount time may be one...
-
-By vfs object teardown, are you referring to evict_inodes/dispose_list?
-
-If so, I actually have tried parallelizing that and there were good 
-speedups during unmount with many cached pages.  It's just a matter of 
-parallelizing well across inodes with different amounts of pages in cache.
-
-I've also gotten good results with __get_user_pages.  If we want to keep 
-the return value of __get_user_pages consistent on error (and I'm 
-assuming that's a given), there needs to be logic that undoes the work 
-past the first non-pinned page in the range so we continue to return the 
-number of pages pinned from the start.  That seems ok since it's a slow 
-path.
-
-The shmem page free path (shmem_undo_range), struct page initialization 
-on memory hotplug, and huge page copying are others I've considered but 
-haven't implemented yet.
-
->>   - CPU hotplug support
+> But then he found out that Pentium 2 and Pentium Pro sucked at 16-bit loads,
+> so he changed it to two longs and an array of 14 pointers:
 > 
-> Of what?  The ktask infrastructure itself?
+> https://git.kernel.org/pub/scm/linux/kernel/git/tglx/history.git/commit/include/linux/pagevec.h?id=6140f8a54db42320b1d05ce2680b5619210b88ad
 
-Yes, ktask itself.  When CPUs come up or down, ktask's resource limits 
-and preallocated data (the struct ktask_work's passed to the workqueue 
-code) need to be adjusted for the new CPU count, at least as it's 
-written now.
+Yeah, i've done that exercise several times because 14 is just
+_strange_. I always had that feeling that we were trying to be too
+clever for minor things while larger ones just got unnotices...
 
-Thanks for the comments,
-Daniel
+> I wonder what would have happened if he had benchmarked it with 'char'
+> instead of 'short'.  I think I have a Pentium 2 in the basement somewhere;
+> perhaps I'll drag it out and fire it up.
+> 
+> > Acked-by: Michal Hocko <mhocko@suse.com>
+> 
+> Thanks!
+
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
