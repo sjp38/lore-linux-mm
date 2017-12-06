@@ -1,99 +1,114 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D735B6B0362
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:18:21 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id f4so1656342wre.9
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:18:21 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E466B6B0366
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 03:31:34 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w74so1506711wmf.0
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 00:31:34 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 6si774644edi.36.2017.12.06.00.18.16
+        by mx.google.com with ESMTPS id j63si2109851edc.538.2017.12.06.00.31.33
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 06 Dec 2017 00:18:16 -0800 (PST)
-Subject: Re: [patch 13/15] mm/page_owner: align with pageblock_nr pages
-References: <5a208318./AHclpWAWggUsQYT%akpm@linux-foundation.org>
- <8c2af1ab-e64f-21da-f295-ea1ead343206@suse.cz>
- <20171201171517.lyqukuvuh4cswnla@dhcp22.suse.cz>
- <5A2536B0.5060804@huawei.com>
- <20171204120114.iezicg6pmyj2z6lq@dhcp22.suse.cz>
- <5A253E55.7040706@huawei.com>
- <20171204123546.lhhcbpulihz3upm6@dhcp22.suse.cz>
- <5A25460F.9050206@huawei.com> <687fc876-c610-2ceb-6b91-5e400816bb32@suse.cz>
- <5A269613.5090405@huawei.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <6e599005-392a-38e1-481e-72ff4195e749@suse.cz>
-Date: Wed, 6 Dec 2017 09:18:14 +0100
+        Wed, 06 Dec 2017 00:31:33 -0800 (PST)
+Date: Wed, 6 Dec 2017 09:31:30 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
+Message-ID: <20171206083130.GC16386@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <5A269613.5090405@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: Michal Hocko <mhocko@suse.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: David Rientjes <rientjes@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 12/05/2017 01:50 PM, zhong jiang wrote:
->>>  yes,   limited by my knowledge and english.  Maybe Vlastimil  can  address it  in detail.  
->> Hi, on a fresh look, I believe this patch doesn't improve anything in
->> practice. It potentially makes init_pages_in_zone() catch more early
->> allocations, if a hole happens to be placed in the beginning of
->> MAX_ORDER block, and the following pageblock within the block was early
->> allocated.
->  Hi, Vlastimil
+On Tue 05-12-17 18:43:48, David Rientjes wrote:
+> Hi,
 > 
->   I have a stupid question about holes
+> I'd like to understand the synchronization between the oom_reaper's 
+> unmap_page_range() and exit_mmap().  The latter does not hold 
+> mm->mmap_sem: it's supposed to be the last thread operating on the mm 
+> before it is destroyed.
 > 
->   because a hole is possible to have within a MAX_ORDER_NR_PAGES, it indeed
->   exist in first pfn. it that is true, why we must skip the whole MAX_ORDER block?
->   Any limit ?  I can not find the answer.
+> If unmap_page_range() races with unmap_vmas(), we trivially call 
+> page_remove_rmap() twice on the same page:
 
-It's not that we "must skip". If I understand it correctly, on kernels
-without CONFIG_HOLES_IN_ZONE, we can skip a MAX_ORDER block if *any* pfn
-(including the first pfn) is invalid, because we know that the whole
-block is invalid. On CONFIG_HOLES_IN_ZONE, there is no such guarantee.
+Well, the oom reaper is basically MADV_DONTNEED and that allows
+parallel tear down (it takes only mmap_sem for read). The exit path
+doesn't take the mmap_sem during unmap_vmas but that shouldn't make any
+difference because both path would take it for read anyway. The
+essential synchronization between oom reaper and exit_mmap is
+exit_mmap:	
+	set_bit(MMF_OOM_SKIP, &mm->flags);
+	if (unlikely(tsk_is_oom_victim(current))) {
+		/*
+		 * Wait for oom_reap_task() to stop working on this
+		 * mm. Because MMF_OOM_SKIP is already set before
+		 * calling down_read(), oom_reap_task() will not run
+		 * on this "mm" post up_write().
+		 *
+		 * tsk_is_oom_victim() cannot be set from under us
+		 * either because current->mm is already set to NULL
+		 * under task_lock before calling mmput and oom_mm is
+		 * set not NULL by the OOM killer only if current->mm
+		 * is found not NULL while holding the task_lock.
+		 */
+		down_write(&mm->mmap_sem);
+		up_write(&mm->mmap_sem);
+	}
 
-So if we see that the first pfn is valid, we continue with the block,
-but use pfn_valid_within() (which is defined as pfn_valid() on
-CONFIG_HOLES_IN_ZONE and hardcoded "true" elsewhere) to validate each
-pfn. This is slow, but the arches pay the price for CONFIG_HOLES_IN_ZONE.
+oom_reaper
+	if (!down_read_trylock(&mm->mmap_sem)) {
 
-If we see that first pfn is invalid, we are safe to skip the MAX_ORDER
-block when CONFIG_HOLES_IN_ZONE=n and we know we won't miss anything. On
-CONFIG_HOLES_IN_ZONE we might miss something, so to be sure we don't
-miss something, we should validate each pfn. The potential price there
-is probably worse, because we might be validating arbitrary large holes
-not limited by physical amount of RAM. So e.g. compaction doesn't pay
-this price, and MAX_ORDER blocks that would have hole at the beginning
-and end (with valid pages in the middle) are skipped.
+	/*
+	 * MMF_OOM_SKIP is set by exit_mmap when the OOM reaper can't
+	 * work on the mm anymore. The check for MMF_OOM_SKIP must run
+	 * under mmap_sem for reading because it serializes against the
+	 * down_write();up_write() cycle in exit_mmap().
+	 */
+	if (test_bit(MMF_OOM_SKIP, &mm->flags)) {
 
-page_owner on the other hand is a debugging feature not normally
-enabled, with significant overhead, so paying the price there might not
-be an issue. But it means rewriting both init_pages_in_zone() and
-read_page_owner() to not skip MAX_ORDER block (nor pageblock_order) when
-CONFIG_HOLES_IN_ZONE=y. I don't think there's a simple wrapper similar
-to pfn_valid_within() for that, but it could be created (input: current
-pfn, output: start pfn of next MAX_ORDER block if
-CONFIG_HOLES_IN_ZONE=n, pfn+1 when CONFIG_HOLES_IN_ZONE=y).
+which makes sure that the reaper doesn't race with free_pgtables.
 
->   Thanks
->   zhongjiang
->> However, read_page_owner() skips whole MAX_ORDER block as well in this
->> situation, so we won't be able to read the info anyway...
->>
->> Also the problem is not as simple as documenting MAX_ORDER_NR_PAGES vs
->> pabeblock_nr_pages. We discussed it year ago when this patch was first
->> posted, how skipping over holes would have to be made more robust, and
->> how architectures should define hole granularity to avoid checking each
->> individual pfn in what appears to be a hole, to see if the hole has ended.
->>
->>> Thanks
->>> zhongjiang
->>>
->>
->> .
->>
+> BUG: Bad page map in process oom_reaper  pte:6353826300000000 pmd:00000000
+
+Hmm, this is really strange. This is a pte without a pmd or is the
+output just incomplete.
+
+> addr:00007f50cab1d000 vm_flags:08100073 anon_vma:ffff9eea335603f0 mapping:          (null) index:7f50cab1d
+> file:          (null) fault:          (null) mmap:          (null) readpage:          (null)
+> CPU: 2 PID: 1001 Comm: oom_reaper
+> Call Trace:
+>  [<ffffffffa4bd967d>] dump_stack+0x4d/0x70
+>  [<ffffffffa4a03558>] unmap_page_range+0x1068/0x1130
+
+could you use addr2line to get the exact spot where this triggered
+please?
+
+>  [<ffffffffa4a2e07f>] __oom_reap_task_mm+0xd5/0x16b
+>  [<ffffffffa4a2e226>] oom_reaper+0xff/0x14c
+>  [<ffffffffa48d6ad1>] kthread+0xc1/0xe0
 > 
-> 
+> And there are more examples of badness from an unmap_page_range() racing 
+> with unmap_vmas().  In this case, MMF_OOM_SKIP is doing two things: (1) 
+> avoiding additional oom kills until unmap_vmas() returns and (2) avoid the 
+> oom_reaper working on the mm after unmap_vmas().  In (2), there's nothing 
+> preventing the oom reaper from calling unmap_page_range() in parallel with 
+> the final thread doing unmap_vmas() -- we no longer do mmget() to prevent 
+> exit_mmap() from being called.
+
+Yes and that is an intentional behavior. There shouldn't be any reason
+to exclude the two because this should be equivalent to calling
+MADV_DONTNEED in parallel.
+
+I will get to the rest of your email later because the above is the
+essential assumption 212925802454 ("mm: oom: let oom_reap_task and
+exit_mmap run concurrently") builds on. If it is not correct then we
+have a bigger problem.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
