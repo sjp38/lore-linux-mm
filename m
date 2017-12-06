@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A4CD96B0271
+	by kanga.kvack.org (Postfix) with ESMTP id B50C26B026F
 	for <linux-mm@kvack.org>; Tue,  5 Dec 2017 19:42:11 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id p17so1596750pfh.18
+Received: by mail-pf0-f200.google.com with SMTP id 73so1617727pfz.11
         for <linux-mm@kvack.org>; Tue, 05 Dec 2017 16:42:11 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q25si889068pge.487.2017.12.05.16.42.09
+        by mx.google.com with ESMTPS id v65si884756pgb.209.2017.12.05.16.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Tue, 05 Dec 2017 16:42:09 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v4 18/73] xarray: Add xas_create_range
-Date: Tue,  5 Dec 2017 16:41:04 -0800
-Message-Id: <20171206004159.3755-19-willy@infradead.org>
+Subject: [PATCH v4 07/73] xarray: Define struct xa_node
+Date: Tue,  5 Dec 2017 16:40:53 -0800
+Message-Id: <20171206004159.3755-8-willy@infradead.org>
 In-Reply-To: <20171206004159.3755-1-willy@infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -21,61 +21,106 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-This hopefully temporary function is useful for users who have not yet
-been converted to multi-index entries.
+This is a direct replacement for struct radix_tree_node.  Use a #define
+so that radix tree users continue to work without change.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h |  2 ++
- lib/xarray.c           | 22 ++++++++++++++++++++++
- 2 files changed, 24 insertions(+)
+ include/linux/radix-tree.h | 29 +++--------------------------
+ include/linux/xarray.h     | 24 ++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 26 deletions(-)
 
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index f31a278de8eb..f46e3de57115 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -32,6 +32,7 @@
+ 
+ /* Keep unconverted code working */
+ #define radix_tree_root		xarray
++#define radix_tree_node		xa_node
+ 
+ /*
+  * The bottom two bits of the slot determine how the remaining bits in the
+@@ -60,41 +61,17 @@ static inline bool radix_tree_is_internal_node(void *ptr)
+ 
+ /*** radix-tree API starts here ***/
+ 
+-#define RADIX_TREE_MAX_TAGS 3
+-
+ #define RADIX_TREE_MAP_SHIFT	XA_CHUNK_SHIFT
+ #define RADIX_TREE_MAP_SIZE	(1UL << RADIX_TREE_MAP_SHIFT)
+ #define RADIX_TREE_MAP_MASK	(RADIX_TREE_MAP_SIZE-1)
+ 
+-#define RADIX_TREE_TAG_LONGS	\
+-	((RADIX_TREE_MAP_SIZE + BITS_PER_LONG - 1) / BITS_PER_LONG)
++#define RADIX_TREE_MAX_TAGS	XA_MAX_TAGS
++#define RADIX_TREE_TAG_LONGS	XA_TAG_LONGS
+ 
+ #define RADIX_TREE_INDEX_BITS  (8 /* CHAR_BIT */ * sizeof(unsigned long))
+ #define RADIX_TREE_MAX_PATH (DIV_ROUND_UP(RADIX_TREE_INDEX_BITS, \
+ 					  RADIX_TREE_MAP_SHIFT))
+ 
+-/*
+- * @count is the count of every non-NULL element in the ->slots array
+- * whether that is a data entry, a retry entry, a user pointer,
+- * a sibling entry or a pointer to the next level of the tree.
+- * @exceptional is the count of every element in ->slots which is
+- * either a data entry or a sibling entry for data.
+- */
+-struct radix_tree_node {
+-	unsigned char	shift;		/* Bits remaining in each slot */
+-	unsigned char	offset;		/* Slot offset in parent */
+-	unsigned char	count;		/* Total entry count */
+-	unsigned char	exceptional;	/* Exceptional entry count */
+-	struct radix_tree_node *parent;		/* Used when ascending tree */
+-	struct radix_tree_root *root;		/* The tree we belong to */
+-	union {
+-		struct list_head private_list;	/* For tree user */
+-		struct rcu_head	rcu_head;	/* Used when freeing node */
+-	};
+-	void __rcu	*slots[RADIX_TREE_MAP_SIZE];
+-	unsigned long	tags[RADIX_TREE_MAX_TAGS][RADIX_TREE_TAG_LONGS];
+-};
+-
+ /* The top bits of xa_flags are used to store the root tags and the IDR flag */
+ #define ROOT_IS_IDR	((__force gfp_t)(1 << __GFP_BITS_SHIFT))
+ #define ROOT_TAG_SHIFT	(__GFP_BITS_SHIFT + 1)
 diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index 416708ace115..afa3374f20bd 100644
+index dcdac2053ea6..1aff0069458b 100644
 --- a/include/linux/xarray.h
 +++ b/include/linux/xarray.h
-@@ -594,6 +594,8 @@ void xas_init_tags(const struct xa_state *);
- bool xas_nomem(struct xa_state *, gfp_t);
- void xas_pause(struct xa_state *);
- 
-+void xas_create_range(struct xa_state *, unsigned long max);
+@@ -133,6 +133,30 @@ static inline bool xa_is_value(void *entry)
+ #endif
+ #define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
+ #define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
++#define XA_MAX_TAGS		3
++#define XA_TAG_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
 +
- /**
-  * xas_reload() - Refetch an entry from the xarray.
-  * @xas: XArray operation state.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 8c6e83d10554..cc88df7bd6df 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -570,6 +570,28 @@ void *xas_create(struct xa_state *xas)
- }
- EXPORT_SYMBOL_GPL(xas_create);
- 
-+/**
-+ * xas_create_range() - Ensure that stores to this range will succeed
-+ * @xas: XArray operation state.
-+ * @max: The highest index to create a slot for.
-+ *
-+ * Creates all of the slots in the range between the current position of
-+ * @xas and @max.  This is for the benefit of users who have not yet been
-+ * converted to multi-index entries.
-+ *
-+ * The implementation is naive.
++/*
++ * @count is the count of every non-NULL element in the ->slots array
++ * whether that is a data value entry, a retry entry, a user pointer,
++ * a sibling entry or a pointer to the next level of the tree.
++ * @exceptional is the count of every element in ->slots which is
++ * either a data value entry or a sibling entry for a data value.
 + */
-+void xas_create_range(struct xa_state *xas, unsigned long max)
-+{
-+	XA_STATE(tmp, xas->xa, xas->xa_index);
-+
-+	do {
-+		xas_create(&tmp);
-+		xas_set(&tmp, tmp.xa_index + XA_CHUNK_SIZE);
-+	} while (tmp.xa_index < max);
-+}
-+EXPORT_SYMBOL_GPL(xas_create_range);
-+
- static void store_siblings(struct xa_state *xas,
- 				void *entry, int *countp, int *valuesp)
- {
++struct xa_node {
++	unsigned char	shift;		/* Bits remaining in each slot */
++	unsigned char	offset;		/* Slot offset in parent */
++	unsigned char	count;		/* Total entry count */
++	unsigned char	exceptional;	/* Exceptional entry count */
++	struct xa_node *parent;		/* Used when ascending tree */
++	struct xarray *	root;		/* The tree we belong to */
++	union {
++		struct list_head private_list;	/* For tree user */
++		struct rcu_head	rcu_head;	/* Used when freeing node */
++	};
++	void __rcu	*slots[XA_CHUNK_SIZE];
++	unsigned long	tags[XA_MAX_TAGS][XA_TAG_LONGS];
++};
+ 
+ /*
+  * Internal entries have the bottom two bits set to the value 10b.  Most
 -- 
 2.15.0
 
