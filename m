@@ -1,86 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C467F6B0038
-	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 10:21:07 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id w191so2323628iof.11
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 07:21:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a19sor1473864ioj.28.2017.12.06.07.21.06
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 29E436B0038
+	for <linux-mm@kvack.org>; Wed,  6 Dec 2017 10:31:06 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id v190so2256725pgv.11
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 07:31:06 -0800 (PST)
+Received: from smtp.codeaurora.org (smtp.codeaurora.org. [198.145.29.96])
+        by mx.google.com with ESMTPS id e3si2108050pgp.89.2017.12.06.07.31.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 06 Dec 2017 07:21:06 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 06 Dec 2017 07:31:04 -0800 (PST)
+Subject: Re: [PATCH] mm: Export unmapped_area*() functions
+References: <1512486927-32349-1-git-send-email-hareeshg@codeaurora.org>
+ <20171205152944.GA10573@lst.de>
+From: Hareesh Gundu <hareeshg@codeaurora.org>
+Message-ID: <d5c9b199-7379-f6e1-d5a4-f072d7f9cd93@codeaurora.org>
+Date: Wed, 6 Dec 2017 21:00:57 +0530
 MIME-Version: 1.0
-In-Reply-To: <20171206114852epcms5p6973b02a9f455d5d3c765eafda0fe2631@epcms5p6>
-References: <CALZtONA1R8HyODqUP8Z-0yxvRAsV=Zo8OD2PQT3HwWWmqE6Hig@mail.gmail.com>
- <20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p1>
- <20171120154648.6c2f96804c4c1668bd8d572a@linux-foundation.org>
- <CGME20171018104832epcms5p1b2232e2236258de3d03d1344dde9fce0@epcms5p6>
- <20171129153437epcms5p64b04efa370cc42bb0f9e5677e298704e@epcms5p6> <20171206114852epcms5p6973b02a9f455d5d3c765eafda0fe2631@epcms5p6>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Wed, 6 Dec 2017 10:20:25 -0500
-Message-ID: <CALZtONAAE7KNJyBRWD0mzKTF7qAXUwRX47dzNtD_Oz2WpJ-Qeg@mail.gmail.com>
-Subject: Re: [PATCH v2] zswap: Update with same-value filled page feature
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171205152944.GA10573@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Srividya Desireddy <srividya.dr@samsung.com>
-Cc: "sjenning@redhat.com" <sjenning@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Dinakar Reddy Pathireddy <dinakar.p@samsung.com>, RAJIB BASU <rajib.basu@samsung.com>, Srikanth Mandalapu <srikanth.m@samsung.com>, SHARAN ALLUR <sharan.allur@samsung.com>, JUHUN KIM <juhunkim@samsung.com>, "srividya.desireddy@gmail.com" <srividya.desireddy@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>, Oleg Nesterov <oleg@redhat.com>, linux-mm@kvack.org, jcrouse@codeaurora.org
 
-On Wed, Dec 6, 2017 at 6:48 AM, Srividya Desireddy
-<srividya.dr@samsung.com> wrote:
-> From: Srividya Desireddy <srividya.dr@samsung.com>
-> Date: Wed, 6 Dec 2017 16:29:50 +0530
-> Subject: [PATCH v2] zswap: Update with same-value filled page feature
->
-> Changes since v1:
-> Updated to clarify about zswap.same_filled_pages_enabled parameter.
->
-> Updated zswap document with details on same-value filled
-> pages identification feature.
-> The usage of zswap.same_filled_pages_enabled module parameter
-> is explained.
->
-> Signed-off-by: Srividya Desireddy <srividya.dr@samsung.com>
-
-Acked-by: Dan Streetman <ddstreet@ieee.org>
-
-> ---
->  Documentation/vm/zswap.txt | 22 +++++++++++++++++++++-
->  1 file changed, 21 insertions(+), 1 deletion(-)
->
-> diff --git a/Documentation/vm/zswap.txt b/Documentation/vm/zswap.txt
-> index 89fff7d..0b3a114 100644
-> --- a/Documentation/vm/zswap.txt
-> +++ b/Documentation/vm/zswap.txt
-> @@ -98,5 +98,25 @@ request is made for a page in an old zpool, it is uncompressed using its
->  original compressor.  Once all pages are removed from an old zpool, the zpool
->  and its compressor are freed.
->
-> +Some of the pages in zswap are same-value filled pages (i.e. contents of the
-> +page have same value or repetitive pattern). These pages include zero-filled
-> +pages and they are handled differently. During store operation, a page is
-> +checked if it is a same-value filled page before compressing it. If true, the
-> +compressed length of the page is set to zero and the pattern or same-filled
-> +value is stored.
-> +
-> +Same-value filled pages identification feature is enabled by default and can be
-> +disabled at boot time by setting the "same_filled_pages_enabled" attribute to 0,
-> +e.g. zswap.same_filled_pages_enabled=0. It can also be enabled and disabled at
-> +runtime using the sysfs "same_filled_pages_enabled" attribute, e.g.
-> +
-> +echo 1 > /sys/module/zswap/parameters/same_filled_pages_enabled
-> +
-> +When zswap same-filled page identification is disabled at runtime, it will stop
-> +checking for the same-value filled pages during store operation. However, the
-> +existing pages which are marked as same-value filled pages remain stored
-> +unchanged in zswap until they are either loaded or invalidated.
-> +
->  A debugfs interface is provided for various statistic about pool size, number
-> -of pages stored, and various counters for the reasons pages are rejected.
-> +of pages stored, same-value filled pages and various counters for the reasons
-> +pages are rejected.
-> --
-> 2.7.4
+On 12/5/2017 8:59 PM, Christoph Hellwig wrote:
+> On Tue, Dec 05, 2017 at 08:45:27PM +0530, Hareesh Gundu wrote:
+>> Add EXPORT_SYMBOL to unmapped_area()
+>> and unmapped_area_topdown(). So they
+>> are usable from modules.
+This change is not for in-tree kernel module. It's for modules built 
+outside of kernel tree modules.
+> Please send this along with the actual modules.
 >
 
 --
