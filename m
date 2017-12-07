@@ -1,39 +1,76 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 173F86B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:09:02 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id y200so8885278itc.7
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:09:02 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id 135si4743719itp.126.2017.12.07.11.09.00
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 861066B0268
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:12:59 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id h18so6438421pfi.2
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:12:59 -0800 (PST)
+Received: from out0-219.mail.aliyun.com (out0-219.mail.aliyun.com. [140.205.0.219])
+        by mx.google.com with ESMTPS id o30si4165319pgn.211.2017.12.07.11.12.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Dec 2017 11:09:01 -0800 (PST)
-References: <20171207150840.28409-1-hch@lst.de>
- <20171207150840.28409-8-hch@lst.de>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <199af200-beb9-04cc-2934-3dab4fa38748@deltatee.com>
-Date: Thu, 7 Dec 2017 12:08:55 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Dec 2017 11:12:57 -0800 (PST)
+Subject: Re: [PATCH 4/8] vfs: remove unused hardirq.h
+References: <1510959741-31109-1-git-send-email-yang.s@alibaba-inc.com>
+ <1510959741-31109-4-git-send-email-yang.s@alibaba-inc.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <0bfadf85-b499-5d2f-f0d2-20d229ba7fe2@alibaba-inc.com>
+Date: Fri, 08 Dec 2017 03:12:52 +0800
 MIME-Version: 1.0
-In-Reply-To: <20171207150840.28409-8-hch@lst.de>
+In-Reply-To: <1510959741-31109-4-git-send-email-yang.s@alibaba-inc.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 07/14] mm: split dev_pagemap memory map allocation from
- normal case
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, netdev@vger.kernel.org, Alexander Viro <viro@zeniv.linux.org.uk>
+
+Hi folks,
+
+Any comment on this one?
+
+Thanks,
+Yang
 
 
-
-On 07/12/17 08:08 AM, Christoph Hellwig wrote:
-> No functional changes, just untangling the call chain.
+On 11/17/17 3:02 PM, Yang Shi wrote:
+> Preempt counter APIs have been split out, currently, hardirq.h just
+> includes irq_enter/exit APIs which are not used by vfs at all.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
+> So, remove the unused hardirq.h.
+> 
+> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> ---
+>   fs/dcache.c     | 1 -
+>   fs/file_table.c | 1 -
+>   2 files changed, 2 deletions(-)
+> 
+> diff --git a/fs/dcache.c b/fs/dcache.c
+> index f901413..9340e8c 100644
+> --- a/fs/dcache.c
+> +++ b/fs/dcache.c
+> @@ -32,7 +32,6 @@
+>   #include <linux/swap.h>
+>   #include <linux/bootmem.h>
+>   #include <linux/fs_struct.h>
+> -#include <linux/hardirq.h>
+>   #include <linux/bit_spinlock.h>
+>   #include <linux/rculist_bl.h>
+>   #include <linux/prefetch.h>
+> diff --git a/fs/file_table.c b/fs/file_table.c
+> index 61517f5..dab099e 100644
+> --- a/fs/file_table.c
+> +++ b/fs/file_table.c
+> @@ -23,7 +23,6 @@
+>   #include <linux/sysctl.h>
+>   #include <linux/percpu_counter.h>
+>   #include <linux/percpu.h>
+> -#include <linux/hardirq.h>
+>   #include <linux/task_work.h>
+>   #include <linux/ima.h>
+>   #include <linux/swap.h>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
