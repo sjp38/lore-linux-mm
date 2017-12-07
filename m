@@ -1,134 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 29B8D6B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 06:51:31 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 55so3919541wrx.21
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 03:51:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w19si2489290wra.165.2017.12.07.03.51.29
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 41A096B0038
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 06:59:28 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j26so5466016pff.8
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 03:59:28 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id e9si2294607plk.690.2017.12.07.03.59.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 03:51:29 -0800 (PST)
-Date: Thu, 7 Dec 2017 12:51:27 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second
- allocation
-Message-ID: <20171207115127.GH20234@dhcp22.suse.cz>
-References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Dec 2017 03:59:26 -0800 (PST)
+Message-ID: <5A292D94.5000700@intel.com>
+Date: Thu, 07 Dec 2017 20:01:24 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
+References: <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>	<5A210C96.8050208@intel.com>	<201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>	<286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>	<20171201172519.GA27192@bombadil.infradead.org> <201712031050.IAC64520.QVLFFOOJOSFtHM@I-love.SAKURA.ne.jp>
+In-Reply-To: <201712031050.IAC64520.QVLFFOOJOSFtHM@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Manish Jaggi <mjaggi@caviumnetworks.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, willy@infradead.org
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-On Thu 07-12-17 20:42:20, Tetsuo Handa wrote:
-> Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
-> count causes random kernel panics when an OOM victim which consumed memory
-> in a way the OOM reaper does not help was selected by the OOM killer [1].
-> Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-> oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
-> to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
-> victim's mm were not able to try allocation from memory reserves after the
-> OOM reaper gave up reclaiming memory.
-> 
-> Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
-> last second allocation attempt.
-> 
-> [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-> 
-> Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-> Acked-by: Michal Hocko <mhocko@suse.com>
+On 12/03/2017 09:50 AM, Tetsuo Handa wrote:
+> Matthew Wilcox wrote:
+>> On Fri, Dec 01, 2017 at 03:09:08PM +0000, Wang, Wei W wrote:
+>>> On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
+>>>> If start == end is legal,
+>>>>
+>>>>     for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+>>>>
+>>>> makes this loop do nothing because 10 < 10 is false.
+>>> How about "start <= end "?
+>> Don't ask Tetsuo for his opinion, write some userspace code that uses it.
+>>
+> Please be sure to prepare for "end == -1UL" case, for "start < end" will become
+> true when "start = (start | (IDA_BITMAP_BITS - 1)) + 1" made "start == 0" due to
+> overflow.
 
-I haven't acked _this_ patch! I will have a look but the patch is
-different enough from the original that keeping any acks or reviews is
-inappropriate. Do not do it again!
+I think there is one more corner case with this API: searching for bit 
+"1" from [0, ULONG_MAX] while no bit is set in the range, there appear 
+to be no possible value that we can return (returning "end + 1" will be 
+"ULONG_MAX + 1", which is 0)
+I plan to make the "end" be exclusive of the searching, that is, [start, 
+end), and return "end" if no such bit is found.
 
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Oleg Nesterov <oleg@redhat.com>
-> Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-> Cc: David Rientjes <rientjes@google.com>
-> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  mm/page_alloc.c | 39 +++++++++++++++++++++++++++++----------
->  1 file changed, 29 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 73f5d45..5d054a4 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -3309,6 +3309,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  	return page;
->  }
->  
-> +static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
-> +					       unsigned int order,
-> +					       const struct alloc_context *ac);
-> +
->  static inline struct page *
->  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
->  	const struct alloc_context *ac, unsigned long *did_some_progress)
-> @@ -3334,16 +3338,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
->  		return NULL;
->  	}
->  
-> -	/*
-> -	 * Go through the zonelist yet one more time, keep very high watermark
-> -	 * here, this is only to catch a parallel oom killing, we must fail if
-> -	 * we're still under heavy pressure. But make sure that this reclaim
-> -	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> -	 * allocation which will never fail due to oom_lock already held.
-> -	 */
-> -	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
-> -				      ~__GFP_DIRECT_RECLAIM, order,
-> -				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
-> +	page = alloc_pages_before_oomkill(gfp_mask, order, ac);
->  	if (page)
->  		goto out;
->  
-> @@ -3755,6 +3750,30 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
->  	return !!__gfp_pfmemalloc_flags(gfp_mask);
->  }
->  
-> +static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
-> +					       unsigned int order,
-> +					       const struct alloc_context *ac)
-> +{
-> +	/*
-> +	 * Go through the zonelist yet one more time, keep very high watermark
-> +	 * here, this is only to catch a parallel oom killing, we must fail if
-> +	 * we're still under heavy pressure. But make sure that this reclaim
-> +	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-> +	 * allocation which will never fail due to oom_lock already held.
-> +	 * Also, make sure that OOM victims can try ALLOC_OOM watermark
-> +	 * in case they haven't tried ALLOC_OOM watermark.
-> +	 */
-> +	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
-> +	int reserve_flags;
-> +
-> +	gfp_mask |= __GFP_HARDWALL;
-> +	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-> +	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
-> +	if (reserve_flags)
-> +		alloc_flags = reserve_flags;
-> +	return get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-> +}
-> +
->  /*
->   * Checks whether it makes sense to retry the reclaim to make a forward progress
->   * for the given allocation request.
-> -- 
-> 1.8.3.1
-> 
+For cases like [16, 16), returning 16 doesn't mean bit 16 is 1 or 0, it 
+simply means there is no bits to search in the given range, since 16 is 
+exclusive.
 
--- 
-Michal Hocko
-SUSE Labs
+Please let me know if you have a different thought.
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
