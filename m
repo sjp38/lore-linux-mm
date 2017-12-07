@@ -1,69 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5905F6B0069
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:41:32 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id r11so4068527ote.20
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:41:32 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id t125si1667959oif.162.2017.12.07.07.41.31
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D36076B025E
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:44:20 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id w70so3356805oie.15
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:44:20 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id t79si1701891oih.160.2017.12.07.07.44.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 07:41:31 -0800 (PST)
-Date: Thu, 7 Dec 2017 17:41:18 +0200
-From: "Michael S. Tsirkin" <mst@redhat.com>
-Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
-Message-ID: <20171207174055-mutt-send-email-mst@kernel.org>
-References: <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>
- <5A210C96.8050208@intel.com>
- <201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>
- <286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>
- <20171201172519.GA27192@bombadil.infradead.org>
- <201712031050.IAC64520.QVLFFOOJOSFtHM@I-love.SAKURA.ne.jp>
- <5A292D94.5000700@intel.com>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Dec 2017 07:44:18 -0800 (PST)
+Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
+	<20171207113548.GG20234@dhcp22.suse.cz>
+In-Reply-To: <20171207113548.GG20234@dhcp22.suse.cz>
+Message-Id: <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp>
+Date: Fri, 8 Dec 2017 00:44:11 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <5A292D94.5000700@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, willy@infradead.org, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: mhocko@kernel.org, rientjes@google.com
+Cc: akpm@linux-foundation.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu, Dec 07, 2017 at 08:01:24PM +0800, Wei Wang wrote:
-> On 12/03/2017 09:50 AM, Tetsuo Handa wrote:
-> > Matthew Wilcox wrote:
-> > > On Fri, Dec 01, 2017 at 03:09:08PM +0000, Wang, Wei W wrote:
-> > > > On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
-> > > > > If start == end is legal,
-> > > > > 
-> > > > >     for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
-> > > > > 
-> > > > > makes this loop do nothing because 10 < 10 is false.
-> > > > How about "start <= end "?
-> > > Don't ask Tetsuo for his opinion, write some userspace code that uses it.
-> > > 
-> > Please be sure to prepare for "end == -1UL" case, for "start < end" will become
-> > true when "start = (start | (IDA_BITMAP_BITS - 1)) + 1" made "start == 0" due to
-> > overflow.
-> 
-> I think there is one more corner case with this API: searching for bit "1"
-> from [0, ULONG_MAX] while no bit is set in the range, there appear to be no
-> possible value that we can return (returning "end + 1" will be "ULONG_MAX +
-> 1", which is 0)
-> I plan to make the "end" be exclusive of the searching, that is, [start,
-> end), and return "end" if no such bit is found.
-> 
-> For cases like [16, 16), returning 16 doesn't mean bit 16 is 1 or 0, it
-> simply means there is no bits to search in the given range, since 16 is
-> exclusive.
-> 
-> Please let me know if you have a different thought.
-> 
-> Best,
-> Wei
+Michal Hocko wrote:
+> David, could you test with this patch please?
 
-Matthew is right though - you want to include tests for all
-these corner cases.
+Even if this patch solved David's case, you need to update
+
+	 * tsk_is_oom_victim() cannot be set from under us
+	 * either because current->mm is already set to NULL
+	 * under task_lock before calling mmput and oom_mm is
+	 * set not NULL by the OOM killer only if current->mm
+	 * is found not NULL while holding the task_lock.
+
+part as well, for it is the explanation of why
+tsk_is_oom_victim() test was expected to work.
+
+Also, do we need to do
+
+  set_bit(MMF_OOM_SKIP, &mm->flags);
+
+if mm_is_oom_victim(mm) == false?
+
+exit_mmap() is called means that nobody can reach this mm
+except ->signal->oom_mm, and mm_is_oom_victim(mm) == false
+means that this mm cannot be reached by ->signal->oom_mm .
+
+Then, I think we do not need to set MMF_OOM_SKIP on this mm
+at exit_mmap() if mm_is_oom_victim(mm) == false.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
