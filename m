@@ -1,48 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A93D6B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 03:45:00 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id t15so3043611wmh.3
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 00:44:59 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c15si1319230wra.5.2017.12.07.00.44.58
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8A51C6B0069
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 03:50:26 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id f9so6901278qtf.6
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 00:50:26 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id q4sor3369812qta.148.2017.12.07.00.50.24
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 00:44:58 -0800 (PST)
-Date: Thu, 7 Dec 2017 09:44:57 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
-Message-ID: <20171207084457.GD20234@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712052323170.119719@chino.kir.corp.google.com>
- <20171206090019.GE16386@dhcp22.suse.cz>
- <201712070720.vB77KlBQ009754@www262.sakura.ne.jp>
- <20171207082801.GB20234@dhcp22.suse.cz>
+        (Google Transport Security);
+        Thu, 07 Dec 2017 00:50:24 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171207082801.GB20234@dhcp22.suse.cz>
+In-Reply-To: <20171207041459.64myz37qwmjkoxu5@wfg-t540p.sh.intel.com>
+References: <5a20831e./7a6H+akjTcq4WCk%akpm@linux-foundation.org>
+ <20171201122928.GD8365@quack2.suse.cz> <20171206170927.5d40106be6fdc6dc88354b65@linux-foundation.org>
+ <20171207041459.64myz37qwmjkoxu5@wfg-t540p.sh.intel.com>
+From: Miklos Szeredi <miklos@szeredi.hu>
+Date: Thu, 7 Dec 2017 09:50:23 +0100
+Message-ID: <CAJfpegsE-jUOWjpMVQv76cDxp3aLpAfxrMa-vutMFa0KhVKrHw@mail.gmail.com>
+Subject: Re: [patch 15/15] mm: add strictlimit knob
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: David Rientjes <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Fengguang Wu <fengguang.wu@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Maxim Patlasov <MPatlasov@parallels.com>, hmh@hmh.eng.br, mel@csn.ul.ie, t.artem@lycos.com, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, linux-fsdevel@vger.kernel.org
 
-On Thu 07-12-17 09:28:01, Michal Hocko wrote:
-[...]
-> oom_reaper		oom_victim		task
-> 						mmget_not_zero
-> 			exit_mmap
+On Thu, Dec 7, 2017 at 5:14 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
+> CC fuse maintainer, too.
+>
+> On Wed, Dec 06, 2017 at 05:09:27PM -0800, Andrew Morton wrote:
+>>
+>> On Fri, 1 Dec 2017 13:29:28 +0100 Jan Kara <jack@suse.cz> wrote:
+>>
+>>> On Thu 30-11-17 14:15:58, Andrew Morton wrote:
+>>> > From: Maxim Patlasov <MPatlasov@parallels.com>
+>>> > Subject: mm: add strictlimit knob
+>>> >
+>>> > The "strictlimit" feature was introduced to enforce per-bdi dirty
+>>> > limits
+>>> > for FUSE which sets bdi max_ratio to 1% by default:
+>>> >
+>>> > http://article.gmane.org/gmane.linux.kernel.mm/105809
+>>> >
+>>> > However the feature can be useful for other relatively slow or
+>>> > untrusted
+>>> > BDIs like USB flash drives and DVD+RW.  The patch adds a knob to enable
+>>> > the feature:
+>>> >
+>>> > echo 1 > /sys/class/bdi/X:Y/strictlimit
+>>> >
+>>> > Being enabled, the feature enforces bdi max_ratio limit even if global
+>>> > (10%) dirty limit is not reached.  Of course, the effect is not visible
+>>> > until /sys/class/bdi/X:Y/max_ratio is decreased to some reasonable
+>>> > value.
+>>>
+>>> In principle I have nothing against this and the usecase sounds
+>>> reasonable
+>>> (in fact I believe the lack of a feature like this is one of reasons why
+>>> desktop automounters usually mount USB devices with 'sync' mount option).
+>>> So feel free to add:
+>>>
+>>> Reviewed-by: Jan Kara <jack@suse.cz>
+>>>
+>>
+>> Cc Jens, who may be vaguely interested in plans to finally merge this
+>> three-year-old patch?
+>>
+>>
+>>
+>> From: Maxim Patlasov <MPatlasov@parallels.com>
+>> Subject: mm: add strictlimit knob
+>>
+>> The "strictlimit" feature was introduced to enforce per-bdi dirty limits
+>> for FUSE which sets bdi max_ratio to 1% by default:
+>>
+>> http://article.gmane.org/gmane.linux.kernel.mm/105809
+>
+>
+> That link is invalid for now, possibly due to the gmane site rebuild.
+> I find an email thread here which looks relevant:
+>
+> https://sourceforge.net/p/fuse/mailman/message/35254883/
+>
+> Where Maxim has an interesting point:
+>
+>        > Did any one try increasing the limit and did see any better/worse
+>> performance ?
+>
+>        We've used 20% as default value in OpenVZ kernel for a long while (1%
+> was not enough to saturate our distributed parallel storage).
+>
+> So the knob will also enable people to _disable_ the 1% fuse limit to
+> increase performance.
+>
+> So people can use the exposed knob in 2 ways to fit their needs, which
+> is in general a good thing.
+>
+> However the comment in wb_position_ratio() says
+>
+>                        Without strictlimit feature, fuse writeback may
+>          * consume arbitrary amount of RAM because it is accounted in
+>          * NR_WRITEBACK_TEMP which is not involved in calculating
+> "nr_dirty".
+>
+> How dangerous would that be if some user disabled the 1% fuse limit
+> through the exposed knob? Will the NR_WRITEBACK_TEMP effect go far
+> beyond the user's expectation (20% max dirty limit)?
+>
+> Looking at the fuse code, NR_WRITEBACK_TEMP will grow proportional to
+> WB_WRITEBACK, which should be throttled when bdi_write_congested().
+> The congested flag will be set on
+>
+>        fuse_conn.num_background >= fuse_conn.congestion_threshold
+>        So it looks NR_WRITEBACK_TEMP will somehow be throttled. Just that
+> it's not included in the 20% dirty limit.
 
-bleh, this should have been do_exit
+Only balance_dirty_pages_ratelimited() is going to limit the
+generation of dirty pages, I don't think congestion flags will do
+that.  And (AFAICS) for fuse only  BDI_CAP_STRICTLIMIT will allow
+accounting temp writeback pages when throttling dirty page generation.
+So without BDI_CAP_STRICTLIMIT kernel memory use of fuse may explode.
+So we probably need a way to force BDI_CAP_STRICTLIMIT (i.e. do not
+permit disabling it for fuse).
 
-> 			  mmput
-> __oom_reap_task_mm				mmput
->   						  __mmput
-> 						    exit_mmap
-> 						      remove_vma
->   unmap_page_range
--- 
-Michal Hocko
-SUSE Labs
+Please correct me if I'm wrong in any of the above statements, it's
+been a long time I've taken a detailed look at the page writeback
+mechanisms.
+
+Thanks,
+Miklos
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
