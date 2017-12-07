@@ -1,17 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 623B76B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 17:22:22 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id t65so6780142pfe.22
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 14:22:22 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id p3si4434396pld.717.2017.12.07.14.22.19
-        for <linux-mm@kvack.org>;
-        Thu, 07 Dec 2017 14:22:21 -0800 (PST)
-Date: Fri, 8 Dec 2017 09:22:16 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
-Message-ID: <20171207222216.GH4094@dastard>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 044376B0033
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 17:38:13 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id w7so6844733pfd.4
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 14:38:12 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id n15si4409860pgr.695.2017.12.07.14.38.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Dec 2017 14:38:11 -0800 (PST)
+Date: Thu, 7 Dec 2017 14:38:03 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Lockdep is less useful than it was
+Message-ID: <20171207223803.GC26792@bombadil.infradead.org>
 References: <20171206004159.3755-1-willy@infradead.org>
  <20171206004159.3755-73-willy@infradead.org>
  <20171206012901.GZ4094@dastard>
@@ -27,20 +28,10 @@ Content-Disposition: inline
 In-Reply-To: <20171207160634.il3vt5d6a4v5qesi@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: mingo@kernel.org, byungchul.park@lge.com
 
 On Thu, Dec 07, 2017 at 11:06:34AM -0500, Theodore Ts'o wrote:
-> On Wed, Dec 06, 2017 at 06:06:48AM -0800, Matthew Wilcox wrote:
-> > > Unfortunately for you, I don't find arguments along the lines of
-> > > "lockdep will save us" at all convincing.  lockdep already throws
-> > > too many false positives to be useful as a tool that reliably and
-> > > accurately points out rare, exciting, complex, intricate locking
-> > > problems.
-> > 
-> > But it does reliably and accurately point out "dude, you forgot to take
-> > the lock".  It's caught a number of real problems in my own testing that
-> > you never got to see.
-> 
 > The problem is that if it has too many false positives --- and it's
 > gotten *way* worse with the completion callback "feature", people will
 > just stop using Lockdep as being too annyoing and a waste of developer
@@ -49,30 +40,22 @@ On Thu, Dec 07, 2017 at 11:06:34AM -0500, Theodore Ts'o wrote:
 > 
 > <Rant>I can't even disable the new Lockdep feature which is throwing
 > lots of new false positives --- it's just all or nothing.</Rant>
-> 
-> Dave has just said he's already stopped using Lockdep, as a result.
 
-This is compeltely OT, but FYI I stopped using lockdep a long time
-ago.  We've spend orders of magnitude more time and effort to shut
-up lockdep false positives in the XFS code than we ever have on
-locking problems that lockdep has uncovered. And still lockdep
-throws too many false positives on XFS workloads to be useful to me.
+You *can* ... but it's way more hacking Kconfig than you ought to have
+to do (which is a separate rant ...)
 
-But it's more than that: I understand just how much lockdep *doesn't
-check* and that means *I know I can't rely on lockdep* for potential
-deadlock detection. e.g.  it doesn't cover semaphores, which means
-it has zero coverage of the entire XFS metadata buffer subsystem and
-the complex locking orders we have for metadata updates.
+You need to get LOCKDEP_CROSSRELEASE off.  I'd revert patches
+e26f34a407aec9c65bce2bc0c838fabe4f051fc6 and
+b483cf3bc249d7af706390efa63d6671e80d1c09
 
-Put simply: lockdep doesn't provide me with any benefit, so I don't
-use it...
+I think it was a mistake to force these on for everybody; they have a
+much higher false-positive rate than the rest of lockdep, so as you say
+forcing them on leads to fewer people using *any* of lockdep.
 
-Cheers,
-
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+The bug you're hitting isn't Byungchul's fault; it's an annotation
+problem.  The same kind of annotation problem that we used to have with
+dozens of other places in the kernel which are now fixed.  If you didn't
+have to hack Kconfig to get rid of this problem, you'd be happier, right?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
