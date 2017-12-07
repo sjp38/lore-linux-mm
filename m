@@ -1,126 +1,110 @@
-Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F21E6B0038
-	for <linux-mm@kvack.org>; Sun, 31 Dec 2017 08:10:06 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id g8so26436907pgs.14
-        for <linux-mm@kvack.org>; Sun, 31 Dec 2017 05:10:06 -0800 (PST)
-Received: from NAM03-DM3-obe.outbound.protection.outlook.com (mail-dm3nam03on0122.outbound.protection.outlook.com. [104.47.41.122])
-        by mx.google.com with ESMTPS id u19si23285631pgn.488.2017.12.31.05.10.05
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Sun, 31 Dec 2017 05:10:05 -0800 (PST)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [RFC PATCH 3/3] mm: unclutter THP migration
-Date: Sun, 31 Dec 2017 08:09:57 -0500
-Message-ID: <4F0E0390-D9C0-4A67-90F7-42CA944FE4F6@cs.rutgers.edu>
-In-Reply-To: <20171231090710.GA18691@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-4-mhocko@kernel.org>
- <AEE005DE-5103-4BCC-BAAB-9E126173AB62@cs.rutgers.edu>
- <20171229113627.GB27077@dhcp22.suse.cz>
- <044496C5-5ACD-4845-A7A3-BD920BF9233B@cs.rutgers.edu>
- <20171231090710.GA18691@dhcp22.suse.cz>
-MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_DF0F4D66-2B57-493A-81AD-6BAC75A54D4B_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
-Sender: owner-linux-mm@kvack.org
+Return-Path: <linux-kernel-owner@vger.kernel.org>
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Subject: [PATCH] mm/slab: Do not hash pointers when debugging slab
+Date: Thu,  7 Dec 2017 11:17:41 +0100
+Message-Id: <1512641861-5113-1-git-send-email-geert+renesas@glider.be>
+Sender: linux-kernel-owner@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Tobin C . Harding" <me@tobin.cc>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert+renesas@glider.be>
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+If CONFIG_DEBUG_SLAB/CONFIG_DEBUG_SLAB_LEAK are enabled, the slab code
+prints extra debug information when e.g. corruption is detected.
+This includes pointers, which are not very useful when hashed.
 
---=_MailMate_DF0F4D66-2B57-493A-81AD-6BAC75A54D4B_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+Fix this by using %px to print unhashed pointers instead.
 
-On 31 Dec 2017, at 4:07, Michal Hocko wrote:
+Fixes: ad67b74d2469d9b8 ("printk: hash addresses printed with %p")
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+---
+It's been ages I needed the above options.  But of course I need them
+just after the introduction of address hashing...
+---
+ mm/slab.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
 
-> On Fri 29-12-17 10:45:46, Zi Yan wrote:
->> On 29 Dec 2017, at 6:36, Michal Hocko wrote:
->>
->>> On Tue 26-12-17 21:19:35, Zi Yan wrote:
-> [...]
->>>> And it seems a little bit strange to only re-migrate the head page, =
-then come back to all tail
->>>> pages after migrating the rest of pages in the list =E2=80=9Cfrom=E2=
-=80=9D. Is it better to split the THP into
->>>> a list other than =E2=80=9Cfrom=E2=80=9D and insert the list after =E2=
-=80=9Cpage=E2=80=9D, then retry from the split =E2=80=9Cpage=E2=80=9D?
->>>> Thus, we attempt to migrate all sub pages of the THP after it is spl=
-it.
->>>
->>> Why does this matter?
->>
->> Functionally, it does not matter.
->>
->> This behavior is just less intuitive and a little different from curre=
-nt one,
->> which implicitly preserves its original order of the not-migrated page=
-s
->> in the =E2=80=9Cfrom=E2=80=9D list, although no one relies on this imp=
-licit behavior now.
->>
->>
->> Adding one line comment about this difference would be good for code m=
-aintenance. :)
->
-> OK, I will not argue. I still do not see _why_ we need it but I've adde=
-d
-> the following.
->
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 21b3381a2871..0ac5185d3949 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1395,6 +1395,11 @@ int migrate_pages(struct list_head *from, new_pa=
-ge_t get_new_page,
->  				 * allocation could've failed so we should
->  				 * retry on the same page with the THP split
->  				 * to base pages.
-> +				 *
-> +				 * Head page is retried immediatelly and tail
-> +				 * pages are added to the tail of the list so
-> +				 * we encounter them after the rest of the list
-> +				 * is processed.
->  				 */
->  				if (PageTransHuge(page)) {
->  					lock_page(page);
->
-> Does that this reflect what you mean?
-
-s/immediatelly/immediately
-
-Yes. Thanks. :)
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_DF0F4D66-2B57-493A-81AD-6BAC75A54D4B_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlpI4aUWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzFYBCACbrsKeuxRDFzChCBOpGQp8VXdq
-gORiB9334hYvpqjueiQywiGpnufJ7kT2cqLC56jtr20eTivDujL1dtuVnxHqapx3
-UuiIpkhp9K5q3VdHo8Rswo8RE8kEM12DWedL3dh5ABKCnDyrARpeVSTDgZCgQGuA
-0g+Jq4Tx+HyHaLo8iY8WNsUH7DWVSAMuWlN01rt9G8Emm/2Irkx3fozmv+26gZxK
-cOAHpgaDMDHzwheJuhrcVMrw+9F5+utuCyHDUQnypZqppfSBPPrSt+Vn/DMlqeKZ
-EQt1r5FTkb8sfre8lk66d4DrkvGhvZ11lWaY8437O12YF4mumiknRj8gABq+
-=QmL8
------END PGP SIGNATURE-----
-
---=_MailMate_DF0F4D66-2B57-493A-81AD-6BAC75A54D4B_=--
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+diff --git a/mm/slab.c b/mm/slab.c
+index 183e996dde5ff37a..70be5823227dcb3e 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1585,7 +1585,7 @@ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
+ 	}
+ 
+ 	if (cachep->flags & SLAB_STORE_USER) {
+-		pr_err("Last user: [<%p>](%pSR)\n",
++		pr_err("Last user: [<%px>](%pSR)\n",
+ 		       *dbg_userword(cachep, objp),
+ 		       *dbg_userword(cachep, objp));
+ 	}
+@@ -1621,7 +1621,7 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
+ 			/* Mismatch ! */
+ 			/* Print header */
+ 			if (lines == 0) {
+-				pr_err("Slab corruption (%s): %s start=%p, len=%d\n",
++				pr_err("Slab corruption (%s): %s start=%px, len=%d\n",
+ 				       print_tainted(), cachep->name,
+ 				       realobj, size);
+ 				print_objinfo(cachep, objp, 0);
+@@ -1650,13 +1650,13 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
+ 		if (objnr) {
+ 			objp = index_to_obj(cachep, page, objnr - 1);
+ 			realobj = (char *)objp + obj_offset(cachep);
+-			pr_err("Prev obj: start=%p, len=%d\n", realobj, size);
++			pr_err("Prev obj: start=%px, len=%d\n", realobj, size);
+ 			print_objinfo(cachep, objp, 2);
+ 		}
+ 		if (objnr + 1 < cachep->num) {
+ 			objp = index_to_obj(cachep, page, objnr + 1);
+ 			realobj = (char *)objp + obj_offset(cachep);
+-			pr_err("Next obj: start=%p, len=%d\n", realobj, size);
++			pr_err("Next obj: start=%px, len=%d\n", realobj, size);
+ 			print_objinfo(cachep, objp, 2);
+ 		}
+ 	}
+@@ -2608,7 +2608,7 @@ static void slab_put_obj(struct kmem_cache *cachep,
+ 	/* Verify double free bug */
+ 	for (i = page->active; i < cachep->num; i++) {
+ 		if (get_free_obj(page, i) == objnr) {
+-			pr_err("slab: double free detected in cache '%s', objp %p\n",
++			pr_err("slab: double free detected in cache '%s', objp %px\n",
+ 			       cachep->name, objp);
+ 			BUG();
+ 		}
+@@ -2772,7 +2772,7 @@ static inline void verify_redzone_free(struct kmem_cache *cache, void *obj)
+ 	else
+ 		slab_error(cache, "memory outside object was overwritten");
+ 
+-	pr_err("%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
++	pr_err("%px: redzone 1:0x%llx, redzone 2:0x%llx\n",
+ 	       obj, redzone1, redzone2);
+ }
+ 
+@@ -3078,7 +3078,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
+ 		if (*dbg_redzone1(cachep, objp) != RED_INACTIVE ||
+ 				*dbg_redzone2(cachep, objp) != RED_INACTIVE) {
+ 			slab_error(cachep, "double free, or memory outside object was overwritten");
+-			pr_err("%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
++			pr_err("%px: redzone 1:0x%llx, redzone 2:0x%llx\n",
+ 			       objp, *dbg_redzone1(cachep, objp),
+ 			       *dbg_redzone2(cachep, objp));
+ 		}
+@@ -3091,7 +3091,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
+ 		cachep->ctor(objp);
+ 	if (ARCH_SLAB_MINALIGN &&
+ 	    ((unsigned long)objp & (ARCH_SLAB_MINALIGN-1))) {
+-		pr_err("0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
++		pr_err("0x%px: not aligned to ARCH_SLAB_MINALIGN=%d\n",
+ 		       objp, (int)ARCH_SLAB_MINALIGN);
+ 	}
+ 	return objp;
+@@ -4283,7 +4283,7 @@ static void show_symbol(struct seq_file *m, unsigned long address)
+ 		return;
+ 	}
+ #endif
+-	seq_printf(m, "%p", (void *)address);
++	seq_printf(m, "%px", (void *)address);
+ }
+ 
+ static int leaks_show(struct seq_file *m, void *p)
+-- 
+2.7.4
