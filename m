@@ -1,54 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C88B46B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 05:18:58 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id c3so3820691wrd.0
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 02:18:58 -0800 (PST)
-Received: from xavier.telenet-ops.be (xavier.telenet-ops.be. [2a02:1800:120:4::f00:14])
-        by mx.google.com with ESMTPS id s27si1502357eda.2.2017.12.07.02.18.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 02:18:57 -0800 (PST)
-From: Geert Uytterhoeven <geert+renesas@glider.be>
-Subject: [PATCH] mm/slab: Merge adjacent debug sections
-Date: Thu,  7 Dec 2017 11:18:52 +0100
-Message-Id: <1512641932-5221-1-git-send-email-geert+renesas@glider.be>
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 198176B0261
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 05:29:16 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id t15so3219814wmh.3
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 02:29:16 -0800 (PST)
+Received: from techadventures.net (techadventures.net. [62.201.165.239])
+        by mx.google.com with ESMTP id q1si3747886wrd.403.2017.12.07.02.29.14
+        for <linux-mm@kvack.org>;
+        Thu, 07 Dec 2017 02:29:14 -0800 (PST)
+Date: Thu, 7 Dec 2017 11:29:14 +0100
+From: Oscar Salvador <osalvador@techadventures.net>
+Subject: [PATCH] mm: memory_hotplug: remove second __nr_to_section in
+ register_page_bootmem_info_section()
+Message-ID: <20171207102914.GA12396@techadventures.net>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert+renesas@glider.be>
+To: linux-mm@kvack.org
+Cc: mhocko@suse.com, akpm@linux-foundation.org, vbabka@suse.cz
 
-Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+In register_page_bootmem_info_section() we call __nr_to_section() in order to
+get the mem_section struct at the beginning of the function.
+Since we already got it, there is no need for a second call to __nr_to_section().
+
+Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
 ---
- mm/slab.c | 5 -----
- 1 file changed, 5 deletions(-)
+ mm/memory_hotplug.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 70be5823227dcb3e..dd8c6d33f59a11d1 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1569,9 +1569,6 @@ static void dump_line(char *data, int offset, int limit)
- 		}
- 	}
- }
--#endif
--
--#if DEBUG
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 7452a53b027f..262bfd26baf9 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -184,7 +184,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 	for (i = 0; i < mapsize; i++, page++)
+ 		get_page_bootmem(section_nr, page, SECTION_INFO);
  
- static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
- {
-@@ -1661,9 +1658,7 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
- 		}
- 	}
- }
--#endif
+-	usemap = __nr_to_section(section_nr)->pageblock_flags;
++	usemap = ms->pageblock_flags;
+ 	page = virt_to_page(usemap);
  
--#if DEBUG
- static void slab_destroy_debugcheck(struct kmem_cache *cachep,
- 						struct page *page)
- {
+ 	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
+@@ -207,7 +207,7 @@ static void register_page_bootmem_info_section(unsigned long start_pfn)
+ 
+ 	register_page_bootmem_memmap(section_nr, memmap, PAGES_PER_SECTION);
+ 
+-	usemap = __nr_to_section(section_nr)->pageblock_flags;
++	usemap = ms->pageblock_flags;
+ 	page = virt_to_page(usemap);
+ 
+ 	mapsize = PAGE_ALIGN(usemap_size()) >> PAGE_SHIFT;
 -- 
-2.7.4
+2.13.5
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
