@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F9616B026C
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:08:56 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id f7so5846381pfa.21
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:08:56 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 933E26B026D
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:08:57 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 3so5892757pfo.1
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:08:57 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h126si3839962pgc.289.2017.12.07.07.08.54
+        by mx.google.com with ESMTPS id p1si3873795pld.5.2017.12.07.07.08.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 07:08:54 -0800 (PST)
+        Thu, 07 Dec 2017 07:08:55 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 13/14] memremap: remove struct vmem_altmap
-Date: Thu,  7 Dec 2017 07:08:39 -0800
-Message-Id: <20171207150840.28409-14-hch@lst.de>
+Subject: [PATCH 10/14] memremap: change devm_memremap_pages interface to use struct dev_pagemap
+Date: Thu,  7 Dec 2017 07:08:36 -0800
+Message-Id: <20171207150840.28409-11-hch@lst.de>
 In-Reply-To: <20171207150840.28409-1-hch@lst.de>
 References: <20171207150840.28409-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,431 +20,441 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
 
-There is no value in a separate vmem_altmap vs just embedding it into
-struct dev_pagemap, so merge the two.
+From: Logan Gunthorpe <logang@deltatee.com>
 
+This new interface is similar to how struct device (and many others)
+work. The caller initializes a 'struct dev_pagemap' as required
+and calls 'devm_memremap_pages'. This allows the pagemap structure to
+be embedded in another structure and thus container_of can be used. In
+this way application specific members can be stored in a containing
+struct.
+
+This will be used by the P2P infrastructure and HMM could probably
+be cleaned up to use it as well (instead of having it's own, similar
+'hmm_devmem_pages_create' function).
+
+Signed-off-by: Logan Gunthorpe <logang@deltatee.com>
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/mm/init_64.c | 10 +++++-----
- arch/x86/mm/init_64.c     | 16 ++++++++--------
- drivers/nvdimm/pfn_devs.c | 22 ++++++++--------------
- drivers/nvdimm/pmem.c     |  1 -
- include/linux/memremap.h  | 33 ++++++++++++---------------------
- include/linux/mm.h        |  4 ++--
- kernel/memremap.c         | 28 ++++++++++++----------------
- mm/sparse-vmemmap.c       | 19 +++++++++----------
- 8 files changed, 56 insertions(+), 77 deletions(-)
+ drivers/dax/pmem.c                | 20 ++++++++--------
+ drivers/nvdimm/nd.h               |  9 ++++----
+ drivers/nvdimm/pfn_devs.c         | 25 ++++++++++----------
+ drivers/nvdimm/pmem.c             | 37 ++++++++++++++++--------------
+ drivers/nvdimm/pmem.h             |  1 +
+ include/linux/memremap.h          |  6 ++---
+ kernel/memremap.c                 | 48 ++++++++++++++++-----------------------
+ tools/testing/nvdimm/test/iomap.c |  7 +++---
+ 8 files changed, 73 insertions(+), 80 deletions(-)
 
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index ec706857bdd6..872eed5a0867 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -193,17 +193,17 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- 	pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+diff --git a/drivers/dax/pmem.c b/drivers/dax/pmem.c
+index 8d8c852ba8f2..31b6ecce4c64 100644
+--- a/drivers/dax/pmem.c
++++ b/drivers/dax/pmem.c
+@@ -21,6 +21,7 @@
+ struct dax_pmem {
+ 	struct device *dev;
+ 	struct percpu_ref ref;
++	struct dev_pagemap pgmap;
+ 	struct completion cmp;
+ };
  
- 	for (; start < end; start += page_size) {
--		struct vmem_altmap *altmap;
-+		struct dev_pagemap *pgmap;
- 		void *p;
- 		int rc;
+@@ -69,20 +70,23 @@ static int dax_pmem_probe(struct device *dev)
+ 	struct nd_namespace_common *ndns;
+ 	struct nd_dax *nd_dax = to_nd_dax(dev);
+ 	struct nd_pfn *nd_pfn = &nd_dax->nd_pfn;
+-	struct vmem_altmap __altmap, *altmap = NULL;
  
- 		if (vmemmap_populated(start, page_size))
- 			continue;
+ 	ndns = nvdimm_namespace_common_probe(dev);
+ 	if (IS_ERR(ndns))
+ 		return PTR_ERR(ndns);
+ 	nsio = to_nd_namespace_io(&ndns->dev);
  
--		/* altmap lookups only work at section boundaries */
--		altmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
--		if (altmap)
--			p = dev_pagemap_alloc_block_buf(altmap, page_size);
-+		/* pgmap lookups only work at section boundaries */
-+		pgmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
-+		if (pgmap)
-+			p = dev_pagemap_alloc_block_buf(pgmap, page_size);
- 		else
- 			p = vmemmap_alloc_block_buf(page_size, node);
- 		if (!p)
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 131749080874..bc01dc3b07a5 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1343,7 +1343,7 @@ static void __meminitdata *p_start, *p_end;
- static int __meminitdata node_start;
++	dax_pmem = devm_kzalloc(dev, sizeof(*dax_pmem), GFP_KERNEL);
++	if (!dax_pmem)
++		return -ENOMEM;
++
+ 	/* parse the 'pfn' info block via ->rw_bytes */
+ 	rc = devm_nsio_enable(dev, nsio);
+ 	if (rc)
+ 		return rc;
+-	altmap = nvdimm_setup_pfn(nd_pfn, &res, &__altmap);
+-	if (IS_ERR(altmap))
+-		return PTR_ERR(altmap);
++	rc = nvdimm_setup_pfn(nd_pfn, &dax_pmem->pgmap);
++	if (rc)
++		return rc;
+ 	devm_nsio_disable(dev, nsio);
  
- static int __meminit vmemmap_populate_hugepages(unsigned long start,
--		unsigned long end, int node, struct vmem_altmap *altmap)
-+		unsigned long end, int node, struct dev_pagemap *pgmap)
+ 	pfn_sb = nd_pfn->pfn_sb;
+@@ -94,10 +98,6 @@ static int dax_pmem_probe(struct device *dev)
+ 		return -EBUSY;
+ 	}
+ 
+-	dax_pmem = devm_kzalloc(dev, sizeof(*dax_pmem), GFP_KERNEL);
+-	if (!dax_pmem)
+-		return -ENOMEM;
+-
+ 	dax_pmem->dev = dev;
+ 	init_completion(&dax_pmem->cmp);
+ 	rc = percpu_ref_init(&dax_pmem->ref, dax_pmem_percpu_release, 0,
+@@ -110,7 +110,8 @@ static int dax_pmem_probe(struct device *dev)
+ 	if (rc)
+ 		return rc;
+ 
+-	addr = devm_memremap_pages(dev, &res, &dax_pmem->ref, altmap);
++	dax_pmem->pgmap.ref = &dax_pmem->ref;
++	addr = devm_memremap_pages(dev, &dax_pmem->pgmap);
+ 	if (IS_ERR(addr))
+ 		return PTR_ERR(addr);
+ 
+@@ -120,6 +121,7 @@ static int dax_pmem_probe(struct device *dev)
+ 		return rc;
+ 
+ 	/* adjust the dax_region resource to the start of data */
++	memcpy(&res, &dax_pmem->pgmap.res, sizeof(res));
+ 	res.start += le64_to_cpu(pfn_sb->dataoff);
+ 
+ 	rc = sscanf(dev_name(&ndns->dev), "namespace%d.%d", &region_id, &id);
+diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
+index e958f3724c41..8d6375ee0fda 100644
+--- a/drivers/nvdimm/nd.h
++++ b/drivers/nvdimm/nd.h
+@@ -368,15 +368,14 @@ unsigned int pmem_sector_size(struct nd_namespace_common *ndns);
+ void nvdimm_badblocks_populate(struct nd_region *nd_region,
+ 		struct badblocks *bb, const struct resource *res);
+ #if IS_ENABLED(CONFIG_ND_CLAIM)
+-struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+-		struct resource *res, struct vmem_altmap *altmap);
++int nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap);
+ int devm_nsio_enable(struct device *dev, struct nd_namespace_io *nsio);
+ void devm_nsio_disable(struct device *dev, struct nd_namespace_io *nsio);
+ #else
+-static inline struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+-		struct resource *res, struct vmem_altmap *altmap)
++static inline int nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
++				   struct dev_pagemap *pgmap)
  {
- 	unsigned long addr;
- 	unsigned long next;
-@@ -1371,8 +1371,8 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
- 		if (pmd_none(*pmd)) {
- 			void *p;
- 
--			if (altmap)
--				p = dev_pagemap_alloc_block_buf(altmap, PMD_SIZE);
-+			if (pgmap)
-+				p = dev_pagemap_alloc_block_buf(pgmap, PMD_SIZE);
- 			else
- 				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
- 			if (p) {
-@@ -1395,7 +1395,7 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
- 				addr_end = addr + PMD_SIZE;
- 				p_end = p + PMD_SIZE;
- 				continue;
--			} else if (altmap)
-+			} else if (pgmap)
- 				return -ENOMEM; /* no fallback */
- 		} else if (pmd_large(*pmd)) {
- 			vmemmap_verify((pte_t *)pmd, node, addr, next);
-@@ -1409,13 +1409,13 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
- 
- int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
- {
--	struct vmem_altmap *altmap = to_vmem_altmap(start);
-+	struct dev_pagemap *pgmap = to_vmem_altmap(start);
- 	int err;
- 
- 	if (boot_cpu_has(X86_FEATURE_PSE))
--		err = vmemmap_populate_hugepages(start, end, node, altmap);
--	else if (altmap) {
--		pr_err_once("%s: no cpu support for altmap allocations\n",
-+		err = vmemmap_populate_hugepages(start, end, node, pgmap);
-+	else if (pgmap) {
-+		pr_err_once("%s: no cpu support for device page map allocations\n",
- 				__func__);
- 		err = -ENOMEM;
- 	} else
+-	return ERR_PTR(-ENXIO);
++	return -ENXIO;
+ }
+ static inline int devm_nsio_enable(struct device *dev,
+ 		struct nd_namespace_io *nsio)
 diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index 6f58615ddb85..8367cf7bef99 100644
+index 65cc171c721d..6f58615ddb85 100644
 --- a/drivers/nvdimm/pfn_devs.c
 +++ b/drivers/nvdimm/pfn_devs.c
-@@ -525,14 +525,14 @@ EXPORT_SYMBOL(nd_pfn_probe);
-  * We hotplug memory at section granularity, pad the reserved area from
-  * the previous section base to the namespace base address.
-  */
--static unsigned long init_altmap_base(resource_size_t base)
-+static unsigned long init_pgmap_base(resource_size_t base)
- {
- 	unsigned long base_pfn = PHYS_PFN(base);
- 
- 	return PFN_SECTION_ALIGN_DOWN(base_pfn);
+@@ -541,9 +541,10 @@ static unsigned long init_altmap_reserve(resource_size_t base)
+ 	return reserve;
  }
  
--static unsigned long init_altmap_reserve(resource_size_t base)
-+static unsigned long init_pgmap_reserve(resource_size_t base)
+-static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+-		struct resource *res, struct vmem_altmap *altmap)
++static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
  {
- 	unsigned long reserve = PHYS_PFN(SZ_8K);
- 	unsigned long base_pfn = PHYS_PFN(base);
-@@ -544,7 +544,6 @@ static unsigned long init_altmap_reserve(resource_size_t base)
- static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- {
- 	struct resource *res = &pgmap->res;
--	struct vmem_altmap *altmap = &pgmap->altmap;
++	struct resource *res = &pgmap->res;
++	struct vmem_altmap *altmap = &pgmap->altmap;
  	struct nd_pfn_sb *pfn_sb = nd_pfn->pfn_sb;
  	u64 offset = le64_to_cpu(pfn_sb->dataoff);
  	u32 start_pad = __le32_to_cpu(pfn_sb->start_pad);
-@@ -552,10 +551,6 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 	struct nd_namespace_common *ndns = nd_pfn->ndns;
- 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
- 	resource_size_t base = nsio->res.start + start_pad;
--	struct vmem_altmap __altmap = {
--		.base_pfn = init_altmap_base(base),
--		.reserve = init_altmap_reserve(base),
--	};
+@@ -562,9 +563,9 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
  
- 	memcpy(res, &nsio->res, sizeof(*res));
- 	res->start += start_pad;
-@@ -565,7 +560,6 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
+ 	if (nd_pfn->mode == PFN_MODE_RAM) {
  		if (offset < SZ_8K)
- 			return -EINVAL;
+-			return ERR_PTR(-EINVAL);
++			return -EINVAL;
  		nd_pfn->npfns = le64_to_cpu(pfn_sb->npfns);
--		pgmap->altmap_valid = false;
+-		altmap = NULL;
++		pgmap->altmap_valid = false;
  	} else if (nd_pfn->mode == PFN_MODE_PMEM) {
  		nd_pfn->npfns = PFN_SECTION_ALIGN_UP((resource_size(res)
  					- offset) / PAGE_SIZE);
-@@ -574,10 +568,10 @@ static int __nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
- 					"number of pfns truncated from %lld to %ld\n",
- 					le64_to_cpu(nd_pfn->pfn_sb->npfns),
- 					nd_pfn->npfns);
--		memcpy(altmap, &__altmap, sizeof(*altmap));
--		altmap->free = PHYS_PFN(offset - SZ_8K);
--		altmap->alloc = 0;
--		pgmap->altmap_valid = true;
-+		pgmap->base_pfn = init_pgmap_base(base),
-+		pgmap->reserve = init_pgmap_reserve(base),
-+		pgmap->free = PHYS_PFN(offset - SZ_8K);
-+		pgmap->alloc = 0;
+@@ -576,10 +577,11 @@ static struct vmem_altmap *__nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+ 		memcpy(altmap, &__altmap, sizeof(*altmap));
+ 		altmap->free = PHYS_PFN(offset - SZ_8K);
+ 		altmap->alloc = 0;
++		pgmap->altmap_valid = true;
  	} else
- 		return -ENXIO;
+-		return ERR_PTR(-ENXIO);
++		return -ENXIO;
  
-@@ -660,7 +654,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
- 			/ PAGE_SIZE);
- 	if (nd_pfn->mode == PFN_MODE_PMEM) {
- 		/*
--		 * The altmap should be padded out to the block size used
-+		 * The page map should be padded out to the block size used
- 		 * when populating the vmemmap. This *should* be equal to
- 		 * PMD_SIZE for most architectures.
- 		 */
-@@ -697,7 +691,7 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+-	return altmap;
++	return 0;
  }
  
- /*
-- * Determine the effective resource range and vmem_altmap from an nd_pfn
-+ * Determine the effective resource range and page map from an nd_pfn
+ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+@@ -698,19 +700,18 @@ static int nd_pfn_init(struct nd_pfn *nd_pfn)
+  * Determine the effective resource range and vmem_altmap from an nd_pfn
   * instance.
   */
- int nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
+-struct vmem_altmap *nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
+-		struct resource *res, struct vmem_altmap *altmap)
++int nvdimm_setup_pfn(struct nd_pfn *nd_pfn, struct dev_pagemap *pgmap)
+ {
+ 	int rc;
+ 
+ 	if (!nd_pfn->uuid || !nd_pfn->ndns)
+-		return ERR_PTR(-ENODEV);
++		return -ENODEV;
+ 
+ 	rc = nd_pfn_init(nd_pfn);
+ 	if (rc)
+-		return ERR_PTR(rc);
++		return rc;
+ 
+-	/* we need a valid pfn_sb before we can init a vmem_altmap */
+-	return __nvdimm_setup_pfn(nd_pfn, res, altmap);
++	/* we need a valid pfn_sb before we can init a dev_pagemap */
++	return __nvdimm_setup_pfn(nd_pfn, pgmap);
+ }
+ EXPORT_SYMBOL_GPL(nvdimm_setup_pfn);
 diff --git a/drivers/nvdimm/pmem.c b/drivers/nvdimm/pmem.c
-index cf074b1ce219..9e77a557a9af 100644
+index 7fbc5c5dc8e1..cf074b1ce219 100644
 --- a/drivers/nvdimm/pmem.c
 +++ b/drivers/nvdimm/pmem.c
-@@ -362,7 +362,6 @@ static int pmem_attach_disk(struct device *dev,
- 		bb_res.start += pmem->data_offset;
- 	} else if (pmem_should_map_pages(dev)) {
- 		memcpy(&pmem->pgmap.res, &nsio->res, sizeof(pmem->pgmap.res));
--		pmem->pgmap.altmap_valid = false;
- 		addr = devm_memremap_pages(dev, &pmem->pgmap);
+@@ -298,34 +298,34 @@ static int pmem_attach_disk(struct device *dev,
+ {
+ 	struct nd_namespace_io *nsio = to_nd_namespace_io(&ndns->dev);
+ 	struct nd_region *nd_region = to_nd_region(dev->parent);
+-	struct vmem_altmap __altmap, *altmap = NULL;
+ 	int nid = dev_to_node(dev), fua, wbc;
+ 	struct resource *res = &nsio->res;
++	struct resource bb_res;
+ 	struct nd_pfn *nd_pfn = NULL;
+ 	struct dax_device *dax_dev;
+ 	struct nd_pfn_sb *pfn_sb;
+ 	struct pmem_device *pmem;
+-	struct resource pfn_res;
+ 	struct request_queue *q;
+ 	struct device *gendev;
+ 	struct gendisk *disk;
+ 	void *addr;
++	int rc;
++
++	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
++	if (!pmem)
++		return -ENOMEM;
+ 
+ 	/* while nsio_rw_bytes is active, parse a pfn info block if present */
+ 	if (is_nd_pfn(dev)) {
+ 		nd_pfn = to_nd_pfn(dev);
+-		altmap = nvdimm_setup_pfn(nd_pfn, &pfn_res, &__altmap);
+-		if (IS_ERR(altmap))
+-			return PTR_ERR(altmap);
++		rc = nvdimm_setup_pfn(nd_pfn, &pmem->pgmap);
++		if (rc)
++			return rc;
+ 	}
+ 
+ 	/* we're attaching a block device, disable raw namespace access */
+ 	devm_nsio_disable(dev, nsio);
+ 
+-	pmem = devm_kzalloc(dev, sizeof(*pmem), GFP_KERNEL);
+-	if (!pmem)
+-		return -ENOMEM;
+-
+ 	dev_set_drvdata(dev, pmem);
+ 	pmem->phys_addr = res->start;
+ 	pmem->size = resource_size(res);
+@@ -350,19 +350,22 @@ static int pmem_attach_disk(struct device *dev,
+ 		return -ENOMEM;
+ 
+ 	pmem->pfn_flags = PFN_DEV;
++	pmem->pgmap.ref = &q->q_usage_counter;
+ 	if (is_nd_pfn(dev)) {
+-		addr = devm_memremap_pages(dev, &pfn_res, &q->q_usage_counter,
+-				altmap);
++		addr = devm_memremap_pages(dev, &pmem->pgmap);
+ 		pfn_sb = nd_pfn->pfn_sb;
+ 		pmem->data_offset = le64_to_cpu(pfn_sb->dataoff);
+-		pmem->pfn_pad = resource_size(res) - resource_size(&pfn_res);
++		pmem->pfn_pad = resource_size(res) -
++			resource_size(&pmem->pgmap.res);
  		pmem->pfn_flags |= PFN_MAP;
- 		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
+-		res = &pfn_res; /* for badblocks populate */
+-		res->start += pmem->data_offset;
++		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
++		bb_res.start += pmem->data_offset;
+ 	} else if (pmem_should_map_pages(dev)) {
+-		addr = devm_memremap_pages(dev, &nsio->res,
+-				&q->q_usage_counter, NULL);
++		memcpy(&pmem->pgmap.res, &nsio->res, sizeof(pmem->pgmap.res));
++		pmem->pgmap.altmap_valid = false;
++		addr = devm_memremap_pages(dev, &pmem->pgmap);
+ 		pmem->pfn_flags |= PFN_MAP;
++		memcpy(&bb_res, &pmem->pgmap.res, sizeof(bb_res));
+ 	} else
+ 		addr = devm_memremap(dev, pmem->phys_addr,
+ 				pmem->size, ARCH_MEMREMAP_PMEM);
+@@ -401,7 +404,7 @@ static int pmem_attach_disk(struct device *dev,
+ 			/ 512);
+ 	if (devm_init_badblocks(dev, &pmem->bb))
+ 		return -ENOMEM;
+-	nvdimm_badblocks_populate(nd_region, &pmem->bb, res);
++	nvdimm_badblocks_populate(nd_region, &pmem->bb, &bb_res);
+ 	disk->bb = &pmem->bb;
+ 
+ 	dax_dev = alloc_dax(pmem, disk->disk_name, &pmem_dax_ops);
+diff --git a/drivers/nvdimm/pmem.h b/drivers/nvdimm/pmem.h
+index 6a3cd2a10db6..a64ebc78b5df 100644
+--- a/drivers/nvdimm/pmem.h
++++ b/drivers/nvdimm/pmem.h
+@@ -22,6 +22,7 @@ struct pmem_device {
+ 	struct badblocks	bb;
+ 	struct dax_device	*dax_dev;
+ 	struct gendisk		*disk;
++	struct dev_pagemap	pgmap;
+ };
+ 
+ long __pmem_direct_access(struct pmem_device *pmem, pgoff_t pgoff,
 diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index e973a069646c..7bea9a1b75f7 100644
+index 316effd61f16..e973a069646c 100644
 --- a/include/linux/memremap.h
 +++ b/include/linux/memremap.h
-@@ -10,26 +10,10 @@
- struct resource;
- struct device;
+@@ -132,8 +132,7 @@ struct dev_pagemap {
+ };
  
--/**
-- * struct vmem_altmap - pre-allocated storage for vmemmap_populate
-- * @base_pfn: base of the entire dev_pagemap mapping
-- * @reserve: pages mapped, but reserved for driver use (relative to @base)
-- * @free: free pages set aside in the mapping for memmap storage
-- * @align: pages reserved to meet allocation alignments
-- * @alloc: track pages consumed, private to vmemmap_populate()
-- */
--struct vmem_altmap {
--	const unsigned long base_pfn;
--	const unsigned long reserve;
--	unsigned long free;
--	unsigned long align;
--	unsigned long alloc;
--};
--
  #ifdef CONFIG_ZONE_DEVICE
--struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start);
-+struct dev_pagemap *to_vmem_altmap(unsigned long memmap_start);
+-void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap);
++void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
+ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+ 		struct dev_pagemap *pgmap);
+ static inline bool is_zone_device_page(const struct page *page);
+@@ -143,8 +142,7 @@ unsigned long dev_pagemap_offset(struct page *page);
+ unsigned long dev_pagemap_start_pfn(unsigned long start_pfn);
  #else
--static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-+static inline struct dev_pagemap *to_vmem_altmap(unsigned long memmap_start)
+ static inline void *devm_memremap_pages(struct device *dev,
+-		struct resource *res, struct percpu_ref *ref,
+-		struct vmem_altmap *altmap)
++		struct dev_pagemap *pgmap)
  {
- 	return NULL;
- }
-@@ -112,7 +96,11 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
-  * struct dev_pagemap - metadata for ZONE_DEVICE mappings
-  * @page_fault: callback when CPU fault on an unaddressable device page
-  * @page_free: free page callback when page refcount reaches 1
-- * @altmap: pre-allocated/reserved memory for vmemmap allocations
-+ * @base_pfn: base of the entire dev_pagemap mapping
-+ * @reserve: pages mapped, but reserved for driver use (relative to @base)
-+ * @free: free pages set aside in the mapping for memmap storage
-+ * @align: pages reserved to meet allocation alignments
-+ * @alloc: track pages consumed, private to vmemmap_populate()
-  * @res: physical address range covered by @ref
-  * @ref: reference count that pins the devm_memremap_pages() mapping
-  * @dev: host device of the mapping for debug
-@@ -122,8 +110,11 @@ typedef void (*dev_page_free_t)(struct page *page, void *data);
- struct dev_pagemap {
- 	dev_page_fault_t page_fault;
- 	dev_page_free_t page_free;
--	struct vmem_altmap altmap;
--	bool altmap_valid;
-+	unsigned long base_pfn;
-+	unsigned long reserve;
-+	unsigned long free;
-+	unsigned long align;
-+	unsigned long alloc;
- 	struct resource res;
- 	struct percpu_ref *ref;
- 	struct device *dev;
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index cd3d1c00f6a3..b718c06a79ba 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -33,6 +33,7 @@ struct file_ra_state;
- struct user_struct;
- struct writeback_control;
- struct bdi_writeback;
-+struct dev_pagemap;
- 
- void init_mm_internals(void);
- 
-@@ -2545,9 +2546,8 @@ pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
- pmd_t *vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node);
- pte_t *vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node);
- void *vmemmap_alloc_block(unsigned long size, int node);
--struct vmem_altmap;
- void *vmemmap_alloc_block_buf(unsigned long size, int node);
--void *dev_pagemap_alloc_block_buf(struct vmem_altmap *pgmap,
-+void *dev_pagemap_alloc_block_buf(struct dev_pagemap *pgmap,
- 		unsigned long size);
- void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
- int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ 	/*
+ 	 * Fail attempts to call devm_memremap_pages() without
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index ba5068b9ce07..01529eeb06ad 100644
+index 31bcfeea4a73..f4b198304e3b 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -241,7 +241,7 @@ int device_private_entry_fault(struct vm_area_struct *vma,
- EXPORT_SYMBOL(device_private_entry_fault);
- #endif /* CONFIG_DEVICE_PRIVATE */
+@@ -286,9 +286,10 @@ static unsigned long pfn_end(struct dev_pagemap *pgmap)
+ #define for_each_device_pfn(pfn, map) \
+ 	for (pfn = pfn_first(map); pfn < pfn_end(map); pfn++)
  
--static unsigned long __dev_pagemap_offset(struct vmem_altmap *pgmap)
-+static unsigned long __dev_pagemap_offset(struct dev_pagemap *pgmap)
+-static void devm_memremap_pages_release(struct device *dev, void *data)
++static void devm_memremap_pages_release(void *data)
  {
- 	/* number of pfns from base where pfn_to_page() is valid */
- 	return pgmap ? (pgmap->reserve + pgmap->free) : 0;
-@@ -267,12 +267,11 @@ static void pgmap_radix_release(struct resource *res)
- static unsigned long pfn_first(struct dev_pagemap *pgmap)
- {
- 	const struct resource *res = &pgmap->res;
--	struct vmem_altmap *altmap = &pgmap->altmap;
+ 	struct dev_pagemap *pgmap = data;
++	struct device *dev = pgmap->dev;
+ 	struct resource *res = &pgmap->res;
+ 	resource_size_t align_start, align_size;
  	unsigned long pfn;
- 
- 	pfn = res->start >> PAGE_SHIFT;
--	if (pgmap->altmap_valid)
--		pfn += __dev_pagemap_offset(altmap);
-+	if (pgmap->base_pfn)
-+		pfn += __dev_pagemap_offset(pgmap);
- 	return pfn;
- }
- 
-@@ -312,7 +311,7 @@ static void devm_memremap_pages_release(void *data)
- 
- 	untrack_pfn(NULL, PHYS_PFN(align_start), align_size);
- 	pgmap_radix_release(res);
--	dev_WARN_ONCE(dev, pgmap->altmap.alloc,
-+	dev_WARN_ONCE(dev, pgmap->alloc,
- 		      "%s: failed to free all reserved pages\n", __func__);
- }
- 
-@@ -325,16 +324,13 @@ static void devm_memremap_pages_release(void *data)
-  * 1/ At a minimum the res, ref and type members of @pgmap must be initialized
-  *    by the caller before passing it to this function
+@@ -326,29 +327,32 @@ static struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ /**
+  * devm_memremap_pages - remap and provide memmap backing for the given resource
+  * @dev: hosting device for @res
+- * @res: "host memory" address range
+- * @ref: a live per-cpu reference count
+- * @altmap: optional descriptor for allocating the memmap from @res
++ * @pgmap: pointer to a struct dev_pgmap
   *
-- * 2/ The altmap field may optionally be initialized, in which case altmap_valid
-- *    must be set to true
-- *
-- * 3/ pgmap.ref must be 'live' on entry and 'dead' before devm_memunmap_pages()
-+ * 2/ pgmap.ref must be 'live' on entry and 'dead' before devm_memunmap_pages()
-  *    time (or devm release event). The expected order of events is that ref has
+  * Notes:
+- * 1/ @ref must be 'live' on entry and 'dead' before devm_memunmap_pages() time
+- *    (or devm release event). The expected order of events is that @ref has
++ * 1/ At a minimum the res, ref and type members of @pgmap must be initialized
++ *    by the caller before passing it to this function
++ *
++ * 2/ The altmap field may optionally be initialized, in which case altmap_valid
++ *    must be set to true
++ *
++ * 3/ pgmap.ref must be 'live' on entry and 'dead' before devm_memunmap_pages()
++ *    time (or devm release event). The expected order of events is that ref has
   *    been through percpu_ref_kill() before devm_memremap_pages_release(). The
   *    wait for the completion of all references being dropped and
   *    percpu_ref_exit() must occur after devm_memremap_pages_release().
   *
-- * 4/ res is expected to be a host memory range that could feasibly be
-+ * 3/ res is expected to be a host memory range that could feasibly be
+- * 2/ @res is expected to be a host memory range that could feasibly be
++ * 4/ res is expected to be a host memory range that could feasibly be
   *    treated as a "System RAM" range, i.e. not a device mmio range, but
   *    this is not enforced.
   */
-@@ -433,7 +429,7 @@ EXPORT_SYMBOL(devm_memremap_pages);
- 
- int dev_pagemap_add_pages(unsigned long phys_start_pfn, unsigned nr_pages)
+-void *devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap)
++void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
  {
--	struct vmem_altmap *pgmap;
-+	struct dev_pagemap *pgmap;
+ 	resource_size_t align_start, align_size, align_end;
+ 	unsigned long pfn, pgoff, order;
+ 	pgprot_t pgprot = PAGE_KERNEL;
+-	struct dev_pagemap *pgmap;
+ 	int error, nid, is_ram, i = 0;
++	struct resource *res = &pgmap->res;
  
- 	pgmap = to_vmem_altmap((unsigned long) pfn_to_page(phys_start_pfn));
- 	if (!pgmap)
-@@ -451,7 +447,7 @@ int dev_pagemap_add_pages(unsigned long phys_start_pfn, unsigned nr_pages)
+ 	align_start = res->start & ~(SECTION_SIZE - 1);
+ 	align_size = ALIGN(res->start + resource_size(res), SECTION_SIZE)
+@@ -365,26 +369,10 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	if (is_ram == REGION_INTERSECTS)
+ 		return __va(res->start);
  
- unsigned long dev_pagemap_start_pfn(unsigned long start_pfn)
- {
--	struct vmem_altmap *pgmap = to_vmem_altmap(__pfn_to_phys(start_pfn));
-+	struct dev_pagemap *pgmap = to_vmem_altmap(__pfn_to_phys(start_pfn));
+-	if (!ref)
++	if (!pgmap->ref)
+ 		return ERR_PTR(-EINVAL);
  
- 	if (pgmap && start_pfn == pgmap->base_pfn)
- 		return pgmap->reserve;
-@@ -460,7 +456,7 @@ unsigned long dev_pagemap_start_pfn(unsigned long start_pfn)
+-	pgmap = devres_alloc_node(devm_memremap_pages_release,
+-			sizeof(*pgmap), GFP_KERNEL, dev_to_node(dev));
+-	if (!pgmap)
+-		return ERR_PTR(-ENOMEM);
+-
+-	memcpy(&pgmap->res, res, sizeof(*res));
+-
+ 	pgmap->dev = dev;
+-	if (altmap) {
+-		memcpy(&pgmap->altmap, altmap, sizeof(*altmap));
+-		pgmap->altmap_valid = true;
+-	}
+-	pgmap->ref = ref;
+-	pgmap->type = MEMORY_DEVICE_HOST;
+-	pgmap->page_fault = NULL;
+-	pgmap->page_free = NULL;
+-	pgmap->data = NULL;
  
- bool dev_pagemap_free_pages(struct page *page, unsigned nr_pages)
- {
--	struct vmem_altmap *pgmap = to_vmem_altmap((uintptr_t)page);
-+	struct dev_pagemap *pgmap = to_vmem_altmap((uintptr_t)page);
- 
- 	if (!pgmap)
- 		return false;
-@@ -468,7 +464,7 @@ bool dev_pagemap_free_pages(struct page *page, unsigned nr_pages)
- 	return true;
- }
- 
--struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
-+struct dev_pagemap *to_vmem_altmap(unsigned long memmap_start)
- {
- 	/*
- 	 * 'memmap_start' is the virtual address for the first "struct
-@@ -491,9 +487,9 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
- 	pgmap = radix_tree_lookup(&pgmap_radix, page_to_pfn(page));
- 	rcu_read_unlock();
- 
--	if (!pgmap || !pgmap->altmap_valid)
-+	if (!pgmap || !pgmap->base_pfn)
- 		return NULL;
--	return &pgmap->altmap;
-+	return pgmap;
- }
- 
- /**
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index fef41a6a9f64..541d87c2a2c1 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -91,18 +91,17 @@ void * __meminit vmemmap_alloc_block_buf(unsigned long size, int node)
- 	return ptr;
- }
- 
--static unsigned long __meminit vmem_altmap_next_pfn(struct vmem_altmap *altmap)
-+static unsigned long __meminit dev_pagemap_next_pfn(struct dev_pagemap *pgmap)
- {
--	return altmap->base_pfn + altmap->reserve + altmap->alloc
--		+ altmap->align;
-+	return pgmap->base_pfn + pgmap->reserve + pgmap->alloc + pgmap->align;
- }
- 
--static unsigned long __meminit vmem_altmap_nr_free(struct vmem_altmap *altmap)
-+static unsigned long __meminit dev_pagemap_nr_free(struct dev_pagemap *pgmap)
- {
--	unsigned long allocated = altmap->alloc + altmap->align;
-+	unsigned long allocated = pgmap->alloc + pgmap->align;
- 
--	if (altmap->free > allocated)
--		return altmap->free - allocated;
-+	if (pgmap->free > allocated)
-+		return pgmap->free - allocated;
- 	return 0;
- }
- 
-@@ -113,7 +112,7 @@ static unsigned long __meminit vmem_altmap_nr_free(struct vmem_altmap *altmap)
-  *
-  * Allocations are aligned to the size of the request.
-  */
--void * __meminit dev_pagemap_alloc_block_buf(struct vmem_altmap *pgmap,
-+void * __meminit dev_pagemap_alloc_block_buf(struct dev_pagemap *pgmap,
- 		unsigned long size)
- {
- 	unsigned long pfn, nr_pfns, nr_align;
-@@ -124,11 +123,11 @@ void * __meminit dev_pagemap_alloc_block_buf(struct vmem_altmap *pgmap,
- 		return NULL;
+ 	mutex_lock(&pgmap_lock);
+ 	error = 0;
+@@ -443,11 +431,13 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		 */
+ 		list_del(&page->lru);
+ 		page->pgmap = pgmap;
+-		percpu_ref_get(ref);
++		percpu_ref_get(pgmap->ref);
+ 		if (!(++i % 1024))
+ 			cond_resched();
  	}
+-	devres_add(dev, pgmap);
++
++	devm_add_action(dev, devm_memremap_pages_release, pgmap);
++
+ 	return __va(res->start);
  
--	pfn = vmem_altmap_next_pfn(pgmap);
-+	pfn = dev_pagemap_next_pfn(pgmap);
- 	nr_pfns = size >> PAGE_SHIFT;
- 	nr_align = 1UL << find_first_bit(&nr_pfns, BITS_PER_LONG);
- 	nr_align = ALIGN(pfn, nr_align) - pfn;
--	if (nr_pfns + nr_align > vmem_altmap_nr_free(pgmap))
-+	if (nr_pfns + nr_align > dev_pagemap_nr_free(pgmap))
- 		return NULL;
+  err_add_memory:
+diff --git a/tools/testing/nvdimm/test/iomap.c b/tools/testing/nvdimm/test/iomap.c
+index e1f75a1914a1..9631993b6ee0 100644
+--- a/tools/testing/nvdimm/test/iomap.c
++++ b/tools/testing/nvdimm/test/iomap.c
+@@ -104,15 +104,14 @@ void *__wrap_devm_memremap(struct device *dev, resource_size_t offset,
+ }
+ EXPORT_SYMBOL(__wrap_devm_memremap);
  
- 	pgmap->alloc += nr_pfns;
+-void *__wrap_devm_memremap_pages(struct device *dev, struct resource *res,
+-		struct percpu_ref *ref, struct vmem_altmap *altmap)
++void *__wrap_devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap)
+ {
+-	resource_size_t offset = res->start;
++	resource_size_t offset = pgmap->res.start;
+ 	struct nfit_test_resource *nfit_res = get_nfit_res(offset);
+ 
+ 	if (nfit_res)
+ 		return nfit_res->buf + offset - nfit_res->res.start;
+-	return devm_memremap_pages(dev, res, ref, altmap);
++	return devm_memremap_pages(dev, pgmap)
+ }
+ EXPORT_SYMBOL(__wrap_devm_memremap_pages);
+ 
 -- 
 2.14.2
 
