@@ -1,59 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 049716B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:51:06 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y15so4610789wrc.6
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:51:05 -0800 (PST)
-Received: from outbound-smtp22.blacknight.com (outbound-smtp22.blacknight.com. [81.17.249.190])
-        by mx.google.com with ESMTPS id y89si3523893eda.212.2017.12.07.11.51.04
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id EC69D6B0033
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:53:27 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id y200so9080358itc.7
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:53:27 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id n71si3984309ioe.331.2017.12.07.11.53.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 11:51:04 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail02.blacknight.ie [81.17.254.11])
-	by outbound-smtp22.blacknight.com (Postfix) with ESMTPS id 2932FB8C12
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 19:51:04 +0000 (GMT)
-Date: Thu, 7 Dec 2017 19:51:03 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: avoid excessive IRQ disabled times in
- free_unref_page_list
-Message-ID: <20171207195103.dkiqjoeasr35atqj@techsingularity.net>
-References: <20171207170314.4419-1-l.stach@pengutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Dec 2017 11:53:26 -0800 (PST)
+References: <20171207150840.28409-1-hch@lst.de>
+ <20171207150840.28409-15-hch@lst.de>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <6260792f-cf6f-6b98-75a5-9e174107571a@deltatee.com>
+Date: Thu, 7 Dec 2017 12:53:24 -0700
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171207170314.4419-1-l.stach@pengutronix.de>
+In-Reply-To: <20171207150840.28409-15-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 14/14] memremap: RCU protect data returned from
+ dev_pagemap lookups
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lucas Stach <l.stach@pengutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
 
-On Thu, Dec 07, 2017 at 06:03:14PM +0100, Lucas Stach wrote:
-> Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
-> a list of pages) we see excessive IRQ disabled times of up to 250ms on an
-> embedded ARM system (tracing overhead included).
-> 
-> This is due to graphics buffers being freed back to the system via
-> release_pages(). Graphics buffers can be huge, so it's not hard to hit
-> cases where the list of pages to free has 2048 entries. Disabling IRQs
-> while freeing all those pages is clearly not a good idea.
-> 
 
-250ms to free 2048 entries? That seems excessive but I guess the
-embedded ARM system is not that fast.
 
-> Introduce a batch limit, which allows IRQ servicing once every few pages.
-> The batch count is the same as used in other parts of the MM subsystem
-> when dealing with IRQ disabled regions.
-> 
-> Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+On 07/12/17 08:08 AM, Christoph Hellwig wrote:
+> Take the RCU critical sections into the callers of to_vmem_altmap so that
+> we can read the page map inside the critical section.  Also rename the
+> remaining helper to __lookup_dev_pagemap to fit into the current naming
+> scheme.
+I'm not saying I disagree, but what's the reasoning behind the double 
+underscore prefix to the function?
 
-Thanks.
+> +struct dev_pagemap *__lookup_dev_pagemap(struct page *start_page)
+> +{
+> +	struct dev_pagemap *pgmap;
+> +
+> +	pgmap = radix_tree_lookup(&pgmap_radix, page_to_pfn(start_page));
+> +	if (!pgmap || !pgmap->base_pfn)
+> +		return NULL;
+> +	return pgmap;
+> +}
 
-Acked-by: Mel Gorman <mgorman@techsingularity.net>
+I'm also wondering why we are still looking up the dev_pagemap via the 
+radix tree when struct page already has a pointer to it (page->pgmap).
 
--- 
-Mel Gorman
-SUSE Labs
+Thanks,
+
+Logan
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
