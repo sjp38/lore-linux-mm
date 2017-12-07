@@ -1,112 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 54A766B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 16:55:11 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id b11so467268itj.0
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 13:55:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t134sor77523itf.23.2017.12.07.13.55.09
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Dec 2017 13:55:09 -0800 (PST)
-Date: Thu, 7 Dec 2017 13:55:07 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with
- exit_mmap
-In-Reply-To: <20171207163003.GM20234@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.10.1712071352480.135101@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com> <20171207113548.GG20234@dhcp22.suse.cz> <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp> <20171207163003.GM20234@dhcp22.suse.cz>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 623B76B0033
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 17:22:22 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id t65so6780142pfe.22
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 14:22:22 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id p3si4434396pld.717.2017.12.07.14.22.19
+        for <linux-mm@kvack.org>;
+        Thu, 07 Dec 2017 14:22:21 -0800 (PST)
+Date: Fri, 8 Dec 2017 09:22:16 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+Message-ID: <20171207222216.GH4094@dastard>
+References: <20171206004159.3755-1-willy@infradead.org>
+ <20171206004159.3755-73-willy@infradead.org>
+ <20171206012901.GZ4094@dastard>
+ <20171206020208.GK26021@bombadil.infradead.org>
+ <20171206031456.GE4094@dastard>
+ <20171206044549.GO26021@bombadil.infradead.org>
+ <20171206084404.GF4094@dastard>
+ <20171206140648.GB32044@bombadil.infradead.org>
+ <20171207160634.il3vt5d6a4v5qesi@thunk.org>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171207160634.il3vt5d6a4v5qesi@thunk.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, 7 Dec 2017, Michal Hocko wrote:
-
-> yes. I will fold the following in if this turned out to really address
-> David's issue. But I suspect this will be the case considering the NULL
-> pmd in the report which would suggest racing with free_pgtable...
+On Thu, Dec 07, 2017 at 11:06:34AM -0500, Theodore Ts'o wrote:
+> On Wed, Dec 06, 2017 at 06:06:48AM -0800, Matthew Wilcox wrote:
+> > > Unfortunately for you, I don't find arguments along the lines of
+> > > "lockdep will save us" at all convincing.  lockdep already throws
+> > > too many false positives to be useful as a tool that reliably and
+> > > accurately points out rare, exciting, complex, intricate locking
+> > > problems.
+> > 
+> > But it does reliably and accurately point out "dude, you forgot to take
+> > the lock".  It's caught a number of real problems in my own testing that
+> > you never got to see.
 > 
+> The problem is that if it has too many false positives --- and it's
+> gotten *way* worse with the completion callback "feature", people will
+> just stop using Lockdep as being too annyoing and a waste of developer
+> time when trying to figure what is a legitimate locking bug versus
+> lockdep getting confused.
+> 
+> <Rant>I can't even disable the new Lockdep feature which is throwing
+> lots of new false positives --- it's just all or nothing.</Rant>
+> 
+> Dave has just said he's already stopped using Lockdep, as a result.
 
-I'm backporting and testing the following patch against Linus's tree.  To 
-clarify an earlier point, we don't actually have any change from upstream 
-code that allows for free_pgtables() before the 
-set_bit(MMF_OOM_SKIP);down_write();up_write() cycle.
+This is compeltely OT, but FYI I stopped using lockdep a long time
+ago.  We've spend orders of magnitude more time and effort to shut
+up lockdep false positives in the XFS code than we ever have on
+locking problems that lockdep has uncovered. And still lockdep
+throws too many false positives on XFS workloads to be useful to me.
 
-diff --git a/include/linux/oom.h b/include/linux/oom.h
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -66,6 +66,15 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
- 	return tsk->signal->oom_mm;
- }
- 
-+/*
-+ * Use this helper if tsk->mm != mm and the victim mm needs a special
-+ * handling. This is guaranteed to stay true after once set.
-+ */
-+static inline bool mm_is_oom_victim(struct mm_struct *mm)
-+{
-+	return test_bit(MMF_OOM_VICTIM, &mm->flags);
-+}
-+
- /*
-  * Checks whether a page fault on the given mm is still reliable.
-  * This is no longer true if the oom reaper started to reap the
-diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
---- a/include/linux/sched/coredump.h
-+++ b/include/linux/sched/coredump.h
-@@ -71,6 +71,7 @@ static inline int get_dumpable(struct mm_struct *mm)
- #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
- #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
- #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
-+#define MMF_OOM_VICTIM		25	/* mm is the oom victim */
- 
- #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
- 				 MMF_DISABLE_THP_MASK)
-diff --git a/mm/mmap.c b/mm/mmap.c
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -3019,20 +3019,20 @@ void exit_mmap(struct mm_struct *mm)
- 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
- 	unmap_vmas(&tlb, vma, 0, -1);
- 
--	set_bit(MMF_OOM_SKIP, &mm->flags);
--	if (unlikely(tsk_is_oom_victim(current))) {
-+	if (unlikely(mm_is_oom_victim(mm))) {
- 		/*
- 		 * Wait for oom_reap_task() to stop working on this
- 		 * mm. Because MMF_OOM_SKIP is already set before
- 		 * calling down_read(), oom_reap_task() will not run
- 		 * on this "mm" post up_write().
- 		 *
--		 * tsk_is_oom_victim() cannot be set from under us
-+		 * mm_is_oom_victim() cannot be set from under us
- 		 * either because current->mm is already set to NULL
- 		 * under task_lock before calling mmput and oom_mm is
- 		 * set not NULL by the OOM killer only if current->mm
- 		 * is found not NULL while holding the task_lock.
- 		 */
-+		set_bit(MMF_OOM_SKIP, &mm->flags);
- 		down_write(&mm->mmap_sem);
- 		up_write(&mm->mmap_sem);
- 	}
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -683,8 +683,10 @@ static void mark_oom_victim(struct task_struct *tsk)
- 		return;
- 
- 	/* oom_mm is bound to the signal struct life time. */
--	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
-+	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
- 		mmgrab(tsk->signal->oom_mm);
-+		set_bit(MMF_OOM_VICTIM, &mm->flags);
-+	}
- 
- 	/*
- 	 * Make sure that the task is woken up from uninterruptible sleep
+But it's more than that: I understand just how much lockdep *doesn't
+check* and that means *I know I can't rely on lockdep* for potential
+deadlock detection. e.g.  it doesn't cover semaphores, which means
+it has zero coverage of the entire XFS metadata buffer subsystem and
+the complex locking orders we have for metadata updates.
+
+Put simply: lockdep doesn't provide me with any benefit, so I don't
+use it...
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
