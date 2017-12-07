@@ -1,167 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3469C6B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 05:15:53 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 73so5301436pfz.11
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 02:15:53 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id k66si3888572pfh.386.2017.12.07.02.15.51
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C88B46B0038
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 05:18:58 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id c3so3820691wrd.0
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 02:18:58 -0800 (PST)
+Received: from xavier.telenet-ops.be (xavier.telenet-ops.be. [2a02:1800:120:4::f00:14])
+        by mx.google.com with ESMTPS id s27si1502357eda.2.2017.12.07.02.18.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 02:15:51 -0800 (PST)
-Date: Thu, 7 Dec 2017 18:15:47 +0800
-From: Fengguang Wu <fengguang.wu@intel.com>
-Subject: Re: [patch 15/15] mm: add strictlimit knob
-Message-ID: <20171207101547.ljfayqfp3lczhfvi@wfg-t540p.sh.intel.com>
-References: <5a20831e./7a6H+akjTcq4WCk%akpm@linux-foundation.org>
- <20171201122928.GD8365@quack2.suse.cz>
- <20171206170927.5d40106be6fdc6dc88354b65@linux-foundation.org>
- <20171207041459.64myz37qwmjkoxu5@wfg-t540p.sh.intel.com>
- <CAJfpegsE-jUOWjpMVQv76cDxp3aLpAfxrMa-vutMFa0KhVKrHw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <CAJfpegsE-jUOWjpMVQv76cDxp3aLpAfxrMa-vutMFa0KhVKrHw@mail.gmail.com>
+        Thu, 07 Dec 2017 02:18:57 -0800 (PST)
+From: Geert Uytterhoeven <geert+renesas@glider.be>
+Subject: [PATCH] mm/slab: Merge adjacent debug sections
+Date: Thu,  7 Dec 2017 11:18:52 +0100
+Message-Id: <1512641932-5221-1-git-send-email-geert+renesas@glider.be>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Maxim Patlasov <MPatlasov@parallels.com>, hmh@hmh.eng.br, mel@csn.ul.ie, t.artem@lycos.com, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, linux-fsdevel@vger.kernel.org
+To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert+renesas@glider.be>
 
-On Thu, Dec 07, 2017 at 09:50:23AM +0100, Miklos Szeredi wrote:
->On Thu, Dec 7, 2017 at 5:14 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
->> CC fuse maintainer, too.
->>
->> On Wed, Dec 06, 2017 at 05:09:27PM -0800, Andrew Morton wrote:
->>>
->>> On Fri, 1 Dec 2017 13:29:28 +0100 Jan Kara <jack@suse.cz> wrote:
->>>
->>>> On Thu 30-11-17 14:15:58, Andrew Morton wrote:
->>>> > From: Maxim Patlasov <MPatlasov@parallels.com>
->>>> > Subject: mm: add strictlimit knob
->>>> >
->>>> > The "strictlimit" feature was introduced to enforce per-bdi dirty
->>>> > limits
->>>> > for FUSE which sets bdi max_ratio to 1% by default:
->>>> >
->>>> > http://article.gmane.org/gmane.linux.kernel.mm/105809
->>>> >
->>>> > However the feature can be useful for other relatively slow or
->>>> > untrusted
->>>> > BDIs like USB flash drives and DVD+RW.  The patch adds a knob to enable
->>>> > the feature:
->>>> >
->>>> > echo 1 > /sys/class/bdi/X:Y/strictlimit
->>>> >
->>>> > Being enabled, the feature enforces bdi max_ratio limit even if global
->>>> > (10%) dirty limit is not reached.  Of course, the effect is not visible
->>>> > until /sys/class/bdi/X:Y/max_ratio is decreased to some reasonable
->>>> > value.
->>>>
->>>> In principle I have nothing against this and the usecase sounds
->>>> reasonable
->>>> (in fact I believe the lack of a feature like this is one of reasons why
->>>> desktop automounters usually mount USB devices with 'sync' mount option).
->>>> So feel free to add:
->>>>
->>>> Reviewed-by: Jan Kara <jack@suse.cz>
->>>>
->>>
->>> Cc Jens, who may be vaguely interested in plans to finally merge this
->>> three-year-old patch?
->>>
->>>
->>>
->>> From: Maxim Patlasov <MPatlasov@parallels.com>
->>> Subject: mm: add strictlimit knob
->>>
->>> The "strictlimit" feature was introduced to enforce per-bdi dirty limits
->>> for FUSE which sets bdi max_ratio to 1% by default:
->>>
->>> http://article.gmane.org/gmane.linux.kernel.mm/105809
->>
->>
->> That link is invalid for now, possibly due to the gmane site rebuild.
->> I find an email thread here which looks relevant:
->>
->> https://sourceforge.net/p/fuse/mailman/message/35254883/
->>
->> Where Maxim has an interesting point:
->>
->>        > Did any one try increasing the limit and did see any better/worse
->>> performance ?
->>
->>        We've used 20% as default value in OpenVZ kernel for a long while (1%
->> was not enough to saturate our distributed parallel storage).
->>
->> So the knob will also enable people to _disable_ the 1% fuse limit to
->> increase performance.
->>
->> So people can use the exposed knob in 2 ways to fit their needs, which
->> is in general a good thing.
->>
->> However the comment in wb_position_ratio() says
->>
->>                        Without strictlimit feature, fuse writeback may
->>          * consume arbitrary amount of RAM because it is accounted in
->>          * NR_WRITEBACK_TEMP which is not involved in calculating
->> "nr_dirty".
->>
->> How dangerous would that be if some user disabled the 1% fuse limit
->> through the exposed knob? Will the NR_WRITEBACK_TEMP effect go far
->> beyond the user's expectation (20% max dirty limit)?
->>
->> Looking at the fuse code, NR_WRITEBACK_TEMP will grow proportional to
->> WB_WRITEBACK, which should be throttled when bdi_write_congested().
->> The congested flag will be set on
->>
->>        fuse_conn.num_background >= fuse_conn.congestion_threshold
->>        So it looks NR_WRITEBACK_TEMP will somehow be throttled. Just that
->> it's not included in the 20% dirty limit.
->
->Only balance_dirty_pages_ratelimited() is going to limit the
->generation of dirty pages, I don't think congestion flags will do
->that.
+Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
+---
+ mm/slab.c | 5 -----
+ 1 file changed, 5 deletions(-)
 
-Right. However my concern is something to limit the generation of
-fuse's _writeback_ pages.
-
-The normal writeback pages are limited in 2 ways:
-
-- balance_dirty_pages_ratelimited()'s dirty throttling:
-
-  nr_dirty + nr_writeback + nr_unstable < global and/or bdi dirty limit
-
-- block layer's nr_requests queue limit
-
-However fuse's NR_WRITEBACK_TEMP looks special and has none of such
-limits. The congested bit merely affect the vmscan pageout path.
-
-        pageout
-          may_write_to_inode
-            inode_write_congested
-              wb_congested
-
-I wonder if fuse has its own approach to limit NR_WRITEBACK_TEMP?
-Either explicitly or implicitly, there has to be some hard limit.
-
->And (AFAICS) for fuse only  BDI_CAP_STRICTLIMIT will allow
->accounting temp writeback pages when throttling dirty page generation.
->So without BDI_CAP_STRICTLIMIT kernel memory use of fuse may explode.
->So we probably need a way to force BDI_CAP_STRICTLIMIT (i.e. do not
->permit disabling it for fuse).
-
-So fuse relies on small nr_dirty. Does fuse impose any explicit or
-implicit rule that NR_WRITEBACK_TEMP will never exceed (N * nr_dirty)?
-Otherwise the size of NR_WRITEBACK_TEMP cannot be guaranteed.
-
-For example, is it possible for some process (eg. dd) to dirty pages
-as fast as possible while some other kernel logic to convert PG_dirty
-to NR_WRITEBACK_TEMP as fast as possible, so that even the 1% bdi
-strictlimit (which limits PG_dirty rather than NR_WRITEBACK_TEMP)
-cannot stop all memory being eat up by ever growing NR_WRITEBACK_TEMP?
-
-Thanks,
-Fengguang
+diff --git a/mm/slab.c b/mm/slab.c
+index 70be5823227dcb3e..dd8c6d33f59a11d1 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -1569,9 +1569,6 @@ static void dump_line(char *data, int offset, int limit)
+ 		}
+ 	}
+ }
+-#endif
+-
+-#if DEBUG
+ 
+ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
+ {
+@@ -1661,9 +1658,7 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
+ 		}
+ 	}
+ }
+-#endif
+ 
+-#if DEBUG
+ static void slab_destroy_debugcheck(struct kmem_cache *cachep,
+ 						struct page *page)
+ {
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
