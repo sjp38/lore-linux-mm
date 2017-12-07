@@ -1,48 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7116B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 13:43:15 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id t20so4350239vkb.17
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 10:43:15 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 32sor2216853uat.303.2017.12.07.10.43.10
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 394B66B0038
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 13:46:07 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id a3so12403992itg.7
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 10:46:07 -0800 (PST)
+Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
+        by mx.google.com with ESMTPS id j68si4409234itg.5.2017.12.07.10.46.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Dec 2017 10:43:11 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Dec 2017 10:46:06 -0800 (PST)
+References: <20171207150840.28409-1-hch@lst.de>
+ <20171207150840.28409-3-hch@lst.de>
+From: Logan Gunthorpe <logang@deltatee.com>
+Message-ID: <50c8ed91-d8a1-8bfb-d4bc-b53896810d66@deltatee.com>
+Date: Thu, 7 Dec 2017 11:46:02 -0700
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1712070512120.7218@nuc-kabylake>
-References: <1512641861-5113-1-git-send-email-geert+renesas@glider.be> <alpine.DEB.2.20.1712070512120.7218@nuc-kabylake>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 7 Dec 2017 10:43:09 -0800
-Message-ID: <CAGXu5j+9qWBM3G1ZtBXPi35UGkcfXnSbgZCBjXJM35X9+hS4ug@mail.gmail.com>
-Subject: Re: [PATCH] mm/slab: Do not hash pointers when debugging slab
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171207150840.28409-3-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+Subject: Re: [PATCH 02/14] mm: optimize dev_pagemap reference counting around
+ get_dev_pagemap
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Geert Uytterhoeven <geert+renesas@glider.be>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "Tobin C . Harding" <me@tobin.cc>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>
+To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
 
-On Thu, Dec 7, 2017 at 3:13 AM, Christopher Lameter <cl@linux.com> wrote:
-> On Thu, 7 Dec 2017, Geert Uytterhoeven wrote:
->
->> If CONFIG_DEBUG_SLAB/CONFIG_DEBUG_SLAB_LEAK are enabled, the slab code
->> prints extra debug information when e.g. corruption is detected.
->> This includes pointers, which are not very useful when hashed.
->>
->> Fix this by using %px to print unhashed pointers instead.
->
-> Acked-by: Christoph Lameter <cl@linux.com>
->
-> These SLAB config options are only used for testing so this is ok.
 
-Most systems use SLUB so I can't say how common CONFIG_DEBUG_SLAB is.
-(Though, FWIW with SLUB, CONFIG_SLUB_DEBUG is very common.)
 
--Kees
+On 07/12/17 08:08 AM, Christoph Hellwig wrote:
+> Change the calling convention so that get_dev_pagemap always consumes the
+> previous reference instead of doing this using an explicit earlier call to
+> put_dev_pagemap in the callers.
+> 
+> The callers will still need to put the final reference after finishing the
+> loop over the pages.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
--- 
-Kees Cook
-Pixel Security
+
+Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
