@@ -1,54 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 987EA6B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 18:21:04 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id a45so4877979wra.14
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 15:21:04 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id b9si4480224wrf.514.2017.12.07.15.21.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 15:21:02 -0800 (PST)
-Date: Thu, 7 Dec 2017 15:20:59 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm: page_alloc: avoid excessive IRQ disabled times in
- free_unref_page_list
-Message-Id: <20171207152059.96ebc2f7dfd1a65a91252029@linux-foundation.org>
-In-Reply-To: <20171207195103.dkiqjoeasr35atqj@techsingularity.net>
-References: <20171207170314.4419-1-l.stach@pengutronix.de>
-	<20171207195103.dkiqjoeasr35atqj@techsingularity.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B6CE6B0033
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 18:27:19 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id o123so3394106pga.22
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 15:27:19 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id 88si1084940pla.569.2017.12.07.15.27.17
+        for <linux-mm@kvack.org>;
+        Thu, 07 Dec 2017 15:27:17 -0800 (PST)
+Subject: Re: possible deadlock in generic_file_write_iter (2)
+References: <94eb2c0d010a4e7897055f70535b@google.com>
+ <20171204083339.GF8365@quack2.suse.cz>
+ <80ba65b6-d0c2-2d3a-779b-a134af8a9054@lge.com>
+ <CACT4Y+arqmp6RW4mt3EyaPqxqxPyY31kjDLftnof5DkwfyoyRQ@mail.gmail.com>
+ <20171206050547.GA5260@X58A-UD3R>
+ <CACT4Y+ZXMU3-zhoCo2SPOt+NJYJG8JARDKXFE=A4XMDUni8W-w@mail.gmail.com>
+From: Byungchul Park <byungchul.park@lge.com>
+Message-ID: <740fcf68-091c-707a-2846-df3bf114e608@lge.com>
+Date: Fri, 8 Dec 2017 08:27:15 +0900
+MIME-Version: 1.0
+In-Reply-To: <CACT4Y+ZXMU3-zhoCo2SPOt+NJYJG8JARDKXFE=A4XMDUni8W-w@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jan Kara <jack@suse.cz>, syzbot <bot+045a1f65bdea780940bf0f795a292f4cd0b773d1@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, jlayton@redhat.com, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com, Peter Zijlstra <peterz@infradead.org>, kernel-team@lge.com
 
-On Thu, 7 Dec 2017 19:51:03 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
-
-> On Thu, Dec 07, 2017 at 06:03:14PM +0100, Lucas Stach wrote:
-> > Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
-> > a list of pages) we see excessive IRQ disabled times of up to 250ms on an
-> > embedded ARM system (tracing overhead included).
-> > 
-> > This is due to graphics buffers being freed back to the system via
-> > release_pages(). Graphics buffers can be huge, so it's not hard to hit
-> > cases where the list of pages to free has 2048 entries. Disabling IRQs
-> > while freeing all those pages is clearly not a good idea.
-> > 
+On 12/8/2017 2:07 AM, Dmitry Vyukov wrote:
+> On Wed, Dec 6, 2017 at 6:05 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+>>>> On 12/4/2017 5:33 PM, Jan Kara wrote:
+>>>>>
+>>>>> Hello,
+>>>>>
+>>>>> adding Peter and Byungchul to CC since the lockdep report just looks
+>>>>> strange and cross-release seems to be involved. Guys, how did #5 get into
+>>>>> the lock chain and what does put_ucounts() have to do with sb_writers
+>>>>> there? Thanks!
+>>>>
+>>>>
+>>>> Hello Jan,
+>>>>
+>>>> In order to get full stack of #5, we have to pass a boot param,
+>>>> "crossrelease_fullstack", to the kernel. Now that it only informs
+>>>> put_ucounts() in the call trace, it's hard to find out what exactly
+>>>> happened at that time, but I can tell #5 shows:
+>>>>
+>>>> When acquire(sb_writers) in put_ucounts(), it was on the way to
+>>>> complete((completion)&req.done) of wait_for_completion() in
+>>>> devtmpfs_create_node().
+>>>>
+>>>> If acquire(sb_writers) in put_ucounts() is stuck, then
+>>>> wait_for_completion() in devtmpfs_create_node() would be also
+>>>> stuck, since complete() being in the context of acquire(sb_writers)
+>>>> cannot be called.
+>>>>
+>>>> This is why cross-release added the lock chain.
+>>>
+>>> Hi,
+>>>
+>>> What is cross-release? Is it something new? Should we always enable
+>>> crossrelease_fullstack during testing?
+>>
+>> Hello Dmitry,
+>>
+>> Yes, it's new one making lockdep track wait_for_completion() as well.
+>>
+>> And we should enable crossrelease_fullstack if you don't care system
+>> slowdown but testing.
 > 
-> 250ms to free 2048 entries? That seems excessive but I guess the
-> embedded ARM system is not that fast.
+> I've enabled CONFIG_BOOTPARAM_LOCKDEP_CROSSRELEASE_FULLSTACK. It
+> should have the same effect, right?
 
-I wonder how common such lenghty lists are.
+Sure.
 
-If "significantly" then there may be additional benefit in rearranging
-free_hot_cold_page_list() so it only walks a small number of list
-entries at a time.  So the data from the first loop is still in cache
-during execution of the second loop.  And that way this
-long-irq-off-time problem gets fixed automagically.
-
+-- 
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
