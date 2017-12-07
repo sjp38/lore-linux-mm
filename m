@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 24E2B6B0261
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 906346B0266
 	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:08:52 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id p1so5876302pfp.13
+Received: by mail-pf0-f198.google.com with SMTP id m9so5893696pff.0
         for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:08:52 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id d62si3835863pga.87.2017.12.07.07.08.50
+        by mx.google.com with ESMTPS id i74si3773766pgc.832.2017.12.07.07.08.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 07:08:50 -0800 (PST)
+        Thu, 07 Dec 2017 07:08:51 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 03/14] mm: better abstract out dev_pagemap freeing
-Date: Thu,  7 Dec 2017 07:08:29 -0800
-Message-Id: <20171207150840.28409-4-hch@lst.de>
+Subject: [PATCH 07/14] mm: split dev_pagemap memory map allocation from normal case
+Date: Thu,  7 Dec 2017 07:08:33 -0800
+Message-Id: <20171207150840.28409-8-hch@lst.de>
 In-Reply-To: <20171207150840.28409-1-hch@lst.de>
 References: <20171207150840.28409-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,112 +20,116 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
 
-Add a new helper that both looks up the pagemap and updates the alloc
-counter.
+No functional changes, just untangling the call chain.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- arch/powerpc/mm/init_64.c | 6 ++----
- arch/x86/mm/init_64.c     | 5 +----
- include/linux/memremap.h  | 7 ++++++-
- kernel/memremap.c         | 9 +++++++--
- 4 files changed, 16 insertions(+), 11 deletions(-)
+ arch/powerpc/mm/init_64.c |  6 ++++--
+ arch/x86/mm/init_64.c     |  5 ++++-
+ include/linux/mm.h        |  8 ++------
+ mm/sparse-vmemmap.c       | 15 +++------------
+ 4 files changed, 13 insertions(+), 21 deletions(-)
 
 diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index a07722531b32..d6a040198edf 100644
+index d6a040198edf..3a39a644e96c 100644
 --- a/arch/powerpc/mm/init_64.c
 +++ b/arch/powerpc/mm/init_64.c
-@@ -268,7 +268,6 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
+@@ -202,8 +202,10 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
  
- 	for (; start < end; start += page_size) {
- 		unsigned long nr_pages, addr;
--		struct vmem_altmap *altmap;
- 		struct page *section_base;
- 		struct page *page;
+ 		/* altmap lookups only work at section boundaries */
+ 		altmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
+-
+-		p =  __vmemmap_alloc_block_buf(page_size, node, altmap);
++		if (altmap)
++			p = dev_pagemap_alloc_block_buf(page_size, altmap);
++		else
++			p = vmemmap_alloc_block_buf(page_size, node);
+ 		if (!p)
+ 			return -ENOMEM;
  
-@@ -288,9 +287,8 @@ void __ref vmemmap_free(unsigned long start, unsigned long end)
- 		section_base = pfn_to_page(vmemmap_section_start(start));
- 		nr_pages = 1 << page_order;
- 
--		altmap = to_vmem_altmap((unsigned long) section_base);
--		if (altmap) {
--			vmem_altmap_free(altmap, nr_pages);
-+		if (dev_pagemap_free_pages(section_base, nr_pages)) {
-+			;
- 		} else if (PageReserved(page)) {
- 			/* allocated from bootmem */
- 			if (page_size < PAGE_SIZE) {
 diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index 4a837289f2ad..f5e51b941d19 100644
+index 4f79ee1ef501..9e1b489aa826 100644
 --- a/arch/x86/mm/init_64.c
 +++ b/arch/x86/mm/init_64.c
-@@ -804,12 +804,9 @@ static void __meminit free_pagetable(struct page *page, int order)
- {
- 	unsigned long magic;
- 	unsigned int nr_pages = 1 << order;
--	struct vmem_altmap *altmap = to_vmem_altmap((unsigned long) page);
+@@ -1371,7 +1371,10 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+ 		if (pmd_none(*pmd)) {
+ 			void *p;
  
--	if (altmap) {
--		vmem_altmap_free(altmap, nr_pages);
-+	if (dev_pagemap_free_pages(page, nr_pages))
- 		return;
--	}
+-			p = __vmemmap_alloc_block_buf(PMD_SIZE, node, altmap);
++			if (altmap)
++				p = dev_pagemap_alloc_block_buf(PMD_SIZE, altmap);
++			else
++				p = vmemmap_alloc_block_buf(PMD_SIZE, node);
+ 			if (p) {
+ 				pte_t entry;
  
- 	/* bootmem page has reserved flag */
- 	if (PageReserved(page)) {
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index f24e0c71d6a6..8f4d96f0e265 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -27,7 +27,6 @@ struct vmem_altmap {
- };
- 
- unsigned long vmem_altmap_offset(struct vmem_altmap *altmap);
--void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns);
- 
- #ifdef CONFIG_ZONE_DEVICE
- struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start);
-@@ -139,6 +138,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
- struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
- 		struct dev_pagemap *pgmap);
- static inline bool is_zone_device_page(const struct page *page);
-+bool dev_pagemap_free_pages(struct page *page, unsigned nr_pages);
- #else
- static inline void *devm_memremap_pages(struct device *dev,
- 		struct resource *res, struct percpu_ref *ref,
-@@ -158,6 +158,11 @@ static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
- {
- 	return NULL;
- }
-+
-+static inline bool dev_pagemap_free_pages(struct page *page, unsigned nr_pages)
-+{
-+	return false;
-+}
- #endif /* CONFIG_ZONE_DEVICE */
- 
- #if defined(CONFIG_DEVICE_PRIVATE) || defined(CONFIG_DEVICE_PUBLIC)
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 502fa107a585..1b7c5bc93162 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -470,9 +470,14 @@ unsigned long vmem_altmap_offset(struct vmem_altmap *altmap)
- 	return altmap->reserve + altmap->free;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index ea818ff739cd..856869e2c119 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2546,13 +2546,9 @@ pmd_t *vmemmap_pmd_populate(pud_t *pud, unsigned long addr, int node);
+ pte_t *vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node);
+ void *vmemmap_alloc_block(unsigned long size, int node);
+ struct vmem_altmap;
+-void *__vmemmap_alloc_block_buf(unsigned long size, int node,
++void *vmemmap_alloc_block_buf(unsigned long size, int node);
++void *dev_pagemap_alloc_block_buf(unsigned long size,
+ 		struct vmem_altmap *altmap);
+-static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
+-{
+-	return __vmemmap_alloc_block_buf(size, node, NULL);
+-}
+-
+ void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
+ int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+ 			       int node);
+diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+index 17acf01791fa..268b6c7dfdf4 100644
+--- a/mm/sparse-vmemmap.c
++++ b/mm/sparse-vmemmap.c
+@@ -74,7 +74,7 @@ void * __meminit vmemmap_alloc_block(unsigned long size, int node)
  }
  
--void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
-+bool dev_pagemap_free_pages(struct page *page, unsigned nr_pages)
+ /* need to make sure size is all the same during early stage */
+-static void * __meminit alloc_block_buf(unsigned long size, int node)
++void * __meminit vmemmap_alloc_block_buf(unsigned long size, int node)
  {
--	altmap->alloc -= nr_pfns;
-+	struct vmem_altmap *pgmap = to_vmem_altmap((uintptr_t)page);
-+
-+	if (!pgmap)
-+		return false;
-+	pgmap->alloc -= nr_pages;
-+	return true;
+ 	void *ptr;
+ 
+@@ -129,7 +129,7 @@ static unsigned long __meminit vmem_altmap_alloc(struct vmem_altmap *altmap,
+ 	return pfn + nr_align;
  }
  
- struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+-static void * __meminit altmap_alloc_block_buf(unsigned long size,
++void * __meminit dev_pagemap_alloc_block_buf(unsigned long size,
+ 		struct vmem_altmap *altmap)
+ {
+ 	unsigned long pfn, nr_pfns;
+@@ -153,15 +153,6 @@ static void * __meminit altmap_alloc_block_buf(unsigned long size,
+ 	return ptr;
+ }
+ 
+-/* need to make sure size is all the same during early stage */
+-void * __meminit __vmemmap_alloc_block_buf(unsigned long size, int node,
+-		struct vmem_altmap *altmap)
+-{
+-	if (altmap)
+-		return altmap_alloc_block_buf(size, altmap);
+-	return alloc_block_buf(size, node);
+-}
+-
+ void __meminit vmemmap_verify(pte_t *pte, int node,
+ 				unsigned long start, unsigned long end)
+ {
+@@ -178,7 +169,7 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node)
+ 	pte_t *pte = pte_offset_kernel(pmd, addr);
+ 	if (pte_none(*pte)) {
+ 		pte_t entry;
+-		void *p = alloc_block_buf(PAGE_SIZE, node);
++		void *p = vmemmap_alloc_block_buf(PAGE_SIZE, node);
+ 		if (!p)
+ 			return NULL;
+ 		entry = pfn_pte(__pa(p) >> PAGE_SHIFT, PAGE_KERNEL);
 -- 
 2.14.2
 
