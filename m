@@ -1,59 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 41A096B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 06:59:28 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j26so5466016pff.8
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 03:59:28 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id e9si2294607plk.690.2017.12.07.03.59.26
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8290D6B0038
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 07:07:38 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 96so3910305wrk.7
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 04:07:38 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id k184si3487244wmd.221.2017.12.07.04.07.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 03:59:26 -0800 (PST)
-Message-ID: <5A292D94.5000700@intel.com>
-Date: Thu, 07 Dec 2017 20:01:24 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        Thu, 07 Dec 2017 04:07:36 -0800 (PST)
+Date: Thu, 7 Dec 2017 13:07:35 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 1/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171207120735.GA24547@atrey.karlin.mff.cuni.cz>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <20171129144219.22867-2-mhocko@kernel.org>
 MIME-Version: 1.0
-Subject: Re: [PATCH v18 05/10] xbitmap: add more operations
-References: <201711301934.CDC21800.FSLtJFFOOVQHMO@I-love.SAKURA.ne.jp>	<5A210C96.8050208@intel.com>	<201712012202.BDE13557.MJFQLtOOHVOFSF@I-love.SAKURA.ne.jp>	<286AC319A985734F985F78AFA26841F739376DA1@shsmsx102.ccr.corp.intel.com>	<20171201172519.GA27192@bombadil.infradead.org> <201712031050.IAC64520.QVLFFOOJOSFtHM@I-love.SAKURA.ne.jp>
-In-Reply-To: <201712031050.IAC64520.QVLFFOOJOSFtHM@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171129144219.22867-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, willy@infradead.org
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>
 
-On 12/03/2017 09:50 AM, Tetsuo Handa wrote:
-> Matthew Wilcox wrote:
->> On Fri, Dec 01, 2017 at 03:09:08PM +0000, Wang, Wei W wrote:
->>> On Friday, December 1, 2017 9:02 PM, Tetsuo Handa wrote:
->>>> If start == end is legal,
->>>>
->>>>     for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
->>>>
->>>> makes this loop do nothing because 10 < 10 is false.
->>> How about "start <= end "?
->> Don't ask Tetsuo for his opinion, write some userspace code that uses it.
->>
-> Please be sure to prepare for "end == -1UL" case, for "start < end" will become
-> true when "start = (start | (IDA_BITMAP_BITS - 1)) + 1" made "start == 0" due to
-> overflow.
+Hi!
 
-I think there is one more corner case with this API: searching for bit 
-"1" from [0, ULONG_MAX] while no bit is set in the range, there appear 
-to be no possible value that we can return (returning "end + 1" will be 
-"ULONG_MAX + 1", which is 0)
-I plan to make the "end" be exclusive of the searching, that is, [start, 
-end), and return "end" if no such bit is found.
+> MAP_FIXED is used quite often to enforce mapping at the particular
+> range. The main problem of this flag is, however, that it is inherently
+> dangerous because it unmaps existing mappings covered by the requested
+> range. This can cause silent memory corruptions. Some of them even with
+> serious security implications. While the current semantic might be
+> really desiderable in many cases there are others which would want to
+> enforce the given range but rather see a failure than a silent memory
+> corruption on a clashing range. Please note that there is no guarantee
+> that a given range is obeyed by the mmap even when it is free - e.g.
+> arch specific code is allowed to apply an alignment.
+> 
+> Introduce a new MAP_FIXED_SAFE flag for mmap to achieve this behavior.
+> It has the same semantic as MAP_FIXED wrt. the given address request
 
-For cases like [16, 16), returning 16 doesn't mean bit 16 is 1 or 0, it 
-simply means there is no bits to search in the given range, since 16 is 
-exclusive.
+Could we get some better name? Functionality seems reasonable, but
+_SAFE suffix does not really explain what is going on to the user.
 
-Please let me know if you have a different thought.
+MAP_ADD_FIXED ?
 
-Best,
-Wei
+								Pavel
+
+-- 
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
