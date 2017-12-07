@@ -1,39 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EE2386B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 11:25:28 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id e70so3630042wmc.6
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 08:25:28 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 59BCE6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 11:30:12 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f8so5528243pgs.9
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 08:30:12 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p13si4100182wre.321.2017.12.07.08.25.27
+        by mx.google.com with ESMTPS id w9si2445279plp.783.2017.12.07.08.30.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 08:25:27 -0800 (PST)
-Date: Thu, 7 Dec 2017 17:25:25 +0100
+        Thu, 07 Dec 2017 08:30:07 -0800 (PST)
+Date: Thu, 7 Dec 2017 17:30:03 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: terminate shrink_slab loop if signal is pending
-Message-ID: <20171207162525.GL20234@dhcp22.suse.cz>
-References: <20171206192026.25133-1-surenb@google.com>
- <20171207095223.GB574@jagdpanzerIV>
- <20171207095835.GE20234@dhcp22.suse.cz>
- <CAJuCfpEqReQBLXWX9mG9fm9wgMr_4WMHfxHe8GgG-1+sYuPkXA@mail.gmail.com>
+Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
+Message-ID: <20171207163003.GM20234@dhcp22.suse.cz>
+References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com>
+ <20171207113548.GG20234@dhcp22.suse.cz>
+ <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJuCfpEqReQBLXWX9mG9fm9wgMr_4WMHfxHe8GgG-1+sYuPkXA@mail.gmail.com>
+In-Reply-To: <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Murray <timmurray@google.com>, Todd Kjos <tkjos@google.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: rientjes@google.com, akpm@linux-foundation.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 07-12-17 07:46:07, Suren Baghdasaryan wrote:
-> I'm, terribly sorry. My original code was checking for additional
-> condition which I realized is not useful here because it would mean
-> the signal was already processed. Should have missed the error while
-> removing it. Will address Michal's comments and fix the problem.
+On Fri 08-12-17 00:44:11, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > David, could you test with this patch please?
+> 
+> Even if this patch solved David's case, you need to update
+> 
+> 	 * tsk_is_oom_victim() cannot be set from under us
+> 	 * either because current->mm is already set to NULL
+> 	 * under task_lock before calling mmput and oom_mm is
+> 	 * set not NULL by the OOM killer only if current->mm
+> 	 * is found not NULL while holding the task_lock.
+> 
+> part as well, for it is the explanation of why
+> tsk_is_oom_victim() test was expected to work.
 
-yes, rebasing at last moment tend to screw things... No worries, I would
-be more worried about the general approach here and its documentataion.
+Yes, the same applies for mm_is_oom_victim. I will fixup s@tsk_@mm_@
+here.
+
+> Also, do we need to do
+> 
+>   set_bit(MMF_OOM_SKIP, &mm->flags);
+> 
+> if mm_is_oom_victim(mm) == false?
+
+I do not think we really need to set MMF_OOM_SKIP if we are not going to
+synchronize.
+
+> exit_mmap() is called means that nobody can reach this mm
+> except ->signal->oom_mm, and mm_is_oom_victim(mm) == false
+> means that this mm cannot be reached by ->signal->oom_mm .
+>
+> Then, I think we do not need to set MMF_OOM_SKIP on this mm
+> at exit_mmap() if mm_is_oom_victim(mm) == false.
+
+yes. I will fold the following in if this turned out to really address
+David's issue. But I suspect this will be the case considering the NULL
+pmd in the report which would suggest racing with free_pgtable...
+
+Thanks for the review!
+
+---
+diff --git a/mm/mmap.c b/mm/mmap.c
+index d00a06248ef1..e63b7a576670 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3004,7 +3004,6 @@ void exit_mmap(struct mm_struct *mm)
+ 	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+ 	unmap_vmas(&tlb, vma, 0, -1);
+ 
+-	set_bit(MMF_OOM_SKIP, &mm->flags);
+ 	if (unlikely(mm_is_oom_victim(mm))) {
+ 		/*
+ 		 * Wait for oom_reap_task() to stop working on this
+@@ -3012,12 +3011,13 @@ void exit_mmap(struct mm_struct *mm)
+ 		 * calling down_read(), oom_reap_task() will not run
+ 		 * on this "mm" post up_write().
+ 		 *
+-		 * tsk_is_oom_victim() cannot be set from under us
++		 * mm_is_oom_victim() cannot be set from under us
+ 		 * either because current->mm is already set to NULL
+ 		 * under task_lock before calling mmput and oom_mm is
+ 		 * set not NULL by the OOM killer only if current->mm
+ 		 * is found not NULL while holding the task_lock.
+ 		 */
++		set_bit(MMF_OOM_SKIP, &mm->flags);
+ 		down_write(&mm->mmap_sem);
+ 		up_write(&mm->mmap_sem);
+ 	}
 -- 
 Michal Hocko
 SUSE Labs
