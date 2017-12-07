@@ -1,55 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8290D6B0038
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 07:07:38 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 96so3910305wrk.7
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 04:07:38 -0800 (PST)
-Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
-        by mx.google.com with ESMTPS id k184si3487244wmd.221.2017.12.07.04.07.36
+	by kanga.kvack.org (Postfix) with ESMTP id 3A34A6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 07:22:54 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id w95so4040570wrc.20
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 04:22:54 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n47si3897104wrn.542.2017.12.07.04.22.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 04:07:36 -0800 (PST)
-Date: Thu, 7 Dec 2017 13:07:35 +0100
-From: Pavel Machek <pavel@ucw.cz>
-Subject: Re: [PATCH 1/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171207120735.GA24547@atrey.karlin.mff.cuni.cz>
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <20171129144219.22867-2-mhocko@kernel.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Dec 2017 04:22:52 -0800 (PST)
+Date: Thu, 7 Dec 2017 13:22:49 +0100
+From: Michal Hocko <mhocko@suse.com>
+Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second
+ allocation
+Message-ID: <20171207122249.GI20234@dhcp22.suse.cz>
+References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20171207115127.GH20234@dhcp22.suse.cz>
+ <201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171129144219.22867-2-mhocko@kernel.org>
+In-Reply-To: <201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
 
-Hi!
-
-> MAP_FIXED is used quite often to enforce mapping at the particular
-> range. The main problem of this flag is, however, that it is inherently
-> dangerous because it unmaps existing mappings covered by the requested
-> range. This can cause silent memory corruptions. Some of them even with
-> serious security implications. While the current semantic might be
-> really desiderable in many cases there are others which would want to
-> enforce the given range but rather see a failure than a silent memory
-> corruption on a clashing range. Please note that there is no guarantee
-> that a given range is obeyed by the mmap even when it is free - e.g.
-> arch specific code is allowed to apply an alignment.
+On Thu 07-12-17 20:59:34, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Thu 07-12-17 20:42:20, Tetsuo Handa wrote:
+> > > Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
+> > > count causes random kernel panics when an OOM victim which consumed memory
+> > > in a way the OOM reaper does not help was selected by the OOM killer [1].
+> > > Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
+> > > oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
+> > > to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
+> > > victim's mm were not able to try allocation from memory reserves after the
+> > > OOM reaper gave up reclaiming memory.
+> > > 
+> > > Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
+> > > last second allocation attempt.
+> > > 
+> > > [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
+> > > 
+> > > Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
+> > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> > > Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
+> > > Acked-by: Michal Hocko <mhocko@suse.com>
+> > 
+> > I haven't acked _this_ patch! I will have a look but the patch is
+> > different enough from the original that keeping any acks or reviews is
+> > inappropriate. Do not do it again!
 > 
-> Introduce a new MAP_FIXED_SAFE flag for mmap to achieve this behavior.
-> It has the same semantic as MAP_FIXED wrt. the given address request
+> I see. But nothing has changed except that this is called before entering
+> into the OOM killer. I assumed that this is a trivial change.
 
-Could we get some better name? Functionality seems reasonable, but
-_SAFE suffix does not really explain what is going on to the user.
-
-MAP_ADD_FIXED ?
-
-								Pavel
-
+Let the reviewers judge and have them add their acks/reviewed-bys again.
 -- 
-(english) http://www.livejournal.com/~pavelmachek
-(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blog.html
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
