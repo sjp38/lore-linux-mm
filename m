@@ -1,25 +1,25 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 851326B025F
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 01:30:52 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id k104so3450718wrc.19
-        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 22:30:52 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m128sor1349721wmm.76.2017.12.06.22.30.51
+	by kanga.kvack.org (Postfix) with ESMTP id C790B6B0253
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 02:03:35 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id m6so3518348wrf.1
+        for <linux-mm@kvack.org>; Wed, 06 Dec 2017 23:03:35 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k11sor2299682wrh.82.2017.12.06.23.03.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 06 Dec 2017 22:30:51 -0800 (PST)
-Date: Thu, 7 Dec 2017 07:30:48 +0100
+        Wed, 06 Dec 2017 23:03:33 -0800 (PST)
+Date: Thu, 7 Dec 2017 08:03:30 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv4 3/4] x86/boot/compressed/64: Introduce
- place_trampoline()
-Message-ID: <20171207063048.w46rrq2euzhtym3j@gmail.com>
+Subject: Re: [PATCHv4 4/4] x86/boot/compressed/64: Handle 5-level paging boot
+ if kernel is above 4G
+Message-ID: <20171207070330.dreqarxi4jvipqa7@gmail.com>
 References: <20171205135942.24634-1-kirill.shutemov@linux.intel.com>
- <20171205135942.24634-4-kirill.shutemov@linux.intel.com>
+ <20171205135942.24634-5-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171205135942.24634-4-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171205135942.24634-5-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
@@ -27,6 +27,12 @@ Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutr
 
 
 * Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+
+> This patch addresses a shortcoming in current boot process on machines
+> that supports 5-level paging.
+
+s/in current boot process
+ /in the current boot process
 
 > If a bootloader enables 64-bit mode with 4-level paging, we might need to
 > switch over to 5-level paging. The switching requires disabling paging.
@@ -39,153 +45,169 @@ s/The switching requires disabling paging.
 > this), we would loose control as soon as paging is disabled as code
 > becomes unreachable.
 
-Yeah, so instead of the double 'as' which is syntactically right but a bit 
-confusing to read, how about something like:
+Same suggestion for this paragraph as for the previous patch.
 
-  But if the bootloader put the kernel above 4G (not sure if anybody does
-  this), we would loose control as soon as paging is disabled, because the
-  code becomes unreachable to the CPU.
+> This patch implements a trampoline in lower memory to handle this
+> situation.
+> 
+> We only need the memory for very short time, until main kernel image
+> would setup its own page tables.
 
-?
+s/We only need the memory for very short time
+ /We only need this memory for a very short time
 
-> To handle the situation, we need a trampoline in lower memory that would
-> take care about switching on 5-level paging.
+s/until main kernel image would setup its own page tables.
+ /until the main kernel image sets up its own page tables.
 
-s/would take care about
- /would take care of
+> We go through trampoline even if we don't have to: if we're already in
+> 5-level paging mode or if we don't need to switch to it. This way the
+> trampoline gets tested on every boot.
 
-> Apart from the trampoline code itself we also need a place to store top
-> level page table in lower memory as we don't have a way to load 64-bit
-> value into CR3 from 32-bit mode. We only really need 8-bytes there as we
-> only use the very first entry of the page table. But we allocate whole
-> page anyway.
+s/We go through trampoline
+ /We go through the trampoline
 
-s/64-bit value
- /64-bit values
+>  	/*
+>  	 * At this point we are in long mode with 4-level paging enabled,
+> +	 * but we might want to enable 5-level paging.
+>  	 *
+> +	 * The problem is that we cannot do it directly. Setting CR.LA57
+> +	 * in the long mode would trigger #GP. So we need to switch off
+> +	 * long mode and paging first.
 
-s/into CR3 from 32-bit mode
- /into CR3 in 32-bit mode
+s/Setting CR.LA57 in the long mode
+ /Setting CR.LA57 in long mode
 
-s/We only really need 8-bytes there
- /We only really need 8 bytes there
+Also, why only say 'CR', why not 'CR4'?
 
-s/But we allocate whole page anyway.
- /But we allocate a whole page anyway.
+> +	 *
+> +	 * We also need a trampoline in lower memory to switch over from
+> +	 * 4- to 5-level paging for cases when bootloader put kernel above
+> +	 * 4G, but didn't enable 5-level paging for us.
 
-> We cannot have code in the same page as page table because there's
-> hazard that a CPU would read page table speculatively and get confused
-> seeing garbage.
+s/for cases when bootloader put kernel above 4G
+ /for cases when the bootloader puts the kernel above 4G
+
+> +	 *
+> +	 * For the trampoline, we need top page table in lower memory as
+> +	 * we don't have a way to load 64-bit value into CR3 from 32-bit
+> +	 * mode.
+
+s/we need top page table in lower memory
+ /we need the top page table to reside in lower memory
+
+s/load 64-bit value into CR3 from 32-bit mode
+ /load 64-bit values into CR3 in 32-bit mode
+
+> +	 *
+> +	 * We go though the trampoline even if we don't have to: if we're
+> +	 * already in 5-level paging mode or if we don't need to switch to
+> +	 * it. This way the trampoline code gets tested on every boot.
+
+>  	/*
+> +	 * Load address of trampoline_return into RDI.
+> +	 * It will be used by trampoline to return to main code.
+
+s/Load address of trampoline_return
+ /Load the address of trampoline_return
+
+s/It will be used by trampoline to return to main code
+ /It will be used by the trampoline to return to the main code
+
+> +trampoline_return:
+> +	/* Restore stack, 32-bit trampoline uses own stack */
+> +	leaq	boot_stack_end(%rbx), %rsp
+
+This phrasing would be a bit clearer:
+
+	/* Restore the stack, the 32-bit trampoline uses its own stack */
+
+> +/*
+> + * This is 32-bit trampoline that will be copied over to low memory.
+
+s/This is 32-bit trampoline that will be
+ /This is the 32-bit trampoline that will be
+
+> + *
+> + * RDI contains return address (might be above 4G).
+
+s/RDI contains return address (might be above 4G)
+ /RDI contains the return address (might be above 4G)
+
+> + * ECX contains the base address of trampoline memory.
+
+s/of trampoline memory
+ /of the trampoline memory
+
+> +	/* For 5-level paging, point CR3 to trampoline's new top level page table */
+
+s/point CR3 to trampoline's new top level page table
+ /point CR3 to the trampoline's new top level page table
+
+> +	testl	$1, %ecx
+> +	jz	1f
+> +	leal	TRAMPOLINE_32BIT_PGTABLE_OFF (%edx), %eax
+
+BTW., could you please spell out 'OFFSET'? 'OFF' reminds me of the ON/OFF pattern. 
+The constant is hopelessly long anyway ;-)
+
+Also:
+
+s/TRAMPOLINE_32BIT_PGTABLE_OFF (%edx)
+ /TRAMPOLINE_32BIT_PGTABLE_OFF(%edx)
+
+(This applies to the rest of the patch as well.)
+
+> -	/* Enable PAE and LA57 mode */
+> +	/* Enable PAE and LA57 (if required) modes */
+
+A bit more clarity:
+
+s/modes
+ /paging modes
+
+> +	/* Calculate address of paging_enabled once we are in trampoline */
+
+Please use the same function name reference as I suggested for the previous patch.
+
+s/once we are in trampoline
+ /once we are executing in the trampoline
+
+>  	/* Prepare stack for far return to Long Mode */
+
+s/Prepare stack
+ /Prepare the stack
+
+>  	/* Enable paging back */
+
+s/Enable paging back
+ /Enable paging again
+
+> +	.code64
+> +paging_enabled:
+> +	/* Return from the trampoline */
+> +	jmp	*%rdi
+> +
+> +	/*
+> +	 * Bound size of trampoline code.
+> +	 * It would fail to compile if code of the trampoline would grow
+> +	 * beyond TRAMPOLINE_32BIT_CODE_SIZE bytes.
 
 How about:
 
-  We cannot have the code in the same page as the page table because there's
-  a risk that a CPU would read the page table speculatively and get confused
-  by seeing garbage. It's never a good idea to have junk in PTE entries
-  visible to the CPU.
+	 * The trampoline code has a size limit.
+	 * Make sure we fail to compile if the trampoline code grows
+	 * beyond TRAMPOLINE_32BIT_CODE_SIZE bytes.
 
-? (Assuming it's the PTEs that are stored in that page.)
+?
 
-> We also need a small stack in the trampoline to re-enable long mode via
-> long return. But stack and code can share the page just fine.
-
-BTW., I'm not sure this is necessarily a good idea: it means writable+executable 
-memory, which we generally try to avoid. How complicated would it be to have them 
-separate?
-
-> This patch introduces paging_prepare() that checks if we need to enable
-> 5-level paging and then finds a right spot in lower memory for the
-> trampoline. Then it copies trampoline code there and setups new top
-> level page table for 5-level paging.
-
-s/Then it copies trampoline code there
- /Then it copies the trampoline code there
-
-s/and setups new top level page table
- /and sets up the new top level page table
-
-> At this point we do all the preparation, but not yet use trampoline.
-> It will be done in the following patch.
-
-s/but not yet use trampoline
- /but don't use trampoline yet
-
-> The trampoline will be used even on 4-level paging machine. This way we
-> will get better coverage and keep trampoline code in shape.
-
-s/even on 4-level paging machine
- /even on 4-level paging machines
-
-s/better coverage
- /better test coverage
-
-s/and keep trampoline code in shape
- /and keep the trampoline code in shape
-
-> +	/*
-> +	 * paging_prepare() would setup trampoline and check if we need to
-> +	 * enable 5-level paging.
-
-s/would setup trampoline
- /would set up the trampoline
-
->  	 *
-> +	 * Address of the trampoline is returned in RAX. The bit 0 is used
-> +	 * to encode if we need to enabled 5-level paging.
->  	 *
-> +	 * RSI holds real mode data and need to be preserved across
-> +	 * a function call.
->  	 */
-
-
-s/The bit 0
- /Bit 0
-
-s/if we need to enabled 5-level paging
- /if we need to enable 5-level paging
-
-> +	/* Save trampoline address in RCX */
-
-s/Save trampoline address
- /Save the trampoline address
-
->  	/* Setup data and stack segments */
+> +	.code32
+>  no_longmode:
+>  	/* This isn't an x86-64 CPU so hang */
 
 While at it:
 
-s/Setup
- /Set up
-
-> +	/* Check if la57 is desired and supported */
-
-Please capitalize LA57 consistently!
-
-> +	/*
-> +	 * Find a suitable spot for the trampoline.
-> +	 * Code is based on reserve_bios_regions().
-
-s/Code is based on
- /This code is based on
-
-> +	/*
-> +	 * For 5-level paging, setup current CR3 as the first and
-> +	 * the only entry in a new top level page table.
-
-s/setup
- /set up
-
-> +	 *
-> +	 * For 4-level paging, trampoline wouldn't touch CR3.
-> +	 * KASLR relies on CR3 pointing to _pgtable.
-> +	 * See initialize_identity_maps.
-
-Please refer to functions with '...()'
-
-> +	 */
-> +	if (l5_required) {
-> +		trampoline[TRAMPOLINE_32BIT_PGTABLE_OFF] =
-> +			__native_read_cr3() + _PAGE_TABLE_NOENC;
-
-Please don't break lines nonsensically ...
+s/This isn't an x86-64 CPU so hang
+ /This isn't an x86-64 CPU, so hang intentionally, we cannot continue:
 
 Thanks,
 
