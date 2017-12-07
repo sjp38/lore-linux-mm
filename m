@@ -1,57 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EC69D6B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:53:27 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id y200so9080358itc.7
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:53:27 -0800 (PST)
-Received: from ale.deltatee.com (ale.deltatee.com. [207.54.116.67])
-        by mx.google.com with ESMTPS id n71si3984309ioe.331.2017.12.07.11.53.26
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 25C886B0069
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 14:57:38 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id j3so6474556pfh.16
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 11:57:38 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f23si989424pgv.509.2017.12.07.11.57.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 07 Dec 2017 11:53:26 -0800 (PST)
-References: <20171207150840.28409-1-hch@lst.de>
- <20171207150840.28409-15-hch@lst.de>
-From: Logan Gunthorpe <logang@deltatee.com>
-Message-ID: <6260792f-cf6f-6b98-75a5-9e174107571a@deltatee.com>
-Date: Thu, 7 Dec 2017 12:53:24 -0700
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Dec 2017 11:57:37 -0800 (PST)
+Date: Thu, 7 Dec 2017 11:57:27 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171207195727.GA26792@bombadil.infradead.org>
+References: <20171129144219.22867-1-mhocko@kernel.org>
+ <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+ <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz>
+ <20171201152640.GA3765@rei>
+ <87wp20e9wf.fsf@concordia.ellerman.id.au>
+ <20171206045433.GQ26021@bombadil.infradead.org>
+ <20171206070355.GA32044@bombadil.infradead.org>
+ <87bmjbks4c.fsf@concordia.ellerman.id.au>
+ <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171207150840.28409-15-hch@lst.de>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-Subject: Re: [PATCH 14/14] memremap: RCU protect data returned from
- dev_pagemap lookups
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>
-Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, linux-nvdimm@lists.01.org, linux-mm@kvack.org
+To: Kees Cook <keescook@chromium.org>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@kernel.org>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Pavel Machek <pavel@ucw.cz>
 
+On Thu, Dec 07, 2017 at 11:14:27AM -0800, Kees Cook wrote:
+> On Wed, Dec 6, 2017 at 9:46 PM, Michael Ellerman <mpe@ellerman.id.au> wrote:
+> > Matthew Wilcox <willy@infradead.org> writes:
+> >> So, just like we currently say "exactly one of MAP_SHARED or MAP_PRIVATE",
+> >> we could add a new paragraph saying "at most one of MAP_FIXED or
+> >> MAP_REQUIRED" and "any of the following values".
+> >
+> > MAP_REQUIRED doesn't immediately grab me, but I don't actively dislike
+> > it either :)
+> >
+> > What about MAP_AT_ADDR ?
+> >
+> > It's short, and says what it does on the tin. The first argument to mmap
+> > is actually called "addr" too.
+> 
+> "FIXED" is supposed to do this too.
+> 
+> Pavel suggested:
+> 
+> MAP_ADD_FIXED
+> 
+> (which is different from "use fixed", and describes why it would fail:
+> can't add since it already exists.)
+> 
+> Perhaps "MAP_FIXED_NEW"?
+> 
+> There has been a request to drop "FIXED" from the name, so these:
+> 
+> MAP_FIXED_NOCLOBBER
+> MAP_FIXED_NOREPLACE
+> MAP_FIXED_ADD
+> MAP_FIXED_NEW
+> 
+> Could be:
+> 
+> MAP_NOCLOBBER
+> MAP_NOREPLACE
+> MAP_ADD
+> MAP_NEW
+> 
+> and we still have the unloved, but acceptable:
+> 
+> MAP_REQUIRED
+> 
+> My vote is still for "NOREPLACE" or "NOCLOBBER" since it's very
+> specific, though "NEW" is pretty clear too.
 
-
-On 07/12/17 08:08 AM, Christoph Hellwig wrote:
-> Take the RCU critical sections into the callers of to_vmem_altmap so that
-> we can read the page map inside the critical section.  Also rename the
-> remaining helper to __lookup_dev_pagemap to fit into the current naming
-> scheme.
-I'm not saying I disagree, but what's the reasoning behind the double 
-underscore prefix to the function?
-
-> +struct dev_pagemap *__lookup_dev_pagemap(struct page *start_page)
-> +{
-> +	struct dev_pagemap *pgmap;
-> +
-> +	pgmap = radix_tree_lookup(&pgmap_radix, page_to_pfn(start_page));
-> +	if (!pgmap || !pgmap->base_pfn)
-> +		return NULL;
-> +	return pgmap;
-> +}
-
-I'm also wondering why we are still looking up the dev_pagemap via the 
-radix tree when struct page already has a pointer to it (page->pgmap).
-
-Thanks,
-
-Logan
+How about MAP_NOFORCE?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
