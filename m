@@ -1,70 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id AEFFF6B0260
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 10:46:10 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id y15so4274928wrc.6
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 07:46:10 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 64sor2927722wrs.78.2017.12.07.07.46.09
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 30AA46B025E
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 11:06:43 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id w141so3574271ywa.2
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 08:06:43 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id m84si786371ybc.812.2017.12.07.08.06.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 07 Dec 2017 07:46:09 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 07 Dec 2017 08:06:42 -0800 (PST)
+Date: Thu, 7 Dec 2017 11:06:34 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+Message-ID: <20171207160634.il3vt5d6a4v5qesi@thunk.org>
+References: <20171206004159.3755-1-willy@infradead.org>
+ <20171206004159.3755-73-willy@infradead.org>
+ <20171206012901.GZ4094@dastard>
+ <20171206020208.GK26021@bombadil.infradead.org>
+ <20171206031456.GE4094@dastard>
+ <20171206044549.GO26021@bombadil.infradead.org>
+ <20171206084404.GF4094@dastard>
+ <20171206140648.GB32044@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171207095835.GE20234@dhcp22.suse.cz>
-References: <20171206192026.25133-1-surenb@google.com> <20171207095223.GB574@jagdpanzerIV>
- <20171207095835.GE20234@dhcp22.suse.cz>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Thu, 7 Dec 2017 07:46:07 -0800
-Message-ID: <CAJuCfpEqReQBLXWX9mG9fm9wgMr_4WMHfxHe8GgG-1+sYuPkXA@mail.gmail.com>
-Subject: Re: [PATCH] mm: terminate shrink_slab loop if signal is pending
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206140648.GB32044@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Murray <timmurray@google.com>, Todd Kjos <tkjos@google.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-I'm, terribly sorry. My original code was checking for additional
-condition which I realized is not useful here because it would mean
-the signal was already processed. Should have missed the error while
-removing it. Will address Michal's comments and fix the problem.
+On Wed, Dec 06, 2017 at 06:06:48AM -0800, Matthew Wilcox wrote:
+> > Unfortunately for you, I don't find arguments along the lines of
+> > "lockdep will save us" at all convincing.  lockdep already throws
+> > too many false positives to be useful as a tool that reliably and
+> > accurately points out rare, exciting, complex, intricate locking
+> > problems.
+> 
+> But it does reliably and accurately point out "dude, you forgot to take
+> the lock".  It's caught a number of real problems in my own testing that
+> you never got to see.
 
-On Thu, Dec 7, 2017 at 1:58 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Thu 07-12-17 18:52:23, Sergey Senozhatsky wrote:
->> On (12/06/17 11:20), Suren Baghdasaryan wrote:
->> > Slab shrinkers can be quite time consuming and when signal
->> > is pending they can delay handling of the signal. If fatal
->> > signal is pending there is no point in shrinking that process
->> > since it will be killed anyway. This change checks for pending
->> > fatal signals inside shrink_slab loop and if one is detected
->> > terminates this loop early.
->> >
->> > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
->> > ---
->> >  mm/vmscan.c | 7 +++++++
->> >  1 file changed, 7 insertions(+)
->> >
->> > diff --git a/mm/vmscan.c b/mm/vmscan.c
->> > index c02c850ea349..69296528ff33 100644
->> > --- a/mm/vmscan.c
->> > +++ b/mm/vmscan.c
->> > @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->> >                     .memcg = memcg,
->> >             };
->> >
->> > +           /*
->> > +            * We are about to die and free our memory.
->> > +            * Stop shrinking which might delay signal handling.
->> > +            */
->> > +           if (unlikely(fatal_signal_pending(current))
->>
->> -               if (unlikely(fatal_signal_pending(current))
->> +               if (unlikely(fatal_signal_pending(current)))
->
-> Heh, well, spotted. This begs a question how this has been tested, if at
-> all?
-> --
-> Michal Hocko
-> SUSE Labs
+The problem is that if it has too many false positives --- and it's
+gotten *way* worse with the completion callback "feature", people will
+just stop using Lockdep as being too annyoing and a waste of developer
+time when trying to figure what is a legitimate locking bug versus
+lockdep getting confused.
+
+<Rant>I can't even disable the new Lockdep feature which is throwing
+lots of new false positives --- it's just all or nothing.</Rant>
+
+Dave has just said he's already stopped using Lockdep, as a result.
+
+     	      	   			      - Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
