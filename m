@@ -1,133 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A51C6B0069
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 03:50:26 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id f9so6901278qtf.6
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 00:50:26 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q4sor3369812qta.148.2017.12.07.00.50.24
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CF366B0038
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 04:52:35 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id a10so4813773pgq.3
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 01:52:35 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f19sor1819306plj.59.2017.12.07.01.52.28
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Dec 2017 00:50:24 -0800 (PST)
+        Thu, 07 Dec 2017 01:52:28 -0800 (PST)
+Date: Thu, 7 Dec 2017 18:52:23 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm: terminate shrink_slab loop if signal is pending
+Message-ID: <20171207095223.GB574@jagdpanzerIV>
+References: <20171206192026.25133-1-surenb@google.com>
 MIME-Version: 1.0
-In-Reply-To: <20171207041459.64myz37qwmjkoxu5@wfg-t540p.sh.intel.com>
-References: <5a20831e./7a6H+akjTcq4WCk%akpm@linux-foundation.org>
- <20171201122928.GD8365@quack2.suse.cz> <20171206170927.5d40106be6fdc6dc88354b65@linux-foundation.org>
- <20171207041459.64myz37qwmjkoxu5@wfg-t540p.sh.intel.com>
-From: Miklos Szeredi <miklos@szeredi.hu>
-Date: Thu, 7 Dec 2017 09:50:23 +0100
-Message-ID: <CAJfpegsE-jUOWjpMVQv76cDxp3aLpAfxrMa-vutMFa0KhVKrHw@mail.gmail.com>
-Subject: Re: [patch 15/15] mm: add strictlimit knob
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171206192026.25133-1-surenb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Fengguang Wu <fengguang.wu@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Maxim Patlasov <MPatlasov@parallels.com>, hmh@hmh.eng.br, mel@csn.ul.ie, t.artem@lycos.com, Theodore Ts'o <tytso@mit.edu>, Jens Axboe <axboe@kernel.dk>, linux-fsdevel@vger.kernel.org
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-On Thu, Dec 7, 2017 at 5:14 AM, Fengguang Wu <fengguang.wu@intel.com> wrote:
-> CC fuse maintainer, too.
->
-> On Wed, Dec 06, 2017 at 05:09:27PM -0800, Andrew Morton wrote:
->>
->> On Fri, 1 Dec 2017 13:29:28 +0100 Jan Kara <jack@suse.cz> wrote:
->>
->>> On Thu 30-11-17 14:15:58, Andrew Morton wrote:
->>> > From: Maxim Patlasov <MPatlasov@parallels.com>
->>> > Subject: mm: add strictlimit knob
->>> >
->>> > The "strictlimit" feature was introduced to enforce per-bdi dirty
->>> > limits
->>> > for FUSE which sets bdi max_ratio to 1% by default:
->>> >
->>> > http://article.gmane.org/gmane.linux.kernel.mm/105809
->>> >
->>> > However the feature can be useful for other relatively slow or
->>> > untrusted
->>> > BDIs like USB flash drives and DVD+RW.  The patch adds a knob to enable
->>> > the feature:
->>> >
->>> > echo 1 > /sys/class/bdi/X:Y/strictlimit
->>> >
->>> > Being enabled, the feature enforces bdi max_ratio limit even if global
->>> > (10%) dirty limit is not reached.  Of course, the effect is not visible
->>> > until /sys/class/bdi/X:Y/max_ratio is decreased to some reasonable
->>> > value.
->>>
->>> In principle I have nothing against this and the usecase sounds
->>> reasonable
->>> (in fact I believe the lack of a feature like this is one of reasons why
->>> desktop automounters usually mount USB devices with 'sync' mount option).
->>> So feel free to add:
->>>
->>> Reviewed-by: Jan Kara <jack@suse.cz>
->>>
->>
->> Cc Jens, who may be vaguely interested in plans to finally merge this
->> three-year-old patch?
->>
->>
->>
->> From: Maxim Patlasov <MPatlasov@parallels.com>
->> Subject: mm: add strictlimit knob
->>
->> The "strictlimit" feature was introduced to enforce per-bdi dirty limits
->> for FUSE which sets bdi max_ratio to 1% by default:
->>
->> http://article.gmane.org/gmane.linux.kernel.mm/105809
->
->
-> That link is invalid for now, possibly due to the gmane site rebuild.
-> I find an email thread here which looks relevant:
->
-> https://sourceforge.net/p/fuse/mailman/message/35254883/
->
-> Where Maxim has an interesting point:
->
->        > Did any one try increasing the limit and did see any better/worse
->> performance ?
->
->        We've used 20% as default value in OpenVZ kernel for a long while (1%
-> was not enough to saturate our distributed parallel storage).
->
-> So the knob will also enable people to _disable_ the 1% fuse limit to
-> increase performance.
->
-> So people can use the exposed knob in 2 ways to fit their needs, which
-> is in general a good thing.
->
-> However the comment in wb_position_ratio() says
->
->                        Without strictlimit feature, fuse writeback may
->          * consume arbitrary amount of RAM because it is accounted in
->          * NR_WRITEBACK_TEMP which is not involved in calculating
-> "nr_dirty".
->
-> How dangerous would that be if some user disabled the 1% fuse limit
-> through the exposed knob? Will the NR_WRITEBACK_TEMP effect go far
-> beyond the user's expectation (20% max dirty limit)?
->
-> Looking at the fuse code, NR_WRITEBACK_TEMP will grow proportional to
-> WB_WRITEBACK, which should be throttled when bdi_write_congested().
-> The congested flag will be set on
->
->        fuse_conn.num_background >= fuse_conn.congestion_threshold
->        So it looks NR_WRITEBACK_TEMP will somehow be throttled. Just that
-> it's not included in the 20% dirty limit.
+On (12/06/17 11:20), Suren Baghdasaryan wrote:
+> Slab shrinkers can be quite time consuming and when signal
+> is pending they can delay handling of the signal. If fatal
+> signal is pending there is no point in shrinking that process
+> since it will be killed anyway. This change checks for pending
+> fatal signals inside shrink_slab loop and if one is detected
+> terminates this loop early.
+> 
+> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> ---
+>  mm/vmscan.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c02c850ea349..69296528ff33 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  			.memcg = memcg,
+>  		};
+>  
+> +		/*
+> +		 * We are about to die and free our memory.
+> +		 * Stop shrinking which might delay signal handling.
+> +		 */
+> +		if (unlikely(fatal_signal_pending(current))
 
-Only balance_dirty_pages_ratelimited() is going to limit the
-generation of dirty pages, I don't think congestion flags will do
-that.  And (AFAICS) for fuse only  BDI_CAP_STRICTLIMIT will allow
-accounting temp writeback pages when throttling dirty page generation.
-So without BDI_CAP_STRICTLIMIT kernel memory use of fuse may explode.
-So we probably need a way to force BDI_CAP_STRICTLIMIT (i.e. do not
-permit disabling it for fuse).
+-               if (unlikely(fatal_signal_pending(current))
++               if (unlikely(fatal_signal_pending(current)))
 
-Please correct me if I'm wrong in any of the above statements, it's
-been a long time I've taken a detailed look at the page writeback
-mechanisms.
-
-Thanks,
-Miklos
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
