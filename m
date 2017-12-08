@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0A7A16B025E
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 11:16:19 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id o16so1187878wmf.4
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 08:16:18 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C57D6B025E
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 11:16:20 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id o20so6096238wro.8
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 08:16:20 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w5sor4071623wrg.83.2017.12.08.08.16.16
+        by mx.google.com with SMTPS id 190sor543339wmg.58.2017.12.08.08.16.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Dec 2017 08:16:16 -0800 (PST)
+        Fri, 08 Dec 2017 08:16:18 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-Date: Fri,  8 Dec 2017 17:15:57 +0100
-Message-Id: <20171208161559.27313-2-mhocko@kernel.org>
+Subject: [RFC PATCH 3/3] mm: unclutter THP migration
+Date: Fri,  8 Dec 2017 17:15:59 +0100
+Message-Id: <20171208161559.27313-4-mhocko@kernel.org>
 In-Reply-To: <20171208161559.27313-1-mhocko@kernel.org>
 References: <20171207143401.GK20234@dhcp22.suse.cz>
  <20171208161559.27313-1-mhocko@kernel.org>
@@ -23,444 +23,230 @@ Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
 
 From: Michal Hocko <mhocko@suse.com>
 
-do_pages_move is supposed to move user defined memory (an array of
-addresses) to the user defined numa nodes (an array of nodes one for
-each address). The user provided status array then contains resulting
-numa node for each address or an error. The semantic of this function is
-little bit confusing because only some errors are reported back. Notably
-migrate_pages error is only reported via the return value. This patch
-doesn't try to address these semantic nuances but rather change the
-underlying implementation.
+THP migration is hacked into the generic migration with rather
+surprising semantic. The migration allocation callback is supposed to
+check whether the THP can be migrated at once and if that is not the
+case then it allocates a simple page to migrate. unmap_and_move then
+fixes that up by spliting the THP into small pages while moving the
+head page to the newly allocated order-0 page. Remaning pages are moved
+to the LRU list by split_huge_page. The same happens if the THP
+allocation fails. This is really ugly and error prone [1].
 
-Currently we are processing user input (which can be really large)
-in batches which are stored to a temporarily allocated page. Each
-address is resolved to its struct page and stored to page_to_node
-structure along with the requested target numa node. The array of these
-structures is then conveyed down the page migration path via private
-argument. new_page_node then finds the corresponding structure and
-allocates the proper target page.
+I also believe that split_huge_page to the LRU lists is inherently
+wrong because all tail pages are not migrated. Some callers will just
+work around that by retrying (e.g. memory hotplug). There are other
+pfn walkers which are simply broken though. e.g. madvise_inject_error
+will migrate head and then advances next pfn by the huge page size.
+do_move_page_to_node_array, queue_pages_range (migrate_pages, mbind),
+will simply split the THP before migration if the THP migration is not
+supported then falls back to single page migration but it doesn't handle
+tail pages if the THP migration path is not able to allocate a fresh
+THP so we end up with ENOMEM and fail the whole migration which is
+a questionable behavior. Page compaction doesn't try to migrate large
+pages so it should be immune.
 
-What is the problem with the current implementation and why to change
-it? Apart from being quite ugly it also doesn't cope with unexpected
-pages showing up on the migration list inside migrate_pages path.
-That doesn't happen currently but the follow up patch would like to
-make the thp migration code more clear and that would need to split a
-THP into the list for some cases.
+This patch tries to unclutter the situation by moving the special THP
+handling up to the migrate_pages layer where it actually belongs. We
+simply split the THP page into the existing list if unmap_and_move fails
+with ENOMEM and retry. So we will _always_ migrate all THP subpages and
+specific migrate_pages users do not have to deal with this case in a
+special way.
 
-How does the new implementation work? Well, instead of batching into a
-fixed size array we simply batch all pages that should be migrated to
-the same node and isolate all of them into a linked list which doesn't
-require any additional storage. This should work reasonably well because
-page migration usually migrates larger ranges of memory to a specific
-node. So the common case should work equally well as the current
-implementation. Even if somebody constructs an input where the target
-numa nodes would be interleaved we shouldn't see a large performance
-impact because page migration alone doesn't really benefit from
-batching. mmap_sem batching for the lookup is quite questionable and
-isolate_lru_page which would benefit from batching is not using it even
-in the current implementation.
+[1] http://lkml.kernel.org/r/20171121021855.50525-1-zi.yan@sent.com
 
 Signed-off-by: Michal Hocko <mhocko@suse.com>
 ---
- mm/internal.h  |   1 +
- mm/mempolicy.c |   5 +-
- mm/migrate.c   | 306 +++++++++++++++++++++++++--------------------------------
- 3 files changed, 139 insertions(+), 173 deletions(-)
+ include/linux/migrate.h |  4 ++--
+ mm/huge_memory.c        |  6 ++++++
+ mm/memory_hotplug.c     |  2 +-
+ mm/mempolicy.c          | 31 +++----------------------------
+ mm/migrate.c            | 29 +++++++++++++++++++----------
+ 5 files changed, 31 insertions(+), 41 deletions(-)
 
-diff --git a/mm/internal.h b/mm/internal.h
-index e6bd35182dae..1a1bb5d59c15 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -538,4 +538,5 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+diff --git a/include/linux/migrate.h b/include/linux/migrate.h
+index e5d99ade2319..0c6fe904bc97 100644
+--- a/include/linux/migrate.h
++++ b/include/linux/migrate.h
+@@ -42,9 +42,9 @@ static inline struct page *new_page_nodemask(struct page *page,
+ 		return alloc_huge_page_nodemask(page_hstate(compound_head(page)),
+ 				preferred_nid, nodemask);
+ 
+-	if (thp_migration_supported() && PageTransHuge(page)) {
+-		order = HPAGE_PMD_ORDER;
++	if (PageTransHuge(page)) {
+ 		gfp_mask |= GFP_TRANSHUGE;
++		order = HPAGE_PMD_ORDER;
+ 	}
+ 
+ 	if (PageHighMem(page) || (zone_idx(page_zone(page)) == ZONE_MOVABLE))
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 7544ce4ef4dc..8865906c248c 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2425,6 +2425,12 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 
+ 	page_tail->index = head->index + tail;
+ 	page_cpupid_xchg_last(page_tail, page_cpupid_last(head));
++
++	/*
++	 * always add to the tail because some iterators expect new
++	 * pages to show after the currently processed elements - e.g.
++	 * migrate_pages
++	 */
+ 	lru_add_page_tail(head, page_tail, lruvec, list);
  }
  
- void setup_zone_pageset(struct zone *zone);
-+extern struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x);
- #endif	/* __MM_INTERNAL_H */
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index d865623edee7..442e63a2cf72 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -1390,7 +1390,7 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
+ 			if (isolate_huge_page(page, &source))
+ 				move_pages -= 1 << compound_order(head);
+ 			continue;
+-		} else if (thp_migration_supported() && PageTransHuge(page))
++		} else if (PageTransHuge(page))
+ 			pfn = page_to_pfn(compound_head(page))
+ 				+ hpage_nr_pages(page) - 1;
+ 
 diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-index f604b22ebb65..66c9c79b21be 100644
+index 4d849d3098e5..b6f4fcf9df64 100644
 --- a/mm/mempolicy.c
 +++ b/mm/mempolicy.c
-@@ -942,7 +942,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+@@ -446,15 +446,6 @@ static int queue_pages_pmd(pmd_t *pmd, spinlock_t *ptl, unsigned long addr,
+ 		__split_huge_pmd(walk->vma, pmd, addr, false, NULL);
+ 		goto out;
  	}
- }
+-	if (!thp_migration_supported()) {
+-		get_page(page);
+-		spin_unlock(ptl);
+-		lock_page(page);
+-		ret = split_huge_page(page);
+-		unlock_page(page);
+-		put_page(page);
+-		goto out;
+-	}
+ 	if (!queue_pages_required(page, qp)) {
+ 		ret = 1;
+ 		goto unlock;
+@@ -495,7 +486,7 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
  
--static struct page *new_node_page(struct page *page, unsigned long node, int **x)
-+/* page allocation callback for NUMA node migration */
-+struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x)
- {
+ 	if (pmd_trans_unstable(pmd))
+ 		return 0;
+-retry:
++
+ 	pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
+ 	for (; addr != end; pte++, addr += PAGE_SIZE) {
+ 		if (!pte_present(*pte))
+@@ -511,22 +502,6 @@ static int queue_pages_pte_range(pmd_t *pmd, unsigned long addr,
+ 			continue;
+ 		if (!queue_pages_required(page, qp))
+ 			continue;
+-		if (PageTransCompound(page) && !thp_migration_supported()) {
+-			get_page(page);
+-			pte_unmap_unlock(pte, ptl);
+-			lock_page(page);
+-			ret = split_huge_page(page);
+-			unlock_page(page);
+-			put_page(page);
+-			/* Failed to split -- skip. */
+-			if (ret) {
+-				pte = pte_offset_map_lock(walk->mm, pmd,
+-						addr, &ptl);
+-				continue;
+-			}
+-			goto retry;
+-		}
+-
+ 		migrate_page_add(page, qp->pagelist, flags);
+ 	}
+ 	pte_unmap_unlock(pte - 1, ptl);
+@@ -948,7 +923,7 @@ struct page *alloc_new_node_page(struct page *page, unsigned long node)
  	if (PageHuge(page))
  		return alloc_huge_page_node(page_hstate(compound_head(page)),
-@@ -986,7 +987,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
- 			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+ 					node);
+-	else if (thp_migration_supported() && PageTransHuge(page)) {
++	else if (PageTransHuge(page)) {
+ 		struct page *thp;
  
- 	if (!list_empty(&pagelist)) {
--		err = migrate_pages(&pagelist, new_node_page, NULL, dest,
-+		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
- 					MIGRATE_SYNC, MR_SYSCALL);
- 		if (err)
- 			putback_movable_pages(&pagelist);
+ 		thp = alloc_pages_node(node,
+@@ -1124,7 +1099,7 @@ static struct page *new_page(struct page *page, unsigned long start)
+ 	if (PageHuge(page)) {
+ 		BUG_ON(!vma);
+ 		return alloc_huge_page_noerr(vma, address, 1);
+-	} else if (thp_migration_supported() && PageTransHuge(page)) {
++	} else if (PageTransHuge(page)) {
+ 		struct page *thp;
+ 
+ 		thp = alloc_hugepage_vma(GFP_TRANSHUGE, vma, address,
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 4d0be47a322a..9d7252ea2acd 100644
+index f9235f0155a4..dc5df5fe5c82 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -1444,141 +1444,104 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
- }
+@@ -1138,6 +1138,9 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 	int rc = MIGRATEPAGE_SUCCESS;
+ 	struct page *newpage;
  
- #ifdef CONFIG_NUMA
--/*
-- * Move a list of individual pages
-- */
--struct page_to_node {
--	unsigned long addr;
--	struct page *page;
--	int node;
--	int status;
--};
- 
--static struct page *new_page_node(struct page *p, unsigned long private,
--		int **result)
-+static int store_status(int __user *status, int start, int value, int nr)
- {
--	struct page_to_node *pm = (struct page_to_node *)private;
--
--	while (pm->node != MAX_NUMNODES && pm->page != p)
--		pm++;
-+	while (nr-- > 0) {
-+		if (put_user(value, status + start))
-+			return -EFAULT;
-+		start++;
-+	}
- 
--	if (pm->node == MAX_NUMNODES)
--		return NULL;
-+	return 0;
-+}
- 
--	*result = &pm->status;
-+static int do_move_pages_to_node(struct mm_struct *mm,
-+		struct list_head *pagelist, int node)
-+{
-+	int err;
- 
--	if (PageHuge(p))
--		return alloc_huge_page_node(page_hstate(compound_head(p)),
--					pm->node);
--	else if (thp_migration_supported() && PageTransHuge(p)) {
--		struct page *thp;
-+	if (list_empty(pagelist))
-+		return 0;
- 
--		thp = alloc_pages_node(pm->node,
--			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
--			HPAGE_PMD_ORDER);
--		if (!thp)
--			return NULL;
--		prep_transhuge_page(thp);
--		return thp;
--	} else
--		return __alloc_pages_node(pm->node,
--				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
-+	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
-+			MIGRATE_SYNC, MR_SYSCALL);
-+	if (err)
-+		putback_movable_pages(pagelist);
-+	return err;
- }
- 
- /*
-- * Move a set of pages as indicated in the pm array. The addr
-- * field must be set to the virtual address of the page to be moved
-- * and the node number must contain a valid target node.
-- * The pm array ends with node = MAX_NUMNODES.
-+ * Resolves the given address to a struct page, isolates it from the LRU and
-+ * puts it to the given pagelist.
-+ * Returns -errno if the page cannot be found/isolated or 0 when it has been
-+ * queued or the page doesn't need to be migrated because it is already on
-+ * the target node
-  */
--static int do_move_page_to_node_array(struct mm_struct *mm,
--				      struct page_to_node *pm,
--				      int migrate_all)
-+static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
-+		int node, struct list_head *pagelist, bool migrate_all)
- {
-+	struct vm_area_struct *vma;
-+	struct page *page;
-+	unsigned int follflags;
- 	int err;
--	struct page_to_node *pp;
--	LIST_HEAD(pagelist);
- 
- 	down_read(&mm->mmap_sem);
-+	err = -EFAULT;
-+	vma = find_vma(mm, addr);
-+	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
-+		goto out;
- 
--	/*
--	 * Build a list of pages to migrate
--	 */
--	for (pp = pm; pp->node != MAX_NUMNODES; pp++) {
--		struct vm_area_struct *vma;
--		struct page *page;
--		struct page *head;
--		unsigned int follflags;
--
--		err = -EFAULT;
--		vma = find_vma(mm, pp->addr);
--		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
--			goto set_status;
--
--		/* FOLL_DUMP to ignore special (like zero) pages */
--		follflags = FOLL_GET | FOLL_DUMP;
--		if (!thp_migration_supported())
--			follflags |= FOLL_SPLIT;
--		page = follow_page(vma, pp->addr, follflags);
-+	/* FOLL_DUMP to ignore special (like zero) pages */
-+	follflags = FOLL_GET | FOLL_DUMP;
-+	if (!thp_migration_supported())
-+		follflags |= FOLL_SPLIT;
-+	page = follow_page(vma, addr, follflags);
- 
--		err = PTR_ERR(page);
--		if (IS_ERR(page))
--			goto set_status;
-+	err = PTR_ERR(page);
-+	if (IS_ERR(page))
-+		goto out;
- 
--		err = -ENOENT;
--		if (!page)
--			goto set_status;
-+	err = -ENOENT;
-+	if (!page)
-+		goto out;
- 
--		err = page_to_nid(page);
-+	err = 0;
-+	if (page_to_nid(page) == node)
-+		goto out_putpage;
- 
--		if (err == pp->node)
--			/*
--			 * Node already in the right place
--			 */
--			goto put_and_set;
-+	err = -EACCES;
-+	if (page_mapcount(page) > 1 &&
-+			!migrate_all)
-+		goto out_putpage;
- 
--		err = -EACCES;
--		if (page_mapcount(page) > 1 &&
--				!migrate_all)
--			goto put_and_set;
--
--		if (PageHuge(page)) {
--			if (PageHead(page)) {
--				isolate_huge_page(page, &pagelist);
--				err = 0;
--				pp->page = page;
--			}
--			goto put_and_set;
-+	if (PageHuge(page)) {
-+		if (PageHead(page)) {
-+			isolate_huge_page(page, pagelist);
-+			err = 0;
- 		}
-+	} else {
-+		struct page *head;
- 
--		pp->page = compound_head(page);
- 		head = compound_head(page);
- 		err = isolate_lru_page(head);
--		if (!err) {
--			list_add_tail(&head->lru, &pagelist);
--			mod_node_page_state(page_pgdat(head),
--				NR_ISOLATED_ANON + page_is_file_cache(head),
--				hpage_nr_pages(head));
--		}
--put_and_set:
--		/*
--		 * Either remove the duplicate refcount from
--		 * isolate_lru_page() or drop the page ref if it was
--		 * not isolated.
--		 */
--		put_page(page);
--set_status:
--		pp->status = err;
--	}
--
--	err = 0;
--	if (!list_empty(&pagelist)) {
--		err = migrate_pages(&pagelist, new_page_node, NULL,
--				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
- 		if (err)
--			putback_movable_pages(&pagelist);
--	}
-+			goto out_putpage;
- 
-+		err = 0;
-+		list_add_tail(&head->lru, pagelist);
-+		mod_node_page_state(page_pgdat(head),
-+			NR_ISOLATED_ANON + page_is_file_cache(head),
-+			hpage_nr_pages(head));
-+	}
-+out_putpage:
-+	/*
-+	 * Either remove the duplicate refcount from
-+	 * isolate_lru_page() or drop the page ref if it was
-+	 * not isolated.
-+	 */
-+	put_page(page);
-+out:
- 	up_read(&mm->mmap_sem);
- 	return err;
- }
-@@ -1593,79 +1556,80 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 			 const int __user *nodes,
- 			 int __user *status, int flags)
- {
--	struct page_to_node *pm;
--	unsigned long chunk_nr_pages;
--	unsigned long chunk_start;
--	int err;
--
--	err = -ENOMEM;
--	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
--	if (!pm)
--		goto out;
-+	int chunk_node = NUMA_NO_NODE;
-+	LIST_HEAD(pagelist);
-+	int chunk_start, i;
-+	int err = 0, err1;
- 
- 	migrate_prep();
- 
--	/*
--	 * Store a chunk of page_to_node array in a page,
--	 * but keep the last one as a marker
--	 */
--	chunk_nr_pages = (PAGE_SIZE / sizeof(struct page_to_node)) - 1;
--
--	for (chunk_start = 0;
--	     chunk_start < nr_pages;
--	     chunk_start += chunk_nr_pages) {
--		int j;
--
--		if (chunk_start + chunk_nr_pages > nr_pages)
--			chunk_nr_pages = nr_pages - chunk_start;
--
--		/* fill the chunk pm with addrs and nodes from user-space */
--		for (j = 0; j < chunk_nr_pages; j++) {
--			const void __user *p;
--			int node;
--
--			err = -EFAULT;
--			if (get_user(p, pages + j + chunk_start))
--				goto out_pm;
--			pm[j].addr = (unsigned long) p;
--
--			if (get_user(node, nodes + j + chunk_start))
--				goto out_pm;
--
--			err = -ENODEV;
--			if (node < 0 || node >= MAX_NUMNODES)
--				goto out_pm;
-+	for (i = chunk_start = 0; i < nr_pages; i++) {
-+		const void __user *p;
-+		unsigned long addr;
-+		int node;
- 
--			if (!node_state(node, N_MEMORY))
--				goto out_pm;
--
--			err = -EACCES;
--			if (!node_isset(node, task_nodes))
--				goto out_pm;
-+		err = -EFAULT;
-+		if (get_user(p, pages + i))
-+			goto out_flush;
-+		if (get_user(node, nodes + i))
-+			goto out_flush;
-+		addr = (unsigned long)p;
++	if (!thp_migration_supported() && PageTransHuge(page))
++		return -ENOMEM;
 +
-+		err = -ENODEV;
-+		if (node < 0 || node >= MAX_NUMNODES)
-+			goto out_flush;
-+		if (!node_state(node, N_MEMORY))
-+			goto out_flush;
- 
--			pm[j].node = node;
-+		err = -EACCES;
-+		if (!node_isset(node, task_nodes))
-+			goto out_flush;
-+
-+		if (chunk_node == NUMA_NO_NODE) {
-+			chunk_node = node;
-+			chunk_start = i;
-+		} else if (node != chunk_node) {
-+			err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+			if (err)
-+				goto out;
-+			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+			if (err)
-+				goto out;
-+			chunk_start = i;
-+			chunk_node = node;
- 		}
- 
--		/* End marker for this chunk */
--		pm[chunk_nr_pages].node = MAX_NUMNODES;
-+		/*
-+		 * Errors in the page lookup or isolation are not fatal and we simply
-+		 * report them via status
-+		 */
-+		err = add_page_for_migration(mm, addr, chunk_node,
-+				&pagelist, flags & MPOL_MF_MOVE_ALL);
-+		if (!err)
-+			continue;
- 
--		/* Migrate this chunk */
--		err = do_move_page_to_node_array(mm, pm,
--						 flags & MPOL_MF_MOVE_ALL);
--		if (err < 0)
--			goto out_pm;
-+		err = store_status(status, i, err, 1);
-+		if (err)
-+			goto out_flush;
- 
--		/* Return status information */
--		for (j = 0; j < chunk_nr_pages; j++)
--			if (put_user(pm[j].status, status + j + chunk_start)) {
--				err = -EFAULT;
--				goto out_pm;
--			}
-+		err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+		if (err)
-+			goto out;
-+		if (i > chunk_start) {
-+			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+			if (err)
-+				goto out;
-+		}
-+		chunk_node = NUMA_NO_NODE;
+ 	newpage = get_new_page(page, private);
+ 	if (!newpage)
+ 		return -ENOMEM;
+@@ -1159,14 +1162,6 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
+ 		goto out;
  	}
- 	err = 0;
+ 
+-	if (unlikely(PageTransHuge(page) && !PageTransHuge(newpage))) {
+-		lock_page(page);
+-		rc = split_huge_page(page);
+-		unlock_page(page);
+-		if (rc)
+-			goto out;
+-	}
 -
--out_pm:
--	free_page((unsigned long)pm);
-+out_flush:
-+	/* Make sure we do not overwrite the existing error */
-+	err1 = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+	if (!err1)
-+		err1 = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+	if (!err)
-+		err = err1;
- out:
- 	return err;
- }
+ 	rc = __unmap_and_move(page, newpage, force, mode);
+ 	if (rc == MIGRATEPAGE_SUCCESS)
+ 		set_page_owner_migrate_reason(newpage, reason);
+@@ -1381,6 +1376,7 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 		retry = 0;
+ 
+ 		list_for_each_entry_safe(page, page2, from, lru) {
++retry:
+ 			cond_resched();
+ 
+ 			if (PageHuge(page))
+@@ -1394,6 +1390,21 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+ 
+ 			switch(rc) {
+ 			case -ENOMEM:
++				/*
++				 * THP migration might be unsupported or the
++				 * allocation could've failed so we should
++				 * retry on the same page with the THP split
++				 * to base pages.
++				 */
++				if (PageTransHuge(page)) {
++					lock_page(page);
++					rc = split_huge_page_to_list(page, from);
++					unlock_page(page);
++					if (!rc) {
++						list_safe_reset_next(page, page2, lru);
++						goto retry;
++					}
++				}
+ 				nr_failed++;
+ 				goto out;
+ 			case -EAGAIN:
+@@ -1480,8 +1491,6 @@ static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+ 
+ 	/* FOLL_DUMP to ignore special (like zero) pages */
+ 	follflags = FOLL_GET | FOLL_DUMP;
+-	if (!thp_migration_supported())
+-		follflags |= FOLL_SPLIT;
+ 	page = follow_page(vma, addr, follflags);
+ 
+ 	err = PTR_ERR(page);
 -- 
 2.15.0
 
