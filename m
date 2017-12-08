@@ -1,46 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 58E7B6B0033
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:07:26 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id i71so853765wmd.9
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:07:26 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o49sor3652104edo.16.2017.12.08.03.07.24
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C652E6B0069
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:08:12 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id z25so7738298pgu.18
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:08:12 -0800 (PST)
+Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
+        by mx.google.com with ESMTPS id n14si5425820pgc.519.2017.12.08.03.08.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Dec 2017 03:07:24 -0800 (PST)
-Date: Fri, 8 Dec 2017 14:07:22 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv4 3/4] x86/boot/compressed/64: Introduce
- place_trampoline()
-Message-ID: <20171208110722.gl2cxdq2vlg6olih@node.shutemov.name>
-References: <20171205135942.24634-1-kirill.shutemov@linux.intel.com>
- <20171205135942.24634-4-kirill.shutemov@linux.intel.com>
- <20171207063048.w46rrq2euzhtym3j@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 08 Dec 2017 03:08:11 -0800 (PST)
+From: Michael Ellerman <mpe@ellerman.id.au>
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+In-Reply-To: <20171207195727.GA26792@bombadil.infradead.org>
+References: <20171129144219.22867-1-mhocko@kernel.org> <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com> <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz> <20171201152640.GA3765@rei> <87wp20e9wf.fsf@concordia.ellerman.id.au> <20171206045433.GQ26021@bombadil.infradead.org> <20171206070355.GA32044@bombadil.infradead.org> <87bmjbks4c.fsf@concordia.ellerman.id.au> <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com> <20171207195727.GA26792@bombadil.infradead.org>
+Date: Fri, 08 Dec 2017 22:08:07 +1100
+Message-ID: <87shclh3zc.fsf@concordia.ellerman.id.au>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171207063048.w46rrq2euzhtym3j@gmail.com>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>
+Cc: Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@kernel.org>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Pavel Machek <pavel@ucw.cz>
 
-On Thu, Dec 07, 2017 at 07:30:48AM +0100, Ingo Molnar wrote:
-> > We also need a small stack in the trampoline to re-enable long mode via
-> > long return. But stack and code can share the page just fine.
-> 
-> BTW., I'm not sure this is necessarily a good idea: it means writable+executable 
-> memory, which we generally try to avoid. How complicated would it be to have them 
-> separate?
+Matthew Wilcox <willy@infradead.org> writes:
 
-It's trivial: you only need to bump TRAMPOLINE_32BIT_SIZE.
+> On Thu, Dec 07, 2017 at 11:14:27AM -0800, Kees Cook wrote:
+>> On Wed, Dec 6, 2017 at 9:46 PM, Michael Ellerman <mpe@ellerman.id.au> wrote:
+>> > Matthew Wilcox <willy@infradead.org> writes:
+>> >> So, just like we currently say "exactly one of MAP_SHARED or MAP_PRIVATE",
+>> >> we could add a new paragraph saying "at most one of MAP_FIXED or
+>> >> MAP_REQUIRED" and "any of the following values".
+>> >
+>> > MAP_REQUIRED doesn't immediately grab me, but I don't actively dislike
+>> > it either :)
+>> >
+>> > What about MAP_AT_ADDR ?
+>> >
+>> > It's short, and says what it does on the tin. The first argument to mmap
+>> > is actually called "addr" too.
+>> 
+>> "FIXED" is supposed to do this too.
+>> 
+>> Pavel suggested:
+>> 
+>> MAP_ADD_FIXED
+>> 
+>> (which is different from "use fixed", and describes why it would fail:
+>> can't add since it already exists.)
+>> 
+>> Perhaps "MAP_FIXED_NEW"?
+>> 
+>> There has been a request to drop "FIXED" from the name, so these:
+>> 
+>> MAP_FIXED_NOCLOBBER
+>> MAP_FIXED_NOREPLACE
+>> MAP_FIXED_ADD
+>> MAP_FIXED_NEW
+>> 
+>> Could be:
+>> 
+>> MAP_NOCLOBBER
+>> MAP_NOREPLACE
+>> MAP_ADD
+>> MAP_NEW
+>> 
+>> and we still have the unloved, but acceptable:
+>> 
+>> MAP_REQUIRED
+>> 
+>> My vote is still for "NOREPLACE" or "NOCLOBBER" since it's very
+>> specific, though "NEW" is pretty clear too.
+>
+> How about MAP_NOFORCE?
 
-But it doesn't make much sense. We're running from indentity mapping: all
-memory is r/w without NX bit set (and IA32_EFER.NXE is 0).
+It doesn't tell me that addr is not a hint. That's a crucial detail.
 
--- 
- Kirill A. Shutemov
+Without MAP_FIXED mmap never "forces/replaces/clobbers", so why would I
+need MAP_NOFORCE if I don't have MAP_FIXED?
+
+So it needs something in there to indicate that the addr is not a hint,
+that's the only thing that flag actually *does*.
+
+
+If we had a time machine, the right set of flags would be:
+
+  - MAP_FIXED:   don't treat addr as a hint, fail if addr is not free
+  - MAP_REPLACE: replace an existing mapping (or force or clobber)
+
+But the two were conflated for some reason in the current MAP_FIXED.
+
+Given we can't go back and fix it, the closest we can get is to add a
+variant of MAP_FIXED which subtracts the "REPLACE" semantic.
+
+ie: MAP_FIXED_NOREPLACE
+
+cheers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
