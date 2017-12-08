@@ -1,21 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 003B36B0069
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 09:01:57 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id u126so4841566oia.19
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 06:01:56 -0800 (PST)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8831F6B0253
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 09:02:24 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id s9so4841410oie.2
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 06:02:24 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u49sor2812998ote.319.2017.12.08.06.01.53
+        by mx.google.com with SMTPS id u184sor2750148oie.163.2017.12.08.06.02.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Dec 2017 06:01:53 -0800 (PST)
+        Fri, 08 Dec 2017 06:02:23 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171208025616.16267-4-sergey.senozhatsky@gmail.com>
-References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com> <20171208025616.16267-4-sergey.senozhatsky@gmail.com>
+In-Reply-To: <20171208025616.16267-6-sergey.senozhatsky@gmail.com>
+References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com> <20171208025616.16267-6-sergey.senozhatsky@gmail.com>
 From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Fri, 8 Dec 2017 15:01:52 +0100
-Message-ID: <CAJZ5v0g1CBhKTYi=CzYPcBXdH=yZ3iJcKzZ6TaftNWoq+X5wnQ@mail.gmail.com>
-Subject: Re: [PATCH 3/9] power: remove unneeded kallsyms include
+Date: Fri, 8 Dec 2017 15:02:22 +0100
+Message-ID: <CAJZ5v0hQ+QyJZ_bw9AGaSByvckpK5MeU=jkuy-MYg4Qdzoxrrw@mail.gmail.com>
+Subject: Re: [PATCH 5/9] pnp: remove unneeded kallsyms include
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -25,29 +25,28 @@ Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.
 On Fri, Dec 8, 2017 at 3:56 AM, Sergey Senozhatsky
 <sergey.senozhatsky.work@gmail.com> wrote:
 > The file was converted from print_fn_descriptor_symbol()
-> to %pF some time ago (c80cfb0406c01bb "vsprintf: use new
-> vsprintf symbolic function pointer format"). kallsyms does
-> not seem to be needed anymore.
+> to %pF some time ago (2e532d68a2b3e2aa {pci,pnp} quirks.c:
+> don't use deprecated print_fn_descriptor_symbol()). kallsyms
+> does not seem to be needed anymore.
 >
 > Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Rafael Wysocki <rjw@rjwysocki.net>
-> Cc: Len Brown <len.brown@intel.com>
+> Cc: Bjorn Helgaas <bhelgaas@google.com>
 > ---
->  drivers/base/power/main.c | 1 -
+>  drivers/pnp/quirks.c | 1 -
 >  1 file changed, 1 deletion(-)
 >
-> diff --git a/drivers/base/power/main.c b/drivers/base/power/main.c
-> index 5bc2cf1f812c..e2539d8423f7 100644
-> --- a/drivers/base/power/main.c
-> +++ b/drivers/base/power/main.c
-> @@ -18,7 +18,6 @@
->   */
->
->  #include <linux/device.h>
+> diff --git a/drivers/pnp/quirks.c b/drivers/pnp/quirks.c
+> index f054cdddfef8..803666ae3635 100644
+> --- a/drivers/pnp/quirks.c
+> +++ b/drivers/pnp/quirks.c
+> @@ -21,7 +21,6 @@
+>  #include <linux/slab.h>
+>  #include <linux/pnp.h>
+>  #include <linux/io.h>
 > -#include <linux/kallsyms.h>
->  #include <linux/export.h>
->  #include <linux/mutex.h>
->  #include <linux/pm.h>
+>  #include "base.h"
+>
+>  static void quirk_awe32_add_ports(struct pnp_dev *dev,
 > --
 
 Do you want me to apply this or do you want to route it differently?
