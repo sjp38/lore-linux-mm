@@ -1,95 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DD4926B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 08:46:43 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id 11so12738248qts.15
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 05:46:43 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id q29si1910560qkh.313.2017.12.08.05.46.42
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 46EC26B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 09:00:31 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id r20so5890639wrg.23
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 06:00:31 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id i77si1258972wme.39.2017.12.08.06.00.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 05:46:42 -0800 (PST)
-Subject: Re: [RFC PATCH v3 1/7] ktask: add documentation
-References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
- <20171205195220.28208-2-daniel.m.jordan@oracle.com>
- <20171206143509.GG7515@dhcp22.suse.cz>
- <d8323ee9-eb99-7f55-50c6-c71f4986cf06@oracle.com>
- <20171208124333.GV20234@dhcp22.suse.cz>
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-Message-ID: <bd5a548e-dcbc-3168-314d-0ef89a5ad5e8@oracle.com>
-Date: Fri, 8 Dec 2017 08:46:33 -0500
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Dec 2017 06:00:26 -0800 (PST)
+Date: Fri, 8 Dec 2017 15:00:22 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171208140022.uln4t5e5drrhnvvt@pathway.suse.cz>
+References: <20171108102723.602216b1@gandalf.local.home>
+ <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
+ <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
+ <20171128014229.GA2899@X58A-UD3R>
 MIME-Version: 1.0
-In-Reply-To: <20171208124333.GV20234@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171128014229.GA2899@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, kernel-team@lge.com
 
-On 12/08/2017 07:43 AM, Michal Hocko wrote:
-> On Wed 06-12-17 15:32:48, Daniel Jordan wrote:
->> On 12/06/2017 09:35 AM, Michal Hocko wrote:
-> [...]
->>> There is also no mention about other
->>> characteristics (e.g. power management), resource isloataion etc. So > let me ask again. How do you control that the parallelized operation
->>> doesn't run outside of the limit imposed to the calling context?
->>
->> The current code doesn't do this, and the answer is the same for the rest of
->> your questions.
+Hello,
+
+thanks a lot for help. I am sorry for the late response. I wanted to
+handle this mail with a clean head.
+
+On Tue 2017-11-28 10:42:29, Byungchul Park wrote:
+> On Fri, Nov 24, 2017 at 04:58:16PM +0100, Petr Mladek wrote:
+> > @@ -1797,13 +1797,6 @@ asmlinkage int vprintk_emit(int facility, int level,
+> >  				spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> >  				printk_safe_exit_irqrestore(flags);
+> >  
+> > -				/*
+> > -				 * The owner passed the console lock to us.
+> > -				 * Since we did not spin on console lock, annotate
+> > -				 * this as a trylock. Otherwise lockdep will
+> > -				 * complain.
+> > -				 */
+> > -				mutex_acquire(&console_lock_dep_map, 0, 1, _THIS_IP_);
 > 
-> I really believe this should be addressed before this can be considered
-> for merging. While what you have might be sufficient for early boot
-> initialization stuff I am not sure the amount of code is really
-> justified by that usecase alone. Any runtime enabled parallelized work
-> really have to care about the rest of the system. The last thing you
-> really want to see is to make a highly utilized system overloaded just
-> because of some optimization. And I do not see how can you achive that
-> with a limit on the number of paralelization threads.
-
-That's fair, I'll see what I can do in the next version.
-
+> Hello Petr,
 > 
->> For resource isolation, I'll experiment with moving ktask threads into and
->> out of the cgroup of the calling thread.
->>
->> Do any resources not covered by cgroup come to mind?  I'm trying to think if
->> I've left anything out.
+> IMHO, it would get unbalanced if you only remove this mutex_acquire().
 > 
-> This is mostly about cpu so dealing with the cpu cgroup controller
-> should do the work.
-
-Ok, thanks.  Luckily cgroup v2's cpu controller was recently merged.
-
+> >  				console_unlock();
+> >  				printk_safe_enter_irqsave(flags);
+> >  			}
+> > @@ -2334,10 +2327,10 @@ void console_unlock(void)
+> >  		/* The waiter is now free to continue */
+> >  		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> >  		/*
+> > -		 * Hand off console_lock to waiter. The waiter will perform
+> > -		 * the up(). After this, the waiter is the console_lock owner.
+> > +		 * Hand off console_lock to waiter. After this, the waiter
+> > +		 * is the console_lock owner.
+> >  		 */
+> > -		mutex_release(&console_lock_dep_map, 1, _THIS_IP_);
 > 
-> [...]
+> IMHO, this release() should be moved to somewhere properly.
 > 
->> Anyway, I think scalability bottlenecks should be weighed with the rest of
->> this.  It seems wrong that the kernel should always assume that one thread
->> is enough to free all of a process's memory or evict all the pages of a file
->> system no matter how much work there is to do.
+> > +		lock_commit_crosslock((struct lockdep_map *)&console_lock_dep_map);
+> >  		printk_safe_exit_irqrestore(flags);
+> >  		/* Note, if waiter is set, logbuf_lock is not held */
+> >  		return;
 > 
-> Well, this will be always a double edge sword. Sure if you have spare
-> cycles (whatever that means) than using them is really nice. But the
-> last thing you really want is to turn an optimization into an
-> utilization nightmare where few processes dominant the whole machine
-> even though they could be easily contained normally inside a single
-> execution context. >
-> Your work targets larger machines and I understand that you are mainly
-> focused on a single large workload running on that machine but there are
-> many others running with many smaller workloads which would like to be
-> independent. Not everything is a large DB running on a large HW.
+> However, now that cross-release was introduces, lockdep can be applied
+> to semaphore operations. Actually, I have a plan to do that. I think it
+> would be better to make semaphore tracked with lockdep and remove all
+> these manual acquire() and release() here. What do you think about it?
 
-Well of course, yes, but the struct page initialization stuff benefits 
-any large-memory machine (9x faster on a 2-socket machine!) and the 
-(forthcoming) page freeing parallelization will similarly benefit a 
-variety of workloads.
+IMHO, it would be great to add lockdep annotations into semaphore
+operations.
 
-Anyway, I'll put more controls in and see where I get.  Thanks for the 
-feedback.
+Well, I am not sure if this would be enough in this case. I think
+that the locking dependency in this Steven's patch is special.
+The semaphore is passed from one owner to another one without
+unlocking. Both sides wait for each other using a busy loop.
 
-Daniel
+The busy loop/waiting is activated only when the current owner
+is not sleeping to avoid softlockup. I think that it is
+a kind of conditional cross-release or something even
+more special.
+
+Sigh, I wish I was able to clean my head even more to be
+able to think about this.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
