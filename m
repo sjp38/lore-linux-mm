@@ -1,107 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 255A76B0261
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:34:37 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 200so7775104pge.12
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:34:37 -0800 (PST)
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EC3866B0268
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:36:38 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id f27so5553689ote.16
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:36:38 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id j123si5392468pgc.260.2017.12.08.03.34.35
+        by mx.google.com with ESMTPS id z37si2738440otd.435.2017.12.08.03.36.37
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Dec 2017 03:34:35 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second allocation
+        Fri, 08 Dec 2017 03:36:37 -0800 (PST)
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+References: <20171208012305.83134-1-surenb@google.com>
+ <20171208082220.GQ20234@dhcp22.suse.cz>
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171207115127.GH20234@dhcp22.suse.cz>
-	<201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
-	<20171207122249.GI20234@dhcp22.suse.cz>
-In-Reply-To: <20171207122249.GI20234@dhcp22.suse.cz>
-Message-Id: <201712081958.EBB43715.FOVJQFtFLOMOSH@I-love.SAKURA.ne.jp>
-Date: Fri, 8 Dec 2017 19:58:11 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Message-ID: <d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
+Date: Fri, 8 Dec 2017 20:36:16 +0900
+MIME-Version: 1.0
+In-Reply-To: <20171208082220.GQ20234@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+To: Michal Hocko <mhocko@kernel.org>, Suren Baghdasaryan <surenb@google.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-Michal Hocko wrote:
-> On Thu 07-12-17 20:59:34, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Thu 07-12-17 20:42:20, Tetsuo Handa wrote:
-> > > > Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
-> > > > count causes random kernel panics when an OOM victim which consumed memory
-> > > > in a way the OOM reaper does not help was selected by the OOM killer [1].
-> > > > Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-> > > > oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
-> > > > to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
-> > > > victim's mm were not able to try allocation from memory reserves after the
-> > > > OOM reaper gave up reclaiming memory.
-> > > > 
-> > > > Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
-> > > > last second allocation attempt.
-> > > > 
-> > > > [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
-> > > > 
-> > > > Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-> > > > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> > > > Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-> > > > Acked-by: Michal Hocko <mhocko@suse.com>
-> > > 
-> > > I haven't acked _this_ patch! I will have a look but the patch is
-> > > different enough from the original that keeping any acks or reviews is
-> > > inappropriate. Do not do it again!
-> > 
-> > I see. But nothing has changed except that this is called before entering
-> > into the OOM killer. I assumed that this is a trivial change.
+On 2017/12/08 17:22, Michal Hocko wrote:
+> On Thu 07-12-17 17:23:05, Suren Baghdasaryan wrote:
+>> Slab shrinkers can be quite time consuming and when signal
+>> is pending they can delay handling of the signal. If fatal
+>> signal is pending there is no point in shrinking that process
+>> since it will be killed anyway.
 > 
-> Let the reviewers judge and have them add their acks/reviewed-bys again.
+> The thing is that we are _not_ shrinking _that_ process. We are
+> shrinking globally shared objects and the fact that the memory pressure
+> is so large that the kswapd doesn't keep pace with it means that we have
+> to throttle all allocation sites by doing this direct reclaim. I agree
+> that expediting killed task is a good thing in general because such a
+> process should free at least some memory.
 
-OK. Here I prepare food for review. Johannes, please be sure to respond.
+But doesn't doing direct reclaim mean that allocation request of already
+fatal_signal_pending() threads will not succeed unless some memory is
+reclaimed (or selected as an OOM victim)? Won't it just spin the "too
+small to fail" retry loop at full speed in the worst case?
 
-When Manish reported this problem, I tried to manage this problem by
-"mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
-but it was rejected by Michal
-( http://lkml.kernel.org/r/20170821084307.GB25956@dhcp22.suse.cz ).
-Michal told me
+> 
+>> This change checks for pending
+>> fatal signals inside shrink_slab loop and if one is detected
+>> terminates this loop early.
+> 
+> This changelog doesn't really address my previous review feedback, I am
+> afraid. You should mention more details about problems you are seeing
+> and what causes them. If we have a shrinker which takes considerable
+> amount of time them we should be addressing that. If that is not
+> possible then it should be documented at least.
 
-  Sigh... Let me repeat for the last time (this whole thread is largely a
-  waste of time to be honest). Find a _robust_ solution rather than
-  fiddling with try-once-more kind of hacks. E.g. do an allocation attempt
-  _before_ we do any disruptive action (aka kill a victim). This would
-  help other cases when we race with an exiting tasks or somebody managed
-  to free memory while we were selecting an oom victim which can take
-  quite some time.
+Unfortunately, it is possible to be get blocked inside shrink_slab() for so long
+like an example from http://lkml.kernel.org/r/1512705038.7843.6.camel@gmail.com .
 
-and I wrote "mm,oom: move last second allocation to inside the OOM killer" (with
-an acceptance to apply "mm,oom: use ALLOC_OOM for OOM victim's last second
-allocation" on top of it) but it was rejected by Johannes.
-
-Therefore, I'm stuck between Michal and Johannes. And I updated "mm,oom: use
-ALLOC_OOM for OOM victim's last second allocation" not to depend on "mm,oom:
-move last second allocation to inside the OOM killer".
-
-The original "mm, oom: task_will_free_mem(current) should ignore MMF_OOM_SKIP for once."
-is the simplest change and easy to handle all corner cases. But if we go "mm,oom: use
-ALLOC_OOM for OOM victim's last second allocation" approach, we also need to apply
-"mm,oom: Set ->signal->oom_mm to all thread groups sharing the victim's mm."
-( http://lkml.kernel.org/r/1511872888-4579-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp )
-in order to handle corner cases, and it was rejected by Michal. Then, if we won't
-handle corner cases, we need to update
-
-	/*
-	 * Kill all user processes sharing victim->mm in other thread groups, if
-	 * any.  They don't get access to memory reserves, though, to avoid
-	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
-	 * oom killed thread cannot exit because it requires the semaphore and
-	 * its contended by another thread trying to allocate memory itself.
-	 * That thread will now get access to memory reserves since it has a
-	 * pending fatal signal.
-	 */
-
-comment which is no longer true.
-
-Michal and Johannes, please discuss between you and show me the direction to go.
+----------
+[18432.707027] INFO: task Chrome_IOThread:27225 blocked for more than
+120 seconds.
+[18432.707034]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.707039] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.707045] Chrome_IOThread D11304 27225   3654 0x00000000
+[18432.707057] Call Trace:
+[18432.707070]  ? __schedule+0x2e3/0xb90
+[18432.707086]  ? __lock_page+0xa9/0x180
+[18432.707095]  schedule+0x2f/0x90
+[18432.707102]  io_schedule+0x12/0x40
+[18432.707109]  __lock_page+0xe9/0x180
+[18432.707121]  ? page_cache_tree_insert+0x130/0x130
+[18432.707138]  deferred_split_scan+0x2b6/0x300
+[18432.707160]  shrink_slab.part.47+0x1f8/0x590
+[18432.707179]  ? percpu_ref_put_many+0x84/0x100
+[18432.707197]  shrink_node+0x2f4/0x300
+[18432.707219]  do_try_to_free_pages+0xca/0x350
+[18432.707236]  try_to_free_pages+0x140/0x350
+[18432.707259]  __alloc_pages_slowpath+0x43c/0x1080
+[18432.707298]  __alloc_pages_nodemask+0x3ac/0x430
+[18432.707316]  alloc_pages_vma+0x7c/0x200
+[18432.707331]  __handle_mm_fault+0x8a1/0x1230
+[18432.707359]  handle_mm_fault+0x14c/0x310
+[18432.707373]  __do_page_fault+0x28c/0x530
+[18432.707450]  do_page_fault+0x32/0x270
+[18432.707470]  page_fault+0x22/0x30
+----------
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
