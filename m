@@ -1,75 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 717166B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 16:02:24 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id r140so251937iod.12
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 13:02:24 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n129sor1471246itb.101.2017.12.08.13.02.23
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E2E266B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 16:49:43 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id i83so1561024wma.4
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 13:49:43 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id i15si6573160wrf.104.2017.12.08.13.49.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Dec 2017 13:02:23 -0800 (PST)
-Date: Fri, 8 Dec 2017 13:02:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
-In-Reply-To: <20171208012305.83134-1-surenb@google.com>
-Message-ID: <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
-References: <20171208012305.83134-1-surenb@google.com>
-MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Dec 2017 13:49:40 -0800 (PST)
+Date: Fri, 8 Dec 2017 13:49:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2] mm: page_alloc: avoid excessive IRQ disabled times
+ in free_unref_page_list
+Message-Id: <20171208134937.489042cb1283039cc83caaac@linux-foundation.org>
+In-Reply-To: <20171208114217.8491-1-l.stach@pengutronix.de>
+References: <20171208114217.8491-1-l.stach@pengutronix.de>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
+To: Lucas Stach <l.stach@pengutronix.de>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, patchwork-lst@pengutronix.de, kernel@pengutronix.de
 
-On Thu, 7 Dec 2017, Suren Baghdasaryan wrote:
+On Fri,  8 Dec 2017 12:42:17 +0100 Lucas Stach <l.stach@pengutronix.de> wrote:
 
-> Slab shrinkers can be quite time consuming and when signal
-> is pending they can delay handling of the signal. If fatal
-> signal is pending there is no point in shrinking that process
-> since it will be killed anyway. This change checks for pending
-> fatal signals inside shrink_slab loop and if one is detected
-> terminates this loop early.
+> Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
+> a list of pages) we see excessive IRQ disabled times of up to 25ms on an
+> embedded ARM system (tracing overhead included).
 > 
-
-I've proposed a similar patch in the past, but for a check on TIF_MEMDIE, 
-which would today be a tsk_is_oom_victim(current), since we had observed 
-lengthy stalls in reclaim that would have been prevented if the oom victim 
-had exited out, returned back to the page allocator, allocated with 
-ALLOC_NO_WATERMARKS, and proceeded to quickly exit.
-
-I'm not sure that all fatal_signal_pending() tasks should get the same 
-treatment, but I understand the point that the task is killed and should 
-free memory when it fully exits.  How much memory is unknown.
-
- > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> This is due to graphics buffers being freed back to the system via
+> release_pages(). Graphics buffers can be huge, so it's not hard to hit
+> cases where the list of pages to free has 2048 entries. Disabling IRQs
+> while freeing all those pages is clearly not a good idea.
 > 
+> Introduce a batch limit, which allows IRQ servicing once every few pages.
+> The batch count is the same as used in other parts of the MM subsystem
+> when dealing with IRQ disabled regions.
+> 
+> Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+> Suggested-by: Andrew Morton <akpm@linux-foundation.org>
 > ---
-> V2:
-> Sergey Senozhatsky:
->   - Fix missing parentheses
-> ---
->  mm/vmscan.c | 7 +++++++
->  1 file changed, 7 insertions(+)
+> v2: Try to keep the working set of pages used in the second loop cache
+>     hot by going through both loops in swathes of SWAP_CLUSTER_MAX
+>     entries, as suggested by Andrew Morton.
 > 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c02c850ea349..28e4bdc72c16 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			.memcg = memcg,
->  		};
->  
-> +		/*
-> +		 * We are about to die and free our memory.
-> +		 * Stop shrinking which might delay signal handling.
-> +		 */
-> +		if (unlikely(fatal_signal_pending(current)))
-> +			break;
-> +
->  		/*
->  		 * If kernel memory accounting is disabled, we ignore
->  		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+>     To avoid the need to replicate the batch counting in both loops
+>     I introduced a local batched_free_list where pages to be freed
+>     in the critical section are collected. IMO this makes the code
+>     easier to follow.
+
+Thanks.  Is anyone motivated enough to determine whether this is
+worthwhile?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
