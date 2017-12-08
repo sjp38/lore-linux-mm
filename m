@@ -1,61 +1,156 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 79AEA6B025F
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 09:33:21 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id l4so6095981wre.10
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 06:33:21 -0800 (PST)
-Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.181])
-        by mx.google.com with ESMTPS id x56si897499edm.293.2017.12.08.06.33.19
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BED56B0253
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 09:37:52 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id u3so8958795pfl.5
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 06:37:52 -0800 (PST)
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (mail-by2nam03on0067.outbound.protection.outlook.com. [104.47.42.67])
+        by mx.google.com with ESMTPS id d18si5594814pll.191.2017.12.08.06.37.50
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 06:33:19 -0800 (PST)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
-Date: Fri, 8 Dec 2017 14:33:35 +0000
-Message-ID: <0b0bd6862e3a47728c8f658c8a6b3dea@AcuMS.aculab.com>
-References: <20171129144219.22867-1-mhocko@kernel.org>
- <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
- <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz> <20171201152640.GA3765@rei>
- <87wp20e9wf.fsf@concordia.ellerman.id.au>
- <20171206045433.GQ26021@bombadil.infradead.org>
- <20171206070355.GA32044@bombadil.infradead.org>
- <87bmjbks4c.fsf@concordia.ellerman.id.au>
- <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com>
- <20171207195727.GA26792@bombadil.infradead.org>
- <87shclh3zc.fsf@concordia.ellerman.id.au>
-In-Reply-To: <87shclh3zc.fsf@concordia.ellerman.id.au>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 08 Dec 2017 06:37:51 -0800 (PST)
+Subject: Re: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
+References: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
+ <d177df77-cdc7-1507-08f8-fcdb3b443709@amd.com>
+ <20171204145755.6xu2w6a6og56rq5v@node.shutemov.name>
+ <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
+ <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
+ <20171204173931.pjnmfdutys7cnesx@black.fi.intel.com>
+From: Tom Lendacky <thomas.lendacky@amd.com>
+Message-ID: <55400fe3-a605-b86f-e14c-c5dd08738fd7@amd.com>
+Date: Fri, 8 Dec 2017 08:37:43 -0600
 MIME-Version: 1.0
+In-Reply-To: <20171204173931.pjnmfdutys7cnesx@black.fi.intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Michael Ellerman' <mpe@ellerman.id.au>, Matthew Wilcox <willy@infradead.org>, Kees Cook <keescook@chromium.org>
-Cc: Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@kernel.org>, Linux
- API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John
- Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Pavel Machek <pavel@ucw.cz>
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Michael Ellerman
-> Sent: 08 December 2017 11:08
-...
-> If we had a time machine, the right set of flags would be:
->=20
->   - MAP_FIXED:   don't treat addr as a hint, fail if addr is not free
->   - MAP_REPLACE: replace an existing mapping (or force or clobber)
->=20
-> But the two were conflated for some reason in the current MAP_FIXED.
+On 12/4/2017 11:39 AM, Kirill A. Shutemov wrote:
+> On Mon, Dec 04, 2017 at 04:34:45PM +0000, Kirill A. Shutemov wrote:
+>> On Mon, Dec 04, 2017 at 04:00:26PM +0000, Tom Lendacky wrote:
+>>> On 12/4/2017 8:57 AM, Kirill A. Shutemov wrote:
+>>>> On Mon, Dec 04, 2017 at 08:19:11AM -0600, Tom Lendacky wrote:
+>>>>> On 12/4/2017 5:23 AM, Kirill A. Shutemov wrote:
+>>>>>> sme_populate_pgd() open-codes a lot of things that are not needed to be
+>>>>>> open-coded.
+>>>>>>
+>>>>>> Let's rewrite it in a more stream-lined way.
+>>>>>>
+>>>>>> This would also buy us boot-time switching between support between
+>>>>>> paging modes, when rest of the pieces will be upstream.
+>>>>>
+>>>>> Hi Kirill,
+>>>>>
+>>>>> Unfortunately, some of these can't be changed.  The use of p4d_offset(),
+>>>>> pud_offset(), etc., use non-identity mapped virtual addresses which cause
+>>>>> failures at this point of the boot process.
+>>>>
+>>>> Wat? Virtual address is virtual address. p?d_offset() doesn't care about
+>>>> what mapping you're using.
+>>>
+>>> Yes it does.  For example, pmd_offset() issues a pud_page_addr() call,
+>>> which does a __va() returning a non-identity mapped address (0xffff88...).
+>>> Only identity mapped virtual addresses have been setup at this point, so
+>>> the use of that virtual address panics the kernel.
+>>
+>> Stupid me. You are right.
+>>
+>> What about something like this:
+> 
+> sme_pgtable_calc() also looks unnecessary complex.
 
-Possibly because the original use was loading overlays?
+I have no objections to improving this (although I just submitted a patch
+that modifies this area, so this will have to be updated now).
 
-> Given we can't go back and fix it, the closest we can get is to add a
-> variant of MAP_FIXED which subtracts the "REPLACE" semantic.
->=20
-> ie: MAP_FIXED_NOREPLACE
+> 
+> Any objections on this:
+> 
+> diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> index 65e0d68f863f..59b7d7ba9b37 100644
+> --- a/arch/x86/mm/mem_encrypt.c
+> +++ b/arch/x86/mm/mem_encrypt.c
+> @@ -548,8 +548,7 @@ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+>   
+>   static unsigned long __init sme_pgtable_calc(unsigned long len)
+>   {
+> -	unsigned long p4d_size, pud_size, pmd_size;
+> -	unsigned long total;
+> +	unsigned long entries, tables;
+>   
+>   	/*
+>   	 * Perform a relatively simplistic calculation of the pagetable
+> @@ -559,41 +558,25 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
+>   	 * mappings. Incrementing the count for each covers the case where
+>   	 * the addresses cross entries.
+>   	 */
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> -		p4d_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
+> -		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
+> -		pud_size = (ALIGN(len, P4D_SIZE) / P4D_SIZE) + 1;
+> -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> -	} else {
+> -		p4d_size = 0;
+> -		pud_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
+> -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> -	}
+> -	pmd_size = (ALIGN(len, PUD_SIZE) / PUD_SIZE) + 1;
+> -	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
+>   
+> -	total = p4d_size + pud_size + pmd_size;
+> +        entries = (DIV_ROUND_UP(len, PGDIR_SIZE) + 1) * PAGE_SIZE;
 
-Much better than _SAFE - which is always bad because it is usually
-one 'safe' for one specific use case.
+I stayed away from using PAGE_SIZE directly because other areas/files used
+the sizeof() * PTRS_PER_ and I was trying to be consistent. Not that the
+size of a page table is ever likely to change, but maybe defining a macro
+(similar to the one in mm/pgtable.c) would be best rather than using
+PAGE_SIZE directly.  Not required, just my opinion.
 
-	David
+> +        if (PTRS_PER_P4D > 1)
+> +                entries += (DIV_ROUND_UP(len, P4D_SIZE) + 1) * PAGE_SIZE;
+> +        entries += (DIV_ROUND_UP(len, PUD_SIZE) + 1) * PAGE_SIZE;
+> +        entries += (DIV_ROUND_UP(len, PMD_SIZE) + 1) * PAGE_SIZE;
+>   
+>   	/*
+>   	 * Now calculate the added pagetable structures needed to populate
+>   	 * the new pagetables.
+>   	 */
+> -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> -		p4d_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
+> -		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
+> -		pud_size = ALIGN(total, P4D_SIZE) / P4D_SIZE;
+> -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> -	} else {
+> -		p4d_size = 0;
+> -		pud_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
+> -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> -	}
+> -	pmd_size = ALIGN(total, PUD_SIZE) / PUD_SIZE;
+> -	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
+>   
+> -	total += p4d_size + pud_size + pmd_size;
+> +        tables = DIV_ROUND_UP(entries, PGDIR_SIZE) * PAGE_SIZE;
+> +        if (PTRS_PER_P4D > 1)
+> +                tables += DIV_ROUND_UP(entries, P4D_SIZE) * PAGE_SIZE;
+> +        tables += DIV_ROUND_UP(entries, PUD_SIZE) * PAGE_SIZE;
+> +        tables += DIV_ROUND_UP(entries, PMD_SIZE) * PAGE_SIZE;
+>   
+> -	return total;
+> +	return entries + tables;
+>   }
+
+It all looks reasonable, but I won't be able to test for the next few
+days, though.
+
+Thanks,
+Tom
+
+>   
+>   void __init sme_encrypt_kernel(void)
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
