@@ -1,129 +1,196 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 6664E6B026B
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 04:26:50 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id x32so4323784ita.1
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 01:26:50 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e83sor3855498iof.47.2017.12.08.01.26.49
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Dec 2017 01:26:49 -0800 (PST)
-Date: Fri, 8 Dec 2017 01:26:46 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with
- exit_mmap
-In-Reply-To: <alpine.DEB.2.10.1712071352480.135101@chino.kir.corp.google.com>
-Message-ID: <alpine.DEB.2.10.1712080118420.145074@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com> <20171207113548.GG20234@dhcp22.suse.cz> <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp> <20171207163003.GM20234@dhcp22.suse.cz>
- <alpine.DEB.2.10.1712071352480.135101@chino.kir.corp.google.com>
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E5456B0268
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 04:27:51 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 73so8334650pfz.11
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 01:27:51 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id t10si5208406plh.762.2017.12.08.01.27.49
+        for <linux-mm@kvack.org>;
+        Fri, 08 Dec 2017 01:27:50 -0800 (PST)
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+References: <20171206004159.3755-73-willy@infradead.org>
+ <20171206012901.GZ4094@dastard>
+ <20171206020208.GK26021@bombadil.infradead.org>
+ <20171206031456.GE4094@dastard>
+ <20171206044549.GO26021@bombadil.infradead.org>
+ <20171206084404.GF4094@dastard>
+ <20171206140648.GB32044@bombadil.infradead.org>
+ <20171207160634.il3vt5d6a4v5qesi@thunk.org> <20171207222216.GH4094@dastard>
+ <20171208044552.GA32473@X58A-UD3R> <20171208072500.GO5858@dastard>
+From: Byungchul Park <byungchul.park@lge.com>
+Message-ID: <fd7130d7-9066-524e-1053-a61eeb27cb36@lge.com>
+Date: Fri, 8 Dec 2017 18:27:45 +0900
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+In-Reply-To: <20171208072500.GO5858@dastard>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-On Thu, 7 Dec 2017, David Rientjes wrote:
-
-> I'm backporting and testing the following patch against Linus's tree.  To 
-> clarify an earlier point, we don't actually have any change from upstream 
-> code that allows for free_pgtables() before the 
-> set_bit(MMF_OOM_SKIP);down_write();up_write() cycle.
+On 12/8/2017 4:25 PM, Dave Chinner wrote:
+> On Fri, Dec 08, 2017 at 01:45:52PM +0900, Byungchul Park wrote:
+>> On Fri, Dec 08, 2017 at 09:22:16AM +1100, Dave Chinner wrote:
+>>> On Thu, Dec 07, 2017 at 11:06:34AM -0500, Theodore Ts'o wrote:
+>>>> On Wed, Dec 06, 2017 at 06:06:48AM -0800, Matthew Wilcox wrote:
+>>>>>> Unfortunately for you, I don't find arguments along the lines of
+>>>>>> "lockdep will save us" at all convincing.  lockdep already throws
+>>>>>> too many false positives to be useful as a tool that reliably and
+>>>>>> accurately points out rare, exciting, complex, intricate locking
+>>>>>> problems.
+>>>>>
+>>>>> But it does reliably and accurately point out "dude, you forgot to take
+>>>>> the lock".  It's caught a number of real problems in my own testing that
+>>>>> you never got to see.
+>>>>
+>>>> The problem is that if it has too many false positives --- and it's
+>>>> gotten *way* worse with the completion callback "feature", people will
+>>>> just stop using Lockdep as being too annyoing and a waste of developer
+>>>> time when trying to figure what is a legitimate locking bug versus
+>>>> lockdep getting confused.
+>>>>
+>>>> <Rant>I can't even disable the new Lockdep feature which is throwing
+>>>> lots of new false positives --- it's just all or nothing.</Rant>
+>>>>
+>>>> Dave has just said he's already stopped using Lockdep, as a result.
+>>>
+>>> This is compeltely OT, but FYI I stopped using lockdep a long time
+>>> ago.  We've spend orders of magnitude more time and effort to shut
+>>> up lockdep false positives in the XFS code than we ever have on
+>>> locking problems that lockdep has uncovered. And still lockdep
+>>> throws too many false positives on XFS workloads to be useful to me.
+>>>
+>>> But it's more than that: I understand just how much lockdep *doesn't
+>>> check* and that means *I know I can't rely on lockdep* for potential
+>>> deadlock detection. e.g.  it doesn't cover semaphores, which means
+>>
+>> Hello,
+>>
+>> I'm careful in saying the following since you seem to feel not good at
+>> crossrelease and even lockdep. Now that cross-release has been
+>> introduced, semaphores can be covered as you might know. Actually, all
+>> general waiters can.
 > 
-> diff --git a/include/linux/oom.h b/include/linux/oom.h
-> --- a/include/linux/oom.h
-> +++ b/include/linux/oom.h
-> @@ -66,6 +66,15 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
->  	return tsk->signal->oom_mm;
->  }
->  
-> +/*
-> + * Use this helper if tsk->mm != mm and the victim mm needs a special
-> + * handling. This is guaranteed to stay true after once set.
-> + */
-> +static inline bool mm_is_oom_victim(struct mm_struct *mm)
-> +{
-> +	return test_bit(MMF_OOM_VICTIM, &mm->flags);
-> +}
-> +
->  /*
->   * Checks whether a page fault on the given mm is still reliable.
->   * This is no longer true if the oom reaper started to reap the
-> diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
-> --- a/include/linux/sched/coredump.h
-> +++ b/include/linux/sched/coredump.h
-> @@ -71,6 +71,7 @@ static inline int get_dumpable(struct mm_struct *mm)
->  #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
->  #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
->  #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
-> +#define MMF_OOM_VICTIM		25	/* mm is the oom victim */
->  
->  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
->  				 MMF_DISABLE_THP_MASK)
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -3019,20 +3019,20 @@ void exit_mmap(struct mm_struct *mm)
->  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
->  	unmap_vmas(&tlb, vma, 0, -1);
->  
-> -	set_bit(MMF_OOM_SKIP, &mm->flags);
-> -	if (unlikely(tsk_is_oom_victim(current))) {
-> +	if (unlikely(mm_is_oom_victim(mm))) {
->  		/*
->  		 * Wait for oom_reap_task() to stop working on this
->  		 * mm. Because MMF_OOM_SKIP is already set before
->  		 * calling down_read(), oom_reap_task() will not run
->  		 * on this "mm" post up_write().
->  		 *
-> -		 * tsk_is_oom_victim() cannot be set from under us
-> +		 * mm_is_oom_victim() cannot be set from under us
->  		 * either because current->mm is already set to NULL
->  		 * under task_lock before calling mmput and oom_mm is
->  		 * set not NULL by the OOM killer only if current->mm
->  		 * is found not NULL while holding the task_lock.
->  		 */
-> +		set_bit(MMF_OOM_SKIP, &mm->flags);
->  		down_write(&mm->mmap_sem);
->  		up_write(&mm->mmap_sem);
->  	}
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -683,8 +683,10 @@ static void mark_oom_victim(struct task_struct *tsk)
->  		return;
->  
->  	/* oom_mm is bound to the signal struct life time. */
-> -	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
-> +	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
->  		mmgrab(tsk->signal->oom_mm);
-> +		set_bit(MMF_OOM_VICTIM, &mm->flags);
-> +	}
->  
->  	/*
->  	 * Make sure that the task is woken up from uninterruptible sleep
+> And all it will do is create a whole bunch more work for us XFS guys
+> to shut up all the the false positive crap that falls out from it
+> because the locking model we have is far more complex than any of
+> the lockdep developers thought was necessary to support, just like
+> happened with the XFS inode annotations all those years ago.
 > 
+> e.g. nobody has ever bothered to ask us what is needed to describe
+> XFS's semaphore locking model.  If you did that, you'd know that we
+> nest *thousands* of locked semaphores in compeltely random lock
+> order during metadata buffer writeback. And that this lock order
+> does not reflect the actual locking order rules we have for locking
+> buffers during transactions.
+> 
+> Oh, and you'd also know that a semaphore's lock order and context
+> can change multiple times during the life time of the buffer.  Say
+> we free a block and the reallocate it as something else before it is
+> reclaimed - that buffer now might have a different lock order. Or
+> maybe we promote a buffer to be a root btree block as a result of a
+> join - it's now the first buffer in a lock run, rather than a child.
+> Or we split a tree, and the root is now a node and so no longer is
+> the first buffer in a lock run. Or that we walk sideways along the
+> leaf nodes siblings during searches.  IOWs, there is no well defined
+> static lock ordering at all for buffers - and therefore semaphores -
+> in XFS at all.
+> 
+> And knowing that, you wouldn't simply mention that lockdep can
+> support semaphores now as though that is necessary to "make it work"
+> for XFS.  It's going to be much simpler for us to just turn off
+> lockdep and ignore whatever crap it sends our way than it is to
+> spend unplanned weeks of our time to try to make lockdep sorta work
+> again. Sure, we might get there in the end, but it's likely to take
+> months, if not years like it did with the XFS inode annotations.....
+> 
+>>> it has zero coverage of the entire XFS metadata buffer subsystem and
+>>> the complex locking orders we have for metadata updates.
+>>>
+>>> Put simply: lockdep doesn't provide me with any benefit, so I don't
+>>> use it...
+>>
+>> Sad..
+> 
+> I don't think you understand. I'll try to explain.
+> 
+> The lockdep infrastructure by itself doesn't make lockdep a useful
+> tool - it mostly generates false positives because it has no
+> concept of locking models that don't match it's internal tracking
+> assumptions and/or limitations.
+> 
+> That means if we can't suppress the false positives, then lockdep is
+> going to be too noisy to find real problems.  It's taken the XFS
+> developers months of work over the past 7-8 years to suppress all
+> the *common* false positives that lockdep throws on XFS. And despite
+> all that work, there's still too many false positives occuring
+> because we can't easily suppress them with annotations. IOWs, the
+> signal to noise ratio is still too low for lockdep to find real
+> problems.
+> 
+> That's why lockdep isn't useful to me - the noise floor is too high,
+> and the effort to lower the noise floor further is too great.
+> 
+> This is important, because cross-release just raised the noise floor
+> by a large margin and so now we have to spend the time to reduce it
+> again back to where it was before cross-release was added.  IOWs,
+> adding new detection features to lockdep actually makes lockdep less
+> useful for a significant period of time. That length of time is
+> dependent on the rate at which subsystem developers can suppress the
+> false positives and lower the noise floor back down to an acceptible
+> level. And there is always the possibility that we can't get the
+> noise floor low enough for lockdep to be a reliable, useful tool for
+> some subsystems....
+> 
+> That's what I don't think you understand - that the most important
+> part of lockdep is /not the core infrastructure/ you work on. The
+> most important part of lockdep is the annotations that suppress the
+> noise floor and allow the real problems to stand out.
 
-This passes all functional testing that I have and I can create a 
-synthetic testcase that can trigger at least MMF_OOM_VICTIM getting set 
-while oom_reaper is still working on an mm that this prevents, so feel 
-free to add an
+I'm sorry to hear that.. If I were you, I would also get
+annoyed. And.. thanks for explanation.
 
-	Acked-by: David Rientjes <rientjes@google.com>
+But, I think assigning lock classes properly and checking
+relationship of the classes to detect deadlocks is reasonable.
 
-with a variant of your previous changelogs.  Thanks!
+In my opinion about the common lockdep stuff, there are 2
+problems on it.
 
-I think it would appropriate to cc stable for 4.14 and add a
+1) Firstly, it's hard to assign lock classes *properly*. By
+default, it relies on the caller site of lockdep_init_map(),
+but we need to assign another class manually, where ordering
+rules are complicated so cannot rely on the caller site. That
+*only* can be done by experts of the subsystem.
 
-Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run 
-concurrently")
+I think if they want to get benifit from lockdep, they have no
+choice but to assign classes manually with the domain knowledge,
+or use *lockdep_set_novalidate_class()* to invalidate locks
+making the developers annoyed and not want to use the checking
+for them.
 
-if nobody disagrees, which I think you may have already done on a previous 
-iteration.
+It's a problem of choice between (1) getting benifit from
+lockdep by doing something with the domain knowledge, and (2)
+giving up the benifit by invalidating locks making them panic.
 
-We can still discuss if there are any VM_LOCKED subtleties in the this 
-thread, but I have no evidence that it is responsible for any issues.
+2) Secondly, I've seen several places where lock_acquire()s
+are a little bit wrongly used more than we need. That would add
+additional detection capability and make lockdep strong but
+increase the possibility to give us more false positives.
+
+If you don't want to work on the additional annotations at the
+moment, then I think you can choose an option whatever you
+want, and consider locks again you've invalidated, when it
+becomes necessary to detect deadlocks involving those locks by
+validating those locks back and adding necessary annotations.
+
+Am I missing something?
+
+-- 
+Thanks,
+Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
