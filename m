@@ -1,120 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 708826B0268
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 04:25:49 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id p143so5418713vkf.1
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 01:25:49 -0800 (PST)
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6664E6B026B
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 04:26:50 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id x32so4323784ita.1
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 01:26:50 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 5sor2700614vki.262.2017.12.08.01.25.48
+        by mx.google.com with SMTPS id e83sor3855498iof.47.2017.12.08.01.26.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 08 Dec 2017 01:25:48 -0800 (PST)
+        Fri, 08 Dec 2017 01:26:49 -0800 (PST)
+Date: Fri, 8 Dec 2017 01:26:46 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with
+ exit_mmap
+In-Reply-To: <alpine.DEB.2.10.1712071352480.135101@chino.kir.corp.google.com>
+Message-ID: <alpine.DEB.2.10.1712080118420.145074@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1712051824050.91099@chino.kir.corp.google.com> <20171207113548.GG20234@dhcp22.suse.cz> <201712080044.BID56711.FFVOLMStJOQHOF@I-love.SAKURA.ne.jp> <20171207163003.GM20234@dhcp22.suse.cz>
+ <alpine.DEB.2.10.1712071352480.135101@chino.kir.corp.google.com>
 MIME-Version: 1.0
-In-Reply-To: <20171204191735.132544-3-paullawrence@google.com>
-References: <20171204191735.132544-1-paullawrence@google.com> <20171204191735.132544-3-paullawrence@google.com>
-From: Alexander Potapenko <glider@google.com>
-Date: Fri, 8 Dec 2017 10:25:46 +0100
-Message-ID: <CAG_fn=Xgx+bL85nENTL5K9z=5NBmERub=YEYwkpTYFVphLhPFg@mail.gmail.com>
-Subject: Re: [PATCH v4 2/5] kasan/Makefile: Support LLVM style asan parameters.
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Paul Lawrence <paullawrence@google.com>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, LKML <linux-kernel@vger.kernel.org>, kasan-dev <kasan-dev@googlegroups.com>, Linux Memory Management List <linux-mm@kvack.org>, Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, Matthias Kaehlcke <mka@chromium.org>, Michael Davidson <md@google.com>, Greg Hackmann <ghackmann@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, akpm@linux-foundation.org, aarcange@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Mon, Dec 4, 2017 at 8:17 PM, Paul Lawrence <paullawrence@google.com> wro=
-te:
-> From: Andrey Ryabinin <aryabinin@virtuozzo.com>
->
-> LLVM doesn't understand GCC-style paramters ("--param asan-foo=3Dbar"),
-> thus we currently we don't use inline/globals/stack instrumentation
-> when building the kernel with clang.
->
-> Add support for LLVM-style parameters ("-mllvm -asan-foo=3Dbar") to
-> enable all KASAN features.
->
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> Signed-off-by: Paul Lawrence <paullawrence@google.com>
-> ---
->  scripts/Makefile.kasan | 29 ++++++++++++++++++-----------
->  1 file changed, 18 insertions(+), 11 deletions(-)
->
-> diff --git a/scripts/Makefile.kasan b/scripts/Makefile.kasan
-> index 1ce7115aa499..d5a1a4b6d079 100644
-> --- a/scripts/Makefile.kasan
-> +++ b/scripts/Makefile.kasan
-> @@ -10,10 +10,7 @@ KASAN_SHADOW_OFFSET ?=3D $(CONFIG_KASAN_SHADOW_OFFSET)
->
->  CFLAGS_KASAN_MINIMAL :=3D -fsanitize=3Dkernel-address
->
-> -CFLAGS_KASAN :=3D $(call cc-option, -fsanitize=3Dkernel-address \
-> -               -fasan-shadow-offset=3D$(KASAN_SHADOW_OFFSET) \
-> -               --param asan-stack=3D1 --param asan-globals=3D1 \
-> -               --param asan-instrumentation-with-call-threshold=3D$(call=
-_threshold))
-> +cc-param =3D $(call cc-option, -mllvm -$(1), $(call cc-option, --param $=
-(1)))
->
->  ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werror),)
->     ifneq ($(CONFIG_COMPILE_TEST),y)
-> @@ -21,13 +18,23 @@ ifeq ($(call cc-option, $(CFLAGS_KASAN_MINIMAL) -Werr=
-or),)
->              -fsanitize=3Dkernel-address is not supported by compiler)
->     endif
->  else
-> -    ifeq ($(CFLAGS_KASAN),)
-> -        ifneq ($(CONFIG_COMPILE_TEST),y)
-> -            $(warning CONFIG_KASAN: compiler does not support all option=
-s.\
-> -                Trying minimal configuration)
-> -        endif
-> -        CFLAGS_KASAN :=3D $(CFLAGS_KASAN_MINIMAL)
-> -    endif
-> +   # -fasan-shadow-offset fails without -fsanitize
-Would be nice to have a comment here explaining that
--fasan-shadow-offset is a GCC flag whereas -asan-mapping-offset is an
-LLVM one.
-> +   CFLAGS_KASAN_SHADOW :=3D $(call cc-option, -fsanitize=3Dkernel-addres=
-s \
-> +                       -fasan-shadow-offset=3D$(KASAN_SHADOW_OFFSET), \
-> +                       $(call cc-option, -fsanitize=3Dkernel-address \
-> +                       -mllvm -asan-mapping-offset=3D$(KASAN_SHADOW_OFFS=
-ET)))
+On Thu, 7 Dec 2017, David Rientjes wrote:
+
+> I'm backporting and testing the following patch against Linus's tree.  To 
+> clarify an earlier point, we don't actually have any change from upstream 
+> code that allows for free_pgtables() before the 
+> set_bit(MMF_OOM_SKIP);down_write();up_write() cycle.
+> 
+> diff --git a/include/linux/oom.h b/include/linux/oom.h
+> --- a/include/linux/oom.h
+> +++ b/include/linux/oom.h
+> @@ -66,6 +66,15 @@ static inline bool tsk_is_oom_victim(struct task_struct * tsk)
+>  	return tsk->signal->oom_mm;
+>  }
+>  
+> +/*
+> + * Use this helper if tsk->mm != mm and the victim mm needs a special
+> + * handling. This is guaranteed to stay true after once set.
+> + */
+> +static inline bool mm_is_oom_victim(struct mm_struct *mm)
+> +{
+> +	return test_bit(MMF_OOM_VICTIM, &mm->flags);
+> +}
 > +
-> +   ifeq ($(strip $(CFLAGS_KASAN_SHADOW)),)
-> +      CFLAGS_KASAN :=3D $(CFLAGS_KASAN_MINIMAL)
-> +   else
-> +      # Now add all the compiler specific options that are valid standal=
-one
-> +      CFLAGS_KASAN :=3D $(CFLAGS_KASAN_SHADOW) \
-> +       $(call cc-param,asan-globals=3D1) \
-> +       $(call cc-param,asan-instrumentation-with-call-threshold=3D$(call=
-_threshold)) \
-> +       $(call cc-param,asan-stack=3D1) \
-> +       $(call cc-param,asan-use-after-scope=3D1)
-> +   endif
-> +
->  endif
->
->  CFLAGS_KASAN +=3D $(call cc-option, -fsanitize-address-use-after-scope)
-> --
-> 2.15.0.531.g2ccb3012c9-goog
->
-Reviewed-by: Alexander Potapenko <glider@google.com>
+>  /*
+>   * Checks whether a page fault on the given mm is still reliable.
+>   * This is no longer true if the oom reaper started to reap the
+> diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
+> --- a/include/linux/sched/coredump.h
+> +++ b/include/linux/sched/coredump.h
+> @@ -71,6 +71,7 @@ static inline int get_dumpable(struct mm_struct *mm)
+>  #define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
+>  #define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
+>  #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
+> +#define MMF_OOM_VICTIM		25	/* mm is the oom victim */
+>  
+>  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+>  				 MMF_DISABLE_THP_MASK)
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -3019,20 +3019,20 @@ void exit_mmap(struct mm_struct *mm)
+>  	/* Use -1 here to ensure all VMAs in the mm are unmapped */
+>  	unmap_vmas(&tlb, vma, 0, -1);
+>  
+> -	set_bit(MMF_OOM_SKIP, &mm->flags);
+> -	if (unlikely(tsk_is_oom_victim(current))) {
+> +	if (unlikely(mm_is_oom_victim(mm))) {
+>  		/*
+>  		 * Wait for oom_reap_task() to stop working on this
+>  		 * mm. Because MMF_OOM_SKIP is already set before
+>  		 * calling down_read(), oom_reap_task() will not run
+>  		 * on this "mm" post up_write().
+>  		 *
+> -		 * tsk_is_oom_victim() cannot be set from under us
+> +		 * mm_is_oom_victim() cannot be set from under us
+>  		 * either because current->mm is already set to NULL
+>  		 * under task_lock before calling mmput and oom_mm is
+>  		 * set not NULL by the OOM killer only if current->mm
+>  		 * is found not NULL while holding the task_lock.
+>  		 */
+> +		set_bit(MMF_OOM_SKIP, &mm->flags);
+>  		down_write(&mm->mmap_sem);
+>  		up_write(&mm->mmap_sem);
+>  	}
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -683,8 +683,10 @@ static void mark_oom_victim(struct task_struct *tsk)
+>  		return;
+>  
+>  	/* oom_mm is bound to the signal struct life time. */
+> -	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm))
+> +	if (!cmpxchg(&tsk->signal->oom_mm, NULL, mm)) {
+>  		mmgrab(tsk->signal->oom_mm);
+> +		set_bit(MMF_OOM_VICTIM, &mm->flags);
+> +	}
+>  
+>  	/*
+>  	 * Make sure that the task is woken up from uninterruptible sleep
+> 
 
+This passes all functional testing that I have and I can create a 
+synthetic testcase that can trigger at least MMF_OOM_VICTIM getting set 
+while oom_reaper is still working on an mm that this prevents, so feel 
+free to add an
 
---=20
-Alexander Potapenko
-Software Engineer
+	Acked-by: David Rientjes <rientjes@google.com>
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+with a variant of your previous changelogs.  Thanks!
 
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+I think it would appropriate to cc stable for 4.14 and add a
+
+Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run 
+concurrently")
+
+if nobody disagrees, which I think you may have already done on a previous 
+iteration.
+
+We can still discuss if there are any VM_LOCKED subtleties in the this 
+thread, but I have no evidence that it is responsible for any issues.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
