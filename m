@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BD2F06B0261
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 21:57:16 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id a13so6796410pgt.0
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 18:57:16 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 44D3D6B0266
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 21:57:26 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id w1so6766484pgq.21
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 18:57:26 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l9sor2345150plt.108.2017.12.07.18.57.15
+        by mx.google.com with SMTPS id e7sor2042242pgq.135.2017.12.07.18.57.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 07 Dec 2017 18:57:15 -0800 (PST)
+        Thu, 07 Dec 2017 18:57:25 -0800 (PST)
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: [PATCH 5/9] pnp: remove unneeded kallsyms include
-Date: Fri,  8 Dec 2017 11:56:12 +0900
-Message-Id: <20171208025616.16267-6-sergey.senozhatsky@gmail.com>
+Subject: [PATCH 6/9] mm: remove unneeded kallsyms include
+Date: Fri,  8 Dec 2017 11:56:13 +0900
+Message-Id: <20171208025616.16267-7-sergey.senozhatsky@gmail.com>
 In-Reply-To: <20171208025616.16267-1-sergey.senozhatsky@gmail.com>
 References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
@@ -20,29 +20,30 @@ List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>
 Cc: Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-The file was converted from print_fn_descriptor_symbol()
-to %pF some time ago (2e532d68a2b3e2aa {pci,pnp} quirks.c:
-don't use deprecated print_fn_descriptor_symbol()). kallsyms
-does not seem to be needed anymore.
+The file was converted from sprint_symbol() to %pS some time
+ago (62c70bce8ac23651 "mm: convert sprintf_symbol to %pS").
+kallsyms does not seem to be needed anymore.
 
 Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Bjorn Helgaas <bhelgaas@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
 ---
- drivers/pnp/quirks.c | 1 -
+ mm/vmalloc.c | 1 -
  1 file changed, 1 deletion(-)
 
-diff --git a/drivers/pnp/quirks.c b/drivers/pnp/quirks.c
-index f054cdddfef8..803666ae3635 100644
---- a/drivers/pnp/quirks.c
-+++ b/drivers/pnp/quirks.c
-@@ -21,7 +21,6 @@
- #include <linux/slab.h>
- #include <linux/pnp.h>
- #include <linux/io.h>
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 673942094328..fdda6534e9a0 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -19,7 +19,6 @@
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/debugobjects.h>
 -#include <linux/kallsyms.h>
- #include "base.h"
- 
- static void quirk_awe32_add_ports(struct pnp_dev *dev,
+ #include <linux/list.h>
+ #include <linux/notifier.h>
+ #include <linux/rbtree.h>
 -- 
 2.15.1
 
