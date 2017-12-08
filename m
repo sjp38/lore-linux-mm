@@ -1,101 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 34E5F6B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 10:12:03 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id f4so6167184wre.9
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 07:12:03 -0800 (PST)
-Received: from the.earth.li (the.earth.li. [2001:41c8:10:b1f:c0ff:ee:15:900d])
-        by mx.google.com with ESMTPS id r2si1286200wmb.113.2017.12.08.07.12.01
+Received: from mail-yw0-f199.google.com (mail-yw0-f199.google.com [209.85.161.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 74B426B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 10:27:24 -0500 (EST)
+Received: by mail-yw0-f199.google.com with SMTP id w144so4994378yww.6
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 07:27:24 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [74.207.234.97])
+        by mx.google.com with ESMTPS id 128si1647191ybu.562.2017.12.08.07.27.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 08 Dec 2017 07:12:01 -0800 (PST)
-Date: Fri, 8 Dec 2017 15:11:59 +0000
-From: Jonathan McDowell <noodles@earth.li>
-Subject: ACPI issues on cold power on [bisected]
-Message-ID: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
+        Fri, 08 Dec 2017 07:27:21 -0800 (PST)
+Date: Fri, 8 Dec 2017 10:27:17 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: Lockdep is less useful than it was
+Message-ID: <20171208152717.fx5w66wvyrfx6vrz@thunk.org>
+References: <20171206004159.3755-1-willy@infradead.org>
+ <20171206004159.3755-73-willy@infradead.org>
+ <20171206012901.GZ4094@dastard>
+ <20171206020208.GK26021@bombadil.infradead.org>
+ <20171206031456.GE4094@dastard>
+ <20171206044549.GO26021@bombadil.infradead.org>
+ <20171206084404.GF4094@dastard>
+ <20171206140648.GB32044@bombadil.infradead.org>
+ <20171207160634.il3vt5d6a4v5qesi@thunk.org>
+ <20171207223803.GC26792@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20171207223803.GC26792@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@kernel.org, byungchul.park@lge.com
 
-I've been sitting on this for a while and should have spent time to
-investigate sooner, but it's been an odd failure mode that wasn't quite
-obvious.
+On Thu, Dec 07, 2017 at 02:38:03PM -0800, Matthew Wilcox wrote:
+> I think it was a mistake to force these on for everybody; they have a
+> much higher false-positive rate than the rest of lockdep, so as you say
+> forcing them on leads to fewer people using *any* of lockdep.
+> 
+> The bug you're hitting isn't Byungchul's fault; it's an annotation
+> problem.  The same kind of annotation problem that we used to have with
+> dozens of other places in the kernel which are now fixed.
 
-In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
-don't see anything after grub says its booting. In 4.10 onwards the
-laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
-(no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
-taken from 4.12 as that's the most recent error dmesg I have saved but
-also seen back in 4.10. It's always address 0x30 for the dereference.
+The question is whose responsibility is it to annotate the code?  On
+another thread it was suggested it was ext4's responsibility to add
+annotations to avoid the false positives --- never the mind the fact
+that every single file system is going to have add annotations.
 
-Rebooting the laptop does not lead to these problems; it's *only* from a
-complete cold boot that they arise (which didn't help me in terms of
-being able to reliably bisect). Once I realised that I was able to
-bisect, but it leads me to an odd commit:
+Also note that the documentation for how to add annotations is
+***horrible***.  It's mostly, "try to figure out how other people
+added magic cargo cult code which is not well defined (look at the
+definitions of lockdep_set_class, lockdep_set_class_and_name,
+lockdep_set_class_and_subclass, and lockdep_set_subclass, and weep) in
+other subsystems and hope and pray it works for you."
 
-86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
-(mm/slab: fix kmemcg cache creation delayed issue)
+And the explanation when there are failures, either false positives,
+or not, are completely opaque.  For example:
 
-If I revert this then I can cold boot without problems.
+[   16.190198] ext4lazyinit/648 is trying to acquire lock:
+[   16.191201]  ((gendisk_completion)1 << part_shift(NUMA_NO_NODE)){+.+.}, at: [<8a1ebe9d>] wait_for_completion_io+0x12/0x20
 
-Also I don't see the problem with a stock Debian kernel, I think because
-the ACPI support is modularised.
+Just try to tell me that:
 
-Config, dmesg + bisect log at:
+	((gendisk_completion)1 << part_shift(NUMA_NO_NODE)){+.+.}
 
-https://the.earth.li/~noodles/acpi-problem/
+is human comprehensible with a straight face.  And since the messages
+don't even include the subclass/class/name key annotations, as lockdep
+tries to handle things that are more and more complex, I'd argue it
+has already crossed the boundary where unless you are a lockdep
+developer, good luck trying to understand what is going on or how to
+add annotations.
 
--------
-BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
-IP: netlink_broadcast_filtered+0x1d/0x3e0
-PGD 0 
-P4D 0 
+So if you are adding complexity to the kernel with the argument,
+"lockdep will save us", I'm with Dave --- it's just not a believable
+argument.
 
-Oops: 0000 [#1] SMP
-Modules linked in:
-CPU: 0 PID: 41 Comm: kworker/0:1 Not tainted 4.12.0 #1
-Hardware name: Dell Inc. Latitude E7240/07RPNV, BIOS A21 05/08/2017
-Workqueue: kacpi_notify acpi_os_execute_deferred
-task: ffff914e4c321240 task.stack: ffffa3bd4017c000
-RIP: 0010:netlink_broadcast_filtered+0x1d/0x3e0
-RSP: 0000:ffffa3bd4017fd90 EFLAGS: 00010286
-RAX: 0000000000000001 RBX: ffff914e4c82b300 RCX: 0000000000000000
-RDX: 0000000000000000 RSI: 0000000001080020 RDI: ffff914e4c82b300
-RBP: ffff914e4c305614 R08: 0000000001080020 R09: 0000000000000000
-R10: 0000000000000014 R11: ffffffffb8a31d40 R12: 0000000000000000
-R13: 0000000000000000 R14: ffff914e4c305614 R15: 0000000000000000
-FS:  0000000000000000(0000) GS:ffff914e5ea00000(0000) knlGS:0000000000000000
-CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-CR2: 0000000000000030 CR3: 0000000236c09000 CR4: 00000000001406f0
-Call Trace:
- ? __kmalloc_reserve.isra.37+0x24/0x70
- ? __nlmsg_put+0x63/0x80
- ? netlink_broadcast+0xa/0x10
- ? acpi_bus_generate_netlink_event+0x10d/0x150
- ? acpi_ev_notify_dispatch+0x37/0x4c
- ? acpi_os_execute_deferred+0xb/0x20
- ? process_one_work+0x1cf/0x3c0
- ? worker_thread+0x42/0x3c0
- ? __schedule+0x26c/0x660
- ? kthread+0xf7/0x130
- ? create_worker+0x190/0x190
- ? kthread_create_on_node+0x40/0x40
- ? ret_from_fork+0x22/0x30
-Code: c8 c3 66 90 66 2e 0f 1f 84 00 00 00 00 00 41 57 41 89 cf 41 56 41 55 49 89 fd 48 89 f7 44 89 c6 41 54 41 89 d4 55 53 48 83 ec 38 <49> 8b 6d 30 44 89 44 24 24 4c 89 4c 24 28 e8 a0 ec ff ff 48 c7 
-RIP: netlink_broadcast_filtered+0x1d/0x3e0 RSP: ffffa3bd4017fd90
-CR2: 0000000000000030
----[ end trace f8e25281792d4743 ]---
+Cheers,
 
-J.
-
--- 
-/-\                             | 101 things you can't have too much
-|@/  Debian GNU/Linux Developer |       of : 47 - More coffee.
-\-                              |
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
