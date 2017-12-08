@@ -1,169 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D3C0E6B0033
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 07:32:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q186so7866831pga.23
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 04:32:23 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r15si5377534pgt.604.2017.12.08.04.32.21
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 81A2D6B0033
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 07:43:38 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w141so941978wme.1
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 04:43:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id q124si1094086wma.132.2017.12.08.04.43.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 04:32:21 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171207011426.1633-1-ying.huang@intel.com>
-	<20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
-	<20171208014346.GA8915@bbox> <87po7pg4jt.fsf@yhuang-dev.intel.com>
-	<20171208082644.GA14361@bbox> <87k1xxbohp.fsf@yhuang-dev.intel.com>
-	<20171208091042.GA14472@bbox>
-Date: Fri, 08 Dec 2017 20:32:16 +0800
-In-Reply-To: <20171208091042.GA14472@bbox> (Minchan Kim's message of "Fri, 8
-	Dec 2017 18:10:42 +0900")
-Message-ID: <87efo5bdtb.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Dec 2017 04:43:36 -0800 (PST)
+Date: Fri, 8 Dec 2017 13:43:33 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH v3 1/7] ktask: add documentation
+Message-ID: <20171208124333.GV20234@dhcp22.suse.cz>
+References: <20171205195220.28208-1-daniel.m.jordan@oracle.com>
+ <20171205195220.28208-2-daniel.m.jordan@oracle.com>
+ <20171206143509.GG7515@dhcp22.suse.cz>
+ <d8323ee9-eb99-7f55-50c6-c71f4986cf06@oracle.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d8323ee9-eb99-7f55-50c6-c71f4986cf06@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Daniel Jordan <daniel.m.jordan@oracle.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, aaron.lu@intel.com, akpm@linux-foundation.org, dave.hansen@linux.intel.com, mgorman@techsingularity.net, mike.kravetz@oracle.com, pasha.tatashin@oracle.com, steven.sistare@oracle.com, tim.c.chen@intel.com
 
-Minchan Kim <minchan@kernel.org> writes:
+On Wed 06-12-17 15:32:48, Daniel Jordan wrote:
+> On 12/06/2017 09:35 AM, Michal Hocko wrote:
+[...]
+> > There is also no mention about other
+> > characteristics (e.g. power management), resource isloataion etc. So > let me ask again. How do you control that the parallelized operation
+> > doesn't run outside of the limit imposed to the calling context?
+> 
+> The current code doesn't do this, and the answer is the same for the rest of
+> your questions.
 
-> On Fri, Dec 08, 2017 at 04:41:38PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Fri, Dec 08, 2017 at 01:41:10PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > On Thu, Dec 07, 2017 at 04:29:37PM -0800, Andrew Morton wrote:
->> >> >> On Thu,  7 Dec 2017 09:14:26 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
->> >> >> 
->> >> >> > When the swapin is performed, after getting the swap entry information
->> >> >> > from the page table, the PTL (page table lock) will be released, then
->> >> >> > system will go to swap in the swap entry, without any lock held to
->> >> >> > prevent the swap device from being swapoff.  This may cause the race
->> >> >> > like below,
->> >> >> > 
->> >> >> > CPU 1				CPU 2
->> >> >> > -----				-----
->> >> >> > 				do_swap_page
->> >> >> > 				  swapin_readahead
->> >> >> > 				    __read_swap_cache_async
->> >> >> > swapoff				      swapcache_prepare
->> >> >> >   p->swap_map = NULL		        __swap_duplicate
->> >> >> > 					  p->swap_map[?] /* !!! NULL pointer access */
->> >> >> > 
->> >> >> > Because swap off is usually done when system shutdown only, the race
->> >> >> > may not hit many people in practice.  But it is still a race need to
->> >> >> > be fixed.
->> >> >> 
->> >> >> swapoff is so rare that it's hard to get motivated about any fix which
->> >> >> adds overhead to the regular codepaths.
->> >> >
->> >> > That was my concern, too when I see this patch.
->> >> >
->> >> >> 
->> >> >> Is there something we can do to ensure that all the overhead of this
->> >> >> fix is placed into the swapoff side?  stop_machine() may be a bit
->> >> >> brutal, but a surprising amount of code uses it.  Any other ideas?
->> >> >
->> >> > How about this?
->> >> >
->> >> > I think It's same approach with old where we uses si->lock everywhere
->> >> > instead of more fine-grained cluster lock.
->> >> >
->> >> > The reason I repeated to reset p->max to zero in the loop is to avoid
->> >> > using lockdep annotation(maybe, spin_lock_nested(something) to prevent
->> >> > false positive.
->> >> >
->> >> > diff --git a/mm/swapfile.c b/mm/swapfile.c
->> >> > index 42fe5653814a..9ce007a42bbc 100644
->> >> > --- a/mm/swapfile.c
->> >> > +++ b/mm/swapfile.c
->> >> > @@ -2644,6 +2644,19 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->> >> >  	swap_file = p->swap_file;
->> >> >  	old_block_size = p->old_block_size;
->> >> >  	p->swap_file = NULL;
->> >> > +
->> >> > +	if (p->flags & SWP_SOLIDSTATE) {
->> >> > +		unsigned long ci, nr_cluster;
->> >> > +
->> >> > +		nr_cluster = DIV_ROUND_UP(p->max, SWAPFILE_CLUSTER);
->> >> > +		for (ci = 0; ci < nr_cluster; ci++) {
->> >> > +			struct swap_cluster_info *sci;
->> >> > +
->> >> > +			sci = lock_cluster(p, ci * SWAPFILE_CLUSTER);
->> >> > +			p->max = 0;
->> >> > +			unlock_cluster(sci);
->> >> > +		}
->> >> > +	}
->> >> >  	p->max = 0;
->> >> >  	swap_map = p->swap_map;
->> >> >  	p->swap_map = NULL;
->> >> > @@ -3369,10 +3382,10 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->> >> >  		goto bad_file;
->> >> >  	p = swap_info[type];
->> >> >  	offset = swp_offset(entry);
->> >> > -	if (unlikely(offset >= p->max))
->> >> > -		goto out;
->> >> >  
->> >> >  	ci = lock_cluster_or_swap_info(p, offset);
->> >> > +	if (unlikely(offset >= p->max))
->> >> > +		goto unlock_out;
->> >> >  
->> >> >  	count = p->swap_map[offset];
->> >> >  
->> >> 
->> >> Sorry, this doesn't work, because
->> >> 
->> >> lock_cluster_or_swap_info()
->> >> 
->> >> Need to read p->cluster_info, which may be freed during swapoff too.
->> >> 
->> >> 
->> >> To reduce the added overhead in regular code path, Maybe we can use SRCU
->> >> to implement get_swap_device() and put_swap_device()?  There is only
->> >> increment/decrement on CPU local variable in srcu_read_lock/unlock().
->> >> Should be acceptable in not so hot swap path?
->> >> 
->> >> This needs to select CONFIG_SRCU if CONFIG_SWAP is enabled.  But I guess
->> >> that should be acceptable too?
->> >> 
->> >
->> > Why do we need srcu here? Is it enough with rcu like below?
->> >
->> > It might have a bug/room to be optimized about performance/naming.
->> > I just wanted to show my intention.
->> 
->> Yes.  rcu should work too.  But if we use rcu, it may need to be called
->> several times to make sure the swap device under us doesn't go away, for
->> example, when checking si->max in __swp_swapcount() and
->
-> I think it's not a big concern performance pov and benefit is good
-> abstraction through current locking function so we don't need much churn.
+I really believe this should be addressed before this can be considered
+for merging. While what you have might be sufficient for early boot
+initialization stuff I am not sure the amount of code is really
+justified by that usecase alone. Any runtime enabled parallelized work
+really have to care about the rest of the system. The last thing you
+really want to see is to make a highly utilized system overloaded just
+because of some optimization. And I do not see how can you achive that
+with a limit on the number of paralelization threads.
 
-I think get/put_something() is common practice in Linux kernel to
-prevent something to go away under us.  That makes the programming model
-easier to be understood than checking whether swap entry is valid here
-and there.
+> For resource isolation, I'll experiment with moving ktask threads into and
+> out of the cgroup of the calling thread.
+> 
+> Do any resources not covered by cgroup come to mind?  I'm trying to think if
+> I've left anything out.
 
->> add_swap_count_continuation().  And I found we need rcu to protect swap
->> cache radix tree array too.  So I think it may be better to use one
->
-> Could you elaborate it more about swap cache arrary problem?
+This is mostly about cpu so dealing with the cpu cgroup controller
+should do the work.
 
-Like swap_map, cluster_info, swap cache radix tree array for a swap
-device will be freed at the end of swapoff.  So when we look up swap
-cache, we need to make sure the swap cache array is valid firstly too.
+[...]
 
-Best Regards,
-Huang, Ying
+> Anyway, I think scalability bottlenecks should be weighed with the rest of
+> this.  It seems wrong that the kernel should always assume that one thread
+> is enough to free all of a process's memory or evict all the pages of a file
+> system no matter how much work there is to do.
 
->> calling to srcu_read_lock/unlock() instead of multiple callings to
->> rcu_read_lock/unlock().
->> 
->> Best Regards,
->> Huang, Ying
+Well, this will be always a double edge sword. Sure if you have spare
+cycles (whatever that means) than using them is really nice. But the
+last thing you really want is to turn an optimization into an
+utilization nightmare where few processes dominant the whole machine
+even though they could be easily contained normally inside a single
+execution context.
+
+Your work targets larger machines and I understand that you are mainly
+focused on a single large workload running on that machine but there are
+many others running with many smaller workloads which would like to be
+independent. Not everything is a large DB running on a large HW.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
