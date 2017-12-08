@@ -1,58 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A093B6B0033
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 02:50:19 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id a10so7384962pgq.3
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 23:50:19 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D6E16B0033
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 03:22:23 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id w95so5610592wrc.20
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 00:22:23 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 3si5061458pll.350.2017.12.07.23.50.18
+        by mx.google.com with ESMTPS id o27si5440718wra.417.2017.12.08.00.22.21
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 23:50:18 -0800 (PST)
-Date: Fri, 8 Dec 2017 08:50:14 +0100
+        Fri, 08 Dec 2017 00:22:22 -0800 (PST)
+Date: Fri, 8 Dec 2017 09:22:20 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Multiple oom_reaper BUGs: unmap_page_range racing with exit_mmap
-Message-ID: <20171208075014.GN20234@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712052323170.119719@chino.kir.corp.google.com>
- <20171206090019.GE16386@dhcp22.suse.cz>
- <201712070720.vB77KlBQ009754@www262.sakura.ne.jp>
- <20171207082801.GB20234@dhcp22.suse.cz>
- <alpine.DEB.2.10.1712071315570.135101@chino.kir.corp.google.com>
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+Message-ID: <20171208082220.GQ20234@dhcp22.suse.cz>
+References: <20171208012305.83134-1-surenb@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1712071315570.135101@chino.kir.corp.google.com>
+In-Reply-To: <20171208012305.83134-1-surenb@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-On Thu 07-12-17 13:22:30, David Rientjes wrote:
-[...]
-> > diff --git a/include/linux/sched/coredump.h b/include/linux/sched/coredump.h
-> > index 9c8847395b5e..da673ca66e7a 100644
-> > --- a/include/linux/sched/coredump.h
-> > +++ b/include/linux/sched/coredump.h
-> > @@ -68,8 +68,9 @@ static inline int get_dumpable(struct mm_struct *mm)
-> >  #define MMF_RECALC_UPROBES	20	/* MMF_HAS_UPROBES can be wrong */
-> >  #define MMF_OOM_SKIP		21	/* mm is of no interest for the OOM killer */
-> >  #define MMF_UNSTABLE		22	/* mm is unstable for copy_from_user */
-> > -#define MMF_HUGE_ZERO_PAGE	23      /* mm has ever used the global huge zero page */
-> > -#define MMF_DISABLE_THP		24	/* disable THP for all VMAs */
-> > +#define MMF_OOM_VICTIM		23	/* mm is the oom victim */
-> > +#define MMF_HUGE_ZERO_PAGE	24      /* mm has ever used the global huge zero page */
-> > +#define MMF_DISABLE_THP		25	/* disable THP for all VMAs */
-> >  #define MMF_DISABLE_THP_MASK	(1 << MMF_DISABLE_THP)
-> >  
-> >  #define MMF_INIT_MASK		(MMF_DUMPABLE_MASK | MMF_DUMP_FILTER_MASK |\
+On Thu 07-12-17 17:23:05, Suren Baghdasaryan wrote:
+> Slab shrinkers can be quite time consuming and when signal
+> is pending they can delay handling of the signal. If fatal
+> signal is pending there is no point in shrinking that process
+> since it will be killed anyway.
+
+The thing is that we are _not_ shrinking _that_ process. We are
+shrinking globally shared objects and the fact that the memory pressure
+is so large that the kswapd doesn't keep pace with it means that we have
+to throttle all allocation sites by doing this direct reclaim. I agree
+that expediting killed task is a good thing in general because such a
+process should free at least some memory.
+
+> This change checks for pending
+> fatal signals inside shrink_slab loop and if one is detected
+> terminates this loop early.
+
+This changelog doesn't really address my previous review feedback, I am
+afraid. You should mention more details about problems you are seeing
+and what causes them. If we have a shrinker which takes considerable
+amount of time them we should be addressing that. If that is not
+possible then it should be documented at least.
+
+The changelog also should describe how does this play along with the
+rest of the allocation path.
+
+The patch is not mergeable in this form I am afraid.
+
+> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
 > 
-> Could we not adjust the bit values, but simply add new one for 
-> MMF_OOM_VICTIM?  We have automated tools that look at specific bits in 
-> mm->flags and it would be nice to not have them be inconsistent between 
-> kernel versions.  Not absolutely required, but nice to avoid.
+> ---
+> V2:
+> Sergey Senozhatsky:
+>   - Fix missing parentheses
+> ---
+>  mm/vmscan.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c02c850ea349..28e4bdc72c16 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  			.memcg = memcg,
+>  		};
+>  
+> +		/*
+> +		 * We are about to die and free our memory.
+> +		 * Stop shrinking which might delay signal handling.
+> +		 */
+> +		if (unlikely(fatal_signal_pending(current)))
+> +			break;
+> +
+>  		/*
+>  		 * If kernel memory accounting is disabled, we ignore
+>  		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+> -- 
+> 2.15.1.424.g9478a66081-goog
+> 
 
-I just wanted to have those semantically related bits closer
-together. But I do not insist on this.
 -- 
 Michal Hocko
 SUSE Labs
