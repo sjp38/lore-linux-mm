@@ -1,112 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A8E46B0253
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 03:27:00 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id p17so8122723pfh.18
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 00:27:00 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15sor2015067pgr.381.2017.12.08.00.26.59
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D3C636B025F
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 03:27:41 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id v190so7008409pgv.11
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 00:27:41 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o27si5192849pgc.320.2017.12.08.00.27.40
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Dec 2017 00:26:59 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 08 Dec 2017 00:27:40 -0800 (PST)
+Date: Fri, 8 Dec 2017 09:27:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v4] mm, thp: introduce generic transparent huge page
+ allocation interfaces
+Message-ID: <20171208082737.GA15790@dhcp22.suse.cz>
+References: <1512708175-14089-1-git-send-email-changbin.du@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20171207234056.GF26792@bombadil.infradead.org>
-References: <1512689407-100663-1-git-send-email-yang.s@alibaba-inc.com> <20171207234056.GF26792@bombadil.infradead.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 8 Dec 2017 09:26:37 +0100
-Message-ID: <CACT4Y+aB088z8zBuQC8Ff6Sf-2_QHVNRjfVpVjy7Xu8+G5BriQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: kasan: suppress soft lockup in slub when !CONFIG_PREEMPT
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1512708175-14089-1-git-send-email-changbin.du@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Yang Shi <yang.s@alibaba-inc.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>
+To: changbin.du@intel.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 8, 2017 at 12:40 AM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Fri, Dec 08, 2017 at 07:30:07AM +0800, Yang Shi wrote:
->> When running stress test with KASAN enabled, the below softlockup may
->> happen occasionally:
->>
->> NMI watchdog: BUG: soft lockup - CPU#7 stuck for 22s!
->> hardirqs last  enabled at (0): [<          (null)>]      (null)
->> hardirqs last disabled at (0): [] copy_process.part.30+0x5c6/0x1f50
->> softirqs last  enabled at (0): [] copy_process.part.30+0x5c6/0x1f50
->> softirqs last disabled at (0): [<          (null)>]      (null)
->
->> Call Trace:
->>  [] __slab_free+0x19c/0x270
->>  [] ___cache_free+0xa6/0xb0
->>  [] qlist_free_all+0x47/0x80
->>  [] quarantine_reduce+0x159/0x190
->>  [] kasan_kmalloc+0xaf/0xc0
->>  [] kasan_slab_alloc+0x12/0x20
->>  [] kmem_cache_alloc+0xfa/0x360
->>  [] ? getname_flags+0x4f/0x1f0
->>  [] getname_flags+0x4f/0x1f0
->>  [] getname+0x12/0x20
->>  [] do_sys_open+0xf9/0x210
->>  [] SyS_open+0x1e/0x20
->>  [] entry_SYSCALL_64_fastpath+0x1f/0xc2
->
-> This feels like papering over a problem.  KASAN only calls
-> quarantine_reduce() when it's allowed to block.  Presumably it has
-> millions of entries on the free list at this point.  I think the right
-> thing to do is for qlist_free_all() to call cond_resched() after freeing
-> every N items.
+On Fri 08-12-17 12:42:55, changbin.du@intel.com wrote:
+> From: Changbin Du <changbin.du@intel.com>
+> 
+> This patch introduced 4 new interfaces to allocate a prepared transparent
+> huge page. These interfaces merge distributed two-step allocation as simple
+> single step. And they can avoid issue like forget to call prep_transhuge_page()
+> or call it on wrong page. A real fix:
+> 40a899e ("mm: migrate: fix an incorrect call of prep_transhuge_page()")
+> 
+> Anyway, I just want to prove that expose direct allocation interfaces is
+> better than a interface only do the second part of it.
+> 
+> These are similar to alloc_hugepage_xxx which are for hugetlbfs pages. New
+> interfaces are:
+>   - alloc_transhuge_page_vma
+>   - alloc_transhuge_page_nodemask
+>   - alloc_transhuge_page_node
+>   - alloc_transhuge_page
+> 
+> These interfaces implicitly add __GFP_COMP gfp mask which is the minimum
+> flags used for huge page allocation. More flags leave to the callers.
+> 
+> This patch does below changes:
+>   - define alloc_transhuge_page_xxx interfaces
+>   - apply them to all existing code
+>   - declare prep_transhuge_page as static since no others use it
+>   - remove alloc_hugepage_vma definition since it no longer has users
 
+I am not really convinced this is a huge win, to be honest. Just look at
+the diffstat. Very few callsites get marginally simpler while we add a
+lot of stubs and the code churn.
 
-Agree. Adding touch_softlockup_watchdog() to a random low-level
-function looks like a wrong thing to do.
-quarantine_reduce() already has this logic. Look at
-QUARANTINE_BATCHES. It's meant to do exactly this -- limit amount of
-work in quarantine_reduce() and in quarantine_remove_cache() to
-reasonably-sized batches. We could simply increase number of batches
-to make them smaller. But it would be good to understand what exactly
-happens in this case. Batches should on a par of ~~1MB. Why freeing
-1MB worth of objects (smallest of which is 32b) takes 22 seconds?
-
-
-
->> The code is run in irq disabled or preempt disabled context, so
->> cond_resched() can't be used in this case. Touch softlockup watchdog when
->> KASAN is enabled to suppress the warning.
->>
->> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
->> ---
->>  mm/slub.c | 5 +++++
->>  1 file changed, 5 insertions(+)
->>
->> diff --git a/mm/slub.c b/mm/slub.c
->> index cfd56e5..4ae435e 100644
->> --- a/mm/slub.c
->> +++ b/mm/slub.c
->> @@ -35,6 +35,7 @@
->>  #include <linux/prefetch.h>
->>  #include <linux/memcontrol.h>
->>  #include <linux/random.h>
->> +#include <linux/nmi.h>
->>
->>  #include <trace/events/kmem.h>
->>
->> @@ -2266,6 +2267,10 @@ static void put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
->>               page->pobjects = pobjects;
->>               page->next = oldpage;
->>
->> +#ifdef CONFIG_KASAN
->> +             touch_softlockup_watchdog();
->> +#endif
->> +
->>       } while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page)
->>                                                               != oldpage);
->>       if (unlikely(!s->cpu_partial)) {
->> --
->> 1.8.3.1
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Signed-off-by: Changbin Du <changbin.du@intel.com>
+> 
+> ---
+> v4:
+>   - Revise the nop function definition. (Andrew)
+> 
+> v3:
+>   - Rebase to latest mainline.
+> 
+> v2:
+> Anshuman Khandu:
+>   - Remove redundant 'VM_BUG_ON(!(gfp_mask & __GFP_COMP))'.
+> Andrew Morton:
+>   - Fix build error if thp is disabled.
+> ---
+>  include/linux/gfp.h     |  4 ----
+>  include/linux/huge_mm.h | 35 +++++++++++++++++++++++++++++++++--
+>  include/linux/migrate.h | 14 +++++---------
+>  mm/huge_memory.c        | 48 +++++++++++++++++++++++++++++++++++++++++-------
+>  mm/khugepaged.c         | 11 ++---------
+>  mm/mempolicy.c          | 14 +++-----------
+>  mm/migrate.c            | 14 ++++----------
+>  mm/shmem.c              |  6 ++----
+>  8 files changed, 90 insertions(+), 56 deletions(-)
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
