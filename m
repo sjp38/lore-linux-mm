@@ -1,91 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D6E16B0033
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 03:22:23 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w95so5610592wrc.20
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 00:22:23 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o27si5440718wra.417.2017.12.08.00.22.21
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 52FF16B0033
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 03:24:34 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a13so7467027pgt.0
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 00:24:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r59sor3047700plb.9.2017.12.08.00.24.32
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Dec 2017 00:22:22 -0800 (PST)
-Date: Fri, 8 Dec 2017 09:22:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
-Message-ID: <20171208082220.GQ20234@dhcp22.suse.cz>
-References: <20171208012305.83134-1-surenb@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171208012305.83134-1-surenb@google.com>
+        (Google Transport Security);
+        Fri, 08 Dec 2017 00:24:32 -0800 (PST)
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: [PATCH] sched/autogroup: move sched.h include
+Date: Fri,  8 Dec 2017 17:24:22 +0900
+Message-Id: <20171208082422.5021-1-sergey.senozhatsky@gmail.com>
+In-Reply-To: <20171208025616.16267-2-sergey.senozhatsky@gmail.com>
+References: <20171208025616.16267-2-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
+To: Peter Zijlstra <peterz@infradead.org>, Martin Schwidefsky <schwidefsky@de.ibm.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Thu 07-12-17 17:23:05, Suren Baghdasaryan wrote:
-> Slab shrinkers can be quite time consuming and when signal
-> is pending they can delay handling of the signal. If fatal
-> signal is pending there is no point in shrinking that process
-> since it will be killed anyway.
+Move local "sched.h" include to the bottom. sched.h defines
+several macros that are getting redefined in ARCH-specific
+code, for instance, finish_arch_post_lock_switch() and
+prepare_arch_switch(), so we need ARCH-specific definitions
+to come in first.
 
-The thing is that we are _not_ shrinking _that_ process. We are
-shrinking globally shared objects and the fact that the memory pressure
-is so large that the kswapd doesn't keep pace with it means that we have
-to throttle all allocation sites by doing this direct reclaim. I agree
-that expediting killed task is a good thing in general because such a
-process should free at least some memory.
+Suggested-by: Martin Schwidefsky <schwidefsky@de.ibm.com>
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ kernel/sched/autogroup.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
-> This change checks for pending
-> fatal signals inside shrink_slab loop and if one is detected
-> terminates this loop early.
-
-This changelog doesn't really address my previous review feedback, I am
-afraid. You should mention more details about problems you are seeing
-and what causes them. If we have a shrinker which takes considerable
-amount of time them we should be addressing that. If that is not
-possible then it should be documented at least.
-
-The changelog also should describe how does this play along with the
-rest of the allocation path.
-
-The patch is not mergeable in this form I am afraid.
-
-> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
-> 
-> ---
-> V2:
-> Sergey Senozhatsky:
->   - Fix missing parentheses
-> ---
->  mm/vmscan.c | 7 +++++++
->  1 file changed, 7 insertions(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index c02c850ea349..28e4bdc72c16 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->  			.memcg = memcg,
->  		};
->  
-> +		/*
-> +		 * We are about to die and free our memory.
-> +		 * Stop shrinking which might delay signal handling.
-> +		 */
-> +		if (unlikely(fatal_signal_pending(current)))
-> +			break;
-> +
->  		/*
->  		 * If kernel memory accounting is disabled, we ignore
->  		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
-> -- 
-> 2.15.1.424.g9478a66081-goog
-> 
-
+diff --git a/kernel/sched/autogroup.c b/kernel/sched/autogroup.c
+index 0786227a3f48..bb4b9fe026a1 100644
+--- a/kernel/sched/autogroup.c
++++ b/kernel/sched/autogroup.c
+@@ -1,12 +1,12 @@
+ // SPDX-License-Identifier: GPL-2.0
+-#include "sched.h"
+-
+ #include <linux/proc_fs.h>
+ #include <linux/seq_file.h>
+ #include <linux/utsname.h>
+ #include <linux/security.h>
+ #include <linux/export.h>
+ 
++#include "sched.h"
++
+ unsigned int __read_mostly sysctl_sched_autogroup_enabled = 1;
+ static struct autogroup autogroup_default;
+ static atomic_t autogroup_seq_nr;
 -- 
-Michal Hocko
-SUSE Labs
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
