@@ -1,61 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 890566B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 12:35:10 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id j58so13638721qtj.18
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 09:35:10 -0800 (PST)
-Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
-        by mx.google.com with SMTP id e14si1389598qka.142.2017.12.08.09.35.08
-        for <linux-mm@kvack.org>;
-        Fri, 08 Dec 2017 09:35:08 -0800 (PST)
-Date: Fri, 8 Dec 2017 12:35:07 -0500 (EST)
-From: Alan Stern <stern@rowland.harvard.edu>
-Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
-In-Reply-To: <fd7130d7-9066-524e-1053-a61eeb27cb36@lge.com>
-Message-ID: <Pine.LNX.4.44L0.1712081228430.1371-100000@iolanthe.rowland.org>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 552066B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 12:53:50 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id r88so9271747pfi.23
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 09:53:50 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id f28si5882421pgn.758.2017.12.08.09.53.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Dec 2017 09:53:48 -0800 (PST)
+Date: Fri, 8 Dec 2017 11:53:45 -0600
+From: Bjorn Helgaas <helgaas@kernel.org>
+Subject: Re: [PATCH 4/9] pci: remove unneeded kallsyms include
+Message-ID: <20171208175345.GA12367@bhelgaas-glaptop.roam.corp.google.com>
+References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com>
+ <20171208025616.16267-5-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171208025616.16267-5-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <byungchul.park@lge.com>
-Cc: Dave Chinner <david@fromorbit.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Vlastimil Babka <vbabka@suse.cz>, Tejun Heo <tj@kernel.org>, Lai Jiangshan <jiangshanlai@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Fri, 8 Dec 2017, Byungchul Park wrote:
-
-> I'm sorry to hear that.. If I were you, I would also get
-> annoyed. And.. thanks for explanation.
+On Fri, Dec 08, 2017 at 11:56:11AM +0900, Sergey Senozhatsky wrote:
+> The file was converted from print_fn_descriptor_symbol()
+> to %pF some time ago (c9bbb4abb658da "PCI: use %pF instead
+> of print_fn_descriptor_symbol() in quirks.c"). kallsyms does
+> not seem to be needed anymore.
 > 
-> But, I think assigning lock classes properly and checking
-> relationship of the classes to detect deadlocks is reasonable.
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Bjorn Helgaas <bhelgaas@google.com>
+
+Applied to pci/misc for v4.16, thanks for cleaning this up!
+
+I *assume* there's no ordering dependency like the one you mentioned
+for sched/printk.  If there is, let me know, and I'll move this to
+for-linus to get it in v4.15.
+
+> ---
+>  drivers/pci/quirks.c | 1 -
+>  1 file changed, 1 deletion(-)
 > 
-> In my opinion about the common lockdep stuff, there are 2
-> problems on it.
+> diff --git a/drivers/pci/quirks.c b/drivers/pci/quirks.c
+> index 10684b17d0bd..fd49b976973f 100644
+> --- a/drivers/pci/quirks.c
+> +++ b/drivers/pci/quirks.c
+> @@ -19,7 +19,6 @@
+>  #include <linux/init.h>
+>  #include <linux/delay.h>
+>  #include <linux/acpi.h>
+> -#include <linux/kallsyms.h>
+>  #include <linux/dmi.h>
+>  #include <linux/pci-aspm.h>
+>  #include <linux/ioport.h>
+> -- 
+> 2.15.1
 > 
-> 1) Firstly, it's hard to assign lock classes *properly*. By
-> default, it relies on the caller site of lockdep_init_map(),
-> but we need to assign another class manually, where ordering
-> rules are complicated so cannot rely on the caller site. That
-> *only* can be done by experts of the subsystem.
-> 
-> I think if they want to get benifit from lockdep, they have no
-> choice but to assign classes manually with the domain knowledge,
-> or use *lockdep_set_novalidate_class()* to invalidate locks
-> making the developers annoyed and not want to use the checking
-> for them.
-
-Lockdep's no_validate class is used when the locking patterns are too
-complicated for lockdep to understand.  Basically, it tells lockdep to
-ignore those locks.
-
-The device core uses that class.  The tree of struct devices, each with
-its own lock, gets used in many different and complicated ways.  
-Lockdep can't understand this -- it doesn't have the ability to
-represent an arbitrarily deep hierarchical tree of locks -- so we tell
-it to ignore the device locks.
-
-It sounds like XFS may need to do the same thing with its semaphores.
-
-Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
