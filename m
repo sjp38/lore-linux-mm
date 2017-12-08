@@ -1,56 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BFEBC6B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 13:14:51 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id a13so8535491pgt.0
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 10:14:51 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id p11si6543256pfh.334.2017.12.08.10.14.48
+Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D5DBB6B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 15:13:34 -0500 (EST)
+Received: by mail-vk0-f69.google.com with SMTP id z85so6210475vkd.22
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 12:13:34 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id v27sor3206135uae.75.2017.12.08.12.13.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 10:14:48 -0800 (PST)
-Date: Fri, 8 Dec 2017 10:14:38 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: Lockdep is less useful than it was
-Message-ID: <20171208181438.GA6406@bombadil.infradead.org>
-References: <20171206004159.3755-73-willy@infradead.org>
- <20171206012901.GZ4094@dastard>
- <20171206020208.GK26021@bombadil.infradead.org>
- <20171206031456.GE4094@dastard>
- <20171206044549.GO26021@bombadil.infradead.org>
- <20171206084404.GF4094@dastard>
- <20171206140648.GB32044@bombadil.infradead.org>
- <20171207160634.il3vt5d6a4v5qesi@thunk.org>
- <20171207223803.GC26792@bombadil.infradead.org>
- <20171208152717.fx5w66wvyrfx6vrz@thunk.org>
+        (Google Transport Security);
+        Fri, 08 Dec 2017 12:13:33 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171208152717.fx5w66wvyrfx6vrz@thunk.org>
+In-Reply-To: <20171208083315.GR20234@dhcp22.suse.cz>
+References: <20171129144219.22867-1-mhocko@kernel.org> <CAGXu5jLa=b2HhjWXXTQunaZuz11qUhm5aNXHpS26jVqb=G-gfw@mail.gmail.com>
+ <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz> <20171201152640.GA3765@rei>
+ <87wp20e9wf.fsf@concordia.ellerman.id.au> <20171206045433.GQ26021@bombadil.infradead.org>
+ <20171206070355.GA32044@bombadil.infradead.org> <87bmjbks4c.fsf@concordia.ellerman.id.au>
+ <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com>
+ <20171207195727.GA26792@bombadil.infradead.org> <20171208083315.GR20234@dhcp22.suse.cz>
+From: Kees Cook <keescook@chromium.org>
+Date: Fri, 8 Dec 2017 12:13:31 -0800
+Message-ID: <CAGXu5j+VupGmKEEHx-uNXw27Xvndu=0ObsBqMwQiaYPyMGD+vw@mail.gmail.com>
+Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Dave Chinner <david@fromorbit.com>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@kernel.org, byungchul.park@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Michael Ellerman <mpe@ellerman.id.au>, Cyril Hrubis <chrubis@suse.cz>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Pavel Machek <pavel@ucw.cz>
 
-On Fri, Dec 08, 2017 at 10:27:17AM -0500, Theodore Ts'o wrote:
-> So if you are adding complexity to the kernel with the argument,
-> "lockdep will save us", I'm with Dave --- it's just not a believable
-> argument.
+On Fri, Dec 8, 2017 at 12:33 AM, Michal Hocko <mhocko@kernel.org> wrote:
+> OK, this doesn't seem to lead to anywhere. The more this is discussed
+> the more names we are getting. So you know what? I will resubmit and
+> keep my original name. If somebody really hates it then feel free to
+> nack the patch and push alternative and gain concensus on it.
+>
+> I will keep MAP_FIXED_SAFE because it is an alternative to MAP_FIXED so
+> having that in the name is _useful_ for everybody familiar with
+> MAP_FIXED already. And _SAFE suffix tells that the operation doesn't
+> cause any silent memory corruptions or other unexpected side effects.
 
-I think that's a gross misrepresentation of what I'm doing.
+Looks like consensus is MAP_FIXED_NOREPLACE.
 
-At the moment, the radix tree actively disables the RCU checking that
-enabling lockdep would give us.  It has to, because it has no idea what
-lock protects any individual access to the radix tree.  The XArray can
-use the RCU checking because it knows that every reference is protected
-by either the spinlock or the RCU lock.
+-Kees
 
-Dave was saying that he has a tree which has to be protected by a mutex
-because of where it is in the locking hierarchy, and I was vigorously
-declining his proposal of allowing him to skip taking the spinlock.
-
-And yes, we have bugs today that I assume we only stumble across every
-few billion years (or only on alpha, or only if our compiler gets more
-aggressive) because we have missing rcu_dereference annotations.
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
