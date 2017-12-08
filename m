@@ -1,64 +1,1018 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B49EA6B025E
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 22:39:16 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id q3so6864415pgv.16
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 19:39:16 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id s188si4798032pgc.270.2017.12.07.19.39.15
+Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 806556B0069
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 22:48:28 -0500 (EST)
+Received: by mail-lf0-f72.google.com with SMTP id q62so2480684lfg.5
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 19:48:28 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y2sor1376546lja.56.2017.12.07.19.48.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 07 Dec 2017 19:39:15 -0800 (PST)
-Subject: [PATCH 2/2] device-dax: implement ->pagesize() for smaps to report
- MMUPageSize
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 07 Dec 2017 19:31:00 -0800
-Message-ID: <151270386082.21215.150215755680990629.stgit@dwillia2-desk3.amr.corp.intel.com>
-In-Reply-To: <151270384965.21215.2022156459463260344.stgit@dwillia2-desk3.amr.corp.intel.com>
-References: <151270384965.21215.2022156459463260344.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Thu, 07 Dec 2017 19:48:25 -0800 (PST)
+Message-ID: <1512704901.7843.5.camel@gmail.com>
+Subject: Google Chrome cause locks held in system (kernel 4.15 rc2)
+From: mikhail <mikhail.v.gavrilov@gmail.com>
+Date: Fri, 08 Dec 2017 08:48:21 +0500
+Content-Type: multipart/alternative; boundary="=-r0HT0rGmENkqxKlWpYWw"
+Mime-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: akpm@linux-foundation.org
-Cc: Jane Chu <jane.chu@oracle.com>, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-Given that device-dax is making similar page mapping size guarantees as
-hugetlbfs, emit the size in smaps and any other kernel path that
-requests the mapping size of a vma.
 
-Reported-by: Jane Chu <jane.chu@oracle.com>
-Signed-off-by: Dan Williams <dan.j.williams@intel.com>
----
- drivers/dax/device.c |   10 ++++++++++
- 1 file changed, 10 insertions(+)
+--=-r0HT0rGmENkqxKlWpYWw
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 7bit
 
-diff --git a/drivers/dax/device.c b/drivers/dax/device.c
-index 7b0bf825c4e7..b57cd5a7b0bd 100644
---- a/drivers/dax/device.c
-+++ b/drivers/dax/device.c
-@@ -439,10 +439,20 @@ static int dev_dax_split(struct vm_area_struct *vma, unsigned long addr)
- 	return 0;
- }
- 
-+static unsigned long dev_dax_pagesize(struct vm_area_struct *vma)
-+{
-+	struct file *filp = vma->vm_file;
-+	struct dev_dax *dev_dax = filp->private_data;
-+	struct dax_region *dax_region = dev_dax->region;
-+
-+	return dax_region->align;
-+}
-+
- static const struct vm_operations_struct dax_vm_ops = {
- 	.fault = dev_dax_fault,
- 	.huge_fault = dev_dax_huge_fault,
- 	.split = dev_dax_split,
-+	.pagesize = dev_dax_pagesize,
- };
- 
- static int dax_mmap(struct file *filp, struct vm_area_struct *vma)
+Hi,
+
+can anybody said what here happens?
+And which info needed for fixing it?
+Thanks.
+
+[16712.376081] INFO: task tracker-store:27121 blocked for more than 120
+seconds.
+[16712.376088]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[16712.376092] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[16712.376095] tracker-store   D13400 27121   1843 0x00000000
+[16712.376102] Call Trace:
+[16712.376114]  ? __schedule+0x2e3/0xb90
+[16712.376123]  ? wait_for_completion+0x146/0x1e0
+[16712.376128]  schedule+0x2f/0x90
+[16712.376132]  schedule_timeout+0x236/0x540
+[16712.376143]  ? mark_held_locks+0x4e/0x80
+[16712.376147]  ? _raw_spin_unlock_irq+0x29/0x40
+[16712.376153]  ? wait_for_completion+0x146/0x1e0
+[16712.376158]  wait_for_completion+0x16e/0x1e0
+[16712.376162]  ? wake_up_q+0x70/0x70
+[16712.376204]  ? xfs_buf_read_map+0x134/0x2f0 [xfs]
+[16712.376234]  xfs_buf_submit_wait+0xaf/0x520 [xfs]
+[16712.376263]  xfs_buf_read_map+0x134/0x2f0 [xfs]
+[16712.376293]  ? xfs_trans_read_buf_map+0xc3/0x580 [xfs]
+[16712.376325]  xfs_trans_read_buf_map+0xc3/0x580 [xfs]
+[16712.376353]  xfs_da_read_buf+0xd3/0x120 [xfs]
+[16712.376387]  xfs_dir3_block_read+0x35/0x70 [xfs]
+[16712.376413]  xfs_dir2_block_lookup_int+0x4d/0x220 [xfs]
+[16712.376444]  xfs_dir2_block_replace+0x4e/0x1d0 [xfs]
+[16712.376467]  ? xfs_dir2_isblock+0x2f/0x90 [xfs]
+[16712.376492]  xfs_dir_replace+0x10a/0x180 [xfs]
+[16712.376526]  xfs_rename+0x586/0xbd0 [xfs]
+[16712.376573]  xfs_vn_rename+0xd5/0x140 [xfs]
+[16712.376586]  vfs_rename+0x494/0xa00
+[16712.376601]  SyS_rename+0x338/0x390
+[16712.376618]  entry_SYSCALL_64_fastpath+0x1f/0x96
+[16712.376622] RIP: 0033:0x7f02d4a2c167
+[16712.376624] RSP: 002b:00007ffd0998cb98 EFLAGS: 00000207 ORIG_RAX:
+0000000000000052
+[16712.376629] RAX: ffffffffffffffda RBX: 0000000000000001 RCX:
+00007f02d4a2c167
+[16712.376631] RDX: 0000000000000002 RSI: 0000560149d23fd0 RDI:
+0000560149e737b0
+[16712.376633] RBP: 000000000000000f R08: 0000560149e73710 R09:
+000000000000002c
+[16712.376635] R10: 0000000000058a8e R11: 0000000000000207 R12:
+0000000000000000
+[16712.376638] R13: 0000560149e6c360 R14: 0000560149d23fd0 R15:
+0000000000000000
+[16712.376828] 
+               Showing all locks held in the system:
+[16712.376876] 1 lock held by khungtaskd/67:
+[16712.376886]  #0:  (tasklist_lock){.+.+}, at: [<00000000a615f1dc>]
+debug_show_all_locks+0x37/0x190
+[16712.377113] 3 locks held by kworker/u16:2/18769:
+[16712.377115]  #0:  ((wq_completion)"writeback"){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[16712.377128]  #1:  ((work_completion)(&(&wb->dwork)->work)){+.+.},
+at: [<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[16712.377138]  #2:  (&type->s_umount_key#63){++++}, at:
+[<00000000ecbba71d>] trylock_super+0x16/0x50
+[16712.377176] 8 locks held by tracker-store/27121:
+[16712.377178]  #0:  (sb_writers#17){.+.+}, at: [<0000000063218e58>]
+mnt_want_write+0x20/0x50
+[16712.377191]  #1:  (&type->i_mutex_dir_key#7/1){+.+.}, at:
+[<0000000026b21526>] lock_rename+0xcf/0xf0
+[16712.377208]  #2:  (&inode->i_rwsem){++++}, at: [<00000000b63ba570>]
+lock_two_nondirectories+0x6d/0x80
+[16712.377219]  #3:  (&inode->i_rwsem/4){+.+.}, at:
+[<00000000d44f800a>] vfs_rename+0x337/0xa00
+[16712.377232]  #4:  (sb_internal){.+.+}, at: [<00000000b5b0ff39>]
+xfs_trans_alloc+0xe2/0x120 [xfs]
+[16712.377269]  #5:  (&xfs_dir_ilock_class){++++}, at:
+[<000000007c7eac55>] xfs_rename+0x45e/0xbd0 [xfs]
+[16712.377306]  #6:  (&xfs_nondir_ilock_class/2){+.+.}, at:
+[<000000007c7eac55>] xfs_rename+0x45e/0xbd0 [xfs]
+[16712.377343]  #7:  (&xfs_nondir_ilock_class/3){+.+.}, at:
+[<000000007c7eac55>] xfs_rename+0x45e/0xbd0 [xfs]
+[16712.377380] 3 locks held by TaskSchedulerFo/27216:
+[16712.377382]  #0:  (sb_writers#17){.+.+}, at: [<0000000054534ce6>]
+do_sys_ftruncate.constprop.17+0xda/0x110
+[16712.377396]  #1:  (&sb->s_type->i_mutex_key#20){++++}, at:
+[<0000000086cbd317>] do_truncate+0x66/0xc0
+[16712.377408]  #2:  (&(&ip->i_mmaplock)->mr_lock){++++}, at:
+[<00000000adf132fd>] xfs_ilock+0x14b/0x200 [xfs]
+[16712.377443] 3 locks held by TaskSchedulerFo/27217:
+[16712.377445]  #0:  (sb_writers#17){.+.+}, at: [<0000000054534ce6>]
+do_sys_ftruncate.constprop.17+0xda/0x110
+[16712.377457]  #1:  (&sb->s_type->i_mutex_key#20){++++}, at:
+[<0000000086cbd317>] do_truncate+0x66/0xc0
+[16712.377471]  #2:  (&(&ip->i_mmaplock)->mr_lock){++++}, at:
+[<00000000adf132fd>] xfs_ilock+0x14b/0x200 [xfs]
+[16712.377504] 1 lock held by TaskSchedulerFo/27219:
+[16712.377506]  #0:  (sb_writers#17){.+.+}, at: [<0000000063218e58>]
+mnt_want_write+0x20/0x50
+[16712.377521] 3 locks held by TaskSchedulerFo/27287:
+[16712.377523]  #0:  (sb_writers#17){.+.+}, at: [<0000000054534ce6>]
+do_sys_ftruncate.constprop.17+0xda/0x110
+[16712.377535]  #1:  (&sb->s_type->i_mutex_key#20){++++}, at:
+[<0000000086cbd317>] do_truncate+0x66/0xc0
+[16712.377547]  #2:  (&(&ip->i_mmaplock)->mr_lock){++++}, at:
+[<00000000adf132fd>] xfs_ilock+0x14b/0x200 [xfs]
+[16712.377581] 3 locks held by TaskSchedulerFo/27289:
+[16712.377583]  #0:  (&f->f_pos_lock){+.+.}, at: [<00000000cb121025>]
+__fdget_pos+0x48/0x60
+[16712.377594]  #1:  (&type->i_mutex_dir_key#7){++++}, at:
+[<00000000a872ed9a>] iterate_dir+0x56/0x180
+[16712.377607]  #2:  (&xfs_dir_ilock_class){++++}, at:
+[<000000002829e721>] xfs_ilock_data_map_shared+0x2c/0x30 [xfs]
+[16712.377641] 3 locks held by TaskSchedulerFo/27292:
+[16712.377642]  #0:  (sb_writers#17){.+.+}, at: [<0000000054534ce6>]
+do_sys_ftruncate.constprop.17+0xda/0x110
+[16712.377655]  #1:  (&inode->i_rwsem){++++}, at: [<0000000086cbd317>]
+do_truncate+0x66/0xc0
+[16712.377667]  #2:  (&(&ip->i_mmaplock)->mr_lock){++++}, at:
+[<00000000adf132fd>] xfs_ilock+0x14b/0x200 [xfs]
+
+[16712.377873] =============================================
+
+[18432.706561] INFO: task htop:2690 blocked for more than 120 seconds.
+[18432.706575]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.706581] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.706588] htop            D12280  2690   2565 0x00000000
+[18432.706602] Call Trace:
+[18432.706622]  ? __schedule+0x2e3/0xb90
+[18432.706637]  ? rwsem_down_read_failed+0x147/0x190
+[18432.706648]  schedule+0x2f/0x90
+[18432.706654]  rwsem_down_read_failed+0x118/0x190
+[18432.706662]  ? __lock_acquire+0x2c3/0x1270
+[18432.706688]  ? call_rwsem_down_read_failed+0x14/0x30
+[18432.706695]  call_rwsem_down_read_failed+0x14/0x30
+[18432.706710]  down_read+0x97/0xa0
+[18432.706719]  proc_pid_cmdline_read+0xd2/0x4a0
+[18432.706731]  ? debug_check_no_obj_freed+0x160/0x248
+[18432.706753]  ? __vfs_read+0x33/0x170
+[18432.706759]  __vfs_read+0x33/0x170
+[18432.706781]  vfs_read+0x9e/0x150
+[18432.706792]  SyS_read+0x55/0xc0
+[18432.706807]  entry_SYSCALL_64_fastpath+0x1f/0x96
+[18432.706814] RIP: 0033:0x7fc2d8f4ae01
+[18432.706819] RSP: 002b:00007fffedb1f998 EFLAGS: 00000246 ORIG_RAX:
+0000000000000000
+[18432.706827] RAX: ffffffffffffffda RBX: 000056139647bc10 RCX:
+00007fc2d8f4ae01
+[18432.706831] RDX: 0000000000001000 RSI: 00007fffedb1fa60 RDI:
+0000000000000007
+[18432.706835] RBP: 000056139696f483 R08: 000056139696f483 R09:
+0000000000000005
+[18432.706839] R10: 0000000000000000 R11: 0000000000000246 R12:
+0000000000000007
+[18432.706844] R13: 000056139696f3f0 R14: 00005613961bb8a0 R15:
+00005613961bc5e0
+[18432.707027] INFO: task Chrome_IOThread:27225 blocked for more than
+120 seconds.
+[18432.707034]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.707039] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.707045] Chrome_IOThread D11304 27225   3654 0x00000000
+[18432.707057] Call Trace:
+[18432.707070]  ? __schedule+0x2e3/0xb90
+[18432.707086]  ? __lock_page+0xa9/0x180
+[18432.707095]  schedule+0x2f/0x90
+[18432.707102]  io_schedule+0x12/0x40
+[18432.707109]  __lock_page+0xe9/0x180
+[18432.707121]  ? page_cache_tree_insert+0x130/0x130
+[18432.707138]  deferred_split_scan+0x2b6/0x300
+[18432.707160]  shrink_slab.part.47+0x1f8/0x590
+[18432.707179]  ? percpu_ref_put_many+0x84/0x100
+[18432.707197]  shrink_node+0x2f4/0x300
+[18432.707219]  do_try_to_free_pages+0xca/0x350
+[18432.707236]  try_to_free_pages+0x140/0x350
+[18432.707259]  __alloc_pages_slowpath+0x43c/0x1080
+[18432.707298]  __alloc_pages_nodemask+0x3ac/0x430
+[18432.707316]  alloc_pages_vma+0x7c/0x200
+[18432.707331]  __handle_mm_fault+0x8a1/0x1230
+[18432.707359]  handle_mm_fault+0x14c/0x310
+[18432.707373]  __do_page_fault+0x28c/0x530
+[18432.707450]  do_page_fault+0x32/0x270
+[18432.707470]  page_fault+0x22/0x30
+[18432.707478] RIP: 0033:0x7f9f336ac4ef
+[18432.707482] RSP: 002b:00007f9f1533c968 EFLAGS: 00010206
+[18432.707491] RAX: 00003d60824b4000 RBX: 00000000000885c8 RCX:
+0000000000001040
+[18432.707495] RDX: 0000000000001040 RSI: 00003d602692c400 RDI:
+00003d60824b4000
+[18432.707499] RBP: 00007f9f1533c9a0 R08: 0000000000000089 R09:
+00003d602692d440
+[18432.707503] R10: 00007f9f1533caf0 R11: 0000000000000000 R12:
+00003d602c90f3c0
+[18432.707507] R13: 0000000000000010 R14: 00000000000885b8 R15:
+00003d60824b4000
+[18432.707539] INFO: task TaskSchedulerFo:9369 blocked for more than
+120 seconds.
+[18432.707546]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.707551] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.707557] TaskSchedulerFo D11224  9369   3654 0x00000000
+[18432.707568] Call Trace:
+[18432.707581]  ? __schedule+0x2e3/0xb90
+[18432.707596]  ? rwsem_down_read_failed+0x147/0x190
+[18432.707605]  schedule+0x2f/0x90
+[18432.707611]  rwsem_down_read_failed+0x118/0x190
+[18432.707618]  ? __lock_acquire+0x2c3/0x1270
+[18432.707643]  ? call_rwsem_down_read_failed+0x14/0x30
+[18432.707650]  call_rwsem_down_read_failed+0x14/0x30
+[18432.707665]  down_read+0x97/0xa0
+[18432.707673]  SyS_madvise+0x859/0x920
+[18432.707682]  ? SyS_rename+0xfc/0x390
+[18432.707695]  ? trace_hardirqs_on_caller+0xed/0x180
+[18432.707704]  ? trace_hardirqs_on_thunk+0x1a/0x1c
+[18432.707720]  ? entry_SYSCALL_64_fastpath+0x1f/0x96
+[18432.707726]  entry_SYSCALL_64_fastpath+0x1f/0x96
+[18432.707731] RIP: 0033:0x7f9f3363c4a7
+[18432.707735] RSP: 002b:00007f9ebe2805c8 EFLAGS: 00000206 ORIG_RAX:
+000000000000001c
+[18432.707743] RAX: ffffffffffffffda RBX: 00007f9ebe2806d0 RCX:
+00007f9f3363c4a7
+[18432.707747] RDX: 0000000000000004 RSI: 0000000000041000 RDI:
+00003d6073c5d000
+[18432.707751] RBP: 00007f9ebe280600 R08: 0000000000000000 R09:
+000000000000018d
+[18432.707755] R10: 0000000000000000 R11: 0000000000000206 R12:
+0000000000000000
+[18432.707759] R13: 0000000000021796 R14: 00000000be280601 R15:
+00007f9ebe2806d0
+[18432.707998] INFO: task kworker/3:1:10525 blocked for more than 120
+seconds.
+[18432.708004]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.708009] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.708015] kworker/3:1     D13784 10525      2 0x80000000
+[18432.708055] Workqueue: events async_pf_execute [kvm]
+[18432.708063] Call Trace:
+[18432.708075]  ? __schedule+0x2e3/0xb90
+[18432.708094]  schedule+0x2f/0x90
+[18432.708100]  io_schedule+0x12/0x40
+[18432.708108]  __lock_page_or_retry+0x2e4/0x350
+[18432.708121]  ? page_cache_tree_insert+0x130/0x130
+[18432.708137]  do_swap_page+0x721/0x9f0
+[18432.708149]  ? __lock_acquire+0x2c3/0x1270
+[18432.708163]  __handle_mm_fault+0xa5c/0x1230
+[18432.708209]  handle_mm_fault+0x14c/0x310
+[18432.708222]  __get_user_pages+0x1b0/0x6e0
+[18432.708244]  get_user_pages_remote+0x13a/0x200
+[18432.708281]  async_pf_execute+0x96/0x280 [kvm]
+[18432.708303]  process_one_work+0x25e/0x6c0
+[18432.708320]  worker_thread+0x3a/0x390
+[18432.708323]  ? process_one_work+0x6c0/0x6c0
+[18432.708325]  kthread+0x15d/0x180
+[18432.708338]  ? kthread_create_worker_on_cpu+0x70/0x70
+[18432.708341]  ret_from_fork+0x24/0x30
+[18432.708353] INFO: task kworker/3:2:13474 blocked for more than 120
+seconds.
+[18432.708355]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18432.708357] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18432.708358] kworker/3:2     D14176 13474      2 0x80000000
+[18432.708369] Workqueue: events async_pf_execute [kvm]
+[18432.708371] Call Trace:
+[18432.708384]  ? __schedule+0x2e3/0xb90
+[18432.708395]  schedule+0x2f/0x90
+[18432.708396]  io_schedule+0x12/0x40
+[18432.708399]  __lock_page_or_retry+0x2e4/0x350
+[18432.708403]  ? page_cache_tree_insert+0x130/0x130
+[18432.708407]  do_swap_page+0x721/0x9f0
+[18432.708411]  ? __lock_acquire+0x2c3/0x1270
+[18432.708415]  __handle_mm_fault+0xa5c/0x1230
+[18432.708425]  handle_mm_fault+0x14c/0x310
+[18432.708432]  __get_user_pages+0x1b0/0x6e0
+[18432.708443]  get_user_pages_remote+0x13a/0x200
+[18432.708457]  async_pf_execute+0x96/0x280 [kvm]
+[18432.708464]  process_one_work+0x25e/0x6c0
+[18432.708472]  worker_thread+0x3a/0x390
+[18432.708478]  ? process_one_work+0x6c0/0x6c0
+[18432.708481]  kthread+0x15d/0x180
+[18432.708485]  ? kthread_create_worker_on_cpu+0x70/0x70
+[18432.708491]  ret_from_fork+0x24/0x30
+[18432.708507] 
+               Showing all locks held in the system:
+[18432.708526] 1 lock held by khungtaskd/67:
+[18432.708527]  #0:  (tasklist_lock){.+.+}, at: [<00000000a615f1dc>]
+debug_show_all_locks+0x37/0x190
+[18432.708637] 1 lock held by htop/2690:
+[18432.708638]  #0:  (&mm->mmap_sem){++++}, at: [<000000003ae69604>]
+proc_pid_cmdline_read+0xd2/0x4a0
+[18432.708657] 1 lock held by CPU 0/KVM/3893:
+[18432.708658]  #0:  (&vcpu->mutex){+.+.}, at: [<00000000ff3fb7f4>]
+vcpu_load+0x17/0x60 [kvm]
+[18432.708759] 2 locks held by Chrome_IOThread/27225:
+[18432.708760]  #0:  (&mm->mmap_sem){++++}, at: [<0000000012cb6189>]
+__do_page_fault+0x17a/0x530
+[18432.708766]  #1:  (shrinker_rwsem){++++}, at: [<0000000033d29b77>]
+shrink_slab.part.47+0x5b/0x590
+[18432.708773] 1 lock held by CacheThread_Blo/27264:
+[18432.708774]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18432.708780] 1 lock held by Chrome_HistoryT/27286:
+[18432.708781]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18432.708788] 1 lock held by TaskSchedulerFo/9369:
+[18432.708788]  #0:  (&mm->mmap_sem){++++}, at: [<00000000603ee2cd>]
+SyS_madvise+0x859/0x920
+[18432.708794] 1 lock held by TaskSchedulerFo/12373:
+[18432.708795]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18432.708802] 1 lock held by TaskSchedulerFo/13115:
+[18432.708803]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18432.708809] 1 lock held by TaskSchedulerFo/13125:
+[18432.708810]  #0:  (&mm->mmap_sem){++++}, at: [<000000003933f0be>]
+vm_mmap_pgoff+0xa5/0x120
+[18432.708816] 1 lock held by TaskSchedulerBa/13514:
+[18432.708817]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18432.708977] 1 lock held by tracker-store/5038:
+[18432.708978]  #0:  (&sb->s_type->i_mutex_key#20){++++}, at:
+[<00000000c3f6e04c>] xfs_ilock+0x195/0x200 [xfs]
+[18432.709033] 2 locks held by kworker/3:1/10525:
+[18432.709034]  #0:  ((wq_completion)"events"){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18432.709040]  #1:  ((work_completion)(&work->work)){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18432.709049] 2 locks held by kworker/3:2/13474:
+[18432.709050]  #0:  ((wq_completion)"events"){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18432.709056]  #1:  ((work_completion)(&work->work)){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18432.709064] 2 locks held by cc1/14068:
+[18432.709065]  #0:  (&mm->mmap_sem){++++}, at: [<0000000012cb6189>]
+__do_page_fault+0x17a/0x530
+[18432.709070]  #1:  (shrinker_rwsem){++++}, at: [<0000000033d29b77>]
+shrink_slab.part.47+0x5b/0x590
+
+[18432.709078] =============================================
+
+
+[18555.587276] INFO: task htop:2690 blocked for more than 120 seconds.
+[18555.587281]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18555.587283] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18555.587285] htop            D12280  2690   2565 0x00000000
+[18555.587290] Call Trace:
+[18555.587298]  ? __schedule+0x2e3/0xb90
+[18555.587303]  ? rwsem_down_read_failed+0x147/0x190
+[18555.587307]  schedule+0x2f/0x90
+[18555.587309]  rwsem_down_read_failed+0x118/0x190
+[18555.587312]  ? __lock_acquire+0x2c3/0x1270
+[18555.587320]  ? call_rwsem_down_read_failed+0x14/0x30
+[18555.587323]  call_rwsem_down_read_failed+0x14/0x30
+[18555.587328]  down_read+0x97/0xa0
+[18555.587331]  proc_pid_cmdline_read+0xd2/0x4a0
+[18555.587335]  ? debug_check_no_obj_freed+0x160/0x248
+[18555.587343]  ? __vfs_read+0x33/0x170
+[18555.587344]  __vfs_read+0x33/0x170
+[18555.587351]  vfs_read+0x9e/0x150
+[18555.587354]  SyS_read+0x55/0xc0
+[18555.587359]  entry_SYSCALL_64_fastpath+0x1f/0x96
+[18555.587372] RIP: 0033:0x7fc2d8f4ae01
+[18555.587373] RSP: 002b:00007fffedb1f998 EFLAGS: 00000246 ORIG_RAX:
+0000000000000000
+[18555.587376] RAX: ffffffffffffffda RBX: 000056139647bc10 RCX:
+00007fc2d8f4ae01
+[18555.587377] RDX: 0000000000001000 RSI: 00007fffedb1fa60 RDI:
+0000000000000007
+[18555.587378] RBP: 000056139696f483 R08: 000056139696f483 R09:
+0000000000000005
+[18555.587380] R10: 0000000000000000 R11: 0000000000000246 R12:
+0000000000000007
+[18555.587381] R13: 000056139696f3f0 R14: 00005613961bb8a0 R15:
+00005613961bc5e0
+[18555.587516] INFO: task Chrome_IOThread:27225 blocked for more than
+120 seconds.
+[18555.587519]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18555.587521] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18555.587522] Chrome_IOThread D11304 27225   3654 0x00000000
+[18555.587526] Call Trace:
+[18555.587531]  ? __schedule+0x2e3/0xb90
+[18555.587537]  ? __lock_page+0xa9/0x180
+[18555.587539]  schedule+0x2f/0x90
+[18555.587542]  io_schedule+0x12/0x40
+[18555.587544]  __lock_page+0xe9/0x180
+[18555.587548]  ? page_cache_tree_insert+0x130/0x130
+[18555.587553]  deferred_split_scan+0x2b6/0x300
+[18555.587560]  shrink_slab.part.47+0x1f8/0x590
+[18555.587566]  ? percpu_ref_put_many+0x84/0x100
+[18555.587572]  shrink_node+0x2f4/0x300
+[18555.587579]  do_try_to_free_pages+0xca/0x350
+[18555.587584]  try_to_free_pages+0x140/0x350
+[18555.587592]  __alloc_pages_slowpath+0x43c/0x1080
+[18555.587605]  __alloc_pages_nodemask+0x3ac/0x430
+[18555.587611]  alloc_pages_vma+0x7c/0x200
+[18555.587617]  __handle_mm_fault+0x8a1/0x1230
+[18555.587626]  handle_mm_fault+0x14c/0x310
+[18555.587631]  __do_page_fault+0x28c/0x530
+[18555.587637]  do_page_fault+0x32/0x270
+[18555.587641]  page_fault+0x22/0x30
+[18555.587643] RIP: 0033:0x7f9f336ac4ef
+[18555.587644] RSP: 002b:00007f9f1533c968 EFLAGS: 00010206
+[18555.587646] RAX: 00003d60824b4000 RBX: 00000000000885c8 RCX:
+0000000000001040
+[18555.587648] RDX: 0000000000001040 RSI: 00003d602692c400 RDI:
+00003d60824b4000
+[18555.587649] RBP: 00007f9f1533c9a0 R08: 0000000000000089 R09:
+00003d602692d440
+[18555.587650] R10: 00007f9f1533caf0 R11: 0000000000000000 R12:
+00003d602c90f3c0
+[18555.587651] R13: 0000000000000010 R14: 00000000000885b8 R15:
+00003d60824b4000
+
+
+[18555.587666] INFO: task CacheThread_Blo:27264 blocked for more than
+120 seconds.
+[18555.587669]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18555.587672] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18555.587674] CacheThread_Blo D12488 27264   3654 0x00000000
+[18555.587680] Call Trace:
+[18555.587687]  ? __schedule+0x2e3/0xb90
+[18555.587694]  ? rwsem_down_read_failed+0x147/0x190
+[18555.587699]  schedule+0x2f/0x90
+[18555.587702]  rwsem_down_read_failed+0x118/0x190
+[18555.587713]  ? call_rwsem_down_read_failed+0x14/0x30
+[18555.587715]  call_rwsem_down_read_failed+0x14/0x30
+[18555.587720]  down_read+0x97/0xa0
+[18555.587723]  __do_page_fault+0x493/0x530
+[18555.587727]  ? trace_hardirqs_on_caller+0xed/0x180
+[18555.587732]  do_page_fault+0x32/0x270
+[18555.587735]  page_fault+0x22/0x30
+[18555.587737] RIP: 0033:0x55c9558374c0
+[18555.587738] RSP: 002b:00007f9efed7b648 EFLAGS: 00010206
+[18555.587740] RAX: 0000000000000128 RBX: 0000000000000200 RCX:
+00007f9efed7b658
+[18555.587741] RDX: 00000000000000b0 RSI: 00000000a1010000 RDI:
+00003d60252f1088
+[18555.587743] RBP: 00007f9efed7b680 R08: 00007f9f1d5eb520 R09:
+00000000ffff0001
+[18555.587744] R10: 0000000000000000 R11: 0000000000b10000 R12:
+00003d6066f02c00
+[18555.587745] R13: 0000000000000000 R14: 0000000000000128 R15:
+00003d60252f1088
+[18555.587754] INFO: task Chrome_HistoryT:27286 blocked for more than
+120 seconds.
+[18555.587756]       Not tainted 4.15.0-rc2-amd-vega+ #10
+[18555.587757] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
+disables this message.
+[18555.587759] Chrome_HistoryT D11432 27286   3654 0x00000000
+[18555.587762] Call Trace:
+[18555.587766]  ? __schedule+0x2e3/0xb90
+[18555.587771]  ? rwsem_down_read_failed+0x147/0x190
+[18555.587774]  schedule+0x2f/0x90
+[18555.587776]  rwsem_down_read_failed+0x118/0x190
+[18555.587784]  ? call_rwsem_down_read_failed+0x14/0x30
+[18555.587786]  call_rwsem_down_read_failed+0x14/0x30
+[18555.587790]  down_read+0x97/0xa0
+[18555.587792]  __do_page_fault+0x493/0x530
+[18555.587797]  ? SyS_futex+0x12d/0x180
+[18555.587799]  ? trace_hardirqs_on_caller+0xed/0x180
+[18555.587803]  do_page_fault+0x32/0x270
+[18555.587806]  page_fault+0x22/0x30
+[18555.587808] RIP: 0033:0x55c95555fa7a
+[18555.587809] RSP: 002b:00007f9efdb5ac70 EFLAGS: 00010202
+[18555.587811] RAX: 00007f9f1d5a7498 RBX: 000000000000000a RCX:
+000000000000000b
+[18555.587812] RDX: 000000000000000a RSI: 0000000000000000 RDI:
+00003d60258bb200
+[18555.587813] RBP: 00007f9efdb5aca0 R08: 0000000000000002 R09:
+00003d602c693580
+[18555.587814] R10: 000000000000000d R11: 0000000000000001 R12:
+000000000000000a
+[18555.587816] R13: 0000000000000001 R14: 00003d60258bb200 R15:
+0000000000000001
+[18555.588004] 
+               Showing all locks held in the system:
+[18555.588014] 1 lock held by khungtaskd/67:
+[18555.588016]  #0:  (tasklist_lock){.+.+}, at: [<00000000a615f1dc>]
+debug_show_all_locks+0x37/0x190
+[18555.588124] 1 lock held by htop/2690:
+[18555.588125]  #0:  (&mm->mmap_sem){++++}, at: [<000000003ae69604>]
+proc_pid_cmdline_read+0xd2/0x4a0
+[18555.588162] 1 lock held by CPU 0/KVM/3893:
+[18555.588163]  #0:  (&vcpu->mutex){+.+.}, at: [<00000000ff3fb7f4>]
+vcpu_load+0x17/0x60 [kvm]
+[18555.588278] 1 lock held by atop/15452:
+[18555.588279]  #0:  (&mm->mmap_sem){++++}, at: [<000000003ae69604>]
+proc_pid_cmdline_read+0xd2/0x4a0
+[18555.588306] 2 locks held by Chrome_IOThread/27225:
+[18555.588307]  #0:  (&mm->mmap_sem){++++}, at: [<0000000012cb6189>]
+__do_page_fault+0x17a/0x530
+[18555.588318]  #1:  (shrinker_rwsem){++++}, at: [<0000000033d29b77>]
+shrink_slab.part.47+0x5b/0x590
+[18555.588330] 1 lock held by CacheThread_Blo/27264:
+[18555.588332]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18555.588340] 1 lock held by Chrome_HistoryT/27286:
+[18555.588341]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18555.588348] 1 lock held by TaskSchedulerFo/9369:
+[18555.588349]  #0:  (&mm->mmap_sem){++++}, at: [<00000000603ee2cd>]
+SyS_madvise+0x859/0x920
+[18555.588356] 1 lock held by TaskSchedulerFo/12373:
+[18555.588357]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18555.588363] 1 lock held by TaskSchedulerFo/13115:
+[18555.588365]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18555.588371] 1 lock held by TaskSchedulerFo/13125:
+[18555.588372]  #0:  (&mm->mmap_sem){++++}, at: [<000000003933f0be>]
+vm_mmap_pgoff+0xa5/0x120
+[18555.588379] 1 lock held by TaskSchedulerBa/13514:
+[18555.588380]  #0:  (&mm->mmap_sem){++++}, at: [<00000000aa62fc68>]
+__do_page_fault+0x493/0x530
+[18555.588574] 2 locks held by kworker/3:1/10525:
+[18555.588575]  #0:  ((wq_completion)"events"){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18555.588582]  #1:  ((work_completion)(&work->work)){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18555.588592] 2 locks held by kworker/3:2/13474:
+[18555.588593]  #0:  ((wq_completion)"events"){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18555.588599]  #1:  ((work_completion)(&work->work)){+.+.}, at:
+[<000000000f8b6ef4>] process_one_work+0x1d4/0x6c0
+[18555.588606] 2 locks held by cc1/14068:
+[18555.588608]  #0:  (&mm->mmap_sem){++++}, at: [<0000000012cb6189>]
+__do_page_fault+0x17a/0x530
+[18555.588613]  #1:  (shrinker_rwsem){++++}, at: [<0000000033d29b77>]
+shrink_slab.part.47+0x5b/0x590
+
+[18555.588623] =============================================
+
+--
+Regards
+Mikhail
+--=-r0HT0rGmENkqxKlWpYWw
+Content-Type: text/html; charset="utf-8"
+Content-Transfer-Encoding: quoted-printable
+
+<html><head></head><body><div>Hi,</div><div><br></div><div>can anybody said=
+ what here happens?</div><div>And which info needed for fixing it?</div><di=
+v>Thanks.</div><div><br></div><div>[16712.376081] INFO: task tracker-store:=
+27121 blocked for more than 120 seconds.</div><div>[16712.376088]&nbsp;&nbs=
+p;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><=
+div>[16712.376092] "echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs" di=
+sables this message.</div><div>[16712.376095] tracker-store&nbsp;&nbsp;&nbs=
+p;D13400 27121&nbsp;&nbsp;&nbsp;1843 0x00000000</div><div>[16712.376102] Ca=
+ll Trace:</div><div>[16712.376114]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div=
+><div>[16712.376123]&nbsp;&nbsp;? wait_for_completion+0x146/0x1e0</div><div=
+>[16712.376128]&nbsp;&nbsp;schedule+0x2f/0x90</div><div>[16712.376132]&nbsp=
+;&nbsp;schedule_timeout+0x236/0x540</div><div>[16712.376143]&nbsp;&nbsp;? m=
+ark_held_locks+0x4e/0x80</div><div>[16712.376147]&nbsp;&nbsp;? _raw_spin_un=
+lock_irq+0x29/0x40</div><div>[16712.376153]&nbsp;&nbsp;? wait_for_completio=
+n+0x146/0x1e0</div><div>[16712.376158]&nbsp;&nbsp;wait_for_completion+0x16e=
+/0x1e0</div><div>[16712.376162]&nbsp;&nbsp;? wake_up_q+0x70/0x70</div><div>=
+[16712.376204]&nbsp;&nbsp;? xfs_buf_read_map+0x134/0x2f0 [xfs]</div><div>[1=
+6712.376234]&nbsp;&nbsp;xfs_buf_submit_wait+0xaf/0x520 [xfs]</div><div>[167=
+12.376263]&nbsp;&nbsp;xfs_buf_read_map+0x134/0x2f0 [xfs]</div><div>[16712.3=
+76293]&nbsp;&nbsp;? xfs_trans_read_buf_map+0xc3/0x580 [xfs]</div><div>[1671=
+2.376325]&nbsp;&nbsp;xfs_trans_read_buf_map+0xc3/0x580 [xfs]</div><div>[167=
+12.376353]&nbsp;&nbsp;xfs_da_read_buf+0xd3/0x120 [xfs]</div><div>[16712.376=
+387]&nbsp;&nbsp;xfs_dir3_block_read+0x35/0x70 [xfs]</div><div>[16712.376413=
+]&nbsp;&nbsp;xfs_dir2_block_lookup_int+0x4d/0x220 [xfs]</div><div>[16712.37=
+6444]&nbsp;&nbsp;xfs_dir2_block_replace+0x4e/0x1d0 [xfs]</div><div>[16712.3=
+76467]&nbsp;&nbsp;? xfs_dir2_isblock+0x2f/0x90 [xfs]</div><div>[16712.37649=
+2]&nbsp;&nbsp;xfs_dir_replace+0x10a/0x180 [xfs]</div><div>[16712.376526]&nb=
+sp;&nbsp;xfs_rename+0x586/0xbd0 [xfs]</div><div>[16712.376573]&nbsp;&nbsp;x=
+fs_vn_rename+0xd5/0x140 [xfs]</div><div>[16712.376586]&nbsp;&nbsp;vfs_renam=
+e+0x494/0xa00</div><div>[16712.376601]&nbsp;&nbsp;SyS_rename+0x338/0x390</d=
+iv><div>[16712.376618]&nbsp;&nbsp;entry_SYSCALL_64_fastpath+0x1f/0x96</div>=
+<div>[16712.376622] RIP: 0033:0x7f02d4a2c167</div><div>[16712.376624] RSP: =
+002b:00007ffd0998cb98 EFLAGS: 00000207 ORIG_RAX: 0000000000000052</div><div=
+>[16712.376629] RAX: ffffffffffffffda RBX: 0000000000000001 RCX: 00007f02d4=
+a2c167</div><div>[16712.376631] RDX: 0000000000000002 RSI: 0000560149d23fd0=
+ RDI: 0000560149e737b0</div><div>[16712.376633] RBP: 000000000000000f R08: =
+0000560149e73710 R09: 000000000000002c</div><div>[16712.376635] R10: 000000=
+0000058a8e R11: 0000000000000207 R12: 0000000000000000</div><div>[16712.376=
+638] R13: 0000560149e6c360 R14: 0000560149d23fd0 R15: 0000000000000000</div=
+><div>[16712.376828]&nbsp;</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
+bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Showing all locks held =
+in the system:</div><div>[16712.376876] 1 lock held by khungtaskd/67:</div>=
+<div>[16712.376886]&nbsp;&nbsp;#0:&nbsp;&nbsp;(tasklist_lock){.+.+}, at: [&=
+lt;00000000a615f1dc&gt;] debug_show_all_locks+0x37/0x190</div><div>[16712.3=
+77113] 3 locks held by kworker/u16:2/18769:</div><div>[16712.377115]&nbsp;&=
+nbsp;#0:&nbsp;&nbsp;((wq_completion)"writeback"){+.+.}, at: [&lt;000000000f=
+8b6ef4&gt;] process_one_work+0x1d4/0x6c0</div><div>[16712.377128]&nbsp;&nbs=
+p;#1:&nbsp;&nbsp;((work_completion)(&amp;(&amp;wb-&gt;dwork)-&gt;work)){+.+=
+.}, at: [&lt;000000000f8b6ef4&gt;] process_one_work+0x1d4/0x6c0</div><div>[=
+16712.377138]&nbsp;&nbsp;#2:&nbsp;&nbsp;(&amp;type-&gt;s_umount_key#63){+++=
++}, at: [&lt;00000000ecbba71d&gt;] trylock_super+0x16/0x50</div><div>[16712=
+.377176] 8 locks held by tracker-store/27121:</div><div>[16712.377178]&nbsp=
+;&nbsp;#0:&nbsp;&nbsp;(sb_writers#17){.+.+}, at: [&lt;0000000063218e58&gt;]=
+ mnt_want_write+0x20/0x50</div><div>[16712.377191]&nbsp;&nbsp;#1:&nbsp;&nbs=
+p;(&amp;type-&gt;i_mutex_dir_key#7/1){+.+.}, at: [&lt;0000000026b21526&gt;]=
+ lock_rename+0xcf/0xf0</div><div>[16712.377208]&nbsp;&nbsp;#2:&nbsp;&nbsp;(=
+&amp;inode-&gt;i_rwsem){++++}, at: [&lt;00000000b63ba570&gt;] lock_two_nond=
+irectories+0x6d/0x80</div><div>[16712.377219]&nbsp;&nbsp;#3:&nbsp;&nbsp;(&a=
+mp;inode-&gt;i_rwsem/4){+.+.}, at: [&lt;00000000d44f800a&gt;] vfs_rename+0x=
+337/0xa00</div><div>[16712.377232]&nbsp;&nbsp;#4:&nbsp;&nbsp;(sb_internal){=
+.+.+}, at: [&lt;00000000b5b0ff39&gt;] xfs_trans_alloc+0xe2/0x120 [xfs]</div=
+><div>[16712.377269]&nbsp;&nbsp;#5:&nbsp;&nbsp;(&amp;xfs_dir_ilock_class){+=
++++}, at: [&lt;000000007c7eac55&gt;] xfs_rename+0x45e/0xbd0 [xfs]</div><div=
+>[16712.377306]&nbsp;&nbsp;#6:&nbsp;&nbsp;(&amp;xfs_nondir_ilock_class/2){+=
+.+.}, at: [&lt;000000007c7eac55&gt;] xfs_rename+0x45e/0xbd0 [xfs]</div><div=
+>[16712.377343]&nbsp;&nbsp;#7:&nbsp;&nbsp;(&amp;xfs_nondir_ilock_class/3){+=
+.+.}, at: [&lt;000000007c7eac55&gt;] xfs_rename+0x45e/0xbd0 [xfs]</div><div=
+>[16712.377380] 3 locks held by TaskSchedulerFo/27216:</div><div>[16712.377=
+382]&nbsp;&nbsp;#0:&nbsp;&nbsp;(sb_writers#17){.+.+}, at: [&lt;000000005453=
+4ce6&gt;] do_sys_ftruncate.constprop.17+0xda/0x110</div><div>[16712.377396]=
+&nbsp;&nbsp;#1:&nbsp;&nbsp;(&amp;sb-&gt;s_type-&gt;i_mutex_key#20){++++}, a=
+t: [&lt;0000000086cbd317&gt;] do_truncate+0x66/0xc0</div><div>[16712.377408=
+]&nbsp;&nbsp;#2:&nbsp;&nbsp;(&amp;(&amp;ip-&gt;i_mmaplock)-&gt;mr_lock){+++=
++}, at: [&lt;00000000adf132fd&gt;] xfs_ilock+0x14b/0x200 [xfs]</div><div>[1=
+6712.377443] 3 locks held by TaskSchedulerFo/27217:</div><div>[16712.377445=
+]&nbsp;&nbsp;#0:&nbsp;&nbsp;(sb_writers#17){.+.+}, at: [&lt;0000000054534ce=
+6&gt;] do_sys_ftruncate.constprop.17+0xda/0x110</div><div>[16712.377457]&nb=
+sp;&nbsp;#1:&nbsp;&nbsp;(&amp;sb-&gt;s_type-&gt;i_mutex_key#20){++++}, at: =
+[&lt;0000000086cbd317&gt;] do_truncate+0x66/0xc0</div><div>[16712.377471]&n=
+bsp;&nbsp;#2:&nbsp;&nbsp;(&amp;(&amp;ip-&gt;i_mmaplock)-&gt;mr_lock){++++},=
+ at: [&lt;00000000adf132fd&gt;] xfs_ilock+0x14b/0x200 [xfs]</div><div>[1671=
+2.377504] 1 lock held by TaskSchedulerFo/27219:</div><div>[16712.377506]&nb=
+sp;&nbsp;#0:&nbsp;&nbsp;(sb_writers#17){.+.+}, at: [&lt;0000000063218e58&gt=
+;] mnt_want_write+0x20/0x50</div><div>[16712.377521] 3 locks held by TaskSc=
+hedulerFo/27287:</div><div>[16712.377523]&nbsp;&nbsp;#0:&nbsp;&nbsp;(sb_wri=
+ters#17){.+.+}, at: [&lt;0000000054534ce6&gt;] do_sys_ftruncate.constprop.1=
+7+0xda/0x110</div><div>[16712.377535]&nbsp;&nbsp;#1:&nbsp;&nbsp;(&amp;sb-&g=
+t;s_type-&gt;i_mutex_key#20){++++}, at: [&lt;0000000086cbd317&gt;] do_trunc=
+ate+0x66/0xc0</div><div>[16712.377547]&nbsp;&nbsp;#2:&nbsp;&nbsp;(&amp;(&am=
+p;ip-&gt;i_mmaplock)-&gt;mr_lock){++++}, at: [&lt;00000000adf132fd&gt;] xfs=
+_ilock+0x14b/0x200 [xfs]</div><div>[16712.377581] 3 locks held by TaskSched=
+ulerFo/27289:</div><div>[16712.377583]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;f-&g=
+t;f_pos_lock){+.+.}, at: [&lt;00000000cb121025&gt;] __fdget_pos+0x48/0x60</=
+div><div>[16712.377594]&nbsp;&nbsp;#1:&nbsp;&nbsp;(&amp;type-&gt;i_mutex_di=
+r_key#7){++++}, at: [&lt;00000000a872ed9a&gt;] iterate_dir+0x56/0x180</div>=
+<div>[16712.377607]&nbsp;&nbsp;#2:&nbsp;&nbsp;(&amp;xfs_dir_ilock_class){++=
+++}, at: [&lt;000000002829e721&gt;] xfs_ilock_data_map_shared+0x2c/0x30 [xf=
+s]</div><div>[16712.377641] 3 locks held by TaskSchedulerFo/27292:</div><di=
+v>[16712.377642]&nbsp;&nbsp;#0:&nbsp;&nbsp;(sb_writers#17){.+.+}, at: [&lt;=
+0000000054534ce6&gt;] do_sys_ftruncate.constprop.17+0xda/0x110</div><div>[1=
+6712.377655]&nbsp;&nbsp;#1:&nbsp;&nbsp;(&amp;inode-&gt;i_rwsem){++++}, at: =
+[&lt;0000000086cbd317&gt;] do_truncate+0x66/0xc0</div><div>[16712.377667]&n=
+bsp;&nbsp;#2:&nbsp;&nbsp;(&amp;(&amp;ip-&gt;i_mmaplock)-&gt;mr_lock){++++},=
+ at: [&lt;00000000adf132fd&gt;] xfs_ilock+0x14b/0x200 [xfs]</div><div><br><=
+/div><div>[16712.377873] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D</div><div><br></div><div>[18432.706561] INFO: task htop:2690 b=
+locked for more than 120 seconds.</div><div>[18432.706575]&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18=
+432.706581] "echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs" disables =
+this message.</div><div>[18432.706588] htop&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&n=
+bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D12280&nbsp;&nbsp;2690&nbsp;&nbsp;&=
+nbsp;2565 0x00000000</div><div>[18432.706602] Call Trace:</div><div>[18432.=
+706622]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div><div>[18432.706637]&nbsp;&=
+nbsp;? rwsem_down_read_failed+0x147/0x190</div><div>[18432.706648]&nbsp;&nb=
+sp;schedule+0x2f/0x90</div><div>[18432.706654]&nbsp;&nbsp;rwsem_down_read_f=
+ailed+0x118/0x190</div><div>[18432.706662]&nbsp;&nbsp;? __lock_acquire+0x2c=
+3/0x1270</div><div>[18432.706688]&nbsp;&nbsp;? call_rwsem_down_read_failed+=
+0x14/0x30</div><div>[18432.706695]&nbsp;&nbsp;call_rwsem_down_read_failed+0=
+x14/0x30</div><div>[18432.706710]&nbsp;&nbsp;down_read+0x97/0xa0</div><div>=
+[18432.706719]&nbsp;&nbsp;proc_pid_cmdline_read+0xd2/0x4a0</div><div>[18432=
+.706731]&nbsp;&nbsp;? debug_check_no_obj_freed+0x160/0x248</div><div>[18432=
+.706753]&nbsp;&nbsp;? __vfs_read+0x33/0x170</div><div>[18432.706759]&nbsp;&=
+nbsp;__vfs_read+0x33/0x170</div><div>[18432.706781]&nbsp;&nbsp;vfs_read+0x9=
+e/0x150</div><div>[18432.706792]&nbsp;&nbsp;SyS_read+0x55/0xc0</div><div>[1=
+8432.706807]&nbsp;&nbsp;entry_SYSCALL_64_fastpath+0x1f/0x96</div><div>[1843=
+2.706814] RIP: 0033:0x7fc2d8f4ae01</div><div>[18432.706819] RSP: 002b:00007=
+fffedb1f998 EFLAGS: 00000246 ORIG_RAX: 0000000000000000</div><div>[18432.70=
+6827] RAX: ffffffffffffffda RBX: 000056139647bc10 RCX: 00007fc2d8f4ae01</di=
+v><div>[18432.706831] RDX: 0000000000001000 RSI: 00007fffedb1fa60 RDI: 0000=
+000000000007</div><div>[18432.706835] RBP: 000056139696f483 R08: 0000561396=
+96f483 R09: 0000000000000005</div><div>[18432.706839] R10: 0000000000000000=
+ R11: 0000000000000246 R12: 0000000000000007</div><div>[18432.706844] R13: =
+000056139696f3f0 R14: 00005613961bb8a0 R15: 00005613961bc5e0</div><div>[184=
+32.707027] INFO: task Chrome_IOThread:27225 blocked for more than 120 secon=
+ds.</div><div>[18432.707034]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not t=
+ainted 4.15.0-rc2-amd-vega+ #10</div><div>[18432.707039] "echo 0 &gt; /proc=
+/sys/kernel/hung_task_timeout_secs" disables this message.</div><div>[18432=
+.707045] Chrome_IOThread D11304 27225&nbsp;&nbsp;&nbsp;3654 0x00000000</div=
+><div>[18432.707057] Call Trace:</div><div>[18432.707070]&nbsp;&nbsp;? __sc=
+hedule+0x2e3/0xb90</div><div>[18432.707086]&nbsp;&nbsp;? __lock_page+0xa9/0=
+x180</div><div>[18432.707095]&nbsp;&nbsp;schedule+0x2f/0x90</div><div>[1843=
+2.707102]&nbsp;&nbsp;io_schedule+0x12/0x40</div><div>[18432.707109]&nbsp;&n=
+bsp;__lock_page+0xe9/0x180</div><div>[18432.707121]&nbsp;&nbsp;? page_cache=
+_tree_insert+0x130/0x130</div><div>[18432.707138]&nbsp;&nbsp;deferred_split=
+_scan+0x2b6/0x300</div><div>[18432.707160]&nbsp;&nbsp;shrink_slab.part.47+0=
+x1f8/0x590</div><div>[18432.707179]&nbsp;&nbsp;? percpu_ref_put_many+0x84/0=
+x100</div><div>[18432.707197]&nbsp;&nbsp;shrink_node+0x2f4/0x300</div><div>=
+[18432.707219]&nbsp;&nbsp;do_try_to_free_pages+0xca/0x350</div><div>[18432.=
+707236]&nbsp;&nbsp;try_to_free_pages+0x140/0x350</div><div>[18432.707259]&n=
+bsp;&nbsp;__alloc_pages_slowpath+0x43c/0x1080</div><div>[18432.707298]&nbsp=
+;&nbsp;__alloc_pages_nodemask+0x3ac/0x430</div><div>[18432.707316]&nbsp;&nb=
+sp;alloc_pages_vma+0x7c/0x200</div><div>[18432.707331]&nbsp;&nbsp;__handle_=
+mm_fault+0x8a1/0x1230</div><div>[18432.707359]&nbsp;&nbsp;handle_mm_fault+0=
+x14c/0x310</div><div>[18432.707373]&nbsp;&nbsp;__do_page_fault+0x28c/0x530<=
+/div><div>[18432.707450]&nbsp;&nbsp;do_page_fault+0x32/0x270</div><div>[184=
+32.707470]&nbsp;&nbsp;page_fault+0x22/0x30</div><div>[18432.707478] RIP: 00=
+33:0x7f9f336ac4ef</div><div>[18432.707482] RSP: 002b:00007f9f1533c968 EFLAG=
+S: 00010206</div><div>[18432.707491] RAX: 00003d60824b4000 RBX: 00000000000=
+885c8 RCX: 0000000000001040</div><div>[18432.707495] RDX: 0000000000001040 =
+RSI: 00003d602692c400 RDI: 00003d60824b4000</div><div>[18432.707499] RBP: 0=
+0007f9f1533c9a0 R08: 0000000000000089 R09: 00003d602692d440</div><div>[1843=
+2.707503] R10: 00007f9f1533caf0 R11: 0000000000000000 R12: 00003d602c90f3c0=
+</div><div>[18432.707507] R13: 0000000000000010 R14: 00000000000885b8 R15: =
+00003d60824b4000</div><div>[18432.707539] INFO: task TaskSchedulerFo:9369 b=
+locked for more than 120 seconds.</div><div>[18432.707546]&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18=
+432.707551] "echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs" disables =
+this message.</div><div>[18432.707557] TaskSchedulerFo D11224&nbsp;&nbsp;93=
+69&nbsp;&nbsp;&nbsp;3654 0x00000000</div><div>[18432.707568] Call Trace:</d=
+iv><div>[18432.707581]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div><div>[18432=
+.707596]&nbsp;&nbsp;? rwsem_down_read_failed+0x147/0x190</div><div>[18432.7=
+07605]&nbsp;&nbsp;schedule+0x2f/0x90</div><div>[18432.707611]&nbsp;&nbsp;rw=
+sem_down_read_failed+0x118/0x190</div><div>[18432.707618]&nbsp;&nbsp;? __lo=
+ck_acquire+0x2c3/0x1270</div><div>[18432.707643]&nbsp;&nbsp;? call_rwsem_do=
+wn_read_failed+0x14/0x30</div><div>[18432.707650]&nbsp;&nbsp;call_rwsem_dow=
+n_read_failed+0x14/0x30</div><div>[18432.707665]&nbsp;&nbsp;down_read+0x97/=
+0xa0</div><div>[18432.707673]&nbsp;&nbsp;SyS_madvise+0x859/0x920</div><div>=
+[18432.707682]&nbsp;&nbsp;? SyS_rename+0xfc/0x390</div><div>[18432.707695]&=
+nbsp;&nbsp;? trace_hardirqs_on_caller+0xed/0x180</div><div>[18432.707704]&n=
+bsp;&nbsp;? trace_hardirqs_on_thunk+0x1a/0x1c</div><div>[18432.707720]&nbsp=
+;&nbsp;? entry_SYSCALL_64_fastpath+0x1f/0x96</div><div>[18432.707726]&nbsp;=
+&nbsp;entry_SYSCALL_64_fastpath+0x1f/0x96</div><div>[18432.707731] RIP: 003=
+3:0x7f9f3363c4a7</div><div>[18432.707735] RSP: 002b:00007f9ebe2805c8 EFLAGS=
+: 00000206 ORIG_RAX: 000000000000001c</div><div>[18432.707743] RAX: fffffff=
+fffffffda RBX: 00007f9ebe2806d0 RCX: 00007f9f3363c4a7</div><div>[18432.7077=
+47] RDX: 0000000000000004 RSI: 0000000000041000 RDI: 00003d6073c5d000</div>=
+<div>[18432.707751] RBP: 00007f9ebe280600 R08: 0000000000000000 R09: 000000=
+000000018d</div><div>[18432.707755] R10: 0000000000000000 R11: 000000000000=
+0206 R12: 0000000000000000</div><div>[18432.707759] R13: 0000000000021796 R=
+14: 00000000be280601 R15: 00007f9ebe2806d0</div><div>[18432.707998] INFO: t=
+ask kworker/3:1:10525 blocked for more than 120 seconds.</div><div>[18432.7=
+08004]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-=
+vega+ #10</div><div>[18432.708009] "echo 0 &gt; /proc/sys/kernel/hung_task_=
+timeout_secs" disables this message.</div><div>[18432.708015] kworker/3:1&n=
+bsp;&nbsp;&nbsp;&nbsp;&nbsp;D13784 10525&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp=
+;2 0x80000000</div><div>[18432.708055] Workqueue: events async_pf_execute [=
+kvm]</div><div>[18432.708063] Call Trace:</div><div>[18432.708075]&nbsp;&nb=
+sp;? __schedule+0x2e3/0xb90</div><div>[18432.708094]&nbsp;&nbsp;schedule+0x=
+2f/0x90</div><div>[18432.708100]&nbsp;&nbsp;io_schedule+0x12/0x40</div><div=
+>[18432.708108]&nbsp;&nbsp;__lock_page_or_retry+0x2e4/0x350</div><div>[1843=
+2.708121]&nbsp;&nbsp;? page_cache_tree_insert+0x130/0x130</div><div>[18432.=
+708137]&nbsp;&nbsp;do_swap_page+0x721/0x9f0</div><div>[18432.708149]&nbsp;&=
+nbsp;? __lock_acquire+0x2c3/0x1270</div><div>[18432.708163]&nbsp;&nbsp;__ha=
+ndle_mm_fault+0xa5c/0x1230</div><div>[18432.708209]&nbsp;&nbsp;handle_mm_fa=
+ult+0x14c/0x310</div><div>[18432.708222]&nbsp;&nbsp;__get_user_pages+0x1b0/=
+0x6e0</div><div>[18432.708244]&nbsp;&nbsp;get_user_pages_remote+0x13a/0x200=
+</div><div>[18432.708281]&nbsp;&nbsp;async_pf_execute+0x96/0x280 [kvm]</div=
+><div>[18432.708303]&nbsp;&nbsp;process_one_work+0x25e/0x6c0</div><div>[184=
+32.708320]&nbsp;&nbsp;worker_thread+0x3a/0x390</div><div>[18432.708323]&nbs=
+p;&nbsp;? process_one_work+0x6c0/0x6c0</div><div>[18432.708325]&nbsp;&nbsp;=
+kthread+0x15d/0x180</div><div>[18432.708338]&nbsp;&nbsp;? kthread_create_wo=
+rker_on_cpu+0x70/0x70</div><div>[18432.708341]&nbsp;&nbsp;ret_from_fork+0x2=
+4/0x30</div><div>[18432.708353] INFO: task kworker/3:2:13474 blocked for mo=
+re than 120 seconds.</div><div>[18432.708355]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;=
+&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18432.708357] "=
+echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs" disables this message.=
+</div><div>[18432.708358] kworker/3:2&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D14176 1=
+3474&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2 0x80000000</div><div>[18432.70836=
+9] Workqueue: events async_pf_execute [kvm]</div><div>[18432.708371] Call T=
+race:</div><div>[18432.708384]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div><di=
+v>[18432.708395]&nbsp;&nbsp;schedule+0x2f/0x90</div><div>[18432.708396]&nbs=
+p;&nbsp;io_schedule+0x12/0x40</div><div>[18432.708399]&nbsp;&nbsp;__lock_pa=
+ge_or_retry+0x2e4/0x350</div><div>[18432.708403]&nbsp;&nbsp;? page_cache_tr=
+ee_insert+0x130/0x130</div><div>[18432.708407]&nbsp;&nbsp;do_swap_page+0x72=
+1/0x9f0</div><div>[18432.708411]&nbsp;&nbsp;? __lock_acquire+0x2c3/0x1270</=
+div><div>[18432.708415]&nbsp;&nbsp;__handle_mm_fault+0xa5c/0x1230</div><div=
+>[18432.708425]&nbsp;&nbsp;handle_mm_fault+0x14c/0x310</div><div>[18432.708=
+432]&nbsp;&nbsp;__get_user_pages+0x1b0/0x6e0</div><div>[18432.708443]&nbsp;=
+&nbsp;get_user_pages_remote+0x13a/0x200</div><div>[18432.708457]&nbsp;&nbsp=
+;async_pf_execute+0x96/0x280 [kvm]</div><div>[18432.708464]&nbsp;&nbsp;proc=
+ess_one_work+0x25e/0x6c0</div><div>[18432.708472]&nbsp;&nbsp;worker_thread+=
+0x3a/0x390</div><div>[18432.708478]&nbsp;&nbsp;? process_one_work+0x6c0/0x6=
+c0</div><div>[18432.708481]&nbsp;&nbsp;kthread+0x15d/0x180</div><div>[18432=
+.708485]&nbsp;&nbsp;? kthread_create_worker_on_cpu+0x70/0x70</div><div>[184=
+32.708491]&nbsp;&nbsp;ret_from_fork+0x24/0x30</div><div>[18432.708507]&nbsp=
+;</div><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nb=
+sp;&nbsp;&nbsp;&nbsp;&nbsp;Showing all locks held in the system:</div><div>=
+[18432.708526] 1 lock held by khungtaskd/67:</div><div>[18432.708527]&nbsp;=
+&nbsp;#0:&nbsp;&nbsp;(tasklist_lock){.+.+}, at: [&lt;00000000a615f1dc&gt;] =
+debug_show_all_locks+0x37/0x190</div><div>[18432.708637] 1 lock held by hto=
+p/2690:</div><div>[18432.708638]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mma=
+p_sem){++++}, at: [&lt;000000003ae69604&gt;] proc_pid_cmdline_read+0xd2/0x4=
+a0</div><div>[18432.708657] 1 lock held by CPU 0/KVM/3893:</div><div>[18432=
+.708658]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;vcpu-&gt;mutex){+.+.}, at: [&lt;00=
+000000ff3fb7f4&gt;] vcpu_load+0x17/0x60 [kvm]</div><div>[18432.708759] 2 lo=
+cks held by Chrome_IOThread/27225:</div><div>[18432.708760]&nbsp;&nbsp;#0:&=
+nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;0000000012cb6189&gt;] __d=
+o_page_fault+0x17a/0x530</div><div>[18432.708766]&nbsp;&nbsp;#1:&nbsp;&nbsp=
+;(shrinker_rwsem){++++}, at: [&lt;0000000033d29b77&gt;] shrink_slab.part.47=
++0x5b/0x590</div><div>[18432.708773] 1 lock held by CacheThread_Blo/27264:<=
+/div><div>[18432.708774]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){+=
++++}, at: [&lt;00000000aa62fc68&gt;] __do_page_fault+0x493/0x530</div><div>=
+[18432.708780] 1 lock held by Chrome_HistoryT/27286:</div><div>[18432.70878=
+1]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;0000000=
+0aa62fc68&gt;] __do_page_fault+0x493/0x530</div><div>[18432.708788] 1 lock =
+held by TaskSchedulerFo/9369:</div><div>[18432.708788]&nbsp;&nbsp;#0:&nbsp;=
+&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;00000000603ee2cd&gt;] SyS_madv=
+ise+0x859/0x920</div><div>[18432.708794] 1 lock held by TaskSchedulerFo/123=
+73:</div><div>[18432.708795]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_se=
+m){++++}, at: [&lt;00000000aa62fc68&gt;] __do_page_fault+0x493/0x530</div><=
+div>[18432.708802] 1 lock held by TaskSchedulerFo/13115:</div><div>[18432.7=
+08803]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;000=
+00000aa62fc68&gt;] __do_page_fault+0x493/0x530</div><div>[18432.708809] 1 l=
+ock held by TaskSchedulerFo/13125:</div><div>[18432.708810]&nbsp;&nbsp;#0:&=
+nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;000000003933f0be&gt;] vm_=
+mmap_pgoff+0xa5/0x120</div><div>[18432.708816] 1 lock held by TaskScheduler=
+Ba/13514:</div><div>[18432.708817]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;m=
+map_sem){++++}, at: [&lt;00000000aa62fc68&gt;] __do_page_fault+0x493/0x530<=
+/div><div>[18432.708977] 1 lock held by tracker-store/5038:</div><div>[1843=
+2.708978]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;sb-&gt;s_type-&gt;i_mutex_key#20)=
+{++++}, at: [&lt;00000000c3f6e04c&gt;] xfs_ilock+0x195/0x200 [xfs]</div><di=
+v>[18432.709033] 2 locks held by kworker/3:1/10525:</div><div>[18432.709034=
+]&nbsp;&nbsp;#0:&nbsp;&nbsp;((wq_completion)"events"){+.+.}, at: [&lt;00000=
+0000f8b6ef4&gt;] process_one_work+0x1d4/0x6c0</div><div>[18432.709040]&nbsp=
+;&nbsp;#1:&nbsp;&nbsp;((work_completion)(&amp;work-&gt;work)){+.+.}, at: [&=
+lt;000000000f8b6ef4&gt;] process_one_work+0x1d4/0x6c0</div><div>[18432.7090=
+49] 2 locks held by kworker/3:2/13474:</div><div>[18432.709050]&nbsp;&nbsp;=
+#0:&nbsp;&nbsp;((wq_completion)"events"){+.+.}, at: [&lt;000000000f8b6ef4&g=
+t;] process_one_work+0x1d4/0x6c0</div><div>[18432.709056]&nbsp;&nbsp;#1:&nb=
+sp;&nbsp;((work_completion)(&amp;work-&gt;work)){+.+.}, at: [&lt;000000000f=
+8b6ef4&gt;] process_one_work+0x1d4/0x6c0</div><div>[18432.709064] 2 locks h=
+eld by cc1/14068:</div><div>[18432.709065]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;=
+mm-&gt;mmap_sem){++++}, at: [&lt;0000000012cb6189&gt;] __do_page_fault+0x17=
+a/0x530</div><div>[18432.709070]&nbsp;&nbsp;#1:&nbsp;&nbsp;(shrinker_rwsem)=
+{++++}, at: [&lt;0000000033d29b77&gt;] shrink_slab.part.47+0x5b/0x590</div>=
+<div><br></div><div>[18432.709078] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D</div><div><br></div><div><br></div><div>[18555.587276=
+] INFO: task htop:2690 blocked for more than 120 seconds.</div><div>[18555.=
+587281]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd=
+-vega+ #10</div><div>[18555.587283] "echo 0 &gt; /proc/sys/kernel/hung_task=
+_timeout_secs" disables this message.</div><div>[18555.587285] htop&nbsp;&n=
+bsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;D12280&nbsp=
+;&nbsp;2690&nbsp;&nbsp;&nbsp;2565 0x00000000</div><div>[18555.587290] Call =
+Trace:</div><div>[18555.587298]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div><d=
+iv>[18555.587303]&nbsp;&nbsp;? rwsem_down_read_failed+0x147/0x190</div><div=
+>[18555.587307]&nbsp;&nbsp;schedule+0x2f/0x90</div><div>[18555.587309]&nbsp=
+;&nbsp;rwsem_down_read_failed+0x118/0x190</div><div>[18555.587312]&nbsp;&nb=
+sp;? __lock_acquire+0x2c3/0x1270</div><div>[18555.587320]&nbsp;&nbsp;? call=
+_rwsem_down_read_failed+0x14/0x30</div><div>[18555.587323]&nbsp;&nbsp;call_=
+rwsem_down_read_failed+0x14/0x30</div><div>[18555.587328]&nbsp;&nbsp;down_r=
+ead+0x97/0xa0</div><div>[18555.587331]&nbsp;&nbsp;proc_pid_cmdline_read+0xd=
+2/0x4a0</div><div>[18555.587335]&nbsp;&nbsp;? debug_check_no_obj_freed+0x16=
+0/0x248</div><div>[18555.587343]&nbsp;&nbsp;? __vfs_read+0x33/0x170</div><d=
+iv>[18555.587344]&nbsp;&nbsp;__vfs_read+0x33/0x170</div><div>[18555.587351]=
+&nbsp;&nbsp;vfs_read+0x9e/0x150</div><div>[18555.587354]&nbsp;&nbsp;SyS_rea=
+d+0x55/0xc0</div><div>[18555.587359]&nbsp;&nbsp;entry_SYSCALL_64_fastpath+0=
+x1f/0x96</div><div>[18555.587372] RIP: 0033:0x7fc2d8f4ae01</div><div>[18555=
+.587373] RSP: 002b:00007fffedb1f998 EFLAGS: 00000246 ORIG_RAX: 000000000000=
+0000</div><div>[18555.587376] RAX: ffffffffffffffda RBX: 000056139647bc10 R=
+CX: 00007fc2d8f4ae01</div><div>[18555.587377] RDX: 0000000000001000 RSI: 00=
+007fffedb1fa60 RDI: 0000000000000007</div><div>[18555.587378] RBP: 00005613=
+9696f483 R08: 000056139696f483 R09: 0000000000000005</div><div>[18555.58738=
+0] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000000007</div><=
+div>[18555.587381] R13: 000056139696f3f0 R14: 00005613961bb8a0 R15: 0000561=
+3961bc5e0</div><div>[18555.587516] INFO: task Chrome_IOThread:27225 blocked=
+ for more than 120 seconds.</div><div>[18555.587519]&nbsp;&nbsp;&nbsp;&nbsp=
+;&nbsp;&nbsp;&nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18555.58=
+7521] "echo 0 &gt; /proc/sys/kernel/hung_task_timeout_secs" disables this m=
+essage.</div><div>[18555.587522] Chrome_IOThread D11304 27225&nbsp;&nbsp;&n=
+bsp;3654 0x00000000</div><div>[18555.587526] Call Trace:</div><div>[18555.5=
+87531]&nbsp;&nbsp;? __schedule+0x2e3/0xb90</div><div>[18555.587537]&nbsp;&n=
+bsp;? __lock_page+0xa9/0x180</div><div>[18555.587539]&nbsp;&nbsp;schedule+0=
+x2f/0x90</div><div>[18555.587542]&nbsp;&nbsp;io_schedule+0x12/0x40</div><di=
+v>[18555.587544]&nbsp;&nbsp;__lock_page+0xe9/0x180</div><div>[18555.587548]=
+&nbsp;&nbsp;? page_cache_tree_insert+0x130/0x130</div><div>[18555.587553]&n=
+bsp;&nbsp;deferred_split_scan+0x2b6/0x300</div><div>[18555.587560]&nbsp;&nb=
+sp;shrink_slab.part.47+0x1f8/0x590</div><div>[18555.587566]&nbsp;&nbsp;? pe=
+rcpu_ref_put_many+0x84/0x100</div><div>[18555.587572]&nbsp;&nbsp;shrink_nod=
+e+0x2f4/0x300</div><div>[18555.587579]&nbsp;&nbsp;do_try_to_free_pages+0xca=
+/0x350</div><div>[18555.587584]&nbsp;&nbsp;try_to_free_pages+0x140/0x350</d=
+iv><div>[18555.587592]&nbsp;&nbsp;__alloc_pages_slowpath+0x43c/0x1080</div>=
+<div>[18555.587605]&nbsp;&nbsp;__alloc_pages_nodemask+0x3ac/0x430</div><div=
+>[18555.587611]&nbsp;&nbsp;alloc_pages_vma+0x7c/0x200</div><div>[18555.5876=
+17]&nbsp;&nbsp;__handle_mm_fault+0x8a1/0x1230</div><div>[18555.587626]&nbsp=
+;&nbsp;handle_mm_fault+0x14c/0x310</div><div>[18555.587631]&nbsp;&nbsp;__do=
+_page_fault+0x28c/0x530</div><div>[18555.587637]&nbsp;&nbsp;do_page_fault+0=
+x32/0x270</div><div>[18555.587641]&nbsp;&nbsp;page_fault+0x22/0x30</div><di=
+v>[18555.587643] RIP: 0033:0x7f9f336ac4ef</div><div>[18555.587644] RSP: 002=
+b:00007f9f1533c968 EFLAGS: 00010206</div><div>[18555.587646] RAX: 00003d608=
+24b4000 RBX: 00000000000885c8 RCX: 0000000000001040</div><div>[18555.587648=
+] RDX: 0000000000001040 RSI: 00003d602692c400 RDI: 00003d60824b4000</div><d=
+iv>[18555.587649] RBP: 00007f9f1533c9a0 R08: 0000000000000089 R09: 00003d60=
+2692d440</div><div>[18555.587650] R10: 00007f9f1533caf0 R11: 00000000000000=
+00 R12: 00003d602c90f3c0</div><div>[18555.587651] R13: 0000000000000010 R14=
+: 00000000000885b8 R15: 00003d60824b4000</div><div><br></div><div><br></div=
+><div>[18555.587666] INFO: task CacheThread_Blo:27264 blocked for more than=
+ 120 seconds.</div><div>[18555.587669]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;Not tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18555.587672] "echo 0 =
+&gt; /proc/sys/kernel/hung_task_timeout_secs" disables this message.</div><=
+div>[18555.587674] CacheThread_Blo D12488 27264&nbsp;&nbsp;&nbsp;3654 0x000=
+00000</div><div>[18555.587680] Call Trace:</div><div>[18555.587687]&nbsp;&n=
+bsp;? __schedule+0x2e3/0xb90</div><div>[18555.587694]&nbsp;&nbsp;? rwsem_do=
+wn_read_failed+0x147/0x190</div><div>[18555.587699]&nbsp;&nbsp;schedule+0x2=
+f/0x90</div><div>[18555.587702]&nbsp;&nbsp;rwsem_down_read_failed+0x118/0x1=
+90</div><div>[18555.587713]&nbsp;&nbsp;? call_rwsem_down_read_failed+0x14/0=
+x30</div><div>[18555.587715]&nbsp;&nbsp;call_rwsem_down_read_failed+0x14/0x=
+30</div><div>[18555.587720]&nbsp;&nbsp;down_read+0x97/0xa0</div><div>[18555=
+.587723]&nbsp;&nbsp;__do_page_fault+0x493/0x530</div><div>[18555.587727]&nb=
+sp;&nbsp;? trace_hardirqs_on_caller+0xed/0x180</div><div>[18555.587732]&nbs=
+p;&nbsp;do_page_fault+0x32/0x270</div><div>[18555.587735]&nbsp;&nbsp;page_f=
+ault+0x22/0x30</div><div>[18555.587737] RIP: 0033:0x55c9558374c0</div><div>=
+[18555.587738] RSP: 002b:00007f9efed7b648 EFLAGS: 00010206</div><div>[18555=
+.587740] RAX: 0000000000000128 RBX: 0000000000000200 RCX: 00007f9efed7b658<=
+/div><div>[18555.587741] RDX: 00000000000000b0 RSI: 00000000a1010000 RDI: 0=
+0003d60252f1088</div><div>[18555.587743] RBP: 00007f9efed7b680 R08: 00007f9=
+f1d5eb520 R09: 00000000ffff0001</div><div>[18555.587744] R10: 0000000000000=
+000 R11: 0000000000b10000 R12: 00003d6066f02c00</div><div>[18555.587745] R1=
+3: 0000000000000000 R14: 0000000000000128 R15: 00003d60252f1088</div><div>[=
+18555.587754] INFO: task Chrome_HistoryT:27286 blocked for more than 120 se=
+conds.</div><div>[18555.587756]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;No=
+t tainted 4.15.0-rc2-amd-vega+ #10</div><div>[18555.587757] "echo 0 &gt; /p=
+roc/sys/kernel/hung_task_timeout_secs" disables this message.</div><div>[18=
+555.587759] Chrome_HistoryT D11432 27286&nbsp;&nbsp;&nbsp;3654 0x00000000</=
+div><div>[18555.587762] Call Trace:</div><div>[18555.587766]&nbsp;&nbsp;? _=
+_schedule+0x2e3/0xb90</div><div>[18555.587771]&nbsp;&nbsp;? rwsem_down_read=
+_failed+0x147/0x190</div><div>[18555.587774]&nbsp;&nbsp;schedule+0x2f/0x90<=
+/div><div>[18555.587776]&nbsp;&nbsp;rwsem_down_read_failed+0x118/0x190</div=
+><div>[18555.587784]&nbsp;&nbsp;? call_rwsem_down_read_failed+0x14/0x30</di=
+v><div>[18555.587786]&nbsp;&nbsp;call_rwsem_down_read_failed+0x14/0x30</div=
+><div>[18555.587790]&nbsp;&nbsp;down_read+0x97/0xa0</div><div>[18555.587792=
+]&nbsp;&nbsp;__do_page_fault+0x493/0x530</div><div>[18555.587797]&nbsp;&nbs=
+p;? SyS_futex+0x12d/0x180</div><div>[18555.587799]&nbsp;&nbsp;? trace_hardi=
+rqs_on_caller+0xed/0x180</div><div>[18555.587803]&nbsp;&nbsp;do_page_fault+=
+0x32/0x270</div><div>[18555.587806]&nbsp;&nbsp;page_fault+0x22/0x30</div><d=
+iv>[18555.587808] RIP: 0033:0x55c95555fa7a</div><div>[18555.587809] RSP: 00=
+2b:00007f9efdb5ac70 EFLAGS: 00010202</div><div>[18555.587811] RAX: 00007f9f=
+1d5a7498 RBX: 000000000000000a RCX: 000000000000000b</div><div>[18555.58781=
+2] RDX: 000000000000000a RSI: 0000000000000000 RDI: 00003d60258bb200</div><=
+div>[18555.587813] RBP: 00007f9efdb5aca0 R08: 0000000000000002 R09: 00003d6=
+02c693580</div><div>[18555.587814] R10: 000000000000000d R11: 0000000000000=
+001 R12: 000000000000000a</div><div>[18555.587816] R13: 0000000000000001 R1=
+4: 00003d60258bb200 R15: 0000000000000001</div><div>[18555.588004]&nbsp;</d=
+iv><div>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&=
+nbsp;&nbsp;&nbsp;&nbsp;Showing all locks held in the system:</div><div>[185=
+55.588014] 1 lock held by khungtaskd/67:</div><div>[18555.588016]&nbsp;&nbs=
+p;#0:&nbsp;&nbsp;(tasklist_lock){.+.+}, at: [&lt;00000000a615f1dc&gt;] debu=
+g_show_all_locks+0x37/0x190</div><div>[18555.588124] 1 lock held by htop/26=
+90:</div><div>[18555.588125]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_se=
+m){++++}, at: [&lt;000000003ae69604&gt;] proc_pid_cmdline_read+0xd2/0x4a0</=
+div><div>[18555.588162] 1 lock held by CPU 0/KVM/3893:</div><div>[18555.588=
+163]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;vcpu-&gt;mutex){+.+.}, at: [&lt;000000=
+00ff3fb7f4&gt;] vcpu_load+0x17/0x60 [kvm]</div><div>[18555.588278] 1 lock h=
+eld by atop/15452:</div><div>[18555.588279]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp=
+;mm-&gt;mmap_sem){++++}, at: [&lt;000000003ae69604&gt;] proc_pid_cmdline_re=
+ad+0xd2/0x4a0</div><div>[18555.588306] 2 locks held by Chrome_IOThread/2722=
+5:</div><div>[18555.588307]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem=
+){++++}, at: [&lt;0000000012cb6189&gt;] __do_page_fault+0x17a/0x530</div><d=
+iv>[18555.588318]&nbsp;&nbsp;#1:&nbsp;&nbsp;(shrinker_rwsem){++++}, at: [&l=
+t;0000000033d29b77&gt;] shrink_slab.part.47+0x5b/0x590</div><div>[18555.588=
+330] 1 lock held by CacheThread_Blo/27264:</div><div>[18555.588332]&nbsp;&n=
+bsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;00000000aa62fc68&=
+gt;] __do_page_fault+0x493/0x530</div><div>[18555.588340] 1 lock held by Ch=
+rome_HistoryT/27286:</div><div>[18555.588341]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&a=
+mp;mm-&gt;mmap_sem){++++}, at: [&lt;00000000aa62fc68&gt;] __do_page_fault+0=
+x493/0x530</div><div>[18555.588348] 1 lock held by TaskSchedulerFo/9369:</d=
+iv><div>[18555.588349]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){+++=
++}, at: [&lt;00000000603ee2cd&gt;] SyS_madvise+0x859/0x920</div><div>[18555=
+.588356] 1 lock held by TaskSchedulerFo/12373:</div><div>[18555.588357]&nbs=
+p;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;00000000aa62f=
+c68&gt;] __do_page_fault+0x493/0x530</div><div>[18555.588363] 1 lock held b=
+y TaskSchedulerFo/13115:</div><div>[18555.588365]&nbsp;&nbsp;#0:&nbsp;&nbsp=
+;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;00000000aa62fc68&gt;] __do_page_fau=
+lt+0x493/0x530</div><div>[18555.588371] 1 lock held by TaskSchedulerFo/1312=
+5:</div><div>[18555.588372]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem=
+){++++}, at: [&lt;000000003933f0be&gt;] vm_mmap_pgoff+0xa5/0x120</div><div>=
+[18555.588379] 1 lock held by TaskSchedulerBa/13514:</div><div>[18555.58838=
+0]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, at: [&lt;0000000=
+0aa62fc68&gt;] __do_page_fault+0x493/0x530</div><div>[18555.588574] 2 locks=
+ held by kworker/3:1/10525:</div><div>[18555.588575]&nbsp;&nbsp;#0:&nbsp;&n=
+bsp;((wq_completion)"events"){+.+.}, at: [&lt;000000000f8b6ef4&gt;] process=
+_one_work+0x1d4/0x6c0</div><div>[18555.588582]&nbsp;&nbsp;#1:&nbsp;&nbsp;((=
+work_completion)(&amp;work-&gt;work)){+.+.}, at: [&lt;000000000f8b6ef4&gt;]=
+ process_one_work+0x1d4/0x6c0</div><div>[18555.588592] 2 locks held by kwor=
+ker/3:2/13474:</div><div>[18555.588593]&nbsp;&nbsp;#0:&nbsp;&nbsp;((wq_comp=
+letion)"events"){+.+.}, at: [&lt;000000000f8b6ef4&gt;] process_one_work+0x1=
+d4/0x6c0</div><div>[18555.588599]&nbsp;&nbsp;#1:&nbsp;&nbsp;((work_completi=
+on)(&amp;work-&gt;work)){+.+.}, at: [&lt;000000000f8b6ef4&gt;] process_one_=
+work+0x1d4/0x6c0</div><div>[18555.588606] 2 locks held by cc1/14068:</div><=
+div>[18555.588608]&nbsp;&nbsp;#0:&nbsp;&nbsp;(&amp;mm-&gt;mmap_sem){++++}, =
+at: [&lt;0000000012cb6189&gt;] __do_page_fault+0x17a/0x530</div><div>[18555=
+.588613]&nbsp;&nbsp;#1:&nbsp;&nbsp;(shrinker_rwsem){++++}, at: [&lt;0000000=
+033d29b77&gt;] shrink_slab.part.47+0x5b/0x590</div><div><br></div><div>[185=
+55.588623] =3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=
+=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D=3D</d=
+iv><div><br></div><div>--</div><div>Regards</div><div>Mikhail</div><div></d=
+iv></body></html>
+--=-r0HT0rGmENkqxKlWpYWw--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
