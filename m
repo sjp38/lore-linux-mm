@@ -1,82 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BBB26B0033
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 19:16:30 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q186so6365941pga.23
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 16:16:30 -0800 (PST)
-Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id e76si4983611pfl.60.2017.12.07.16.16.26
-        for <linux-mm@kvack.org>;
-        Thu, 07 Dec 2017 16:16:27 -0800 (PST)
-Date: Fri, 8 Dec 2017 11:14:01 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: Lockdep is less useful than it was
-Message-ID: <20171208001401.GM4094@dastard>
-References: <20171206004159.3755-1-willy@infradead.org>
- <20171206004159.3755-73-willy@infradead.org>
- <20171206012901.GZ4094@dastard>
- <20171206020208.GK26021@bombadil.infradead.org>
- <20171206031456.GE4094@dastard>
- <20171206044549.GO26021@bombadil.infradead.org>
- <20171206084404.GF4094@dastard>
- <20171206140648.GB32044@bombadil.infradead.org>
- <20171207160634.il3vt5d6a4v5qesi@thunk.org>
- <20171207223803.GC26792@bombadil.infradead.org>
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 739B66B0253
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 19:25:39 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id i83so224138wma.4
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 16:25:39 -0800 (PST)
+Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
+        by mx.google.com with ESMTPS id j33si2134389edc.182.2017.12.07.16.25.37
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 07 Dec 2017 16:25:37 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id 85C52B8D8E
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 00:25:37 +0000 (GMT)
+Date: Fri, 8 Dec 2017 00:25:37 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: page_alloc: avoid excessive IRQ disabled times in
+ free_unref_page_list
+Message-ID: <20171208002537.z6h3v2yojnlcu3ai@techsingularity.net>
+References: <20171207170314.4419-1-l.stach@pengutronix.de>
+ <20171207195103.dkiqjoeasr35atqj@techsingularity.net>
+ <20171207152059.96ebc2f7dfd1a65a91252029@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <20171207223803.GC26792@bombadil.infradead.org>
+In-Reply-To: <20171207152059.96ebc2f7dfd1a65a91252029@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, mingo@kernel.org, byungchul.park@lge.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
 
-On Thu, Dec 07, 2017 at 02:38:03PM -0800, Matthew Wilcox wrote:
-> On Thu, Dec 07, 2017 at 11:06:34AM -0500, Theodore Ts'o wrote:
-> > The problem is that if it has too many false positives --- and it's
-> > gotten *way* worse with the completion callback "feature", people will
-> > just stop using Lockdep as being too annyoing and a waste of developer
-> > time when trying to figure what is a legitimate locking bug versus
-> > lockdep getting confused.
+On Thu, Dec 07, 2017 at 03:20:59PM -0800, Andrew Morton wrote:
+> On Thu, 7 Dec 2017 19:51:03 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+> 
+> > On Thu, Dec 07, 2017 at 06:03:14PM +0100, Lucas Stach wrote:
+> > > Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
+> > > a list of pages) we see excessive IRQ disabled times of up to 250ms on an
+> > > embedded ARM system (tracing overhead included).
+> > > 
+> > > This is due to graphics buffers being freed back to the system via
+> > > release_pages(). Graphics buffers can be huge, so it's not hard to hit
+> > > cases where the list of pages to free has 2048 entries. Disabling IRQs
+> > > while freeing all those pages is clearly not a good idea.
+> > > 
 > > 
-> > <Rant>I can't even disable the new Lockdep feature which is throwing
-> > lots of new false positives --- it's just all or nothing.</Rant>
+> > 250ms to free 2048 entries? That seems excessive but I guess the
+> > embedded ARM system is not that fast.
 > 
-> You *can* ... but it's way more hacking Kconfig than you ought to have
-> to do (which is a separate rant ...)
+> I wonder how common such lenghty lists are.
 > 
-> You need to get LOCKDEP_CROSSRELEASE off.  I'd revert patches
-> e26f34a407aec9c65bce2bc0c838fabe4f051fc6 and
-> b483cf3bc249d7af706390efa63d6671e80d1c09
+
+Well, it's release_pages. From core VM and the block layer, not very long
+but for drivers and filesystems, it can be arbitrarily long. Even from the
+VM, the function can be called a lot but as it's from pagevec context so
+it's naturally broken into small pieces anyway.
+
+> If "significantly" then there may be additional benefit in rearranging
+> free_hot_cold_page_list() so it only walks a small number of list
+> entries at a time.  So the data from the first loop is still in cache
+> during execution of the second loop.  And that way this
+> long-irq-off-time problem gets fixed automagically.
 > 
-> I think it was a mistake to force these on for everybody; they have a
-> much higher false-positive rate than the rest of lockdep, so as you say
-> forcing them on leads to fewer people using *any* of lockdep.
-> 
-> The bug you're hitting isn't Byungchul's fault; it's an annotation
-> problem.  The same kind of annotation problem that we used to have with
-> dozens of other places in the kernel which are now fixed.
 
-That's one of the fundamental problem with lockdep - it throws the
-difficulty of solving all these new false positives onto the
-developers who know nothing about lockdep and don't follow it's
-development. And until they do solve them - especially in critical
-subsystems that everyone uses like the storage stack - lockdep is
-essentially worthless.
+I'm not sure it's worthwhile. In too many cases, the list of pages being
+released are either cache cold or are so long that the cache data is
+being thrashed anyway. Once the core page allocator is involved, then
+there will be further cache thrashing due to buddy page merging accessing
+data that is potentially very close. I think it's unlikely there would be
+much value in using alternative schemes unless we were willing to have
+very large per-cpu lists -- something I prototyped for fast networking
+but never heard back whether it's worthwhile or not.
 
-> If you didn't
-> have to hack Kconfig to get rid of this problem, you'd be happier, right?
-
-I'd be much happier if it wasn't turned on by default in the first
-place.  We gave plenty of warnings that there were still unsolved
-false positive problems with the new checks in the storage stack.
-
-Cheers,
-
-Dave.
 -- 
-Dave Chinner
-david@fromorbit.com
+Mel Gorman
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
