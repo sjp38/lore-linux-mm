@@ -1,55 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A13736B0038
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 15:57:48 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q3so8780847pgv.16
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 12:57:48 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q9si5904559plr.765.2017.12.08.12.57.46
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 717166B0038
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 16:02:24 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id r140so251937iod.12
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 13:02:24 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n129sor1471246itb.101.2017.12.08.13.02.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 12:57:46 -0800 (PST)
-Date: Fri, 8 Dec 2017 12:57:34 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 0/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171208205734.GB32293@bombadil.infradead.org>
-References: <20171130065835.dbw4ajh5q5whikhf@dhcp22.suse.cz>
- <20171201152640.GA3765@rei>
- <87wp20e9wf.fsf@concordia.ellerman.id.au>
- <20171206045433.GQ26021@bombadil.infradead.org>
- <20171206070355.GA32044@bombadil.infradead.org>
- <87bmjbks4c.fsf@concordia.ellerman.id.au>
- <CAGXu5jLWRQn6EaXEEvdvXr+4gbiJawwp1EaLMfYisHVfMiqgSA@mail.gmail.com>
- <20171207195727.GA26792@bombadil.infradead.org>
- <20171208083315.GR20234@dhcp22.suse.cz>
- <CAGXu5j+VupGmKEEHx-uNXw27Xvndu=0ObsBqMwQiaYPyMGD+vw@mail.gmail.com>
+        (Google Transport Security);
+        Fri, 08 Dec 2017 13:02:23 -0800 (PST)
+Date: Fri, 8 Dec 2017 13:02:20 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+In-Reply-To: <20171208012305.83134-1-surenb@google.com>
+Message-ID: <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
+References: <20171208012305.83134-1-surenb@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAGXu5j+VupGmKEEHx-uNXw27Xvndu=0ObsBqMwQiaYPyMGD+vw@mail.gmail.com>
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Michael Ellerman <mpe@ellerman.id.au>, Cyril Hrubis <chrubis@suse.cz>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Pavel Machek <pavel@ucw.cz>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-On Fri, Dec 08, 2017 at 12:13:31PM -0800, Kees Cook wrote:
-> On Fri, Dec 8, 2017 at 12:33 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > OK, this doesn't seem to lead to anywhere. The more this is discussed
-> > the more names we are getting. So you know what? I will resubmit and
-> > keep my original name. If somebody really hates it then feel free to
-> > nack the patch and push alternative and gain concensus on it.
-> >
-> > I will keep MAP_FIXED_SAFE because it is an alternative to MAP_FIXED so
-> > having that in the name is _useful_ for everybody familiar with
-> > MAP_FIXED already. And _SAFE suffix tells that the operation doesn't
-> > cause any silent memory corruptions or other unexpected side effects.
+On Thu, 7 Dec 2017, Suren Baghdasaryan wrote:
+
+> Slab shrinkers can be quite time consuming and when signal
+> is pending they can delay handling of the signal. If fatal
+> signal is pending there is no point in shrinking that process
+> since it will be killed anyway. This change checks for pending
+> fatal signals inside shrink_slab loop and if one is detected
+> terminates this loop early.
 > 
-> Looks like consensus is MAP_FIXED_NOREPLACE.
 
-I'd rather MAP_AT_ADDR or MAP_REQUIRED, but I prefer FIXED_NOREPLACE to
-FIXED_SAFE.
+I've proposed a similar patch in the past, but for a check on TIF_MEMDIE, 
+which would today be a tsk_is_oom_victim(current), since we had observed 
+lengthy stalls in reclaim that would have been prevented if the oom victim 
+had exited out, returned back to the page allocator, allocated with 
+ALLOC_NO_WATERMARKS, and proceeded to quickly exit.
 
-I just had a thought though -- MAP_STATIC?  ie don't move it.
+I'm not sure that all fatal_signal_pending() tasks should get the same 
+treatment, but I understand the point that the task is killed and should 
+free memory when it fully exits.  How much memory is unknown.
+
+ > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> 
+> ---
+> V2:
+> Sergey Senozhatsky:
+>   - Fix missing parentheses
+> ---
+>  mm/vmscan.c | 7 +++++++
+>  1 file changed, 7 insertions(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index c02c850ea349..28e4bdc72c16 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>  			.memcg = memcg,
+>  		};
+>  
+> +		/*
+> +		 * We are about to die and free our memory.
+> +		 * Stop shrinking which might delay signal handling.
+> +		 */
+> +		if (unlikely(fatal_signal_pending(current)))
+> +			break;
+> +
+>  		/*
+>  		 * If kernel memory accounting is disabled, we ignore
+>  		 * SHRINKER_MEMCG_AWARE flag and call all shrinkers
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
