@@ -1,78 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 739B66B0253
-	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 19:25:39 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i83so224138wma.4
-        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 16:25:39 -0800 (PST)
-Received: from outbound-smtp24.blacknight.com (outbound-smtp24.blacknight.com. [81.17.249.192])
-        by mx.google.com with ESMTPS id j33si2134389edc.182.2017.12.07.16.25.37
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0711B6B025F
+	for <linux-mm@kvack.org>; Thu,  7 Dec 2017 19:29:42 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id a45so4957305wra.14
+        for <linux-mm@kvack.org>; Thu, 07 Dec 2017 16:29:41 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id c15si2639946wra.5.2017.12.07.16.29.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 07 Dec 2017 16:25:37 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
-	by outbound-smtp24.blacknight.com (Postfix) with ESMTPS id 85C52B8D8E
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 00:25:37 +0000 (GMT)
-Date: Fri, 8 Dec 2017 00:25:37 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: avoid excessive IRQ disabled times in
- free_unref_page_list
-Message-ID: <20171208002537.z6h3v2yojnlcu3ai@techsingularity.net>
-References: <20171207170314.4419-1-l.stach@pengutronix.de>
- <20171207195103.dkiqjoeasr35atqj@techsingularity.net>
- <20171207152059.96ebc2f7dfd1a65a91252029@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171207152059.96ebc2f7dfd1a65a91252029@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 07 Dec 2017 16:29:40 -0800 (PST)
+Date: Thu, 7 Dec 2017 16:29:37 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap
+ operations
+Message-Id: <20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
+In-Reply-To: <20171207011426.1633-1-ying.huang@intel.com>
+References: <20171207011426.1633-1-ying.huang@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?ISO-8859-1?Q?J?= =?ISO-8859-1?Q?=E9r=F4me?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On Thu, Dec 07, 2017 at 03:20:59PM -0800, Andrew Morton wrote:
-> On Thu, 7 Dec 2017 19:51:03 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+On Thu,  7 Dec 2017 09:14:26 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
+
+> When the swapin is performed, after getting the swap entry information
+> from the page table, the PTL (page table lock) will be released, then
+> system will go to swap in the swap entry, without any lock held to
+> prevent the swap device from being swapoff.  This may cause the race
+> like below,
 > 
-> > On Thu, Dec 07, 2017 at 06:03:14PM +0100, Lucas Stach wrote:
-> > > Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
-> > > a list of pages) we see excessive IRQ disabled times of up to 250ms on an
-> > > embedded ARM system (tracing overhead included).
-> > > 
-> > > This is due to graphics buffers being freed back to the system via
-> > > release_pages(). Graphics buffers can be huge, so it's not hard to hit
-> > > cases where the list of pages to free has 2048 entries. Disabling IRQs
-> > > while freeing all those pages is clearly not a good idea.
-> > > 
-> > 
-> > 250ms to free 2048 entries? That seems excessive but I guess the
-> > embedded ARM system is not that fast.
+> CPU 1				CPU 2
+> -----				-----
+> 				do_swap_page
+> 				  swapin_readahead
+> 				    __read_swap_cache_async
+> swapoff				      swapcache_prepare
+>   p->swap_map = NULL		        __swap_duplicate
+> 					  p->swap_map[?] /* !!! NULL pointer access */
 > 
-> I wonder how common such lenghty lists are.
-> 
+> Because swap off is usually done when system shutdown only, the race
+> may not hit many people in practice.  But it is still a race need to
+> be fixed.
 
-Well, it's release_pages. From core VM and the block layer, not very long
-but for drivers and filesystems, it can be arbitrarily long. Even from the
-VM, the function can be called a lot but as it's from pagevec context so
-it's naturally broken into small pieces anyway.
+swapoff is so rare that it's hard to get motivated about any fix which
+adds overhead to the regular codepaths.
 
-> If "significantly" then there may be additional benefit in rearranging
-> free_hot_cold_page_list() so it only walks a small number of list
-> entries at a time.  So the data from the first loop is still in cache
-> during execution of the second loop.  And that way this
-> long-irq-off-time problem gets fixed automagically.
-> 
+Is there something we can do to ensure that all the overhead of this
+fix is placed into the swapoff side?  stop_machine() may be a bit
+brutal, but a surprising amount of code uses it.  Any other ideas?
 
-I'm not sure it's worthwhile. In too many cases, the list of pages being
-released are either cache cold or are so long that the cache data is
-being thrashed anyway. Once the core page allocator is involved, then
-there will be further cache thrashing due to buddy page merging accessing
-data that is potentially very close. I think it's unlikely there would be
-much value in using alternative schemes unless we were willing to have
-very large per-cpu lists -- something I prototyped for fast networking
-but never heard back whether it's worthwhile or not.
-
--- 
-Mel Gorman
-SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
