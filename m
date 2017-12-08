@@ -1,68 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B958A6B026A
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:39:01 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i71so889591wmd.9
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:39:01 -0800 (PST)
-Received: from outbound-smtp22.blacknight.com (outbound-smtp22.blacknight.com. [81.17.249.190])
-        by mx.google.com with ESMTPS id k62si1048983edc.303.2017.12.08.03.39.00
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C7EA6B026D
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 06:42:24 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 96so5755713wrk.7
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 03:42:24 -0800 (PST)
+Received: from metis.ext.pengutronix.de (metis.ext.pengutronix.de. [2001:67c:670:201:290:27ff:fe1d:cc33])
+        by mx.google.com with ESMTPS id m1si1011830wmm.250.2017.12.08.03.42.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 08 Dec 2017 03:39:00 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp22.blacknight.com (Postfix) with ESMTPS id 3407FB8E8E
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 11:38:58 +0000 (GMT)
-Date: Fri, 8 Dec 2017 11:38:56 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: page_alloc: avoid excessive IRQ disabled times in
- free_unref_page_list
-Message-ID: <20171208113856.7352reah7xebvp7a@techsingularity.net>
-References: <20171207170314.4419-1-l.stach@pengutronix.de>
- <20171207195103.dkiqjoeasr35atqj@techsingularity.net>
- <1512727403.11506.21.camel@pengutronix.de>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <1512727403.11506.21.camel@pengutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Dec 2017 03:42:23 -0800 (PST)
+From: Lucas Stach <l.stach@pengutronix.de>
+Subject: [PATCH v2] mm: page_alloc: avoid excessive IRQ disabled times in free_unref_page_list
+Date: Fri,  8 Dec 2017 12:42:17 +0100
+Message-Id: <20171208114217.8491-1-l.stach@pengutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lucas Stach <l.stach@pengutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, kernel@pengutronix.de, patchwork-lst@pengutronix.de
+To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, patchwork-lst@pengutronix.de, kernel@pengutronix.de
 
-On Fri, Dec 08, 2017 at 11:03:23AM +0100, Lucas Stach wrote:
-> Am Donnerstag, den 07.12.2017, 19:51 +0000 schrieb Mel Gorman:
-> > On Thu, Dec 07, 2017 at 06:03:14PM +0100, Lucas Stach wrote:
-> > > Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when
-> > > freeing
-> > > a list of pages) we see excessive IRQ disabled times of up to 250ms
-> > > on an
-> > > embedded ARM system (tracing overhead included).
-> > > 
-> > > This is due to graphics buffers being freed back to the system via
-> > > release_pages(). Graphics buffers can be huge, so it's not hard to
-> > > hit
-> > > cases where the list of pages to free has 2048 entries. Disabling
-> > > IRQs
-> > > while freeing all those pages is clearly not a good idea.
-> > > 
-> > 
-> > 250ms to free 2048 entries? That seems excessive but I guess the
-> > embedded ARM system is not that fast.
-> 
-> Urgh, yes, I've messed up the order of magnitude in the commit log. It
-> really is on the order of 25ms. Which is still prohibitively long for
-> an IRQs off section.
-> 
+Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
+a list of pages) we see excessive IRQ disabled times of up to 25ms on an
+embedded ARM system (tracing overhead included).
 
-Ok, 25ms is more plausible but I agree that it's still an excessive
-amount of time to have IRQs disabled. The problem still needs fixing but
-I'd like to see Andrew's approach at least attempted as it should
-achieve the same goal while being slightly nicer from a cache hotness
-perspective.
+This is due to graphics buffers being freed back to the system via
+release_pages(). Graphics buffers can be huge, so it's not hard to hit
+cases where the list of pages to free has 2048 entries. Disabling IRQs
+while freeing all those pages is clearly not a good idea.
 
+Introduce a batch limit, which allows IRQ servicing once every few pages.
+The batch count is the same as used in other parts of the MM subsystem
+when dealing with IRQ disabled regions.
+
+Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+---
+v2: Try to keep the working set of pages used in the second loop cache
+    hot by going through both loops in swathes of SWAP_CLUSTER_MAX
+    entries, as suggested by Andrew Morton.
+
+    To avoid the need to replicate the batch counting in both loops
+    I introduced a local batched_free_list where pages to be freed
+    in the critical section are collected. IMO this makes the code
+    easier to follow.
+---
+ mm/page_alloc.c | 42 ++++++++++++++++++++++++++++--------------
+ 1 file changed, 28 insertions(+), 14 deletions(-)
+
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 73f5d4556b3d..522870f1a8f2 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2685,23 +2685,37 @@ void free_unref_page_list(struct list_head *list)
+ 	struct page *page, *next;
+ 	unsigned long flags, pfn;
+ 
+-	/* Prepare pages for freeing */
+-	list_for_each_entry_safe(page, next, list, lru) {
+-		pfn = page_to_pfn(page);
+-		if (!free_unref_page_prepare(page, pfn))
+-			list_del(&page->lru);
+-		set_page_private(page, pfn);
+-	}
++	while (!list_empty(list)) {
++		LIST_HEAD(batched_free_list);
++		unsigned int batch_count = 0;
+ 
+-	local_irq_save(flags);
+-	list_for_each_entry_safe(page, next, list, lru) {
+-		unsigned long pfn = page_private(page);
++		/*
++		 * Prepare pages for freeing. Collects at max SWAP_CLUSTER_MAX
++		 * pages for batched free in single IRQs off critical section.
++		 */
++		list_for_each_entry_safe(page, next, list, lru) {
++			pfn = page_to_pfn(page);
++			if (!free_unref_page_prepare(page, pfn)) {
++				list_del(&page->lru);
++			} else {
++				list_move(&page->lru, &batched_free_list);
++				batch_count++;
++			}
++			set_page_private(page, pfn);
++			if (batch_count == SWAP_CLUSTER_MAX)
++				break;
++		}
+ 
+-		set_page_private(page, 0);
+-		trace_mm_page_free_batched(page);
+-		free_unref_page_commit(page, pfn);
++		local_irq_save(flags);
++		list_for_each_entry_safe(page, next, &batched_free_list, lru) {
++			unsigned long pfn = page_private(page);
++
++			set_page_private(page, 0);
++			trace_mm_page_free_batched(page);
++			free_unref_page_commit(page, pfn);
++		}
++		local_irq_restore(flags);
+ 	}
+-	local_irq_restore(flags);
+ }
+ 
+ /*
 -- 
-Mel Gorman
-SUSE Labs
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
