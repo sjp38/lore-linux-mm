@@ -1,66 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BF9F6B0033
-	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 09:15:04 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id q12so2053138pli.12
-        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 06:15:04 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id y3si8056483pfj.120.2017.12.09.06.14.57
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D84AD6B0033
+	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 12:00:29 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id n3so4780408ioc.0
+        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 09:00:29 -0800 (PST)
+Received: from smtprelay.hostedemail.com (smtprelay0186.hostedemail.com. [216.40.44.186])
+        by mx.google.com with ESMTPS id d189si3264868itg.40.2017.12.09.09.00.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 09 Dec 2017 06:14:58 -0800 (PST)
-Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1512705038.7843.6.camel@gmail.com>
-	<20171208040556.GG19219@magnolia>
-	<b60ae517-b9ca-a07f-36cf-ed11eb3c9180@I-love.SAKURA.ne.jp>
-	<1512825438.4168.14.camel@gmail.com>
-In-Reply-To: <1512825438.4168.14.camel@gmail.com>
-Message-Id: <201712092314.IGI39555.MtFFVLJFOQOSOH@I-love.SAKURA.ne.jp>
-Date: Sat, 9 Dec 2017 23:14:47 +0900
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 09 Dec 2017 09:00:23 -0800 (PST)
+Message-ID: <1512838818.26342.7.camel@perches.com>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+From: Joe Perches <joe@perches.com>
+Date: Sat, 09 Dec 2017 09:00:18 -0800
+In-Reply-To: <20171208223654.GP5858@dastard>
+References: <fd7130d7-9066-524e-1053-a61eeb27cb36@lge.com>
+	 <Pine.LNX.4.44L0.1712081228430.1371-100000@iolanthe.rowland.org>
+	 <20171208223654.GP5858@dastard>
+Content-Type: text/plain; charset="ISO-8859-1"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mikhail.v.gavrilov@gmail.com, mhocko@kernel.org
-Cc: darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Dave Chinner <david@fromorbit.com>, Alan Stern <stern@rowland.harvard.edu>
+Cc: Byungchul Park <byungchul.park@lge.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-mikhail wrote:
-> On Fri, 2017-12-08 at 19:18 +0900, Tetsuo Handa wrote:
-> > Most likely cause is that I/O was getting very slow due to memory
-> > pressure.
-> > Running memory consuming processes (e.g. web browsers) and file
-> > writing
-> > processes might generate stresses like this report.
-> > 
-> > I can't tell whether this report is a real deadlock/lockup or just a
-> > slowdown,
-> > for currently we don't have means for checking whether memory
-> > allocation was
-> > making progress or not.
-> 
-> It not just slowdown because after 5 hours I was still unable launch
-> even htop. After executing command was nothing happens. I was even
-> surprised that dmesg could work.
+On Sat, 2017-12-09 at 09:36 +1100, Dave Chinner wrote:
+> 	1. Using lockdep_set_novalidate_class() for anything other
+> 	than device->mutex will throw checkpatch warnings. Nice. (*)
+[]
+> (*) checkpatch.pl is considered mostly harmful round here, too,
+> but that's another rant....
 
-Then, it seems that it was a real deadlock/lockup.
+How so?
 
-> 
-> Thanks for the advice.
-> Decided to check what happens when I do SysRq-t.
-> SysRq-t produce a lot of the output even without running Google Chrome.
-> Such amout of data does not fit in the kernel output buffer and it's
-> impossible to read from the screen.
-> 
-> Demonstration: https://youtu.be/DUWB1WGBog0
+> (**) the frequent occurrence of "core code/devs aren't held to the
+> same rules/standard as everyone else" is another rant I have stored
+> up for a rainy day.
 
-Under OOM lockup situation, kernel messages can unlikely be saved to syslog
-files, for writing to files involves memory allocation. Can you set up
-netconsole or serial console explained at
-http://events.linuxfoundation.org/sites/events/files/slides/LCJ2014-en_0.pdf ?
-If neither console is possible, it would become difficult to debug.
+Yeah.  I wouldn't mind reading that one...
 
-Michal, any idea?
+Rainy season is starting right about now here too.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
