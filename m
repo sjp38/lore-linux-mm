@@ -1,59 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E7D206B0033
-	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 07:31:36 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id t13so3476666lfe.2
-        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 04:31:36 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 67sor2021014ljj.15.2017.12.09.04.31.29
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 60F066B0033
+	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 07:44:47 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id p144so7327320itc.9
+        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 04:44:47 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id z8si6386363iob.94.2017.12.09.04.44.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 09 Dec 2017 04:31:29 -0800 (PST)
-Message-ID: <1512822686.4168.4.camel@gmail.com>
-Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
-From: mikhail <mikhail.v.gavrilov@gmail.com>
-Date: Sat, 09 Dec 2017 17:31:26 +0500
-In-Reply-To: <20171208040556.GG19219@magnolia>
-References: <1512705038.7843.6.camel@gmail.com>
-	 <20171208040556.GG19219@magnolia>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 09 Dec 2017 04:44:46 -0800 (PST)
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+References: <20171208012305.83134-1-surenb@google.com>
+ <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <f0f67f05-7efb-0e2a-071c-2ef87530bb79@I-love.SAKURA.ne.jp>
+Date: Sat, 9 Dec 2017 21:44:20 +0900
+MIME-Version: 1.0
+In-Reply-To: <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: David Rientjes <rientjes@google.com>, Suren Baghdasaryan <surenb@google.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-On Thu, 2017-12-07 at 20:05 -0800, Darrick J. Wong wrote:
-> > Hi, can anybody said what here happens? And which info needed for
-> > fixing it? Thanks. [16712.376081] INFO: task tracker-store:27121
-> > blocked for more than 120 seconds. [16712.376088] Not tainted
-> > 4.15.0-rc2-amd-vega+ #10 [16712.376092] "echo 0 >
-> > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> > [16712.376095] tracker-store D13400 27121 1843 0x00000000
-> > [16712.376102] Call Trace: [16712.376114] ? __schedule+0x2e3/0xb90
-> > [16712.376123] ? wait_for_completion+0x146/0x1e0 [16712.376128]
-> > schedule+0x2f/0x90 [16712.376132] schedule_timeout+0x236/0x540
-> > [16712.376143] ? mark_held_locks+0x4e/0x80 [16712.376147] ?
-> > _raw_spin_unlock_irq+0x29/0x40 [16712.376153] ?
-> > wait_for_completion+0x146/0x1e0 [16712.376158]
-> > wait_for_completion+0x16e/0x1e0 [16712.376162] ?
-> > wake_up_q+0x70/0x70 [16712.376204] ? xfs_buf_read_map+0x134/0x2f0
-> > [xfs] [16712.376234] xfs_buf_submit_wait+0xaf/0x520 [xfs]
+On 2017/12/09 6:02, David Rientjes wrote:
+> On Thu, 7 Dec 2017, Suren Baghdasaryan wrote:
 > 
+>> Slab shrinkers can be quite time consuming and when signal
+>> is pending they can delay handling of the signal. If fatal
+>> signal is pending there is no point in shrinking that process
+>> since it will be killed anyway. This change checks for pending
+>> fatal signals inside shrink_slab loop and if one is detected
+>> terminates this loop early.
+>>
 > 
-
-Stuck waiting for a directory block to read. 
-> Slow disk? 
-Usual Seagate SATA3 HDD with 7200rpms
-
-> Bad media?
-No. If there were problems with the hard drive, we would see errors in
-the logs.
-
-Any way you can sure in this if look at smartctl output for HDD.
-
-https://paste.fedoraproject.org/paste/EsELRXoiKzlkR5PYhVmJeg
+> I've proposed a similar patch in the past, but for a check on TIF_MEMDIE, 
+> which would today be a tsk_is_oom_victim(current), since we had observed 
+> lengthy stalls in reclaim that would have been prevented if the oom victim 
+> had exited out, returned back to the page allocator, allocated with 
+> ALLOC_NO_WATERMARKS, and proceeded to quickly exit.
+> 
+> I'm not sure that all fatal_signal_pending() tasks should get the same 
+> treatment, but I understand the point that the task is killed and should 
+> free memory when it fully exits.  How much memory is unknown.
+> 
+We can use __GFP_KILLABLE. Unless there is performance impact for checking
+fatal_siganl_pending(), allowing only fatal_signal_pending() threads with
+__GFP_KILLABLE to bail out (without using memory reserves) should be safe.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
