@@ -1,79 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8772B6B027B
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 22:34:44 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id w15so994569plp.14
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 19:34:44 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id c20si7289437pfd.107.2017.12.08.19.34.42
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 219DD6B027E
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 23:16:27 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id y124so5780071oie.0
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 20:16:27 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j50si3214937otc.212.2017.12.08.20.16.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 08 Dec 2017 19:34:43 -0800 (PST)
-Date: Sat, 9 Dec 2017 11:26:58 +0800
-From: "Du, Changbin" <changbin.du@intel.com>
-Subject: Re: [PATCH v4] mm, thp: introduce generic transparent huge page
- allocation interfaces
-Message-ID: <20171209032658.koktsag3hqpm7psx@intel.com>
-References: <1512708175-14089-1-git-send-email-changbin.du@intel.com>
- <20171208082737.GA15790@dhcp22.suse.cz>
+        Fri, 08 Dec 2017 20:16:26 -0800 (PST)
+Date: Sat, 9 Dec 2017 12:16:10 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: [PATCH resend] fix boot hang with earlyprintk=efi,keep
+Message-ID: <20171209041610.GA3249@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171208082737.GA15790@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: changbin.du@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: tglx@linutronix.de, bp@suse.de, mingo@kernel.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-efi@vger.kernel.org
 
-On Fri, Dec 08, 2017 at 09:27:37AM +0100, Michal Hocko wrote:
-> On Fri 08-12-17 12:42:55, changbin.du@intel.com wrote:
-> > From: Changbin Du <changbin.du@intel.com>
-> > 
-> > This patch introduced 4 new interfaces to allocate a prepared transparent
-> > huge page. These interfaces merge distributed two-step allocation as simple
-> > single step. And they can avoid issue like forget to call prep_transhuge_page()
-> > or call it on wrong page. A real fix:
-> > 40a899e ("mm: migrate: fix an incorrect call of prep_transhuge_page()")
-> > 
-> > Anyway, I just want to prove that expose direct allocation interfaces is
-> > better than a interface only do the second part of it.
-> > 
-> > These are similar to alloc_hugepage_xxx which are for hugetlbfs pages. New
-> > interfaces are:
-> >   - alloc_transhuge_page_vma
-> >   - alloc_transhuge_page_nodemask
-> >   - alloc_transhuge_page_node
-> >   - alloc_transhuge_page
-> > 
-> > These interfaces implicitly add __GFP_COMP gfp mask which is the minimum
-> > flags used for huge page allocation. More flags leave to the callers.
-> > 
-> > This patch does below changes:
-> >   - define alloc_transhuge_page_xxx interfaces
-> >   - apply them to all existing code
-> >   - declare prep_transhuge_page as static since no others use it
-> >   - remove alloc_hugepage_vma definition since it no longer has users
-> 
-> I am not really convinced this is a huge win, to be honest. Just look at
-> the diffstat. Very few callsites get marginally simpler while we add a
-> lot of stubs and the code churn.
->
-I know we should write less code, but it is not the only rule. Sometimes we need
-add little more code since the compiler requires so, but it doesn't mean then
-the compiler will generate worse/more machine code. Besides this, I really want
-to know wethere any other considerations you have. Thanks.
+earlyprintk=efi,keep does not work any more with a warning
+in mm/early_ioremap.c: WARN_ON(system_state != SYSTEM_BOOTING):
+Boot just hangs because of the earlyprintk within earlyprintk
+implementation code.
+
+This is caused by a new introduced middle state in below commit:
+commit 69a78ff226fe ("init: Introduce SYSTEM_SCHEDULING state")
+early_ioremap is fine in both SYSTEM_BOOTING and SYSTEM_SCHEDULING
+states, original condition should be updated accordingly.
+
+Signed-off-by: Dave Young <dyoung@redhat.com>
+---
+v1->v2: update patch log correct some typos
+ mm/early_ioremap.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- linux-x86.orig/mm/early_ioremap.c
++++ linux-x86/mm/early_ioremap.c
+@@ -111,7 +111,7 @@ __early_ioremap(resource_size_t phys_add
+ 	enum fixed_addresses idx;
+ 	int i, slot;
  
-> >  mm/mempolicy.c          | 14 +++-----------
-> >  mm/migrate.c            | 14 ++++----------
-> >  mm/shmem.c              |  6 ++----
-> >  8 files changed, 90 insertions(+), 56 deletions(-)
-> -- 
-> Michal Hocko
-> SUSE Labs
-
--- 
-Thanks,
-Changbin Du
+-	WARN_ON(system_state != SYSTEM_BOOTING);
++	WARN_ON(system_state >= SYSTEM_RUNNING);
+ 
+ 	slot = -1;
+ 	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
