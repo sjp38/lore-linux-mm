@@ -1,81 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 61BB06B027A
-	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 22:16:31 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id t15so1796846wmh.3
-        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 19:16:31 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 38sor4724948wru.40.2017.12.08.19.16.29
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8772B6B027B
+	for <linux-mm@kvack.org>; Fri,  8 Dec 2017 22:34:44 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id w15so994569plp.14
+        for <linux-mm@kvack.org>; Fri, 08 Dec 2017 19:34:44 -0800 (PST)
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id c20si7289437pfd.107.2017.12.08.19.34.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 08 Dec 2017 19:16:30 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 08 Dec 2017 19:34:43 -0800 (PST)
+Date: Sat, 9 Dec 2017 11:26:58 +0800
+From: "Du, Changbin" <changbin.du@intel.com>
+Subject: Re: [PATCH v4] mm, thp: introduce generic transparent huge page
+ allocation interfaces
+Message-ID: <20171209032658.koktsag3hqpm7psx@intel.com>
+References: <1512708175-14089-1-git-send-email-changbin.du@intel.com>
+ <20171208082737.GA15790@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
-References: <20171208012305.83134-1-surenb@google.com> <alpine.DEB.2.10.1712081259520.47087@chino.kir.corp.google.com>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Fri, 8 Dec 2017 19:16:28 -0800
-Message-ID: <CAJuCfpEvzo1BAAj5AHLFqZnjbQg+s2njkzGBycEWJe1ZHuwO5w@mail.gmail.com>
-Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171208082737.GA15790@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com, Johannes Weiner <hannes@cmpxchg.org>, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Murray <timmurray@google.com>, Todd Kjos <tkjos@google.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: changbin.du@intel.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 8, 2017 at 1:02 PM, David Rientjes <rientjes@google.com> wrote:
-> On Thu, 7 Dec 2017, Suren Baghdasaryan wrote:
+On Fri, Dec 08, 2017 at 09:27:37AM +0100, Michal Hocko wrote:
+> On Fri 08-12-17 12:42:55, changbin.du@intel.com wrote:
+> > From: Changbin Du <changbin.du@intel.com>
+> > 
+> > This patch introduced 4 new interfaces to allocate a prepared transparent
+> > huge page. These interfaces merge distributed two-step allocation as simple
+> > single step. And they can avoid issue like forget to call prep_transhuge_page()
+> > or call it on wrong page. A real fix:
+> > 40a899e ("mm: migrate: fix an incorrect call of prep_transhuge_page()")
+> > 
+> > Anyway, I just want to prove that expose direct allocation interfaces is
+> > better than a interface only do the second part of it.
+> > 
+> > These are similar to alloc_hugepage_xxx which are for hugetlbfs pages. New
+> > interfaces are:
+> >   - alloc_transhuge_page_vma
+> >   - alloc_transhuge_page_nodemask
+> >   - alloc_transhuge_page_node
+> >   - alloc_transhuge_page
+> > 
+> > These interfaces implicitly add __GFP_COMP gfp mask which is the minimum
+> > flags used for huge page allocation. More flags leave to the callers.
+> > 
+> > This patch does below changes:
+> >   - define alloc_transhuge_page_xxx interfaces
+> >   - apply them to all existing code
+> >   - declare prep_transhuge_page as static since no others use it
+> >   - remove alloc_hugepage_vma definition since it no longer has users
+> 
+> I am not really convinced this is a huge win, to be honest. Just look at
+> the diffstat. Very few callsites get marginally simpler while we add a
+> lot of stubs and the code churn.
 >
->> Slab shrinkers can be quite time consuming and when signal
->> is pending they can delay handling of the signal. If fatal
->> signal is pending there is no point in shrinking that process
->> since it will be killed anyway. This change checks for pending
->> fatal signals inside shrink_slab loop and if one is detected
->> terminates this loop early.
->>
->
-> I've proposed a similar patch in the past, but for a check on TIF_MEMDIE,
-> which would today be a tsk_is_oom_victim(current), since we had observed
-> lengthy stalls in reclaim that would have been prevented if the oom victim
-> had exited out, returned back to the page allocator, allocated with
-> ALLOC_NO_WATERMARKS, and proceeded to quickly exit.
->
-> I'm not sure that all fatal_signal_pending() tasks should get the same
-> treatment, but I understand the point that the task is killed and should
-> free memory when it fully exits.  How much memory is unknown.
->
+I know we should write less code, but it is not the only rule. Sometimes we need
+add little more code since the compiler requires so, but it doesn't mean then
+the compiler will generate worse/more machine code. Besides this, I really want
+to know wethere any other considerations you have. Thanks.
+ 
+> >  mm/mempolicy.c          | 14 +++-----------
+> >  mm/migrate.c            | 14 ++++----------
+> >  mm/shmem.c              |  6 ++----
+> >  8 files changed, 90 insertions(+), 56 deletions(-)
+> -- 
+> Michal Hocko
+> SUSE Labs
 
-Thanks for the input. For my particular use case TIF_MEMDIE check
-would not help because I'm trying to kill a process before OOM kicks
-in, however the approach is interesting and provides food for thought.
-
->  > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
->>
->> ---
->> V2:
->> Sergey Senozhatsky:
->>   - Fix missing parentheses
->> ---
->>  mm/vmscan.c | 7 +++++++
->>  1 file changed, 7 insertions(+)
->>
->> diff --git a/mm/vmscan.c b/mm/vmscan.c
->> index c02c850ea349..28e4bdc72c16 100644
->> --- a/mm/vmscan.c
->> +++ b/mm/vmscan.c
->> @@ -486,6 +486,13 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
->>                       .memcg = memcg,
->>               };
->>
->> +             /*
->> +              * We are about to die and free our memory.
->> +              * Stop shrinking which might delay signal handling.
->> +              */
->> +             if (unlikely(fatal_signal_pending(current)))
->> +                     break;
->> +
->>               /*
->>                * If kernel memory accounting is disabled, we ignore
->>                * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+-- 
+Thanks,
+Changbin Du
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
