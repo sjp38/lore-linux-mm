@@ -1,112 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 43E226B0282
-	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 03:09:08 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id n3so3940249ioc.0
-        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 00:09:08 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id z11si2706945ite.166.2017.12.09.00.09.06
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E7D206B0033
+	for <linux-mm@kvack.org>; Sat,  9 Dec 2017 07:31:36 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id t13so3476666lfe.2
+        for <linux-mm@kvack.org>; Sat, 09 Dec 2017 04:31:36 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 67sor2021014ljj.15.2017.12.09.04.31.29
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 09 Dec 2017 00:09:06 -0800 (PST)
-Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <20171208082220.GQ20234@dhcp22.suse.cz>
-	<d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
-	<20171208114806.GU20234@dhcp22.suse.cz>
-	<201712082303.DDG90166.FOLSHOOFVQJMtF@I-love.SAKURA.ne.jp>
-	<CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
-In-Reply-To: <CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
-Message-Id: <201712091708.GHG60458.MHFOVSFOQtOFLJ@I-love.SAKURA.ne.jp>
-Date: Sat, 9 Dec 2017 17:08:42 +0900
+        (Google Transport Security);
+        Sat, 09 Dec 2017 04:31:29 -0800 (PST)
+Message-ID: <1512822686.4168.4.camel@gmail.com>
+Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
+From: mikhail <mikhail.v.gavrilov@gmail.com>
+Date: Sat, 09 Dec 2017 17:31:26 +0500
+In-Reply-To: <20171208040556.GG19219@magnolia>
+References: <1512705038.7843.6.camel@gmail.com>
+	 <20171208040556.GG19219@magnolia>
+Content-Type: text/plain; charset="UTF-8"
 Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: surenb@google.com
-Cc: mhocko@kernel.org, akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: linux-xfs@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Suren Baghdasaryan wrote:
-> On Fri, Dec 8, 2017 at 6:03 AM, Tetsuo Handa
-> <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> >> > >> This change checks for pending
-> >> > >> fatal signals inside shrink_slab loop and if one is detected
-> >> > >> terminates this loop early.
-> >> > >
-> >> > > This changelog doesn't really address my previous review feedback, I am
-> >> > > afraid. You should mention more details about problems you are seeing
-> >> > > and what causes them.
+On Thu, 2017-12-07 at 20:05 -0800, Darrick J. Wong wrote:
+> > Hi, can anybody said what here happens? And which info needed for
+> > fixing it? Thanks. [16712.376081] INFO: task tracker-store:27121
+> > blocked for more than 120 seconds. [16712.376088] Not tainted
+> > 4.15.0-rc2-amd-vega+ #10 [16712.376092] "echo 0 >
+> > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
+> > [16712.376095] tracker-store D13400 27121 1843 0x00000000
+> > [16712.376102] Call Trace: [16712.376114] ? __schedule+0x2e3/0xb90
+> > [16712.376123] ? wait_for_completion+0x146/0x1e0 [16712.376128]
+> > schedule+0x2f/0x90 [16712.376132] schedule_timeout+0x236/0x540
+> > [16712.376143] ? mark_held_locks+0x4e/0x80 [16712.376147] ?
+> > _raw_spin_unlock_irq+0x29/0x40 [16712.376153] ?
+> > wait_for_completion+0x146/0x1e0 [16712.376158]
+> > wait_for_completion+0x16e/0x1e0 [16712.376162] ?
+> > wake_up_q+0x70/0x70 [16712.376204] ? xfs_buf_read_map+0x134/0x2f0
+> > [xfs] [16712.376234] xfs_buf_submit_wait+0xaf/0x520 [xfs]
 > 
-> The problem I'm facing is that a SIGKILL sent from user space to kill
-> the least important process is delayed enough for OOM-killer to get a
-> chance to kill something else, possibly a more important process. Here
-> "important" is from user's point of view. So the delay in SIGKILL
-> delivery effectively causes extra kills. Traces indicate that this
-> delay happens when process being killed is in direct reclaim and
-> shrinkers (before I fixed them) were the biggest cause for the delay.
-
-Sending SIGKILL from userspace is not releasing memory fast enough to prevent
-the OOM killer from invoking? Yes, under memory pressure, even an attempt to
-send SIGKILL from userspace could be delayed due to e.g. page fault.
-
-Unless it is memcg OOM, you could try OOM notifier callback for checking
-whether there are SIGKILL pending processes and wait for timeout if any.
-This situation resembles timeout-based OOM killing discussion, where the OOM
-killer is enabled again (based on an assumption that the OOM victim got stuck
-due to OOM lockup) after some timeout from previous OOM-killing. And since
-we did not merge timeout-based approach, there is no timestamp field for
-remembering when the SIGKILL was delivered. Therefore, an attempt to wait for
-timeout would become messy.
-
-Regardless of whether you try OOM notifier callback, I think that adding
-__GFP_KILLABLE and allow bailing out without calling out_of_memory() and
-warn_alloc() will help terminating killed processes faster. I think that
-majority of memory allocation requests can give up upon SIGKILL. Important
-allocation requests which should not give up upon SIGKILL (e.g. committing
-to filesystem metadata and storage) can be offloaded to kernel threads.
-
-> 
-> >> > > If we have a shrinker which takes considerable
-> >> > > amount of time them we should be addressing that. If that is not
-> >> > > possible then it should be documented at least.
-> 
-> I already submitted patches for couple shrinkers. Problem became less
-> pronounced and less frequent but the retry loop Tetsuo mentioned still
-> visibly delays the delivery. The worst case I've seen after fixing
-> shrinkers is 43ms.
-
-You meant "delays the termination (of the killed process)" rather than
-"delays the delivery (of SIGKILL)", didn't you?
-
-> > I agree that making waits/loops killable is generally good. But be sure to be
-> > prepared for the worst case. For example, start __GFP_KILLABLE from "best effort"
-> > basis (i.e. no guarantee that the allocating thread will leave the page allocator
-> > slowpath immediately) and check for fatal_signal_pending() only if
-> > __GFP_KILLABLE is set. That is,
-> >
-> > +               /*
-> > +                * We are about to die and free our memory.
-> > +                * Stop shrinking which might delay signal handling.
-> > +                */
-> > +               if (unlikely((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current)))
-> > +                       break;
-> >
-> > at shrink_slab() etc. and
-> >
-> > +               if ((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current))
-> > +                       goto nopage;
-> >
-> > at __alloc_pages_slowpath().
-> 
-> I was thinking about something similar and will experiment to see if
-> this solves the problem and if it has any side effects. Anyone sees
-> any obvious problems with this approach?
 > 
 
-It is Michal who thinks that "killability for a particular allocation request sounds
-like a hack" ( http://lkml.kernel.org/r/201606112335.HBG09891.OLFJOFtVMOQHSF@I-love.SAKURA.ne.jp ).
-I'm willing to give up memory allocations from functions which are called by
-system calls if SIGKILL is pending. Thus, it should be time to try __GFP_KILLABLE.
+Stuck waiting for a directory block to read. 
+> Slow disk? 
+Usual Seagate SATA3 HDD with 7200rpms
+
+> Bad media?
+No. If there were problems with the hard drive, we would see errors in
+the logs.
+
+Any way you can sure in this if look at smartctl output for HDD.
+
+https://paste.fedoraproject.org/paste/EsELRXoiKzlkR5PYhVmJeg
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
