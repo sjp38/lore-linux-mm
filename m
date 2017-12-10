@@ -1,76 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 986206B0069
-	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 04:55:19 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id f2so2986129plj.15
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 01:55:19 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A39516B0253
+	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:13:14 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id 80so3097548wmb.7
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:13:14 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q1si8308879plb.79.2017.12.10.01.55.17
+        by mx.google.com with ESMTPS id c75si3829769wme.91.2017.12.10.02.13.13
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Dec 2017 01:55:18 -0800 (PST)
-Date: Sun, 10 Dec 2017 10:55:14 +0100
+        Sun, 10 Dec 2017 02:13:13 -0800 (PST)
+Date: Sun, 10 Dec 2017 11:13:11 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mm, thp: introduce generic transparent huge page
- allocation interfaces
-Message-ID: <20171210095514.GX20234@dhcp22.suse.cz>
-References: <1512708175-14089-1-git-send-email-changbin.du@intel.com>
- <20171208082737.GA15790@dhcp22.suse.cz>
- <20171209032658.koktsag3hqpm7psx@intel.com>
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+Message-ID: <20171210101311.GA20234@dhcp22.suse.cz>
+References: <20171208012305.83134-1-surenb@google.com>
+ <20171208082220.GQ20234@dhcp22.suse.cz>
+ <d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
+ <20171208114806.GU20234@dhcp22.suse.cz>
+ <201712082303.DDG90166.FOLSHOOFVQJMtF@I-love.SAKURA.ne.jp>
+ <CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171209032658.koktsag3hqpm7psx@intel.com>
+In-Reply-To: <CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Du, Changbin" <changbin.du@intel.com>
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Murray <timmurray@google.com>, Todd Kjos <tkjos@google.com>
 
-On Sat 09-12-17 11:26:58, Du, Changbin wrote:
-> On Fri, Dec 08, 2017 at 09:27:37AM +0100, Michal Hocko wrote:
-> > On Fri 08-12-17 12:42:55, changbin.du@intel.com wrote:
-> > > From: Changbin Du <changbin.du@intel.com>
-> > > 
-> > > This patch introduced 4 new interfaces to allocate a prepared transparent
-> > > huge page. These interfaces merge distributed two-step allocation as simple
-> > > single step. And they can avoid issue like forget to call prep_transhuge_page()
-> > > or call it on wrong page. A real fix:
-> > > 40a899e ("mm: migrate: fix an incorrect call of prep_transhuge_page()")
-> > > 
-> > > Anyway, I just want to prove that expose direct allocation interfaces is
-> > > better than a interface only do the second part of it.
-> > > 
-> > > These are similar to alloc_hugepage_xxx which are for hugetlbfs pages. New
-> > > interfaces are:
-> > >   - alloc_transhuge_page_vma
-> > >   - alloc_transhuge_page_nodemask
-> > >   - alloc_transhuge_page_node
-> > >   - alloc_transhuge_page
-> > > 
-> > > These interfaces implicitly add __GFP_COMP gfp mask which is the minimum
-> > > flags used for huge page allocation. More flags leave to the callers.
-> > > 
-> > > This patch does below changes:
-> > >   - define alloc_transhuge_page_xxx interfaces
-> > >   - apply them to all existing code
-> > >   - declare prep_transhuge_page as static since no others use it
-> > >   - remove alloc_hugepage_vma definition since it no longer has users
-> > 
-> > I am not really convinced this is a huge win, to be honest. Just look at
-> > the diffstat. Very few callsites get marginally simpler while we add a
-> > lot of stubs and the code churn.
+On Fri 08-12-17 10:06:26, Suren Baghdasaryan wrote:
+> On Fri, Dec 8, 2017 at 6:03 AM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> > Michal Hocko wrote:
+> >> On Fri 08-12-17 20:36:16, Tetsuo Handa wrote:
+> >> > On 2017/12/08 17:22, Michal Hocko wrote:
+> >> > > On Thu 07-12-17 17:23:05, Suren Baghdasaryan wrote:
+> >> > >> Slab shrinkers can be quite time consuming and when signal
+> >> > >> is pending they can delay handling of the signal. If fatal
+> >> > >> signal is pending there is no point in shrinking that process
+> >> > >> since it will be killed anyway.
+> >> > >
+> >> > > The thing is that we are _not_ shrinking _that_ process. We are
+> >> > > shrinking globally shared objects and the fact that the memory pressure
+> >> > > is so large that the kswapd doesn't keep pace with it means that we have
+> >> > > to throttle all allocation sites by doing this direct reclaim. I agree
+> >> > > that expediting killed task is a good thing in general because such a
+> >> > > process should free at least some memory.
+> 
+> Agree, wording here is inaccurate. My original intent was to have a
+> safeguard against slow shrinkers but I understand your concern that
+> this can mask a real problem in a shrinker. In essence expediting the
+> killing is the ultimate goal here but as you mentioned it's not as
+> simple as this change.
+
+Moreover it doesn't work if the SIGKILL can be delivered asynchronously
+(which is your case AFAICU).  You can be already running the slow
+shrinker at that time...
+ 
+[...]
+> > I agree that making waits/loops killable is generally good. But be sure to be
+> > prepared for the worst case. For example, start __GFP_KILLABLE from "best effort"
+> > basis (i.e. no guarantee that the allocating thread will leave the page allocator
+> > slowpath immediately) and check for fatal_signal_pending() only if
+> > __GFP_KILLABLE is set. That is,
 > >
-> I know we should write less code, but it is not the only rule. Sometimes we need
-> add little more code since the compiler requires so, but it doesn't mean then
-> the compiler will generate worse/more machine code. Besides this, I really want
-> to know wethere any other considerations you have. Thanks.
+> > +               /*
+> > +                * We are about to die and free our memory.
+> > +                * Stop shrinking which might delay signal handling.
+> > +                */
+> > +               if (unlikely((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current)))
+> > +                       break;
+> >
+> > at shrink_slab() etc. and
+> >
+> > +               if ((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current))
+> > +                       goto nopage;
+> >
+> > at __alloc_pages_slowpath().
+> 
+> I was thinking about something similar and will experiment to see if
+> this solves the problem and if it has any side effects. Anyone sees
+> any obvious problems with this approach?
 
-Well, these allocation functions are pretty much internal MM thing. They
-are not like regular alloc_pages variants which are used all over the
-kernel. So while I understand your motivation to have them easy to use
-as possible I am not sure this is really worth adding more code which we
-will have to maintain. From my past experience many different variants
-of helper functions tend to get out of sync over time.
+Tetsuo has been proposing this flag in the past and I've had objections
+why this is not a great idea. I do not have any link handy but the core
+objection was that the semantic would be too fuzzy. All the allocations
+in the same context would have to be killable for this flag to have any
+effect. Spreading it all over the kernel is simply not feasible.
+
 -- 
 Michal Hocko
 SUSE Labs
