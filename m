@@ -1,70 +1,151 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EE1A46B0253
-	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:17:11 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id l4so8688459wre.10
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:17:11 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CFD146B0033
+	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:31:50 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n126so3049894wma.7
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:31:50 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id v61si8932970wrc.23.2017.12.10.02.17.10
+        by mx.google.com with ESMTPS id u65si3855510wmd.48.2017.12.10.02.31.49
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Dec 2017 02:17:10 -0800 (PST)
-Date: Sun, 10 Dec 2017 11:17:09 +0100
+        Sun, 10 Dec 2017 02:31:49 -0800 (PST)
+Date: Sun, 10 Dec 2017 11:31:47 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
-Message-ID: <20171210101709.GB20234@dhcp22.suse.cz>
-References: <20171208082220.GQ20234@dhcp22.suse.cz>
- <d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
- <20171208114806.GU20234@dhcp22.suse.cz>
- <201712082303.DDG90166.FOLSHOOFVQJMtF@I-love.SAKURA.ne.jp>
- <CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
- <201712091708.GHG60458.MHFOVSFOQtOFLJ@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH v4] mmap.2: MAP_FIXED updated documentation
+Message-ID: <20171210103147.GC20234@dhcp22.suse.cz>
+References: <20171206031434.29087-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201712091708.GHG60458.MHFOVSFOQtOFLJ@I-love.SAKURA.ne.jp>
+In-Reply-To: <20171206031434.29087-1-jhubbard@nvidia.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: surenb@google.com, akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
+To: john.hubbard@gmail.com
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, John Hubbard <jhubbard@nvidia.com>
 
-On Sat 09-12-17 17:08:42, Tetsuo Handa wrote:
-> Suren Baghdasaryan wrote:
-> > On Fri, Dec 8, 2017 at 6:03 AM, Tetsuo Handa
-> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> > >> > >> This change checks for pending
-> > >> > >> fatal signals inside shrink_slab loop and if one is detected
-> > >> > >> terminates this loop early.
-> > >> > >
-> > >> > > This changelog doesn't really address my previous review feedback, I am
-> > >> > > afraid. You should mention more details about problems you are seeing
-> > >> > > and what causes them.
-> > 
-> > The problem I'm facing is that a SIGKILL sent from user space to kill
-> > the least important process is delayed enough for OOM-killer to get a
-> > chance to kill something else, possibly a more important process. Here
-> > "important" is from user's point of view. So the delay in SIGKILL
-> > delivery effectively causes extra kills. Traces indicate that this
-> > delay happens when process being killed is in direct reclaim and
-> > shrinkers (before I fixed them) were the biggest cause for the delay.
+On Tue 05-12-17 19:14:34, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
 > 
-> Sending SIGKILL from userspace is not releasing memory fast enough to prevent
-> the OOM killer from invoking? Yes, under memory pressure, even an attempt to
-> send SIGKILL from userspace could be delayed due to e.g. page fault.
+> Previously, MAP_FIXED was "discouraged", due to portability
+> issues with the fixed address. In fact, there are other, more
+> serious issues. Also, alignment requirements were a bit vague.
+> So:
 > 
-> Unless it is memcg OOM, you could try OOM notifier callback for checking
-> whether there are SIGKILL pending processes and wait for timeout if any.
+>     -- Expand the documentation to discuss the hazards in
+>        enough detail to allow avoiding them.
+> 
+>     -- Mention the upcoming MAP_FIXED_SAFE flag.
+> 
+>     -- Enhance the alignment requirement slightly.
+> 
+> Some of the wording is lifted from Matthew Wilcox's review
+> (the "Portability issues" section). The alignment requirements
+> section uses Cyril Hrubis' wording, with light editing applied.
+> 
+> Suggested-by: Matthew Wilcox <willy@infradead.org>
+> Suggested-by: Cyril Hrubis <chrubis@suse.cz>
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 
-Hell no! You surely do not want all the OOM livelocks you were pushing
-so hard to get fixed, do you?
+Would you mind if I take this patch and resubmit it along with my
+MAP_FIXED_SAFE (or whatever name I will end up with) next week?
 
-The whole problem here is that there are two implementations of the OOM
-handling and they do not use any synchronization. You cannot be really
-surprise they step on each others toes. That is one of the reasons why I
-really hated the LMK in the kernel btw.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Stalling shrinkers is a real problem and it should be addressed but
-let's not screw an already nasty/fragile code all around that.
+> ---
+> 
+> Changes since v3:
+> 
+>     -- Removed the "how to use this safely" part, and
+>        the SHMLBA part, both as a result of Michal Hocko's
+>        review.
+> 
+>     -- A few tiny wording fixes, at the not-quite-typo level.
+> 
+> Changes since v2:
+> 
+>     -- Fixed up the "how to use safely" example, in response
+>        to Mike Rapoport's review.
+> 
+>     -- Changed the alignment requirement from system page
+>        size, to SHMLBA. This was inspired by (but not yet
+>        recommended by) Cyril Hrubis' review.
+> 
+>     -- Formatting: underlined /proc/<pid>/maps 
+> 
+> Changes since v1:
+> 
+>     -- Covered topics recommended by Matthew Wilcox
+>        and Jann Horn, in their recent review: the hazards
+>        of overwriting pre-exising mappings, and some notes
+>        about how to use MAP_FIXED safely.
+> 
+>     -- Rewrote the commit description accordingly.
+> 
+>  man2/mmap.2 | 40 ++++++++++++++++++++++++++++++++++++----
+>  1 file changed, 36 insertions(+), 4 deletions(-)
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 385f3bfd5..56b05cff1 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -212,8 +212,9 @@ Don't interpret
+>  .I addr
+>  as a hint: place the mapping at exactly that address.
+>  .I addr
+> -must be a multiple of the page size.
+> -If the memory region specified by
+> +must be suitably aligned: for most architectures a multiple of page
+> +size is sufficient; however, some architectures may impose additional
+> +restrictions. If the memory region specified by
+>  .I addr
+>  and
+>  .I len
+> @@ -222,8 +223,39 @@ part of the existing mapping(s) will be discarded.
+>  If the specified address cannot be used,
+>  .BR mmap ()
+>  will fail.
+> -Because requiring a fixed address for a mapping is less portable,
+> -the use of this option is discouraged.
+> +.IP
+> +This option is extremely hazardous (when used on its own) and moderately
+> +non-portable.
+> +.IP
+> +Portability issues: a process's memory map may change significantly from one
+> +run to the next, depending on library versions, kernel versions and random
+> +numbers.
+> +.IP
+> +Hazards: this option forcibly removes pre-existing mappings, making it easy
+> +for a multi-threaded process to corrupt its own address space.
+> +.IP
+> +For example, thread A looks through
+> +.I /proc/<pid>/maps
+> +and locates an available
+> +address range, while thread B simultaneously acquires part or all of that same
+> +address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
+> +the mapping that thread B created.
+> +.IP
+> +Thread B need not create a mapping directly; simply making a library call
+> +that, internally, uses
+> +.I dlopen(3)
+> +to load some other shared library, will
+> +suffice. The dlopen(3) call will map the library into the process's address
+> +space. Furthermore, almost any library call may be implemented using this
+> +technique.
+> +Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
+> +(http://www.linux-pam.org).
+> +.IP
+> +Newer kernels
+> +(Linux 4.16 and later) have a
+> +.B MAP_FIXED_SAFE
+> +option that avoids the corruption problem; if available, MAP_FIXED_SAFE
+> +should be preferred over MAP_FIXED.
+>  .TP
+>  .B MAP_GROWSDOWN
+>  This flag is used for stacks.
+> -- 
+> 2.15.1
+> 
+
 -- 
 Michal Hocko
 SUSE Labs
