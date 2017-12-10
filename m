@@ -1,66 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EFEFC6B0253
-	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:55:28 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id e128so3072830wmg.1
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:55:28 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o49sor5225710edo.16.2017.12.10.02.55.26
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BF3816B0033
+	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 06:37:19 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 43so1658312pla.17
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 03:37:19 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w12si9355129pfi.238.2017.12.10.03.37.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 10 Dec 2017 02:55:27 -0800 (PST)
-Date: Sun, 10 Dec 2017 13:55:24 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v3] mm: Add unmap_mapping_pages
-Message-ID: <20171210105524.k2jxa32dcmotmnzd@node.shutemov.name>
-References: <20171205154453.GD28760@bombadil.infradead.org>
- <20171206142627.GD32044@bombadil.infradead.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sun, 10 Dec 2017 03:37:18 -0800 (PST)
+Date: Sun, 10 Dec 2017 12:37:15 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm, hugetlbfs: introduce ->pagesize() to
+ vm_operations_struct
+Message-ID: <20171210113715.GE20234@dhcp22.suse.cz>
+References: <151270384965.21215.2022156459463260344.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <151270385525.21215.16828596212056611775.stgit@dwillia2-desk3.amr.corp.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171206142627.GD32044@bombadil.infradead.org>
+In-Reply-To: <151270385525.21215.16828596212056611775.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, "zhangyi (F)" <yi.zhang@huawei.com>, linux-fsdevel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: akpm@linux-foundation.org, Jane Chu <jane.chu@oracle.com>, linux-nvdimm@lists.01.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
 
-On Wed, Dec 06, 2017 at 06:26:27AM -0800, Matthew Wilcox wrote:
-> v3:
->  - Fix compilation
->    (I forgot to git commit --amend)
->  - Added Ross' Reviewed-by
-> v2:
->  - Fix inverted mask in dax.c
->  - Pass 'false' instead of '0' for 'only_cows'
->  - nommu definition
+On Thu 07-12-17 19:30:55, Dan Williams wrote:
+> When device-dax is operating in huge-page mode we want it to behave like
+> hugetlbfs and report the MMU page mapping size that is being enforced by
+> the vma. Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce
+> ->split() to vm_operations_struct" it would be messy to teach
+> vma_mmu_pagesize() about device-dax page mapping sizes in the same
+> (hstate) way that hugetlbfs communicates this attribute.  Instead, these
+> patches introduce a new ->pagesize() vm operation.
 > 
-> --- 8< ---
-> 
-> From df142c51e111f7c386f594d5443530ea17abba5f Mon Sep 17 00:00:00 2001
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> Date: Tue, 5 Dec 2017 00:15:54 -0500
-> Subject: [PATCH v3] mm: Add unmap_mapping_pages
-> 
-> Several users of unmap_mapping_range() would prefer to express their
-> range in pages rather than bytes.  Unfortuately, on a 32-bit kernel,
-> you have to remember to cast your page number to a 64-bit type before
-> shifting it, and four places in the current tree didn't remember to
-> do that.  That's a sign of a bad interface.
-> 
-> Conveniently, unmap_mapping_range() actually converts from bytes into
-> pages, so hoist the guts of unmap_mapping_range() into a new function
-> unmap_mapping_pages() and convert the callers which want to use pages.
-> 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> Reported-by: "zhangyi (F)" <yi.zhang@huawei.com>
-> Reviewed-by: Ross Zwisler <ross.zwisler@linux.intel.com>
+> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+> Cc: Paul Mackerras <paulus@samba.org>
+> Cc: Michael Ellerman <mpe@ellerman.id.au>
+> Reported-by: Jane Chu <jane.chu@oracle.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
 
-Looks good to me.
+My build battery choked on the following
+In file included from drivers/infiniband/core/umem_odp.c:41:0:
+./include/linux/hugetlb.h: In function 'vma_kernel_pagesize':
+./include/linux/hugetlb.h:262:32: error: dereferencing pointer to incomplete type
+  if (vma->vm_ops && vma->vm_ops->pagesize)
+                                ^
+./include/linux/hugetlb.h:263:21: error: dereferencing pointer to incomplete type
+   return vma->vm_ops->pagesize(vma);
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+I thought that adding #include <linux/mm.h> into linux/hugetlb.h would
+be sufficient but then it failed for powerpc defconfig which overrides
+vma_kernel_pagesize
+In file included from ./include/linux/hugetlb.h:452:0,
+                 from arch/powerpc/mm/hugetlbpage.c:14:
+./arch/powerpc/include/asm/hugetlb.h:131:26: error: redefinition of 'vma_mmu_pagesize'
+ #define vma_mmu_pagesize vma_mmu_pagesize
+                          ^
+arch/powerpc/mm/hugetlbpage.c:563:15: note: in expansion of macro 'vma_mmu_pagesize'
+ unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
+               ^
+In file included from arch/powerpc/mm/hugetlbpage.c:14:0:
+./include/linux/hugetlb.h:275:29: note: previous definition of 'vma_mmu_pagesize' was here
+ static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
 
+So it looks this needs something more laborous.
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
