@@ -1,150 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD146B0033
-	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:31:50 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n126so3049894wma.7
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:31:50 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B5A646B0033
+	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 05:40:10 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id v184so3259736wmf.1
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 02:40:10 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u65si3855510wmd.48.2017.12.10.02.31.49
+        by mx.google.com with ESMTPS id d16si8169447wrd.331.2017.12.10.02.40.09
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Dec 2017 02:31:49 -0800 (PST)
-Date: Sun, 10 Dec 2017 11:31:47 +0100
+        Sun, 10 Dec 2017 02:40:09 -0800 (PST)
+Date: Sun, 10 Dec 2017 11:40:07 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mmap.2: MAP_FIXED updated documentation
-Message-ID: <20171210103147.GC20234@dhcp22.suse.cz>
-References: <20171206031434.29087-1-jhubbard@nvidia.com>
+Subject: Re: [PATCH] mm/slab: make calculate_alignment() function static
+Message-ID: <20171210104007.GD20234@dhcp22.suse.cz>
+References: <20171210080132.406-1-bhlee.kernel@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171206031434.29087-1-jhubbard@nvidia.com>
+In-Reply-To: <20171210080132.406-1-bhlee.kernel@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, John Hubbard <jhubbard@nvidia.com>
+To: Byongho Lee <bhlee.kernel@gmail.com>
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 05-12-17 19:14:34, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Sun 10-12-17 17:01:32, Byongho Lee wrote:
+> calculate_alignment() function is only used inside 'slab_common.c'.
+> So make it static and let compiler do more optimizations.
 > 
-> Previously, MAP_FIXED was "discouraged", due to portability
-> issues with the fixed address. In fact, there are other, more
-> serious issues. Also, alignment requirements were a bit vague.
-> So:
+> After this patch there's small improvements in 'text' and 'data' size.
 > 
->     -- Expand the documentation to discuss the hazards in
->        enough detail to allow avoiding them.
+> $ gcc --version
+>   gcc (GCC) 7.2.1 20171128
 > 
->     -- Mention the upcoming MAP_FIXED_SAFE flag.
+> Before:
+>   text	   data	    bss	    dec	     hex	filename
+>   9890457  3828702  1212364 14931523 e3d643	vmlinux
 > 
->     -- Enhance the alignment requirement slightly.
+> After:
+>   text	   data	    bss	    dec	     hex	filename
+>   9890437  3828670  1212364 14931471 e3d60f	vmlinux
 > 
-> Some of the wording is lifted from Matthew Wilcox's review
-> (the "Portability issues" section). The alignment requirements
-> section uses Cyril Hrubis' wording, with light editing applied.
+> Also I fixed a 'style problem' reported by 'scripts/checkpatch.pl'.
 > 
-> Suggested-by: Matthew Wilcox <willy@infradead.org>
-> Suggested-by: Cyril Hrubis <chrubis@suse.cz>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-
-Would you mind if I take this patch and resubmit it along with my
-MAP_FIXED_SAFE (or whatever name I will end up with) next week?
+>   WARNING: Missing a blank line after declarations
+>   #53: FILE: mm/slab_common.c:286:
+>   +		unsigned long ralign = cache_line_size();
+>   +		while (size <= ralign / 2)
+> 
+> Signed-off-by: Byongho Lee <bhlee.kernel@gmail.com>
 
 Acked-by: Michal Hocko <mhocko@suse.com>
 
 > ---
+>  mm/slab.h        |  3 ---
+>  mm/slab_common.c | 56 +++++++++++++++++++++++++++++---------------------------
+>  2 files changed, 29 insertions(+), 30 deletions(-)
 > 
-> Changes since v3:
-> 
->     -- Removed the "how to use this safely" part, and
->        the SHMLBA part, both as a result of Michal Hocko's
->        review.
-> 
->     -- A few tiny wording fixes, at the not-quite-typo level.
-> 
-> Changes since v2:
-> 
->     -- Fixed up the "how to use safely" example, in response
->        to Mike Rapoport's review.
-> 
->     -- Changed the alignment requirement from system page
->        size, to SHMLBA. This was inspired by (but not yet
->        recommended by) Cyril Hrubis' review.
-> 
->     -- Formatting: underlined /proc/<pid>/maps 
-> 
-> Changes since v1:
-> 
->     -- Covered topics recommended by Matthew Wilcox
->        and Jann Horn, in their recent review: the hazards
->        of overwriting pre-exising mappings, and some notes
->        about how to use MAP_FIXED safely.
-> 
->     -- Rewrote the commit description accordingly.
-> 
->  man2/mmap.2 | 40 ++++++++++++++++++++++++++++++++++++----
->  1 file changed, 36 insertions(+), 4 deletions(-)
-> 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 385f3bfd5..56b05cff1 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -212,8 +212,9 @@ Don't interpret
->  .I addr
->  as a hint: place the mapping at exactly that address.
->  .I addr
-> -must be a multiple of the page size.
-> -If the memory region specified by
-> +must be suitably aligned: for most architectures a multiple of page
-> +size is sufficient; however, some architectures may impose additional
-> +restrictions. If the memory region specified by
->  .I addr
->  and
->  .I len
-> @@ -222,8 +223,39 @@ part of the existing mapping(s) will be discarded.
->  If the specified address cannot be used,
->  .BR mmap ()
->  will fail.
-> -Because requiring a fixed address for a mapping is less portable,
-> -the use of this option is discouraged.
-> +.IP
-> +This option is extremely hazardous (when used on its own) and moderately
-> +non-portable.
-> +.IP
-> +Portability issues: a process's memory map may change significantly from one
-> +run to the next, depending on library versions, kernel versions and random
-> +numbers.
-> +.IP
-> +Hazards: this option forcibly removes pre-existing mappings, making it easy
-> +for a multi-threaded process to corrupt its own address space.
-> +.IP
-> +For example, thread A looks through
-> +.I /proc/<pid>/maps
-> +and locates an available
-> +address range, while thread B simultaneously acquires part or all of that same
-> +address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
-> +the mapping that thread B created.
-> +.IP
-> +Thread B need not create a mapping directly; simply making a library call
-> +that, internally, uses
-> +.I dlopen(3)
-> +to load some other shared library, will
-> +suffice. The dlopen(3) call will map the library into the process's address
-> +space. Furthermore, almost any library call may be implemented using this
-> +technique.
-> +Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-> +(http://www.linux-pam.org).
-> +.IP
-> +Newer kernels
-> +(Linux 4.16 and later) have a
-> +.B MAP_FIXED_SAFE
-> +option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-> +should be preferred over MAP_FIXED.
->  .TP
->  .B MAP_GROWSDOWN
->  This flag is used for stacks.
+> diff --git a/mm/slab.h b/mm/slab.h
+> index 028cdc7df67e..e894889dc24a 100644
+> --- a/mm/slab.h
+> +++ b/mm/slab.h
+> @@ -79,9 +79,6 @@ extern const struct kmalloc_info_struct {
+>  	unsigned long size;
+>  } kmalloc_info[];
+>  
+> -unsigned long calculate_alignment(unsigned long flags,
+> -		unsigned long align, unsigned long size);
+> -
+>  #ifndef CONFIG_SLOB
+>  /* Kmalloc array related functions */
+>  void setup_kmalloc_cache_index_table(void);
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index 0d7fe71ff5e4..d25e7b56e20b 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -267,6 +267,35 @@ static inline void memcg_unlink_cache(struct kmem_cache *s)
+>  }
+>  #endif /* CONFIG_MEMCG && !CONFIG_SLOB */
+>  
+> +/*
+> + * Figure out what the alignment of the objects will be given a set of
+> + * flags, a user specified alignment and the size of the objects.
+> + */
+> +static unsigned long calculate_alignment(unsigned long flags,
+> +		unsigned long align, unsigned long size)
+> +{
+> +	/*
+> +	 * If the user wants hardware cache aligned objects then follow that
+> +	 * suggestion if the object is sufficiently large.
+> +	 *
+> +	 * The hardware cache alignment cannot override the specified
+> +	 * alignment though. If that is greater then use it.
+> +	 */
+> +	if (flags & SLAB_HWCACHE_ALIGN) {
+> +		unsigned long ralign;
+> +
+> +		ralign = cache_line_size();
+> +		while (size <= ralign / 2)
+> +			ralign /= 2;
+> +		align = max(align, ralign);
+> +	}
+> +
+> +	if (align < ARCH_SLAB_MINALIGN)
+> +		align = ARCH_SLAB_MINALIGN;
+> +
+> +	return ALIGN(align, sizeof(void *));
+> +}
+> +
+>  /*
+>   * Find a mergeable slab cache
+>   */
+> @@ -337,33 +366,6 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
+>  	return NULL;
+>  }
+>  
+> -/*
+> - * Figure out what the alignment of the objects will be given a set of
+> - * flags, a user specified alignment and the size of the objects.
+> - */
+> -unsigned long calculate_alignment(unsigned long flags,
+> -		unsigned long align, unsigned long size)
+> -{
+> -	/*
+> -	 * If the user wants hardware cache aligned objects then follow that
+> -	 * suggestion if the object is sufficiently large.
+> -	 *
+> -	 * The hardware cache alignment cannot override the specified
+> -	 * alignment though. If that is greater then use it.
+> -	 */
+> -	if (flags & SLAB_HWCACHE_ALIGN) {
+> -		unsigned long ralign = cache_line_size();
+> -		while (size <= ralign / 2)
+> -			ralign /= 2;
+> -		align = max(align, ralign);
+> -	}
+> -
+> -	if (align < ARCH_SLAB_MINALIGN)
+> -		align = ARCH_SLAB_MINALIGN;
+> -
+> -	return ALIGN(align, sizeof(void *));
+> -}
+> -
+>  static struct kmem_cache *create_cache(const char *name,
+>  		size_t object_size, size_t size, size_t align,
+>  		unsigned long flags, void (*ctor)(void *),
 > -- 
 > 2.15.1
 > 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 -- 
 Michal Hocko
