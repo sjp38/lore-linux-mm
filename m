@@ -1,73 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BF3816B0033
-	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 06:37:19 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 43so1658312pla.17
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 03:37:19 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w12si9355129pfi.238.2017.12.10.03.37.18
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ACCC6B0069
+	for <linux-mm@kvack.org>; Sun, 10 Dec 2017 06:38:27 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id i66so9271947itf.0
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 03:38:27 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id l19si983891iog.328.2017.12.10.03.38.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 10 Dec 2017 03:37:18 -0800 (PST)
-Date: Sun, 10 Dec 2017 12:37:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/2] mm, hugetlbfs: introduce ->pagesize() to
- vm_operations_struct
-Message-ID: <20171210113715.GE20234@dhcp22.suse.cz>
-References: <151270384965.21215.2022156459463260344.stgit@dwillia2-desk3.amr.corp.intel.com>
- <151270385525.21215.16828596212056611775.stgit@dwillia2-desk3.amr.corp.intel.com>
-MIME-Version: 1.0
+        Sun, 10 Dec 2017 03:38:25 -0800 (PST)
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
+	<20171208114806.GU20234@dhcp22.suse.cz>
+	<201712082303.DDG90166.FOLSHOOFVQJMtF@I-love.SAKURA.ne.jp>
+	<CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com>
+	<20171210101311.GA20234@dhcp22.suse.cz>
+In-Reply-To: <20171210101311.GA20234@dhcp22.suse.cz>
+Message-Id: <201712102037.IEB12405.OLFOMtSOQFVHFJ@I-love.SAKURA.ne.jp>
+Date: Sun, 10 Dec 2017 20:37:59 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <151270385525.21215.16828596212056611775.stgit@dwillia2-desk3.amr.corp.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: akpm@linux-foundation.org, Jane Chu <jane.chu@oracle.com>, linux-nvdimm@lists.01.org, Benjamin Herrenschmidt <benh@kernel.crashing.org>, linux-mm@kvack.org, Paul Mackerras <paulus@samba.org>, Michael Ellerman <mpe@ellerman.id.au>
+To: mhocko@kernel.org, surenb@google.com
+Cc: akpm@linux-foundation.org, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, timmurray@google.com, tkjos@google.com
 
-On Thu 07-12-17 19:30:55, Dan Williams wrote:
-> When device-dax is operating in huge-page mode we want it to behave like
-> hugetlbfs and report the MMU page mapping size that is being enforced by
-> the vma. Similar to commit 31383c6865a5 "mm, hugetlbfs: introduce
-> ->split() to vm_operations_struct" it would be messy to teach
-> vma_mmu_pagesize() about device-dax page mapping sizes in the same
-> (hstate) way that hugetlbfs communicates this attribute.  Instead, these
-> patches introduce a new ->pagesize() vm operation.
+Michal Hocko wrote:
+> > > I agree that making waits/loops killable is generally good. But be sure to be
+> > > prepared for the worst case. For example, start __GFP_KILLABLE from "best effort"
+> > > basis (i.e. no guarantee that the allocating thread will leave the page allocator
+> > > slowpath immediately) and check for fatal_signal_pending() only if
+> > > __GFP_KILLABLE is set. That is,
+> > >
+> > > +               /*
+> > > +                * We are about to die and free our memory.
+> > > +                * Stop shrinking which might delay signal handling.
+> > > +                */
+> > > +               if (unlikely((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current)))
+> > > +                       break;
+> > >
+> > > at shrink_slab() etc. and
+> > >
+> > > +               if ((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current))
+> > > +                       goto nopage;
+> > >
+> > > at __alloc_pages_slowpath().
+> > 
+> > I was thinking about something similar and will experiment to see if
+> > this solves the problem and if it has any side effects. Anyone sees
+> > any obvious problems with this approach?
 > 
-> Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-> Cc: Paul Mackerras <paulus@samba.org>
-> Cc: Michael Ellerman <mpe@ellerman.id.au>
-> Reported-by: Jane Chu <jane.chu@oracle.com>
-> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> Tetsuo has been proposing this flag in the past and I've had objections
+> why this is not a great idea. I do not have any link handy but the core
+> objection was that the semantic would be too fuzzy. All the allocations
+> in the same context would have to be killable for this flag to have any
+> effect. Spreading it all over the kernel is simply not feasible.
+> 
 
-My build battery choked on the following
-In file included from drivers/infiniband/core/umem_odp.c:41:0:
-./include/linux/hugetlb.h: In function 'vma_kernel_pagesize':
-./include/linux/hugetlb.h:262:32: error: dereferencing pointer to incomplete type
-  if (vma->vm_ops && vma->vm_ops->pagesize)
-                                ^
-./include/linux/hugetlb.h:263:21: error: dereferencing pointer to incomplete type
-   return vma->vm_ops->pagesize(vma);
+Refusing __GFP_KILLABLE based on "All the allocations in the same context
+would have to be killable" does not make sense. Outside of MM, we update
+code to use _killable version step by step based on best effort basis.
+People don't call efforts to change like
 
-I thought that adding #include <linux/mm.h> into linux/hugetlb.h would
-be sufficient but then it failed for powerpc defconfig which overrides
-vma_kernel_pagesize
-In file included from ./include/linux/hugetlb.h:452:0,
-                 from arch/powerpc/mm/hugetlbpage.c:14:
-./arch/powerpc/include/asm/hugetlb.h:131:26: error: redefinition of 'vma_mmu_pagesize'
- #define vma_mmu_pagesize vma_mmu_pagesize
-                          ^
-arch/powerpc/mm/hugetlbpage.c:563:15: note: in expansion of macro 'vma_mmu_pagesize'
- unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
-               ^
-In file included from arch/powerpc/mm/hugetlbpage.c:14:0:
-./include/linux/hugetlb.h:275:29: note: previous definition of 'vma_mmu_pagesize' was here
- static inline unsigned long vma_mmu_pagesize(struct vm_area_struct *vma)
+  func1() {
+    // As of this point it is easy to bail out.
+    if (mutex_lock_killable(&lock1) == 0) {
+      func2();
+      mutex_unlock(&lock1);
+    }
+  }
 
-So it looks this needs something more laborous.
--- 
-Michal Hocko
-SUSE Labs
+  func2() {
+    mutex_lock(&lock2);
+    // Do something which is not possible to bail out for now.
+    mutex_unlock(&lock2);
+  }
+
+pointless.
+
+If you insist on "All the allocations in the same context would
+have to be killable", then we will offload all activities to some
+kernel thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
