@@ -1,124 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC3476B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 09:45:25 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id o2so4538493wmf.2
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:45:25 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g12sor6306039edm.37.2017.12.11.06.45.19
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E0756B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 10:16:25 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id h4so22323909qtj.0
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 07:16:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o8sor9975916qtf.78.2017.12.11.07.16.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Dec 2017 06:45:19 -0800 (PST)
-Date: Mon, 11 Dec 2017 17:45:17 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: New layout for struct page
-Message-ID: <20171211144517.qy5g5sdcvha2nlru@node.shutemov.name>
-References: <20171208013139.GG26792@bombadil.infradead.org>
- <20171211063753.GB25236@bombadil.infradead.org>
+        Mon, 11 Dec 2017 07:16:23 -0800 (PST)
+Date: Mon, 11 Dec 2017 07:16:21 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [PATCH 7/9] workqueue: remove unneeded kallsyms include
+Message-ID: <20171211151621.GF2421075@devbig577.frc2.facebook.com>
+References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com>
+ <20171208025616.16267-8-sergey.senozhatsky@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171211063753.GB25236@bombadil.infradead.org>
+In-Reply-To: <20171208025616.16267-8-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Vlastimil Babka <vbabka@suse.cz>, Lai Jiangshan <jiangshanlai@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Sun, Dec 10, 2017 at 10:37:53PM -0800, Matthew Wilcox wrote:
-> On Thu, Dec 07, 2017 at 05:31:39PM -0800, Matthew Wilcox wrote:
-> > Dave Hansen and I talked about this a while ago.  I was trying to
-> > understand something in the slab allocator today and thought I'd have
-> > another crack at it.  I also documented my understanding of what the
-> > rules are for using struct page.
+On Fri, Dec 08, 2017 at 11:56:14AM +0900, Sergey Senozhatsky wrote:
+> The filw was converted from print_symbol() to %pf some time
+> ago (044c782ce3a901fb "workqueue: fix checkpatch issues").
+> kallsyms does not seem to be needed anymore.
 > 
-> I kept going with this and ended up with something that's maybe more
-> interesting -- a new layout for struct page.
-> 
-> Advantages:
->  - Simpler struct definitions
->  - Compound pages may now be allocated of order 1 (currently, tail pages
->    1 and 2 both contain information).
+> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> Cc: Tejun Heo <tj@kernel.org>
+> Cc: Lai Jiangshan <jiangshanlai@gmail.com>
 
-That's neat. Except it doesn't work. See below. :-/
+Applied to wq/for-4.15-fixes.
 
->  - page_deferred_list is now really defined in the struct instead of only
->    in comments and code.
->  - page_deferred_list doesn't conflict with tail2->index, which would
->    cause problems putting it in the page cache.  Actually, I don't see
->    how shmem_add_to_page_cache of a transhuge page doesn't provoke a
->    BUG in filemap_fault()?  VM_BUG_ON_PAGE(page->index != offset, page)
->    ought to trigger.
-
-filemap_fault() doesn't see THP yet. shmem/tmpfs uses own ->fault handler.
-
-> Disadvantages
->  - If adding a new variation to struct page, harder to tell where refcount
->    and compound_head land in your struct.
-
-Yeah, that's a bummer.
-
-It was tricky to find right spot for compound_head. And it would be even
-more harder if we had struct page from proposed format.
-
->  - Need to remember that 'flags' is defined in the top level 'struct page'
->    and not in any of the layouts.
->    - Can do a variant of this with flags explicitly in each layout if
->      preferred.
->  - Need to explicitly define padding in layouts.
-> 
-> I haven't changed any code yet.  I wanted to get feedback from Christoph
-> and Kirill before going further.
-> 
-> The new layout keeps struct page the same size as it is currently.  Mostly
-> the only things that have changed are compound pages.  slab has not changed
-> layout at all.
-> 
-> In the two tables below, the first column is the starting byte of the
-> named element.  The next three columns are after the patch, and the last
-> two are before the patch.  The annotation (1) means this field only has
-> that meaning in the first tail page; the other fields are used in all
-> tail pages.  The head page of a compound page uses all the fields the
-> same way as a non-compound page.
-> 
-> ---+------------+------------------------------------+-------------------+
->  B | slab       | page cache | tail pages            | old tail          |
-> ---+------------+------------------------------------+-------------------+
->  0 |                flags                            |                   |
->  4 |                  "                              |                   |
->  8 | s_mem      |          index                     | compound_mapcount |
-> 12 | "          |            "                       | --                |
-> 16 | freelist   | mapping    | dtor / order (1)      |                   |
-> 20 | "          | "          | --                    |                   |
-> 24 | counters   | mapcount   | compound_mapcount (1) | --                |
-
-Sorry, this is not going to work: we need mapcount in all subpages of THP
-as they can be mapped with PTE individually. So in first tail pages we
-need find a spot form both compound_mapcount and mapcount.
-
-> 28 | "          | refcount   | --                    | --                |
-> 32 | next       | lru        | compound_head         | compound_head     |
-> 36 | "          | "          | "                     | "                 |
-> 40 | pages      | "          | deferred_list (1)     | dtor              |
-> 44 | pobjects   | "          | "                     | order             |
-> 48 | slab_cache | private    | "                     | --                |
-> 52 | "          | "          | "                     | --                |
-> ---+------------+------------+-----------------------+-------------------+
-> 
-> ---+------------+--------------------------------+
->  B | slab       | page cache | compound tail     |
-> ---+------------+--------------------------------+
->  0 |                flags                        |
->  4 | s_mem      |          index                 |
->  8 | freelist   | mapping    | dtor/ order       |
-> 12 | counters   | mapcount   | compound_mapcount |
-> 16 | --         | refcount   | --                |
-> 20 | next       | lru        | compound_head     |
-> 24 | pg/pobj    | "          | deferred_list     |
-> 28 | slab_cache | private    | "                 |
-> ---+------------+------------+-------------------+
+Thanks.
 
 -- 
- Kirill A. Shutemov
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
