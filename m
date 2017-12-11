@@ -1,139 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 592E16B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 09:26:23 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id p190so4643813wmd.0
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:26:23 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n82sor2075651wmf.57.2017.12.11.06.26.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DC3476B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 09:45:25 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id o2so4538493wmf.2
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:45:25 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id g12sor6306039edm.37.2017.12.11.06.45.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Dec 2017 06:26:21 -0800 (PST)
-Date: Mon, 11 Dec 2017 15:26:18 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv5 2/3] x86/boot/compressed/64: Introduce
- place_trampoline()
-Message-ID: <20171211142618.rrcg5javpoinbigg@gmail.com>
-References: <20171208130922.21488-1-kirill.shutemov@linux.intel.com>
- <20171208130922.21488-3-kirill.shutemov@linux.intel.com>
+        Mon, 11 Dec 2017 06:45:19 -0800 (PST)
+Date: Mon, 11 Dec 2017 17:45:17 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: New layout for struct page
+Message-ID: <20171211144517.qy5g5sdcvha2nlru@node.shutemov.name>
+References: <20171208013139.GG26792@bombadil.infradead.org>
+ <20171211063753.GB25236@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171208130922.21488-3-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171211063753.GB25236@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org
 
-
-* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
-
-> If a bootloader enables 64-bit mode with 4-level paging, we might need to
-> switch over to 5-level paging. The switching requires the disabling
-> paging. It works fine if kernel itself is loaded below 4G.
+On Sun, Dec 10, 2017 at 10:37:53PM -0800, Matthew Wilcox wrote:
+> On Thu, Dec 07, 2017 at 05:31:39PM -0800, Matthew Wilcox wrote:
+> > Dave Hansen and I talked about this a while ago.  I was trying to
+> > understand something in the slab allocator today and thought I'd have
+> > another crack at it.  I also documented my understanding of what the
+> > rules are for using struct page.
 > 
-> But if the bootloader put the kernel above 4G (not sure if anybody does
-> this), we would lose control as soon as paging is disabled, because the
-> code becomes unreachable to the CPU.
+> I kept going with this and ended up with something that's maybe more
+> interesting -- a new layout for struct page.
 > 
-> To handle the situation, we need a trampoline in lower memory that would
-> take care of switching on 5-level paging.
+> Advantages:
+>  - Simpler struct definitions
+>  - Compound pages may now be allocated of order 1 (currently, tail pages
+>    1 and 2 both contain information).
+
+That's neat. Except it doesn't work. See below. :-/
+
+>  - page_deferred_list is now really defined in the struct instead of only
+>    in comments and code.
+>  - page_deferred_list doesn't conflict with tail2->index, which would
+>    cause problems putting it in the page cache.  Actually, I don't see
+>    how shmem_add_to_page_cache of a transhuge page doesn't provoke a
+>    BUG in filemap_fault()?  VM_BUG_ON_PAGE(page->index != offset, page)
+>    ought to trigger.
+
+filemap_fault() doesn't see THP yet. shmem/tmpfs uses own ->fault handler.
+
+> Disadvantages
+>  - If adding a new variation to struct page, harder to tell where refcount
+>    and compound_head land in your struct.
+
+Yeah, that's a bummer.
+
+It was tricky to find right spot for compound_head. And it would be even
+more harder if we had struct page from proposed format.
+
+>  - Need to remember that 'flags' is defined in the top level 'struct page'
+>    and not in any of the layouts.
+>    - Can do a variant of this with flags explicitly in each layout if
+>      preferred.
+>  - Need to explicitly define padding in layouts.
 > 
-> Apart from the trampoline code itself we also need a place to store top
-> level page table in lower memory as we don't have a way to load 64-bit
-> values into CR3 in 32-bit mode. We only really need 8 bytes there as we
-> only use the very first entry of the page table. But we allocate a whole
-> page anyway.
+> I haven't changed any code yet.  I wanted to get feedback from Christoph
+> and Kirill before going further.
 > 
-> We cannot have the code in the same page as the page table because there's
-> a risk that a CPU would read the page table speculatively and get confused
-> by seeing garbage. It's never a good idea to have junk in PTE entries
-> visible to the CPU.
+> The new layout keeps struct page the same size as it is currently.  Mostly
+> the only things that have changed are compound pages.  slab has not changed
+> layout at all.
 > 
-> We also need a small stack in the trampoline to re-enable long mode via
-> long return. But stack and code can share the page just fine.
+> In the two tables below, the first column is the starting byte of the
+> named element.  The next three columns are after the patch, and the last
+> two are before the patch.  The annotation (1) means this field only has
+> that meaning in the first tail page; the other fields are used in all
+> tail pages.  The head page of a compound page uses all the fields the
+> same way as a non-compound page.
 > 
-> This patch introduces paging_prepare() that checks if we need to enable
-> 5-level paging and then finds a right spot in lower memory for the
-> trampoline. Then it copies the trampoline code there and sets up the new
-> top level page table for 5-level paging.
+> ---+------------+------------------------------------+-------------------+
+>  B | slab       | page cache | tail pages            | old tail          |
+> ---+------------+------------------------------------+-------------------+
+>  0 |                flags                            |                   |
+>  4 |                  "                              |                   |
+>  8 | s_mem      |          index                     | compound_mapcount |
+> 12 | "          |            "                       | --                |
+> 16 | freelist   | mapping    | dtor / order (1)      |                   |
+> 20 | "          | "          | --                    |                   |
+> 24 | counters   | mapcount   | compound_mapcount (1) | --                |
+
+Sorry, this is not going to work: we need mapcount in all subpages of THP
+as they can be mapped with PTE individually. So in first tail pages we
+need find a spot form both compound_mapcount and mapcount.
+
+> 28 | "          | refcount   | --                    | --                |
+> 32 | next       | lru        | compound_head         | compound_head     |
+> 36 | "          | "          | "                     | "                 |
+> 40 | pages      | "          | deferred_list (1)     | dtor              |
+> 44 | pobjects   | "          | "                     | order             |
+> 48 | slab_cache | private    | "                     | --                |
+> 52 | "          | "          | "                     | --                |
+> ---+------------+------------+-----------------------+-------------------+
 > 
-> At this point we do all the preparation, but don't use trampoline yet.
-> It will be done in the following patch.
-> 
-> The trampoline will be used even on 4-level paging machines. This way we
-> will get better test coverage and the keep the trampoline code in shape.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> ---
->  arch/x86/boot/compressed/head_64.S    | 44 ++++++++++++-------------
->  arch/x86/boot/compressed/pgtable.h    | 18 +++++++++++
->  arch/x86/boot/compressed/pgtable_64.c | 61 ++++++++++++++++++++++++++++-------
->  3 files changed, 89 insertions(+), 34 deletions(-)
->  create mode 100644 arch/x86/boot/compressed/pgtable.h
-> 
-> diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-> index fc313e29fe2c..392324004d99 100644
-> --- a/arch/x86/boot/compressed/head_64.S
-> +++ b/arch/x86/boot/compressed/head_64.S
-> @@ -304,20 +304,6 @@ ENTRY(startup_64)
->  	/* Set up the stack */
->  	leaq	boot_stack_end(%rbx), %rsp
->  
-> -#ifdef CONFIG_X86_5LEVEL
-> -	/*
-> -	 * Check if we need to enable 5-level paging.
-> -	 * RSI holds real mode data and need to be preserved across
-> -	 * a function call.
-> -	 */
-> -	pushq	%rsi
-> -	call	l5_paging_required
-> -	popq	%rsi
-> -
-> -	/* If l5_paging_required() returned zero, we're done here. */
-> -	cmpq	$0, %rax
-> -	je	lvl5
-> -
->  	/*
->  	 * At this point we are in long mode with 4-level paging enabled,
->  	 * but we want to enable 5-level paging.
-> @@ -325,12 +311,28 @@ ENTRY(startup_64)
->  	 * The problem is that we cannot do it directly. Setting LA57 in
->  	 * long mode would trigger #GP. So we need to switch off long mode
->  	 * first.
-> +	 */
-> +
-> +	/*
-> +	 * paging_prepare() would set up the trampoline and check if we need to
-> +	 * enable 5-level paging.
->  	 *
-> -	 * NOTE: This is not going to work if bootloader put us above 4G
-> -	 * limit.
-> +	 * Address of the trampoline is returned in RAX. Bit 0 is used to
-> +	 * encode if we need to enable 5-level paging.
+> ---+------------+--------------------------------+
+>  B | slab       | page cache | compound tail     |
+> ---+------------+--------------------------------+
+>  0 |                flags                        |
+>  4 | s_mem      |          index                 |
+>  8 | freelist   | mapping    | dtor/ order       |
+> 12 | counters   | mapcount   | compound_mapcount |
+> 16 | --         | refcount   | --                |
+> 20 | next       | lru        | compound_head     |
+> 24 | pg/pobj    | "          | deferred_list     |
+> 28 | slab_cache | private    | "                 |
+> ---+------------+------------+-------------------+
 
-Hm, that encodig looks unnecessarily complicated - why not return a 128-bit 
-struct, where the first 64 bits get into RAX and the second into RDX?
-
-That way RAX can be 
-
-Also, the patch looks a bit complex - could we split it into three more parts:
-
- - First part introduces the calling of paging_prepare(), and does the LA57 return 
-   code handling. The trampoline is not allocated and 0 is returned as the 
-   trampoline address (it's not used)
-
- - Second part allocates, initializes and returns the trampoline - but does not 
-   use it yet
-
- - Third patch uses the trampoline
-
-This way if there's any breakage there's a very specific, dedicated patch to 
-bisect to.
-
-Thanks,
-
-	Ingo
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
