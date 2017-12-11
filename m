@@ -1,92 +1,139 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 5080D6B0253
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 08:45:44 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id c9so10499320wrb.4
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 05:45:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d4si10703600wrf.458.2017.12.11.05.45.42
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 592E16B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 09:26:23 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id p190so4643813wmd.0
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:26:23 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n82sor2075651wmf.57.2017.12.11.06.26.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Dec 2017 05:45:42 -0800 (PST)
-Date: Mon, 11 Dec 2017 14:45:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RESEND] x86/numa: move setting parsed numa node to
- num_add_memblk
-Message-ID: <20171211134539.GF4779@dhcp22.suse.cz>
-References: <1512123232-7263-1-git-send-email-zhongjiang@huawei.com>
- <20171211120304.GD4779@dhcp22.suse.cz>
- <5A2E8131.4000104@huawei.com>
+        (Google Transport Security);
+        Mon, 11 Dec 2017 06:26:21 -0800 (PST)
+Date: Mon, 11 Dec 2017 15:26:18 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv5 2/3] x86/boot/compressed/64: Introduce
+ place_trampoline()
+Message-ID: <20171211142618.rrcg5javpoinbigg@gmail.com>
+References: <20171208130922.21488-1-kirill.shutemov@linux.intel.com>
+ <20171208130922.21488-3-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5A2E8131.4000104@huawei.com>
+In-Reply-To: <20171208130922.21488-3-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: zhong jiang <zhongjiang@huawei.com>
-Cc: iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, minchan@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon 11-12-17 20:59:29, zhong jiang wrote:
-> On 2017/12/11 20:03, Michal Hocko wrote:
-> > On Fri 01-12-17 18:13:52, zhong jiang wrote:
-> >> The acpi table are very much like user input. it is likely to
-> >> introduce some unreasonable node in some architecture. but
-> >> they do not ingore the node and bail out in time. it will result
-> >> in unnecessary print.
-> >> e.g  x86:  start is equal to end is a unreasonable node.
-> >> numa_blk_memblk will fails but return 0.
-> >>
-> >> meanwhile, Arm64 node will double set it to "numa_node_parsed"
-> >> after NUMA adds a memblk successfully.  but X86 is not. because
-> >> numa_add_memblk is not set in X86.
-> > I am sorry but I still fail to understand wht the actual problem is.
-> > You said that x86 will print a message. Alright at least you know that
-> > the platform provides a nonsense ACPI/SRAT? tables and you can complain.
-> > But does the kernel misbehave? In what way?
->   From the view of  the following code , we should expect that the node is reasonable.
->   otherwise, if we only want to complain,  it should bail out in time after printing the
->   unreasonable message.
-> 
->           node_set(node, numa_nodes_parsed);
-> 
->         pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
->                 node, pxm,
->                 (unsigned long long) start, (unsigned long long) end - 1,
->                 hotpluggable ? " hotplug" : "",
->                 ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " non-volatile" : "");
-> 
->         /* Mark hotplug range in memblock. */
->         if (hotpluggable && memblock_mark_hotplug(start, ma->length))
->                 pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
->                         (unsigned long long)start, (unsigned long long)end - 1);
-> 
->         max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
-> 
->         return 0;
-> out_err_bad_srat:
->         bad_srat();
-> 
->  In addition.  Arm64  will double set node to numa_nodes_parsed after add a memblk
-> successfully.  Because numa_add_memblk will perform node_set(*, *).
-> 
->          if (numa_add_memblk(node, start, end) < 0) {
->                 pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
->                        node, (unsigned long long) start,
->                        (unsigned long long) end - 1);
->                 goto out_err_bad_srat;
->         }
-> 
->         node_set(node, numa_nodes_parsed);
 
-I am sorry but I _do not_ understand how this answers my simple
-question. You are describing the code flow which doesn't really explain
-what is the _user_ or a _runtime_ visible effect. Anybody reading this
-changelog will have to scratch his head to understand what the heck does
-this fix and whether the patch needs to be considered for backporting.
-See my point?
--- 
-Michal Hocko
-SUSE Labs
+* Kirill A. Shutemov <kirill.shutemov@linux.intel.com> wrote:
+
+> If a bootloader enables 64-bit mode with 4-level paging, we might need to
+> switch over to 5-level paging. The switching requires the disabling
+> paging. It works fine if kernel itself is loaded below 4G.
+> 
+> But if the bootloader put the kernel above 4G (not sure if anybody does
+> this), we would lose control as soon as paging is disabled, because the
+> code becomes unreachable to the CPU.
+> 
+> To handle the situation, we need a trampoline in lower memory that would
+> take care of switching on 5-level paging.
+> 
+> Apart from the trampoline code itself we also need a place to store top
+> level page table in lower memory as we don't have a way to load 64-bit
+> values into CR3 in 32-bit mode. We only really need 8 bytes there as we
+> only use the very first entry of the page table. But we allocate a whole
+> page anyway.
+> 
+> We cannot have the code in the same page as the page table because there's
+> a risk that a CPU would read the page table speculatively and get confused
+> by seeing garbage. It's never a good idea to have junk in PTE entries
+> visible to the CPU.
+> 
+> We also need a small stack in the trampoline to re-enable long mode via
+> long return. But stack and code can share the page just fine.
+> 
+> This patch introduces paging_prepare() that checks if we need to enable
+> 5-level paging and then finds a right spot in lower memory for the
+> trampoline. Then it copies the trampoline code there and sets up the new
+> top level page table for 5-level paging.
+> 
+> At this point we do all the preparation, but don't use trampoline yet.
+> It will be done in the following patch.
+> 
+> The trampoline will be used even on 4-level paging machines. This way we
+> will get better test coverage and the keep the trampoline code in shape.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> ---
+>  arch/x86/boot/compressed/head_64.S    | 44 ++++++++++++-------------
+>  arch/x86/boot/compressed/pgtable.h    | 18 +++++++++++
+>  arch/x86/boot/compressed/pgtable_64.c | 61 ++++++++++++++++++++++++++++-------
+>  3 files changed, 89 insertions(+), 34 deletions(-)
+>  create mode 100644 arch/x86/boot/compressed/pgtable.h
+> 
+> diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
+> index fc313e29fe2c..392324004d99 100644
+> --- a/arch/x86/boot/compressed/head_64.S
+> +++ b/arch/x86/boot/compressed/head_64.S
+> @@ -304,20 +304,6 @@ ENTRY(startup_64)
+>  	/* Set up the stack */
+>  	leaq	boot_stack_end(%rbx), %rsp
+>  
+> -#ifdef CONFIG_X86_5LEVEL
+> -	/*
+> -	 * Check if we need to enable 5-level paging.
+> -	 * RSI holds real mode data and need to be preserved across
+> -	 * a function call.
+> -	 */
+> -	pushq	%rsi
+> -	call	l5_paging_required
+> -	popq	%rsi
+> -
+> -	/* If l5_paging_required() returned zero, we're done here. */
+> -	cmpq	$0, %rax
+> -	je	lvl5
+> -
+>  	/*
+>  	 * At this point we are in long mode with 4-level paging enabled,
+>  	 * but we want to enable 5-level paging.
+> @@ -325,12 +311,28 @@ ENTRY(startup_64)
+>  	 * The problem is that we cannot do it directly. Setting LA57 in
+>  	 * long mode would trigger #GP. So we need to switch off long mode
+>  	 * first.
+> +	 */
+> +
+> +	/*
+> +	 * paging_prepare() would set up the trampoline and check if we need to
+> +	 * enable 5-level paging.
+>  	 *
+> -	 * NOTE: This is not going to work if bootloader put us above 4G
+> -	 * limit.
+> +	 * Address of the trampoline is returned in RAX. Bit 0 is used to
+> +	 * encode if we need to enable 5-level paging.
+
+Hm, that encodig looks unnecessarily complicated - why not return a 128-bit 
+struct, where the first 64 bits get into RAX and the second into RDX?
+
+That way RAX can be 
+
+Also, the patch looks a bit complex - could we split it into three more parts:
+
+ - First part introduces the calling of paging_prepare(), and does the LA57 return 
+   code handling. The trampoline is not allocated and 0 is returned as the 
+   trampoline address (it's not used)
+
+ - Second part allocates, initializes and returns the trampoline - but does not 
+   use it yet
+
+ - Third patch uses the trampoline
+
+This way if there's any breakage there's a very specific, dedicated patch to 
+bisect to.
+
+Thanks,
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
