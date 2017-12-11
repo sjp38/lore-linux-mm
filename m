@@ -1,95 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7C69B6B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 13:00:21 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g8so13487764pgs.14
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 10:00:21 -0800 (PST)
-Received: from out0-230.mail.aliyun.com (out0-230.mail.aliyun.com. [140.205.0.230])
-        by mx.google.com with ESMTPS id 1si10224457plw.770.2017.12.11.10.00.17
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B05E6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 16:05:54 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 11so10813703wrb.18
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 13:05:54 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c6sor2221732wmd.75.2017.12.11.13.05.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Dec 2017 10:00:18 -0800 (PST)
-Subject: Re: [RFC PATCH] mm: kasan: suppress soft lockup in slub when
- !CONFIG_PREEMPT
-References: <1512689407-100663-1-git-send-email-yang.s@alibaba-inc.com>
- <20171207234056.GF26792@bombadil.infradead.org>
- <CACT4Y+aB088z8zBuQC8Ff6Sf-2_QHVNRjfVpVjy7Xu8+G5BriQ@mail.gmail.com>
- <57afe220-036a-591c-2acc-56c5f3c6acef@virtuozzo.com>
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-Message-ID: <3fabaa44-4767-bfcf-bf86-f1fce573d5e1@alibaba-inc.com>
-Date: Tue, 12 Dec 2017 02:00:10 +0800
+        (Google Transport Security);
+        Mon, 11 Dec 2017 13:05:52 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <57afe220-036a-591c-2acc-56c5f3c6acef@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <201712091708.GHG60458.MHFOVSFOQtOFLJ@I-love.SAKURA.ne.jp>
+References: <20171208082220.GQ20234@dhcp22.suse.cz> <d5cc35f6-57a4-adb9-5b32-07c1db7c2a7a@I-love.SAKURA.ne.jp>
+ <20171208114806.GU20234@dhcp22.suse.cz> <201712082303.DDG90166.FOLSHOOFVQJMtF@I-love.SAKURA.ne.jp>
+ <CAJuCfpHmdcA=t9p8kjJYrgkrreQZt9Sa1=_up+1yV9BE4xJ-8g@mail.gmail.com> <201712091708.GHG60458.MHFOVSFOQtOFLJ@I-love.SAKURA.ne.jp>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Mon, 11 Dec 2017 13:05:50 -0800
+Message-ID: <CAJuCfpE854v=3k4+cK34M5vfg-S25OqSideMSofLOFe4d177Vw@mail.gmail.com>
+Subject: Re: [PATCH v2] mm: terminate shrink_slab loop if signal is pending
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <willy@infradead.org>
-Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, hillf.zj@alibaba-inc.com, minchan@kernel.org, mgorman@techsingularity.net, ying.huang@intel.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Tim Murray <timmurray@google.com>, Todd Kjos <tkjos@google.com>
 
-
-
-On 12/8/17 1:16 AM, Andrey Ryabinin wrote:
-> On 12/08/2017 11:26 AM, Dmitry Vyukov wrote:
->> On Fri, Dec 8, 2017 at 12:40 AM, Matthew Wilcox <willy@infradead.org> wrote:
->>> On Fri, Dec 08, 2017 at 07:30:07AM +0800, Yang Shi wrote:
->>>> When running stress test with KASAN enabled, the below softlockup may
->>>> happen occasionally:
->>>>
->>>> NMI watchdog: BUG: soft lockup - CPU#7 stuck for 22s!
->>>> hardirqs last  enabled at (0): [<          (null)>]      (null)
->>>> hardirqs last disabled at (0): [] copy_process.part.30+0x5c6/0x1f50
->>>> softirqs last  enabled at (0): [] copy_process.part.30+0x5c6/0x1f50
->>>> softirqs last disabled at (0): [<          (null)>]      (null)
->>>
->>>> Call Trace:
->>>>   [] __slab_free+0x19c/0x270
->>>>   [] ___cache_free+0xa6/0xb0
->>>>   [] qlist_free_all+0x47/0x80
->>>>   [] quarantine_reduce+0x159/0x190
->>>>   [] kasan_kmalloc+0xaf/0xc0
->>>>   [] kasan_slab_alloc+0x12/0x20
->>>>   [] kmem_cache_alloc+0xfa/0x360
->>>>   [] ? getname_flags+0x4f/0x1f0
->>>>   [] getname_flags+0x4f/0x1f0
->>>>   [] getname+0x12/0x20
->>>>   [] do_sys_open+0xf9/0x210
->>>>   [] SyS_open+0x1e/0x20
->>>>   [] entry_SYSCALL_64_fastpath+0x1f/0xc2
->>>
->>> This feels like papering over a problem.  KASAN only calls
->>> quarantine_reduce() when it's allowed to block.  Presumably it has
->>> millions of entries on the free list at this point.  I think the right
->>> thing to do is for qlist_free_all() to call cond_resched() after freeing
->>> every N items.
+On Sat, Dec 9, 2017 at 12:08 AM, Tetsuo Handa
+<penguin-kernel@i-love.sakura.ne.jp> wrote:
+> Suren Baghdasaryan wrote:
+>> On Fri, Dec 8, 2017 at 6:03 AM, Tetsuo Handa
+>> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>> >> > >> This change checks for pending
+>> >> > >> fatal signals inside shrink_slab loop and if one is detected
+>> >> > >> terminates this loop early.
+>> >> > >
+>> >> > > This changelog doesn't really address my previous review feedback, I am
+>> >> > > afraid. You should mention more details about problems you are seeing
+>> >> > > and what causes them.
 >>
+>> The problem I'm facing is that a SIGKILL sent from user space to kill
+>> the least important process is delayed enough for OOM-killer to get a
+>> chance to kill something else, possibly a more important process. Here
+>> "important" is from user's point of view. So the delay in SIGKILL
+>> delivery effectively causes extra kills. Traces indicate that this
+>> delay happens when process being killed is in direct reclaim and
+>> shrinkers (before I fixed them) were the biggest cause for the delay.
+>
+> Sending SIGKILL from userspace is not releasing memory fast enough to prevent
+> the OOM killer from invoking? Yes, under memory pressure, even an attempt to
+> send SIGKILL from userspace could be delayed due to e.g. page fault.
+>
+
+I understand that there will be cases when OOM is unavoidable. I'm
+trying to minimize the cases when SIGKILL processing is delayed.
+
+> Unless it is memcg OOM, you could try OOM notifier callback for checking
+> whether there are SIGKILL pending processes and wait for timeout if any.
+> This situation resembles timeout-based OOM killing discussion, where the OOM
+> killer is enabled again (based on an assumption that the OOM victim got stuck
+> due to OOM lockup) after some timeout from previous OOM-killing. And since
+> we did not merge timeout-based approach, there is no timestamp field for
+> remembering when the SIGKILL was delivered. Therefore, an attempt to wait for
+> timeout would become messy.
+>
+> Regardless of whether you try OOM notifier callback, I think that adding
+> __GFP_KILLABLE and allow bailing out without calling out_of_memory() and
+> warn_alloc() will help terminating killed processes faster. I think that
+> majority of memory allocation requests can give up upon SIGKILL. Important
+> allocation requests which should not give up upon SIGKILL (e.g. committing
+> to filesystem metadata and storage) can be offloaded to kernel threads.
+>
 >>
->> Agree. Adding touch_softlockup_watchdog() to a random low-level
->> function looks like a wrong thing to do.
->> quarantine_reduce() already has this logic. Look at
->> QUARANTINE_BATCHES. It's meant to do exactly this -- limit amount of
->> work in quarantine_reduce() and in quarantine_remove_cache() to
->> reasonably-sized batches. We could simply increase number of batches
->> to make them smaller. But it would be good to understand what exactly
->> happens in this case. Batches should on a par of ~~1MB. Why freeing
->> 1MB worth of objects (smallest of which is 32b) takes 22 seconds?
+>> >> > > If we have a shrinker which takes considerable
+>> >> > > amount of time them we should be addressing that. If that is not
+>> >> > > possible then it should be documented at least.
 >>
-> 
-> I think the problem here is that kernel 4.9.44-003.ali3000.alios7.x86_64.debug
-> doesn't have 64abdcb24351 ("kasan: eliminate long stalls during quarantine reduction").
-> 
-> We probably should ask that commit to be included in stable, but it would be good to hear
-> a confirmation from Yang that it really helps.
+>> I already submitted patches for couple shrinkers. Problem became less
+>> pronounced and less frequent but the retry loop Tetsuo mentioned still
+>> visibly delays the delivery. The worst case I've seen after fixing
+>> shrinkers is 43ms.
+>
+> You meant "delays the termination (of the killed process)" rather than
+> "delays the delivery (of SIGKILL)", didn't you?
+>
 
-Thanks, folks. Yes, my kernel doesn't have this commit. It sounds the 
-commit batches the quarantine to smaller group. I will run some tests 
-against this commit to see if it could help. Reading the code tells me 
-it is likely to help.
+To be more precise, I'm talking about the delay between send_signal()
+and get_signal() or in other words the delay between the moment when
+we send the SIGKILL and the moment we handle it.
 
-Yang
-
-> 
+>> > I agree that making waits/loops killable is generally good. But be sure to be
+>> > prepared for the worst case. For example, start __GFP_KILLABLE from "best effort"
+>> > basis (i.e. no guarantee that the allocating thread will leave the page allocator
+>> > slowpath immediately) and check for fatal_signal_pending() only if
+>> > __GFP_KILLABLE is set. That is,
+>> >
+>> > +               /*
+>> > +                * We are about to die and free our memory.
+>> > +                * Stop shrinking which might delay signal handling.
+>> > +                */
+>> > +               if (unlikely((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current)))
+>> > +                       break;
+>> >
+>> > at shrink_slab() etc. and
+>> >
+>> > +               if ((gfp_mask & __GFP_KILLABLE) && fatal_signal_pending(current))
+>> > +                       goto nopage;
+>> >
+>> > at __alloc_pages_slowpath().
+>>
+>> I was thinking about something similar and will experiment to see if
+>> this solves the problem and if it has any side effects. Anyone sees
+>> any obvious problems with this approach?
+>>
+>
+> It is Michal who thinks that "killability for a particular allocation request sounds
+> like a hack" ( http://lkml.kernel.org/r/201606112335.HBG09891.OLFJOFtVMOQHSF@I-love.SAKURA.ne.jp ).
+> I'm willing to give up memory allocations from functions which are called by
+> system calls if SIGKILL is pending. Thus, it should be time to try __GFP_KILLABLE.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
