@@ -1,64 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7461D6B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 00:30:12 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a6so13736980pff.17
-        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 21:30:12 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EADD6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 01:36:46 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q186so12152387pga.23
+        for <linux-mm@kvack.org>; Sun, 10 Dec 2017 22:36:46 -0800 (PST)
 Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id 133si10337949pfy.414.2017.12.10.21.30.08
+        by mx.google.com with ESMTPS id d67si9449155pgc.607.2017.12.10.22.36.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 10 Dec 2017 21:30:08 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171207011426.1633-1-ying.huang@intel.com>
-	<20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
-	<20171208014346.GA8915@bbox> <87po7pg4jt.fsf@yhuang-dev.intel.com>
-	<20171208082644.GA14361@bbox> <87k1xxbohp.fsf@yhuang-dev.intel.com>
-	<20171208140909.4e31ba4f1235b638ae68fd5c@linux-foundation.org>
-Date: Mon, 11 Dec 2017 13:30:03 +0800
-In-Reply-To: <20171208140909.4e31ba4f1235b638ae68fd5c@linux-foundation.org>
-	(Andrew Morton's message of "Fri, 8 Dec 2017 14:09:09 -0800")
-Message-ID: <87609dvnl0.fsf@yhuang-dev.intel.com>
+        Sun, 10 Dec 2017 22:36:44 -0800 (PST)
+Message-ID: <5A2E27F5.2010703@intel.com>
+Date: Mon, 11 Dec 2017 14:38:45 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Subject: Re: [PATCH v18 10/10] virtio-balloon: don't report free pages when
+ page poisoning is enabled
+References: <1511963726-34070-1-git-send-email-wei.w.wang@intel.com> <1511963726-34070-11-git-send-email-wei.w.wang@intel.com> <20171201173951-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20171201173951-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Minchan Kim <minchan@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-Andrew Morton <akpm@linux-foundation.org> writes:
-
-> On Fri, 08 Dec 2017 16:41:38 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+On 12/01/2017 11:49 PM, Michael S. Tsirkin wrote:
+> On Wed, Nov 29, 2017 at 09:55:26PM +0800, Wei Wang wrote:
+>> The guest free pages should not be discarded by the live migration thread
+>> when page poisoning is enabled with PAGE_POISONING_NO_SANITY=n, because
+>> skipping the transfer of such poisoned free pages will trigger false
+>> positive when new pages are allocated and checked on the destination.
+>> This patch skips the reporting of free pages in the above case.
+>>
+>> Reported-by: Michael S. Tsirkin <mst@redhat.com>
+>> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+>> Cc: Michal Hocko <mhocko@suse.com>
+>> ---
+>>   drivers/virtio/virtio_balloon.c | 4 +++-
+>>   1 file changed, 3 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+>> index 035bd3a..6ac4cff 100644
+>> --- a/drivers/virtio/virtio_balloon.c
+>> +++ b/drivers/virtio/virtio_balloon.c
+>> @@ -652,7 +652,9 @@ static void report_free_page(struct work_struct *work)
+>>   	/* Start by sending the obtained cmd id to the host with an outbuf */
+>>   	send_one_desc(vb, vb->free_page_vq, virt_to_phys(&vb->start_cmd_id),
+>>   		      sizeof(uint32_t), false, true, false);
+>> -	walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+>> +	if (!(page_poisoning_enabled() &&
+>> +	    !IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY)))
+>> +		walk_free_mem_block(vb, 0, &virtio_balloon_send_free_pages);
+>>   	/*
+>>   	 * End by sending the stop id to the host with an outbuf. Use the
+>>   	 * non-batching mode here to trigger a kick after adding the stop id.
+> PAGE_POISONING_ZERO is actually OK.
 >
->> > Why do we need srcu here? Is it enough with rcu like below?
->> >
->> > It might have a bug/room to be optimized about performance/naming.
->> > I just wanted to show my intention.
->> 
->> Yes.  rcu should work too.  But if we use rcu, it may need to be called
->> several times to make sure the swap device under us doesn't go away, for
->> example, when checking si->max in __swp_swapcount() and
->> add_swap_count_continuation().  And I found we need rcu to protect swap
->> cache radix tree array too.  So I think it may be better to use one
->> calling to srcu_read_lock/unlock() instead of multiple callings to
->> rcu_read_lock/unlock().
+> But I really would prefer it that we still send pages to host,
+> otherwise debugging becomes much harder.
 >
-> Or use stop_machine() ;)  It's very crude but it sure is simple.  Does
-> anyone have a swapoff-intensive workload?
+> And it does not have to be completely useless, even though
+> you can not discard them as they would be zero-filled then.
+>
+> How about a config field telling host what should be there in the free
+> pages? This way even though host can not discard them, host can send
+> them out without reading them, still a win.
+>
+>
 
-Sorry, I don't know how to solve the problem with stop_machine().
+Since this poison value comes with the free page reporting feature, how 
+about sending the poison value via the free_page_vq, along with the cmd 
+id in the outbuf? That is, use the following interface:
 
-The problem we try to resolved is that, we have a swap entry, but that
-swap entry can become invalid because of swappoff between we check it
-and we use it.  So we need to prevent swapoff to be run between checking
-and using.
+struct virtio_balloon_free_page_vq_hdr {
+     bool page_poisoning;
+     __virtio32 poison_value;
+     __virtio32 cmd_id;
+}
 
-I don't know how to use stop_machine() in swapoff to wait for all users
-of swap entry to finish.  Anyone can help me on this?
+We need "bool page_poisoning" because "poison_value=0" doesn't tell 
+whether page poising is in use by the guest. PAGE_POISONING_ZERO sets 
+"page_poisoning=true, poisoning_value=0", and the host will send the 
+0-filled pages to the destination (if not sending 0-filled pages, the 
+destination host would offer non-zero pages to the guest)
+The host can discard free pages only when "page_poisoning=false".
 
-Best Regards,
-Huang, Ying
+Best,
+Wei
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
