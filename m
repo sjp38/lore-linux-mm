@@ -1,68 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F93D6B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:44:44 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id o2so4304411wmf.2
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 03:44:44 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C35736B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:57:25 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id g80so10144709wrd.17
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 03:57:25 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 5si5176781wmh.144.2017.12.11.03.44.42
+        by mx.google.com with ESMTPS id w203si5213974wmg.238.2017.12.11.03.57.24
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Dec 2017 03:44:42 -0800 (PST)
-Date: Mon, 11 Dec 2017 12:44:41 +0100
+        Mon, 11 Dec 2017 03:57:24 -0800 (PST)
+Date: Mon, 11 Dec 2017 12:57:23 +0100
 From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm, oom: task_will_free_mem() should ignore MMF_OOM_SKIP
- unless __GFP_NOFAIL.
-Message-ID: <20171211114441.GB4779@dhcp22.suse.cz>
+Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second
+ allocation
+Message-ID: <20171211115723.GC4779@dhcp22.suse.cz>
 References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
- <20171207115127.GH20234@dhcp22.suse.cz>
- <201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
- <20171207122249.GI20234@dhcp22.suse.cz>
- <201712081958.EBB43715.FOVJQFtFLOMOSH@I-love.SAKURA.ne.jp>
- <201712112015.BGH95360.HtMSJOOQVFLFOF@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201712112015.BGH95360.HtMSJOOQVFLFOF@I-love.SAKURA.ne.jp>
+In-Reply-To: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Manish Jaggi <mjaggi@caviumnetworks.com>, Oleg Nesterov <oleg@redhat.com>, Vladimir Davydov <vdavydov.dev@gmail.com>
 
-On Mon 11-12-17 20:15:35, Tetsuo Handa wrote:
-> >From 6f45864753ce820adede5b318b9cb341ffd3e740 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Mon, 11 Dec 2017 19:52:07 +0900
-> Subject: [PATCH] mm, oom: task_will_free_mem() should ignore MMF_OOM_SKIP
->  unless __GFP_NOFAIL.
-> 
-> Manish Jaggi noticed that running LTP oom01/oom02 tests with high core
+[I didn't get to this patch any sooner, sorry about that]
+
+On Thu 07-12-17 20:42:20, Tetsuo Handa wrote:
+> Manish Jaggi noticed that running LTP oom01/oom02 ltp tests with high core
 > count causes random kernel panics when an OOM victim which consumed memory
 > in a way the OOM reaper does not help was selected by the OOM killer [1].
-
-How does this have anything to do with any GFP_NOFAIL allocations?
-
 > Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
 > oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
 > to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
 > victim's mm were not able to try allocation from memory reserves after the
 > OOM reaper gave up reclaiming memory.
 > 
-> Since __alloc_pages_slowpath() will bail out after ALLOC_OOM allocation
-> failed (unless __GFP_NOFAIL is specified), this patch forces OOM victims
-> to try ALLOC_OOM allocation and then bail out rather than selecting next
-> OOM victim (unless __GFP_NOFAIL is specified which is necessary for
-> avoiding potential OOM lockup).
+> Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
+> last second allocation attempt.
 
-Nack again. The changelog doesn't make any sense at all. And I am really
-not convinced this actually fixes any real problem. Please do not bother
-even sending patches like that.
+This changelog doesn't explain the problem, nor does it say why it
+should help. I would even argue that mentioning the LTP test is more
+confusing than helpful (also considering it a fix for 696453e66630ad45)
+because granting access to memory reserves will only help partially.
+Anyway, the patch makes some sense to me but I am not going to ack it
+with a misleading changelog.
 
 > [1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
 > 
 > Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
 > Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 > Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
 > Cc: Michal Hocko <mhocko@suse.com>
 > Cc: Oleg Nesterov <oleg@redhat.com>
 > Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
@@ -70,56 +59,76 @@ even sending patches like that.
 > Cc: Andrea Arcangeli <aarcange@redhat.com>
 > Cc: Johannes Weiner <hannes@cmpxchg.org>
 > ---
->  mm/oom_kill.c | 12 ++++++------
->  1 file changed, 6 insertions(+), 6 deletions(-)
+>  mm/page_alloc.c | 39 +++++++++++++++++++++++++++++----------
+>  1 file changed, 29 insertions(+), 10 deletions(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 7f54d9f..f71fe4c 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -784,7 +784,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
->   * Caller has to make sure that task->mm is stable (hold task_lock or
->   * it operates on the current).
->   */
-> -static bool task_will_free_mem(struct task_struct *task)
-> +static bool task_will_free_mem(struct task_struct *task, gfp_t gfp_mask)
->  {
->  	struct mm_struct *mm = task->mm;
->  	struct task_struct *p;
-> @@ -802,10 +802,10 @@ static bool task_will_free_mem(struct task_struct *task)
->  		return false;
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 73f5d45..5d054a4 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -3309,6 +3309,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>  	return page;
+>  }
 >  
->  	/*
-> -	 * This task has already been drained by the oom reaper so there are
-> -	 * only small chances it will free some more
-> +	 * Select next OOM victim only if existing OOM victims can not satisfy
-> +	 * __GFP_NOFAIL allocation even after the OOM reaper reclaimed memory.
->  	 */
-> -	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-> +	if ((gfp_mask & __GFP_NOFAIL) && test_bit(MMF_OOM_SKIP, &mm->flags))
->  		return false;
+> +static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
+> +					       unsigned int order,
+> +					       const struct alloc_context *ac);
+> +
+>  static inline struct page *
+>  __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+>  	const struct alloc_context *ac, unsigned long *did_some_progress)
+> @@ -3334,16 +3338,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
+>  		return NULL;
+>  	}
 >  
->  	if (atomic_read(&mm->mm_users) <= 1)
-> @@ -938,7 +938,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  	 * so it can die quickly
->  	 */
->  	task_lock(p);
-> -	if (task_will_free_mem(p)) {
-> +	if (task_will_free_mem(p, oc->gfp_mask)) {
->  		mark_oom_victim(p);
->  		wake_oom_reaper(p);
->  		task_unlock(p);
-> @@ -1092,7 +1092,7 @@ bool out_of_memory(struct oom_control *oc)
->  	 * select it.  The goal is to allow it to allocate so that it may
->  	 * quickly exit and free its memory.
->  	 */
-> -	if (task_will_free_mem(current)) {
-> +	if (task_will_free_mem(current, oc->gfp_mask)) {
->  		mark_oom_victim(current);
->  		wake_oom_reaper(current);
->  		return true;
+> -	/*
+> -	 * Go through the zonelist yet one more time, keep very high watermark
+> -	 * here, this is only to catch a parallel oom killing, we must fail if
+> -	 * we're still under heavy pressure. But make sure that this reclaim
+> -	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> -	 * allocation which will never fail due to oom_lock already held.
+> -	 */
+> -	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
+> -				      ~__GFP_DIRECT_RECLAIM, order,
+> -				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
+> +	page = alloc_pages_before_oomkill(gfp_mask, order, ac);
+>  	if (page)
+>  		goto out;
+>  
+> @@ -3755,6 +3750,30 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
+>  	return !!__gfp_pfmemalloc_flags(gfp_mask);
+>  }
+>  
+> +static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
+> +					       unsigned int order,
+> +					       const struct alloc_context *ac)
+> +{
+> +	/*
+> +	 * Go through the zonelist yet one more time, keep very high watermark
+> +	 * here, this is only to catch a parallel oom killing, we must fail if
+> +	 * we're still under heavy pressure. But make sure that this reclaim
+> +	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+> +	 * allocation which will never fail due to oom_lock already held.
+> +	 * Also, make sure that OOM victims can try ALLOC_OOM watermark
+> +	 * in case they haven't tried ALLOC_OOM watermark.
+> +	 */
+> +	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
+> +	int reserve_flags;
+> +
+> +	gfp_mask |= __GFP_HARDWALL;
+> +	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
+> +	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
+> +	if (reserve_flags)
+> +		alloc_flags = reserve_flags;
+> +	return get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
+> +}
+> +
+>  /*
+>   * Checks whether it makes sense to retry the reclaim to make a forward progress
+>   * for the given allocation request.
 > -- 
 > 1.8.3.1
+> 
 
 -- 
 Michal Hocko
