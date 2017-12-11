@@ -1,73 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 030666B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 04:03:07 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id r20so9820415wrg.23
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 01:03:06 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c16si9963923wrb.267.2017.12.11.01.03.05
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 02E516B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 06:02:31 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id j4so10238570wrg.15
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 03:02:30 -0800 (PST)
+Received: from outbound-smtp11.blacknight.com ([46.22.139.106])
+        by mx.google.com with ESMTPS id j34si128190edb.273.2017.12.11.03.02.28
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Dec 2017 01:03:05 -0800 (PST)
-Date: Mon, 11 Dec 2017 10:03:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v4] mmap.2: MAP_FIXED updated documentation
-Message-ID: <20171211090303.GG20234@dhcp22.suse.cz>
-References: <20171206031434.29087-1-jhubbard@nvidia.com>
- <20171210103147.GC20234@dhcp22.suse.cz>
- <fba147b0-06b6-fbf9-8194-171a3e146a63@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Dec 2017 03:02:28 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail01.blacknight.ie [81.17.254.10])
+	by outbound-smtp11.blacknight.com (Postfix) with ESMTPS id D68A71C29C8
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 11:02:27 +0000 (GMT)
+Date: Mon, 11 Dec 2017 11:02:24 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH v2] mm: page_alloc: avoid excessive IRQ disabled times in
+ free_unref_page_list
+Message-ID: <20171211104342.4bkmczdhdi227wu7@techsingularity.net>
+References: <20171208114217.8491-1-l.stach@pengutronix.de>
+ <20171208134937.489042cb1283039cc83caaac@linux-foundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <fba147b0-06b6-fbf9-8194-171a3e146a63@nvidia.com>
+In-Reply-To: <20171208134937.489042cb1283039cc83caaac@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Lucas Stach <l.stach@pengutronix.de>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org, patchwork-lst@pengutronix.de, kernel@pengutronix.de
 
-On Sun 10-12-17 18:22:05, John Hubbard wrote:
-> On 12/10/2017 02:31 AM, Michal Hocko wrote:
-> > On Tue 05-12-17 19:14:34, john.hubbard@gmail.com wrote:
-> >> From: John Hubbard <jhubbard@nvidia.com>
-> >>
-> >> Previously, MAP_FIXED was "discouraged", due to portability
-> >> issues with the fixed address. In fact, there are other, more
-> >> serious issues. Also, alignment requirements were a bit vague.
-> >> So:
-> >>
-> >>     -- Expand the documentation to discuss the hazards in
-> >>        enough detail to allow avoiding them.
-> >>
-> >>     -- Mention the upcoming MAP_FIXED_SAFE flag.
-> >>
-> >>     -- Enhance the alignment requirement slightly.
-> >>
-> >> Some of the wording is lifted from Matthew Wilcox's review
-> >> (the "Portability issues" section). The alignment requirements
-> >> section uses Cyril Hrubis' wording, with light editing applied.
-> >>
-> >> Suggested-by: Matthew Wilcox <willy@infradead.org>
-> >> Suggested-by: Cyril Hrubis <chrubis@suse.cz>
-> >> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+On Fri, Dec 08, 2017 at 01:49:37PM -0800, Andrew Morton wrote:
+> On Fri,  8 Dec 2017 12:42:17 +0100 Lucas Stach <l.stach@pengutronix.de> wrote:
+> 
+> > Since 9cca35d42eb6 (mm, page_alloc: enable/disable IRQs once when freeing
+> > a list of pages) we see excessive IRQ disabled times of up to 25ms on an
+> > embedded ARM system (tracing overhead included).
 > > 
-> > Would you mind if I take this patch and resubmit it along with my
-> > MAP_FIXED_SAFE (or whatever name I will end up with) next week?
+> > This is due to graphics buffers being freed back to the system via
+> > release_pages(). Graphics buffers can be huge, so it's not hard to hit
+> > cases where the list of pages to free has 2048 entries. Disabling IRQs
+> > while freeing all those pages is clearly not a good idea.
 > > 
-> > Acked-by: Michal Hocko <mhocko@suse.com>
+> > Introduce a batch limit, which allows IRQ servicing once every few pages.
+> > The batch count is the same as used in other parts of the MM subsystem
+> > when dealing with IRQ disabled regions.
+> > 
+> > Signed-off-by: Lucas Stach <l.stach@pengutronix.de>
+> > Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+> > ---
+> > v2: Try to keep the working set of pages used in the second loop cache
+> >     hot by going through both loops in swathes of SWAP_CLUSTER_MAX
+> >     entries, as suggested by Andrew Morton.
+> > 
+> >     To avoid the need to replicate the batch counting in both loops
+> >     I introduced a local batched_free_list where pages to be freed
+> >     in the critical section are collected. IMO this makes the code
+> >     easier to follow.
 > 
-> Sure, that works for me. A tiny complication: I see that Michael
-> Kerrisk has already applied the much smaller v2 of this patch (the
-> one that "no longer discourages" the option, but that's all), as:
+> Thanks.  Is anyone motivated enough to determine whether this is
+> worthwhile?
 > 
->    ffa518803e14 mmap.2: MAP_FIXED is no longer discouraged
-> 
-> so this one here will need to be adjusted slightly to merge
-> gracefully. Let me know if you want me to respin, or if you
-> want to handle the merge.
 
-Yes, please respin.
+I didn't try and I'm not sure I'll get time before dropping offline for
+holidays but I would expect the benefit to be marginal and only detected
+through close examination of cache miss stats. We're talking about the
+cache hotness of a few struct pages for one set of operations before the
+pages are back on the per-cpu lists. For any large release_pages operation,
+they are likely to be pushed off the per-cpu lists and onto the buddy
+lists where the cache data will be thrashed in the near future. It's
+a nice micro-optimisation but I expect it to be lost in the noise of a
+release_pages operation.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
