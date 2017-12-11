@@ -1,115 +1,150 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E5506B0069
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 07:05:54 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f8so12866120pgs.9
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 04:05:54 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id b92si9963726plb.305.2017.12.11.04.05.51
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 502FC6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 08:00:47 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id g8so12957096pgs.14
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 05:00:47 -0800 (PST)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTPS id t1si9915694plb.196.2017.12.11.05.00.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Dec 2017 04:05:52 -0800 (PST)
-Subject: [PATCH] mm, oom: task_will_free_mem() should ignore MMF_OOM_SKIP unless __GFP_NOFAIL.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171207115127.GH20234@dhcp22.suse.cz>
-	<201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
-	<20171207122249.GI20234@dhcp22.suse.cz>
-	<201712081958.EBB43715.FOVJQFtFLOMOSH@I-love.SAKURA.ne.jp>
-In-Reply-To: <201712081958.EBB43715.FOVJQFtFLOMOSH@I-love.SAKURA.ne.jp>
-Message-Id: <201712112015.BGH95360.HtMSJOOQVFLFOF@I-love.SAKURA.ne.jp>
-Date: Mon, 11 Dec 2017 20:15:35 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Dec 2017 05:00:45 -0800 (PST)
+Message-ID: <5A2E8131.4000104@huawei.com>
+Date: Mon, 11 Dec 2017 20:59:29 +0800
+From: zhong jiang <zhongjiang@huawei.com>
+MIME-Version: 1.0
+Subject: Re: [RESEND] x86/numa: move setting parsed numa node to num_add_memblk
+References: <1512123232-7263-1-git-send-email-zhongjiang@huawei.com> <20171211120304.GD4779@dhcp22.suse.cz>
+In-Reply-To: <20171211120304.GD4779@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com, hannes@cmpxchg.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com, penguin-kernel@I-love.SAKURA.ne.jp
+To: Michal Hocko <mhocko@kernel.org>
+Cc: iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, minchan@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
->From 6f45864753ce820adede5b318b9cb341ffd3e740 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Mon, 11 Dec 2017 19:52:07 +0900
-Subject: [PATCH] mm, oom: task_will_free_mem() should ignore MMF_OOM_SKIP
- unless __GFP_NOFAIL.
+On 2017/12/11 20:03, Michal Hocko wrote:
+> On Fri 01-12-17 18:13:52, zhong jiang wrote:
+>> The acpi table are very much like user input. it is likely to
+>> introduce some unreasonable node in some architecture. but
+>> they do not ingore the node and bail out in time. it will result
+>> in unnecessary print.
+>> e.g  x86:  start is equal to end is a unreasonable node.
+>> numa_blk_memblk will fails but return 0.
+>>
+>> meanwhile, Arm64 node will double set it to "numa_node_parsed"
+>> after NUMA adds a memblk successfully.  but X86 is not. because
+>> numa_add_memblk is not set in X86.
+> I am sorry but I still fail to understand wht the actual problem is.
+> You said that x86 will print a message. Alright at least you know that
+> the platform provides a nonsense ACPI/SRAT? tables and you can complain.
+> But does the kernel misbehave? In what way?
+  From the view of  the following code , we should expect that the node is reasonable.
+  otherwise, if we only want to complain,  it should bail out in time after printing the
+  unreasonable message.
 
-Manish Jaggi noticed that running LTP oom01/oom02 tests with high core
-count causes random kernel panics when an OOM victim which consumed memory
-in a way the OOM reaper does not help was selected by the OOM killer [1].
+          node_set(node, numa_nodes_parsed);
 
-Since commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-oom_reaped tasks") changed task_will_free_mem(current) in out_of_memory()
-to return false as soon as MMF_OOM_SKIP is set, many threads sharing the
-victim's mm were not able to try allocation from memory reserves after the
-OOM reaper gave up reclaiming memory.
+        pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+                node, pxm,
+                (unsigned long long) start, (unsigned long long) end - 1,
+                hotpluggable ? " hotplug" : "",
+                ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " non-volatile" : "");
 
-Since __alloc_pages_slowpath() will bail out after ALLOC_OOM allocation
-failed (unless __GFP_NOFAIL is specified), this patch forces OOM victims
-to try ALLOC_OOM allocation and then bail out rather than selecting next
-OOM victim (unless __GFP_NOFAIL is specified which is necessary for
-avoiding potential OOM lockup).
+        /* Mark hotplug range in memblock. */
+        if (hotpluggable && memblock_mark_hotplug(start, ma->length))
+                pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
+                        (unsigned long long)start, (unsigned long long)end - 1);
 
-[1] http://lkml.kernel.org/r/e6c83a26-1d59-4afd-55cf-04e58bdde188@caviumnetworks.com
+        max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
 
-Fixes: 696453e66630ad45 ("mm, oom: task_will_free_mem should skip oom_reaped tasks")
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Reported-by: Manish Jaggi <mjaggi@caviumnetworks.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oleg Nesterov <oleg@redhat.com>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/oom_kill.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+        return 0;
+out_err_bad_srat:
+        bad_srat();
 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 7f54d9f..f71fe4c 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -784,7 +784,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
-  * Caller has to make sure that task->mm is stable (hold task_lock or
-  * it operates on the current).
-  */
--static bool task_will_free_mem(struct task_struct *task)
-+static bool task_will_free_mem(struct task_struct *task, gfp_t gfp_mask)
- {
- 	struct mm_struct *mm = task->mm;
- 	struct task_struct *p;
-@@ -802,10 +802,10 @@ static bool task_will_free_mem(struct task_struct *task)
- 		return false;
- 
- 	/*
--	 * This task has already been drained by the oom reaper so there are
--	 * only small chances it will free some more
-+	 * Select next OOM victim only if existing OOM victims can not satisfy
-+	 * __GFP_NOFAIL allocation even after the OOM reaper reclaimed memory.
- 	 */
--	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-+	if ((gfp_mask & __GFP_NOFAIL) && test_bit(MMF_OOM_SKIP, &mm->flags))
- 		return false;
- 
- 	if (atomic_read(&mm->mm_users) <= 1)
-@@ -938,7 +938,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	 * so it can die quickly
- 	 */
- 	task_lock(p);
--	if (task_will_free_mem(p)) {
-+	if (task_will_free_mem(p, oc->gfp_mask)) {
- 		mark_oom_victim(p);
- 		wake_oom_reaper(p);
- 		task_unlock(p);
-@@ -1092,7 +1092,7 @@ bool out_of_memory(struct oom_control *oc)
- 	 * select it.  The goal is to allow it to allocate so that it may
- 	 * quickly exit and free its memory.
- 	 */
--	if (task_will_free_mem(current)) {
-+	if (task_will_free_mem(current, oc->gfp_mask)) {
- 		mark_oom_victim(current);
- 		wake_oom_reaper(current);
- 		return true;
--- 
-1.8.3.1
+ In addition.  Arm64  will double set node to numa_nodes_parsed after add a memblk
+successfully.  Because numa_add_memblk will perform node_set(*, *).
+
+         if (numa_add_memblk(node, start, end) < 0) {
+                pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
+                       node, (unsigned long long) start,
+                       (unsigned long long) end - 1);
+                goto out_err_bad_srat;
+        }
+
+        node_set(node, numa_nodes_parsed);
+
+Thanks
+zhong jiang
+>> In view of the above problems. I think it need a better improvement.
+>> we add a check here for bypassing the invalid memblk node.
+>>
+>> Signed-off-by: zhong jiang <zhongjiang@huawei.com>
+>> ---
+>>  arch/x86/mm/amdtopology.c | 1 -
+>>  arch/x86/mm/numa.c        | 3 ++-
+>>  drivers/acpi/numa.c       | 5 ++++-
+>>  3 files changed, 6 insertions(+), 3 deletions(-)
+>>
+>> diff --git a/arch/x86/mm/amdtopology.c b/arch/x86/mm/amdtopology.c
+>> index 91f501b..7657042 100644
+>> --- a/arch/x86/mm/amdtopology.c
+>> +++ b/arch/x86/mm/amdtopology.c
+>> @@ -151,7 +151,6 @@ int __init amd_numa_init(void)
+>>  
+>>  		prevbase = base;
+>>  		numa_add_memblk(nodeid, base, limit);
+>> -		node_set(nodeid, numa_nodes_parsed);
+>>  	}
+>>  
+>>  	if (!nodes_weight(numa_nodes_parsed))
+>> diff --git a/arch/x86/mm/numa.c b/arch/x86/mm/numa.c
+>> index 25504d5..8f87f26 100644
+>> --- a/arch/x86/mm/numa.c
+>> +++ b/arch/x86/mm/numa.c
+>> @@ -150,6 +150,8 @@ static int __init numa_add_memblk_to(int nid, u64 start, u64 end,
+>>  	mi->blk[mi->nr_blks].end = end;
+>>  	mi->blk[mi->nr_blks].nid = nid;
+>>  	mi->nr_blks++;
+>> +
+>> +	node_set(nid, numa_nodes_parsed);
+>>  	return 0;
+>>  }
+>>  
+>> @@ -693,7 +695,6 @@ static int __init dummy_numa_init(void)
+>>  	printk(KERN_INFO "Faking a node at [mem %#018Lx-%#018Lx]\n",
+>>  	       0LLU, PFN_PHYS(max_pfn) - 1);
+>>  
+>> -	node_set(0, numa_nodes_parsed);
+>>  	numa_add_memblk(0, 0, PFN_PHYS(max_pfn));
+>>  
+>>  	return 0;
+>> diff --git a/drivers/acpi/numa.c b/drivers/acpi/numa.c
+>> index 917f1cc..f2e33cb 100644
+>> --- a/drivers/acpi/numa.c
+>> +++ b/drivers/acpi/numa.c
+>> @@ -294,7 +294,9 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>>  		goto out_err_bad_srat;
+>>  	}
+>>  
+>> -	node_set(node, numa_nodes_parsed);
+>> +	/* some architecture is likely to ignore a unreasonable node */
+>> +	if (!node_isset(node, numa_nodes_parsed))
+>> +		goto out;
+>>  
+>>  	pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+>>  		node, pxm,
+>> @@ -309,6 +311,7 @@ void __init acpi_numa_slit_init(struct acpi_table_slit *slit)
+>>  
+>>  	max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
+>>  
+>> +out:
+>>  	return 0;
+>>  out_err_bad_srat:
+>>  	bad_srat();
+>> -- 
+>> 1.8.3.1
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
