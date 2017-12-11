@@ -1,88 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id F298E6B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 12:04:55 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id 18so21948136qtt.10
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 09:04:55 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id x15si119628qth.269.2017.12.11.09.04.54
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C69B6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 13:00:21 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id g8so13487764pgs.14
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 10:00:21 -0800 (PST)
+Received: from out0-230.mail.aliyun.com (out0-230.mail.aliyun.com. [140.205.0.230])
+        by mx.google.com with ESMTPS id 1si10224457plw.770.2017.12.11.10.00.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 11 Dec 2017 09:04:54 -0800 (PST)
-Received: from pps.filterd (m0098410.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBBH44vY082761
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 12:04:53 -0500
-Received: from e14.ny.us.ibm.com (e14.ny.us.ibm.com [129.33.205.204])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2eswub0tvf-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 12:04:52 -0500
-Received: from localhost
-	by e14.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Mon, 11 Dec 2017 12:04:51 -0500
-Date: Mon, 11 Dec 2017 09:04:49 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20171207011426.1633-1-ying.huang@intel.com>
- <20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
- <20171208014346.GA8915@bbox>
- <87po7pg4jt.fsf@yhuang-dev.intel.com>
- <20171208082644.GA14361@bbox>
- <87k1xxbohp.fsf@yhuang-dev.intel.com>
- <20171208140909.4e31ba4f1235b638ae68fd5c@linux-foundation.org>
- <87609dvnl0.fsf@yhuang-dev.intel.com>
+        Mon, 11 Dec 2017 10:00:18 -0800 (PST)
+Subject: Re: [RFC PATCH] mm: kasan: suppress soft lockup in slub when
+ !CONFIG_PREEMPT
+References: <1512689407-100663-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171207234056.GF26792@bombadil.infradead.org>
+ <CACT4Y+aB088z8zBuQC8Ff6Sf-2_QHVNRjfVpVjy7Xu8+G5BriQ@mail.gmail.com>
+ <57afe220-036a-591c-2acc-56c5f3c6acef@virtuozzo.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <3fabaa44-4767-bfcf-bf86-f1fce573d5e1@alibaba-inc.com>
+Date: Tue, 12 Dec 2017 02:00:10 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87609dvnl0.fsf@yhuang-dev.intel.com>
-Message-Id: <20171211170449.GS7829@linux.vnet.ibm.com>
+In-Reply-To: <57afe220-036a-591c-2acc-56c5f3c6acef@virtuozzo.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>, Dmitry Vyukov <dvyukov@google.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Alexander Potapenko <glider@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Mon, Dec 11, 2017 at 01:30:03PM +0800, Huang, Ying wrote:
-> Andrew Morton <akpm@linux-foundation.org> writes:
-> 
-> > On Fri, 08 Dec 2017 16:41:38 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
-> >
-> >> > Why do we need srcu here? Is it enough with rcu like below?
-> >> >
-> >> > It might have a bug/room to be optimized about performance/naming.
-> >> > I just wanted to show my intention.
-> >> 
-> >> Yes.  rcu should work too.  But if we use rcu, it may need to be called
-> >> several times to make sure the swap device under us doesn't go away, for
-> >> example, when checking si->max in __swp_swapcount() and
-> >> add_swap_count_continuation().  And I found we need rcu to protect swap
-> >> cache radix tree array too.  So I think it may be better to use one
-> >> calling to srcu_read_lock/unlock() instead of multiple callings to
-> >> rcu_read_lock/unlock().
-> >
-> > Or use stop_machine() ;)  It's very crude but it sure is simple.  Does
-> > anyone have a swapoff-intensive workload?
-> 
-> Sorry, I don't know how to solve the problem with stop_machine().
-> 
-> The problem we try to resolved is that, we have a swap entry, but that
-> swap entry can become invalid because of swappoff between we check it
-> and we use it.  So we need to prevent swapoff to be run between checking
-> and using.
-> 
-> I don't know how to use stop_machine() in swapoff to wait for all users
-> of swap entry to finish.  Anyone can help me on this?
 
-You can think of stop_machine() as being sort of like a reader-writer
-lock.  The readers can be any section of code with preemption disabled,
-and the writer is the function passed to stop_machine().
 
-Users running real-time applications on Linux don't tend to like
-stop_machine() much, but perhaps it is nevertheless the right tool
-for this particular job.
+On 12/8/17 1:16 AM, Andrey Ryabinin wrote:
+> On 12/08/2017 11:26 AM, Dmitry Vyukov wrote:
+>> On Fri, Dec 8, 2017 at 12:40 AM, Matthew Wilcox <willy@infradead.org> wrote:
+>>> On Fri, Dec 08, 2017 at 07:30:07AM +0800, Yang Shi wrote:
+>>>> When running stress test with KASAN enabled, the below softlockup may
+>>>> happen occasionally:
+>>>>
+>>>> NMI watchdog: BUG: soft lockup - CPU#7 stuck for 22s!
+>>>> hardirqs last  enabled at (0): [<          (null)>]      (null)
+>>>> hardirqs last disabled at (0): [] copy_process.part.30+0x5c6/0x1f50
+>>>> softirqs last  enabled at (0): [] copy_process.part.30+0x5c6/0x1f50
+>>>> softirqs last disabled at (0): [<          (null)>]      (null)
+>>>
+>>>> Call Trace:
+>>>>   [] __slab_free+0x19c/0x270
+>>>>   [] ___cache_free+0xa6/0xb0
+>>>>   [] qlist_free_all+0x47/0x80
+>>>>   [] quarantine_reduce+0x159/0x190
+>>>>   [] kasan_kmalloc+0xaf/0xc0
+>>>>   [] kasan_slab_alloc+0x12/0x20
+>>>>   [] kmem_cache_alloc+0xfa/0x360
+>>>>   [] ? getname_flags+0x4f/0x1f0
+>>>>   [] getname_flags+0x4f/0x1f0
+>>>>   [] getname+0x12/0x20
+>>>>   [] do_sys_open+0xf9/0x210
+>>>>   [] SyS_open+0x1e/0x20
+>>>>   [] entry_SYSCALL_64_fastpath+0x1f/0xc2
+>>>
+>>> This feels like papering over a problem.  KASAN only calls
+>>> quarantine_reduce() when it's allowed to block.  Presumably it has
+>>> millions of entries on the free list at this point.  I think the right
+>>> thing to do is for qlist_free_all() to call cond_resched() after freeing
+>>> every N items.
+>>
+>>
+>> Agree. Adding touch_softlockup_watchdog() to a random low-level
+>> function looks like a wrong thing to do.
+>> quarantine_reduce() already has this logic. Look at
+>> QUARANTINE_BATCHES. It's meant to do exactly this -- limit amount of
+>> work in quarantine_reduce() and in quarantine_remove_cache() to
+>> reasonably-sized batches. We could simply increase number of batches
+>> to make them smaller. But it would be good to understand what exactly
+>> happens in this case. Batches should on a par of ~~1MB. Why freeing
+>> 1MB worth of objects (smallest of which is 32b) takes 22 seconds?
+>>
+> 
+> I think the problem here is that kernel 4.9.44-003.ali3000.alios7.x86_64.debug
+> doesn't have 64abdcb24351 ("kasan: eliminate long stalls during quarantine reduction").
+> 
+> We probably should ask that commit to be included in stable, but it would be good to hear
+> a confirmation from Yang that it really helps.
 
-							Thanx, Paul
+Thanks, folks. Yes, my kernel doesn't have this commit. It sounds the 
+commit batches the quarantine to smaller group. I will run some tests 
+against this commit to see if it could help. Reading the code tells me 
+it is likely to help.
+
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
