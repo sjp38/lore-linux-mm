@@ -1,44 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0756B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 10:16:25 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id h4so22323909qtj.0
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 07:16:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o8sor9975916qtf.78.2017.12.11.07.16.23
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7796D6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 11:13:16 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m17so13288486pgu.19
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 08:13:16 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id o3si10092665pld.358.2017.12.11.08.13.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Dec 2017 07:16:23 -0800 (PST)
-Date: Mon, 11 Dec 2017 07:16:21 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH 7/9] workqueue: remove unneeded kallsyms include
-Message-ID: <20171211151621.GF2421075@devbig577.frc2.facebook.com>
-References: <20171208025616.16267-1-sergey.senozhatsky@gmail.com>
- <20171208025616.16267-8-sergey.senozhatsky@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Dec 2017 08:13:15 -0800 (PST)
+Subject: Re: pkeys: Support setting access rights for signal handlers
+References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
+ <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
+ <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
+Date: Mon, 11 Dec 2017 08:13:12 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171208025616.16267-8-sergey.senozhatsky@gmail.com>
+In-Reply-To: <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Rafael Wysocki <rjw@rjwysocki.net>, Len Brown <len.brown@intel.com>, Bjorn Helgaas <bhelgaas@google.com>, Vlastimil Babka <vbabka@suse.cz>, Lai Jiangshan <jiangshanlai@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Fengguang Wu <fengguang.wu@intel.com>, Steven Rostedt <rostedt@goodmis.org>, Petr Mladek <pmladek@suse.com>, LKML <linux-kernel@vger.kernel.org>, linux-pm@vger.kernel.org, linux-pci@vger.kernel.org, linux-mm@kvack.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+To: Florian Weimer <fweimer@redhat.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, Ram Pai <linuxram@us.ibm.com>
 
-On Fri, Dec 08, 2017 at 11:56:14AM +0900, Sergey Senozhatsky wrote:
-> The filw was converted from print_symbol() to %pf some time
-> ago (044c782ce3a901fb "workqueue: fix checkpatch issues").
-> kallsyms does not seem to be needed anymore.
+On 12/09/2017 10:42 PM, Florian Weimer wrote:
+>> My only nit with this is whether it is the *right* interface.  The 
+>> signal vs. XSAVE state thing is pretty x86 specific and I doubt
+>> that this will be the last feature that we encounter that needs
+>> special signal behavior.
 > 
-> Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Cc: Tejun Heo <tj@kernel.org>
-> Cc: Lai Jiangshan <jiangshanlai@gmail.com>
+> The interface is not specific to XSAVE.  To generic code, only the
+> two signal mask manipulation functions are exposed.  And I expect
+> that we're going to need that for other (non-x86) implementations
+> because they will have the same issue because the signal handler
+> behavior will be identical.
 
-Applied to wq/for-4.15-fixes.
+Let's check with the other implementation...
 
-Thanks.
+Ram, this is a question about the signal handler behavior on POWER.  I
+thought you ended up having different behavior in signal handlers than x86.
 
--- 
-tejun
+In any case, I think the question still stands: Do we want this to be
+pkeys-only, or build it so that it can be used for MPX and any future
+XSAVE features that need non-init values when entering a signal handler.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
