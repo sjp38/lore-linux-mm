@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 17FB86B026A
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 16:55:54 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id k23so23643730qtc.14
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 13:55:54 -0800 (PST)
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2105D6B026A
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 16:55:55 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id a19so23395930qtb.22
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 13:55:55 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k66sor10777353qke.147.2017.12.11.13.55.53
+        by mx.google.com with SMTPS id w129sor1994072qkc.21.2017.12.11.13.55.54
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 11 Dec 2017 13:55:53 -0800 (PST)
+        Mon, 11 Dec 2017 13:55:54 -0800 (PST)
 From: Josef Bacik <josef@toxicpanda.com>
-Subject: [PATCH v3 09/10] btrfs: rework end io for extent buffer reads
-Date: Mon, 11 Dec 2017 16:55:34 -0500
-Message-Id: <1513029335-5112-10-git-send-email-josef@toxicpanda.com>
+Subject: [PATCH v3 10/10] btrfs: add NR_METADATA_BYTES accounting
+Date: Mon, 11 Dec 2017 16:55:35 -0500
+Message-Id: <1513029335-5112-11-git-send-email-josef@toxicpanda.com>
 In-Reply-To: <1513029335-5112-1-git-send-email-josef@toxicpanda.com>
 References: <1513029335-5112-1-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
@@ -22,236 +22,36 @@ Cc: Josef Bacik <jbacik@fb.com>
 
 From: Josef Bacik <jbacik@fb.com>
 
-Now that the only thing that keeps eb's alive is io_pages and it's
-refcount we need to hold the eb ref for the entire end io call so we
-don't get it removed out from underneath us.  Also the hooks make no
-sense for us now, so rework this to be cleaner.
+Now that we have these counters, account for the private pages we
+allocate in NR_METADATA_BYTES.
 
 Signed-off-by: Josef Bacik <jbacik@fb.com>
 ---
- fs/btrfs/disk-io.c   | 63 ++++---------------------------------------------
- fs/btrfs/disk-io.h   |  1 +
- fs/btrfs/extent_io.c | 66 +++++++++++++++++++++++++++-------------------------
- 3 files changed, 40 insertions(+), 90 deletions(-)
+ fs/btrfs/extent_io.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index d9d69e181942..1a890f8c78c8 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -755,33 +755,13 @@ static int check_node(struct btrfs_root *root, struct extent_buffer *node)
- 	return ret;
- }
- 
--static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
--				      u64 phy_offset, struct page *page,
--				      u64 start, u64 end, int mirror)
-+int btrfs_extent_buffer_end_read(struct extent_buffer *eb, int mirror)
- {
-+	struct btrfs_fs_info *fs_info = eb->eb_info->fs_info;
-+	struct btrfs_root *root = fs_info->tree_root;
- 	u64 found_start;
- 	int found_level;
--	struct extent_buffer *eb;
--	struct btrfs_root *root;
--	struct btrfs_fs_info *fs_info;
- 	int ret = 0;
--	int reads_done;
--
--	if (!page->private)
--		goto out;
--
--	eb = (struct extent_buffer *)page->private;
--
--	/* the pending IO might have been the only thing that kept this buffer
--	 * in memory.  Make sure we have a ref for all this other checks
--	 */
--	extent_buffer_get(eb);
--	fs_info = eb->eb_info->fs_info;
--	root = fs_info->tree_root;
--
--	reads_done = atomic_dec_and_test(&eb->io_pages);
--	if (!reads_done)
--		goto err;
- 
- 	eb->read_mirror = mirror;
- 	if (test_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags)) {
-@@ -833,45 +813,14 @@ static int btree_readpage_end_io_hook(struct btrfs_io_bio *io_bio,
- 	if (!ret)
- 		set_extent_buffer_uptodate(eb);
- err:
--	if (reads_done &&
--	    test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
-+	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
- 		btree_readahead_hook(eb, ret);
- 
--	if (ret) {
--		/*
--		 * our io error hook is going to dec the io pages
--		 * again, we have to make sure it has something
--		 * to decrement.
--		 *
--		 * TODO: Kill this, we've re-arranged how this works now so we
--		 * don't need to do this io_pages dance.
--		 */
--		atomic_inc(&eb->io_pages);
-+	if (ret)
- 		clear_extent_buffer_uptodate(eb);
--	}
--	if (reads_done) {
--		clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
--		smp_mb__after_atomic();
--		wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
--	}
--	free_extent_buffer(eb);
--out:
- 	return ret;
- }
- 
--static int btree_io_failed_hook(struct page *page, int failed_mirror)
--{
--	struct extent_buffer *eb;
--
--	eb = (struct extent_buffer *)page->private;
--	set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
--	eb->read_mirror = failed_mirror;
--	atomic_dec(&eb->io_pages);
--	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
--		btree_readahead_hook(eb, -EIO);
--	return -EIO;	/* we fixed nothing */
--}
--
- static void end_workqueue_bio(struct bio *bio)
- {
- 	struct btrfs_end_io_wq *end_io_wq = bio->bi_private;
-@@ -4554,9 +4503,7 @@ static int btree_merge_bio_hook(struct page *page, unsigned long offset,
- static const struct extent_io_ops btree_extent_io_ops = {
- 	/* mandatory callbacks */
- 	.submit_bio_hook = btree_submit_bio_hook,
--	.readpage_end_io_hook = btree_readpage_end_io_hook,
- 	.merge_bio_hook = btree_merge_bio_hook,
--	.readpage_io_failed_hook = btree_io_failed_hook,
- 	.set_range_writeback = btrfs_set_range_writeback,
- 	.tree_fs_info = btree_fs_info,
- 
-diff --git a/fs/btrfs/disk-io.h b/fs/btrfs/disk-io.h
-index 7f7c35d6347a..e1f4fef91547 100644
---- a/fs/btrfs/disk-io.h
-+++ b/fs/btrfs/disk-io.h
-@@ -152,6 +152,7 @@ int btree_lock_page_hook(struct page *page, void *data,
- int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
- int __init btrfs_end_io_wq_init(void);
- void btrfs_end_io_wq_exit(void);
-+int btrfs_extent_buffer_end_read(struct extent_buffer *eb, int mirror);
- 
- #ifdef CONFIG_DEBUG_LOCK_ALLOC
- void btrfs_init_lockdep(void);
 diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index bb10dc6f4e41..e11372455fb0 100644
+index e11372455fb0..7536352f424d 100644
 --- a/fs/btrfs/extent_io.c
 +++ b/fs/btrfs/extent_io.c
-@@ -20,6 +20,7 @@
- #include "locking.h"
- #include "rcu-string.h"
- #include "backref.h"
-+#include "disk-io.h"
+@@ -4802,6 +4802,8 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb)
+ 		ClearPagePrivate(page);
+ 		set_page_private(page, 0);
  
- static struct kmem_cache *extent_state_cache;
- static struct kmem_cache *extent_buffer_cache;
-@@ -5360,6 +5361,14 @@ int extent_buffer_uptodate(struct extent_buffer *eb)
- 	return test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
- }
++		mod_node_page_state(page_pgdat(page), NR_METADATA_BYTES,
++				    -(long)PAGE_SIZE);
+ 		/* Once for the page private. */
+ 		put_page(page);
  
-+static void mark_eb_failed(struct extent_buffer *eb, int failed_mirror)
-+{
-+	set_bit(EXTENT_BUFFER_READ_ERR, &eb->bflags);
-+	eb->read_mirror = failed_mirror;
-+	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
-+		btree_readahead_hook(eb, -EIO);
-+}
-+
- static void end_bio_extent_buffer_readpage(struct bio *bio)
- {
- 	struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
-@@ -5368,12 +5377,13 @@ static void end_bio_extent_buffer_readpage(struct bio *bio)
- 	u64 unlock_start = 0, unlock_len = 0;
- 	int mirror_num = io_bio->mirror_num;
- 	int uptodate = !bio->bi_status;
--	int i, ret;
-+	int i;
- 
- 	bio_for_each_segment_all(bvec, bio, i) {
- 		struct page *page = bvec->bv_page;
- 		struct btrfs_eb_info *eb_info;
- 		struct extent_buffer *eb;
-+		int reads_done;
- 
- 		eb = (struct extent_buffer *)page->private;
- 		if (WARN_ON(!eb))
-@@ -5382,41 +5392,33 @@ static void end_bio_extent_buffer_readpage(struct bio *bio)
- 		eb_info = eb->eb_info;
- 		if (!tree)
- 			tree = &eb_info->io_tree;
-+		extent_buffer_get(eb);
-+		reads_done = atomic_dec_and_test(&eb->io_pages);
- 		if (uptodate) {
--			/*
--			 * btree_readpage_end_io_hook doesn't care about
--			 * start/end so just pass 0.  We'll kill this later.
--			 */
--			ret = tree->ops->readpage_end_io_hook(io_bio, 0,
--							      page, 0, 0,
--							      mirror_num);
--			if (ret) {
--				uptodate = 0;
--			} else {
--				u64 start = eb->start;
--				int c, num_pages;
--
--				num_pages = num_extent_pages(eb->start,
--							     eb->len);
--				for (c = 0; c < num_pages; c++) {
--					if (eb->pages[c] == page)
--						break;
--					start += PAGE_SIZE;
--				}
--				clean_io_failure(eb_info->fs_info,
--						 &eb_info->io_failure_tree,
--						 tree, start, page, 0, 0);
-+			u64 start = eb->start;
-+			int c, num_pages;
-+
-+			num_pages = num_extent_pages(eb->start,
-+						     eb->len);
-+			for (c = 0; c < num_pages; c++) {
-+				if (eb->pages[c] == page)
-+					break;
-+				start += PAGE_SIZE;
- 			}
-+			clean_io_failure(eb_info->fs_info,
-+					 &eb_info->io_failure_tree,
-+					 tree, start, page, 0, 0);
+@@ -5081,6 +5083,8 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
+ 			goto free_eb;
  		}
--		/*
--		 * We never fix anything in btree_io_failed_hook.
--		 *
--		 * TODO: rework the io failed hook to not assume we can fix
--		 * anything.
--		 */
-+		if (reads_done && btrfs_extent_buffer_end_read(eb, mirror_num))
-+			uptodate = 0;
- 		if (!uptodate)
--			tree->ops->readpage_io_failed_hook(page, mirror_num);
--
-+			mark_eb_failed(eb, mirror_num);
-+		if (reads_done) {
-+			clear_bit(EXTENT_BUFFER_READING, &eb->bflags);
-+			smp_mb__after_atomic();
-+			wake_up_bit(&eb->bflags, EXTENT_BUFFER_READING);
-+		}
-+		free_extent_buffer(eb);
- 		if (unlock_start == 0) {
- 			unlock_start = eb->start;
- 			unlock_len = PAGE_SIZE;
+ 		attach_extent_buffer_page(eb, p);
++		mod_node_page_state(page_pgdat(p), NR_METADATA_BYTES,
++				    PAGE_SIZE);
+ 		eb->pages[i] = p;
+ 	}
+ again:
 -- 
 2.7.5
 
