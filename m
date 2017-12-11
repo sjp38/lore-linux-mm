@@ -1,103 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D54896B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 18:44:00 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id t65so15963232pfe.22
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 15:44:00 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BADA66B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 18:45:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 73so15991142pfz.11
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 15:45:45 -0800 (PST)
 Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
-        by mx.google.com with ESMTP id x22si10702406pll.43.2017.12.11.15.43.58
+        by mx.google.com with ESMTP id o3si8097377pld.695.2017.12.11.15.45.43
         for <linux-mm@kvack.org>;
-        Mon, 11 Dec 2017 15:43:59 -0800 (PST)
-Date: Tue, 12 Dec 2017 10:36:19 +1100
+        Mon, 11 Dec 2017 15:45:44 -0800 (PST)
+Date: Tue, 12 Dec 2017 10:38:35 +1100
 From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [PATCH v3 06/10] writeback: introduce
- super_operations->write_metadata
-Message-ID: <20171211233619.GQ4094@dastard>
-References: <1513029335-5112-1-git-send-email-josef@toxicpanda.com>
- <1513029335-5112-7-git-send-email-josef@toxicpanda.com>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+Message-ID: <20171211233835.GV5858@dastard>
+References: <fd7130d7-9066-524e-1053-a61eeb27cb36@lge.com>
+ <Pine.LNX.4.44L0.1712081228430.1371-100000@iolanthe.rowland.org>
+ <20171208223654.GP5858@dastard>
+ <1512838818.26342.7.camel@perches.com>
+ <20171211214300.GT5858@dastard>
+ <1513030348.3036.5.camel@perches.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1513029335-5112-7-git-send-email-josef@toxicpanda.com>
+In-Reply-To: <1513030348.3036.5.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josef Bacik <josef@toxicpanda.com>
-Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
+To: Joe Perches <joe@perches.com>
+Cc: Alan Stern <stern@rowland.harvard.edu>, Byungchul Park <byungchul.park@lge.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-On Mon, Dec 11, 2017 at 04:55:31PM -0500, Josef Bacik wrote:
-> From: Josef Bacik <jbacik@fb.com>
+On Mon, Dec 11, 2017 at 02:12:28PM -0800, Joe Perches wrote:
+> On Tue, 2017-12-12 at 08:43 +1100, Dave Chinner wrote:
+> > On Sat, Dec 09, 2017 at 09:00:18AM -0800, Joe Perches wrote:
+> > > On Sat, 2017-12-09 at 09:36 +1100, Dave Chinner wrote:
+> > > > 	1. Using lockdep_set_novalidate_class() for anything other
+> > > > 	than device->mutex will throw checkpatch warnings. Nice. (*)
+> > > []
+> > > > (*) checkpatch.pl is considered mostly harmful round here, too,
+> > > > but that's another rant....
+> > > 
+> > > How so?
+> > 
+> > Short story is that it barfs all over the slightly non-standard
+> > coding style used in XFS.
+> []
+> > This sort of stuff is just lowest-common-denominator noise - great
+> > for new code and/or inexperienced developers, but not for working
+> > with large bodies of existing code with slightly non-standard
+> > conventions.
 > 
-> Now that we have metadata counters in the VM, we need to provide a way to kick
-> writeback on dirty metadata.  Introduce super_operations->write_metadata.  This
-> allows file systems to deal with writing back any dirty metadata we need based
-> on the writeback needs of the system.  Since there is no inode to key off of we
-> need a list in the bdi for dirty super blocks to be added.  From there we can
-> find any dirty sb's on the bdi we are currently doing writeback on and call into
-> their ->write_metadata callback.
+> Completely reasonable.  Thanks.
 > 
-> Signed-off-by: Josef Bacik <jbacik@fb.com>
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> Reviewed-by: Tejun Heo <tj@kernel.org>
-> ---
->  fs/fs-writeback.c                | 72 ++++++++++++++++++++++++++++++++++++----
->  fs/super.c                       |  6 ++++
->  include/linux/backing-dev-defs.h |  2 ++
->  include/linux/fs.h               |  4 +++
->  mm/backing-dev.c                 |  2 ++
->  5 files changed, 80 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
-> index 987448ed7698..fba703dff678 100644
-> --- a/fs/fs-writeback.c
-> +++ b/fs/fs-writeback.c
-> @@ -1479,6 +1479,31 @@ static long writeback_chunk_size(struct bdi_writeback *wb,
->  	return pages;
->  }
->  
-> +static long writeback_sb_metadata(struct super_block *sb,
-> +				  struct bdi_writeback *wb,
-> +				  struct wb_writeback_work *work)
-> +{
-> +	struct writeback_control wbc = {
-> +		.sync_mode		= work->sync_mode,
-> +		.tagged_writepages	= work->tagged_writepages,
-> +		.for_kupdate		= work->for_kupdate,
-> +		.for_background		= work->for_background,
-> +		.for_sync		= work->for_sync,
-> +		.range_cyclic		= work->range_cyclic,
-> +		.range_start		= 0,
-> +		.range_end		= LLONG_MAX,
-> +	};
-> +	long write_chunk;
-> +
-> +	write_chunk = writeback_chunk_size(wb, work);
-> +	wbc.nr_to_write = write_chunk;
-> +	sb->s_op->write_metadata(sb, &wbc);
-> +	work->nr_pages -= write_chunk - wbc.nr_to_write;
-> +
-> +	return write_chunk - wbc.nr_to_write;
+> Do you get many checkpatch submitters for fs/xfs?
 
-Ok, writeback_chunk_size() returns a page count. We've already gone
-through the "metadata is not page sized" dance on the dirty
-accounting side, so how are we supposed to use pages to account for
-metadata writeback?
-
-And, from what I can tell, if work->sync_mode = WB_SYNC_ALL or
-work->tagged_writepages is set, this will basically tell us to flush
-the entire dirty metadata cache because write_chunk will get set to
-LONG_MAX.
-
-IOWs, this would appear to me to change sync() behaviour quite
-dramatically on filesystems where ->write_metadata is implemented.
-That is, instead of leaving all the metadata dirty in memory and
-just forcing the journal to stable storage, filesystems will be told
-to also write back all their dirty metadata before sync() returns,
-even though it is not necessary to provide correct sync()
-semantics....
-
-Mind you, writeback invocation is so convoluted now I could easily
-be mis-interpretting this code, but it does seem to me like this
-code is going to have some unintended behaviours....
+We used to. Not recently, though.
 
 Cheers,
 
