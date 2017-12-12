@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E13636B0270
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:34:59 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w74so51260wmf.0
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:34:59 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C935C6B0271
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:35:00 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id y23so12644534wra.16
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:35:00 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 63si34745wmq.251.2017.12.12.09.34.58
+        by mx.google.com with ESMTPS id s67si47126wme.114.2017.12.12.09.34.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 09:34:58 -0800 (PST)
-Message-Id: <20171212173334.345422294@linutronix.de>
-Date: Tue, 12 Dec 2017 18:32:34 +0100
+        Tue, 12 Dec 2017 09:34:59 -0800 (PST)
+Message-Id: <20171212173334.505986831@linutronix.de>
+Date: Tue, 12 Dec 2017 18:32:36 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch 13/16] x86/ldt: Introduce LDT write fault handler
+Subject: [patch 15/16] x86/ldt: Add VMA management code
 References: <20171212173221.496222173@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline;
- filename=x86-ldt--Introduce-LDT-fault-handler.patch
+Content-Disposition: inline; filename=x86-ldt--Add-VMA-management-code.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -25,114 +24,141 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Thomas Gleixner <tglx@linutronix.de>
 
-When the LDT is mapped RO, the CPU will write fault the first time it uses
-a segment descriptor in order to set the ACCESS bit (for some reason it
-doesn't always observe that it already preset). Catch the fault and set the
-ACCESS bit in the handler.
+Add the VMA management code to LDT which allows to install the LDT as a
+special mapping, like VDSO and uprobes. The mapping is in the user address
+space, but without the usr bit set and read only. Split out for ease of
+review.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/x86/include/asm/mmu_context.h |    7 +++++++
- arch/x86/kernel/ldt.c              |   30 ++++++++++++++++++++++++++++++
- arch/x86/mm/fault.c                |   19 +++++++++++++++++++
- 3 files changed, 56 insertions(+)
+ arch/x86/kernel/ldt.c |  103 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 102 insertions(+), 1 deletion(-)
 
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -76,6 +76,11 @@ static inline void init_new_context_ldt(
- int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
- void ldt_exit_user(struct pt_regs *regs);
- void destroy_context_ldt(struct mm_struct *mm);
-+bool __ldt_write_fault(unsigned long address);
-+static inline bool ldt_is_active(struct mm_struct *mm)
-+{
-+	return mm && mm->context.ldt != NULL;
-+}
- #else	/* CONFIG_MODIFY_LDT_SYSCALL */
- static inline void init_new_context_ldt(struct task_struct *task,
- 					struct mm_struct *mm) { }
-@@ -86,6 +91,8 @@ static inline int ldt_dup_context(struct
- }
- static inline void ldt_exit_user(struct pt_regs *regs) { }
- static inline void destroy_context_ldt(struct mm_struct *mm) { }
-+static inline bool __ldt_write_fault(unsigned long address) { return false; }
-+static inline bool ldt_is_active(struct mm_struct *mm)  { return false; }
- #endif
- 
- static inline void load_mm_ldt(struct mm_struct *mm, struct task_struct *tsk)
 --- a/arch/x86/kernel/ldt.c
 +++ b/arch/x86/kernel/ldt.c
-@@ -82,6 +82,36 @@ static void ldt_install_mm(struct mm_str
- 	mutex_unlock(&mm->context.lock);
+@@ -31,6 +31,7 @@
+ struct ldt_mapping {
+ 	struct ldt_struct		ldts[2];
+ 	unsigned int			ldt_index;
++	unsigned int			ldt_mapped;
+ };
+ 
+ /* After calling this, the LDT is immutable. */
+@@ -208,6 +209,105 @@ bool __ldt_write_fault(unsigned long add
+ 	return true;
  }
  
-+/*
-+ * ldt_write_fault() already checked whether there is an ldt installed in
-+ * __do_page_fault(), so it's safe to access it here because interrupts are
-+ * disabled and any ipi which would change it is blocked until this
-+ * returns.  The underlying page mapping cannot change as long as the ldt
-+ * is the active one in the context.
-+ *
-+ * The fault error code is X86_PF_WRITE | X86_PF_PROT and checked in
-+ * __do_page_fault() already. This happens when a segment is selected and
-+ * the CPU tries to set the accessed bit in desc_struct.type because the
-+ * LDT entries are mapped RO. Set it manually.
-+ */
-+bool __ldt_write_fault(unsigned long address)
++static int ldt_fault(const struct vm_special_mapping *sm,
++		     struct vm_area_struct *vma, struct vm_fault *vmf)
 +{
-+	struct ldt_struct *ldt = current->mm->context.ldt;
-+	unsigned long start, end, entry;
-+	struct desc_struct *desc;
++	struct ldt_mapping *lmap = vma->vm_mm->context.ldt_mapping;
++	struct ldt_struct *ldt = lmap->ldts;
++	pgoff_t pgo = vmf->pgoff;
++	struct page *page;
 +
-+	start = (unsigned long) ldt->entries;
-+	end = start + ldt->nr_entries * LDT_ENTRY_SIZE;
++	if (pgo >= LDT_ENTRIES_PAGES) {
++		pgo -= LDT_ENTRIES_PAGES;
++		ldt++;
++	}
++	if (pgo >= LDT_ENTRIES_PAGES)
++		return VM_FAULT_SIGBUS;
 +
-+	if (address < start || address >= end)
-+		return false;
++	page = ldt->pages[pgo];
++	if (!page)
++		return VM_FAULT_SIGBUS;
++	get_page(page);
++	vmf->page = page;
++	return 0;
++}
 +
-+	desc = (struct desc_struct *) ldt->entries;
-+	entry = (address - start) / LDT_ENTRY_SIZE;
-+	desc[entry].type |= 0x01;
-+	return true;
++static int ldt_mremap(const struct vm_special_mapping *sm,
++		      struct vm_area_struct *new_vma)
++{
++	return -EINVAL;
++}
++
++static void ldt_close(const struct vm_special_mapping *sm,
++		      struct vm_area_struct *vma)
++{
++	struct mm_struct *mm = vma->vm_mm;
++	struct ldt_struct *ldt;
++
++	/*
++	 * Orders against ldt_install().
++	 */
++	mutex_lock(&mm->context.lock);
++	ldt = mm->context.ldt;
++	ldt_install_mm(mm, NULL);
++	cleanup_ldt_struct(ldt);
++	mm->context.ldt_mapping->ldt_mapped = 0;
++	mutex_unlock(&mm->context.lock);
++}
++
++static const struct vm_special_mapping ldt_special_mapping = {
++	.name	= "[ldt]",
++	.fault	= ldt_fault,
++	.mremap	= ldt_mremap,
++	.close	= ldt_close,
++};
++
++static struct vm_area_struct *ldt_alloc_vma(struct mm_struct *mm,
++					    struct ldt_mapping *lmap)
++{
++	unsigned long vm_flags, size;
++	struct vm_area_struct *vma;
++	unsigned long addr;
++
++	size = 2 * LDT_ENTRIES_MAP_SIZE;
++	addr = get_unmapped_area(NULL, TASK_SIZE - PAGE_SIZE, size, 0, 0);
++	if (IS_ERR_VALUE(addr))
++		return ERR_PTR(addr);
++
++	vm_flags = VM_READ | VM_LOCKED | VM_WIPEONFORK | VM_NOUSER | VM_SHARED;
++	vma = _install_special_mapping(mm, addr, size, vm_flags,
++				       &ldt_special_mapping);
++	if (IS_ERR(vma))
++		return vma;
++
++	lmap->ldts[0].entries = (struct desc_struct *) addr;
++	addr += LDT_ENTRIES_MAP_SIZE;
++	lmap->ldts[1].entries = (struct desc_struct *) addr;
++	return vma;
++}
++
++static int ldt_mmap(struct mm_struct *mm, struct ldt_mapping *lmap)
++{
++	struct vm_area_struct *vma;
++	int ret = 0;
++
++	if (down_write_killable(&mm->mmap_sem))
++		return -EINTR;
++	vma = ldt_alloc_vma(mm, lmap);
++	if (IS_ERR(vma)) {
++		ret = PTR_ERR(vma);
++	} else {
++		/*
++		 * The moment mmap_sem() is released munmap() can observe
++		 * the mapping and make it go away through ldt_close(). But
++		 * for now there is mapping.
++		 */
++		lmap->ldt_mapped = 1;
++	}
++	up_write(&mm->mmap_sem);
++	return ret;
 +}
 +
  /* The caller must call finalize_ldt_struct on the result. LDT starts zeroed. */
  static struct ldt_struct *alloc_ldt_struct(unsigned int num_entries)
  {
---- a/arch/x86/mm/fault.c
-+++ b/arch/x86/mm/fault.c
-@@ -1234,6 +1234,22 @@ static inline bool smap_violation(int er
- }
+@@ -350,7 +450,8 @@ static int read_ldt(void __user *ptr, un
  
- /*
-+ * Handles the case where the CPU fails to set the accessed bit in a LDT
-+ * entry because the entries are mapped RO.
-+ */
-+static inline bool ldt_write_fault(unsigned long ecode, unsigned long address,
-+				   struct pt_regs *regs)
-+{
-+	if (!IS_ENABLED(CONFIG_MODIFY_LDT_SYSCALL))
-+		return false;
-+	if (!ldt_is_active(current->mm))
-+		return false;
-+	if (ecode != (X86_PF_WRITE | X86_PF_PROT))
-+		return false;
-+	return __ldt_write_fault(address);
-+}
-+
-+/*
-  * This routine handles page faults.  It determines the address,
-  * and the problem, and then passes it off to one of the appropriate
-  * routines.
-@@ -1305,6 +1321,9 @@ static noinline void
- 	if (unlikely(kprobes_fault(regs)))
- 		return;
+ 	down_read(&mm->context.ldt_usr_sem);
  
-+	if (unlikely(ldt_write_fault(error_code, address, regs)))
-+		return;
-+
- 	if (unlikely(error_code & X86_PF_RSVD))
- 		pgtable_bad(regs, error_code, address);
+-	ldt = mm->context.ldt;
++	/* Might race against vm_unmap, which installs a NULL LDT */
++	ldt = READ_ONCE(mm->context.ldt);
+ 	if (!ldt)
+ 		goto out_unlock;
  
 
 
