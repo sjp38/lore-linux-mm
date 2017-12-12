@@ -1,56 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7474A6B0253
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 14:21:55 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id v69so12852815wrb.3
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 11:21:55 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id r136si165682wmf.262.2017.12.12.11.21.53
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EFE06B0038
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 14:26:34 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id e69so16403624pgc.15
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 11:26:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g10sor4947294pge.372.2017.12.12.11.26.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 11:21:53 -0800 (PST)
-Date: Tue, 12 Dec 2017 20:21:22 +0100 (CET)
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch 13/16] x86/ldt: Introduce LDT write fault handler
-In-Reply-To: <CA+55aFwgGDa_JfZZPoaYtw5yE1oYnn1+0t51D=WU8a7__1Lauw@mail.gmail.com>
-Message-ID: <alpine.DEB.2.20.1712122017100.2289@nanos>
-References: <20171212173221.496222173@linutronix.de> <20171212173334.345422294@linutronix.de> <CA+55aFwgGDa_JfZZPoaYtw5yE1oYnn1+0t51D=WU8a7__1Lauw@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+        (Google Transport Security);
+        Tue, 12 Dec 2017 11:26:33 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [patch 11/16] x86/ldt: Force access bit for CS/SS
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <CA+55aFwzkdB7FoVcmyqBvHu2HyE+pBe_KEgN5G3KJx8ZCGW_jQ@mail.gmail.com>
+Date: Tue, 12 Dec 2017 11:26:30 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <BF0E88FD-9438-4ABF-82BD-AA634F957C3D@amacapital.net>
+References: <20171212173221.496222173@linutronix.de> <20171212173334.176469949@linutronix.de> <CA+55aFwzkdB7FoVcmyqBvHu2HyE+pBe_KEgN5G3KJx8ZCGW_jQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>
 
-On Tue, 12 Dec 2017, Linus Torvalds wrote:
 
-> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > From: Thomas Gleixner <tglx@linutronix.de>
-> >
-> > When the LDT is mapped RO, the CPU will write fault the first time it uses
-> > a segment descriptor in order to set the ACCESS bit (for some reason it
-> > doesn't always observe that it already preset). Catch the fault and set the
-> > ACCESS bit in the handler.
-> 
-> This really scares me.
-> 
-> We use segments in some critical code in the kernel, like the whole
-> percpu data etc. Stuff that definitely shouldn't fault.
-> 
-> Yes, those segments should damn well be already marked accessed when
-> the segment is loaded, but apparently that isn't reliable.
 
-That has nothing to do with the user installed LDT. The kernel does not use
-and rely on LDT at all.
+> On Dec 12, 2017, at 11:05 AM, Linus Torvalds <torvalds@linux-foundation.or=
+g> wrote:
+>=20
+>> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wro=
+te:
+>>=20
+>> There is one exception; IRET will immediately load CS/SS and unrecoverabl=
+y
+>> #GP. To avoid this issue access the LDT descriptors used by CS/SS before
+>> the IRET to userspace.
+>=20
+> Ok, so the other patch made me nervous, this just makes me go "Hell no!".
+>=20
+> This is exactly the kind of "now we get traps in random microcode
+> places that have never been tested" kind of thing that I was talking
+> about.
+>=20
+> Why is the iret exception unrecoverable anyway? Does anybody even know?
+>=20
 
-The only critical interaction is the return to user path (user CS/SS) and
-we made sure with the LAR touching that these are precached in the CPU
-before we go into fragile exit code. Luto has some concerns
-vs. load_gs[_index] and we'll certainly look into that some more.
+Weird microcode shit aside, a fault on IRET will return to kernel code with k=
+ernel GS, and then the next time we enter the kernel we're backwards.  We co=
+uld fix idtentry to get this right, but the code is already tangled enough.
 
-Thanks,
+This series is full of landmines, I think.  My latest patch set has a fully f=
+unctional LDT with PTI on, and the only thing particularly scary about it is=
+ that it fiddles with page tables.  Other than that, there's no VMA magic, n=
+o RO magic, and no microcode magic.  And the LDT is still normal kernel memo=
+ry, so we can ignore a whole pile of potential attacks.=20
 
-	tglx
+Also, how does it make any sense to have a cached descriptor that's not acce=
+ssed?  Xen PV does weird LDT page fault shit, and is works, so I suspect we'=
+re just misunderstanding something.  The VMX spec kind of documents this...
+
+>                    Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
