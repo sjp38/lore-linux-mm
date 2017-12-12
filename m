@@ -1,23 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 22F016B026E
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:34:56 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id i83so42013wma.4
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:34:56 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id ADCCC6B026F
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:34:59 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id s41so12480007wrc.22
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:34:59 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id l9si12892195wrh.359.2017.12.12.09.34.54
+        by mx.google.com with ESMTPS id u83si39221wmg.199.2017.12.12.09.34.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 09:34:54 -0800 (PST)
-Message-Id: <20171212173333.510281767@linutronix.de>
-Date: Tue, 12 Dec 2017 18:32:24 +0100
+        Tue, 12 Dec 2017 09:34:58 -0800 (PST)
+Message-Id: <20171212173334.424401309@linutronix.de>
+Date: Tue, 12 Dec 2017 18:32:35 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch 03/16] x86/ldt: Prevent ldt inheritance on exec
+Subject: [patch 14/16] x86/ldt: Prepare for VMA mapping
 References: <20171212173221.496222173@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline;
- filename=x86-ldt--Prevent-ldt-inheritance-on-exec.patch
+Content-Disposition: inline; filename=x86-ldt--Prepare-for-VMA-mapping.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -25,134 +24,199 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Thomas Gleixner <tglx@linutronix.de>
 
-The LDT is inheritet independent of fork or exec, but that makes no sense
-at all because exec is supposed to start the process clean.
-
-The reason why this happens is that init_new_context_ldt() is called from
-init_new_context() which obviously needs to be called for both fork() and
-exec().
-
-It would be surprising if anything relies on that behaviour, so it seems to
-be safe to remove that misfeature.
-
-Split the context initialization into two parts. Clear the ldt pointer and
-initialize the mutex from the general context init and move the LDT
-duplication to arch_dup_mmap() which is only called on fork().
+Implement that infrastructure to manage LDT information with backing
+pages. Preparatory patch for VMA based LDT mapping. Split out for ease of
+review.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/x86/include/asm/mmu_context.h    |   21 ++++++++++++++-------
- arch/x86/kernel/ldt.c                 |   18 +++++-------------
- tools/testing/selftests/x86/ldt_gdt.c |    9 +++------
- 3 files changed, 22 insertions(+), 26 deletions(-)
+ arch/x86/include/asm/mmu.h         |    3 +
+ arch/x86/include/asm/mmu_context.h |    9 ++-
+ arch/x86/kernel/ldt.c              |  107 ++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 116 insertions(+), 3 deletions(-)
 
+--- a/arch/x86/include/asm/mmu.h
++++ b/arch/x86/include/asm/mmu.h
+@@ -7,6 +7,8 @@
+ #include <linux/mutex.h>
+ #include <linux/atomic.h>
+ 
++struct ldt_mapping;
++
+ /*
+  * x86 has arch-specific MMU state beyond what lives in mm_struct.
+  */
+@@ -29,6 +31,7 @@ typedef struct {
+ 
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+ 	struct rw_semaphore	ldt_usr_sem;
++	struct ldt_mapping	*ldt_mapping;
+ 	struct ldt_struct	*ldt;
+ #endif
+ 
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -57,11 +57,17 @@ struct ldt_struct {
+@@ -42,6 +42,8 @@ static inline void load_mm_cr4(struct mm
+ #include <asm/ldt.h>
+ 
+ #define LDT_ENTRIES_MAP_SIZE	(LDT_ENTRIES * LDT_ENTRY_SIZE)
++#define LDT_ENTRIES_PAGES	(LDT_ENTRIES_MAP_SIZE / PAGE_SIZE)
++#define LDT_ENTRIES_PER_PAGE	(PAGE_SIZE / LDT_ENTRY_SIZE)
+ 
  /*
-  * Used for LDT copy/destruction.
-  */
--int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
-+static inline void init_new_context_ldt(struct mm_struct *mm)
-+{
-+	mm->context.ldt = NULL;
-+	init_rwsem(&mm->context.ldt_usr_sem);
-+}
-+int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
- void destroy_context_ldt(struct mm_struct *mm);
- #else	/* CONFIG_MODIFY_LDT_SYSCALL */
--static inline int init_new_context_ldt(struct task_struct *tsk,
--				       struct mm_struct *mm)
-+static inline void init_new_context_ldt(struct mm_struct *mm) { }
-+static inline int ldt_dup_context(struct mm_struct *oldmm,
-+				  struct mm_struct *mm)
- {
- 	return 0;
- }
-@@ -137,15 +143,16 @@ static inline int init_new_context(struc
- 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
- 	atomic64_set(&mm->context.tlb_gen, 0);
+  * ldt_structs can be allocated, used, and freed, but they are never
+@@ -54,8 +56,10 @@ struct ldt_struct {
+ 	 * call gates.  On native, we could merge the ldt_struct and LDT
+ 	 * allocations, but it's not worth trying to optimize.
+ 	 */
+-	struct desc_struct *entries;
+-	unsigned int nr_entries;
++	struct desc_struct	*entries;
++	struct page		*pages[LDT_ENTRIES_PAGES];
++	unsigned int		nr_entries;
++	unsigned int		pages_allocated;
+ };
  
--	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
-+#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
- 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
- 		/* pkey 0 is the default and always allocated */
- 		mm->context.pkey_allocation_map = 0x1;
- 		/* -1 means unallocated or invalid */
- 		mm->context.execute_only_pkey = -1;
- 	}
--	#endif
--	return init_new_context_ldt(tsk, mm);
-+#endif
-+	init_new_context_ldt(mm);
-+	return 0;
- }
- static inline void destroy_context(struct mm_struct *mm)
+ /*
+@@ -65,6 +69,7 @@ static inline void init_new_context_ldt(
+ 					struct mm_struct *mm)
  {
-@@ -181,7 +188,7 @@ do {						\
- static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
- {
- 	paravirt_arch_dup_mmap(oldmm, mm);
--	return 0;
-+	return ldt_dup_context(oldmm, mm);
- }
- 
- static inline void arch_exit_mmap(struct mm_struct *mm)
+ 	mm->context.ldt = NULL;
++	mm->context.ldt_mapping = NULL;
+ 	init_rwsem(&mm->context.ldt_usr_sem);
+ 	/*
+ 	 * Set the TIF flag unconditonally as in ldt_dup_context() the new
 --- a/arch/x86/kernel/ldt.c
 +++ b/arch/x86/kernel/ldt.c
-@@ -131,28 +131,20 @@ static void free_ldt_struct(struct ldt_s
+@@ -28,6 +28,11 @@
+ #include <asm/mmu_context.h>
+ #include <asm/syscalls.h>
+ 
++struct ldt_mapping {
++	struct ldt_struct		ldts[2];
++	unsigned int			ldt_index;
++};
++
+ /* After calling this, the LDT is immutable. */
+ static void finalize_ldt_struct(struct ldt_struct *ldt)
+ {
+@@ -82,6 +87,97 @@ static void install_ldt(struct mm_struct
+ 	mutex_unlock(&mm->context.lock);
+ }
+ 
++static void ldt_free_pages(struct ldt_struct *ldt)
++{
++	int i;
++
++	for (i = 0; i < ldt->pages_allocated; i++)
++		__free_page(ldt->pages[i]);
++}
++
++static void ldt_free_lmap(struct ldt_mapping *lmap)
++{
++	if (!lmap)
++		return;
++	ldt_free_pages(&lmap->ldts[0]);
++	ldt_free_pages(&lmap->ldts[1]);
++	kfree(lmap);
++}
++
++static int ldt_alloc_pages(struct ldt_struct *ldt, unsigned int nentries)
++{
++	unsigned int npages, idx;
++
++	npages = DIV_ROUND_UP(nentries * LDT_ENTRY_SIZE, PAGE_SIZE);
++
++	for (idx = ldt->pages_allocated; idx < npages; idx++) {
++		if (WARN_ON_ONCE(ldt->pages[idx]))
++			continue;
++
++		ldt->pages[idx] = alloc_page(GFP_KERNEL | __GFP_ZERO);
++		if (!ldt->pages[idx])
++			return -ENOMEM;
++
++		ldt->pages_allocated++;
++	}
++	return 0;
++}
++
++static struct ldt_mapping *ldt_alloc_lmap(struct mm_struct *mm,
++					  unsigned int nentries)
++{
++	struct ldt_mapping *lmap = kzalloc(sizeof(*lmap), GFP_KERNEL);
++
++	if (!lmap)
++		return ERR_PTR(-ENOMEM);
++
++	if (ldt_alloc_pages(&lmap->ldts[0], nentries)) {
++		ldt_free_lmap(lmap);
++		return ERR_PTR(-ENOMEM);
++	}
++	return lmap;
++}
++
++static void ldt_set_entry(struct ldt_struct *ldt, struct desc_struct *ldtdesc,
++			  unsigned int offs)
++{
++	unsigned int dstidx;
++
++	offs *= LDT_ENTRY_SIZE;
++	dstidx = offs / PAGE_SIZE;
++	offs %= PAGE_SIZE;
++	memcpy(page_address(ldt->pages[dstidx]) + offs, ldtdesc,
++	       sizeof(*ldtdesc));
++}
++
++static void ldt_clone_entries(struct ldt_struct *dst, struct ldt_struct *src,
++			      unsigned int nent)
++{
++	unsigned long tocopy;
++	unsigned int i;
++
++	for (i = 0, tocopy = nent * LDT_ENTRY_SIZE; tocopy; i++) {
++		unsigned long n = min(PAGE_SIZE, tocopy);
++
++		memcpy(page_address(dst->pages[i]),
++		       page_address(src->pages[i]), n);
++		tocopy -= n;
++	}
++}
++
++static void cleanup_ldt_struct(struct ldt_struct *ldt)
++{
++	static struct desc_struct zero_desc;
++	unsigned int i;
++
++	if (!ldt)
++		return;
++	paravirt_free_ldt(ldt->entries, ldt->nr_entries);
++	for (i = 0; i < ldt->nr_entries; i++)
++		ldt_set_entry(ldt, &zero_desc, i);
++	ldt->nr_entries = 0;
++}
++
+ /*
+  * ldt_write_fault() already checked whether there is an ldt installed in
+  * __do_page_fault(), so it's safe to access it here because interrupts are
+@@ -202,8 +298,17 @@ int ldt_dup_context(struct mm_struct *ol
+  */
+ void destroy_context_ldt(struct mm_struct *mm)
+ {
+-	free_ldt_struct(mm->context.ldt);
++	struct ldt_mapping *lmap = mm->context.ldt_mapping;
++	struct ldt_struct *ldt = mm->context.ldt;
++
++	free_ldt_struct(ldt);
+ 	mm->context.ldt = NULL;
++
++	if (!lmap)
++		return;
++
++	mm->context.ldt_mapping = NULL;
++	ldt_free_lmap(lmap);
  }
  
  /*
-- * we do not have to muck with descriptors here, that is
-- * done in switch_mm() as needed.
-+ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
-+ * the new task is not running, so nothing can be installed.
-  */
--int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
-+int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
- {
- 	struct ldt_struct *new_ldt;
--	struct mm_struct *old_mm;
- 	int retval = 0;
- 
--	init_rwsem(&mm->context.ldt_usr_sem);
--
--	old_mm = current->mm;
--	if (!old_mm) {
--		mm->context.ldt = NULL;
-+	if (!old_mm)
- 		return 0;
--	}
- 
- 	mutex_lock(&old_mm->context.lock);
--	if (!old_mm->context.ldt) {
--		mm->context.ldt = NULL;
-+	if (!old_mm->context.ldt)
- 		goto out_unlock;
--	}
- 
- 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
- 	if (!new_ldt) {
---- a/tools/testing/selftests/x86/ldt_gdt.c
-+++ b/tools/testing/selftests/x86/ldt_gdt.c
-@@ -627,13 +627,10 @@ static void do_multicpu_tests(void)
- static int finish_exec_test(void)
- {
- 	/*
--	 * In a sensible world, this would be check_invalid_segment(0, 1);
--	 * For better or for worse, though, the LDT is inherited across exec.
--	 * We can probably change this safely, but for now we test it.
-+	 * Older kernel versions did inherit the LDT on exec() which is
-+	 * wrong because exec() starts from a clean state.
- 	 */
--	check_valid_segment(0, 1,
--			    AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB,
--			    42, true);
-+	check_invalid_segment(0, 1);
- 
- 	return nerrs ? 1 : 0;
- }
 
 
 --
