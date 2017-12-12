@@ -1,75 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 342636B0069
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:22:53 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id 200so16209868pge.12
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:22:53 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id u7sor1713899plr.123.2017.12.12.10.22.51
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 783486B026E
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:25:55 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id z142so401728itc.6
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:25:55 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id g9si133248itg.95.2017.12.12.10.25.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Dec 2017 10:22:52 -0800 (PST)
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (1.0)
-Subject: Re: [patch 11/16] x86/ldt: Force access bit for CS/SS
-From: Andy Lutomirski <luto@amacapital.net>
-In-Reply-To: <CALCETrVmFSVqDGrH1K+Qv=svPTP3E6maVb5T2feyDNRkKfDVKA@mail.gmail.com>
-Date: Tue, 12 Dec 2017 10:22:48 -0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <C3141266-5522-4B5E-A0CE-65523F598F6D@amacapital.net>
-References: <20171212173221.496222173@linutronix.de> <20171212173334.176469949@linutronix.de> <CALCETrX+d+5COyWX1gDxi3gX93zFuq79UE+fhs27+ySq85j3+Q@mail.gmail.com> <20171212180918.lc5fdk5jyzwmrcxq@hirez.programming.kicks-ass.net> <CALCETrVmFSVqDGrH1K+Qv=svPTP3E6maVb5T2feyDNRkKfDVKA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Dec 2017 10:25:54 -0800 (PST)
+Date: Tue, 12 Dec 2017 19:25:37 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171212182537.jfyoch3t2pe2sds4@hirez.programming.kicks-ass.net>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
+ <20171212180509.iewpmzdhvsusk2nk@hirez.programming.kicks-ass.net>
+ <CALCETrXTYY2oDSNXapFPX5z=dgZ5ievemoxupO6uD_88h5b90A@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALCETrXTYY2oDSNXapFPX5z=dgZ5ievemoxupO6uD_88h5b90A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
+On Tue, Dec 12, 2017 at 10:06:51AM -0800, Andy Lutomirski wrote:
+> On Tue, Dec 12, 2017 at 10:05 AM, Peter Zijlstra <peterz@infradead.org> wrote:
 
+> > gup would find the page. These patches do in fact rely on that through
+> > the populate things.
+> >
+> 
+> Blech.  So you can write(2) from the LDT to a file and you can even
+> sendfile it, perhaps. 
 
-> On Dec 12, 2017, at 10:10 AM, Andy Lutomirski <luto@kernel.org> wrote:
->=20
->> On Tue, Dec 12, 2017 at 10:09 AM, Peter Zijlstra <peterz@infradead.org> w=
-rote:
->>> On Tue, Dec 12, 2017 at 10:03:02AM -0800, Andy Lutomirski wrote:
->>> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wr=
-ote:
->>=20
->>>> @@ -171,6 +172,9 @@ static void exit_to_usermode_loop(struct
->>>>                /* Disable IRQs and retry */
->>>>                local_irq_disable();
->>>>=20
->>>> +               if (cached_flags & _TIF_LDT)
->>>> +                       ldt_exit_user(regs);
->>>=20
->>> Nope.  To the extent that this code actually does anything (which it
->>> shouldn't since you already forced the access bit),
->>=20
->> Without this; even with the access bit set; IRET will go wobbly and
->> we'll #GP on the user-space side. Try it ;-)
->=20
-> Maybe later.
->=20
-> But that means that we need Intel and AMD to confirm WTF is going on
-> before this blows up even with LAR on some other CPU.
->=20
->>=20
->>> it's racy against
->>> flush_ldt() from another thread, and that race will be exploitable for
->>> privilege escalation.  It needs to be outside the loopy part.
->>=20
->> The flush_ldt (__ldt_install after these patches) would re-set the TIF
->> flag. But sure, we can move this outside the loop I suppose.
+Hmm, indeed.. I suppose I could go fix that. But how bad is it to leak
+the LDT contents?
 
-Also, why is LAR deferred to user exit?  And I thought that LAR didn't set t=
-he accessed bit.
+What would be far worse of course is if we could read(2) data into the
+ldt, I'll look into that.
 
-If I had to guess, I'd guess that LAR is actually generating a read fault an=
-d forcing the pagetables to get populated.  If so, then it means the VMA cod=
-e isn't quite right, or you're susceptible to failures under memory pressure=
-.
+> What happens if it's get_user_page()'d when
+> modify_ldt() wants to free it?
 
-Now maybe LAR will repopulate the PTE every time if you were to never clear i=
-t, but ick.=
+modify_ldt should never free pages, we only ever free pages when we
+destroy the mm.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
