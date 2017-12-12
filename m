@@ -1,134 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A88E56B0033
-	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 19:23:38 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id t9so14220170pgu.1
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 16:23:38 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r29sor4350541pgn.134.2017.12.11.16.23.36
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77D2D6B0033
+	for <linux-mm@kvack.org>; Mon, 11 Dec 2017 20:12:26 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id q186so14242625pga.23
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 17:12:26 -0800 (PST)
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id w12si10784942pld.479.2017.12.11.17.12.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Dec 2017 16:23:36 -0800 (PST)
-From: john.hubbard@gmail.com
-Subject: [PATCH v5] mmap.2: MAP_FIXED updated documentation
-Date: Mon, 11 Dec 2017 16:23:31 -0800
-Message-Id: <20171212002331.6838-1-jhubbard@nvidia.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 11 Dec 2017 17:12:24 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap operations
+References: <20171207011426.1633-1-ying.huang@intel.com>
+	<20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
+	<20171208014346.GA8915@bbox> <87po7pg4jt.fsf@yhuang-dev.intel.com>
+	<20171208082644.GA14361@bbox> <87k1xxbohp.fsf@yhuang-dev.intel.com>
+	<20171208140909.4e31ba4f1235b638ae68fd5c@linux-foundation.org>
+	<87609dvnl0.fsf@yhuang-dev.intel.com>
+	<20171211170449.GS7829@linux.vnet.ibm.com>
+Date: Tue, 12 Dec 2017 09:12:20 +0800
+In-Reply-To: <20171211170449.GS7829@linux.vnet.ibm.com> (Paul E. McKenney's
+	message of "Mon, 11 Dec 2017 09:04:49 -0800")
+Message-ID: <87374grbpn.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michael Kerrisk <mtk.manpages@gmail.com>
-Cc: linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@suse.com>, Pavel Machek <pavel@ucw.cz>, John Hubbard <jhubbard@nvidia.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-From: John Hubbard <jhubbard@nvidia.com>
+Hi, Pual,
 
-    -- Expand the documentation to discuss the hazards in
-       enough detail to allow avoiding them.
+"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> writes:
 
-    -- Mention the upcoming MAP_FIXED_SAFE flag.
+> On Mon, Dec 11, 2017 at 01:30:03PM +0800, Huang, Ying wrote:
+>> Andrew Morton <akpm@linux-foundation.org> writes:
+>> 
+>> > On Fri, 08 Dec 2017 16:41:38 +0800 "Huang\, Ying" <ying.huang@intel.com> wrote:
+>> >
+>> >> > Why do we need srcu here? Is it enough with rcu like below?
+>> >> >
+>> >> > It might have a bug/room to be optimized about performance/naming.
+>> >> > I just wanted to show my intention.
+>> >> 
+>> >> Yes.  rcu should work too.  But if we use rcu, it may need to be called
+>> >> several times to make sure the swap device under us doesn't go away, for
+>> >> example, when checking si->max in __swp_swapcount() and
+>> >> add_swap_count_continuation().  And I found we need rcu to protect swap
+>> >> cache radix tree array too.  So I think it may be better to use one
+>> >> calling to srcu_read_lock/unlock() instead of multiple callings to
+>> >> rcu_read_lock/unlock().
+>> >
+>> > Or use stop_machine() ;)  It's very crude but it sure is simple.  Does
+>> > anyone have a swapoff-intensive workload?
+>> 
+>> Sorry, I don't know how to solve the problem with stop_machine().
+>> 
+>> The problem we try to resolved is that, we have a swap entry, but that
+>> swap entry can become invalid because of swappoff between we check it
+>> and we use it.  So we need to prevent swapoff to be run between checking
+>> and using.
+>> 
+>> I don't know how to use stop_machine() in swapoff to wait for all users
+>> of swap entry to finish.  Anyone can help me on this?
+>
+> You can think of stop_machine() as being sort of like a reader-writer
+> lock.  The readers can be any section of code with preemption disabled,
+> and the writer is the function passed to stop_machine().
+>
+> Users running real-time applications on Linux don't tend to like
+> stop_machine() much, but perhaps it is nevertheless the right tool
+> for this particular job.
 
-    -- Enhance the alignment requirement slightly.
+Thanks a lot for explanation!  Now I understand this.
 
-CC: Michael Ellerman <mpe@ellerman.id.au>
-CC: Jann Horn <jannh@google.com>
-CC: Matthew Wilcox <willy@infradead.org>
-CC: Michal Hocko <mhocko@kernel.org>
-CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
-CC: Cyril Hrubis <chrubis@suse.cz>
-CC: Michal Hocko <mhocko@suse.com>
-CC: Pavel Machek <pavel@ucw.cz>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
+Another question, for this specific problem, I think both stop_machine()
+based solution and rcu_read_lock/unlock() + synchronize_rcu() based
+solution work.  If so, what is the difference between them?  I guess rcu
+based solution will be a little better for real-time applications?  So
+what is the advantage of stop_machine() based solution?
 
-Changes since v4:
-
-    -- v2 ("mmap.2: MAP_FIXED is no longer discouraged") was applied already,
-       so v5 is a merge, including rewording of the paragraph transitions.
-
-    -- We seem to have consensus about what to say about alignment
-       now, and this includes that new wording.
-
-Changes since v3:
-
-    -- Removed the "how to use this safely" part, and
-       the SHMLBA part, both as a result of Michal Hocko's
-       review.
-
-    -- A few tiny wording fixes, at the not-quite-typo level.
-
-Changes since v2:
-
-    -- Fixed up the "how to use safely" example, in response
-       to Mike Rapoport's review.
-
-    -- Changed the alignment requirement from system page
-       size, to SHMLBA. This was inspired by (but not yet
-       recommended by) Cyril Hrubis' review.
-
-    -- Formatting: underlined /proc/<pid>/maps
-
-Changes since v1:
-
-    -- Covered topics recommended by Matthew Wilcox
-       and Jann Horn, in their recent review: the hazards
-       of overwriting pre-exising mappings, and some notes
-       about how to use MAP_FIXED safely.
-
-    -- Rewrote the commit description accordingly.
-
- man2/mmap.2 | 32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
-
-diff --git a/man2/mmap.2 b/man2/mmap.2
-index a5a8eb47a..400cfda2d 100644
---- a/man2/mmap.2
-+++ b/man2/mmap.2
-@@ -212,8 +212,9 @@ Don't interpret
- .I addr
- as a hint: place the mapping at exactly that address.
- .I addr
--must be a multiple of the page size.
--If the memory region specified by
-+must be suitably aligned: for most architectures a multiple of page
-+size is sufficient; however, some architectures may impose additional
-+restrictions. If the memory region specified by
- .I addr
- and
- .I len
-@@ -226,6 +227,33 @@ Software that aspires to be portable should use this option with care, keeping
- in mind that the exact layout of a process' memory map is allowed to change
- significantly between kernel versions, C library versions, and operating system
- releases.
-+.IP
-+Furthermore, this option is extremely hazardous (when used on its own), because
-+it forcibly removes pre-existing mappings, making it easy for a multi-threaded
-+process to corrupt its own address space.
-+.IP
-+For example, thread A looks through
-+.I /proc/<pid>/maps
-+and locates an available
-+address range, while thread B simultaneously acquires part or all of that same
-+address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
-+the mapping that thread B created.
-+.IP
-+Thread B need not create a mapping directly; simply making a library call
-+that, internally, uses
-+.I dlopen(3)
-+to load some other shared library, will
-+suffice. The dlopen(3) call will map the library into the process's address
-+space. Furthermore, almost any library call may be implemented using this
-+technique.
-+Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-+(http://www.linux-pam.org).
-+.IP
-+Newer kernels
-+(Linux 4.16 and later) have a
-+.B MAP_FIXED_SAFE
-+option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-+should be preferred over MAP_FIXED.
- .TP
- .B MAP_GROWSDOWN
- This flag is used for stacks.
--- 
-2.15.1
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
