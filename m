@@ -1,147 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E006B0069
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 02:55:56 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id c82so5679513wme.8
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 23:55:56 -0800 (PST)
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B821B6B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 03:11:30 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id w7so17204076pfd.4
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 00:11:30 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x9si11879539wrx.93.2017.12.11.23.55.54
+        by mx.google.com with ESMTPS id p33si11336193pld.545.2017.12.12.00.11.28
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 11 Dec 2017 23:55:54 -0800 (PST)
-Date: Tue, 12 Dec 2017 08:55:50 +0100
+        Tue, 12 Dec 2017 00:11:29 -0800 (PST)
+Date: Tue, 12 Dec 2017 09:11:26 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v5] mmap.2: MAP_FIXED updated documentation
-Message-ID: <20171212075550.GI4779@dhcp22.suse.cz>
-References: <20171212002331.6838-1-jhubbard@nvidia.com>
+Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
+Message-ID: <20171212081126.GK4779@dhcp22.suse.cz>
+References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
+ <20171129121740.f6drkbktc43l5ib6@dhcp22.suse.cz>
+ <4b840074-cb5f-3c10-d65b-916bc02fb1ee@intel.com>
+ <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
+ <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
+ <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
+ <9cd6cc9f-252a-3c6f-2f1f-e39d4ec0457b@intel.com>
+ <20171208084755.GS20234@dhcp22.suse.cz>
+ <f082f521-44a2-0585-3435-63dab24efbb7@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20171212002331.6838-1-jhubbard@nvidia.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <f082f521-44a2-0585-3435-63dab24efbb7@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: john.hubbard@gmail.com
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Pavel Machek <pavel@ucw.cz>, John Hubbard <jhubbard@nvidia.com>
+To: kemi <kemi.wang@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Mon 11-12-17 16:23:31, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Tue 12-12-17 10:05:26, kemi wrote:
 > 
->     -- Expand the documentation to discuss the hazards in
->        enough detail to allow avoiding them.
 > 
->     -- Mention the upcoming MAP_FIXED_SAFE flag.
+> On 2017a1'12ae??08ae?JPY 16:47, Michal Hocko wrote:
+> > On Fri 08-12-17 16:38:46, kemi wrote:
+> >>
+> >>
+> >> On 2017a1'11ae??30ae?JPY 17:45, Michal Hocko wrote:
+> >>> On Thu 30-11-17 17:32:08, kemi wrote:
+> >>
+> >> After thinking about how to optimize our per-node stats more gracefully, 
+> >> we may add u64 vm_numa_stat_diff[] in struct per_cpu_nodestat, thus,
+> >> we can keep everything in per cpu counter and sum them up when read /proc
+> >> or /sys for numa stats. 
+> >> What's your idea for that? thanks
+> > 
+> > I would like to see a strong argument why we cannot make it a _standard_
+> > node counter.
+> > 
 > 
->     -- Enhance the alignment requirement slightly.
+> all right. 
+> This issue is first reported and discussed in 2017 MM summit, referred to
+> the topic "Provoking and fixing memory bottlenecks -Focused on the page 
+> allocator presentation" presented by Jesper.
 > 
-> CC: Michael Ellerman <mpe@ellerman.id.au>
-> CC: Jann Horn <jannh@google.com>
-> CC: Matthew Wilcox <willy@infradead.org>
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> CC: Cyril Hrubis <chrubis@suse.cz>
-> CC: Michal Hocko <mhocko@suse.com>
-> CC: Pavel Machek <pavel@ucw.cz>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit
+> 2017-JesperBrouer.pdf (slide 15/16)
+> 
+> As you know, page allocator is too slow and has becomes a bottleneck
+> in high-speed network.
+> Jesper also showed some data in that presentation: with micro benchmark 
+> stresses order-0 fast path(per CPU pages), *32%* extra CPU cycles cost 
+> (143->97) comes from CONFIG_NUMA. 
+> 
+> When I took a look at this issue, I reproduced this issue and got a
+> similar result to Jesper's. Furthermore, with the help from Jesper, 
+> the overhead is root caused and the real cause of this overhead comes
+> from an extra level of function calls such as zone_statistics() (*10%*,
+> nearly 1/3, including __inc_numa_state), policy_zonelist, get_task_policy(),
+> policy_nodemask and etc (perf profiling cpu cycles).  zone_statistics() 
+> is the biggest one introduced by CONFIG_NUMA in fast path that we can 
+> do something for optimizing page allocator. Plus, the overhead of 
+> zone_statistics() significantly increase with more and more cpu 
+> cores and nodes due to cache bouncing.
+> 
+> Therefore, we submitted a patch before to mitigate the overhead of 
+> zone_statistics() by reducing global NUMA counter update frequency 
+> (enlarge threshold size, as suggested by Dave Hansen). I also would
+> like to have an implementation of a "_standard_node counter" for NUMA
+> stats, but I wonder how we can keep the performance gain at the
+> same time.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks! I plan to submit my MAP_FIXED_FOO today and will send this
-together with my mman update.
-
-> ---
-> 
-> Changes since v4:
-> 
->     -- v2 ("mmap.2: MAP_FIXED is no longer discouraged") was applied already,
->        so v5 is a merge, including rewording of the paragraph transitions.
-> 
->     -- We seem to have consensus about what to say about alignment
->        now, and this includes that new wording.
-> 
-> Changes since v3:
-> 
->     -- Removed the "how to use this safely" part, and
->        the SHMLBA part, both as a result of Michal Hocko's
->        review.
-> 
->     -- A few tiny wording fixes, at the not-quite-typo level.
-> 
-> Changes since v2:
-> 
->     -- Fixed up the "how to use safely" example, in response
->        to Mike Rapoport's review.
-> 
->     -- Changed the alignment requirement from system page
->        size, to SHMLBA. This was inspired by (but not yet
->        recommended by) Cyril Hrubis' review.
-> 
->     -- Formatting: underlined /proc/<pid>/maps
-> 
-> Changes since v1:
-> 
->     -- Covered topics recommended by Matthew Wilcox
->        and Jann Horn, in their recent review: the hazards
->        of overwriting pre-exising mappings, and some notes
->        about how to use MAP_FIXED safely.
-> 
->     -- Rewrote the commit description accordingly.
-> 
->  man2/mmap.2 | 32 ++++++++++++++++++++++++++++++--
->  1 file changed, 30 insertions(+), 2 deletions(-)
-> 
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index a5a8eb47a..400cfda2d 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-> @@ -212,8 +212,9 @@ Don't interpret
->  .I addr
->  as a hint: place the mapping at exactly that address.
->  .I addr
-> -must be a multiple of the page size.
-> -If the memory region specified by
-> +must be suitably aligned: for most architectures a multiple of page
-> +size is sufficient; however, some architectures may impose additional
-> +restrictions. If the memory region specified by
->  .I addr
->  and
->  .I len
-> @@ -226,6 +227,33 @@ Software that aspires to be portable should use this option with care, keeping
->  in mind that the exact layout of a process' memory map is allowed to change
->  significantly between kernel versions, C library versions, and operating system
->  releases.
-> +.IP
-> +Furthermore, this option is extremely hazardous (when used on its own), because
-> +it forcibly removes pre-existing mappings, making it easy for a multi-threaded
-> +process to corrupt its own address space.
-> +.IP
-> +For example, thread A looks through
-> +.I /proc/<pid>/maps
-> +and locates an available
-> +address range, while thread B simultaneously acquires part or all of that same
-> +address range. Thread A then calls mmap(MAP_FIXED), effectively overwriting
-> +the mapping that thread B created.
-> +.IP
-> +Thread B need not create a mapping directly; simply making a library call
-> +that, internally, uses
-> +.I dlopen(3)
-> +to load some other shared library, will
-> +suffice. The dlopen(3) call will map the library into the process's address
-> +space. Furthermore, almost any library call may be implemented using this
-> +technique.
-> +Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-> +(http://www.linux-pam.org).
-> +.IP
-> +Newer kernels
-> +(Linux 4.16 and later) have a
-> +.B MAP_FIXED_SAFE
-> +option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-> +should be preferred over MAP_FIXED.
->  .TP
->  .B MAP_GROWSDOWN
->  This flag is used for stacks.
-> -- 
-> 2.15.1
-> 
+I understand all that. But we do have a way to put all that overhead
+away by disabling the stats altogether. I presume that CPU cycle
+sensitive workloads would simply use that option because the stats are
+quite limited in their usefulness anyway IMHO. So we are back to: Do
+normal workloads care all that much to have 3rd way to account for
+events? I haven't heard a sound argument for that.
 
 -- 
 Michal Hocko
