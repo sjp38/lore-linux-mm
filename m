@@ -1,62 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DECA76B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:42:21 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 11so12464041wrb.18
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:42:21 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BDF76B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:44:19 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id h12so12521558wre.12
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:44:19 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id t9si13162045wra.449.2017.12.12.10.42.20
+        by mx.google.com with ESMTPS id 13si13246073wrw.98.2017.12.12.10.44.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 10:42:20 -0800 (PST)
-Date: Tue, 12 Dec 2017 19:41:39 +0100 (CET)
+        Tue, 12 Dec 2017 10:44:17 -0800 (PST)
+Date: Tue, 12 Dec 2017 19:43:45 +0100 (CET)
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [patch 11/16] x86/ldt: Force access bit for CS/SS
-In-Reply-To: <20171212182906.cg635muwcdnh6p66@hirez.programming.kicks-ass.net>
-Message-ID: <alpine.DEB.2.20.1712121940230.2289@nanos>
-References: <20171212173221.496222173@linutronix.de> <20171212173334.176469949@linutronix.de> <CALCETrX+d+5COyWX1gDxi3gX93zFuq79UE+fhs27+ySq85j3+Q@mail.gmail.com> <20171212180918.lc5fdk5jyzwmrcxq@hirez.programming.kicks-ass.net>
- <CALCETrVmFSVqDGrH1K+Qv=svPTP3E6maVb5T2feyDNRkKfDVKA@mail.gmail.com> <C3141266-5522-4B5E-A0CE-65523F598F6D@amacapital.net> <20171212182906.cg635muwcdnh6p66@hirez.programming.kicks-ass.net>
+Subject: Re: [patch 13/16] x86/ldt: Introduce LDT write fault handler
+In-Reply-To: <20171212181902.a3dj3haouw3corhq@hirez.programming.kicks-ass.net>
+Message-ID: <alpine.DEB.2.20.1712121942260.2289@nanos>
+References: <20171212173221.496222173@linutronix.de> <20171212173334.345422294@linutronix.de> <CALCETrWHQW19G2J2hCS4ZG_U5knG-0RBzruioQzojqWr6ceTBg@mail.gmail.com> <20171212181902.a3dj3haouw3corhq@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Peter Zijlstra <peterz@infradead.org>
-Cc: Andy Lutomirski <luto@amacapital.net>, Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Andy Lutomirski <luto@kernel.org>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
 On Tue, 12 Dec 2017, Peter Zijlstra wrote:
-
-> On Tue, Dec 12, 2017 at 10:22:48AM -0800, Andy Lutomirski wrote:
+> On Tue, Dec 12, 2017 at 09:58:58AM -0800, Andy Lutomirski wrote:
+> > On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> 
+> > > +bool __ldt_write_fault(unsigned long address)
+> > > +{
+> > > +       struct ldt_struct *ldt = current->mm->context.ldt;
+> > > +       unsigned long start, end, entry;
+> > > +       struct desc_struct *desc;
+> > > +
+> > > +       start = (unsigned long) ldt->entries;
+> > > +       end = start + ldt->nr_entries * LDT_ENTRY_SIZE;
+> > > +
+> > > +       if (address < start || address >= end)
+> > > +               return false;
+> > > +
+> > > +       desc = (struct desc_struct *) ldt->entries;
+> > > +       entry = (address - start) / LDT_ENTRY_SIZE;
+> > > +       desc[entry].type |= 0x01;
 > > 
-> > Also, why is LAR deferred to user exit?  And I thought that LAR didn't
-> > set the accessed bit.
+> > You have another patch that unconditionally sets the accessed bit on
+> > installation.  What gives?
 > 
-> LAR does not set the ACCESSED bit indeed, we need to explicitly set that
-> when creating the descriptor.
+> Right, initially we didn't set that unconditionally. But even when we
+> did do that, we've observed the CPU generating these write faults.
 > 
-> It also works if you do the LAR right after LLDT (which is what I
-> originally had). The reason its a TIF flag is that I originally LAR'ed
-> every entry in the table.
+> > Also, this patch is going to die a horrible death if IRET ever hits
+> > this condition.  Or load gs.
 > 
-> It got reduced to CS/SS, but the TIF thing stayed.
+> Us touching the CS/SS descriptors with LAR should avoid IRET going off
+> the rails, I'm not familiar with the whole gs thing, but we could very
+> easily augment refresh_ldt_segments() I suppose.
 > 
-> > If I had to guess, I'd guess that LAR is actually generating a read
-> > fault and forcing the pagetables to get populated.  If so, then it
-> > means the VMA code isn't quite right, or you're susceptible to
-> > failures under memory pressure.
-> > 
-> > Now maybe LAR will repopulate the PTE every time if you were to never
-> > clear it, but ick.
-> 
-> I did not observe #PFs from LAR, we had a giant pile of trace_printk()
-> in there.
+> Would you care to be a little more specific and or propose a testcase
+> for this situation?
 
-The pages are populated _before_ the new ldt is installed. So no memory
-pressure issue, nothing. If the populate fails, then modify_ldt() returns
-with an error.
+Again. load gs does not cause a fault at all like any other segment
+load. The fault comes when the segment is accessed the first time or via
+LAR. 
 
 Thanks,
 
 	tglx
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
