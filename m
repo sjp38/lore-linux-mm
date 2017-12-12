@@ -1,87 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E95D86B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 07:54:35 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id a22so5997273wme.0
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 04:54:35 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v9sor2766055wmc.12.2017.12.12.04.54.34
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F0C0A6B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 08:22:03 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id v8so12042011otd.4
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 05:22:03 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u75si5103580oie.427.2017.12.12.05.22.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 12 Dec 2017 04:54:34 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <1513079759-14169-2-git-send-email-wei.w.wang@intel.com>
-References: <1513079759-14169-1-git-send-email-wei.w.wang@intel.com> <1513079759-14169-2-git-send-email-wei.w.wang@intel.com>
-From: Philippe Ombredanne <pombredanne@nexb.com>
-Date: Tue, 12 Dec 2017 13:53:53 +0100
-Message-ID: <CAOFm3uH29ZQSo92c_JXcffsonwh3PscdRe1p6vZCwinfauiYBw@mail.gmail.com>
-Subject: Re: [PATCH v19 1/7] xbitmap: Introduce xbitmap
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 12 Dec 2017 05:22:02 -0800 (PST)
+Subject: Re: [PATCH v19 3/7] xbitmap: add more operations
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1513079759-14169-1-git-send-email-wei.w.wang@intel.com>
+	<1513079759-14169-4-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1513079759-14169-4-git-send-email-wei.w.wang@intel.com>
+Message-Id: <201712122220.IFH05261.LtJOFFSFHVMQOO@I-love.SAKURA.ne.jp>
+Date: Tue, 12 Dec 2017 22:20:48 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>, mawilcox@microsoft.com
-Cc: virtio-dev@lists.oasis-open.org, LKML <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, david@redhat.com, penguin-kernel@i-love.sakura.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-Matthew, Wei,
+Wei Wang wrote:
+> +void xb_clear_bit_range(struct xb *xb, unsigned long start, unsigned long end)
+> +{
+> +	struct radix_tree_root *root = &xb->xbrt;
+> +	struct radix_tree_node *node;
+> +	void **slot;
+> +	struct ida_bitmap *bitmap;
+> +	unsigned int nbits;
+> +
+> +	for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+> +		unsigned long index = start / IDA_BITMAP_BITS;
+> +		unsigned long bit = start % IDA_BITMAP_BITS;
+> +
+> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> +		if (radix_tree_exception(bitmap)) {
+> +			unsigned long ebit = bit + 2;
+> +			unsigned long tmp = (unsigned long)bitmap;
+> +
+> +			nbits = min(end - start + 1, BITS_PER_LONG - ebit);
+> +
+> +			if (ebit >= BITS_PER_LONG)
 
-On Tue, Dec 12, 2017 at 12:55 PM, Wei Wang <wei.w.wang@intel.com> wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> The eXtensible Bitmap is a sparse bitmap representation which is
-> efficient for set bits which tend to cluster.  It supports up to
-> 'unsigned long' worth of bits, and this commit adds the bare bones --
-> xb_set_bit(), xb_clear_bit() and xb_test_bit().
->
-> Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-> Cc: Matthew Wilcox <mawilcox@microsoft.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+What happens if we hit this "continue;" when "index == ULONG_MAX / IDA_BITMAP_BITS" ?
 
-[...]
+Can you eliminate exception path and fold all xbitmap patches into one, and
+post only one xbitmap patch without virtio-baloon changes? If exception path
+is valuable, you can add exception path after minimum version is merged.
+This series is too difficult for me to close corner cases.
 
-> --- /dev/null
-> +++ b/include/linux/xbitmap.h
-> @@ -0,0 +1,52 @@
-> +/*
-> + * eXtensible Bitmaps
-> + * Copyright (c) 2017 Microsoft Corporation <mawilcox@microsoft.com>
+> +				continue;
+> +			bitmap_clear(&tmp, ebit, nbits);
+> +			if (tmp == RADIX_TREE_EXCEPTIONAL_ENTRY)
+> +				__radix_tree_delete(root, node, slot);
+> +			else
+> +				rcu_assign_pointer(*slot, (void *)tmp);
+> +		} else if (bitmap) {
+> +			nbits = min(end - start + 1, IDA_BITMAP_BITS - bit);
+> +
+> +			if (nbits != IDA_BITMAP_BITS)
+> +				bitmap_clear(bitmap->bitmap, bit, nbits);
+> +
+> +			if (nbits == IDA_BITMAP_BITS ||
+> +			    bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
+> +				kfree(bitmap);
+> +				__radix_tree_delete(root, node, slot);
+> +			}
+> +		}
+> +
+> +		/*
+> +		 * Already reached the last usable ida bitmap, so just return,
+> +		 * otherwise overflow will happen.
+> +		 */
+> +		if (index == ULONG_MAX / IDA_BITMAP_BITS)
+> +			break;
+> +	}
+> +}
+
+
+
+> +/**
+> + * xb_find_next_set_bit - find the next set bit in a range
+> + * @xb: the xbitmap to search
+> + * @start: the start of the range, inclusive
+> + * @end: the end of the range, exclusive
 > + *
-> + * This program is free software; you can redistribute it and/or
-> + * modify it under the terms of the GNU General Public License as
-> + * published by the Free Software Foundation; either version 2 of the
-> + * License, or (at your option) any later version.
-> + *
-> + * This program is distributed in the hope that it will be useful,
-> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-> + * GNU General Public License for more details.
-> + *
-> + * eXtensible Bitmaps provide an unlimited-size sparse bitmap facility.
-> + * All bits are initially zero.
+> + * Returns: the index of the found bit, or @end + 1 if no such bit is found.
 > + */
+> +unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start,
+> +				   unsigned long end)
+> +{
+> +	return xb_find_next_bit(xb, start, end, 1);
+> +}
 
-Have you considered using the new SPDX ids here instead? eg. this
-would come out as a top line this way:
+Won't "exclusive" loose ability to handle ULONG_MAX ? Since this is a
+library module, missing ability to handle ULONG_MAX sounds like an omission.
+Shouldn't we pass (or return) whether "found or not" flag (e.g. strtoul() in
+C library function)?
 
-> +/* SPDX-License-Identifer: GPL-2.0+ */
-
-Overall you get less boilerplate comment and more code, so this is a
-win-win for everyone. This would nicely remove the legalese
-boilerplate with the same effect, unless you are a legalese lover of
-course. See Thomas doc patches for extra details.... and while you are
-it if you could spread the words in your team and use it for all past,
-present and future contributions, that would be much appreciated.
-
-And as a side benefit to me, it will help me save on paper and ink
-ribbons supplies for my dot matrix line printer each time I print the
-source code of the whole kernel. ;)
-
-Thanks for your consideration there.
--- 
-Cordially
-Philippe Ombredanne
+  bool xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, unsigned long *result);
+  unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, bool *found);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
