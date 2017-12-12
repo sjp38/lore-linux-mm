@@ -1,108 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F0C0A6B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 08:22:03 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id v8so12042011otd.4
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 05:22:03 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id u75si5103580oie.427.2017.12.12.05.22.01
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 236F46B0069
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 08:57:48 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id u16so17916974pfh.7
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 05:57:48 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id v90si12849597pfk.397.2017.12.12.05.57.45
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 05:22:02 -0800 (PST)
-Subject: Re: [PATCH v19 3/7] xbitmap: add more operations
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1513079759-14169-1-git-send-email-wei.w.wang@intel.com>
-	<1513079759-14169-4-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1513079759-14169-4-git-send-email-wei.w.wang@intel.com>
-Message-Id: <201712122220.IFH05261.LtJOFFSFHVMQOO@I-love.SAKURA.ne.jp>
-Date: Tue, 12 Dec 2017 22:20:48 +0900
-Mime-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 12 Dec 2017 05:57:45 -0800 (PST)
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv6 1/4] x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
+Date: Tue, 12 Dec 2017 16:57:36 +0300
+Message-Id: <20171212135739.52714-2-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-Wei Wang wrote:
-> +void xb_clear_bit_range(struct xb *xb, unsigned long start, unsigned long end)
-> +{
-> +	struct radix_tree_root *root = &xb->xbrt;
-> +	struct radix_tree_node *node;
-> +	void **slot;
-> +	struct ida_bitmap *bitmap;
-> +	unsigned int nbits;
-> +
-> +	for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
-> +		unsigned long index = start / IDA_BITMAP_BITS;
-> +		unsigned long bit = start % IDA_BITMAP_BITS;
-> +
-> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
-> +		if (radix_tree_exception(bitmap)) {
-> +			unsigned long ebit = bit + 2;
-> +			unsigned long tmp = (unsigned long)bitmap;
-> +
-> +			nbits = min(end - start + 1, BITS_PER_LONG - ebit);
-> +
-> +			if (ebit >= BITS_PER_LONG)
+The name of the file -- pagetable.c -- is misleading: it only contains
+helpers used for KASLR in 64-bit mode.
 
-What happens if we hit this "continue;" when "index == ULONG_MAX / IDA_BITMAP_BITS" ?
+Let's rename the file to reflect its content.
 
-Can you eliminate exception path and fold all xbitmap patches into one, and
-post only one xbitmap patch without virtio-baloon changes? If exception path
-is valuable, you can add exception path after minimum version is merged.
-This series is too difficult for me to close corner cases.
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+---
+ arch/x86/boot/compressed/Makefile                    | 2 +-
+ arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+ rename arch/x86/boot/compressed/{pagetable.c => kaslr_64.c} (100%)
 
-> +				continue;
-> +			bitmap_clear(&tmp, ebit, nbits);
-> +			if (tmp == RADIX_TREE_EXCEPTIONAL_ENTRY)
-> +				__radix_tree_delete(root, node, slot);
-> +			else
-> +				rcu_assign_pointer(*slot, (void *)tmp);
-> +		} else if (bitmap) {
-> +			nbits = min(end - start + 1, IDA_BITMAP_BITS - bit);
-> +
-> +			if (nbits != IDA_BITMAP_BITS)
-> +				bitmap_clear(bitmap->bitmap, bit, nbits);
-> +
-> +			if (nbits == IDA_BITMAP_BITS ||
-> +			    bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
-> +				kfree(bitmap);
-> +				__radix_tree_delete(root, node, slot);
-> +			}
-> +		}
-> +
-> +		/*
-> +		 * Already reached the last usable ida bitmap, so just return,
-> +		 * otherwise overflow will happen.
-> +		 */
-> +		if (index == ULONG_MAX / IDA_BITMAP_BITS)
-> +			break;
-> +	}
-> +}
-
-
-
-> +/**
-> + * xb_find_next_set_bit - find the next set bit in a range
-> + * @xb: the xbitmap to search
-> + * @start: the start of the range, inclusive
-> + * @end: the end of the range, exclusive
-> + *
-> + * Returns: the index of the found bit, or @end + 1 if no such bit is found.
-> + */
-> +unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start,
-> +				   unsigned long end)
-> +{
-> +	return xb_find_next_bit(xb, start, end, 1);
-> +}
-
-Won't "exclusive" loose ability to handle ULONG_MAX ? Since this is a
-library module, missing ability to handle ULONG_MAX sounds like an omission.
-Shouldn't we pass (or return) whether "found or not" flag (e.g. strtoul() in
-C library function)?
-
-  bool xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, unsigned long *result);
-  unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, bool *found);
+diff --git a/arch/x86/boot/compressed/Makefile b/arch/x86/boot/compressed/Makefile
+index f25e1530e064..1f734cd98fd3 100644
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -78,7 +78,7 @@ vmlinux-objs-y := $(obj)/vmlinux.lds $(obj)/head_$(BITS).o $(obj)/misc.o \
+ vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $(obj)/early_serial_console.o
+ vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
+ ifdef CONFIG_X86_64
+-	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
++	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr_64.o
+ 	vmlinux-objs-y += $(obj)/mem_encrypt.o
+ 	vmlinux-objs-y += $(obj)/pgtable_64.o
+ endif
+diff --git a/arch/x86/boot/compressed/pagetable.c b/arch/x86/boot/compressed/kaslr_64.c
+similarity index 100%
+rename from arch/x86/boot/compressed/pagetable.c
+rename to arch/x86/boot/compressed/kaslr_64.c
+-- 
+2.15.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
