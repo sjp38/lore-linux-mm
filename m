@@ -1,73 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CFD826B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 00:39:28 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id 200so14800312pge.12
-        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 21:39:28 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id v11sor3765415pgc.34.2017.12.11.21.39.27
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B322C6B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 01:53:17 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id d18so8468119oic.22
+        for <linux-mm@kvack.org>; Mon, 11 Dec 2017 22:53:17 -0800 (PST)
+Received: from szxga04-in.huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id s11si4200804oif.41.2017.12.11.22.53.13
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 11 Dec 2017 21:39:27 -0800 (PST)
-Date: Tue, 12 Dec 2017 14:39:21 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171212053921.GA1392@jagdpanzerIV>
-References: <20171108102723.602216b1@gandalf.local.home>
- <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
- <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
- <20171128014229.GA2899@X58A-UD3R>
- <20171208140022.uln4t5e5drrhnvvt@pathway.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 11 Dec 2017 22:53:16 -0800 (PST)
+Message-ID: <5A2F7CAA.3070405@huawei.com>
+Date: Tue, 12 Dec 2017 14:52:26 +0800
+From: zhong jiang <zhongjiang@huawei.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171208140022.uln4t5e5drrhnvvt@pathway.suse.cz>
+Subject: Re: [RESEND] x86/numa: move setting parsed numa node to num_add_memblk
+References: <1512123232-7263-1-git-send-email-zhongjiang@huawei.com> <20171211120304.GD4779@dhcp22.suse.cz> <5A2E8131.4000104@huawei.com> <20171211134539.GF4779@dhcp22.suse.cz>
+In-Reply-To: <20171211134539.GF4779@dhcp22.suse.cz>
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Byungchul Park <byungchul.park@lge.com>, Steven Rostedt <rostedt@goodmis.org>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, kernel-team@lge.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: iamjoonsoo.kim@lge.com, mgorman@techsingularity.net, minchan@kernel.org, vbabka@suse.cz, akpm@linux-foundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-Hello,
+On 2017/12/11 21:45, Michal Hocko wrote:
+> On Mon 11-12-17 20:59:29, zhong jiang wrote:
+>> On 2017/12/11 20:03, Michal Hocko wrote:
+>>> On Fri 01-12-17 18:13:52, zhong jiang wrote:
+>>>> The acpi table are very much like user input. it is likely to
+>>>> introduce some unreasonable node in some architecture. but
+>>>> they do not ingore the node and bail out in time. it will result
+>>>> in unnecessary print.
+>>>> e.g  x86:  start is equal to end is a unreasonable node.
+>>>> numa_blk_memblk will fails but return 0.
+>>>>
+>>>> meanwhile, Arm64 node will double set it to "numa_node_parsed"
+>>>> after NUMA adds a memblk successfully.  but X86 is not. because
+>>>> numa_add_memblk is not set in X86.
+>>> I am sorry but I still fail to understand wht the actual problem is.
+>>> You said that x86 will print a message. Alright at least you know that
+>>> the platform provides a nonsense ACPI/SRAT? tables and you can complain.
+>>> But does the kernel misbehave? In what way?
+>>   From the view of  the following code , we should expect that the node is reasonable.
+>>   otherwise, if we only want to complain,  it should bail out in time after printing the
+>>   unreasonable message.
+>>
+>>           node_set(node, numa_nodes_parsed);
+>>
+>>         pr_info("SRAT: Node %u PXM %u [mem %#010Lx-%#010Lx]%s%s\n",
+>>                 node, pxm,
+>>                 (unsigned long long) start, (unsigned long long) end - 1,
+>>                 hotpluggable ? " hotplug" : "",
+>>                 ma->flags & ACPI_SRAT_MEM_NON_VOLATILE ? " non-volatile" : "");
+>>
+>>         /* Mark hotplug range in memblock. */
+>>         if (hotpluggable && memblock_mark_hotplug(start, ma->length))
+>>                 pr_warn("SRAT: Failed to mark hotplug range [mem %#010Lx-%#010Lx] in memblock\n",
+>>                         (unsigned long long)start, (unsigned long long)end - 1);
+>>
+>>         max_possible_pfn = max(max_possible_pfn, PFN_UP(end - 1));
+>>
+>>         return 0;
+>> out_err_bad_srat:
+>>         bad_srat();
+>>
+>>  In addition.  Arm64  will double set node to numa_nodes_parsed after add a memblk
+>> successfully.  Because numa_add_memblk will perform node_set(*, *).
+>>
+>>          if (numa_add_memblk(node, start, end) < 0) {
+>>                 pr_err("SRAT: Failed to add memblk to node %u [mem %#010Lx-%#010Lx]\n",
+>>                        node, (unsigned long long) start,
+>>                        (unsigned long long) end - 1);
+>>                 goto out_err_bad_srat;
+>>         }
+>>
+>>         node_set(node, numa_nodes_parsed);
+> I am sorry but I _do not_ understand how this answers my simple
+> question. You are describing the code flow which doesn't really explain
+> what is the _user_ or a _runtime_ visible effect. Anybody reading this
+> changelog will have to scratch his head to understand what the heck does
+> this fix and whether the patch needs to be considered for backporting.
+> See my point?
+ There  is not any visible effect to the user.  IMO,  it is  a better optimization.
+ Maybe I put more words  to explain  how  the patch works.  :-[
 
-On (12/08/17 15:00), Petr Mladek wrote:
-[..]
-> > However, now that cross-release was introduces, lockdep can be applied
-> > to semaphore operations. Actually, I have a plan to do that. I think it
-> > would be better to make semaphore tracked with lockdep and remove all
-> > these manual acquire() and release() here. What do you think about it?
-> 
-> IMHO, it would be great to add lockdep annotations into semaphore
-> operations.
+ I found the code is messy when reading it without a real issue. 
 
-certain types of locks have no guaranteed lock-unlock ordering.
-e.g. readers-writer locks, semaphores, etc.
-
-for readers-writer lock we can easily have
-
-CPU0		CPU1		CPU2		CPU3		CPU4
-read_lock
-		write_lock
-		// sleep because
-		// of CPU0
-								read_lock
-read_unlock			read_lock
-				read_unlock	read_lock
-						read_unlock
-								read_unlock
-								// wake up CPU1
-
-so for CPU1 the lock was "locked" by CPU0 and "unlocked" by CPU4.
-
-semaphore not necessarily has the mutual-exclusion property, because
-its ->count is not required to be set to 1. in printk we use semaphore
-with ->count == 1, but that's just an accident.
-
-	-ss
-
-
-p.s.
-frankly, I don't see any "locking issues" in Steven's patch.
+ Thanks
+ zhong jiang
+ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
