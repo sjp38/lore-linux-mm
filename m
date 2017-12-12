@@ -1,64 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AFFA6B0069
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:19:14 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id n6so18494961pfg.19
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:19:14 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id p11si13160855pfl.325.2017.12.12.10.19.13
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 342636B0069
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 13:22:53 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 200so16209868pge.12
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:22:53 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u7sor1713899plr.123.2017.12.12.10.22.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Dec 2017 10:19:13 -0800 (PST)
-Date: Tue, 12 Dec 2017 19:19:02 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [patch 13/16] x86/ldt: Introduce LDT write fault handler
-Message-ID: <20171212181902.a3dj3haouw3corhq@hirez.programming.kicks-ass.net>
-References: <20171212173221.496222173@linutronix.de>
- <20171212173334.345422294@linutronix.de>
- <CALCETrWHQW19G2J2hCS4ZG_U5knG-0RBzruioQzojqWr6ceTBg@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALCETrWHQW19G2J2hCS4ZG_U5knG-0RBzruioQzojqWr6ceTBg@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 12 Dec 2017 10:22:52 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [patch 11/16] x86/ldt: Force access bit for CS/SS
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <CALCETrVmFSVqDGrH1K+Qv=svPTP3E6maVb5T2feyDNRkKfDVKA@mail.gmail.com>
+Date: Tue, 12 Dec 2017 10:22:48 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <C3141266-5522-4B5E-A0CE-65523F598F6D@amacapital.net>
+References: <20171212173221.496222173@linutronix.de> <20171212173334.176469949@linutronix.de> <CALCETrX+d+5COyWX1gDxi3gX93zFuq79UE+fhs27+ySq85j3+Q@mail.gmail.com> <20171212180918.lc5fdk5jyzwmrcxq@hirez.programming.kicks-ass.net> <CALCETrVmFSVqDGrH1K+Qv=svPTP3E6maVb5T2feyDNRkKfDVKA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andy Lutomirski <luto@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Tue, Dec 12, 2017 at 09:58:58AM -0800, Andy Lutomirski wrote:
-> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
 
-> > +bool __ldt_write_fault(unsigned long address)
-> > +{
-> > +       struct ldt_struct *ldt = current->mm->context.ldt;
-> > +       unsigned long start, end, entry;
-> > +       struct desc_struct *desc;
-> > +
-> > +       start = (unsigned long) ldt->entries;
-> > +       end = start + ldt->nr_entries * LDT_ENTRY_SIZE;
-> > +
-> > +       if (address < start || address >= end)
-> > +               return false;
-> > +
-> > +       desc = (struct desc_struct *) ldt->entries;
-> > +       entry = (address - start) / LDT_ENTRY_SIZE;
-> > +       desc[entry].type |= 0x01;
-> 
-> You have another patch that unconditionally sets the accessed bit on
-> installation.  What gives?
 
-Right, initially we didn't set that unconditionally. But even when we
-did do that, we've observed the CPU generating these write faults.
+> On Dec 12, 2017, at 10:10 AM, Andy Lutomirski <luto@kernel.org> wrote:
+>=20
+>> On Tue, Dec 12, 2017 at 10:09 AM, Peter Zijlstra <peterz@infradead.org> w=
+rote:
+>>> On Tue, Dec 12, 2017 at 10:03:02AM -0800, Andy Lutomirski wrote:
+>>> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wr=
+ote:
+>>=20
+>>>> @@ -171,6 +172,9 @@ static void exit_to_usermode_loop(struct
+>>>>                /* Disable IRQs and retry */
+>>>>                local_irq_disable();
+>>>>=20
+>>>> +               if (cached_flags & _TIF_LDT)
+>>>> +                       ldt_exit_user(regs);
+>>>=20
+>>> Nope.  To the extent that this code actually does anything (which it
+>>> shouldn't since you already forced the access bit),
+>>=20
+>> Without this; even with the access bit set; IRET will go wobbly and
+>> we'll #GP on the user-space side. Try it ;-)
+>=20
+> Maybe later.
+>=20
+> But that means that we need Intel and AMD to confirm WTF is going on
+> before this blows up even with LAR on some other CPU.
+>=20
+>>=20
+>>> it's racy against
+>>> flush_ldt() from another thread, and that race will be exploitable for
+>>> privilege escalation.  It needs to be outside the loopy part.
+>>=20
+>> The flush_ldt (__ldt_install after these patches) would re-set the TIF
+>> flag. But sure, we can move this outside the loop I suppose.
 
-> Also, this patch is going to die a horrible death if IRET ever hits
-> this condition.  Or load gs.
+Also, why is LAR deferred to user exit?  And I thought that LAR didn't set t=
+he accessed bit.
 
-Us touching the CS/SS descriptors with LAR should avoid IRET going off
-the rails, I'm not familiar with the whole gs thing, but we could very
-easily augment refresh_ldt_segments() I suppose.
+If I had to guess, I'd guess that LAR is actually generating a read fault an=
+d forcing the pagetables to get populated.  If so, then it means the VMA cod=
+e isn't quite right, or you're susceptible to failures under memory pressure=
+.
 
-Would you care to be a little more specific and or propose a testcase
-for this situation?
+Now maybe LAR will repopulate the PTE every time if you were to never clear i=
+t, but ick.=
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
