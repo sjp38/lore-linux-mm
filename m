@@ -1,70 +1,152 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A8E6B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 05:08:05 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id f4so12046386wre.9
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 02:08:05 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x20si6623497wmc.1.2017.12.12.02.07.58
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CF216B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 06:39:25 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id v69so12178207wrb.3
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 03:39:25 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j53sor7271528ede.4.2017.12.12.03.39.22
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 12 Dec 2017 02:07:59 -0800 (PST)
-Date: Tue, 12 Dec 2017 11:07:57 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second
- allocation
-Message-ID: <20171212100757.GB11108@dhcp22.suse.cz>
-References: <20171207115127.GH20234@dhcp22.suse.cz>
- <201712072059.HAJ04643.QSJtVMFLFOOOHF@I-love.SAKURA.ne.jp>
- <20171207122249.GI20234@dhcp22.suse.cz>
- <201712081958.EBB43715.FOVJQFtFLOMOSH@I-love.SAKURA.ne.jp>
- <20171211114229.GA4779@dhcp22.suse.cz>
- <201712121709.CCD95874.OHLOFQFFMVJOtS@I-love.SAKURA.ne.jp>
+        (Google Transport Security);
+        Tue, 12 Dec 2017 03:39:23 -0800 (PST)
+Date: Tue, 12 Dec 2017 14:39:20 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] x86/mm: Rewrite sme_populate_pgd() in a more sensible way
+Message-ID: <20171212113920.zlcs2p7jxypmwyiy@node.shutemov.name>
+References: <20171204112323.47019-1-kirill.shutemov@linux.intel.com>
+ <d177df77-cdc7-1507-08f8-fcdb3b443709@amd.com>
+ <20171204145755.6xu2w6a6og56rq5v@node.shutemov.name>
+ <d9701b1c-1abf-5fc1-80b0-47ab4e517681@amd.com>
+ <20171204163445.qt5dqcrrkilnhowz@black.fi.intel.com>
+ <20171204173931.pjnmfdutys7cnesx@black.fi.intel.com>
+ <55400fe3-a605-b86f-e14c-c5dd08738fd7@amd.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201712121709.CCD95874.OHLOFQFFMVJOtS@I-love.SAKURA.ne.jp>
+In-Reply-To: <55400fe3-a605-b86f-e14c-c5dd08738fd7@amd.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: hannes@cmpxchg.org, akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+To: Tom Lendacky <thomas.lendacky@amd.com>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>, x86@kernel.org, Borislav Petkov <bp@suse.de>, Brijesh Singh <brijesh.singh@amd.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue 12-12-17 17:09:36, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > That being said, I will keep refusing other such tweaks unless you have
-> > a sound usecase behind. If you really _want_ to help out here then you
-> > can focus on the reaping of the mlock memory.
+On Fri, Dec 08, 2017 at 08:37:43AM -0600, Tom Lendacky wrote:
+> On 12/4/2017 11:39 AM, Kirill A. Shutemov wrote:
+> > On Mon, Dec 04, 2017 at 04:34:45PM +0000, Kirill A. Shutemov wrote:
+> > > On Mon, Dec 04, 2017 at 04:00:26PM +0000, Tom Lendacky wrote:
+> > > > On 12/4/2017 8:57 AM, Kirill A. Shutemov wrote:
+> > > > > On Mon, Dec 04, 2017 at 08:19:11AM -0600, Tom Lendacky wrote:
+> > > > > > On 12/4/2017 5:23 AM, Kirill A. Shutemov wrote:
+> > > > > > > sme_populate_pgd() open-codes a lot of things that are not needed to be
+> > > > > > > open-coded.
+> > > > > > > 
+> > > > > > > Let's rewrite it in a more stream-lined way.
+> > > > > > > 
+> > > > > > > This would also buy us boot-time switching between support between
+> > > > > > > paging modes, when rest of the pieces will be upstream.
+> > > > > > 
+> > > > > > Hi Kirill,
+> > > > > > 
+> > > > > > Unfortunately, some of these can't be changed.  The use of p4d_offset(),
+> > > > > > pud_offset(), etc., use non-identity mapped virtual addresses which cause
+> > > > > > failures at this point of the boot process.
+> > > > > 
+> > > > > Wat? Virtual address is virtual address. p?d_offset() doesn't care about
+> > > > > what mapping you're using.
+> > > > 
+> > > > Yes it does.  For example, pmd_offset() issues a pud_page_addr() call,
+> > > > which does a __va() returning a non-identity mapped address (0xffff88...).
+> > > > Only identity mapped virtual addresses have been setup at this point, so
+> > > > the use of that virtual address panics the kernel.
+> > > 
+> > > Stupid me. You are right.
+> > > 
+> > > What about something like this:
+> > 
+> > sme_pgtable_calc() also looks unnecessary complex.
 > 
-> Not the reaping of the mlock'ed memory. Although Manish's report was mlock'ed
-> case, there are other cases (e.g. MAP_SHARED, mmu_notifier, mmap_sem held for
-> write) which can lead to this race condition.
+> I have no objections to improving this (although I just submitted a patch
+> that modifies this area, so this will have to be updated now).
 
-Could you actually start thinking in a bigger picture rather than
-obsessively check the code? If MAP_SHARED is file backed then it should
-be reclaimable. If it is memory backed then we are screwed with
-insufficient sized swap partition. I've seen that David is already
-looking at the mmu_notifier. Well and the mmap_sem, sure that can happen
-but as long we do not see excessive OOM events out there I would rather
-leave it alone.
+I'll post patchset on top of your "SME: BSP/SME microcode update fix"
 
-> If we think about artificial case,
-> it would be possible to run 1024 threads not sharing signal_struct but consume
-> almost 0KB memory (i.e. written without using C library) and many of them are
-> running between __gfp_pfmemalloc_flags() and mutex_trylock() waiting for
-> ALLOC_OOM.
+> > Any objections on this:
+> > 
+> > diff --git a/arch/x86/mm/mem_encrypt.c b/arch/x86/mm/mem_encrypt.c
+> > index 65e0d68f863f..59b7d7ba9b37 100644
+> > --- a/arch/x86/mm/mem_encrypt.c
+> > +++ b/arch/x86/mm/mem_encrypt.c
+> > @@ -548,8 +548,7 @@ static void __init *sme_populate_pgd(pgd_t *pgd_base, void *pgtable_area,
+> >   static unsigned long __init sme_pgtable_calc(unsigned long len)
+> >   {
+> > -	unsigned long p4d_size, pud_size, pmd_size;
+> > -	unsigned long total;
+> > +	unsigned long entries, tables;
+> >   	/*
+> >   	 * Perform a relatively simplistic calculation of the pagetable
+> > @@ -559,41 +558,25 @@ static unsigned long __init sme_pgtable_calc(unsigned long len)
+> >   	 * mappings. Incrementing the count for each covers the case where
+> >   	 * the addresses cross entries.
+> >   	 */
+> > -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> > -		p4d_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
+> > -		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
+> > -		pud_size = (ALIGN(len, P4D_SIZE) / P4D_SIZE) + 1;
+> > -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> > -	} else {
+> > -		p4d_size = 0;
+> > -		pud_size = (ALIGN(len, PGDIR_SIZE) / PGDIR_SIZE) + 1;
+> > -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> > -	}
+> > -	pmd_size = (ALIGN(len, PUD_SIZE) / PUD_SIZE) + 1;
+> > -	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
+> > -	total = p4d_size + pud_size + pmd_size;
+> > +        entries = (DIV_ROUND_UP(len, PGDIR_SIZE) + 1) * PAGE_SIZE;
+> 
+> I stayed away from using PAGE_SIZE directly because other areas/files used
+> the sizeof() * PTRS_PER_ and I was trying to be consistent. Not that the
+> size of a page table is ever likely to change, but maybe defining a macro
+> (similar to the one in mm/pgtable.c) would be best rather than using
+> PAGE_SIZE directly.  Not required, just my opinion.
 
-Sigh... Nobody is arguing that the race is impossible. Just read what
-I've wrote. I recognize the race but I am not willing to add kludges
-into an already complicated code if it doesn't matter _practically_.
-A malicious user can DOS the system by other means and you have to
-configure your system carefully to prevent from that.
+I've rewritten this with PTRS_PER_, although I don't think it matters much.
 
-So all I care about is to see whether these races happen out there in
-natural workloads and then we can more heuristics.
+> > +        if (PTRS_PER_P4D > 1)
+> > +                entries += (DIV_ROUND_UP(len, P4D_SIZE) + 1) * PAGE_SIZE;
+> > +        entries += (DIV_ROUND_UP(len, PUD_SIZE) + 1) * PAGE_SIZE;
+> > +        entries += (DIV_ROUND_UP(len, PMD_SIZE) + 1) * PAGE_SIZE;
+> >   	/*
+> >   	 * Now calculate the added pagetable structures needed to populate
+> >   	 * the new pagetables.
+> >   	 */
+> > -	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
+> > -		p4d_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
+> > -		p4d_size *= sizeof(p4d_t) * PTRS_PER_P4D;
+> > -		pud_size = ALIGN(total, P4D_SIZE) / P4D_SIZE;
+> > -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> > -	} else {
+> > -		p4d_size = 0;
+> > -		pud_size = ALIGN(total, PGDIR_SIZE) / PGDIR_SIZE;
+> > -		pud_size *= sizeof(pud_t) * PTRS_PER_PUD;
+> > -	}
+> > -	pmd_size = ALIGN(total, PUD_SIZE) / PUD_SIZE;
+> > -	pmd_size *= sizeof(pmd_t) * PTRS_PER_PMD;
+> > -	total += p4d_size + pud_size + pmd_size;
+> > +        tables = DIV_ROUND_UP(entries, PGDIR_SIZE) * PAGE_SIZE;
+> > +        if (PTRS_PER_P4D > 1)
+> > +                tables += DIV_ROUND_UP(entries, P4D_SIZE) * PAGE_SIZE;
+> > +        tables += DIV_ROUND_UP(entries, PUD_SIZE) * PAGE_SIZE;
+> > +        tables += DIV_ROUND_UP(entries, PMD_SIZE) * PAGE_SIZE;
+> > -	return total;
+> > +	return entries + tables;
+> >   }
+> 
+> It all looks reasonable, but I won't be able to test for the next few
+> days, though.
+
+No worries. Test when you'll get time for this.
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
