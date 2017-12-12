@@ -1,128 +1,113 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8CA3C6B025F
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:34:48 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id r20so12401009wrg.23
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:34:48 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0AD6B0253
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 12:34:49 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id p190so53325wmd.0
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 09:34:49 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g1si13140795wrh.117.2017.12.12.09.34.47
+        by mx.google.com with ESMTPS id y23si13117756wry.319.2017.12.12.09.34.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Tue, 12 Dec 2017 09:34:47 -0800 (PST)
-Message-Id: <20171212173333.351928931@linutronix.de>
-Date: Tue, 12 Dec 2017 18:32:22 +0100
+Message-Id: <20171212173333.669577588@linutronix.de>
+Date: Tue, 12 Dec 2017 18:32:26 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch 01/16] arch: Allow arch_dup_mmap() to fail
+Subject: [patch 05/16] mm: Allow special mappings with user access cleared
 References: <20171212173221.496222173@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=arch--Allow-arch_dup_mmap---to-fail.patch
+Content-Disposition: inline;
+ filename=mm--Allow-special-mappings-with-user-access-cleared.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org
 
-From: Thomas Gleixner <tglx@linutronix.de>
+From: Peter Zijstra <peterz@infradead.org>
 
-In order to sanitize the LDT initialization on x86 arch_dup_mmap() must be
-allowed to fail. Fix up all instances.
+In order to create VMAs that are not accessible to userspace create a new
+VM_NOUSER flag. This can be used in conjunction with
+install_special_mapping() to inject 'kernel' data into the userspace map.
 
+Similar to how arch_vm_get_page_prot() allows adding _PAGE_flags to
+pgprot_t, introduce arch_vm_get_page_prot_excl() which masks
+_PAGE_flags from pgprot_t and use this to implement VM_NOUSER for x86.
+
+Signed-off-by: Peter Zijstra <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/powerpc/include/asm/mmu_context.h   |    5 +++--
- arch/um/include/asm/mmu_context.h        |    3 ++-
- arch/unicore32/include/asm/mmu_context.h |    5 +++--
- arch/x86/include/asm/mmu_context.h       |    4 ++--
- include/asm-generic/mm_hooks.h           |    5 +++--
- kernel/fork.c                            |    3 +--
- 6 files changed, 14 insertions(+), 11 deletions(-)
+ arch/x86/include/uapi/asm/mman.h |    4 ++++
+ include/linux/mm.h               |    2 ++
+ include/linux/mman.h             |    4 ++++
+ mm/mmap.c                        |   12 ++++++++++--
+ 4 files changed, 20 insertions(+), 2 deletions(-)
 
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -114,9 +114,10 @@ static inline void enter_lazy_tlb(struct
+--- a/arch/x86/include/uapi/asm/mman.h
++++ b/arch/x86/include/uapi/asm/mman.h
+@@ -26,6 +26,10 @@
+ 		((key) & 0x8 ? VM_PKEY_BIT3 : 0))
  #endif
- }
  
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
- {
-+	return 0;
- }
++#define arch_vm_get_page_prot_excl(vm_flags) __pgprot(		\
++		((vm_flags) & VM_NOUSER ? _PAGE_USER : 0)	\
++		)
++
+ #include <asm-generic/mman.h>
  
- static inline void arch_exit_mmap(struct mm_struct *mm)
---- a/arch/um/include/asm/mmu_context.h
-+++ b/arch/um/include/asm/mmu_context.h
-@@ -15,9 +15,10 @@ extern void uml_setup_stubs(struct mm_st
+ #endif /* _ASM_X86_MMAN_H */
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -193,6 +193,7 @@ extern unsigned int kobjsize(const void
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+ #define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
++#define VM_ARCH_0	0x08000000	/* Architecture-specific flag */
+ 
+ #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+ #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
+@@ -224,6 +225,7 @@ extern unsigned int kobjsize(const void
+ #endif
+ 
+ #if defined(CONFIG_X86)
++# define VM_NOUSER	VM_ARCH_0	/* Not accessible by userspace */
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
+ # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -43,6 +43,10 @@ static inline void vm_unacct_memory(long
+ #define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+ #endif
+ 
++#ifndef arch_vm_get_page_prot_excl
++#define arch_vm_get_page_prot_excl(vm_flags) __pgprot(0)
++#endif
++
+ #ifndef arch_validate_prot
  /*
-  * Needed since we do not use the asm-generic/mm_hooks.h:
-  */
--static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+  * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -102,9 +102,17 @@ pgprot_t protection_map[16] __ro_after_i
+ 
+ pgprot_t vm_get_page_prot(unsigned long vm_flags)
  {
- 	uml_setup_stubs(mm);
-+	return 0;
+-	return __pgprot(pgprot_val(protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
++	pgprot_t prot;
++
++	prot = protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
++
++	prot = __pgprot(pgprot_val(prot) |
+ 			pgprot_val(arch_vm_get_page_prot(vm_flags)));
++
++	prot = __pgprot(pgprot_val(prot) &
++			~pgprot_val(arch_vm_get_page_prot_excl(vm_flags)));
++
++	return prot;
  }
- extern void arch_exit_mmap(struct mm_struct *mm);
- static inline void arch_unmap(struct mm_struct *mm,
---- a/arch/unicore32/include/asm/mmu_context.h
-+++ b/arch/unicore32/include/asm/mmu_context.h
-@@ -81,9 +81,10 @@ do { \
- 	} \
- } while (0)
+ EXPORT_SYMBOL(vm_get_page_prot);
  
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
- {
-+	return 0;
- }
- 
- static inline void arch_unmap(struct mm_struct *mm,
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -176,10 +176,10 @@ do {						\
- } while (0)
- #endif
- 
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
- {
- 	paravirt_arch_dup_mmap(oldmm, mm);
-+	return 0;
- }
- 
- static inline void arch_exit_mmap(struct mm_struct *mm)
---- a/include/asm-generic/mm_hooks.h
-+++ b/include/asm-generic/mm_hooks.h
-@@ -7,9 +7,10 @@
- #ifndef _ASM_GENERIC_MM_HOOKS_H
- #define _ASM_GENERIC_MM_HOOKS_H
- 
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
- {
-+	return 0;
- }
- 
- static inline void arch_exit_mmap(struct mm_struct *mm)
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -721,8 +721,7 @@ static __latent_entropy int dup_mmap(str
- 			goto out;
- 	}
- 	/* a new mm has just been created */
--	arch_dup_mmap(oldmm, mm);
--	retval = 0;
-+	retval = arch_dup_mmap(oldmm, mm);
- out:
- 	up_write(&mm->mmap_sem);
- 	flush_tlb_mm(oldmm);
 
 
 --
