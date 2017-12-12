@@ -1,169 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 63E766B0069
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 08:59:47 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id q186so15726734pga.23
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 05:59:47 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id y129si3397112pgb.287.2017.12.12.05.59.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Dec 2017 05:59:46 -0800 (PST)
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv6 2/4] x86/boot/compressed/64: Introduce paging_prepare()
-Date: Tue, 12 Dec 2017 16:57:37 +0300
-Message-Id: <20171212135739.52714-3-kirill.shutemov@linux.intel.com>
-In-Reply-To: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
-References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 252426B0033
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 10:51:40 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id 18so26527447qtt.10
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 07:51:40 -0800 (PST)
+Received: from iolanthe.rowland.org (iolanthe.rowland.org. [192.131.102.54])
+        by mx.google.com with SMTP id y67si10287699qkd.266.2017.12.12.07.51.37
+        for <linux-mm@kvack.org>;
+        Tue, 12 Dec 2017 07:51:38 -0800 (PST)
+Date: Tue, 12 Dec 2017 10:51:37 -0500 (EST)
+From: Alan Stern <stern@rowland.harvard.edu>
+Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
+In-Reply-To: <1513035963.3036.17.camel@perches.com>
+Message-ID: <Pine.LNX.4.44L0.1712121041240.1358-100000@iolanthe.rowland.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Joe Perches <joe@perches.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Andrew Morton <akpm@linux-foundation.org>, Andy Whitcroft <apw@shadowen.org>, Dave Chinner <david@fromorbit.com>, Byungchul Park <byungchul.park@lge.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
 
-This patch renames l5_paging_required() into paging_prepare() and
-changes the interface of the function.
+On Mon, 11 Dec 2017, Joe Perches wrote:
 
-This is a preparation for the next patch, which would make the function
-also allocate memory for the 32-bit trampoline.
+> >  - I don't understand the error for xa_head here:
+> > 
+> > struct xarray {
+> >         spinlock_t      xa_lock;
+> >         gfp_t           xa_flags;
+> >         void __rcu *    xa_head;
+> > };
+> > 
+> >    Do people really think that:
+> > 
+> > struct xarray {
+> >         spinlock_t      xa_lock;
+> >         gfp_t           xa_flags;
+> >         void __rcu	*xa_head;
+> > };
+> > 
+> >    is more aesthetically pleasing?  And not just that, but it's an *error*
+> >    so the former is *RIGHT* and this is *WRONG*.  And not just a matter
 
-The function now returns a 128-bit structure. RAX would return
-trampoline memory address (zero for now) and RDX would indicate if we
-need to enabled 5-level paging.
+Not sure what was meant here.  Neither one is *WRONG* in the sense of 
+being invalid C code.  In the sense of what checkpatch will accept, the 
+former is *WRONG* and the latter is *RIGHT* -- the opposite of what 
+was written.
 
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
----
- arch/x86/boot/compressed/head_64.S    | 41 ++++++++++++++++-------------------
- arch/x86/boot/compressed/pgtable_64.c | 25 ++++++++++-----------
- 2 files changed, 31 insertions(+), 35 deletions(-)
+> >    of taste?
+> 
+> No opinion really.
+> That's from Andy Whitcroft's original implementation.
 
-diff --git a/arch/x86/boot/compressed/head_64.S b/arch/x86/boot/compressed/head_64.S
-index fc313e29fe2c..10b4df46de84 100644
---- a/arch/x86/boot/compressed/head_64.S
-+++ b/arch/x86/boot/compressed/head_64.S
-@@ -304,20 +304,6 @@ ENTRY(startup_64)
- 	/* Set up the stack */
- 	leaq	boot_stack_end(%rbx), %rsp
- 
--#ifdef CONFIG_X86_5LEVEL
--	/*
--	 * Check if we need to enable 5-level paging.
--	 * RSI holds real mode data and need to be preserved across
--	 * a function call.
--	 */
--	pushq	%rsi
--	call	l5_paging_required
--	popq	%rsi
--
--	/* If l5_paging_required() returned zero, we're done here. */
--	cmpq	$0, %rax
--	je	lvl5
--
- 	/*
- 	 * At this point we are in long mode with 4-level paging enabled,
- 	 * but we want to enable 5-level paging.
-@@ -325,12 +311,28 @@ ENTRY(startup_64)
- 	 * The problem is that we cannot do it directly. Setting LA57 in
- 	 * long mode would trigger #GP. So we need to switch off long mode
- 	 * first.
-+	 */
-+
-+	/*
-+	 * paging_prepare() would set up the trampoline and check if we need to
-+	 * enable 5-level paging.
- 	 *
--	 * NOTE: This is not going to work if bootloader put us above 4G
--	 * limit.
-+	 * Address of the trampoline is returned in RAX.
-+	 * Non zero RDX on return means we need to enable 5-level paging.
- 	 *
--	 * The first step is go into compatibility mode.
-+	 * RSI holds real mode data and need to be preserved across
-+	 * a function call.
- 	 */
-+	pushq	%rsi
-+	call	paging_prepare
-+	popq	%rsi
-+
-+	/* Save the trampoline address in RCX */
-+	movq	%rax, %rcx
-+
-+	/* Check if we need to enable 5-level paging */
-+	cmpq	$0, %rdx
-+	jz	lvl5
- 
- 	/* Clear additional page table */
- 	leaq	lvl5_pgtable(%rbx), %rdi
-@@ -352,7 +354,6 @@ ENTRY(startup_64)
- 	pushq	%rax
- 	lretq
- lvl5:
--#endif
- 
- 	/* Zero EFLAGS */
- 	pushq	$0
-@@ -490,7 +491,6 @@ relocated:
- 	jmp	*%rax
- 
- 	.code32
--#ifdef CONFIG_X86_5LEVEL
- compatible_mode:
- 	/* Setup data and stack segments */
- 	movl	$__KERNEL_DS, %eax
-@@ -526,7 +526,6 @@ compatible_mode:
- 	movl	%eax, %cr0
- 
- 	lret
--#endif
- 
- no_longmode:
- 	/* This isn't an x86-64 CPU so hang */
-@@ -585,7 +584,5 @@ boot_stack_end:
- 	.balign 4096
- pgtable:
- 	.fill BOOT_PGT_SIZE, 1, 0
--#ifdef CONFIG_X86_5LEVEL
- lvl5_pgtable:
- 	.fill PAGE_SIZE, 1, 0
--#endif
-diff --git a/arch/x86/boot/compressed/pgtable_64.c b/arch/x86/boot/compressed/pgtable_64.c
-index b4469a37e9a1..3f1697fcc7a8 100644
---- a/arch/x86/boot/compressed/pgtable_64.c
-+++ b/arch/x86/boot/compressed/pgtable_64.c
-@@ -9,20 +9,19 @@
-  */
- unsigned long __force_order;
- 
--int l5_paging_required(void)
--{
--	/* Check if leaf 7 is supported. */
--
--	if (native_cpuid_eax(0) < 7)
--		return 0;
-+struct paging_config {
-+	unsigned long trampoline_start;
-+	unsigned long l5_required;
-+};
- 
--	/* Check if la57 is supported. */
--	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
--		return 0;
-+struct paging_config paging_prepare(void)
-+{
-+	struct paging_config paging_config = {};
- 
--	/* Check if 5-level paging has already been enabled. */
--	if (native_read_cr4() & X86_CR4_LA57)
--		return 0;
-+	/* Check if LA57 is desired and supported */
-+	if (IS_ENABLED(CONFIG_X86_5LEVEL) && native_cpuid_eax(0) >= 7 &&
-+			(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
-+		paging_config.l5_required = 1;
- 
--	return 1;
-+	return paging_config;
- }
--- 
-2.15.0
+This one, at least, is easy to explain.  The original version tends to
+lead to bugs, or easily misunderstood code.  Consider if another
+variable was added to the declaration; it could easily turn into:
+
+	void __rcu *	xa_head, xa_head2;
+
+(The compiler will reject this, but it wouldn't if the underlying type
+had been int instead of void.)
+
+Doing it the other way makes the meaning a lot more clear:
+
+	void __rcu	*xa_head, *xa_head2;
+
+This is an idiom specifically intended to reduce the likelihood of 
+errors.  Rather like avoiding assignments inside conditionals.
+
+Alan Stern
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
