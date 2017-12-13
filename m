@@ -1,133 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BE2FB6B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:34:38 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id 80so1343770wmb.7
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:34:38 -0800 (PST)
-Received: from baptiste.telenet-ops.be (baptiste.telenet-ops.be. [2a02:1800:120:4::f00:13])
-        by mx.google.com with ESMTPS id d12si1777794edh.286.2017.12.13.07.34.37
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EDBFC6B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:40:15 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id s12so1403735otc.5
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:40:15 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id u45si770429oti.90.2017.12.13.07.40.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 07:34:37 -0800 (PST)
-From: Geert Uytterhoeven <geert+renesas@glider.be>
-Subject: [PATCH v2] mm/slab: Do not hash pointers when debugging slab
-Date: Wed, 13 Dec 2017 16:34:27 +0100
-Message-Id: <1513179267-2509-1-git-send-email-geert+renesas@glider.be>
+        Wed, 13 Dec 2017 07:40:15 -0800 (PST)
+Subject: Re: pkeys: Support setting access rights for signal handlers
+References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
+ <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
+ <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
+ <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
+ <20171212231324.GE5460@ram.oc3035372033.ibm.com>
+ <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
+ <20171213113544.GG5460@ram.oc3035372033.ibm.com>
+ <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
+ <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
+Date: Wed, 13 Dec 2017 16:40:11 +0100
+MIME-Version: 1.0
+In-Reply-To: <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, "Tobin C . Harding" <me@tobin.cc>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Geert Uytterhoeven <geert+renesas@glider.be>
+To: Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-If CONFIG_DEBUG_SLAB/CONFIG_DEBUG_SLAB_LEAK are enabled, the slab code
-prints extra debug information when e.g. corruption is detected.
-This includes pointers, which are not very useful when hashed.
+On 12/13/2017 04:22 PM, Dave Hansen wrote:
+> On 12/13/2017 07:08 AM, Florian Weimer wrote:
+>> Okay, this model is really quite different from x86.  Is there a
+>> good reason for the difference?
+> 
+> Yes, both implementations are simple and take the "natural" behavior.
+> x86 changes XSAVE-controlled register values on entering a signal, so we
+> let them be changed (including PKRU).  POWER hardware does not do this
+> to its PKRU-equivalent, so we do not force it to.
 
-Fix this by using %px to print unhashed pointers instead where it makes
-sense, and by removing the printing of a last user pointer referring to
-code.
+Why?  Is there a technical reason not have fully-aligned behavior?  Can 
+POWER at least implement the original PKEY_ALLOC_SETSIGNAL semantics 
+(reset the access rights for certain keys before switching to the signal 
+handler) in a reasonably efficient manner?
 
-Fixes: ad67b74d2469d9b8 ("printk: hash addresses printed with %p")
-Signed-off-by: Geert Uytterhoeven <geert+renesas@glider.be>
-Acked-by: Christoph Lameter <cl@linux.com>
-Acked-by: Linus Torvalds <torvalds@linux-foundation.org>
----
-v2:
-  - Add Acked-by,
-  - Remove printing of pointer to last user, which refers to code.
----
- mm/slab.c | 23 ++++++++++-------------
- 1 file changed, 10 insertions(+), 13 deletions(-)
+At the very least, if we add a pkey_alloc flag, it should have identical 
+behavior on both POWER and x86.  So it should either reset the access 
+rights to a fixed value (as posted) or mask out the PKRU reset on x86 
+(if that's even possible).  In the latter case, the POWER would not even 
+have to change if we keep saying that the default key behavior (without 
+the flag) is undefined regarding signal handlers.
 
-diff --git a/mm/slab.c b/mm/slab.c
-index 183e996dde5ff37a..4e51ef954026bd15 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1584,11 +1584,8 @@ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
- 		       *dbg_redzone2(cachep, objp));
- 	}
- 
--	if (cachep->flags & SLAB_STORE_USER) {
--		pr_err("Last user: [<%p>](%pSR)\n",
--		       *dbg_userword(cachep, objp),
--		       *dbg_userword(cachep, objp));
--	}
-+	if (cachep->flags & SLAB_STORE_USER)
-+		pr_err("Last user: (%pSR)\n", *dbg_userword(cachep, objp));
- 	realobj = (char *)objp + obj_offset(cachep);
- 	size = cachep->object_size;
- 	for (i = 0; i < size && lines; i += 16, lines--) {
-@@ -1621,7 +1618,7 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
- 			/* Mismatch ! */
- 			/* Print header */
- 			if (lines == 0) {
--				pr_err("Slab corruption (%s): %s start=%p, len=%d\n",
-+				pr_err("Slab corruption (%s): %s start=%px, len=%d\n",
- 				       print_tainted(), cachep->name,
- 				       realobj, size);
- 				print_objinfo(cachep, objp, 0);
-@@ -1650,13 +1647,13 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
- 		if (objnr) {
- 			objp = index_to_obj(cachep, page, objnr - 1);
- 			realobj = (char *)objp + obj_offset(cachep);
--			pr_err("Prev obj: start=%p, len=%d\n", realobj, size);
-+			pr_err("Prev obj: start=%px, len=%d\n", realobj, size);
- 			print_objinfo(cachep, objp, 2);
- 		}
- 		if (objnr + 1 < cachep->num) {
- 			objp = index_to_obj(cachep, page, objnr + 1);
- 			realobj = (char *)objp + obj_offset(cachep);
--			pr_err("Next obj: start=%p, len=%d\n", realobj, size);
-+			pr_err("Next obj: start=%px, len=%d\n", realobj, size);
- 			print_objinfo(cachep, objp, 2);
- 		}
- 	}
-@@ -2608,7 +2605,7 @@ static void slab_put_obj(struct kmem_cache *cachep,
- 	/* Verify double free bug */
- 	for (i = page->active; i < cachep->num; i++) {
- 		if (get_free_obj(page, i) == objnr) {
--			pr_err("slab: double free detected in cache '%s', objp %p\n",
-+			pr_err("slab: double free detected in cache '%s', objp %px\n",
- 			       cachep->name, objp);
- 			BUG();
- 		}
-@@ -2772,7 +2769,7 @@ static inline void verify_redzone_free(struct kmem_cache *cache, void *obj)
- 	else
- 		slab_error(cache, "memory outside object was overwritten");
- 
--	pr_err("%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
-+	pr_err("%px: redzone 1:0x%llx, redzone 2:0x%llx\n",
- 	       obj, redzone1, redzone2);
- }
- 
-@@ -3078,7 +3075,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
- 		if (*dbg_redzone1(cachep, objp) != RED_INACTIVE ||
- 				*dbg_redzone2(cachep, objp) != RED_INACTIVE) {
- 			slab_error(cachep, "double free, or memory outside object was overwritten");
--			pr_err("%p: redzone 1:0x%llx, redzone 2:0x%llx\n",
-+			pr_err("%px: redzone 1:0x%llx, redzone 2:0x%llx\n",
- 			       objp, *dbg_redzone1(cachep, objp),
- 			       *dbg_redzone2(cachep, objp));
- 		}
-@@ -3091,7 +3088,7 @@ static void *cache_alloc_debugcheck_after(struct kmem_cache *cachep,
- 		cachep->ctor(objp);
- 	if (ARCH_SLAB_MINALIGN &&
- 	    ((unsigned long)objp & (ARCH_SLAB_MINALIGN-1))) {
--		pr_err("0x%p: not aligned to ARCH_SLAB_MINALIGN=%d\n",
-+		pr_err("0x%px: not aligned to ARCH_SLAB_MINALIGN=%d\n",
- 		       objp, (int)ARCH_SLAB_MINALIGN);
- 	}
- 	return objp;
-@@ -4283,7 +4280,7 @@ static void show_symbol(struct seq_file *m, unsigned long address)
- 		return;
- 	}
- #endif
--	seq_printf(m, "%p", (void *)address);
-+	seq_printf(m, "%px", (void *)address);
- }
- 
- static int leaks_show(struct seq_file *m, void *p)
--- 
-2.7.4
+> x86 didn't have to do this for *signals*.  But, we kinda went on this
+> trajectory when we decided to clear/restore FPU state on
+> entering/exiting signals before XSAVE even existed.
+
+ From a userspace perspective, I find this variance rather 
+disappointing.  It's particularly problematic for something like PKRU, 
+which comes with an entire set of separately configurable keys.  I 
+implemented a per-key knob, but who says that someone else doesn't need 
+a per-thread or per-signal knob to switch between these incompatible 
+behaviors?
+
+What can a library assume regarding pkeys behavior if there are 
+process-global flags that completely alter certain aspects of their 
+behavior?
+
+> FWIW, I do *not* think we have to do this for future XSAVE states.  But,
+> if we do that, we probably need an interface for apps to tell us which
+> states to save/restore and which state to set upon entering a signal
+> handler.  That's what I was trying to get you to consider instead of
+> just a one-off hack to fix this for pkeys.
+
+I get that now.
+
+But for pkeys and their access rights, having this configurable at the 
+PKRU level (as opposed the individual key level) would completely rule 
+out any use of pkeys in the glibc dynamic linker.
+
+Thanks,
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
