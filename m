@@ -1,72 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 788B96B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:20:38 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id 80so1114306wmb.7
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:20:38 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v14sor1147612edc.43.2017.12.13.04.20.37
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C3126B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:22:24 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id 3so1715227pfo.1
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:22:24 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id w125si1193056pgb.296.2017.12.13.04.22.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 04:20:37 -0800 (PST)
-Date: Wed, 13 Dec 2017 15:20:35 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH 3/3] mm: unclutter THP migration
-Message-ID: <20171213122035.av4kgn2lkbwk3ovn@node.shutemov.name>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-4-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 04:22:23 -0800 (PST)
+Date: Wed, 13 Dec 2017 13:22:11 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171208161559.27313-4-mhocko@kernel.org>
+In-Reply-To: <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Andy Lutomirski <luto@kernel.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
 
-On Fri, Dec 08, 2017 at 05:15:59PM +0100, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Tue, Dec 12, 2017 at 10:00:08AM -0800, Andy Lutomirski wrote:
+> On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
+> > From: Peter Zijstra <peterz@infradead.org>
+> >
+> > In order to create VMAs that are not accessible to userspace create a new
+> > VM_NOUSER flag. This can be used in conjunction with
+> > install_special_mapping() to inject 'kernel' data into the userspace map.
+> >
+> > Similar to how arch_vm_get_page_prot() allows adding _PAGE_flags to
+> > pgprot_t, introduce arch_vm_get_page_prot_excl() which masks
+> > _PAGE_flags from pgprot_t and use this to implement VM_NOUSER for x86.
 > 
-> THP migration is hacked into the generic migration with rather
-> surprising semantic. The migration allocation callback is supposed to
-> check whether the THP can be migrated at once and if that is not the
-> case then it allocates a simple page to migrate. unmap_and_move then
-> fixes that up by spliting the THP into small pages while moving the
-> head page to the newly allocated order-0 page. Remaning pages are moved
-> to the LRU list by split_huge_page. The same happens if the THP
-> allocation fails. This is really ugly and error prone [1].
-> 
-> I also believe that split_huge_page to the LRU lists is inherently
-> wrong because all tail pages are not migrated. Some callers will just
-> work around that by retrying (e.g. memory hotplug). There are other
-> pfn walkers which are simply broken though. e.g. madvise_inject_error
-> will migrate head and then advances next pfn by the huge page size.
-> do_move_page_to_node_array, queue_pages_range (migrate_pages, mbind),
-> will simply split the THP before migration if the THP migration is not
-> supported then falls back to single page migration but it doesn't handle
-> tail pages if the THP migration path is not able to allocate a fresh
-> THP so we end up with ENOMEM and fail the whole migration which is
-> a questionable behavior. Page compaction doesn't try to migrate large
-> pages so it should be immune.
-> 
-> This patch tries to unclutter the situation by moving the special THP
-> handling up to the migrate_pages layer where it actually belongs. We
-> simply split the THP page into the existing list if unmap_and_move fails
-> with ENOMEM and retry. So we will _always_ migrate all THP subpages and
-> specific migrate_pages users do not have to deal with this case in a
-> special way.
-> 
-> [1] http://lkml.kernel.org/r/20171121021855.50525-1-zi.yan@sent.com
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> How does this interact with get_user_pages(), etc?
 
-Looks good to me.
+So I went through that code and I think I found a bug related to this.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+get_user_pages_fast() will ultimately end up doing
+pte_access_permitted() before getting the page, follow_page OTOH does
+not do this, which makes for a curious difference between the two.
 
--- 
- Kirill A. Shutemov
+So I'm thinking we want the below irrespective of the VM_NOUSER patch,
+but with VM_NOUSER it would mean write(2) will no longer be able to
+access the page.
+
+diff --git a/mm/gup.c b/mm/gup.c
+index dfcde13f289a..b852f37a2b0c 100644
+--- a/mm/gup.c
++++ b/mm/gup.c
+@@ -153,6 +153,11 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
+ 	}
+ 
+ 	if (flags & FOLL_GET) {
++		if (!pte_access_permitted(pte, !!(flags & FOLL_WRITE))) {
++			page = ERR_PTR(-EFAULT);
++			goto out;
++		}
++
+ 		get_page(page);
+ 
+ 		/* drop the pgmap reference now that we hold the page */
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
