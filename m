@@ -1,51 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EDFAA6B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 09:50:55 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id h12so1437065wre.12
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 06:50:55 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id s4si1508519wrf.380.2017.12.13.06.50.54
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DA01C6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:00:41 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id k190so2409009iok.2
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:00:41 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id c189si1712220ith.5.2017.12.13.07.00.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Dec 2017 06:50:54 -0800 (PST)
-Date: Wed, 13 Dec 2017 15:50:44 +0100
-From: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Subject: Re: [PATCH RT] mm/slub: close possible memory-leak in
- kmem_cache_alloc_bulk()
-Message-ID: <20171213145044.falrw5jsskq2ocha@linutronix.de>
-References: <20171213140555.s4hzg3igtjfgaueh@linutronix.de>
- <20171213154654.2971ef2a@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 07:00:40 -0800 (PST)
+Date: Wed, 13 Dec 2017 16:00:07 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171213150007.fonxub6yzjh2iu2c@hirez.programming.kicks-ass.net>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
+ <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+ <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+ <20171213143455.oqigy6m53qhuu7k4@hirez.programming.kicks-ass.net>
+ <20171213144339.ii5gk2arwg5ivr6b@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171213154654.2971ef2a@redhat.com>
+In-Reply-To: <20171213144339.ii5gk2arwg5ivr6b@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-rt-users@vger.kernel.org, linux-kernel@vger.kernel.org, tglx@linutronix.de, Peter Zijlstra <peterz@infradead.org>, Steven Rostedt <rostedt@goodmis.org>, Vladimir Davydov <vdavydov@virtuozzo.com>, linux-mm@kvack.org, Rao Shoaib <rao.shoaib@oracle.com>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
 
-On 2017-12-13 15:46:54 [+0100], Jesper Dangaard Brouer wrote:
-> > Jesper: There are no users of kmem_cache_alloc_bulk() and kfree_bulk().
-> > Only kmem_cache_free_bulk() is used since it was introduced. Do you
-> > think that it would make sense to remove those?
+On Wed, Dec 13, 2017 at 05:43:39PM +0300, Kirill A. Shutemov wrote:
+> > am I perchance looking at the wrong tee?
 > 
-> I would like to keep them.
+> I'm looking at Linus' tree.
+
+Clearly I'm not synced up enough... :/
+
+> It was changed recently:
+> 	5c9d2d5c269c ("mm: replace pte_write with pte_access_permitted in fault + gup paths")
 > 
-> Rao Shoaib (Cc'ed) is/was working on a patchset for RCU-bulk-free that
-> used the kfree_bulk() API.
-> 
-> I plan to use kmem_cache_alloc_bulk() in the bpf-map "cpumap", for bulk
-> allocating SKBs during dequeue of XDP frames.  (My original bulk alloc
-> SKBs use-case during NAPI/softirq was never merged).
 
-I see. So it may gain users in future you say.
+Indeed. So FOLL_GET should also get these tests and, as you said, the
+other levels too.
 
-> I've not seen free_delayed() before... and my cscope cannot find it...
-It is PREEMPT RT only, mainline is not affected (that is why there is a
-RT next to the PATCH in subject).
-
-Sebastian
+I would like FOLL_POPULATE (doesn't have FOLL_GET) to be allowed
+'access'.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
