@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DEF96B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:34:42 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id z3so1035362pln.6
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:34:42 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u131si1220465pgc.145.2017.12.13.04.34.41
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BC066B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:47:35 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id a45so1283025wra.14
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:47:35 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u17sor1090982edf.7.2017.12.13.04.47.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Dec 2017 04:34:41 -0800 (PST)
-Date: Wed, 13 Dec 2017 13:34:37 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171213123437.GF25185@dhcp22.suse.cz>
-References: <20171213092550.2774-1-mhocko@kernel.org>
- <20171213122533.GA2384@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 13 Dec 2017 04:47:33 -0800 (PST)
+Date: Wed, 13 Dec 2017 15:47:31 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20171213124731.hmg4r5m3efybgjtx@node.shutemov.name>
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+ <20171213120733.umeb7rylswl7chi5@node.shutemov.name>
+ <20171213121703.GD25185@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171213122533.GA2384@bombadil.infradead.org>
+In-Reply-To: <20171213121703.GD25185@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Wed 13-12-17 04:25:33, Matthew Wilcox wrote:
-> On Wed, Dec 13, 2017 at 10:25:48AM +0100, Michal Hocko wrote:
-> > I am afraid we can bikeshed this to death and there will still be
-> > somebody finding yet another better name. Therefore I've decided to
-> > stick with my original MAP_FIXED_SAFE. Why? Well, because it keeps the
-> > MAP_FIXED prefix which should be recognized by developers and _SAFE
-> > suffix should also be clear that all dangerous side effects of the old
-> > MAP_FIXED are gone.
+On Wed, Dec 13, 2017 at 01:17:03PM +0100, Michal Hocko wrote:
+> On Wed 13-12-17 15:07:33, Kirill A. Shutemov wrote:
+> [...]
+> > The approach looks fine to me.
+> > 
+> > But patch is rather large and hard to review. And how git mixed add/remove
+> > lines doesn't help too. Any chance to split it up further?
 > 
-> I liked basically every other name suggested more than MAP_FIXED_SAFE.
-> "Safe against what?" was an important question.
-> 
-> MAP_AT_ADDR was the best suggestion I saw that wasn't one of mine.  Of
-> my suggestions, I liked MAP_STATIC the best.
+> I was trying to do that but this is a drop in replacement so it is quite
+> hard to do in smaller pieces. I've already put the allocation callback
+> cleanup into a separate one but this is about all that I figured how to
+> split. If you have any suggestions I am willing to try them out.
 
-The question is whether you care enough to pursue this further yourself.
-Because as I've said I do not want to spend another round discussing the
-name. The flag is documented and I believe that the name has some merit.
-Disagreeing on naming is the easiest pitfall to block otherwise useful
-functionality from being merged. And I am pretty sure there will be
-always somebody objecting...
+"git diff --patience" seems generate more readable output for the patch.
+
+> > One nitpick: I don't think 'chunk' terminology should go away with the
+> > patch.
+> 
+> Not sure what you mean here. I have kept chunk_start, chunk_node, so I
+> am not really changing that terminology
+
+We don't really have chunks anymore, right? We still *may* have per-node
+batching, but..
+
+Maybe just 'start' and 'current_node'?
+
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
