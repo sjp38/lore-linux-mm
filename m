@@ -1,87 +1,149 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6DCE16B026F
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:00:07 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 11so931746wrb.18
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 01:00:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e25si1362673edj.108.2017.12.13.01.00.00
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AFC006B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:26:01 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id f4so1004202wre.9
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 01:26:01 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x8sor429945wmh.8.2017.12.13.01.25.59
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Dec 2017 01:00:00 -0800 (PST)
-From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC PATCH 3/8] mm, compaction: pass valid_page to isolate_migratepages_block
-Date: Wed, 13 Dec 2017 09:59:10 +0100
-Message-Id: <20171213085915.9278-4-vbabka@suse.cz>
-In-Reply-To: <20171213085915.9278-1-vbabka@suse.cz>
-References: <20171213085915.9278-1-vbabka@suse.cz>
+        (Google Transport Security);
+        Wed, 13 Dec 2017 01:25:59 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
+Date: Wed, 13 Dec 2017 10:25:48 +0100
+Message-Id: <20171213092550.2774-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
+To: linux-api@vger.kernel.org
+Cc: Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>
 
-The valid_page pointer is needed to operate on pageblock bits. The next
-patches will need it sooner in isolate_migratepages_block() than currently
-estabilished. Since isolate_migratepages() has the pointer already, pass it
-down. CMA's isolate_migratepages_range() doesn't, but we will use it only
-for compaction so that's ok.
 
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
----
- mm/compaction.c | 11 +++++++----
- 1 file changed, 7 insertions(+), 4 deletions(-)
+Hi,
+I am resending with some minor updates based on Michael's review and
+ask for inclusion. There haven't been any fundamental objections for
+the RFC [1] nor the previous version [2].  The biggest discussion
+revolved around the naming. There were many suggestions flowing
+around MAP_REQUIRED, MAP_EXACT, MAP_FIXED_NOCLOBBER, MAP_AT_ADDR,
+MAP_FIXED_NOREPLACE etc...
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index 95b8b5ae59c5..00dc46343093 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -674,6 +674,8 @@ static bool too_many_isolated(struct zone *zone)
-  *				  a single pageblock
-  * @cc:		Compaction control structure.
-  * @low_pfn:	The first PFN to isolate
-+ * @valid_page: Page belonging to same pageblock as low_pfn (for pageblock
-+ *              flag operations). May be NULL.
-  * @end_pfn:	The one-past-the-last PFN to isolate, within same pageblock
-  * @isolate_mode: Isolation mode to be used.
-  *
-@@ -689,14 +691,15 @@ static bool too_many_isolated(struct zone *zone)
-  */
- static unsigned long
- isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
--			unsigned long end_pfn, isolate_mode_t isolate_mode)
-+		struct page *valid_page, unsigned long end_pfn,
-+		isolate_mode_t isolate_mode)
- {
- 	struct zone *zone = cc->zone;
- 	unsigned long nr_scanned = 0, nr_isolated = 0;
- 	struct lruvec *lruvec;
- 	unsigned long flags = 0;
- 	bool locked = false;
--	struct page *page = NULL, *valid_page = NULL;
-+	struct page *page = NULL;
- 	unsigned long start_pfn = low_pfn;
- 	bool skip_on_failure = false, skipped_pages = false;
- 	unsigned long next_skip_pfn = 0;
-@@ -992,7 +995,7 @@ isolate_migratepages_range(struct compact_control *cc, unsigned long start_pfn,
- 					block_end_pfn, cc->zone))
- 			continue;
- 
--		pfn = isolate_migratepages_block(cc, pfn, block_end_pfn,
-+		pfn = isolate_migratepages_block(cc, pfn, NULL, block_end_pfn,
- 							ISOLATE_UNEVICTABLE);
- 
- 		if (!pfn)
-@@ -1282,7 +1285,7 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
- 			continue;
- 
- 		/* Perform the isolation */
--		low_pfn = isolate_migratepages_block(cc, low_pfn,
-+		low_pfn = isolate_migratepages_block(cc, low_pfn, page,
- 						block_end_pfn, isolate_mode);
- 
- 		if (!low_pfn || cc->contended)
--- 
-2.15.1
+I am afraid we can bikeshed this to death and there will still be
+somebody finding yet another better name. Therefore I've decided to
+stick with my original MAP_FIXED_SAFE. Why? Well, because it keeps the
+MAP_FIXED prefix which should be recognized by developers and _SAFE
+suffix should also be clear that all dangerous side effects of the old
+MAP_FIXED are gone.
+
+If somebody _really_ hates this then feel free to nack and resubmit
+with a different name you can find a consensus for. I am sorry to be
+stubborn here but I would rather have this merged than go over few more
+iterations changing the name just because it seems like a good idea
+now. My experience tells me that chances are that the name will turn out
+to be "suboptimal" anyway over time.
+
+Some more background:
+This has started as a follow up discussion [3][4] resulting in the
+runtime failure caused by hardening patch [5] which removes MAP_FIXED
+from the elf loader because MAP_FIXED is inherently dangerous as it
+might silently clobber an existing underlying mapping (e.g. stack). The
+reason for the failure is that some architectures enforce an alignment
+for the given address hint without MAP_FIXED used (e.g. for shared or
+file backed mappings).
+
+One way around this would be excluding those archs which do alignment
+tricks from the hardening [6]. The patch is really trivial but it has
+been objected, rightfully so, that this screams for a more generic
+solution. We basically want a non-destructive MAP_FIXED.
+
+The first patch introduced MAP_FIXED_SAFE which enforces the given
+address but unlike MAP_FIXED it fails with EEXIST if the given range
+conflicts with an existing one. The flag is introduced as a completely
+new one rather than a MAP_FIXED extension because of the backward
+compatibility. We really want a never-clobber semantic even on older
+kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+flags evaluation because we do not EINVAL on unknown flags. On those
+kernels we would simply use the traditional hint based semantic so the
+caller can still get a different address (which sucks) but at least not
+silently corrupt an existing mapping. I do not see a good way around
+that. Except we won't export expose the new semantic to the userspace at
+all. 
+
+It seems there are users who would like to have something like that.
+Jemalloc has been mentioned by Michael Ellerman [7]
+
+Florian Weimer has mentioned the following:
+: glibc ld.so currently maps DSOs without hints.  This means that the kernel
+: will map right next to each other, and the offsets between them a completely
+: predictable.  We would like to change that and supply a random address in a
+: window of the address space.  If there is a conflict, we do not want the
+: kernel to pick a non-random address. Instead, we would try again with a
+: random address.
+
+John Hubbard has mentioned CUDA example
+: a) Searches /proc/<pid>/maps for a "suitable" region of available
+: VA space.  "Suitable" generally means it has to have a base address
+: within a certain limited range (a particular device model might
+: have odd limitations, for example), it has to be large enough, and
+: alignment has to be large enough (again, various devices may have
+: constraints that lead us to do this).
+: 
+: This is of course subject to races with other threads in the process.
+: 
+: Let's say it finds a region starting at va.
+: 
+: b) Next it does: 
+:     p = mmap(va, ...) 
+: 
+: *without* setting MAP_FIXED, of course (so va is just a hint), to
+: attempt to safely reserve that region. If p != va, then in most cases,
+: this is a failure (almost certainly due to another thread getting a
+: mapping from that region before we did), and so this layer now has to
+: call munmap(), before returning a "failure: retry" to upper layers.
+: 
+:     IMPROVEMENT: --> if instead, we could call this:
+: 
+:             p = mmap(va, ... MAP_FIXED_SAFE ...)
+: 
+:         , then we could skip the munmap() call upon failure. This
+:         is a small thing, but it is useful here. (Thanks to Piotr
+:         Jaroszynski and Mark Hairgrove for helping me get that detail
+:         exactly right, btw.)
+: 
+: c) After that, CUDA suballocates from p, via: 
+:  
+:      q = mmap(sub_region_start, ... MAP_FIXED ...)
+: 
+: Interestingly enough, "freeing" is also done via MAP_FIXED, and
+: setting PROT_NONE to the subregion. Anyway, I just included (c) for
+: general interest.
+
+Atomic address range probing in the multithreaded programs in general
+sounds like an interesting thing to me.
+
+The second patch simply replaces MAP_FIXED use in elf loader by
+MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
+follow. Actually real MAP_FIXED usages should be docummented properly
+and they should be more of an exception.
+
+Diffstat says
+ arch/alpha/include/uapi/asm/mman.h     |  1 +
+ arch/metag/kernel/process.c            |  6 +++++-
+ arch/mips/include/uapi/asm/mman.h      |  2 ++
+ arch/parisc/include/uapi/asm/mman.h    |  2 ++
+ arch/sparc/include/uapi/asm/mman.h     |  1 -
+ arch/xtensa/include/uapi/asm/mman.h    |  2 ++
+ fs/binfmt_elf.c                        | 12 ++++++++----
+ include/uapi/asm-generic/mman-common.h |  1 +
+ mm/mmap.c                              | 11 +++++++++++
+ 9 files changed, 32 insertions(+), 6 deletions(-)
+
+[1] http://lkml.kernel.org/r/20171116101900.13621-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20171129144219.22867-1-mhocko@kernel.org
+[3] http://lkml.kernel.org/r/20171107162217.382cd754@canb.auug.org.au
+[4] http://lkml.kernel.org/r/1510048229.12079.7.camel@abdul.in.ibm.com
+[5] http://lkml.kernel.org/r/20171023082608.6167-1-mhocko@kernel.org
+[6] http://lkml.kernel.org/r/20171113094203.aofz2e7kueitk55y@dhcp22.suse.cz
+[7] http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
