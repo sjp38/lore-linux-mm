@@ -1,97 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EBA96B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:08:22 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id r11so1342034ote.20
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:08:22 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s188si581450oia.511.2017.12.13.07.08.14
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BDC9F6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:14:46 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id u3so1951175pfl.5
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:14:46 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id 5si1521656plx.33.2017.12.13.07.14.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 07:08:15 -0800 (PST)
-Subject: Re: pkeys: Support setting access rights for signal handlers
-References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
- <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
- <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
- <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
- <20171212231324.GE5460@ram.oc3035372033.ibm.com>
- <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
- <20171213113544.GG5460@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
-Date: Wed, 13 Dec 2017 16:08:09 +0100
+        Wed, 13 Dec 2017 07:14:44 -0800 (PST)
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
+ <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+ <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <b303fac7-34af-5065-f996-4494fb8c09a2@intel.com>
+Date: Wed, 13 Dec 2017 07:14:41 -0800
 MIME-Version: 1.0
-In-Reply-To: <20171213113544.GG5460@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
+In-Reply-To: <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>
+Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
 
-On 12/13/2017 12:35 PM, Ram Pai wrote:
-> On Wed, Dec 13, 2017 at 03:14:36AM +0100, Florian Weimer wrote:
->> On 12/13/2017 12:13 AM, Ram Pai wrote:
->>
->>> On POWER, the value of the pkey_read() i.e contents the AMR
->>> register(pkru equivalent), is always the same regardless of its
->>> context; signal handler or not.
->>>
->>> In other words, the permission of any allocated key will not
->>> reset in a signal handler context.
->>
->> That's certainly the simpler semantics, but I don't like how they
->> differ from x86.
->>
->> Is the AMR register reset to the original value upon (regular)
->> return from the signal handler?
-> 
-> The AMR bits are not touched upon (regular) return from the signal
-> handler.
-> 
-> If the signal handler changes the bits in the AMR, they will continue
-> to be so, even after return from the signal handler.
-> 
-> To illustrate with an example, lets say AMR value is 'x' and signal
-> handler is invoked.  The value of AMR will be 'x' in the context of the
-> signal handler.  On return from the signal handler the value of AMR will
-> continue to be 'x'. However if signal handler changes the value of AMR
-> to 'y', the value of AMR will be 'y' on return from the signal handler.
+On 12/13/2017 04:57 AM, Kirill A. Shutemov wrote:
+> Dave, what is effect of this on protection keys?
 
-Okay, this model is really quite different from x86.  Is there a good 
-reason for the difference?  Could we change the x86 implementation to 
-behave in the same way?  Or alternatively, change the POWER 
-implementation to match the existing x86 behavior?
+The goal was to make pkeys-protected userspace memory access
+_consistent_ with normal access.  Specifically, we want a kernel to
+disallow access (or writes) to memory where userspace mapping has a pkey
+whose permissions are in conflict with the access.
 
->>> I was not aware that x86 would reset the key permissions in signal
->>> handler.  I think, the proposed behavior for PKEY_ALLOC_SETSIGNAL should
->>> actually be the default behavior.
->>
->> Note that PKEY_ALLOC_SETSIGNAL does something different: It requests
->> that the kernel sets the access rights for the key to the bits
->> specified at pkey_alloc time when the signal handler is invoked.  So
->> there is still a reset with PKEY_ALLOC_SETSIGNAL, but to a different
->> value.  It did not occur to me that it might be desirable to avoid
->> resetting the value on a per-key basis.
-> 
-> Ah. ok i see the subtle difference proposed by your semantics.
-> 
-> Will the following behavior work?
-> 
-> 'No bits will be reset to its initial value unless the key has been
-> allocated with PKEY_ALLOC_*RE*SETSIGNAL flag'.
+For instance:
 
-The existing x86 interface defaults to resetting the bits, 
-unfortunately.  I'm not sure if we can or should change this now.
+This will fault writing a byte to 'addr':
 
-For my purposes, the POWER semantics would work fine as far as I can 
-see.  The reset-to-default is really problematic.  I don't actually need 
-the configurable behavior, but I implemented it this way to achieve a 
-maximum of backwards compatibility.
+	char *addr = malloc(PAGE_SIZE);
+	pkey_mprotect(addr, PAGE_SIZE, 13);
+	pkey_deny_access(13);
+	*addr[0] = 'f';
 
-Thanks,
-Florian
+But this will write one byte to addr successfully (if it uses the kernel
+mapping of the physical page backing 'addr'):
+
+	char *addr = malloc(PAGE_SIZE);
+	pkey_mprotect(addr, PAGE_SIZE, 13);
+	pkey_deny_access(13);
+	read(fd, addr, 1);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
