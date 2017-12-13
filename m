@@ -1,48 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 352F36B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 05:14:13 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id p1so1529529pfp.13
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 02:14:13 -0800 (PST)
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id a10si1134300pln.583.2017.12.13.02.14.11
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E2D836B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 05:27:11 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id u128so828791oib.8
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 02:27:11 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id 32si466454ota.537.2017.12.13.02.27.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 02:14:12 -0800 (PST)
-Date: Wed, 13 Dec 2017 13:13:36 +0300
-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv3 11/11] mm: Use updated pmdp_invalidate() interface to
- track dirty/accessed bits
-Message-ID: <20171213101336.np2tin32o5ppvion@black.fi.intel.com>
-References: <20170912153941.47012-1-kirill.shutemov@linux.intel.com>
- <20170912153941.47012-12-kirill.shutemov@linux.intel.com>
- <87tw07uz7p.fsf@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Dec 2017 02:27:10 -0800 (PST)
+Subject: Re: [patch 1/2] mm, mmu_notifier: annotate mmu notifiers with
+ blockable invalidate callbacks
+References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com>
+ <20171212200542.GJ5848@hpe.com>
+ <alpine.DEB.2.10.1712121326280.134224@chino.kir.corp.google.com>
+ <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <d435cf68-1073-7bdb-c5e7-c28f3e15bcb0@I-love.SAKURA.ne.jp>
+Date: Wed, 13 Dec 2017 19:26:31 +0900
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87tw07uz7p.fsf@linux.vnet.ibm.com>
+In-Reply-To: <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Vineet Gupta <vgupta@synopsys.com>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Ralf Baechle <ralf@linux-mips.org>, "David S. Miller" <davem@davemloft.net>, Martin Schwidefsky <schwidefsky@de.ibm.com>, Heiko Carstens <heiko.carstens@de.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, David Rientjes <rientjes@google.com>, Dimitri Sivanich <sivanich@hpe.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 
-On Wed, Sep 13, 2017 at 02:08:58AM +0000, Aneesh Kumar K.V wrote:
-> @@ -2011,6 +2036,8 @@ static void __split_huge_pmd_locked(struct vm_area_struct *vma, pmd_t *pmd,
->  			if (soft_dirty)
->  				entry = pte_mksoft_dirty(entry);
->  		}
-> +		if (dirty)
-> +			SetPageDirty(page + i);
->  		pte = pte_offset_map(&_pmd, addr);
->  		BUG_ON(!pte_none(*pte));
->  		set_pte_at(mm, addr, pte, entry);
+On 2017/12/13 18:34, Christian KA?nig wrote:
+> Am 12.12.2017 um 22:28 schrieb David Rientjes:
+>> On Tue, 12 Dec 2017, Dimitri Sivanich wrote:
+>>
+>>>> --- a/drivers/misc/sgi-gru/grutlbpurge.c
+>>>> +++ b/drivers/misc/sgi-gru/grutlbpurge.c
+>>>> @@ -298,6 +298,7 @@ struct gru_mm_struct *gru_register_mmu_notifier(void)
+>>>>               return ERR_PTR(-ENOMEM);
+>>>>           STAT(gms_alloc);
+>>>>           spin_lock_init(&gms->ms_asid_lock);
+>>>> +        gms->ms_notifier.flags = 0;
+>>>>           gms->ms_notifier.ops = &gru_mmuops;
+>>>>           atomic_set(&gms->ms_refcnt, 1);
+>>>>           init_waitqueue_head(&gms->ms_wait_queue);
+>>>> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+>>> There is a kzalloc() just above this:
+>>>     gms = kzalloc(sizeof(*gms), GFP_KERNEL);
+>>>
+>>> Is that not sufficient to clear the 'flags' field?
+>>>
+>> Absolutely, but whether it is better to explicitly document that the mmu
+>> notifier has cleared flags, i.e. there are no blockable callbacks, is
+>> another story.  I can change it if preferred.
+> 
+> Actually I would invert the new flag, in other words specify that an MMU notifier will never sleep.
+> 
+> The first reason is that we have 8 blocking notifiers and 5 not blocking if I counted right. So it is actually more common to sleep than not to.
+> 
+> The second reason is to be conservative and assume the worst, e.g. that the flag is forgotten when a new notifier is added.
 
-The patch is fine. But we don't need to set every 4k dirty. We have single
-dirty bit for whole THP. I'll change this part and sent the patch as part
-of the series.
+I agree. Some out of tree module might forget to set the flags.
 
--- 
- Kirill A. Shutemov
+Although you don't need to fix out of tree modules, as a troubleshooting
+staff at a support center, I want to be able to identify the careless module.
+
+I guess specifying the flags at register function would be the best, for
+an attempt to call register function without knowing this change will
+simply results in a build failure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
