@@ -1,192 +1,264 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3308D6B0033
-	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 19:26:06 -0500 (EST)
-Received: by mail-vk0-f70.google.com with SMTP id a67so379627vkf.5
-        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 16:26:06 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id u2si178393vkb.79.2017.12.12.16.26.04
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CF596B0253
+	for <linux-mm@kvack.org>; Tue, 12 Dec 2017 19:32:57 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id m6so356780wrf.1
+        for <linux-mm@kvack.org>; Tue, 12 Dec 2017 16:32:57 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k78si328228wrc.84.2017.12.12.16.32.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 12 Dec 2017 16:26:05 -0800 (PST)
-Subject: Re: [RFC PATCH 1/5] mm, hugetlb: unify core page allocation
- accounting and initialization
-References: <20171204140117.7191-1-mhocko@kernel.org>
- <20171204140117.7191-2-mhocko@kernel.org>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <0698cdb3-ee17-04ac-5f8b-4fa7b15ac52c@oracle.com>
-Date: Tue, 12 Dec 2017 16:20:53 -0800
+        Tue, 12 Dec 2017 16:32:55 -0800 (PST)
+Date: Tue, 12 Dec 2017 16:32:52 -0800
+From: akpm@linux-foundation.org
+Subject: mmotm 2017-12-12-16-32 uploaded
+Message-ID: <5a307534.6nRmlWsg00TDyWYb%akpm@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20171204140117.7191-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, mhocko@suse.cz, broonie@kernel.org
 
-On 12/04/2017 06:01 AM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> hugetlb allocator has two entry points to the page allocator
-> - alloc_fresh_huge_page_node
-> - __hugetlb_alloc_buddy_huge_page
-> 
-> The two differ very subtly in two aspects. The first one doesn't care
-> about HTLB_BUDDY_* stats and it doesn't initialize the huge page.
-> prep_new_huge_page is not used because it not only initializes hugetlb
-> specific stuff but because it also put_page and releases the page to
-> the hugetlb pool which is not what is required in some contexts. This
-> makes things more complicated than necessary.
-> 
-> Simplify things by a) removing the page allocator entry point duplicity
-> and only keep __hugetlb_alloc_buddy_huge_page and b) make
-> prep_new_huge_page more reusable by removing the put_page which moves
-> the page to the allocator pool. All current callers are updated to call
-> put_page explicitly. Later patches will add new callers which won't
-> need it.
-> 
-> This patch shouldn't introduce any functional change.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
+The mm-of-the-moment snapshot 2017-12-12-16-32 has been uploaded to
 
-Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
--- 
-Mike Kravetz
+   http://www.ozlabs.org/~akpm/mmotm/
 
-> ---
->  mm/hugetlb.c | 61 +++++++++++++++++++++++++++++-------------------------------
->  1 file changed, 29 insertions(+), 32 deletions(-)
-> 
-> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-> index 2c9033d39bfe..8189c92fac82 100644
-> --- a/mm/hugetlb.c
-> +++ b/mm/hugetlb.c
-> @@ -1157,6 +1157,7 @@ static struct page *alloc_fresh_gigantic_page_node(struct hstate *h, int nid)
->  	if (page) {
->  		prep_compound_gigantic_page(page, huge_page_order(h));
->  		prep_new_huge_page(h, page, nid);
-> +		put_page(page); /* free it into the hugepage allocator */
->  	}
->  
->  	return page;
-> @@ -1304,7 +1305,6 @@ static void prep_new_huge_page(struct hstate *h, struct page *page, int nid)
->  	h->nr_huge_pages++;
->  	h->nr_huge_pages_node[nid]++;
->  	spin_unlock(&hugetlb_lock);
-> -	put_page(page); /* free it into the hugepage allocator */
->  }
->  
->  static void prep_compound_gigantic_page(struct page *page, unsigned int order)
-> @@ -1381,41 +1381,49 @@ pgoff_t __basepage_index(struct page *page)
->  	return (index << compound_order(page_head)) + compound_idx;
->  }
->  
-> -static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
-> +static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-> +		gfp_t gfp_mask, int nid, nodemask_t *nmask)
->  {
-> +	int order = huge_page_order(h);
->  	struct page *page;
->  
-> -	page = __alloc_pages_node(nid,
-> -		htlb_alloc_mask(h)|__GFP_COMP|__GFP_THISNODE|
-> -						__GFP_RETRY_MAYFAIL|__GFP_NOWARN,
-> -		huge_page_order(h));
-> -	if (page) {
-> -		prep_new_huge_page(h, page, nid);
-> -	}
-> +	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
-> +	if (nid == NUMA_NO_NODE)
-> +		nid = numa_mem_id();
-> +	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
-> +	if (page)
-> +		__count_vm_event(HTLB_BUDDY_PGALLOC);
-> +	else
-> +		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
->  
->  	return page;
->  }
->  
-> +/*
-> + * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
-> + * manner.
-> + */
->  static int alloc_fresh_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
->  {
->  	struct page *page;
->  	int nr_nodes, node;
-> -	int ret = 0;
-> +	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
->  
->  	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
-> -		page = alloc_fresh_huge_page_node(h, node);
-> -		if (page) {
-> -			ret = 1;
-> +		page = __hugetlb_alloc_buddy_huge_page(h, gfp_mask,
-> +				node, nodes_allowed);
-> +		if (page)
->  			break;
-> -		}
-> +
->  	}
->  
-> -	if (ret)
-> -		count_vm_event(HTLB_BUDDY_PGALLOC);
-> -	else
-> -		count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
-> +	if (!page)
-> +		return 0;
->  
-> -	return ret;
-> +	prep_new_huge_page(h, page, page_to_nid(page));
-> +	put_page(page); /* free it into the hugepage allocator */
-> +
-> +	return 1;
->  }
->  
->  /*
-> @@ -1523,17 +1531,6 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
->  	return rc;
->  }
->  
-> -static struct page *__hugetlb_alloc_buddy_huge_page(struct hstate *h,
-> -		gfp_t gfp_mask, int nid, nodemask_t *nmask)
-> -{
-> -	int order = huge_page_order(h);
-> -
-> -	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
-> -	if (nid == NUMA_NO_NODE)
-> -		nid = numa_mem_id();
-> -	return __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
-> -}
-> -
->  static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
->  		int nid, nodemask_t *nmask)
->  {
-> @@ -1589,11 +1586,9 @@ static struct page *__alloc_buddy_huge_page(struct hstate *h, gfp_t gfp_mask,
->  		 */
->  		h->nr_huge_pages_node[r_nid]++;
->  		h->surplus_huge_pages_node[r_nid]++;
-> -		__count_vm_event(HTLB_BUDDY_PGALLOC);
->  	} else {
->  		h->nr_huge_pages--;
->  		h->surplus_huge_pages--;
-> -		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
->  	}
->  	spin_unlock(&hugetlb_lock);
->  
-> @@ -2148,6 +2143,8 @@ static void __init gather_bootmem_prealloc(void)
->  		prep_compound_huge_page(page, h->order);
->  		WARN_ON(PageReserved(page));
->  		prep_new_huge_page(h, page, page_to_nid(page));
-> +		put_page(page); /* free it into the hugepage allocator */
-> +
->  		/*
->  		 * If we had gigantic hugepages allocated at boot time, we need
->  		 * to restore the 'stolen' pages to totalram_pages in order to
-> 
+mmotm-readme.txt says
+
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (4.x
+or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+A git tree which contains the memory management portion of this tree is
+maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+by Michal Hocko.  It contains the patches which are between the
+"#NEXT_PATCHES_START mm" and "#NEXT_PATCHES_END" markers, from the series
+file, http://www.ozlabs.org/~akpm/mmotm/series.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+To develop on top of mmotm git:
+
+  $ git remote add mmotm git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+  $ git remote update mmotm
+  $ git checkout -b topic mmotm/master
+  <make changes, commit>
+  $ git send-email mmotm/master.. [...]
+
+To rebase a branch with older patches to a new mmotm release:
+
+  $ git remote update mmotm
+  $ git rebase --onto mmotm/master <topic base> topic
+
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 4.15-rc3:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+  i-need-old-gcc.patch
+* idr-add-include-linux-bugh.patch
+* frv-fix-build-failure.patch
+* scripts-decodecode-fix-decoding-for-aarch64-arm64-instructions.patch
+* mm-skip-hwpoisoned-pages-when-onlining-pages.patch
+* lib-rbtreedrm-mm-add-rbtree_replace_node_cached.patch
+* mm-kmemleakc-make-cond_resched-rate-limiting-more-efficient.patch
+* stringh-work-around-for-increased-stack-usage.patch
+* stringh-work-around-for-increased-stack-usage-fix.patch
+* autofs-fix-careless-error-in-recent-commit.patch
+* exec-avoid-gcc-8-warning-for-get_task_comm.patch
+* zswap-update-with-same-value-filled-page-feature.patch
+* scripts-faddr2line-fix-cross_compile-unset-error.patch
+* mm-memoryc-mark-wp_huge_pmd-inline-to-prevent-build-failure.patch
+* mm-memoryc-mark-wp_huge_pmd-inline-to-prevent-build-failure-fix.patch
+* ubsan-dont-handle-misaligned-address-when-support-unaligned-access.patch
+* ubsan-dont-handle-misaligned-address-when-support-unaligned-access-v2.patch
+* mm-check-pfn_valid-first-in-zero_resv_unavail.patch
+* mm-page_alloc-avoid-excessive-irq-disabled-times-in-free_unref_page_list.patch
+* mm-slab-do-not-hash-pointers-when-debugging-slab.patch
+* kcov-fix-comparison-callback-signature.patch
+* tools-slabinfo-gnuplot-force-to-use-bash-shell.patch
+* mm-release-a-semaphore-in-get_vaddr_frames.patch
+* kernel-make-groups_sort-calling-a-responsibility-group_info-allocators.patch
+* mm-oom_reaper-fix-memory-corruption.patch
+* arch-define-weak-abort.patch
+* arm-arch-arm-include-asm-pageh-needs-personalityh.patch
+* prctl-add-pr_et_pdeathsig_proc.patch
+* scripts-decodecode-make-it-take-multiline-code-line.patch
+* ntfs-remove-i_version-handling.patch
+* ocfs2-dlm-clean-dead-code-up.patch
+* ocfs2-cluster-neaten-a-member-of-o2net_msg_handler.patch
+* ocfs2-check-the-metadate-alloc-before-marking-extent-written.patch
+* ocfs2-give-an-obvious-tip-for-dismatch-cluster-names.patch
+* ocfs2-cluster-close-a-race-that-fence-cant-be-triggered.patch
+* ocfs2-using-the-ocfs2_xattr_root_size-macro-in-ocfs2_reflink_xattr_header.patch
+* ocfs2-get-rid-of-ocfs2_is_o2cb_active-function.patch
+* ocfs2-move-some-definitions-to-header-file.patch
+* ocfs2-fix-some-small-problems.patch
+* ocfs2-add-kobject-for-online-file-check.patch
+* ocfs2-add-duplicative-ino-number-check.patch
+* ocfs2-add-ocfs2_try_rw_lock-and-ocfs2_try_inode_lock.patch
+* ocfs2-add-ocfs2_overwrite_io-function.patch
+* ocfs2-nowait-aio-support.patch
+* block-restore-proc-partitions-to-not-display-non-partitionable-removable-devices.patch
+* dentry-fix-kmemcheck-splat-at-take_dentry_name_snapshot.patch
+  mm.patch
+* mm-terminate-shrink_slab-loop-if-signal-is-pending.patch
+* mm-terminate-shrink_slab-loop-if-signal-is-pending-fix.patch
+* mm-slab-make-calculate_alignment-function-static.patch
+* include-linux-sched-mmh-uninline-mmdrop_async-etc.patch
+* mm-kmemleak-remove-unused-hardirqh.patch
+* zswap-same-filled-pages-handling.patch
+* zswap-same-filled-pages-handling-v2.patch
+* mm-relax-deferred-struct-page-requirements.patch
+* mm-mempolicy-remove-redundant-check-in-get_nodes.patch
+* mm-mempolicy-fix-the-check-of-nodemask-from-user.patch
+* mm-mempolicy-add-nodes_empty-check-in-sysc_migrate_pages.patch
+* mm-drop-hotplug-lock-from-lru_add_drain_all.patch
+* mm-show-total-hugetlb-memory-consumption-in-proc-meminfo.patch
+* mm-use-sc-priority-for-slab-shrink-targets.patch
+* mm-mlock-vmscan-no-more-skipping-pagevecs.patch
+* mmvmscan-mark-register_shrinker-as-__must_check.patch
+* mm-split-deferred_init_range-into-initializing-and-freeing-parts.patch
+* mm-split-deferred_init_range-into-initializing-and-freeing-parts-fix.patch
+* mm-filemap-remove-include-of-hardirqh.patch
+* mm-memcontrol-eliminate-raw-access-to-stat-and-event-counters.patch
+* mm-memcontrol-implement-lruvec-stat-functions-on-top-of-each-other.patch
+* mm-memcontrol-fix-excessive-complexity-in-memorystat-reporting.patch
+* mm-memcontrol-fix-excessive-complexity-in-memorystat-reporting-fix.patch
+* mm-swap-clean-up-swap-readahead.patch
+* mm-swap-unify-cluster-based-and-vma-based-swap-readahead.patch
+* mm-page_owner-use-ptr_err_or_zero.patch
+* mm-page_alloc-fix-comment-is-__get_free_pages.patch
+* mm-do-not-stall-register_shrinker.patch
+* mm-do-not-stall-register_shrinker-fix.patch
+* selftest-vm-move-128tb-mmap-boundary-test-to-generic-directory.patch
+* selftest-vm-move-128tb-mmap-boundary-test-to-generic-directory-fix.patch
+* mm-use-vma_pages-helper.patch
+* mm-remove-unused-pgdat_reclaimable_pages.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock.patch
+* list_lru-prefetch-neighboring-list-entries-before-acquiring-lock-fix.patch
+* mm-oom-refactor-the-oom_kill_process-function.patch
+* mm-implement-mem_cgroup_scan_tasks-for-the-root-memory-cgroup.patch
+* mm-oom-cgroup-aware-oom-killer.patch
+* mm-oom-cgroup-aware-oom-killer-fix.patch
+* mm-oom-introduce-memoryoom_group.patch
+* mm-oom-introduce-memoryoom_group-fix.patch
+* mm-oom-add-cgroup-v2-mount-option-for-cgroup-aware-oom-killer.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer.patch
+* mm-oom-docs-describe-the-cgroup-aware-oom-killer-fix.patch
+* cgroup-list-groupoom-in-cgroup-features.patch
+* mm-hugetlb-drop-hugepages_treat_as_movable-sysctl.patch
+* mm-memory_hotplug-remove-unnecesary-check-from-register_page_bootmem_info_section.patch
+* mm-update-comment-describing-tlb_gather_mmu.patch
+* mm-readahead-increase-maximum-readahead-window.patch
+* proc-do-not-show-vmexe-bigger-than-total-executable-virtual-memory.patch
+* mm-add-strictlimit-knob-v2.patch
+* mm-memory_hotplug-remove-second-__nr_to_section-in-register_page_bootmem_info_section.patch
+* mm-huge_memory-fix-comment-in-__split_huge_pmd_locked.patch
+* mm-userfaultfd-thp-avoid-waiting-when-pmd-under-thp-migration.patch
+* mm-page_alloc-dont-reserve-zone_highmem-for-zone_movable-request.patch
+* mm-cma-manage-the-memory-of-the-cma-area-by-using-the-zone_movable.patch
+* mm-cma-remove-alloc_cma.patch
+* arm-cma-avoid-double-mapping-to-the-cma-area-if-config_highmem-=-y.patch
+* make-memory-debugging-a-menuconfig-to-ease-disabling-it-all.patch
+* mm-add-unmap_mapping_pages.patch
+* get-7%-more-pages-in-a-pagevec.patch
+* mm-page_owner-align-with-pageblock_nr_pages.patch
+* mm-make-count-list_lru_one-nr_items-lockless.patch
+* mm-make-count-list_lru_one-nr_items-lockless-v2.patch
+* mm-page_owner-align-with-pageblock_nr-pages.patch
+* proc-use-%u-for-pid-printing-and-slightly-less-stack.patch
+* proc-dont-use-read_once-write_once-for-proc-fail-nth.patch
+* proc-fix-proc-map_files-lookup.patch
+* proc-simpler-proc-vmcore-cleanup.patch
+* proc-less-memory-for-proc-map_files-readdir.patch
+* proc-delete-children_seq_release.patch
+* fs-proc-kcorec-use-probe_kernel_read-instead-of-memcpy.patch
+* makefile-move-stack-protector-compiler-breakage-test-earlier.patch
+* makefile-move-stack-protector-availability-out-of-kconfig.patch
+* makefile-introduce-config_cc_stackprotector_auto.patch
+* kconfig-make-strict_devmem-default-y-on-x86-and-arm64.patch
+* revert-async-simplify-lowest_in_progress.patch
+* lib-stackdepot-use-a-non-instrumented-version-of-memcmp.patch
+* lib-test_find_bitc-rename-to-find_bit_benchmarkc.patch
+* lib-find_bit_benchmarkc-improvements.patch
+* lib-optimize-cpumask_next_and.patch
+* lib-optimize-cpumask_next_and-v6.patch
+* lib-optimize-cpumask_next_and-v6-fix.patch
+* make-runtime_tests-a-menuconfig-to-ease-disabling-it-all.patch
+* checkpatch-allow-long-lines-containing-url.patch
+* hfsplus-honor-setgid-flag-on-directories.patch
+* seq_file-delete-small-value-optimization.patch
+* forkc-check-error-and-return-early.patch
+* forkc-add-doc-about-usage-of-clone_fs-flags-and-namespaces.patch
+* cpumask-make-cpumask_size-return-unsigned-int.patch
+* kdump-vmcoreinfo-report-actual-value-of-phys_base.patch
+* uapi-fix-linux-sysctlh-userspace-compilation-errors.patch
+* pids-introduce-find_get_task_by_vpid-helper.patch
+* lib-ubsanc-s-missaligned-misaligned.patch
+* ipc-fix-ipc-data-structures-inconsistency.patch
+* ipc-mqueue-wq_add-priority-changed-to-dynamic-priority.patch
+* lustre-dont-set-f_version-in-ll_readdir.patch
+  linux-next.patch
+  linux-next-rejects.patch
+* tools-objtool-makefile-dont-assume-sync-checksh-is-executable.patch
+* vfs-remove-might_sleep-from-clear_inode.patch
+* mm-remove-duplicate-includes.patch
+* ipc-mqueue-lazy-call-kern_mount_data-in-new-namespaces.patch
+* epoll-use-the-waitqueue-lock-to-protect-ep-wq.patch
+* sched-wait-assert-the-wait_queue_head-lock-is-held-in-__wake_up_common.patch
+* mm-remove-unneeded-kallsyms-include.patch
+* power-remove-unneeded-kallsyms-include.patch
+* pci-remove-unneeded-kallsyms-include.patch
+* pnp-remove-unneeded-kallsyms-include.patch
+* hrtimer-remove-unneeded-kallsyms-include.patch
+* genirq-remove-unneeded-kallsyms-include.patch
+* sparc64-ng4-memset-32-bits-overflow.patch
+* lib-crc-ccitt-add-ccitt-false-crc16-variant.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  mutex-subsystem-synchro-test-module.patch
+  slab-leaks3-default-y.patch
+  workaround-for-a-pci-restoring-bug.patch
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
