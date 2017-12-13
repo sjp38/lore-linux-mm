@@ -1,57 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BDC9F6B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:14:46 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id u3so1951175pfl.5
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:14:46 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id 5si1521656plx.33.2017.12.13.07.14.44
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id DF76F6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:22:04 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a10so1700278pgq.3
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:22:04 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id 32si1285927plg.724.2017.12.13.07.22.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 07:14:44 -0800 (PST)
-Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
-References: <20171212173221.496222173@linutronix.de>
- <20171212173333.669577588@linutronix.de>
- <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
- <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
- <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+        Wed, 13 Dec 2017 07:22:03 -0800 (PST)
+Subject: Re: pkeys: Support setting access rights for signal handlers
+References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
+ <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
+ <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
+ <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
+ <20171212231324.GE5460@ram.oc3035372033.ibm.com>
+ <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
+ <20171213113544.GG5460@ram.oc3035372033.ibm.com>
+ <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
 From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <b303fac7-34af-5065-f996-4494fb8c09a2@intel.com>
-Date: Wed, 13 Dec 2017 07:14:41 -0800
+Message-ID: <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
+Date: Wed, 13 Dec 2017 07:22:01 -0800
 MIME-Version: 1.0
-In-Reply-To: <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+In-Reply-To: <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>, Peter Zijlstra <peterz@infradead.org>
-Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
+To: Florian Weimer <fweimer@redhat.com>, Ram Pai <linuxram@us.ibm.com>
+Cc: linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On 12/13/2017 04:57 AM, Kirill A. Shutemov wrote:
-> Dave, what is effect of this on protection keys?
+On 12/13/2017 07:08 AM, Florian Weimer wrote:
+> Okay, this model is really quite different from x86.  Is there a
+> good reason for the difference?
 
-The goal was to make pkeys-protected userspace memory access
-_consistent_ with normal access.  Specifically, we want a kernel to
-disallow access (or writes) to memory where userspace mapping has a pkey
-whose permissions are in conflict with the access.
+Yes, both implementations are simple and take the "natural" behavior.
+x86 changes XSAVE-controlled register values on entering a signal, so we
+let them be changed (including PKRU).  POWER hardware does not do this
+to its PKRU-equivalent, so we do not force it to.
 
-For instance:
+x86 didn't have to do this for *signals*.  But, we kinda went on this
+trajectory when we decided to clear/restore FPU state on
+entering/exiting signals before XSAVE even existed.
 
-This will fault writing a byte to 'addr':
-
-	char *addr = malloc(PAGE_SIZE);
-	pkey_mprotect(addr, PAGE_SIZE, 13);
-	pkey_deny_access(13);
-	*addr[0] = 'f';
-
-But this will write one byte to addr successfully (if it uses the kernel
-mapping of the physical page backing 'addr'):
-
-	char *addr = malloc(PAGE_SIZE);
-	pkey_mprotect(addr, PAGE_SIZE, 13);
-	pkey_deny_access(13);
-	read(fd, addr, 1);
+FWIW, I do *not* think we have to do this for future XSAVE states.  But,
+if we do that, we probably need an interface for apps to tell us which
+states to save/restore and which state to set upon entering a signal
+handler.  That's what I was trying to get you to consider instead of
+just a one-off hack to fix this for pkeys.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
