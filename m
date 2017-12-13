@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BCA106B026A
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EF93C6B026B
 	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:00:06 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n13so898186wmc.3
+Received: by mail-wr0-f198.google.com with SMTP id a107so943915wrc.11
         for <linux-mm@kvack.org>; Wed, 13 Dec 2017 01:00:06 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q17si1365718edg.39.2017.12.13.01.00.00
+        by mx.google.com with ESMTPS id c5si1436970edm.95.2017.12.13.01.00.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
         Wed, 13 Dec 2017 01:00:00 -0800 (PST)
 From: Vlastimil Babka <vbabka@suse.cz>
-Subject: [RFC PATCH 6/8] mm, compaction: prescan before isolating in skip_on_failure mode
-Date: Wed, 13 Dec 2017 09:59:13 +0100
-Message-Id: <20171213085915.9278-7-vbabka@suse.cz>
+Subject: [RFC PATCH 8/8] mm, compaction: replace free scanner with direct freelist allocation
+Date: Wed, 13 Dec 2017 09:59:15 +0100
+Message-Id: <20171213085915.9278-9-vbabka@suse.cz>
 In-Reply-To: <20171213085915.9278-1-vbabka@suse.cz>
 References: <20171213085915.9278-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
@@ -20,201 +20,191 @@ List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-When migration scanner skips cc->order aligned block where a page cannot be
-isolated, it could have isolated some pages already and they have to be put
-back, which is wasted work. Worse, since we can only isolate and migrate up to
-COMPACT_CLUSTER_MAX pages (which is 32) we might have already migrated a number
-of pages before finding a page that can't be isolated. This can be a lot of
-wasted effort e.g. for a THP allocation (512 pages on x86).
+The goal of direct compaction is to quickly make a high-order page available
+for the pending allocation. The free page scanner can add significant latency
+when searching for migration targets, although to succeed the compaction, the
+only important limit on the target free pages is that they must not come from
+the same order-aligned block as the migrated pages.
 
-This patch introduces "pre-scanning" in the migration scanner which checks for
-a whole cc->order aligned block to contain pages that can be isolated, before
-actually starting to isolate them. There is a new vmstat counter
-compact_migrate_prescanned to monitor its activity. The result is that some
-pages will be scanned twice, but that should be relatively cheap. Importantly,
-the patch should avoid isolations and migrations that do not lead to the
-cc->order free page to be formed.
+This patch therefore makes compaction allocate freepages directly from
+freelists. Pages that do come from the same block (which we cannot simply
+exclude from the freelist allocation) are skipped and put back to the tail of
+freelists.
+
+In addition to reduced stall, another advantage is that we split larger free
+pages for migration targets only when smaller pages are depleted, while the
+free scanner can split pages up to (order - 1) as it encouters them. Further
+advantage is that now the migration scanner can compact the whole zone, while
+in the current scheme it has been observed to meet the free scanner in 1/3 to
+1/2 of the zone.
+
+One danger of the new scheme is that pages will be migrated back and forth as
+the migration scanner would form a range of free pages (except non-movable and
+THP pages) and then "slide" this range towards the end of the zone, as long as
+the non-movable pages prevent it from succeeding. The previous patches in this
+series should make this improbable for direct compaction thanks to the
+pre-scanning approach. The same thing could be done for kcompactd, but it's not
+clear yet how to handle manually triggered compaction from /proc as that has no
+success termination criteria.
+
+For observational purposes, the patch introduces two new counters to
+/proc/vmstat. compact_free_list_alloc counts how many pages were allocated
+directly without scanning, and compact_free_direct_skip counts the subset of
+these allocations that were from the wrong range and had to be put back.
 
 Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
 ---
- include/linux/vm_event_item.h |   1 +
- mm/compaction.c               | 105 ++++++++++++++++++++++++++++++++++++++++++
- mm/internal.h                 |   1 +
- mm/vmstat.c                   |   1 +
- 4 files changed, 108 insertions(+)
+ include/linux/vm_event_item.h |  1 +
+ mm/compaction.c               | 10 ++++--
+ mm/internal.h                 |  2 ++
+ mm/page_alloc.c               | 71 +++++++++++++++++++++++++++++++++++++++++++
+ mm/vmstat.c                   |  2 ++
+ 5 files changed, 84 insertions(+), 2 deletions(-)
 
 diff --git a/include/linux/vm_event_item.h b/include/linux/vm_event_item.h
-index 5c7f010676a7..cf92b1f115ee 100644
+index cf92b1f115ee..04c5dfb245b4 100644
 --- a/include/linux/vm_event_item.h
 +++ b/include/linux/vm_event_item.h
-@@ -55,6 +55,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
- #endif
+@@ -56,6 +56,7 @@ enum vm_event_item { PGPGIN, PGPGOUT, PSWPIN, PSWPOUT,
  #ifdef CONFIG_COMPACTION
  		COMPACTMIGRATE_SCANNED, COMPACTFREE_SCANNED,
-+		COMPACTMIGRATE_PRESCANNED,
+ 		COMPACTMIGRATE_PRESCANNED,
++		COMPACTFREE_LIST_ALLOC, COMPACTFREE_LIST_SKIP,
  		COMPACTISOLATED,
  		COMPACTSTALL, COMPACTFAIL, COMPACTSUCCESS,
  		KCOMPACTD_WAKE,
 diff --git a/mm/compaction.c b/mm/compaction.c
-index 1ef090aa96e6..99c34a903688 100644
+index 3e6a37162d77..0832c4a31181 100644
 --- a/mm/compaction.c
 +++ b/mm/compaction.c
-@@ -743,6 +743,92 @@ check_isolate_candidate(struct page *page, unsigned long *pfn,
- 	return CANDIDATE_LRU;
- }
+@@ -1327,14 +1327,20 @@ static struct page *compaction_alloc(struct page *migratepage,
+ {
+ 	struct compact_control *cc = (struct compact_control *)data;
+ 	struct page *freepage;
++	int queued;
  
-+/*
-+ * Scan the pages between prescan_pfn and end_pfn for a cc->order aligned block
-+ * of pages that all can be isolated for migration (or are free), but do not
-+ * actually isolate them. Return the first pfn (of a non-free page) in that
-+ * block, so that actual isolation can begin from there, or end_pfn if no such
-+ * block was found.
-+ *
-+ * The highest prescanned page is stored in cc->prescan_pfn.
-+ */
-+static unsigned long
-+prescan_migratepages_block(unsigned long prescan_pfn, unsigned long end_pfn,
-+		struct compact_control *cc, struct page *valid_page,
-+		bool *skipped_pages)
-+{
-+	bool prescan_found = false;
-+	unsigned long scan_start_pfn = prescan_pfn;
-+	unsigned long next_skip_pfn = block_end_pfn(prescan_pfn, cc->order);
-+	struct page *page;
-+	unsigned long nr_prescanned = 0;
-+
-+	for(; prescan_pfn < end_pfn; prescan_pfn++) {
-+		enum candidate_status status;
-+
-+		if (prescan_pfn >= next_skip_pfn) {
-+			/*
-+			 * We found at least one candidate in the last block and
-+			 * did not see any non-migratable pages. Go isolate.
-+			 */
-+			if (prescan_found)
-+				break;
-+
-+			/*
-+			 * No luck with the last block, try the next one. Also
-+			 * make sure the proper scan skips the former.
-+			 */
-+			next_skip_pfn = block_end_pfn(prescan_pfn, cc->order);
-+			scan_start_pfn = prescan_pfn;
+ 	/*
+ 	 * Isolate free pages if necessary, and if we are not aborting due to
+ 	 * contention.
+ 	 */
+ 	if (list_empty(&cc->freepages)) {
+-		if (!cc->contended)
+-			isolate_freepages(cc);
++		if (!cc->contended) {
++			queued = alloc_pages_compact(cc->zone, &cc->freepages,
++				cc->nr_migratepages,
++				(cc->migrate_pfn - 1) >> pageblock_order);
++			cc->nr_freepages += queued;
++			map_pages(&cc->freepages);
 +		}
-+
-+		if (!(prescan_pfn % SWAP_CLUSTER_MAX))
-+			cond_resched();
-+
-+		if (!pfn_valid_within(prescan_pfn))
-+			goto scan_fail;
-+		nr_prescanned++;
-+
-+		page = pfn_to_page(prescan_pfn);
-+		if (!valid_page)
-+			valid_page = page;
-+
-+		status = check_isolate_candidate(page, &prescan_pfn, cc);
-+
-+		if (status == CANDIDATE_FREE) {
-+			/*
-+			 * if we have only seen free pages so far, update the
-+			 * proper scanner's starting pfn to skip over them.
-+			 */
-+			if (!prescan_found)
-+				scan_start_pfn = prescan_pfn;
-+			continue;
-+		}
-+
-+		if (status != CANDIDATE_FAIL) {
-+			prescan_found = true;
-+			continue;
-+		}
-+
-+scan_fail:
-+		/*
-+		 * We found a page that doesn't seem migratable. Skip the rest
-+		 * of the block.
-+		 */
-+		prescan_found = false;
-+		if (prescan_pfn < next_skip_pfn - 1) {
-+			prescan_pfn = next_skip_pfn - 1;
-+			*skipped_pages = true;
-+		}
-+	}
-+
-+	cc->prescan_pfn = min(prescan_pfn, end_pfn);
-+	if (nr_prescanned)
-+		count_compact_events(COMPACTMIGRATE_PRESCANNED, nr_prescanned);
-+
-+	return scan_start_pfn;
-+}
-+
- /**
-  * isolate_migratepages_block() - isolate all migrate-able pages within
-  *				  a single pageblock
-@@ -776,6 +862,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	struct page *page = NULL;
- 	unsigned long start_pfn = low_pfn;
- 	bool skip_on_failure = false, skipped_pages = false;
-+	bool prescan_block = false;
- 	unsigned long next_skip_pfn = 0;
- 	int pageblock_mt;
  
-@@ -798,15 +885,33 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 	if (compact_should_abort(cc))
- 		return 0;
- 
-+	/*
-+	 * If we are skipping blocks where isolation has failed, we also don't
-+	 * attempt to isolate, until we prescan the whole cc->order block ahead
-+	 * to check that it contains only pages that can be isolated (or free).
-+	 */
- 	if (cc->direct_compaction && !cc->finishing_block) {
- 		pageblock_mt = get_pageblock_migratetype(valid_page);
- 		if (pageblock_mt == MIGRATE_MOVABLE
- 		    && cc->migratetype == MIGRATE_MOVABLE) {
-+			prescan_block = true;
- 			skip_on_failure = true;
- 			next_skip_pfn = block_end_pfn(low_pfn, cc->order);
- 		}
- 	}
- 
-+	/*
-+	 * Because we can only isolate COMPACT_CLUSTER_MAX pages at a time, it's
-+	 * possible that we already prescanned the block on the previous call of
-+	 * this function.
-+	 */
-+	if (prescan_block && cc->prescan_pfn < next_skip_pfn) {
-+		low_pfn = prescan_migratepages_block(low_pfn, end_pfn, cc,
-+						valid_page, &skipped_pages);
-+		if (skip_on_failure)
-+			next_skip_pfn = block_end_pfn(low_pfn, cc->order);
-+	}
-+
- 	/* Time to isolate some pages for migration */
- 	for (; low_pfn < end_pfn; low_pfn++) {
- 
+ 		if (list_empty(&cc->freepages))
+ 			return NULL;
 diff --git a/mm/internal.h b/mm/internal.h
-index 3e5dc95dc259..35ff677cf731 100644
+index 35ff677cf731..3e7a28caaa50 100644
 --- a/mm/internal.h
 +++ b/mm/internal.h
-@@ -193,6 +193,7 @@ struct compact_control {
- 	unsigned long total_free_scanned;
- 	unsigned long free_pfn;		/* isolate_freepages search base */
- 	unsigned long migrate_pfn;	/* isolate_migratepages search base */
-+	unsigned long prescan_pfn;	/* highest migrate prescanned pfn */
- 	unsigned long last_migrated_pfn;/* Not yet flushed page being freed */
- 	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
- 	int order;			/* order a direct compactor needs */
+@@ -161,6 +161,8 @@ static inline struct page *pageblock_pfn_to_page(unsigned long start_pfn,
+ }
+ 
+ extern int __isolate_free_page(struct page *page, unsigned int order);
++extern int alloc_pages_compact(struct zone *zone, struct list_head *list,
++				int pages, unsigned long pageblock_exclude);
+ extern void __free_pages_bootmem(struct page *page, unsigned long pfn,
+ 					unsigned int order);
+ extern void prep_compound_page(struct page *page, unsigned int order);
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 0c9d97e1b0b7..5717135a9222 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2417,6 +2417,77 @@ static int rmqueue_bulk(struct zone *zone, unsigned int order,
+ 	return alloced;
+ }
+ 
++static
++int __rmqueue_compact(struct zone *zone, struct list_head *list, int pages,
++						unsigned long pageblock_exclude)
++{
++	unsigned int order;
++	struct page *page, *next;
++	int mtype;
++	int fallback;
++	struct list_head * free_list;
++	LIST_HEAD(skip_list);
++	int queued_pages = 0;
++
++	for (order = 0; order < MAX_ORDER; ++order) {
++		for (mtype = MIGRATE_MOVABLE, fallback = 0;
++		     mtype != MIGRATE_TYPES;
++		     mtype = fallbacks[MIGRATE_MOVABLE][fallback++]) {
++
++			free_list = &zone->free_area[order].free_list[mtype];
++			list_for_each_entry_safe(page, next, free_list, lru) {
++				if (page_to_pfn(page) >> pageblock_order
++							== pageblock_exclude) {
++					list_move(&page->lru, &skip_list);
++					count_vm_event(COMPACTFREE_LIST_SKIP);
++					continue;
++				}
++
++
++				list_move(&page->lru, list);
++				zone->free_area[order].nr_free--;
++				rmv_page_order(page);
++				set_page_private(page, order);
++
++				__mod_zone_freepage_state(zone, -(1UL << order),
++					get_pageblock_migratetype(page));
++
++				queued_pages += 1 << order;
++				if (queued_pages >= pages)
++					break;
++			}
++			/*
++			 * Put skipped pages at the end of free list so we are
++			 * less likely to encounter them again.
++			 */
++			list_splice_tail_init(&skip_list, free_list);
++		}
++	}
++	count_vm_events(COMPACTFREE_LIST_ALLOC, queued_pages);
++	count_vm_events(COMPACTISOLATED, queued_pages);
++	return queued_pages;
++}
++
++int alloc_pages_compact(struct zone *zone, struct list_head *list, int pages,
++						unsigned long pageblock_exclude)
++{
++	unsigned long flags;
++	unsigned long watermark;
++	int queued_pages;
++
++	watermark = low_wmark_pages(zone) + pages;
++	if (!zone_watermark_ok(zone, 0, watermark, 0, ALLOC_CMA))
++		return 0;
++
++	spin_lock_irqsave(&zone->lock, flags);
++
++	queued_pages = __rmqueue_compact(zone, list, pages, pageblock_exclude);
++
++	spin_unlock_irqrestore(&zone->lock, flags);
++
++	return queued_pages;
++}
++
+ #ifdef CONFIG_NUMA
+ /*
+  * Called from the vmstat counter updater to drain pagesets of this
 diff --git a/mm/vmstat.c b/mm/vmstat.c
-index 40b2db6db6b1..cf445f8280e4 100644
+index cf445f8280e4..3c537237bda7 100644
 --- a/mm/vmstat.c
 +++ b/mm/vmstat.c
-@@ -1223,6 +1223,7 @@ const char * const vmstat_text[] = {
- #ifdef CONFIG_COMPACTION
+@@ -1224,6 +1224,8 @@ const char * const vmstat_text[] = {
  	"compact_migrate_scanned",
  	"compact_free_scanned",
-+	"compact_migrate_prescanned",
+ 	"compact_migrate_prescanned",
++	"compact_free_list_alloc",
++	"compact_free_list_skip",
  	"compact_isolated",
  	"compact_stall",
  	"compact_fail",
