@@ -1,63 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A1436B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:54:41 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id n13so1156190wmc.3
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:54:41 -0800 (PST)
-Received: from dan.rpsys.net (5751f4a1.skybroadband.com. [87.81.244.161])
-        by mx.google.com with ESMTPS id e21si1501829wra.51.2017.12.13.04.54.39
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 479226B025E
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:55:42 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id j4so1290498wrg.15
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:55:42 -0800 (PST)
+Received: from atrey.karlin.mff.cuni.cz (atrey.karlin.mff.cuni.cz. [195.113.26.193])
+        by mx.google.com with ESMTPS id r142si1389617wme.110.2017.12.13.04.55.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 04:54:39 -0800 (PST)
-Message-ID: <1513169674.19417.188.camel@linuxfoundation.org>
-Subject: Re: [PATCH 1/2] KVM: x86: fix APIC page invalidation
-From: Richard Purdie <richard.purdie@linuxfoundation.org>
-Date: Wed, 13 Dec 2017 12:54:34 +0000
-In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
-References: <20171130161933.GB1606@flask>
-	 <20171130180546.4331-1-rkrcmar@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 13 Dec 2017 04:55:41 -0800 (PST)
+Date: Wed, 13 Dec 2017 13:55:40 +0100
+From: Pavel Machek <pavel@ucw.cz>
+Subject: Re: [PATCH 2/2] mmap.2: MAP_FIXED updated documentation
+Message-ID: <20171213125540.GA18897@amd>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213093110.3550-1-mhocko@kernel.org>
+ <20171213093110.3550-2-mhocko@kernel.org>
+MIME-Version: 1.0
+Content-Type: multipart/signed; micalg=pgp-sha1;
+	protocol="application/pgp-signature"; boundary="LQksG6bCIzRHxTLp"
+Content-Disposition: inline
+In-Reply-To: <20171213093110.3550-2-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Fabian =?ISO-8859-1?Q?Gr=FCnbichler?= <f.gruenbichler@proxmox.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, stable <stable@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@suse.com>
 
-On Thu, 2017-11-30 at 19:05 +0100, Radim KrA?mA!A? wrote:
-> Implementation of the unpinned APIC page didn't update the VMCS
-> address
-> cache when invalidation was done through range mmu notifiers.
-> This became a problem when the page notifier was removed.
-> 
-> Re-introduce the arch-specific helper and call it from
-> ...range_start.
-> 
-> Fixes: 38b9917350cb ("kvm: vmx: Implement set_apic_access_page_addr")
-> Fixes: 369ea8242c0f ("mm/rmap: update to new mmu_notifier semantic
-> v2")
-> Signed-off-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
-> ---
-> A arch/x86/include/asm/kvm_host.h |A A 3 +++
-> A arch/x86/kvm/x86.cA A A A A A A A A A A A A A | 14 ++++++++++++++
-> A virt/kvm/kvm_main.cA A A A A A A A A A A A A |A A 8 ++++++++
-> A 3 files changed, 25 insertions(+)
 
-Thanks for this. I've been chasing APIC related hangs booting images
-with qemu-system-x86_64 on 4.13 and 4.14 host kernels where the guest
-doesn't have x2apic enabled.
+--LQksG6bCIzRHxTLp
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-I can confirm this fixes issues the Yocto Project automated testing
-infrastructure was seeing.
+On Wed 2017-12-13 10:31:10, Michal Hocko wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+>=20
+>     -- Expand the documentation to discuss the hazards in
+>        enough detail to allow avoiding them.
+>=20
+>     -- Mention the upcoming MAP_FIXED_SAFE flag.
 
-I'd like to add support for backporting this in stable.
+Pretty map everyone agreed MAP_FIXED_SAFE was a bad
+name. MAP_FIXED_NOREPLACE (IIRC) was best replacement.
 
-Tested-by: Richard Purdie <richard.purdie@linuxfoundation.org>
+								Pavel
+							=09
+--=20
+(english) http://www.livejournal.com/~pavelmachek
+(cesky, pictures) http://atrey.karlin.mff.cuni.cz/~pavel/picture/horses/blo=
+g.html
 
-Cheers,
+--LQksG6bCIzRHxTLp
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: Digital signature
 
-Richard
+-----BEGIN PGP SIGNATURE-----
+Version: GnuPG v1
 
+iEYEARECAAYFAloxI0sACgkQMOfwapXb+vKvXACcDwV3Dm46ZnRcjJU+hkGc5U+o
+aDMAnjwaZ9U6SA/erN7azKvIQkRc/oCJ
+=kq/9
+-----END PGP SIGNATURE-----
+
+--LQksG6bCIzRHxTLp--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
