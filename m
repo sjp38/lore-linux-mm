@@ -1,93 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B08B6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:57:43 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p190so1168335wmd.0
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:57:43 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21sor1195764edb.5.2017.12.13.04.57.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1B0DA6B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 08:01:38 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id f9so1314844wra.2
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 05:01:38 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l21si1506437wmi.253.2017.12.13.05.01.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 04:57:41 -0800 (PST)
-Date: Wed, 13 Dec 2017 15:57:40 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
-Message-ID: <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
-References: <20171212173221.496222173@linutronix.de>
- <20171212173333.669577588@linutronix.de>
- <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
- <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Dec 2017 05:01:36 -0800 (PST)
+Date: Wed, 13 Dec 2017 14:01:35 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171213130135.GG25185@dhcp22.suse.cz>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213092550.2774-2-mhocko@kernel.org>
+ <20171213125053.GB2384@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+In-Reply-To: <20171213125053.GB2384@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>
 
-On Wed, Dec 13, 2017 at 01:22:11PM +0100, Peter Zijlstra wrote:
-> On Tue, Dec 12, 2017 at 10:00:08AM -0800, Andy Lutomirski wrote:
-> > On Tue, Dec 12, 2017 at 9:32 AM, Thomas Gleixner <tglx@linutronix.de> wrote:
-> > > From: Peter Zijstra <peterz@infradead.org>
-> > >
-> > > In order to create VMAs that are not accessible to userspace create a new
-> > > VM_NOUSER flag. This can be used in conjunction with
-> > > install_special_mapping() to inject 'kernel' data into the userspace map.
-> > >
-> > > Similar to how arch_vm_get_page_prot() allows adding _PAGE_flags to
-> > > pgprot_t, introduce arch_vm_get_page_prot_excl() which masks
-> > > _PAGE_flags from pgprot_t and use this to implement VM_NOUSER for x86.
-> > 
-> > How does this interact with get_user_pages(), etc?
+On Wed 13-12-17 04:50:53, Matthew Wilcox wrote:
+> On Wed, Dec 13, 2017 at 10:25:49AM +0100, Michal Hocko wrote:
+> > +++ b/mm/mmap.c
+> > @@ -1342,6 +1342,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
+> >  		if (!(file && path_noexec(&file->f_path)))
+> >  			prot |= PROT_EXEC;
+> >  
+> > +	/* force arch specific MAP_FIXED handling in get_unmapped_area */
+> > +	if (flags & MAP_FIXED_SAFE)
+> > +		flags |= MAP_FIXED;
+> > +
+> >  	if (!(flags & MAP_FIXED))
+> >  		addr = round_hint_to_min(addr);
+> >  
 > 
-> So I went through that code and I think I found a bug related to this.
+> We're up to 22 MAP_ flags now.  We'll run out soon.  Let's preserve half
+> of a flag by giving userspace the definition:
 > 
-> get_user_pages_fast() will ultimately end up doing
-> pte_access_permitted() before getting the page, follow_page OTOH does
-> not do this, which makes for a curious difference between the two.
-> 
-> So I'm thinking we want the below irrespective of the VM_NOUSER patch,
-> but with VM_NOUSER it would mean write(2) will no longer be able to
-> access the page.
+> #define MAP_FIXED_SAFE	(MAP_FIXED | _MAP_NOT_HINT)
 
-Oh..
-
-We do call pte_access_permitted(), but only for write access.
-See can_follow_write_pte().
-
-The issue seems bigger: we also need such calls for other page table levels :-/
-
-Dave, what is effect of this on protection keys?
-
+I've already tried to explain why this cannot be a modifier for
+MAP_FIXED. Read about the backward compatibility note...
+Or do I misunderstand what you are saying here?
+ 
+> then in here:
 > 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index dfcde13f289a..b852f37a2b0c 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -153,6 +153,11 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
->  	}
->  
->  	if (flags & FOLL_GET) {
-> +		if (!pte_access_permitted(pte, !!(flags & FOLL_WRITE))) {
-> +			page = ERR_PTR(-EFAULT);
-> +			goto out;
-> +		}
-> +
->  		get_page(page);
->  
->  		/* drop the pgmap reference now that we hold the page */
+> 	if ((flags & _MAP_NOT_HINT) && !(flags & MAP_FIXED))
+> 		return -EINVAL;
 > 
-> 
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+> Now we can use _MAP_NOT_HINT all by itself in the future to mean
+> something else.
 
 -- 
- Kirill A. Shutemov
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
