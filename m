@@ -1,48 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 140456B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 13:35:02 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id f62so1678026otf.6
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:35:02 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n3sor898133ota.67.2017.12.13.10.35.01
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7096C6B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:50:49 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id z25so2265825pgu.18
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 13:50:49 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f11si1840527pgq.352.2017.12.13.13.50.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 10:35:01 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171213183209.GZ3165@worktop.lehotels.local>
-References: <20171212173221.496222173@linutronix.de> <20171212173333.669577588@linutronix.de>
- <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
- <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
- <20171213125739.fllckbl3o4nonmpx@node.shutemov.name> <b303fac7-34af-5065-f996-4494fb8c09a2@intel.com>
- <20171213153202.qtxnloxoc66lhsbf@hirez.programming.kicks-ass.net>
- <e6ef40c8-8966-c973-3ae4-ac9475699e40@intel.com> <20171213155427.p24i2xdh2s65e4d2@hirez.programming.kicks-ass.net>
- <CA+55aFw0JTRDXked3_OJ+cFx59BE18yDWOt7-ZRTzFS10zYnrg@mail.gmail.com> <20171213183209.GZ3165@worktop.lehotels.local>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Wed, 13 Dec 2017 10:35:00 -0800
-Message-ID: <CA+55aFzNhHZaAFJZv5=2t8dnUt9mMaZVp9_5XvayN6gkfEvtrA@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 13:50:47 -0800 (PST)
+Date: Wed, 13 Dec 2017 13:50:22 -0800
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
-Content-Type: text/plain; charset="UTF-8"
+Message-ID: <20171213215022.GA27778@bombadil.infradead.org>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171212173333.669577588@linutronix.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, "Aneesh Kumar K. V" <aneesh.kumar@linux.vnet.ibm.com>
+To: Thomas Gleixner <tglx@linutronix.de>
+Cc: LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org
 
-On Wed, Dec 13, 2017 at 10:32 AM, Peter Zijlstra <peterz@infradead.org> wrote:
->
-> Now, if VM_NOUSER were to live, the above change would ensure write(2)
-> cannot read from such VMAs, where the existing test for FOLL_WRITE
-> already disallows read(2) from writing to them.
+On Tue, Dec 12, 2017 at 06:32:26PM +0100, Thomas Gleixner wrote:
+> From: Peter Zijstra <peterz@infradead.org>
+> 
+> In order to create VMAs that are not accessible to userspace create a new
+> VM_NOUSER flag. This can be used in conjunction with
+> install_special_mapping() to inject 'kernel' data into the userspace map.
 
-So I don't mind at all the notion of disallowing access to some
-special mappings at the vma level. So a VM_NOUSER flag that just
-disallows get_user_pages entirely I'm ok with.
+Maybe I misunderstand the intent behind this, but I was recently looking
+at something kind of similar.  I was calling it VM_NOTLB and it wouldn't
+put TLB entries into the userspace map at all.  The idea was to be able
+to use the user address purely as a handle for specific kernel pages,
+which were guaranteed to never be mapped into userspace, so we didn't
+need to send TLB invalidations when we took those pages away from the user
+process again.  But we'd be able to pass the address to read() or write().
 
-It's the protection keys in particular that I don't like having to
-worry about. They are subtle and have odd architecture-specific
-meaning, and needs to be checked at all levels in the page table tree.
-
-               Linus
+So I was going to check the VMA flags in no_page_table() and return the
+struct page that was notmapped there.  I didn't get as far as constructing
+a prototype yet, and I'm not entirely sure I understand the purpose of
+this patch, so perhaps there's no synergy here at all (and perhaps my
+idea wouldn't have worked anyway).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
