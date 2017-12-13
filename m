@@ -1,155 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 904FC6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 09:10:44 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id i83so1248899wma.4
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 06:10:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n17si1509432wmd.273.2017.12.13.06.10.41
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 48E406B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 09:17:58 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id e41so2657259itd.5
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 06:17:58 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r21si1345742ioi.177.2017.12.13.06.17.56
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Dec 2017 06:10:41 -0800 (PST)
-Date: Wed, 13 Dec 2017 15:10:39 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20171213141039.GL25185@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
- <20171213120733.umeb7rylswl7chi5@node.shutemov.name>
- <20171213121703.GD25185@dhcp22.suse.cz>
- <20171213124731.hmg4r5m3efybgjtx@node.shutemov.name>
-MIME-Version: 1.0
+        Wed, 13 Dec 2017 06:17:57 -0800 (PST)
+Subject: Re: [PATCH v19 3/7] xbitmap: add more operations
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1513079759-14169-1-git-send-email-wei.w.wang@intel.com>
+	<1513079759-14169-4-git-send-email-wei.w.wang@intel.com>
+	<201712122220.IFH05261.LtJOFFSFHVMQOO@I-love.SAKURA.ne.jp>
+	<5A311C5E.7000304@intel.com>
+In-Reply-To: <5A311C5E.7000304@intel.com>
+Message-Id: <201712132316.EJJ57332.MFOSJHOFFVLtQO@I-love.SAKURA.ne.jp>
+Date: Wed, 13 Dec 2017 23:16:56 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171213124731.hmg4r5m3efybgjtx@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: wei.w.wang@intel.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-On Wed 13-12-17 15:47:31, Kirill A. Shutemov wrote:
-> On Wed, Dec 13, 2017 at 01:17:03PM +0100, Michal Hocko wrote:
-> > On Wed 13-12-17 15:07:33, Kirill A. Shutemov wrote:
-> > [...]
-> > > The approach looks fine to me.
-> > > 
-> > > But patch is rather large and hard to review. And how git mixed add/remove
-> > > lines doesn't help too. Any chance to split it up further?
-> > 
-> > I was trying to do that but this is a drop in replacement so it is quite
-> > hard to do in smaller pieces. I've already put the allocation callback
-> > cleanup into a separate one but this is about all that I figured how to
-> > split. If you have any suggestions I am willing to try them out.
+Wei Wang wrote:
+> On 12/12/2017 09:20 PM, Tetsuo Handa wrote:
+> > Wei Wang wrote:
+> >> +void xb_clear_bit_range(struct xb *xb, unsigned long start, unsigned long end)
+> >> +{
+> >> +	struct radix_tree_root *root = &xb->xbrt;
+> >> +	struct radix_tree_node *node;
+> >> +	void **slot;
+> >> +	struct ida_bitmap *bitmap;
+> >> +	unsigned int nbits;
+> >> +
+> >> +	for (; start < end; start = (start | (IDA_BITMAP_BITS - 1)) + 1) {
+> >> +		unsigned long index = start / IDA_BITMAP_BITS;
+> >> +		unsigned long bit = start % IDA_BITMAP_BITS;
+> >> +
+> >> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
+> >> +		if (radix_tree_exception(bitmap)) {
+> >> +			unsigned long ebit = bit + 2;
+> >> +			unsigned long tmp = (unsigned long)bitmap;
+> >> +
+> >> +			nbits = min(end - start + 1, BITS_PER_LONG - ebit);
+> >> +
+> >> +			if (ebit >= BITS_PER_LONG)
+> > What happens if we hit this "continue;" when "index == ULONG_MAX / IDA_BITMAP_BITS" ?
 > 
-> "git diff --patience" seems generate more readable output for the patch.
-
-Hmm, I wasn't aware of this option. Are you suggesting I should use it
-to general the patch to send?
-
-> > > One nitpick: I don't think 'chunk' terminology should go away with the
-> > > patch.
-> > 
-> > Not sure what you mean here. I have kept chunk_start, chunk_node, so I
-> > am not really changing that terminology
+> Thanks. I also improved the test case for this. I plan to change the 
+> implementation a little bit to avoid such overflow (has passed the test 
+> case that I have, just post out for another set of eyes):
 > 
-> We don't really have chunks anymore, right? We still *may* have per-node
-> batching, but..
+> {
+> ...
+>          unsigned long idx = start / IDA_BITMAP_BITS;
+>          unsigned long bit = start % IDA_BITMAP_BITS;
+>          unsigned long idx_end = end / IDA_BITMAP_BITS;
+>          unsigned long ret;
 > 
-> Maybe just 'start' and 'current_node'?
+>          for (idx = start / IDA_BITMAP_BITS; idx <= idx_end; idx++) {
+>                  unsigned long ida_start = idx * IDA_BITMAP_BITS;
+> 
+>                  bitmap = __radix_tree_lookup(root, idx, &node, &slot);
+>                  if (radix_tree_exception(bitmap)) {
+>                          unsigned long tmp = (unsigned long)bitmap;
+>                          unsigned long ebit = bit + 2;
+> 
+>                          if (ebit >= BITS_PER_LONG)
+>                                  continue;
 
-Ohh, I've read your response that you want to preserve the naming. I can
-certainly do the rename.
----
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 9d7252ea2acd..5491045b60f9 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1556,14 +1556,14 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 			 const int __user *nodes,
- 			 int __user *status, int flags)
- {
--	int chunk_node = NUMA_NO_NODE;
-+	int current_node = NUMA_NO_NODE;
- 	LIST_HEAD(pagelist);
--	int chunk_start, i;
-+	int start, i;
- 	int err = 0, err1;
- 
- 	migrate_prep();
- 
--	for (i = chunk_start = 0; i < nr_pages; i++) {
-+	for (i = start = 0; i < nr_pages; i++) {
- 		const void __user *p;
- 		unsigned long addr;
- 		int node;
-@@ -1585,25 +1585,25 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 		if (!node_isset(node, task_nodes))
- 			goto out_flush;
- 
--		if (chunk_node == NUMA_NO_NODE) {
--			chunk_node = node;
--			chunk_start = i;
--		} else if (node != chunk_node) {
--			err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+		if (current_node == NUMA_NO_NODE) {
-+			current_node = node;
-+			start = i;
-+		} else if (node != current_node) {
-+			err = do_move_pages_to_node(mm, &pagelist, current_node);
- 			if (err)
- 				goto out;
--			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+			err = store_status(status, start, current_node, i - start);
- 			if (err)
- 				goto out;
--			chunk_start = i;
--			chunk_node = node;
-+			start = i;
-+			current_node = node;
- 		}
- 
- 		/*
- 		 * Errors in the page lookup or isolation are not fatal and we simply
- 		 * report them via status
- 		 */
--		err = add_page_for_migration(mm, addr, chunk_node,
-+		err = add_page_for_migration(mm, addr, current_node,
- 				&pagelist, flags & MPOL_MF_MOVE_ALL);
- 		if (!err)
- 			continue;
-@@ -1612,22 +1612,22 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
- 		if (err)
- 			goto out_flush;
- 
--		err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+		err = do_move_pages_to_node(mm, &pagelist, current_node);
- 		if (err)
- 			goto out;
--		if (i > chunk_start) {
--			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+		if (i > start) {
-+			err = store_status(status, start, current_node, i - start);
- 			if (err)
- 				goto out;
- 		}
--		chunk_node = NUMA_NO_NODE;
-+		current_node = NUMA_NO_NODE;
- 	}
- 	err = 0;
- out_flush:
- 	/* Make sure we do not overwrite the existing error */
--	err1 = do_move_pages_to_node(mm, &pagelist, chunk_node);
-+	err1 = do_move_pages_to_node(mm, &pagelist, current_node);
- 	if (!err1)
--		err1 = store_status(status, chunk_start, chunk_node, i - chunk_start);
-+		err1 = store_status(status, start, current_node, i - start);
- 	if (!err)
- 		err = err1;
- out:
--- 
-Michal Hocko
-SUSE Labs
+Will you please please do eliminate exception path?
+I can't interpret what "ebit >= BITS_PER_LONG" means.
+The reason you "continue;" is that all bits beyond are "0", isn't it?
+Then, it would make sense to "continue;" when finding next "1" because
+all bits beyond are "0". But how does it make sense to "continue;" when
+finding next "0" despite all bits beyond are "0"?
+
+>                          if (set)
+>                                  ret = find_next_bit(&tmp, 
+> BITS_PER_LONG, ebit);
+>                          else
+>                                  ret = find_next_zero_bit(&tmp, 
+> BITS_PER_LONG,
+>                                                           ebit);
+>                          if (ret < BITS_PER_LONG)
+>                                  return ret - 2 + ida_start;
+>                  } else if (bitmap) {
+>                          if (set)
+>                                  ret = find_next_bit(bitmap->bitmap,
+>                                                      IDA_BITMAP_BITS, bit);
+>                          else
+>                                  ret = find_next_zero_bit(bitmap->bitmap,
+> IDA_BITMAP_BITS, bit);
+
+"bit" may not be 0 for the first round and "bit" is always 0 afterwords.
+But where is the guaranteed that "end" is a multiple of IDA_BITMAP_BITS ?
+Please explain why it is correct to use IDA_BITMAP_BITS unconditionally
+for the last round.
+
+>                          if (ret < IDA_BITMAP_BITS)
+>                                  return ret + ida_start;
+>                  } else if (!bitmap && !set) {
+
+At this point bitmap == NULL is guaranteed. Thus, "!bitmap && " is pointless.
+
+>                          return bit + IDA_BITMAP_BITS * idx;
+>                  }
+>                  bit = 0;
+>          }
+> 
+>          return end;
+> }
+> 
+> 
+
+
+
+> >
+> >> +/**
+> >> + * xb_find_next_set_bit - find the next set bit in a range
+> >> + * @xb: the xbitmap to search
+> >> + * @start: the start of the range, inclusive
+> >> + * @end: the end of the range, exclusive
+> >> + *
+> >> + * Returns: the index of the found bit, or @end + 1 if no such bit is found.
+> >> + */
+> >> +unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start,
+> >> +				   unsigned long end)
+> >> +{
+> >> +	return xb_find_next_bit(xb, start, end, 1);
+> >> +}
+> > Won't "exclusive" loose ability to handle ULONG_MAX ? Since this is a
+> > library module, missing ability to handle ULONG_MAX sounds like an omission.
+> > Shouldn't we pass (or return) whether "found or not" flag (e.g. strtoul() in
+> > C library function)?
+> >
+> >    bool xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, unsigned long *result);
+> >    unsigned long xb_find_next_set_bit(struct xb *xb, unsigned long start, unsigned long end, bool *found);
+> 
+> Yes, ULONG_MAX needs to be tested by xb_test_bit(). Compared to checking 
+> the return value, would it be the same to let the caller check for the 
+> ULONG_MAX boundary?
+> 
+
+Why the caller needs to care about whether it is ULONG_MAX or not?
+
+Also, one more thing you need to check. Have you checked how long does
+xb_find_next_set_bit(xb, 0, ULONG_MAX) on an empty xbitmap takes?
+If it causes soft lockup warning, should we add cond_resched() ?
+If yes, you have to document that this API might sleep. If no, you
+have to document that the caller of this API is responsible for
+not to pass such a large value range.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
