@@ -1,154 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 05EC26B0069
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:10:46 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id u126so932294oia.19
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:10:46 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id l64si523332otc.71.2017.12.13.04.10.44
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 429496B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:17:06 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id y15so1238545wrc.6
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:17:06 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j3si1484842wmh.121.2017.12.13.04.17.05
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 13 Dec 2017 04:10:44 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second allocation
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1512646940-3388-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171211115723.GC4779@dhcp22.suse.cz>
-In-Reply-To: <20171211115723.GC4779@dhcp22.suse.cz>
-Message-Id: <201712132006.DDE78145.FMFJSOOHVFQtOL@I-love.SAKURA.ne.jp>
-Date: Wed, 13 Dec 2017 20:06:26 +0900
-Mime-Version: 1.0
+        Wed, 13 Dec 2017 04:17:05 -0800 (PST)
+Date: Wed, 13 Dec 2017 13:17:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20171213121703.GD25185@dhcp22.suse.cz>
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+ <20171213120733.umeb7rylswl7chi5@node.shutemov.name>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171213120733.umeb7rylswl7chi5@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@suse.com
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-Michal Hocko wrote:
-> > Therefore, this patch allows OOM victims to use ALLOC_OOM watermark for
-> > last second allocation attempt.
+On Wed 13-12-17 15:07:33, Kirill A. Shutemov wrote:
+[...]
+> The approach looks fine to me.
 > 
-> This changelog doesn't explain the problem, nor does it say why it
-> should help. I would even argue that mentioning the LTP test is more
-> confusing than helpful (also considering it a fix for 696453e66630ad45)
-> because granting access to memory reserves will only help partially.
+> But patch is rather large and hard to review. And how git mixed add/remove
+> lines doesn't help too. Any chance to split it up further?
 
-I know granting access to memory reserves will only help partially.
-The intent of granting access to memory reserves is to reduce needlessly
-OOM killing more victims.
+I was trying to do that but this is a drop in replacement so it is quite
+hard to do in smaller pieces. I've already put the allocation callback
+cleanup into a separate one but this is about all that I figured how to
+split. If you have any suggestions I am willing to try them out.
 
-> Anyway, the patch makes some sense to me but I am not going to ack it
-> with a misleading changelog.
-> 
+> One nitpick: I don't think 'chunk' terminology should go away with the
+> patch.
 
-Apart from how the changelog will look like, below is an updated patch
-which to some degree recovers
+Not sure what you mean here. I have kept chunk_start, chunk_node, so I
+am not really changing that terminology
 
-	 * That thread will now get access to memory reserves since it has a
-	 * pending fatal signal.
-
-comment. It is pity that we will need to run more instructions in the fastpath
-of __alloc_pages_slowpath() compared to "current->oom_kill_free_check_raced"
-at out_of_memory(). Is this direction acceptable?
-
----
- mm/page_alloc.c | 53 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 40 insertions(+), 13 deletions(-)
-
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 31c1a61..f7bd969 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3334,6 +3334,10 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 	return page;
- }
- 
-+static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
-+					       unsigned int order,
-+					       const struct alloc_context *ac);
-+
- static inline struct page *
- __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
- 	const struct alloc_context *ac, unsigned long *did_some_progress)
-@@ -3359,16 +3363,7 @@ void warn_alloc(gfp_t gfp_mask, nodemask_t *nodemask, const char *fmt, ...)
- 		return NULL;
- 	}
- 
--	/*
--	 * Go through the zonelist yet one more time, keep very high watermark
--	 * here, this is only to catch a parallel oom killing, we must fail if
--	 * we're still under heavy pressure. But make sure that this reclaim
--	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
--	 * allocation which will never fail due to oom_lock already held.
--	 */
--	page = get_page_from_freelist((gfp_mask | __GFP_HARDWALL) &
--				      ~__GFP_DIRECT_RECLAIM, order,
--				      ALLOC_WMARK_HIGH|ALLOC_CPUSET, ac);
-+	page = alloc_pages_before_oomkill(gfp_mask, order, ac);
- 	if (page)
- 		goto out;
- 
-@@ -3734,9 +3729,17 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
- 	return alloc_flags;
- }
- 
--static bool oom_reserves_allowed(struct task_struct *tsk)
-+static bool oom_reserves_allowed(void)
- {
--	if (!tsk_is_oom_victim(tsk))
-+	struct mm_struct *mm = current->mm;
-+
-+	if (!mm)
-+		mm = current->signal->oom_mm;
-+	/* MMF_OOM_VICTIM not set on mm means that I am not an OOM victim. */
-+	if (!mm || !test_bit(MMF_OOM_VICTIM, &mm->flags))
-+		return false;
-+	/* MMF_OOM_VICTIM can be set on mm used by the global init process. */
-+	if (!fatal_signal_pending(current) && !(current->flags & PF_EXITING))
- 		return false;
- 
- 	/*
-@@ -3764,7 +3767,7 @@ static inline int __gfp_pfmemalloc_flags(gfp_t gfp_mask)
- 	if (!in_interrupt()) {
- 		if (current->flags & PF_MEMALLOC)
- 			return ALLOC_NO_WATERMARKS;
--		else if (oom_reserves_allowed(current))
-+		else if (oom_reserves_allowed())
- 			return ALLOC_OOM;
- 	}
- 
-@@ -3776,6 +3779,30 @@ bool gfp_pfmemalloc_allowed(gfp_t gfp_mask)
- 	return !!__gfp_pfmemalloc_flags(gfp_mask);
- }
- 
-+static struct page *alloc_pages_before_oomkill(gfp_t gfp_mask,
-+					       unsigned int order,
-+					       const struct alloc_context *ac)
-+{
-+	/*
-+	 * Go through the zonelist yet one more time, keep very high watermark
-+	 * here, this is only to catch a parallel oom killing, we must fail if
-+	 * we're still under heavy pressure. But make sure that this reclaim
-+	 * attempt shall not depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
-+	 * allocation which will never fail due to oom_lock already held.
-+	 * Also, make sure that OOM victims can try ALLOC_OOM watermark
-+	 * in case they haven't tried ALLOC_OOM watermark.
-+	 */
-+	int alloc_flags = ALLOC_CPUSET | ALLOC_WMARK_HIGH;
-+	int reserve_flags;
-+
-+	gfp_mask |= __GFP_HARDWALL;
-+	gfp_mask &= ~__GFP_DIRECT_RECLAIM;
-+	reserve_flags = __gfp_pfmemalloc_flags(gfp_mask);
-+	if (reserve_flags)
-+		alloc_flags = reserve_flags;
-+	return get_page_from_freelist(gfp_mask, order, alloc_flags, ac);
-+}
-+
- /*
-  * Checks whether it makes sense to retry the reclaim to make a forward progress
-  * for the given allocation request.
+Thanks!
 -- 
-1.8.3.1
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
