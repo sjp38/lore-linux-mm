@@ -1,39 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 886706B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:23:09 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 7so1275382plb.19
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:23:09 -0800 (PST)
-Received: from esa4.hgst.iphmx.com (esa4.hgst.iphmx.com. [216.71.154.42])
-        by mx.google.com with ESMTPS id i136si1424228pgc.293.2017.12.13.07.23.08
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id CB4A46B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 10:32:22 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id o124so2466841ioo.20
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:32:22 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id d142si1358078ioe.265.2017.12.13.07.32.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 07:23:08 -0800 (PST)
-From: Bart Van Assche <Bart.VanAssche@wdc.com>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Date: Wed, 13 Dec 2017 15:23:04 +0000
-Message-ID: <1513178583.3296.2.camel@wdc.com>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
-	 <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
-In-Reply-To: <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <FDAC4B80D9774F498AC76273C584566B@namprd04.prod.outlook.com>
-Content-Transfer-Encoding: base64
+        Wed, 13 Dec 2017 07:32:21 -0800 (PST)
+Date: Wed, 13 Dec 2017 16:32:02 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171213153202.qtxnloxoc66lhsbf@hirez.programming.kicks-ass.net>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
+ <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+ <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
+ <b303fac7-34af-5065-f996-4494fb8c09a2@intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <b303fac7-34af-5065-f996-4494fb8c09a2@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "mingo@kernel.org" <mingo@kernel.org>, "peterz@infradead.org" <peterz@infradead.org>, "amir73il@gmail.com" <amir73il@gmail.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>, "torvalds@linux-foundation.org" <torvalds@linux-foundation.org>, "tglx@linutronix.de" <tglx@linutronix.de>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "willy@infradead.org" <willy@infradead.org>, "oleg@redhat.com" <oleg@redhat.com>, "max.byungchul.park@gmail.com" <max.byungchul.park@gmail.com>, "byungchul.park@lge.com" <byungchul.park@lge.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "tytso@mit.edu" <tytso@mit.edu>, "david@fromorbit.com" <david@fromorbit.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
 
-T24gV2VkLCAyMDE3LTEyLTEzIGF0IDE2OjEzICswOTAwLCBCeXVuZ2NodWwgUGFyayB3cm90ZToN
-Cj4gSW4gYWRkaXRpb24sIEkgd2FudCB0byBzYXkgdGhhdCB0aGUgY3VycmVudCBsZXZlbCBvZg0K
-PiBjbGFzc2lmaWNhdGlvbiBpcyBtdWNoIGxlc3MgdGhhbiAxMDAlIGJ1dCwgc2luY2Ugd2UNCj4g
-aGF2ZSBhbm5vdGF0ZWQgd2VsbCB0byBzdXBwcmVzcyB3cm9uZyByZXBvcnRzIGJ5DQo+IHJvdWdo
-IGNsYXNzaWZpY2F0aW9ucywgZmluYWxseSBpdCBkb2VzIG5vdCBjb21lIGludG8NCj4gdmlldyBi
-eSBvcmlnaW5hbCBsb2NrZGVwIGZvciBub3cuDQoNClRoZSBMaW51eCBrZXJuZWwgaXMgbm90IGEg
-dmVoaWNsZSBmb3IgZXhwZXJpbWVudHMuIFRoZSBtYWpvcml0eSBvZiBmYWxzZQ0KcG9zaXRpdmVz
-IHNob3VsZCBoYXZlIGJlZW4gZml4ZWQgYmVmb3JlIHRoZSBjcm9zc3JlbGVhc2UgcGF0Y2hlcyB3
-ZXJlIHNlbnQNCnRvIExpbnVzLg0KDQpCYXJ0Lg==
+On Wed, Dec 13, 2017 at 07:14:41AM -0800, Dave Hansen wrote:
+> On 12/13/2017 04:57 AM, Kirill A. Shutemov wrote:
+> > Dave, what is effect of this on protection keys?
+> 
+> The goal was to make pkeys-protected userspace memory access
+> _consistent_ with normal access.  Specifically, we want a kernel to
+> disallow access (or writes) to memory where userspace mapping has a pkey
+> whose permissions are in conflict with the access.
+> 
+> For instance:
+> 
+> This will fault writing a byte to 'addr':
+> 
+> 	char *addr = malloc(PAGE_SIZE);
+> 	pkey_mprotect(addr, PAGE_SIZE, 13);
+> 	pkey_deny_access(13);
+> 	*addr[0] = 'f';
+> 
+> But this will write one byte to addr successfully (if it uses the kernel
+> mapping of the physical page backing 'addr'):
+> 
+> 	char *addr = malloc(PAGE_SIZE);
+> 	pkey_mprotect(addr, PAGE_SIZE, 13);
+> 	pkey_deny_access(13);
+> 	read(fd, addr, 1);
+> 
+
+This seems confused to me; why are these two cases different?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
