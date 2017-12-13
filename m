@@ -1,55 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 939106B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:51:00 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id f8so1507759pgs.9
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:51:00 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y2si1327963pli.150.2017.12.13.04.50.59
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A1436B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 07:54:41 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n13so1156190wmc.3
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:54:41 -0800 (PST)
+Received: from dan.rpsys.net (5751f4a1.skybroadband.com. [87.81.244.161])
+        by mx.google.com with ESMTPS id e21si1501829wra.51.2017.12.13.04.54.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 04:50:59 -0800 (PST)
-Date: Wed, 13 Dec 2017 04:50:53 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/2] mm: introduce MAP_FIXED_SAFE
-Message-ID: <20171213125053.GB2384@bombadil.infradead.org>
-References: <20171213092550.2774-1-mhocko@kernel.org>
- <20171213092550.2774-2-mhocko@kernel.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171213092550.2774-2-mhocko@kernel.org>
+        Wed, 13 Dec 2017 04:54:39 -0800 (PST)
+Message-ID: <1513169674.19417.188.camel@linuxfoundation.org>
+Subject: Re: [PATCH 1/2] KVM: x86: fix APIC page invalidation
+From: Richard Purdie <richard.purdie@linuxfoundation.org>
+Date: Wed, 13 Dec 2017 12:54:34 +0000
+In-Reply-To: <20171130180546.4331-1-rkrcmar@redhat.com>
+References: <20171130161933.GB1606@flask>
+	 <20171130180546.4331-1-rkrcmar@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>
+To: Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Fabian =?ISO-8859-1?Q?Gr=FCnbichler?= <f.gruenbichler@proxmox.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, kvm@vger.kernel.org, Paolo Bonzini <pbonzini@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, stable <stable@kernel.org>
 
-On Wed, Dec 13, 2017 at 10:25:49AM +0100, Michal Hocko wrote:
-> +++ b/mm/mmap.c
-> @@ -1342,6 +1342,10 @@ unsigned long do_mmap(struct file *file, unsigned long addr,
->  		if (!(file && path_noexec(&file->f_path)))
->  			prot |= PROT_EXEC;
->  
-> +	/* force arch specific MAP_FIXED handling in get_unmapped_area */
-> +	if (flags & MAP_FIXED_SAFE)
-> +		flags |= MAP_FIXED;
-> +
->  	if (!(flags & MAP_FIXED))
->  		addr = round_hint_to_min(addr);
->  
+On Thu, 2017-11-30 at 19:05 +0100, Radim KrA?mA!A? wrote:
+> Implementation of the unpinned APIC page didn't update the VMCS
+> address
+> cache when invalidation was done through range mmu notifiers.
+> This became a problem when the page notifier was removed.
+> 
+> Re-introduce the arch-specific helper and call it from
+> ...range_start.
+> 
+> Fixes: 38b9917350cb ("kvm: vmx: Implement set_apic_access_page_addr")
+> Fixes: 369ea8242c0f ("mm/rmap: update to new mmu_notifier semantic
+> v2")
+> Signed-off-by: Radim KrA?mA!A? <rkrcmar@redhat.com>
+> ---
+> A arch/x86/include/asm/kvm_host.h |A A 3 +++
+> A arch/x86/kvm/x86.cA A A A A A A A A A A A A A | 14 ++++++++++++++
+> A virt/kvm/kvm_main.cA A A A A A A A A A A A A |A A 8 ++++++++
+> A 3 files changed, 25 insertions(+)
 
-We're up to 22 MAP_ flags now.  We'll run out soon.  Let's preserve half
-of a flag by giving userspace the definition:
+Thanks for this. I've been chasing APIC related hangs booting images
+with qemu-system-x86_64 on 4.13 and 4.14 host kernels where the guest
+doesn't have x2apic enabled.
 
-#define MAP_FIXED_SAFE	(MAP_FIXED | _MAP_NOT_HINT)
+I can confirm this fixes issues the Yocto Project automated testing
+infrastructure was seeing.
 
-then in here:
+I'd like to add support for backporting this in stable.
 
-	if ((flags & _MAP_NOT_HINT) && !(flags & MAP_FIXED))
-		return -EINVAL;
+Tested-by: Richard Purdie <richard.purdie@linuxfoundation.org>
 
-Now we can use _MAP_NOT_HINT all by itself in the future to mean
-something else.
+Cheers,
+
+Richard
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
