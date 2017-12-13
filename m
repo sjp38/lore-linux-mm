@@ -1,62 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B57B26B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 17:13:15 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id f185so4572686itc.2
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 14:13:15 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id z125si2134342itf.107.2017.12.13.14.13.14
+Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B26376B0038
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 18:19:03 -0500 (EST)
+Received: by mail-ua0-f197.google.com with SMTP id v15so2274299uae.23
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 15:19:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d1sor1014512vkd.248.2017.12.13.15.19.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 14:13:14 -0800 (PST)
-Date: Wed, 13 Dec 2017 23:12:33 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
-Message-ID: <20171213221233.GC3326@worktop>
-References: <20171212173221.496222173@linutronix.de>
- <20171212173333.669577588@linutronix.de>
- <20171213215022.GA27778@bombadil.infradead.org>
+        (Google Transport Security);
+        Wed, 13 Dec 2017 15:19:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171213215022.GA27778@bombadil.infradead.org>
+In-Reply-To: <20171213144050.GG11493@rei>
+References: <20171213092550.2774-1-mhocko@kernel.org> <20171213093110.3550-1-mhocko@kernel.org>
+ <20171213093110.3550-2-mhocko@kernel.org> <20171213125540.GA18897@amd>
+ <20171213130458.GI25185@dhcp22.suse.cz> <20171213130900.GA19932@amd>
+ <20171213131640.GJ25185@dhcp22.suse.cz> <20171213132105.GA20517@amd> <20171213144050.GG11493@rei>
+From: Kees Cook <keescook@chromium.org>
+Date: Wed, 13 Dec 2017 15:19:00 -0800
+Message-ID: <CAGXu5jLqE6cUxk-Girx6PG7upEzz8jmu1OH_3LVC26iJc2vTxQ@mail.gmail.com>
+Subject: Re: [PATCH 2/2] mmap.2: MAP_FIXED updated documentation
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org
+To: Cyril Hrubis <chrubis@suse.cz>
+Cc: Pavel Machek <pavel@ucw.cz>, Michal Hocko <mhocko@kernel.org>, Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On Wed, Dec 13, 2017 at 01:50:22PM -0800, Matthew Wilcox wrote:
-> On Tue, Dec 12, 2017 at 06:32:26PM +0100, Thomas Gleixner wrote:
-> > From: Peter Zijstra <peterz@infradead.org>
-> > 
-> > In order to create VMAs that are not accessible to userspace create a new
-> > VM_NOUSER flag. This can be used in conjunction with
-> > install_special_mapping() to inject 'kernel' data into the userspace map.
-> 
-> Maybe I misunderstand the intent behind this, but I was recently looking
-> at something kind of similar.  I was calling it VM_NOTLB and it wouldn't
-> put TLB entries into the userspace map at all.  The idea was to be able
-> to use the user address purely as a handle for specific kernel pages,
-> which were guaranteed to never be mapped into userspace, so we didn't
-> need to send TLB invalidations when we took those pages away from the user
-> process again.  But we'd be able to pass the address to read() or write().
-> 
-> So I was going to check the VMA flags in no_page_table() and return the
-> struct page that was notmapped there.  I didn't get as far as constructing
-> a prototype yet, and I'm not entirely sure I understand the purpose of
-> this patch, so perhaps there's no synergy here at all (and perhaps my
-> idea wouldn't have worked anyway).
+On Wed, Dec 13, 2017 at 6:40 AM, Cyril Hrubis <chrubis@suse.cz> wrote:
+> Hi!
+>> You selected stupid name for a flag. Everyone and their dog agrees
+>> with that. There's even consensus on better name (and everyone agrees
+>> it is better than .._SAFE). Of course, we could have debate if it is
+>> NOREPLACE or NOREMOVE or ... and that would be bikeshed. This was just
+>> poor naming on your part.
+>
+> Well while everybody agrees that the name is so bad that basically
+> anything else would be better, there does not seem to be consensus on
+> which one to pick. I do understand that this frustrating and fruitless.
 
-Yeah, completely different. This here actually needs the page table
-entries. Currently we keep the LDT in kernel memory, but with PTI we
-loose the entire kernel map.
+Based on the earlier threads where I tried to end the bikeshedding, it
+seemed like MAP_FIXED_NOREPLACE was the least bad option.
 
-Since the LDT is strictly per process, the idea was to actually inject
-it into the userspace map. Except of course, userspace must not actually
-be able to access it. So by mapping it !_PAGE_USER its 'invisible'.
+> So what do we do now, roll a dice to choose new name?
+>
+> Or do we ask BFDL[1] to choose the name?
 
-But the CPU very much needs the mapping, it will load the LDT entries
-through them.
+I'd like to hear feedback from Michael Kerrisk, as he's had to deal
+with these kinds of choices in the past. I'm fine to ask Linus too. I
+just want to get past the name since the feature is quite valuable.
+
+And if Michal doesn't want to touch this patch any more, I'm happy to
+do the search/replace/resend. :P
+
+-Kees
+
+-- 
+Kees Cook
+Pixel Security
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
