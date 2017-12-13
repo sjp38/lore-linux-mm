@@ -1,198 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 283916B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 03:53:02 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 7so731051plb.19
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 00:53:02 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id e4si949819pgn.593.2017.12.13.00.52.59
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 417F26B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 04:00:02 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id e128so902388wmg.1
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 01:00:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k62si19430edc.303.2017.12.13.01.00.00
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 00:53:00 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171207011426.1633-1-ying.huang@intel.com>
-	<20171207162937.6a179063a7c92ecac77e44af@linux-foundation.org>
-	<20171208014346.GA8915@bbox> <87po7pg4jt.fsf@yhuang-dev.intel.com>
-	<20171208082644.GA14361@bbox> <87k1xxbohp.fsf@yhuang-dev.intel.com>
-	<20171208091042.GA14472@bbox> <87efo5bdtb.fsf@yhuang-dev.intel.com>
-	<20171213071556.GA26478@bbox>
-Date: Wed, 13 Dec 2017 16:52:53 +0800
-In-Reply-To: <20171213071556.GA26478@bbox> (Minchan Kim's message of "Wed, 13
-	Dec 2017 16:15:56 +0900")
-Message-ID: <87wp1rm2l6.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Dec 2017 01:00:00 -0800 (PST)
+From: Vlastimil Babka <vbabka@suse.cz>
+Subject: [UNTESTED RFC PATCH 0/8] compaction scanners rework
+Date: Wed, 13 Dec 2017 09:59:07 +0100
+Message-Id: <20171213085915.9278-1-vbabka@suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: linux-mm@kvack.org
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@techsingularity.net>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>
 
-Minchan Kim <minchan@kernel.org> writes:
+Hi,
 
-> Hi Huang,
->  
-> Sorry for the late response. I'm in middle of long vacation.
->
-> On Fri, Dec 08, 2017 at 08:32:16PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Fri, Dec 08, 2017 at 04:41:38PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > On Fri, Dec 08, 2017 at 01:41:10PM +0800, Huang, Ying wrote:
->> >> >> Minchan Kim <minchan@kernel.org> writes:
->> >> >> 
->> >> >> > On Thu, Dec 07, 2017 at 04:29:37PM -0800, Andrew Morton wrote:
->> >> >> >> On Thu,  7 Dec 2017 09:14:26 +0800 "Huang, Ying" <ying.huang@intel.com> wrote:
->> >> >> >> 
->> >> >> >> > When the swapin is performed, after getting the swap entry information
->> >> >> >> > from the page table, the PTL (page table lock) will be released, then
->> >> >> >> > system will go to swap in the swap entry, without any lock held to
->> >> >> >> > prevent the swap device from being swapoff.  This may cause the race
->> >> >> >> > like below,
->> >> >> >> > 
->> >> >> >> > CPU 1				CPU 2
->> >> >> >> > -----				-----
->> >> >> >> > 				do_swap_page
->> >> >> >> > 				  swapin_readahead
->> >> >> >> > 				    __read_swap_cache_async
->> >> >> >> > swapoff				      swapcache_prepare
->> >> >> >> >   p->swap_map = NULL		        __swap_duplicate
->> >> >> >> > 					  p->swap_map[?] /* !!! NULL pointer access */
->> >> >> >> > 
->> >> >> >> > Because swap off is usually done when system shutdown only, the race
->> >> >> >> > may not hit many people in practice.  But it is still a race need to
->> >> >> >> > be fixed.
->> >> >> >> 
->> >> >> >> swapoff is so rare that it's hard to get motivated about any fix which
->> >> >> >> adds overhead to the regular codepaths.
->> >> >> >
->> >> >> > That was my concern, too when I see this patch.
->> >> >> >
->> >> >> >> 
->> >> >> >> Is there something we can do to ensure that all the overhead of this
->> >> >> >> fix is placed into the swapoff side?  stop_machine() may be a bit
->> >> >> >> brutal, but a surprising amount of code uses it.  Any other ideas?
->> >> >> >
->> >> >> > How about this?
->> >> >> >
->> >> >> > I think It's same approach with old where we uses si->lock everywhere
->> >> >> > instead of more fine-grained cluster lock.
->> >> >> >
->> >> >> > The reason I repeated to reset p->max to zero in the loop is to avoid
->> >> >> > using lockdep annotation(maybe, spin_lock_nested(something) to prevent
->> >> >> > false positive.
->> >> >> >
->> >> >> > diff --git a/mm/swapfile.c b/mm/swapfile.c
->> >> >> > index 42fe5653814a..9ce007a42bbc 100644
->> >> >> > --- a/mm/swapfile.c
->> >> >> > +++ b/mm/swapfile.c
->> >> >> > @@ -2644,6 +2644,19 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
->> >> >> >  	swap_file = p->swap_file;
->> >> >> >  	old_block_size = p->old_block_size;
->> >> >> >  	p->swap_file = NULL;
->> >> >> > +
->> >> >> > +	if (p->flags & SWP_SOLIDSTATE) {
->> >> >> > +		unsigned long ci, nr_cluster;
->> >> >> > +
->> >> >> > +		nr_cluster = DIV_ROUND_UP(p->max, SWAPFILE_CLUSTER);
->> >> >> > +		for (ci = 0; ci < nr_cluster; ci++) {
->> >> >> > +			struct swap_cluster_info *sci;
->> >> >> > +
->> >> >> > +			sci = lock_cluster(p, ci * SWAPFILE_CLUSTER);
->> >> >> > +			p->max = 0;
->> >> >> > +			unlock_cluster(sci);
->> >> >> > +		}
->> >> >> > +	}
->> >> >> >  	p->max = 0;
->> >> >> >  	swap_map = p->swap_map;
->> >> >> >  	p->swap_map = NULL;
->> >> >> > @@ -3369,10 +3382,10 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
->> >> >> >  		goto bad_file;
->> >> >> >  	p = swap_info[type];
->> >> >> >  	offset = swp_offset(entry);
->> >> >> > -	if (unlikely(offset >= p->max))
->> >> >> > -		goto out;
->> >> >> >  
->> >> >> >  	ci = lock_cluster_or_swap_info(p, offset);
->> >> >> > +	if (unlikely(offset >= p->max))
->> >> >> > +		goto unlock_out;
->> >> >> >  
->> >> >> >  	count = p->swap_map[offset];
->> >> >> >  
->> >> >> 
->> >> >> Sorry, this doesn't work, because
->> >> >> 
->> >> >> lock_cluster_or_swap_info()
->> >> >> 
->> >> >> Need to read p->cluster_info, which may be freed during swapoff too.
->> >> >> 
->> >> >> 
->> >> >> To reduce the added overhead in regular code path, Maybe we can use SRCU
->> >> >> to implement get_swap_device() and put_swap_device()?  There is only
->> >> >> increment/decrement on CPU local variable in srcu_read_lock/unlock().
->> >> >> Should be acceptable in not so hot swap path?
->> >> >> 
->> >> >> This needs to select CONFIG_SRCU if CONFIG_SWAP is enabled.  But I guess
->> >> >> that should be acceptable too?
->> >> >> 
->> >> >
->> >> > Why do we need srcu here? Is it enough with rcu like below?
->> >> >
->> >> > It might have a bug/room to be optimized about performance/naming.
->> >> > I just wanted to show my intention.
->> >> 
->> >> Yes.  rcu should work too.  But if we use rcu, it may need to be called
->> >> several times to make sure the swap device under us doesn't go away, for
->> >> example, when checking si->max in __swp_swapcount() and
->> >
->> > I think it's not a big concern performance pov and benefit is good
->> > abstraction through current locking function so we don't need much churn.
->> 
->> I think get/put_something() is common practice in Linux kernel to
->> prevent something to go away under us.  That makes the programming model
->> easier to be understood than checking whether swap entry is valid here
->> and there.
->> 
->> >> add_swap_count_continuation().  And I found we need rcu to protect swap
->> >> cache radix tree array too.  So I think it may be better to use one
->> >
->> > Could you elaborate it more about swap cache arrary problem?
->> 
->> Like swap_map, cluster_info, swap cache radix tree array for a swap
->> device will be freed at the end of swapoff.  So when we look up swap
->> cache, we need to make sure the swap cache array is valid firstly too.
->> 
->
-> Thanks for the clarification.
->  
-> I'm not saying refcount approach you suggested is wrong but just wanted
-> to find more easier way with just fixing cold path instead of hot path.
-> To me, the thought came from from logical sense for the maintainance
-> rather than performan problem.
->  
-> I still need a time to think over it and it would be made after the vacation
-> so don't want to make you stuck. A thing I want to suggest is that let's
-> think about maintanaince point of view for solution candidates.
-> I don't like to put get/put into out of swap code. Instead, let's
-> encapsulate the locking code into swap functions inside so any user
-> of swap function doesn't need to know the detail.
->  
-> I think which approach is best for the solution among several
-> approaches depends on that how the solution makes code simple without
-> exposing the internal much rather than performance at the moment.
->
-> Just my two cents.
-> Sorry for the vague review. I'm looking forward to seeing new patches.
+I have been working on this in the past weeks, but probably won't have time to
+finish and test properly this year. So here's an UNTESTED RFC for those brave
+enough to test, and also for review comments. I've been focusing on 1-7, and
+patch 8 is unchanged since the last posting,  so Mel's suggestions (wrt
+fallbacks and scanning pageblock where we get the free page from) from are not
+included yet.
 
-Thanks!  Yes, long-term maintenance is key point.  I just thought that
-get/put_swap_device() based method makes the whole picture simpler so
-that we don't need to worry about the swap device gone under us.  Will
-send out a new version soon.
+For context, please see the recent threads [1] [2]. The main goal is to
+eliminate the reported huge free scanner activity by replacing the scanner with
+allocation from free lists. This has some dangers of excessive migrations as
+described in Patch 8 commit log, so the earlier patches try to eliminate most
+of them by making the migration scanner decide to actually migrate pages only
+if it looks like it can succeed. This should be benefical even in the current
+scheme.
 
-Best Regards,
-Huang, Ying
+[1] https://lkml.kernel.org/r/20171122143321.29501-1-hannes@cmpxchg.org
+[2] https://lkml.kernel.org/r/0168732b-d53f-a1b8-6623-4e4e26b85c5d@suse.cz
+
+Vlastimil Babka (8):
+  mm, compaction: don't mark pageblocks unsuitable when not fully
+    scanned
+  mm, compaction: skip_on_failure only for MIGRATE_MOVABLE allocations
+  mm, compaction: pass valid_page to isolate_migratepages_block
+  mm, compaction: skip on isolation failure also in sync compaction
+  mm, compaction: factor out checking if page can be isolated for
+    migration
+  mm, compaction: prescan before isolating in skip_on_failure mode
+  mm, compaction: prescan all MIGRATE_MOVABLE pageblocks
+  mm, compaction: replace free scanner with direct freelist allocation
+
+ include/linux/vm_event_item.h |   2 +
+ mm/compaction.c               | 311 ++++++++++++++++++++++++++++++++----------
+ mm/internal.h                 |   3 +
+ mm/page_alloc.c               |  71 ++++++++++
+ mm/vmstat.c                   |   3 +
+ 5 files changed, 316 insertions(+), 74 deletions(-)
+
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
