@@ -1,96 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2689E6B0253
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 70F326B0253
 	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 05:58:13 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f3so1372023pgv.21
+Received: by mail-pg0-f72.google.com with SMTP id f3so1372027pgv.21
         for <linux-mm@kvack.org>; Wed, 13 Dec 2017 02:58:13 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id s17si1156494plp.176.2017.12.13.02.58.11
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id g188si1079666pgc.386.2017.12.13.02.58.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 13 Dec 2017 02:58:12 -0800 (PST)
 From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv4 08/12] sparc64: Update pmdp_invalidate() to return old pmd value
-Date: Wed, 13 Dec 2017 13:57:52 +0300
-Message-Id: <20171213105756.69879-9-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv4 05/12] mips: Use generic_pmdp_establish as pmdp_establish
+Date: Wed, 13 Dec 2017 13:57:49 +0300
+Message-Id: <20171213105756.69879-6-kirill.shutemov@linux.intel.com>
 In-Reply-To: <20171213105756.69879-1-kirill.shutemov@linux.intel.com>
 References: <20171213105756.69879-1-kirill.shutemov@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Nitin Gupta <nitin.m.gupta@oracle.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Ralf Baechle <ralf@linux-mips.org>, David Daney <david.daney@cavium.com>, linux-mips@linux-mips.org
 
-From: Nitin Gupta <nitin.m.gupta@oracle.com>
+MIPS doesn't support hardware dirty/accessed bits.
+generic_pmdp_establish() is suitable in this case.
 
-It's required to avoid losing dirty and accessed bits.
-
-Signed-off-by: Nitin Gupta <nitin.m.gupta@oracle.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Ralf Baechle <ralf@linux-mips.org>
+Cc: David Daney <david.daney@cavium.com>
+Cc: linux-mips@linux-mips.org
 ---
- arch/sparc/include/asm/pgtable_64.h |  2 +-
- arch/sparc/mm/tlb.c                 | 23 ++++++++++++++++++-----
- 2 files changed, 19 insertions(+), 6 deletions(-)
+ arch/mips/include/asm/pgtable.h | 3 +++
+ 1 file changed, 3 insertions(+)
 
-diff --git a/arch/sparc/include/asm/pgtable_64.h b/arch/sparc/include/asm/pgtable_64.h
-index 9937c5ff94a9..339920fdf9ed 100644
---- a/arch/sparc/include/asm/pgtable_64.h
-+++ b/arch/sparc/include/asm/pgtable_64.h
-@@ -1010,7 +1010,7 @@ void update_mmu_cache_pmd(struct vm_area_struct *vma, unsigned long addr,
- 			  pmd_t *pmd);
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 1a508a74d48d..129e0328367f 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -534,6 +534,9 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
  
- #define __HAVE_ARCH_PMDP_INVALIDATE
--extern void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
-+extern pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- 			    pmd_t *pmdp);
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
  
- #define __HAVE_ARCH_PGTABLE_DEPOSIT
-diff --git a/arch/sparc/mm/tlb.c b/arch/sparc/mm/tlb.c
-index 4ae86bc0d35c..5a3ba863b48a 100644
---- a/arch/sparc/mm/tlb.c
-+++ b/arch/sparc/mm/tlb.c
-@@ -219,17 +219,28 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
- 	}
- }
- 
-+static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
-+		unsigned long address, pmd_t *pmdp, pmd_t pmd)
-+{
-+	pmd_t old;
++/* We don't have hardware dirty/accessed bits, generic_pmdp_establish is fine.*/
++#define pmdp_establish generic_pmdp_establish
 +
-+	{
-+		old = *pmdp;
-+	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
-+
-+	return old;
-+}
-+
- /*
-  * This routine is only called when splitting a THP
-  */
--void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
-+pmd_t pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- 		     pmd_t *pmdp)
- {
--	pmd_t entry = *pmdp;
--
--	pmd_val(entry) &= ~_PAGE_VALID;
-+	pmd_t old, entry;
+ #define has_transparent_hugepage has_transparent_hugepage
+ extern int has_transparent_hugepage(void);
  
--	set_pmd_at(vma->vm_mm, address, pmdp, entry);
-+	entry = __pmd(pmd_val(*pmdp) & ~_PAGE_VALID);
-+	old = pmdp_establish(vma, address, pmdp, entry);
- 	flush_tlb_range(vma, address, address + HPAGE_PMD_SIZE);
- 
- 	/*
-@@ -240,6 +251,8 @@ void pmdp_invalidate(struct vm_area_struct *vma, unsigned long address,
- 	if ((pmd_val(entry) & _PAGE_PMD_HUGE) &&
- 	    !is_huge_zero_page(pmd_page(entry)))
- 		(vma->vm_mm)->context.thp_pte_count--;
-+
-+	return old;
- }
- 
- void pgtable_trans_huge_deposit(struct mm_struct *mm, pmd_t *pmdp,
 -- 
 2.15.0
 
