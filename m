@@ -1,76 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 73FC96B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 09:27:56 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id k104so1429635wrc.19
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 06:27:56 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id j53sor1219908ede.4.2017.12.13.06.27.55
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0C8666B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 09:35:06 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id g33so1201567plb.13
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 06:35:06 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id p64si1541752pfl.131.2017.12.13.06.35.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 06:27:55 -0800 (PST)
-Date: Wed, 13 Dec 2017 17:27:53 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20171213142753.uny2nrpzc6gteon6@node.shutemov.name>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
- <20171213120733.umeb7rylswl7chi5@node.shutemov.name>
- <20171213121703.GD25185@dhcp22.suse.cz>
- <20171213124731.hmg4r5m3efybgjtx@node.shutemov.name>
- <20171213141039.GL25185@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 06:35:05 -0800 (PST)
+Date: Wed, 13 Dec 2017 15:34:55 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171213143455.oqigy6m53qhuu7k4@hirez.programming.kicks-ass.net>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <CALCETrXLeGGw+g7GiGDmReXgOxjB-cjmehdryOsFK4JB5BJAFQ@mail.gmail.com>
+ <20171213122211.bxcb7xjdwla2bqol@hirez.programming.kicks-ass.net>
+ <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171213141039.GL25185@dhcp22.suse.cz>
+In-Reply-To: <20171213125739.fllckbl3o4nonmpx@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, kirill.shutemov@linux.intel.com, aneesh.kumar@linux.vnet.ibm.com
 
-On Wed, Dec 13, 2017 at 03:10:39PM +0100, Michal Hocko wrote:
-> On Wed 13-12-17 15:47:31, Kirill A. Shutemov wrote:
-> > On Wed, Dec 13, 2017 at 01:17:03PM +0100, Michal Hocko wrote:
-> > > On Wed 13-12-17 15:07:33, Kirill A. Shutemov wrote:
-> > > [...]
-> > > > The approach looks fine to me.
-> > > > 
-> > > > But patch is rather large and hard to review. And how git mixed add/remove
-> > > > lines doesn't help too. Any chance to split it up further?
-> > > 
-> > > I was trying to do that but this is a drop in replacement so it is quite
-> > > hard to do in smaller pieces. I've already put the allocation callback
-> > > cleanup into a separate one but this is about all that I figured how to
-> > > split. If you have any suggestions I am willing to try them out.
+On Wed, Dec 13, 2017 at 03:57:40PM +0300, Kirill A. Shutemov wrote:
+> On Wed, Dec 13, 2017 at 01:22:11PM +0100, Peter Zijlstra wrote:
+
+> > get_user_pages_fast() will ultimately end up doing
+> > pte_access_permitted() before getting the page, follow_page OTOH does
+> > not do this, which makes for a curious difference between the two.
 > > 
-> > "git diff --patience" seems generate more readable output for the patch.
+> > So I'm thinking we want the below irrespective of the VM_NOUSER patch,
+> > but with VM_NOUSER it would mean write(2) will no longer be able to
+> > access the page.
 > 
-> Hmm, I wasn't aware of this option. Are you suggesting I should use it
-> to general the patch to send?
-
-I don't know if it's better in general (it's not default after all), but it
-seems helps for this particular case.
-
+> Oh..
 > 
-> > > > One nitpick: I don't think 'chunk' terminology should go away with the
-> > > > patch.
-> > > 
-> > > Not sure what you mean here. I have kept chunk_start, chunk_node, so I
-> > > am not really changing that terminology
-> > 
-> > We don't really have chunks anymore, right? We still *may* have per-node
-> > batching, but..
-> > 
-> > Maybe just 'start' and 'current_node'?
-> 
-> Ohh, I've read your response that you want to preserve the naming. I can
-> certainly do the rename.
+> We do call pte_access_permitted(), but only for write access.
+> See can_follow_write_pte().
 
-Yep, that's better.
+My can_follow_write_pte() looks like:
 
--- 
- Kirill A. Shutemov
+static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+{
+	return pte_write(pte) ||
+		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
+}
+
+am I perchance looking at the wrong tee?
+
+> The issue seems bigger: we also need such calls for other page table levels :-/
+
+Sure.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
