@@ -1,84 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CC17D6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:33:14 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id k126so3106644wmd.5
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:33:14 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CD5536B0253
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:40:42 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n126so3018340wma.7
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:40:42 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y66si3437120wmh.175.2017.12.14.12.33.13
+        by mx.google.com with ESMTPS id z63si3613300wmz.126.2017.12.14.12.40.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 12:33:13 -0800 (PST)
-Date: Thu, 14 Dec 2017 12:33:09 -0800
+        Thu, 14 Dec 2017 12:40:38 -0800 (PST)
+Date: Thu, 14 Dec 2017 12:40:35 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-Id: <20171214123309.bdee142c82809f4c4ff3ce5b@linux-foundation.org>
-In-Reply-To: <20171214140608.GQ16951@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
-	<20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
-	<20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
-	<20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
-	<20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
-	<20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
-	<20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
-	<20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
-	<20171214140608.GQ16951@dhcp22.suse.cz>
+Subject: Re: [PATCH V3] mm/mprotect: Add a cond_resched() inside
+ change_pmd_range()
+Message-Id: <20171214124035.e77706f0a314f2082a2d1b7c@linux-foundation.org>
+In-Reply-To: <20171214140551.5794-1-khandual@linux.vnet.ibm.com>
+References: <20171214140551.5794-1-khandual@linux.vnet.ibm.com>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, mhocko@suse.com
 
-On Thu, 14 Dec 2017 15:06:08 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Thu, 14 Dec 2017 19:35:51 +0530 Anshuman Khandual <khandual@linux.vnet.ibm.com> wrote:
 
-> On Fri 01-12-17 12:18:45, Michal Hocko wrote:
-> > On Fri 01-12-17 08:24:14, Michal Hocko wrote:
-> > > On Thu 30-11-17 13:17:06, Andrew Morton wrote:
-> > > > On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > > > 
-> > > > > > mm...  So we have a caller which hopes to be getting highmem pages but
-> > > > > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
-> > > > > > why it isn't getting as much memory as it would like on 32-bit systems,
-> > > > > > etc.
-> > > > > 
-> > > > > How he can kmap the page when he gets a _virtual_ address?
-> > > > 
-> > > > doh.
-> > > > 
-> > > > > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
-> > > > > > would suffice.
-> > > > > 
-> > > > > This function has always been about lowmem pages. I seriously doubt we
-> > > > > have anybody confused and asking for a highmem page in the kernel. I
-> > > > > haven't checked that but it would already blow up as VM_BUG_ON tends to
-> > > > > be enabled on many setups.
-> > > > 
-> > > > OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
-> > > > shouldn't be doing that in the first place.
-> > > 
-> > > Yes, they shouldn't be.
-> > > 
-> > > > I wonder what happens if we just remove the WARN_ON and pass any
-> > > > __GFP_HIGHMEM straight through.  The caller gets a weird address from
-> > > > page_to_virt(highmem page) and usually goes splat?  Good enough
-> > > > treatment for something which never happens anyway?
-> > > 
-> > > page_address will return NULL so they will blow up and leak the freshly
-> > > allocated memory.
-> > 
-> > let me be more specific. They will blow up and leak if the returned
-> > address is not checked. If it is then we just leak. None of that sounds
-> > good to me.
+> While testing on a large CPU system, detected the following RCU
+> stall many times over the span of the workload. This problem
+> is solved by adding a cond_resched() in the change_pmd_range()
+> function.
 > 
-> So do we care and I will resend the patch in that case or I just drop
-> this from my patch queue?
+> [  850.962530] INFO: rcu_sched detected stalls on CPUs/tasks:
 
-Well..  I still think that silently accepting bad input would be bad
-practice.  If we can just delete the assertion and have such a caller
-reliably blow up later on then that's good enough.  Otherwise let's
-leave the code as-is?
+That's a bit rude.  I think I'll add a cc:stable to this one.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
