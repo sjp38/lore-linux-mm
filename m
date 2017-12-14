@@ -1,98 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 298736B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:09:55 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id t92so2229888wrc.13
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:09:55 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id l44si2262458wre.375.2017.12.13.16.09.53
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CD496B025E
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:10:38 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 200so2538192pge.12
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:10:38 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id p123si1973584pga.747.2017.12.13.16.10.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 16:09:54 -0800 (PST)
-Date: Wed, 13 Dec 2017 16:09:51 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCHv4 09/12] x86/mm: Provide pmdp_establish() helper
-Message-Id: <20171213160951.249071f2aecdccb38b6bb646@linux-foundation.org>
-In-Reply-To: <20171213105756.69879-10-kirill.shutemov@linux.intel.com>
-References: <20171213105756.69879-1-kirill.shutemov@linux.intel.com>
-	<20171213105756.69879-10-kirill.shutemov@linux.intel.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Wed, 13 Dec 2017 16:10:37 -0800 (PST)
+Date: Wed, 13 Dec 2017 16:10:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
+Message-ID: <20171214001012.GA22639@bombadil.infradead.org>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173333.669577588@linutronix.de>
+ <20171213215022.GA27778@bombadil.infradead.org>
+ <20171213221233.GC3326@worktop>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171213221233.GC3326@worktop>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org
 
-On Wed, 13 Dec 2017 13:57:53 +0300 "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com> wrote:
-
-> We need an atomic way to setup pmd page table entry, avoiding races with
-> CPU setting dirty/accessed bits. This is required to implement
-> pmdp_invalidate() that doesn't lose these bits.
+On Wed, Dec 13, 2017 at 11:12:33PM +0100, Peter Zijlstra wrote:
+> On Wed, Dec 13, 2017 at 01:50:22PM -0800, Matthew Wilcox wrote:
+> > On Tue, Dec 12, 2017 at 06:32:26PM +0100, Thomas Gleixner wrote:
+> > > From: Peter Zijstra <peterz@infradead.org>
+> > > In order to create VMAs that are not accessible to userspace create a new
+> > > VM_NOUSER flag. This can be used in conjunction with
+> > > install_special_mapping() to inject 'kernel' data into the userspace map.
+> > 
+> > Maybe I misunderstand the intent behind this, but I was recently looking
+> > at something kind of similar.  I was calling it VM_NOTLB and it wouldn't
+> > put TLB entries into the userspace map at all.  The idea was to be able
+> > to use the user address purely as a handle for specific kernel pages,
+> > which were guaranteed to never be mapped into userspace, so we didn't
+> > need to send TLB invalidations when we took those pages away from the user
+> > process again.  But we'd be able to pass the address to read() or write().
 > 
-> On PAE we can avoid expensive cmpxchg8b for cases when new page table
-> entry is not present. If it's present, fallback to cpmxchg loop.
+> Since the LDT is strictly per process, the idea was to actually inject
+> it into the userspace map. Except of course, userspace must not actually
+> be able to access it. So by mapping it !_PAGE_USER its 'invisible'.
 > 
-> ...
->
-> --- a/arch/x86/include/asm/pgtable-3level.h
-> +++ b/arch/x86/include/asm/pgtable-3level.h
-> @@ -158,7 +158,6 @@ static inline pte_t native_ptep_get_and_clear(pte_t *ptep)
->  #define native_ptep_get_and_clear(xp) native_local_ptep_get_and_clear(xp)
->  #endif
->  
-> -#ifdef CONFIG_SMP
->  union split_pmd {
->  	struct {
->  		u32 pmd_low;
-> @@ -166,6 +165,8 @@ union split_pmd {
->  	};
->  	pmd_t pmd;
->  };
-> +
-> +#ifdef CONFIG_SMP
->  static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
->  {
->  	union split_pmd res, *orig = (union split_pmd *)pmdp;
-> @@ -181,6 +182,40 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
->  #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
->  #endif
->  
-> +#ifndef pmdp_establish
-> +#define pmdp_establish pmdp_establish
-> +static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
-> +		unsigned long address, pmd_t *pmdp, pmd_t pmd)
-> +{
-> +	pmd_t old;
-> +
-> +	/*
-> +	 * If pmd has present bit cleared we can get away without expensive
-> +	 * cmpxchg64: we can update pmdp half-by-half without racing with
-> +	 * anybody.
-> +	 */
-> +	if (!(pmd_val(pmd) & _PAGE_PRESENT)) {
-> +		union split_pmd old, new, *ptr;
-> +
-> +		ptr = (union split_pmd *)pmdp;
-> +
-> +		new.pmd = pmd;
-> +
-> +		/* xchg acts as a barrier before setting of the high bits */
-> +		old.pmd_low = xchg(&ptr->pmd_low, new.pmd_low);
-> +		old.pmd_high = ptr->pmd_high;
-> +		ptr->pmd_high = new.pmd_high;
-> +		return old.pmd;
-> +	}
-> +
-> +	{
-> +		old = *pmdp;
-> +	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
+> But the CPU very much needs the mapping, it will load the LDT entries
+> through them.
 
-um, what happened here?
-
-> +	return old;
-> +}
-> +#endif
+So can I use your VM_NOUSER VMAs for my purpose?  That is, can I change
+the page table without flushing the TLB?  The only access to these PTEs
+will be through the kernel mapping, so I don't see why I'd need to.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
