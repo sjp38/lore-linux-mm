@@ -1,148 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F091E6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 10:28:40 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id u193so2666168oie.4
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 07:28:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x136si1321580oif.551.2017.12.14.07.28.39
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 12B676B0253
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 10:36:03 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id v69so3424140wrb.3
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 07:36:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t7sor2812913edc.45.2017.12.14.07.36.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 07:28:39 -0800 (PST)
-Date: Thu, 14 Dec 2017 10:28:35 -0500
-From: Jerome Glisse <jglisse@redhat.com>
-Subject: Re: [HMM-v25 00/19] HMM (Heterogeneous Memory Management) v25
-Message-ID: <20171214152834.GA25092@redhat.com>
-References: <20170817000548.32038-1-jglisse@redhat.com>
- <CAF7GXvqSZzNHdefQWhEb2SDYWX5hDWqQX7cayuVEQ8YyTULPog@mail.gmail.com>
- <20171213161247.GA2927@redhat.com>
- <CAF7GXvrxo2xj==wA_=fXr+9nF0k0Ed123kZXeKWKBHS6TKYNdA@mail.gmail.com>
- <20171214031607.GA17710@redhat.com>
- <CAF7GXvqoYXDJNYcrzJo5bGvfBG9iFq8PbeA7RO7y+9DuM7N0og@mail.gmail.com>
- <20171214041650.GB17710@redhat.com>
- <CAF7GXvpuvrfRHBBrQ4ADz+ma_=z6T0+9j3As-GBTtS+gNqfZXA@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 14 Dec 2017 07:36:01 -0800 (PST)
+Date: Thu, 14 Dec 2017 18:35:58 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20171214153558.trgov6dbclav6ui7@node.shutemov.name>
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+ <20171213143948.GM25185@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <CAF7GXvpuvrfRHBBrQ4ADz+ma_=z6T0+9j3As-GBTtS+gNqfZXA@mail.gmail.com>
+In-Reply-To: <20171213143948.GM25185@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Figo.zhang" <figo1802@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 14, 2017 at 03:05:39PM +0800, Figo.zhang wrote:
-> 2017-12-14 12:16 GMT+08:00 Jerome Glisse <jglisse@redhat.com>:
-> > On Thu, Dec 14, 2017 at 11:53:40AM +0800, Figo.zhang wrote:
-> > > 2017-12-14 11:16 GMT+08:00 Jerome Glisse <jglisse@redhat.com>:
-> > > > On Thu, Dec 14, 2017 at 10:48:36AM +0800, Figo.zhang wrote:
-> > > > > 2017-12-14 0:12 GMT+08:00 Jerome Glisse <jglisse@redhat.com>:
-> > > > > > On Wed, Dec 13, 2017 at 08:10:42PM +0800, Figo.zhang wrote:
-
-[...]
-
-> > This slide is for the case where you use device memory on PCIE platform.
-> > When that happen only the device can access the virtual address back by
-> > device memory. If CPU try to access such address a page fault is trigger
-> > and it migrate the data back to regular memory where both GPU and CPU can
-> > access it concurently.
-> >
-> > And again this behavior only happen if you use HMM non cache coherent
-> > device memory model. If you use the device cache coherent model with HMM
-> > then CPU can access the device memory directly too and above scenario
-> > never happen.
-> >
-> > Note that memory copy when data move from device to system or from system
-> > to device memory are inevitable. This is exactly as with autoNUMA. Also
-> > note that in some case thing can get allocated directly on GPU and never
-> > copied back to regular memory (only use by GPU and freed once GPU is done
-> > with them) the zero copy case. But i want to stress that the zero copy
-> > case is unlikely to happen for input buffer. Usualy you do not get your
-> > input data set directly on the GPU but from network or disk and you might
-> > do pre-processing on CPU (uncompress input, or do something that is better
-> > done on the CPU). Then you feed your data to the GPU and you do computation
-> > there.
-> >
+On Wed, Dec 13, 2017 at 03:39:48PM +0100, Michal Hocko wrote:
+> This patch has been generated with --patience parameter as suggested by
+> Kirill and it realy seems to provide a more compact diff.
+> ---
+> From 1f529769d099ca605888b29059014e7c8f0bfd50 Mon Sep 17 00:00:00 2001
+> From: Michal Hocko <mhocko@suse.com>
+> Date: Fri, 8 Dec 2017 12:28:34 +0100
+> Subject: [PATCH] mm, numa: rework do_pages_move
 > 
-> Greati 1/4 ?very detail about the HMM explanation, Thanks a lot.
-> so would you like see my conclusion is correct?
-> * if support CCIX/CAPI, CPU can access GPU memory directly, and GPU also
-> can access CPU memory directly,
-> so it no need copy on kernel space in HMM solutions.
-
-Yes but migration do imply copy. The physical address backing a virtual address
-can change over the lifetime of a virtual address (between mmap and munmap). As
-a result of various activity (auto NUMA, compaction, swap out then swap back in,
-...) and in the case that interest us as the result of a device driver migrating
-thing to its device memory.
-
-
-> * if no support CCIX/CAPI, CPU cannot access GPU memory in cache
-> coherency method, also GPU cannot access CPU memory at
-> cache coherency. it need some copies like John Hobburt's slides.
->    *when GPU page fault, need copy data from CPU page to GPU page, and
-> HMM unmap the CPU page...
->    * when CPU page fault, need copy data from GPU page to CPU page
-> and ummap GPU page and map the CPU page...
-
-No, GPU can access main memory just fine (snoop PCIE transaction and in a
-full cache coherent way with CPU). Only the CPU can not access the device
-memory. So there is a special case only when migrating some virtual address
-to use device memory.
-
-What is described inside John's slides is what happen when you migrate some
-virtual addresses to device memory where the CPU can not access it. This
-migration is not necessary for the GPU to access memory. It only happens as
-an optimization when the device driver suspect it will make frequent access
-to that memory and that CPU will not try to access it.
-
-[...]
-
-> > No. Here we are always talking about virtual address that are the outcome
-> > of an mmap syscall either as private anonymous memory or as mmap of regular
-> > file (ie not a device file but a regular file on a filesystem).
-> >
-> > Device driver can migrate any virtual address to use device memory for
-> > performance reasons (how, why and when such migration happens is totaly
-> > opaque to HMM it is under the control of the device driver).
-> >
-> > So if you do:
-> >    BUFA = malloc(size);
-> > Then do something with BUFA on the CPU (like reading input or network, ...)
-> > the memory is likely to be allocated with regular main memory (like DDR).
-> >
-> > Now if you start some job on your GPU that access BUFA the device driver
-> > might call migrate_vma() helper to migrate the memory to device memory. At
-> > that point the virtual address of BUFA point to physical device memory here
-> > CAPI or CCIX. If it is not CAPI/CCIX than the GPU page table point to
-> > device
-> > memory while the CPU page table point to invalid special entry. The GPU can
-> > work on BUFA that now reside inside the device memory. Finaly, in the non
-> > CAPI/CCIX case, if CPU try to access that memory then a migration back to
-> > regular memory happen.
-> >
+> do_pages_move is supposed to move user defined memory (an array of
+> addresses) to the user defined numa nodes (an array of nodes one for
+> each address). The user provided status array then contains resulting
+> numa node for each address or an error. The semantic of this function is
+> little bit confusing because only some errors are reported back. Notably
+> migrate_pages error is only reported via the return value. This patch
+> doesn't try to address these semantic nuances but rather change the
+> underlying implementation.
 > 
-> in this scenario:
-> *if CAPI/CCIX supporti 1/4 ? the CPU's page table and GPU's also point to the
-> device physical page?
-> in this case, it still need the ZONE_DEVICE infrastructure for
-> CPU page tablei 1/4 ?
+> Currently we are processing user input (which can be really large)
+> in batches which are stored to a temporarily allocated page. Each
+> address is resolved to its struct page and stored to page_to_node
+> structure along with the requested target numa node. The array of these
+> structures is then conveyed down the page migration path via private
+> argument. new_page_node then finds the corresponding structure and
+> allocates the proper target page.
+> 
+> What is the problem with the current implementation and why to change
+> it? Apart from being quite ugly it also doesn't cope with unexpected
+> pages showing up on the migration list inside migrate_pages path.
+> That doesn't happen currently but the follow up patch would like to
+> make the thp migration code more clear and that would need to split a
+> THP into the list for some cases.
+> 
+> How does the new implementation work? Well, instead of batching into a
+> fixed size array we simply batch all pages that should be migrated to
+> the same node and isolate all of them into a linked list which doesn't
+> require any additional storage. This should work reasonably well because
+> page migration usually migrates larger ranges of memory to a specific
+> node. So the common case should work equally well as the current
+> implementation. Even if somebody constructs an input where the target
+> numa nodes would be interleaved we shouldn't see a large performance
+> impact because page migration alone doesn't really benefit from
+> batching. mmap_sem batching for the lookup is quite questionable and
+> isolate_lru_page which would benefit from batching is not using it even
+> in the current implementation.
+> 
+> Signed-off-by: Michal Hocko <mhocko@suse.com>
+> ---
+>  mm/internal.h  |   1 +
+>  mm/mempolicy.c |   5 +-
+>  mm/migrate.c   | 340 ++++++++++++++++++++++++++-------------------------------
+>  3 files changed, 156 insertions(+), 190 deletions(-)
+> 
+> diff --git a/mm/internal.h b/mm/internal.h
+> index e6bd35182dae..1a1bb5d59c15 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -538,4 +538,5 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+>  }
+>  
+>  void setup_zone_pageset(struct zone *zone);
+> +extern struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x);
+>  #endif	/* __MM_INTERNAL_H */
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index f604b22ebb65..66c9c79b21be 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -942,7 +942,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
+>  	}
+>  }
+>  
+> -static struct page *new_node_page(struct page *page, unsigned long node, int **x)
+> +/* page allocation callback for NUMA node migration */
+> +struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x)
+>  {
+>  	if (PageHuge(page))
+>  		return alloc_huge_page_node(page_hstate(compound_head(page)),
+> @@ -986,7 +987,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
+>  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
+>  
+>  	if (!list_empty(&pagelist)) {
+> -		err = migrate_pages(&pagelist, new_node_page, NULL, dest,
+> +		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
+>  					MIGRATE_SYNC, MR_SYSCALL);
+>  		if (err)
+>  			putback_movable_pages(&pagelist);
+> diff --git a/mm/migrate.c b/mm/migrate.c
+> index 4d0be47a322a..9d7252ea2acd 100644
+> --- a/mm/migrate.c
+> +++ b/mm/migrate.c
+> @@ -1444,141 +1444,104 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
+>  }
+>  
+>  #ifdef CONFIG_NUMA
+> +
+> +static int store_status(int __user *status, int start, int value, int nr)
+> +{
+> +	while (nr-- > 0) {
+> +		if (put_user(value, status + start))
+> +			return -EFAULT;
+> +		start++;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static int do_move_pages_to_node(struct mm_struct *mm,
+> +		struct list_head *pagelist, int node)
+> +{
+> +	int err;
+> +
+> +	if (list_empty(pagelist))
+> +		return 0;
+> +
+> +	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
+> +			MIGRATE_SYNC, MR_SYSCALL);
+> +	if (err)
+> +		putback_movable_pages(pagelist);
+> +	return err;
+> +}
+> +
+>  /*
+> - * Move a list of individual pages
+> + * Resolves the given address to a struct page, isolates it from the LRU and
+> + * puts it to the given pagelist.
+> + * Returns -errno if the page cannot be found/isolated or 0 when it has been
+> + * queued or the page doesn't need to be migrated because it is already on
+> + * the target node
+>   */
+> -struct page_to_node {
+> -	unsigned long addr;
+> +static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
+> +		int node, struct list_head *pagelist, bool migrate_all)
+> +{
+> +	struct vm_area_struct *vma;
+>  	struct page *page;
+> -	int node;
+> -	int status;
+> -};
+> -
+> -static struct page *new_page_node(struct page *p, unsigned long private,
+> -		int **result)
+> -{
+> -	struct page_to_node *pm = (struct page_to_node *)private;
+> -
+> -	while (pm->node != MAX_NUMNODES && pm->page != p)
+> -		pm++;
+> -
+> -	if (pm->node == MAX_NUMNODES)
+> -		return NULL;
+> -
+> -	*result = &pm->status;
+> -
+> -	if (PageHuge(p))
+> -		return alloc_huge_page_node(page_hstate(compound_head(p)),
+> -					pm->node);
+> -	else if (thp_migration_supported() && PageTransHuge(p)) {
+> -		struct page *thp;
+> -
+> -		thp = alloc_pages_node(pm->node,
+> -			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
+> -			HPAGE_PMD_ORDER);
+> -		if (!thp)
+> -			return NULL;
+> -		prep_transhuge_page(thp);
+> -		return thp;
+> -	} else
+> -		return __alloc_pages_node(pm->node,
+> -				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
+> -}
+> -
+> -/*
+> - * Move a set of pages as indicated in the pm array. The addr
+> - * field must be set to the virtual address of the page to be moved
+> - * and the node number must contain a valid target node.
+> - * The pm array ends with node = MAX_NUMNODES.
+> - */
+> -static int do_move_page_to_node_array(struct mm_struct *mm,
+> -				      struct page_to_node *pm,
+> -				      int migrate_all)
+> -{
+> +	unsigned int follflags;
+>  	int err;
+> -	struct page_to_node *pp;
+> -	LIST_HEAD(pagelist);
+>  
+>  	down_read(&mm->mmap_sem);
+> +	err = -EFAULT;
+> +	vma = find_vma(mm, addr);
+> +	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
+> +		goto out;
+>  
+> -	/*
+> -	 * Build a list of pages to migrate
+> -	 */
+> -	for (pp = pm; pp->node != MAX_NUMNODES; pp++) {
+> -		struct vm_area_struct *vma;
+> -		struct page *page;
+> +	/* FOLL_DUMP to ignore special (like zero) pages */
+> +	follflags = FOLL_GET | FOLL_DUMP;
+> +	if (!thp_migration_supported())
+> +		follflags |= FOLL_SPLIT;
+> +	page = follow_page(vma, addr, follflags);
+> +
+> +	err = PTR_ERR(page);
+> +	if (IS_ERR(page))
+> +		goto out;
+> +
+> +	err = -ENOENT;
+> +	if (!page)
+> +		goto out;
+> +
+> +	err = 0;
+> +	if (page_to_nid(page) == node)
+> +		goto out_putpage;
+> +
+> +	err = -EACCES;
+> +	if (page_mapcount(page) > 1 &&
+> +			!migrate_all)
 
-Correct, in CAPI/CCIX case there is only one page table and thus after migration
-they both point to same physical address for the virtual addresses of BUFA.
+Non-sensible line break.
 
-> *if no CAPI/CCIX support, the CPU's page table filled a invalid special pte.
+> +		goto out_putpage;
+> +
+> +	if (PageHuge(page)) {
+> +		if (PageHead(page)) {
+> +			isolate_huge_page(page, pagelist);
+> +			err = 0;
+> +		}
+> +	} else {
 
-Correct. This is the case described by John's slides.
+Hm. I think if the page is PageTail() we have to split the huge page.
+If an user asks to migrate part of THP, we shouldn't migrate the whole page,
+otherwise it's not transparent anymore.
 
+Otherwise, the patch looks good to me.
 
-The physical memory backing a virtual address can change at anytime for many
-different reasons (autonuma, compaction, swap out follow by swap in, ...) and
-migration (from one physical memory type to another) for accelerator purposes
-is just a new reasons in that list.
-
-Cheers,
-JA(C)rA'me
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
