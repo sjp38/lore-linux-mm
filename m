@@ -1,64 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 481166B0069
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:24:53 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a74so5839609pfg.20
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 14:24:53 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id j191si3491908pgc.771.2017.12.14.14.24.51
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C34356B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:30:37 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id v190so5182172pgv.11
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 14:30:37 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i1sor1260626pgq.422.2017.12.14.14.30.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 14:24:51 -0800 (PST)
-Date: Thu, 14 Dec 2017 23:24:39 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 11/17] selftests/x86/ldt_gdt: Prepare for access bit
- forced
-Message-ID: <20171214222439.rovm3t7iaakefati@hirez.programming.kicks-ass.net>
-References: <20171214112726.742649793@infradead.org>
- <20171214113851.647809433@infradead.org>
- <CALCETrW0=FnqZMU_MLebyy5m7jj=w=yHYx=u6vghFkdmG7vsww@mail.gmail.com>
- <CA+55aFz71Ycm3oez30zOCztx1sio8ioy3VED2rE0ORoExXBz2g@mail.gmail.com>
- <CALCETrU8=z92_ZtwR9EO56eeOBE1LbxOqigZGO_yahmcM2dE_A@mail.gmail.com>
- <CA+55aFyNN4Lhf4RhL95oeGvfng=H4wKSA3-MwzMo=KpBocQ7bA@mail.gmail.com>
- <CA+55aFxmwpkDNT0YcaiG-BQ5SUT6h6YkevVfNkU_eY-F2E-h7Q@mail.gmail.com>
- <20171214220226.GL3326@worktop>
- <CA+55aFzT=+Vc75O8yjGYcSiWVVvrRMOZT2Ydhs7S=0RUAtscAA@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+55aFzT=+Vc75O8yjGYcSiWVVvrRMOZT2Ydhs7S=0RUAtscAA@mail.gmail.com>
+        (Google Transport Security);
+        Thu, 14 Dec 2017 14:30:36 -0800 (PST)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (1.0)
+Subject: Re: [PATCH v2 11/17] selftests/x86/ldt_gdt: Prepare for access bit forced
+From: Andy Lutomirski <luto@amacapital.net>
+In-Reply-To: <CA+55aFzYpsEj3_K0Ex_eWuvcb2WOZPwv5HrOA4k93vcayqganA@mail.gmail.com>
+Date: Thu, 14 Dec 2017 14:30:34 -0800
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <03293FB5-DC9B-47BB-8C3A-7827CD82FECB@amacapital.net>
+References: <20171214112726.742649793@infradead.org> <20171214113851.647809433@infradead.org> <CALCETrW0=FnqZMU_MLebyy5m7jj=w=yHYx=u6vghFkdmG7vsww@mail.gmail.com> <CA+55aFz71Ycm3oez30zOCztx1sio8ioy3VED2rE0ORoExXBz2g@mail.gmail.com> <CALCETrU8=z92_ZtwR9EO56eeOBE1LbxOqigZGO_yahmcM2dE_A@mail.gmail.com> <CA+55aFyNN4Lhf4RhL95oeGvfng=H4wKSA3-MwzMo=KpBocQ7bA@mail.gmail.com> <CA+55aFxmwpkDNT0YcaiG-BQ5SUT6h6YkevVfNkU_eY-F2E-h7Q@mail.gmail.com> <B3532E4F-408A-450A-96FF-17763916934C@amacapital.net> <CA+55aFzYpsEj3_K0Ex_eWuvcb2WOZPwv5HrOA4k93vcayqganA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Andy Lutomirski <luto@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, Dec 14, 2017 at 02:14:00PM -0800, Linus Torvalds wrote:
-> On Thu, Dec 14, 2017 at 2:02 PM, Peter Zijlstra <peterz@infradead.org> wrote:
-> >
-> > _Should_ being the operative word, because I cannot currently see it
-> > DTRT. But maybe I'm missing the obvious -- I tend to do that at times.
-> 
-> At least the old get_user_pages_fast() code used to check the USER bit:
-> 
->         unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
-> 
->         if (write)
->                 need_pte_bits |= _PAGE_RW;
-> 
-> but that may have been lost when we converted over to the generic code.
 
-The generic gup_pte_range() has pte_access_permitted() (which has the
-above test) in the right place.
 
-> It shouldn't actually _matter_, since we'd need to change access_ok()
-> anyway (and gup had better check that!)
+> On Dec 14, 2017, at 2:15 PM, Linus Torvalds <torvalds@linux-foundation.org=
+> wrote:
+>=20
+>> On Thu, Dec 14, 2017 at 2:11 PM, Andy Lutomirski <luto@amacapital.net> wr=
+ote:
+>>=20
+>> That seems to rather defeat the point of using a VMA, though.
+>=20
+> There never was any point in using a VMA per se.
+>=20
+> The point was always to just map the damn thing in the user page
+> tables, wasn't it?
+>=20
+> The vma bit was just an implementation detail.
 
-get_user_pages_fast() (both of them) do indeed test access_ok(), but the
-regular get_user_pages() does not, I suspect because it can operate on a
-foreign mm.
-
-And its the regular old get_user_pages() that's all sorts of broken wrt
-!PAGE_USER too.
+And all this is why I dislike using a VMA.  My patch puts it at a negative a=
+ddress. We could just as easily put it just above TASK_SIZE_MAX, but I'm a b=
+it nervous about bugs that overrun an access_ok check by a small amount.  II=
+RC I found one of those in the net code once, and I didn't look very hard.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
