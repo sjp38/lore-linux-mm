@@ -1,22 +1,22 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DD916B0268
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB92A6B025E
 	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:43:37 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id l14so3965199pgu.17
+Received: by mail-pg0-f72.google.com with SMTP id e69so3970689pgc.15
         for <linux-mm@kvack.org>; Thu, 14 Dec 2017 03:43:37 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 33si3016297ply.741.2017.12.14.03.43.35
+        by mx.google.com with ESMTPS id s194si2811544pgc.0.2017.12.14.03.43.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 14 Dec 2017 03:43:35 -0800 (PST)
-Message-Id: <20171214113851.449024759@infradead.org>
-Date: Thu, 14 Dec 2017 12:27:33 +0100
+Message-Id: <20171214113851.597884847@infradead.org>
+Date: Thu, 14 Dec 2017 12:27:36 +0100
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH v2 07/17] mm/softdirty: Move VM_SOFTDIRTY into high bits
+Subject: [PATCH v2 10/17] selftest/x86: Implement additional LDT selftests
 References: <20171214112726.742649793@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=mm-softdirty--Move-VM_SOFTDIRTY-into-high-bits.patch
+Content-Disposition: inline; filename=selftest-x86-Implement-additional-LDT-selftests.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, tglx@linutronix.de
@@ -24,72 +24,113 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-Only 64bit architectures (x86_64, s390, PPC_BOOK3S_64) have support for
-HAVE_ARCH_SOFT_DIRTY, so ensure they all select ARCH_USES_HIGH_VMA_FLAGS
-and move the VM_SOFTDIRTY flag into the high flags.
+do_ldt_ss_test() - tests modifying the SS segment while in use; this
+tends to come apart with RO LDT maps
+
+do_ldt_unmap_test() - tests the mechanics of unmapping the (future)
+LDT VMA. Additional tests would make sense; like unmapping it while in
+use (TODO).
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/powerpc/platforms/Kconfig.cputype |    1 +
- arch/s390/Kconfig                      |    1 +
- include/linux/mm.h                     |   17 +++++++++++------
- 3 files changed, 13 insertions(+), 6 deletions(-)
+ tools/testing/selftests/x86/ldt_gdt.c |   71 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 70 insertions(+), 1 deletion(-)
 
---- a/arch/powerpc/platforms/Kconfig.cputype
-+++ b/arch/powerpc/platforms/Kconfig.cputype
-@@ -76,6 +76,7 @@ config PPC_BOOK3S_64
- 	select ARCH_SUPPORTS_NUMA_BALANCING
- 	select IRQ_WORK
- 	select HAVE_KERNEL_XZ
-+	select ARCH_USES_HIGH_VMA_FLAGS
+--- a/tools/testing/selftests/x86/ldt_gdt.c
++++ b/tools/testing/selftests/x86/ldt_gdt.c
+@@ -242,6 +242,72 @@ static void fail_install(struct user_des
+ 	}
+ }
  
- config PPC_BOOK3E_64
- 	bool "Embedded processors"
---- a/arch/s390/Kconfig
-+++ b/arch/s390/Kconfig
-@@ -131,6 +131,7 @@ config S390
- 	select CPU_NO_EFFICIENT_FFS if !HAVE_MARCH_Z9_109_FEATURES
- 	select HAVE_ARCH_SECCOMP_FILTER
- 	select HAVE_ARCH_SOFT_DIRTY
-+	select ARCH_USES_HIGH_VMA_FLAGS
- 	select HAVE_ARCH_TRACEHOOK
- 	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
- 	select HAVE_EBPF_JIT if PACK_STACK && HAVE_MARCH_Z196_FEATURES
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -194,12 +194,6 @@ extern unsigned int kobjsize(const void
- #define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
- #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
- 
--#ifdef CONFIG_MEM_SOFT_DIRTY
--# define VM_SOFTDIRTY	0x08000000	/* Not soft dirty clean area */
--#else
--# define VM_SOFTDIRTY	0
--#endif
--
- #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
- #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
- #define VM_NOHUGEPAGE	0x40000000	/* MADV_NOHUGEPAGE marked this vma */
-@@ -216,8 +210,19 @@ extern unsigned int kobjsize(const void
- #define VM_HIGH_ARCH_2	BIT(VM_HIGH_ARCH_BIT_2)
- #define VM_HIGH_ARCH_3	BIT(VM_HIGH_ARCH_BIT_3)
- #define VM_HIGH_ARCH_4	BIT(VM_HIGH_ARCH_BIT_4)
++static void do_ldt_ss_test(void)
++{
++	unsigned short prev_sel, sel = (2 << 3) | (1 << 2) | 3;
++	struct user_desc *ldt_desc = low_user_desc + 2;
++	int ret;
 +
-+#define VM_HIGH_SOFTDIRTY_BIT	37	/* bit only usable on 64-bit architectures */
- #endif /* CONFIG_ARCH_USES_HIGH_VMA_FLAGS */
- 
-+#ifdef CONFIG_MEM_SOFT_DIRTY
-+# ifndef CONFIG_ARCH_USES_HIGH_VMA_FLAGS
-+#  error MEM_SOFT_DIRTY depends on ARCH_USES_HIGH_VMA_FLAGS
-+# endif
-+# define VM_SOFTDIRTY		BIT(VM_HIGH_SOFTDIRTY_BIT) /* Not soft dirty clean area */
-+#else
-+# define VM_SOFTDIRTY		VM_NONE
-+#endif
++	ldt_desc->entry_number	= 2;
++	ldt_desc->base_addr	= (unsigned long)&counter_page[1];
++	ldt_desc->limit		= 0xfffff;
++	ldt_desc->seg_32bit	= 1;
++	ldt_desc->contents		= 0; /* Data, grow-up*/
++	ldt_desc->read_exec_only	= 0;
++	ldt_desc->limit_in_pages	= 1;
++	ldt_desc->seg_not_present	= 0;
++	ldt_desc->useable		= 0;
 +
- #if defined(CONFIG_X86)
- # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
- #if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
++	ret = safe_modify_ldt(1, ldt_desc, sizeof(*ldt_desc));
++	if (ret)
++		perror("ponies");
++
++	/*
++	 * syscall (eax) 123 - modify_ldt / return value
++	 *         (ebx)     - func
++	 *         (ecx)     - ptr
++	 *         (edx)     - bytecount
++	 */
++
++	int eax = 123;
++	int ebx = 1;
++	int ecx = (unsigned int)(unsigned long)ldt_desc;
++	int edx = sizeof(struct user_desc);
++
++	asm volatile ("movw %%ss, %[prev_sel]\n\t"
++		      "movw %[sel], %%ss\n\t"
++		      "int $0x80\n\t"
++		      "movw %[prev_sel], %%ss"
++		      : [prev_sel] "=&R" (prev_sel), "+a" (eax)
++		      : [sel] "R" (sel), "b" (ebx), "c" (ecx), "d" (edx)
++		      : INT80_CLOBBERS);
++
++	printf("[OK]\tSS modify_ldt()\n");
++}
++
++static void do_ldt_unmap_test(void)
++{
++	FILE *file = fopen("/proc/self/maps", "r");
++	char *line = NULL;
++	size_t len = 0;
++	ssize_t nread;
++	unsigned long start, end;
++
++	while ((nread = getline(&line, &len, file)) != -1) {
++		if (strstr(line, "[ldt]")) {
++			if (sscanf(line, "%lx-%lx", &start, &end) == 2) {
++				munmap((void *)start, end-start);
++				printf("[OK]\tmunmap LDT\n");
++				break;
++			}
++		}
++	}
++
++	free(line);
++	fclose(file);
++
++}
++
+ static void do_simple_tests(void)
+ {
+ 	struct user_desc desc = {
+@@ -696,7 +762,7 @@ static int invoke_set_thread_area(void)
+ 
+ static void setup_low_user_desc(void)
+ {
+-	low_user_desc = mmap(NULL, 2 * sizeof(struct user_desc),
++	low_user_desc = mmap(NULL, 3 * sizeof(struct user_desc),
+ 			     PROT_READ | PROT_WRITE,
+ 			     MAP_ANONYMOUS | MAP_PRIVATE | MAP_32BIT, -1, 0);
+ 	if (low_user_desc == MAP_FAILED)
+@@ -916,6 +982,9 @@ int main(int argc, char **argv)
+ 	setup_counter_page();
+ 	setup_low_user_desc();
+ 
++	do_ldt_ss_test();
++	do_ldt_unmap_test();
++
+ 	do_simple_tests();
+ 
+ 	do_multicpu_tests();
 
 
 --
