@@ -1,108 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 277256B0069
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 24B866B0033
 	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:43:37 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id p1so4487136pfp.13
+Received: by mail-pf0-f199.google.com with SMTP id m9so4505983pff.0
         for <linux-mm@kvack.org>; Thu, 14 Dec 2017 03:43:37 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b18si2789719pgs.562.2017.12.14.03.43.35
+        by mx.google.com with ESMTPS id c1si2802632pge.239.2017.12.14.03.43.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Thu, 14 Dec 2017 03:43:35 -0800 (PST)
-Message-Id: <20171214113851.146259969@infradead.org>
-Date: Thu, 14 Dec 2017 12:27:27 +0100
+Message-Id: <20171214113851.547977641@infradead.org>
+Date: Thu, 14 Dec 2017 12:27:35 +0100
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+Subject: [PATCH v2 09/17] mm: Provide vm_special_mapping::close
 References: <20171214112726.742649793@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=peterz-vm-fix-gup.patch
+Content-Disposition: inline; filename=mm--Provide-vm_special_mapping--close.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, tglx@linutronix.de
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-The gup_*_range() functions which implement __get_user_pages_fast() do
-a p*_access_permitted() test to see if the memory is at all accessible
-(tests both _PAGE_USER|_PAGE_RW as well as architectural things like
-pkeys).
+From: Peter Zijlstra  <peterz@infradead.org>
 
-But the follow_*() functions which implement __get_user_pages() do not
-have this test. Recently, commit:
-
-  5c9d2d5c269c ("mm: replace pte_write with pte_access_permitted in fault + gup paths")
-
-added it to a few specific write paths, but it failed to consistently
-apply it (I've not audited anything outside of gup).
-
-Revert the change from that patch and insert the tests in the right
-locations such that they cover all READ / WRITE accesses for all
-pte/pmd/pud levels.
-
-In particular I care about the _PAGE_USER test, we should not ever,
-allow access to pages not marked with it, but it also makes the pkey
-accesses more consistent.
+Userspace can (malisiously) munmap() the VMAs injected into its memory
+map through install_special_mapping(). In order to ensure there are no
+hardware resources tied to the mapping, we need a close callback.
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- mm/gup.c |   25 ++++++++++++++++++++++++-
- 1 file changed, 24 insertions(+), 1 deletion(-)
+ include/linux/mm_types.h |    3 +++
+ mm/mmap.c                |    4 ++++
+ 2 files changed, 7 insertions(+)
 
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -66,7 +66,7 @@ static int follow_pfn_pte(struct vm_area
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -644,6 +644,9 @@ struct vm_special_mapping {
+ 
+ 	int (*mremap)(const struct vm_special_mapping *sm,
+ 		     struct vm_area_struct *new_vma);
++
++	void (*close)(const struct vm_special_mapping *sm,
++		      struct vm_area_struct *vma);
+ };
+ 
+ enum tlb_flush_reason {
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -3206,6 +3206,10 @@ static int special_mapping_fault(struct
   */
- static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
+ static void special_mapping_close(struct vm_area_struct *vma)
  {
--	return pte_access_permitted(pte, WRITE) ||
-+	return pte_write(pte) ||
- 		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
++	struct vm_special_mapping *sm = vma->vm_private_data;
++
++	if (sm->close)
++		sm->close(sm, vma);
  }
  
-@@ -153,6 +153,11 @@ static struct page *follow_page_pte(stru
- 	}
- 
- 	if (flags & FOLL_GET) {
-+		if (!pte_access_permitted(pte, !!(flags & FOLL_WRITE))) {
-+			page = ERR_PTR(-EFAULT);
-+			goto out;
-+		}
-+
- 		get_page(page);
- 
- 		/* drop the pgmap reference now that we hold the page */
-@@ -244,6 +249,15 @@ static struct page *follow_pmd_mask(stru
- 			pmd_migration_entry_wait(mm, pmd);
- 		goto retry;
- 	}
-+
-+	if (flags & FOLL_GET) {
-+		if (!pmd_access_permitted(*pmd, !!(flags & FOLL_WRITE))) {
-+			page = ERR_PTR(-EFAULT);
-+			spin_unlock(ptr);
-+			return page;
-+		}
-+	}
-+
- 	if (pmd_devmap(*pmd)) {
- 		ptl = pmd_lock(mm, pmd);
- 		page = follow_devmap_pmd(vma, address, pmd, flags);
-@@ -326,6 +340,15 @@ static struct page *follow_pud_mask(stru
- 			return page;
- 		return no_page_table(vma, flags);
- 	}
-+
-+	if (flags & FOLL_GET) {
-+		if (!pud_access_permitted(*pud, !!(flags & FOLL_WRITE))) {
-+			page = ERR_PTR(-EFAULT);
-+			spin_unlock(ptr);
-+			return page;
-+		}
-+	}
-+
- 	if (pud_devmap(*pud)) {
- 		ptl = pud_lock(mm, pud);
- 		page = follow_devmap_pud(vma, address, pud, flags);
+ static const char *special_mapping_name(struct vm_area_struct *vma)
 
 
 --
