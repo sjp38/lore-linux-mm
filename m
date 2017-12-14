@@ -1,93 +1,191 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 38DB86B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:07:20 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id 64so2791674yby.11
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:07:20 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id x1si626570ybk.7.2017.12.13.19.07.19
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A82666B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:12:41 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id r11so2357222ote.20
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:12:41 -0800 (PST)
+Received: from huawei.com ([45.249.212.35])
+        by mx.google.com with ESMTPS id i131si993527oih.357.2017.12.13.19.12.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 13 Dec 2017 19:07:19 -0800 (PST)
-Date: Wed, 13 Dec 2017 22:07:11 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Message-ID: <20171214030711.gtxzm57h7h4hwbfe@thunk.org>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 19:12:40 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: Add kernel MMU notifier to manage IOTLB/DEVTLB
+References: <1513213366-22594-1-git-send-email-baolu.lu@linux.intel.com>
+ <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <a98903c2-e67c-a0cc-3ad1-60b9aa4e4c93@huawei.com>
+Date: Thu, 14 Dec 2017 11:10:28 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
+In-Reply-To: <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <max.byungchul.park@gmail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: Lu Baolu <baolu.lu@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Alex
+ Williamson <alex.williamson@redhat.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Vegard Nossum <vegard.nossum@oracle.com>, Andy Lutomirski <luto@kernel.org>, Huang Ying <ying.huang@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-On Wed, Dec 13, 2017 at 04:13:07PM +0900, Byungchul Park wrote:
+On 2017/12/14 9:02, Lu Baolu wrote:
+> From: Huang Ying <ying.huang@intel.com>
 > 
-> Therefore, I want to say the fundamental problem
-> comes from classification, not cross-release
-> specific.
+> Shared Virtual Memory (SVM) allows a kernel memory mapping to be
+> shared between CPU and and a device which requested a supervisor
+> PASID. Both devices and IOMMU units have TLBs that cache entries
+> from CPU's page tables. We need to get a chance to flush them at
+> the same time when we flush the CPU TLBs.
+> 
+> We already have an existing MMU notifiers for userspace updates,
+> however we lack the same thing for kernel page table updates. To
 
-You keep saying that it is "just" a matter of classificaion.
+Sorry, I didn't get which situation need this notification.
+Could you please describe the full scenario?
 
-However, it is not obvious how to do the classification in a sane
-manner.  And this is why I keep pointing out that there is no
-documentation on how to do this, and somehow you never respond to this
-point....
+Thanks,
+Liubo
 
-In the case where you have multiple unrelated subsystems that can be
-stacked in different ways, with potentially multiple instances stacked
-on top of each other, it is not at all clear to me how this problem
-should be solved.
+> implement the MMU notification mechanism for the kernel address
+> space, a kernel MMU notifier chain is defined and will be called
+> whenever the CPU TLB is flushed for the kernel address space.
+> 
+> As consumer of this notifier, the IOMMU SVM implementations will
+> register callbacks on this notifier and manage the cache entries
+> in both IOTLB and DevTLB.
+> 
+> Cc: Ashok Raj <ashok.raj@intel.com>
+> Cc: Dave Hansen <dave.hansen@intel.com>
+> Cc: Thomas Gleixner <tglx@linutronix.de>
+> Cc: Ingo Molnar <mingo@redhat.com>
+> Cc: "H. Peter Anvin" <hpa@zytor.com>
+> Cc: Andy Lutomirski <luto@kernel.org>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Kees Cook <keescook@chromium.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Cc: Matthew Wilcox <willy@linux.intel.com>
+> Cc: Dave Jiang <dave.jiang@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> Cc: Vegard Nossum <vegard.nossum@oracle.com>
+> Cc: x86@kernel.org
+> Cc: linux-mm@kvack.org
+> 
+> Tested-by: CQ Tang <cq.tang@intel.com>
+> Signed-off-by: Huang Ying <ying.huang@intel.com>
+> Signed-off-by: Lu Baolu <baolu.lu@linux.intel.com>
+> ---
+>  arch/x86/mm/tlb.c            |  2 ++
+>  include/linux/mmu_notifier.h | 33 +++++++++++++++++++++++++++++++++
+>  mm/mmu_notifier.c            | 27 +++++++++++++++++++++++++++
+>  3 files changed, 62 insertions(+)
+> 
+> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
+> index 3118392cd..5ff104f 100644
+> --- a/arch/x86/mm/tlb.c
+> +++ b/arch/x86/mm/tlb.c
+> @@ -6,6 +6,7 @@
+>  #include <linux/interrupt.h>
+>  #include <linux/export.h>
+>  #include <linux/cpu.h>
+> +#include <linux/mmu_notifier.h>
+>  
+>  #include <asm/tlbflush.h>
+>  #include <asm/mmu_context.h>
+> @@ -567,6 +568,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+>  		info.end = end;
+>  		on_each_cpu(do_kernel_range_flush, &info, 1);
+>  	}
+> +	kernel_mmu_notifier_invalidate_range(start, end);
+>  }
+>  
+>  void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index b25dc9d..44d7c06 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -408,6 +408,25 @@ extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
+>  				   void (*func)(struct rcu_head *rcu));
+>  extern void mmu_notifier_synchronize(void);
+>  
+> +struct kernel_mmu_address_range {
+> +	unsigned long start;
+> +	unsigned long end;
+> +};
+> +
+> +/*
+> + * Before the virtual address range managed by kernel (vmalloc/kmap)
+> + * is reused, That is, remapped to the new physical addresses, the
+> + * kernel MMU notifier will be called with KERNEL_MMU_INVALIDATE_RANGE
+> + * and struct kernel_mmu_address_range as parameters.  This is used to
+> + * manage the remote TLB.
+> + */
+> +#define KERNEL_MMU_INVALIDATE_RANGE		1
+> +extern int kernel_mmu_notifier_register(struct notifier_block *nb);
+> +extern int kernel_mmu_notifier_unregister(struct notifier_block *nb);
+> +
+> +extern int kernel_mmu_notifier_invalidate_range(unsigned long start,
+> +						unsigned long end);
+> +
+>  #else /* CONFIG_MMU_NOTIFIER */
+>  
+>  static inline int mm_has_notifiers(struct mm_struct *mm)
+> @@ -474,6 +493,20 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+>  #define pudp_huge_clear_flush_notify pudp_huge_clear_flush
+>  #define set_pte_at_notify set_pte_at
+>  
+> +static inline int kernel_mmu_notifier_register(struct notifier_block *nb)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline int kernel_mmu_notifier_unregister(struct notifier_block *nb)
+> +{
+> +	return 0;
+> +}
+> +
+> +static inline void kernel_mmu_notifier_invalidate_range(unsigned long start,
+> +							unsigned long end)
+> +{
+> +}
+>  #endif /* CONFIG_MMU_NOTIFIER */
+>  
+>  #endif /* _LINUX_MMU_NOTIFIER_H */
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index 96edb33..52f816a 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -393,3 +393,30 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+>  	mmdrop(mm);
+>  }
+>  EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
+> +
+> +static ATOMIC_NOTIFIER_HEAD(kernel_mmu_notifier_list);
+> +
+> +int kernel_mmu_notifier_register(struct notifier_block *nb)
+> +{
+> +	return atomic_notifier_chain_register(&kernel_mmu_notifier_list, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(kernel_mmu_notifier_register);
+> +
+> +int kernel_mmu_notifier_unregister(struct notifier_block *nb)
+> +{
+> +	return atomic_notifier_chain_unregister(&kernel_mmu_notifier_list, nb);
+> +}
+> +EXPORT_SYMBOL_GPL(kernel_mmu_notifier_unregister);
+> +
+> +int kernel_mmu_notifier_invalidate_range(unsigned long start,
+> +					 unsigned long end)
+> +{
+> +	struct kernel_mmu_address_range range = {
+> +		.start	= start,
+> +		.end	= end,
+> +	};
+> +
+> +	return atomic_notifier_call_chain(&kernel_mmu_notifier_list,
+> +					  KERNEL_MMU_INVALIDATE_RANGE,
+> +					  &range);
+> +}
+> 
 
-It was said on one of these threads (perhaps by you, perhaps by
-someone else), that we can't expect the lockdep maintainers to
-understand all of the subsystems in the kernels, and so therefore it
-must be up to the subsystem maintainers to classify the locks.  I
-interpreted this as the lockdep maintainers saying, "hey, not my
-fault, it's the subsystem maintainer's fault for not properly
-classifying the locks" --- and thus dumping the responsibility in the
-subsystem maintainers' laps.
-
-I don't know if the situation is just that lockdep is insufficiently
-documented, and with the proper tutorial, it would be obvious how to
-solve the classification problem.
-
-Or, if perhaps, there *is* no way to solve the classification problem,
-at least not in a general form.
-
-For example --- suppose we have a network block device on which there
-is an btrfs file system, which is then exported via NFS.  Now all of
-the TCP locks will be used twice for two different instances, once for
-the TCP connection for the network block device, and then for the NFS
-export.
-
-How exactly are we supposed to classify the locks to make it all work?
-
-Or the loop device built on top of an ext4 file system which on a
-LVM/device mapper device.  And suppose the loop device is then layered
-with a dm-error device for regression testing, and with another ext4
-file system on top of that?
-
-How exactly are we supposed to classify the locks in that situation?
-Where's the documentation and tutorials which explain how to make this
-work, if the responsibility is going to be dumped on the subsystem
-maintainers' laps?  Or if the lockdep maintainers are expected to fix
-and classify all of these locks, are you volunteering to do this?
-
-How hard is it exactly to do all of this classification work, no
-matter whose responsibility it will ultimately be?
-
-And if the answer is that it is too hard, then let me gently suggest
-to you that perhaps, if this is a case, that maybe this is a
-fundamental and fatal flaw with the cross-release and completion
-lockdep feature?
-
-Best regards,
-
-						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
