@@ -1,126 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 979746B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:58:44 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id e21so1111885lfb.23
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:58:44 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 11sor625223lje.110.2017.12.13.21.58.42
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CAD346B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:10:41 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id v69so2616914wrb.3
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:10:41 -0800 (PST)
+Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id j15si2838552wra.472.2017.12.13.22.10.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 21:58:42 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 13 Dec 2017 22:10:40 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: Add kernel MMU notifier to manage IOTLB/DEVTLB
+References: <1513213366-22594-1-git-send-email-baolu.lu@linux.intel.com>
+ <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
+ <a98903c2-e67c-a0cc-3ad1-60b9aa4e4c93@huawei.com>
+ <5A31F232.90901@linux.intel.com>
+From: Bob Liu <liubo95@huawei.com>
+Message-ID: <e7462b54-9d3a-abfd-8df2-2db3780de78d@huawei.com>
+Date: Thu, 14 Dec 2017 14:07:38 +0800
 MIME-Version: 1.0
-In-Reply-To: <20171214030711.gtxzm57h7h4hwbfe@thunk.org>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com> <20171214030711.gtxzm57h7h4hwbfe@thunk.org>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Thu, 14 Dec 2017 14:58:41 +0900
-Message-ID: <CANrsvRMnRF06NLcHkEChLDCTpTemvKCunk+nJ13Kj+avT0vf4Q@mail.gmail.com>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <5A31F232.90901@linux.intel.com>
+Content-Type: text/plain; charset="windows-1252"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: Lu Baolu <baolu.lu@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Alex
+ Williamson <alex.williamson@redhat.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>
+Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Vegard Nossum <vegard.nossum@oracle.com>, Andy Lutomirski <luto@kernel.org>, Huang Ying <ying.huang@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, "xieyisheng (A)" <xieyisheng1@huawei.com>
 
-On Thu, Dec 14, 2017 at 12:07 PM, Theodore Ts'o <tytso@mit.edu> wrote:
-> On Wed, Dec 13, 2017 at 04:13:07PM +0900, Byungchul Park wrote:
->>
->> Therefore, I want to say the fundamental problem
->> comes from classification, not cross-release
->> specific.
->
-> You keep saying that it is "just" a matter of classificaion.
+On 2017/12/14 11:38, Lu Baolu wrote:
+> Hi,
+> 
+> On 12/14/2017 11:10 AM, Bob Liu wrote:
+>> On 2017/12/14 9:02, Lu Baolu wrote:
+>>>> From: Huang Ying <ying.huang@intel.com>
+>>>>
+>>>> Shared Virtual Memory (SVM) allows a kernel memory mapping to be
+>>>> shared between CPU and and a device which requested a supervisor
+>>>> PASID. Both devices and IOMMU units have TLBs that cache entries
+>>>> from CPU's page tables. We need to get a chance to flush them at
+>>>> the same time when we flush the CPU TLBs.
+>>>>
+>>>> We already have an existing MMU notifiers for userspace updates,
+>>>> however we lack the same thing for kernel page table updates. To
+>> Sorry, I didn't get which situation need this notification.
+>> Could you please describe the full scenario?
+> 
+> Okay.
+> 
+> 1. When an SVM capable driver calls intel_svm_bind_mm() with
+>     SVM_FLAG_SUPERVISOR_MODE set in the @flags, the kernel
+>     memory page mappings will be shared between CPUs and
+>     the DMA remapping agent (a.k.a. IOMMU). The page table
+>     entries will also be cached in both IOTLB (located in IOMMU)
+>     and the DEVTLB (located in device).
+> 
 
-But, it's a fact.
+But who/what kind of real device has the requirement to access a kernel VA?
+Looks like SVM_FLAG_SUPERVISOR_MODE is used by nobody?
 
-> However, it is not obvious how to do the classification in a sane
-> manner.  And this is why I keep pointing out that there is no
-> documentation on how to do this, and somehow you never respond to this
-> point....
+Cheers,
+Liubo
 
-I can write a document explaining what lock class is but.. I
-cannot explain how to assign it perfectly since there's no right
-answer. It's something we need to improve more and more.
-
-> In the case where you have multiple unrelated subsystems that can be
-> stacked in different ways, with potentially multiple instances stacked
-> on top of each other, it is not at all clear to me how this problem
-> should be solved.
-
-I cannot give you a perfect solution immediately. I know, and
-as you know, it's a very difficult problem to solve.
-
-> It was said on one of these threads (perhaps by you, perhaps by
-> someone else), that we can't expect the lockdep maintainers to
-> understand all of the subsystems in the kernels, and so therefore it
-> must be up to the subsystem maintainers to classify the locks.  I
-> interpreted this as the lockdep maintainers saying, "hey, not my
-> fault, it's the subsystem maintainer's fault for not properly
-> classifying the locks" --- and thus dumping the responsibility in the
-> subsystem maintainers' laps.
-
-Sorry to say, making you feel like that.
-
-Precisely speaking, the responsibility for something caused by
-cross-release is on me, and the responsibility for something caused
-by lockdep itselt is on lockdep.
-
-I meant, in the current way to assign lock class automatically, it's
-inevitable for someone to annotate places manually, and it can be
-done best by each expert. But, anyway fundamentally I think the
-responsibility is on lockdep.
-
-> I don't know if the situation is just that lockdep is insufficiently
-> documented, and with the proper tutorial, it would be obvious how to
-> solve the classification problem.
->
-> Or, if perhaps, there *is* no way to solve the classification problem,
-> at least not in a general form.
-
-Agree. It's a very difficult one to solve.
-
-> For example --- suppose we have a network block device on which there
-> is an btrfs file system, which is then exported via NFS.  Now all of
-> the TCP locks will be used twice for two different instances, once for
-> the TCP connection for the network block device, and then for the NFS
-> export.
->
-> How exactly are we supposed to classify the locks to make it all work?
->
-> Or the loop device built on top of an ext4 file system which on a
-> LVM/device mapper device.  And suppose the loop device is then layered
-> with a dm-error device for regression testing, and with another ext4
-> file system on top of that?
-
-Ditto.
-
-> How exactly are we supposed to classify the locks in that situation?
-> Where's the documentation and tutorials which explain how to make this
-> work, if the responsibility is going to be dumped on the subsystem
-> maintainers' laps?  Or if the lockdep maintainers are expected to fix
-> and classify all of these locks, are you volunteering to do this?
-
-I have the will. I will.
-
-> How hard is it exactly to do all of this classification work, no
-> matter whose responsibility it will ultimately be?
->
-> And if the answer is that it is too hard, then let me gently suggest
-> to you that perhaps, if this is a case, that maybe this is a
-> fundamental and fatal flaw with the cross-release and completion
-> lockdep feature?
-
-I don't understand this.
-
+> 2. When vmalloc/vfree interfaces are called, the page mappings
+>     for kernel memory might get changed. And current code calls
+>     flush_tlb_kernel_range() to flush CPU TLBs only. The IOTLB or
+>     DevTLB will be stale compared to that on the cpu for kernel
+>     mappings.
+> 
+> We need a kernel mmu notification to flush TLBs in IOMMU and
+> devices as well.
+> 
 > Best regards,
->
->                                                 - Ted
+> Lu Baolu
+> 
 
-
-
--- 
-Thanks,
-Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
