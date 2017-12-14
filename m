@@ -1,56 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 610BB6B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:34:17 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id p17so4814081pfh.18
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:34:17 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e18si2981789pgq.134.2017.12.14.06.34.15
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1762C6B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:37:50 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id c18so8467159itd.8
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:37:50 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 193si2815921iou.68.2017.12.14.06.37.48
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Dec 2017 06:34:16 -0800 (PST)
-Date: Thu, 14 Dec 2017 15:34:12 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171214143412.frjrq4lykjahlqq6@pathway.suse.cz>
-References: <20171108102723.602216b1@gandalf.local.home>
- <20171124152857.ahnapnwmmsricunz@pathway.suse.cz>
- <20171124155816.pxp345ch4gevjqjm@pathway.suse.cz>
- <20171128014229.GA2899@X58A-UD3R>
- <20171208140022.uln4t5e5drrhnvvt@pathway.suse.cz>
- <20171212053921.GA1392@jagdpanzerIV>
- <20171212142710.21e82ecd@gandalf.local.home>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 06:37:48 -0800 (PST)
+Date: Thu, 14 Dec 2017 15:37:30 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+Message-ID: <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
+References: <20171214112726.742649793@infradead.org>
+ <20171214113851.146259969@infradead.org>
+ <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171212142710.21e82ecd@gandalf.local.home>
+In-Reply-To: <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Byungchul Park <byungchul.park@lge.com>, LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, kernel-team@lge.com
+To: linux-kernel@vger.kernel.org, tglx@linutronix.de
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-On Tue 2017-12-12 14:27:10, Steven Rostedt wrote:
-> On Tue, 12 Dec 2017 14:39:21 +0900
-> Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com> wrote:
+On Thu, Dec 14, 2017 at 01:41:17PM +0100, Peter Zijlstra wrote:
+> On Thu, Dec 14, 2017 at 12:27:27PM +0100, Peter Zijlstra wrote:
+> > The gup_*_range() functions which implement __get_user_pages_fast() do
+> > a p*_access_permitted() test to see if the memory is at all accessible
+> > (tests both _PAGE_USER|_PAGE_RW as well as architectural things like
+> > pkeys).
+> > 
+> > But the follow_*() functions which implement __get_user_pages() do not
+> > have this test. Recently, commit:
+> > 
+> >   5c9d2d5c269c ("mm: replace pte_write with pte_access_permitted in fault + gup paths")
+> > 
+> > added it to a few specific write paths, but it failed to consistently
+> > apply it (I've not audited anything outside of gup).
+> > 
+> > Revert the change from that patch and insert the tests in the right
+> > locations such that they cover all READ / WRITE accesses for all
+> > pte/pmd/pud levels.
+> > 
+> > In particular I care about the _PAGE_USER test, we should not ever,
+> > allow access to pages not marked with it, but it also makes the pkey
+> > accesses more consistent.
 > 
-> > p.s.
-> > frankly, I don't see any "locking issues" in Steven's patch.
-> 
-> Should I push out another revision of mine?
+> This should probably go on top. These are now all superfluous and
+> slightly wrong.
 
-I am going to to give some more testing v4 within next few days.
-If it works well, I think that it would need just some cosmetic
-changes.
+I also cannot explain dax_mapping_entry_mkclean(), why would we not make
+clean those pages that are not pkey writable (but clearly are writable
+and dirty)? That doesn't make any sense at all.
 
-For example, it would be nice to somehow encapsulate
-the handshake-related code into few helpers. I believe that
-it might help us to understand and maintain it. Both
-vprintk_emit() and console_unlock() were too long already
-before.
+Kirill did point out that my patch(es) break FOLL_DUMP in that it would
+now exclude pkey protected pages from core-dumps.
 
-Best Regards,
-Petr
+My counter argument is that it will now properly exclude !_PAGE_USER
+pages.
+
+If we change p??_access_permitted() to pass the full follow flags
+instead of just the write part we could fix that.
+
+I'm also looking at pte_access_permitted() in handle_pte_fault(); that
+looks very dodgy to me. How does that not result in endlessly CoW'ing
+the same page over and over when we have a PKEY disallowing write access
+on that page?
+
+Bah... /me grumpy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
