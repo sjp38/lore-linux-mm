@@ -1,191 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A82666B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:12:41 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id r11so2357222ote.20
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:12:41 -0800 (PST)
-Received: from huawei.com ([45.249.212.35])
-        by mx.google.com with ESMTPS id i131si993527oih.357.2017.12.13.19.12.39
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 160E16B0069
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:16:14 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id t18so2011465oie.5
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:16:14 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t31si1053403otb.390.2017.12.13.19.16.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 19:12:40 -0800 (PST)
-Subject: Re: [PATCH 1/2] mm: Add kernel MMU notifier to manage IOTLB/DEVTLB
-References: <1513213366-22594-1-git-send-email-baolu.lu@linux.intel.com>
- <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
-From: Bob Liu <liubo95@huawei.com>
-Message-ID: <a98903c2-e67c-a0cc-3ad1-60b9aa4e4c93@huawei.com>
-Date: Thu, 14 Dec 2017 11:10:28 +0800
+        Wed, 13 Dec 2017 19:16:13 -0800 (PST)
+Date: Wed, 13 Dec 2017 22:16:08 -0500
+From: Jerome Glisse <jglisse@redhat.com>
+Subject: Re: [HMM-v25 00/19] HMM (Heterogeneous Memory Management) v25
+Message-ID: <20171214031607.GA17710@redhat.com>
+References: <20170817000548.32038-1-jglisse@redhat.com>
+ <CAF7GXvqSZzNHdefQWhEb2SDYWX5hDWqQX7cayuVEQ8YyTULPog@mail.gmail.com>
+ <20171213161247.GA2927@redhat.com>
+ <CAF7GXvrxo2xj==wA_=fXr+9nF0k0Ed123kZXeKWKBHS6TKYNdA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <CAF7GXvrxo2xj==wA_=fXr+9nF0k0Ed123kZXeKWKBHS6TKYNdA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Lu Baolu <baolu.lu@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Alex
- Williamson <alex.williamson@redhat.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Dave Hansen <dave.hansen@intel.com>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, iommu@lists.linux-foundation.org, Vegard Nossum <vegard.nossum@oracle.com>, Andy Lutomirski <luto@kernel.org>, Huang Ying <ying.huang@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Kees Cook <keescook@chromium.org>, "xieyisheng (A)" <xieyisheng1@huawei.com>
+To: "Figo.zhang" <figo1802@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, John Hubbard <jhubbard@nvidia.com>, Dan Williams <dan.j.williams@intel.com>, David Nellans <dnellans@nvidia.com>, Balbir Singh <bsingharora@gmail.com>
 
-On 2017/12/14 9:02, Lu Baolu wrote:
-> From: Huang Ying <ying.huang@intel.com>
+On Thu, Dec 14, 2017 at 10:48:36AM +0800, Figo.zhang wrote:
+> 2017-12-14 0:12 GMT+08:00 Jerome Glisse <jglisse@redhat.com>:
 > 
-> Shared Virtual Memory (SVM) allows a kernel memory mapping to be
-> shared between CPU and and a device which requested a supervisor
-> PASID. Both devices and IOMMU units have TLBs that cache entries
-> from CPU's page tables. We need to get a chance to flush them at
-> the same time when we flush the CPU TLBs.
-> 
-> We already have an existing MMU notifiers for userspace updates,
-> however we lack the same thing for kernel page table updates. To
+> > On Wed, Dec 13, 2017 at 08:10:42PM +0800, Figo.zhang wrote:
 
-Sorry, I didn't get which situation need this notification.
-Could you please describe the full scenario?
+[...]
 
-Thanks,
-Liubo
+> > Basic example is without HMM:
+> >     mul_mat_on_gpu(float *r, float *a, float *b, unsigned m)
+> >     {
+> >         gpu_buffer_t gpu_r, gpu_a, gpu_b;
+> >
+> >         gpu_r = gpu_alloc(m*m*sizeof(float));
+> >         gpu_a = gpu_alloc(m*m*sizeof(float));
+> >         gpu_b = gpu_alloc(m*m*sizeof(float));
+> >         gpu_copy_to(gpu_a, a, m*m*sizeof(float));
+> >         gpu_copy_to(gpu_b, b, m*m*sizeof(float));
+> >
+> >         gpu_mul_mat(gpu_r, gpu_a, gpu_b, m);
+> >
+> >         gpu_copy_from(gpu_r, r, m*m*sizeof(float));
+> >     }
+> >
+> 
+> The traditional workflow is:
+> 1. the pointer a, b and r are total point to the CPU memory
+> 2. create/alloc three GPU buffers: gpu_a, gpu_b, gpu_r
+> 3. copy CPU memory a and b to GPU memory gpu_b and gpu_b
+> 4. let the GPU to do the calculation
+> 5.  copy the result from GPU buffer (gpu_r) to CPU buffer (r)
+> 
+> is it right?
 
-> implement the MMU notification mechanism for the kernel address
-> space, a kernel MMU notifier chain is defined and will be called
-> whenever the CPU TLB is flushed for the kernel address space.
-> 
-> As consumer of this notifier, the IOMMU SVM implementations will
-> register callbacks on this notifier and manage the cache entries
-> in both IOTLB and DevTLB.
-> 
-> Cc: Ashok Raj <ashok.raj@intel.com>
-> Cc: Dave Hansen <dave.hansen@intel.com>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: "H. Peter Anvin" <hpa@zytor.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> Cc: Rik van Riel <riel@redhat.com>
-> Cc: Kees Cook <keescook@chromium.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Matthew Wilcox <willy@linux.intel.com>
-> Cc: Dave Jiang <dave.jiang@intel.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> Cc: Vegard Nossum <vegard.nossum@oracle.com>
-> Cc: x86@kernel.org
-> Cc: linux-mm@kvack.org
-> 
-> Tested-by: CQ Tang <cq.tang@intel.com>
-> Signed-off-by: Huang Ying <ying.huang@intel.com>
-> Signed-off-by: Lu Baolu <baolu.lu@linux.intel.com>
-> ---
->  arch/x86/mm/tlb.c            |  2 ++
->  include/linux/mmu_notifier.h | 33 +++++++++++++++++++++++++++++++++
->  mm/mmu_notifier.c            | 27 +++++++++++++++++++++++++++
->  3 files changed, 62 insertions(+)
-> 
-> diff --git a/arch/x86/mm/tlb.c b/arch/x86/mm/tlb.c
-> index 3118392cd..5ff104f 100644
-> --- a/arch/x86/mm/tlb.c
-> +++ b/arch/x86/mm/tlb.c
-> @@ -6,6 +6,7 @@
->  #include <linux/interrupt.h>
->  #include <linux/export.h>
->  #include <linux/cpu.h>
-> +#include <linux/mmu_notifier.h>
->  
->  #include <asm/tlbflush.h>
->  #include <asm/mmu_context.h>
-> @@ -567,6 +568,7 @@ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
->  		info.end = end;
->  		on_each_cpu(do_kernel_range_flush, &info, 1);
->  	}
-> +	kernel_mmu_notifier_invalidate_range(start, end);
->  }
->  
->  void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch)
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> index b25dc9d..44d7c06 100644
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -408,6 +408,25 @@ extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
->  				   void (*func)(struct rcu_head *rcu));
->  extern void mmu_notifier_synchronize(void);
->  
-> +struct kernel_mmu_address_range {
-> +	unsigned long start;
-> +	unsigned long end;
-> +};
-> +
-> +/*
-> + * Before the virtual address range managed by kernel (vmalloc/kmap)
-> + * is reused, That is, remapped to the new physical addresses, the
-> + * kernel MMU notifier will be called with KERNEL_MMU_INVALIDATE_RANGE
-> + * and struct kernel_mmu_address_range as parameters.  This is used to
-> + * manage the remote TLB.
-> + */
-> +#define KERNEL_MMU_INVALIDATE_RANGE		1
-> +extern int kernel_mmu_notifier_register(struct notifier_block *nb);
-> +extern int kernel_mmu_notifier_unregister(struct notifier_block *nb);
-> +
-> +extern int kernel_mmu_notifier_invalidate_range(unsigned long start,
-> +						unsigned long end);
-> +
->  #else /* CONFIG_MMU_NOTIFIER */
->  
->  static inline int mm_has_notifiers(struct mm_struct *mm)
-> @@ -474,6 +493,20 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
->  #define pudp_huge_clear_flush_notify pudp_huge_clear_flush
->  #define set_pte_at_notify set_pte_at
->  
-> +static inline int kernel_mmu_notifier_register(struct notifier_block *nb)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline int kernel_mmu_notifier_unregister(struct notifier_block *nb)
-> +{
-> +	return 0;
-> +}
-> +
-> +static inline void kernel_mmu_notifier_invalidate_range(unsigned long start,
-> +							unsigned long end)
-> +{
-> +}
->  #endif /* CONFIG_MMU_NOTIFIER */
->  
->  #endif /* _LINUX_MMU_NOTIFIER_H */
-> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
-> index 96edb33..52f816a 100644
-> --- a/mm/mmu_notifier.c
-> +++ b/mm/mmu_notifier.c
-> @@ -393,3 +393,30 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
->  	mmdrop(mm);
->  }
->  EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
-> +
-> +static ATOMIC_NOTIFIER_HEAD(kernel_mmu_notifier_list);
-> +
-> +int kernel_mmu_notifier_register(struct notifier_block *nb)
-> +{
-> +	return atomic_notifier_chain_register(&kernel_mmu_notifier_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(kernel_mmu_notifier_register);
-> +
-> +int kernel_mmu_notifier_unregister(struct notifier_block *nb)
-> +{
-> +	return atomic_notifier_chain_unregister(&kernel_mmu_notifier_list, nb);
-> +}
-> +EXPORT_SYMBOL_GPL(kernel_mmu_notifier_unregister);
-> +
-> +int kernel_mmu_notifier_invalidate_range(unsigned long start,
-> +					 unsigned long end)
-> +{
-> +	struct kernel_mmu_address_range range = {
-> +		.start	= start,
-> +		.end	= end,
-> +	};
-> +
-> +	return atomic_notifier_call_chain(&kernel_mmu_notifier_list,
-> +					  KERNEL_MMU_INVALIDATE_RANGE,
-> +					  &range);
-> +}
-> 
+Right.
 
+
+> > With HMM:
+> >     mul_mat_on_gpu(float *r, float *a, float *b, unsigned m)
+> >     {
+> >         gpu_mul_mat(r, a, b, m);
+> >     }
+> >
+> 
+> with HMM workflow:
+> 1. CPU has three buffer: a, b, r, and it is physical addr is : pa, pb, pr
+>      and GPU has tree physical buffer: gpu_a, gpu_b, gpu_r
+> 2. GPU want to access buffer a and b, cause a GPU page fault
+> 3. GPU report a page fault to CPU
+> 4. CPU got a GPU page fault:
+>                 * unmap the buffer a,b,r (who do it? GPU driver?)
+>                 * copy the buffer a ,b's content to GPU physical buffers:
+> gpu_a, gpu_b
+>                 * fill the GPU page table entry with these pages (gpu_a,
+> gpu_b, gpu_r) of the CPU virtual address: a,b,r;
+> 
+> 5. GPU do the calculation
+> 6. CPU want to get result from buffer r and will cause a CPU page fault:
+> 7. in CPU page fault:
+>              * unmap the GPU page table entry for virtual address a,b,r.
+> (who do the unmap? GPU driver?)
+>              * copy the GPU's buffer content (gpu_a, gpu_b, gpu_r) to
+> CPU buffer (abr)
+>              * fill the CPU page table entry: virtual_addr -> buffer
+> (pa,pb,pr)
+> 8. so the CPU can get the result form buffer r.
+> 
+> my guess workflow is right?
+> it seems need two copy, from CPU to GPU, and then GPU to CPU for result.
+> * is it CPU and GPU have the  page table concurrently, so
+> no page fault occur?
+> * how about the performance? it sounds will create lots of page fault.
+
+This is not what happen. Here is the workflow with HMM mirror (note that
+physical address do not matter here so i do not even reference them it is
+all about virtual address):
+ 1 They are 3 buffers a, b and r at given virtual address both CPU and
+   GPU can access them (concurently or not this does not matter).
+ 2 GPU can fault so if any virtual address do not have a page table
+   entry inside the GPU page table this trigger a page fault that will
+   call HMM mirror helper to snapshot CPU page table into the GPU page
+   table. If there is no physical memory backing the virtual address
+   (ie CPU page table is also empty for the given virtual address) then 
+   the regular page fault handler of the kernel is invoked.
+
+Without HMM mirror but ATS/PASI (CCIX or CAPI):
+ 1 They are 3 buffers a, b and r at given virtual address both CPU and
+   GPU can access them (concurently or not this does not matter).
+ 2 GPU use the exact same page table as the CPU and fault exactly like
+   CPU on empty page table entry
+
+So in the end with HMM mirror or ATS/PASID you get the same behavior.
+There is no complexity like you seem to assume. This all about virtual
+address. At any point in time any given valid virtual address of a process
+point to a given physical memory address and that physical memory address
+is the same on both the CPU and the GPU at any point in time they are
+never out of sync (both in HMM mirror and in ATS/PASID case).
+
+The exception is for platform that do not have CAPI or CCIX property ie
+cache coherency for CPU access to device memory. On such platform when
+you migrate a virtual address to use device physical memory you update
+the CPU page table with a special entry. If the CPU try to access the
+virtual address with special entry it trigger fault and HMM will migrate
+the virtual address back to regular memory. But this does not apply for
+CAPI or CCIX platform.
+
+
+Too minimize page fault the device driver is encourage to pre-fault and
+prepopulate its page table (the HMM mirror case). Often device driver has
+enough context information to guess what range of virtual address is
+about to be access by the device and thus pre-fault thing.
+
+
+Hope this clarify thing for you.
+
+Cheers,
+Jerome
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
