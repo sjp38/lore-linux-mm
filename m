@@ -1,69 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AF5A6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:17:19 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id m9so2929209pff.0
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:17:19 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id k19si2279464pfa.118.2017.12.13.16.17.18
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E0EB26B025E
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:05 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id f9so3374278qtf.6
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:18:05 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id k42si3190826qtf.429.2017.12.13.16.18.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 16:17:18 -0800 (PST)
-Received: from mail-it0-f48.google.com (mail-it0-f48.google.com [209.85.214.48])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 27CA021879
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:17:18 +0000 (UTC)
-Received: by mail-it0-f48.google.com with SMTP id d16so7062323itj.1
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:17:18 -0800 (PST)
+        Wed, 13 Dec 2017 16:18:05 -0800 (PST)
+Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBE0GHco096284
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:04 -0500
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2eub3tymqy-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:03 -0500
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
+	Wed, 13 Dec 2017 19:18:02 -0500
+Date: Wed, 13 Dec 2017 16:17:56 -0800
+From: Ram Pai <linuxram@us.ibm.com>
+Subject: Re: pkeys: Support setting access rights for signal handlers
+Reply-To: Ram Pai <linuxram@us.ibm.com>
+References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
+ <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
+ <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
+ <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
+ <20171212231324.GE5460@ram.oc3035372033.ibm.com>
+ <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
+ <20171213113544.GG5460@ram.oc3035372033.ibm.com>
+ <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
+ <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
+ <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20171214001012.GA22639@bombadil.infradead.org>
-References: <20171212173221.496222173@linutronix.de> <20171212173333.669577588@linutronix.de>
- <20171213215022.GA27778@bombadil.infradead.org> <20171213221233.GC3326@worktop>
- <20171214001012.GA22639@bombadil.infradead.org>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Wed, 13 Dec 2017 16:16:56 -0800
-Message-ID: <CALCETrXP5e=kiqNiB2_BgGx=RV6=KGS+1FL-M0K1BumqH6Q01g@mail.gmail.com>
-Subject: Re: [patch 05/16] mm: Allow special mappings with user access cleared
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
+Message-Id: <20171214001756.GA5471@ram.oc3035372033.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: Florian Weimer <fweimer@redhat.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Wed, Dec 13, 2017 at 4:10 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Wed, Dec 13, 2017 at 11:12:33PM +0100, Peter Zijlstra wrote:
->> On Wed, Dec 13, 2017 at 01:50:22PM -0800, Matthew Wilcox wrote:
->> > On Tue, Dec 12, 2017 at 06:32:26PM +0100, Thomas Gleixner wrote:
->> > > From: Peter Zijstra <peterz@infradead.org>
->> > > In order to create VMAs that are not accessible to userspace create a new
->> > > VM_NOUSER flag. This can be used in conjunction with
->> > > install_special_mapping() to inject 'kernel' data into the userspace map.
->> >
->> > Maybe I misunderstand the intent behind this, but I was recently looking
->> > at something kind of similar.  I was calling it VM_NOTLB and it wouldn't
->> > put TLB entries into the userspace map at all.  The idea was to be able
->> > to use the user address purely as a handle for specific kernel pages,
->> > which were guaranteed to never be mapped into userspace, so we didn't
->> > need to send TLB invalidations when we took those pages away from the user
->> > process again.  But we'd be able to pass the address to read() or write().
->>
->> Since the LDT is strictly per process, the idea was to actually inject
->> it into the userspace map. Except of course, userspace must not actually
->> be able to access it. So by mapping it !_PAGE_USER its 'invisible'.
->>
->> But the CPU very much needs the mapping, it will load the LDT entries
->> through them.
->
-> So can I use your VM_NOUSER VMAs for my purpose?  That is, can I change
-> the page table without flushing the TLB?  The only access to these PTEs
-> will be through the kernel mapping, so I don't see why I'd need to.
+On Wed, Dec 13, 2017 at 04:40:11PM +0100, Florian Weimer wrote:
+> On 12/13/2017 04:22 PM, Dave Hansen wrote:
+> >On 12/13/2017 07:08 AM, Florian Weimer wrote:
+> >>Okay, this model is really quite different from x86.  Is there a
+> >>good reason for the difference?
+> >
+> >Yes, both implementations are simple and take the "natural" behavior.
+> >x86 changes XSAVE-controlled register values on entering a signal, so we
+> >let them be changed (including PKRU).  POWER hardware does not do this
+> >to its PKRU-equivalent, so we do not force it to.
+> 
+> Whuy?  Is there a technical reason not have fully-aligned behavior?
+> Can POWER at least implement the original PKEY_ALLOC_SETSIGNAL
+> semantics (reset the access rights for certain keys before switching
+> to the signal handler) in a reasonably efficient manner?
 
-I doubt it, since if it's in the kernel pagetables at all, then the
-mapping can be cached for kernel purposes.
+This can be done on POWER. I can also change the behavior on POWER
+to exactly match x86; i.e reset the value to init value before
+calling the signal handler.
 
-But I still think this discussion is off in the weeds.  x86 does not
-actually need any of this stuff.
+But I think, we should clearly define the default behavior, the behavior
+when no flag is specified. Applications tend to rely on default behavior
+and expect the most intuitive behavior to be the default behavior.
+
+I tend to think; keeping my biases aside, that the most intuitive
+behavior is to preserve access/write permissions of any key, i.e not
+reset to the init value.  If the application has set the permissions of
+a key to some value, it would'nt expect anyone to change them,
+irrespective of which context it is in.
+
+RP
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
