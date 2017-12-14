@@ -1,56 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 597226B0069
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:20:25 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id j4so3200055wrg.15
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 05:20:25 -0800 (PST)
-Received: from mail.skyhub.de (mail.skyhub.de. [5.9.137.197])
-        by mx.google.com with ESMTP id q39si3534431wrb.248.2017.12.14.05.20.23
-        for <linux-mm@kvack.org>;
-        Thu, 14 Dec 2017 05:20:23 -0800 (PST)
-From: Borislav Petkov <bp@alien8.de>
-Subject: [PATCH] mm/mmu_context: Remove asm/mmu_context.h include directive
-Date: Thu, 14 Dec 2017 14:20:05 +0100
-Message-Id: <20171214132005.12704-1-bp@alien8.de>
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E4C2A6B0260
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:20:48 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id e26so4679261pfi.15
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 05:20:48 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 1si3153897plw.238.2017.12.14.05.20.47
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 05:20:47 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBEDIxZb049315
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:20:46 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2eurmm41bq-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:20:46 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 14 Dec 2017 13:20:44 -0000
+Subject: Re: [PATCH V2] mm/mprotect: Add a cond_resched() inside
+ change_pmd_range()
+References: <20171214111426.25912-1-khandual@linux.vnet.ibm.com>
+ <20171214112928.GH16951@dhcp22.suse.cz>
+ <28e54a80-73d9-76aa-31d5-f71375f14b96@linux.vnet.ibm.com>
+ <20171214130435.GL16951@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 14 Dec 2017 18:50:41 +0530
+MIME-Version: 1.0
+In-Reply-To: <20171214130435.GL16951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <cc03168b-dd53-73e7-88fd-717eba6e6ce0@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: LKML <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-From: Borislav Petkov <bp@suse.de>
+On 12/14/2017 06:34 PM, Michal Hocko wrote:
+> On Thu 14-12-17 18:25:54, Anshuman Khandual wrote:
+>> On 12/14/2017 04:59 PM, Michal Hocko wrote:
+>>> On Thu 14-12-17 16:44:26, Anshuman Khandual wrote:
+>>>> diff --git a/mm/mprotect.c b/mm/mprotect.c
+>>>> index ec39f73..43c29fa 100644
+>>>> --- a/mm/mprotect.c
+>>>> +++ b/mm/mprotect.c
+>>>> @@ -196,6 +196,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+>>>>  		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
+>>>>  				 dirty_accountable, prot_numa);
+>>>>  		pages += this_pages;
+>>>> +		cond_resched();
+>>>>  	} while (pmd++, addr = next, addr != end);
+>>>>  
+>>>>  	if (mni_start)
+>>> this is not exactly what I meant. See how change_huge_pmd does continue.
+>>> That's why I mentioned zap_pmd_range which does goto next...
+>> I might be still missing something but is this what you meant ?
+> yes, except
+> 
+>> Here we will give cond_resched() cover to the THP backed pages
+>> as well.
+> but there is still 
+> 		if (!is_swap_pmd(*pmd) && !pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
+> 				&& pmd_none_or_clear_bad(pmd))
+> 			continue;
+> 
+> so we won't have scheduling point on pmd holes. Maybe this doesn't
+> matter, I haven't checked but why should we handle those differently?
 
-The header linux/mmu_context.h includes it already. Otherwise, you get
-warnings like below with some configs.
-
-  In file included from mm/mmu_context.c:11:0:
-  ./arch/x86/include/asm/mmu_context.h:129:0: warning: "switch_mm_irqs_off" redefined [enabled by default]
-   #define switch_mm_irqs_off switch_mm_irqs_off
-   ^
-  In file included from mm/mmu_context.c:8:0:
-  include/linux/mmu_context.h:15:0: note: this is the location of the previous definition
-   # define switch_mm_irqs_off switch_mm
-   ^
-
-Signed-off-by: Borislav Petkov <bp@suse.de>
----
- mm/mmu_context.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/mm/mmu_context.c b/mm/mmu_context.c
-index 3e612ae748e9..50c556e19383 100644
---- a/mm/mmu_context.c
-+++ b/mm/mmu_context.c
-@@ -10,8 +10,6 @@
- #include <linux/mmu_context.h>
- #include <linux/export.h>
- 
--#include <asm/mmu_context.h>
--
- /*
-  * use_mm
-  *	Makes the calling kernel thread take on the specified
--- 
-2.13.0
+May be because it is not spending much time for those entries which
+can really trigger stalls, hence they dont need scheduling points.
+In case of zap_pmd_range(), it was spending time either in
+__split_huge_pmd() or zap_huge_pmd() hence deserved a scheduling point.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
