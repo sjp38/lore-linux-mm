@@ -1,175 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8AA676B0038
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 20:42:16 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id t15so1922988wmh.3
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 17:42:16 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t18sor835287wmh.46.2017.12.13.17.42.15
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E77B36B0069
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 20:42:31 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id j3so3133261pfh.16
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 17:42:31 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id z123si2108729pgb.114.2017.12.13.17.42.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 17:42:15 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 17:42:30 -0800 (PST)
+Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
+References: <1511848824-18709-1-git-send-email-kemi.wang@intel.com>
+ <20171129121740.f6drkbktc43l5ib6@dhcp22.suse.cz>
+ <4b840074-cb5f-3c10-d65b-916bc02fb1ee@intel.com>
+ <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
+ <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
+ <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
+ <9cd6cc9f-252a-3c6f-2f1f-e39d4ec0457b@intel.com>
+ <20171208084755.GS20234@dhcp22.suse.cz>
+ <f082f521-44a2-0585-3435-63dab24efbb7@intel.com>
+ <20171212081126.GK4779@dhcp22.suse.cz>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <d48b89f4-34d2-f3c8-f20a-b799f4878901@intel.com>
+Date: Thu, 14 Dec 2017 09:40:32 +0800
 MIME-Version: 1.0
-In-Reply-To: <CAHD6eXccNCJDMPEhrYkYUO-+GH3GLseoYSVE375OcKMNYJKm-A@mail.gmail.com>
-References: <20171213092550.2774-1-mhocko@kernel.org> <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
- <CAHD6eXccNCJDMPEhrYkYUO-+GH3GLseoYSVE375OcKMNYJKm-A@mail.gmail.com>
-From: David Goldblatt <davidtgoldblatt@gmail.com>
-Date: Wed, 13 Dec 2017 17:42:14 -0800
-Message-ID: <CAHD6eXc=C4tw3s1a9Z9uy1V2qHsvukntJqDR0Wp9ziPxK8Yiiw@mail.gmail.com>
-Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171212081126.GK4779@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>, trasz@freebsd.org, Jason Evans <jasone@canonware.com>
-
-(+cc the jemalloc jasone; -cc,+bcc the Google jasone).
-
-The only time we would want MAP_FIXED (or rather, a non-broken
-variant) is in the middle of trying to expand an allocation in place;
-"atomic address range probing in the multithreaded programs" describes
-our use case pretty well. That's in a pathway that usually fails; it's
-pretty far down on our kernel mmap enhancements wish-list.
-
-(Sorry if you get this twice, an html reply bounced).
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 
-On Wed, Dec 13, 2017 at 5:35 PM, David Goldblatt
-<davidtgoldblatt@gmail.com> wrote:
-> (+cc the jemalloc jasone; -cc,+bcc the Google jasone).
->
-> The only time we would want MAP_FIXED (or rather, a non-broken variant) is
-> in the middle of trying to expand an allocation in place; "atomic address
-> range probing in the multithreaded programs" describes our use case pretty
-> well. That's in a pathway that usually fails; it's pretty far down on our
-> kernel mmap enhancements wish-list.
->
-> On Wed, Dec 13, 2017 at 4:32 PM, Andrew Morton <akpm@linux-foundation.org>
-> wrote:
->>
->> On Wed, 13 Dec 2017 10:25:48 +0100 Michal Hocko <mhocko@kernel.org> wrote:
->>
->> >
->> > Hi,
->> > I am resending with some minor updates based on Michael's review and
->> > ask for inclusion. There haven't been any fundamental objections for
->> > the RFC [1] nor the previous version [2].  The biggest discussion
->> > revolved around the naming. There were many suggestions flowing
->> > around MAP_REQUIRED, MAP_EXACT, MAP_FIXED_NOCLOBBER, MAP_AT_ADDR,
->> > MAP_FIXED_NOREPLACE etc...
->>
->> I like MAP_FIXED_CAREFUL :)
->>
->> > I am afraid we can bikeshed this to death and there will still be
->> > somebody finding yet another better name. Therefore I've decided to
->> > stick with my original MAP_FIXED_SAFE. Why? Well, because it keeps the
->> > MAP_FIXED prefix which should be recognized by developers and _SAFE
->> > suffix should also be clear that all dangerous side effects of the old
->> > MAP_FIXED are gone.
->> >
->> > If somebody _really_ hates this then feel free to nack and resubmit
->> > with a different name you can find a consensus for. I am sorry to be
->> > stubborn here but I would rather have this merged than go over few more
->> > iterations changing the name just because it seems like a good idea
->> > now. My experience tells me that chances are that the name will turn out
->> > to be "suboptimal" anyway over time.
->> >
->> > Some more background:
->> > This has started as a follow up discussion [3][4] resulting in the
->> > runtime failure caused by hardening patch [5] which removes MAP_FIXED
->> > from the elf loader because MAP_FIXED is inherently dangerous as it
->> > might silently clobber an existing underlying mapping (e.g. stack). The
->> > reason for the failure is that some architectures enforce an alignment
->> > for the given address hint without MAP_FIXED used (e.g. for shared or
->> > file backed mappings).
->> >
->> > One way around this would be excluding those archs which do alignment
->> > tricks from the hardening [6]. The patch is really trivial but it has
->> > been objected, rightfully so, that this screams for a more generic
->> > solution. We basically want a non-destructive MAP_FIXED.
->> >
->> > The first patch introduced MAP_FIXED_SAFE which enforces the given
->> > address but unlike MAP_FIXED it fails with EEXIST if the given range
->> > conflicts with an existing one. The flag is introduced as a completely
->> > new one rather than a MAP_FIXED extension because of the backward
->> > compatibility. We really want a never-clobber semantic even on older
->> > kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
->> > flags evaluation because we do not EINVAL on unknown flags. On those
->> > kernels we would simply use the traditional hint based semantic so the
->> > caller can still get a different address (which sucks) but at least not
->> > silently corrupt an existing mapping. I do not see a good way around
->> > that. Except we won't export expose the new semantic to the userspace at
->> > all.
->> >
->> > It seems there are users who would like to have something like that.
->> > Jemalloc has been mentioned by Michael Ellerman [7]
->>
->> http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au.
->>
->> It would be useful to get feedback from jemalloc developers (please).
->> I'll add some cc's.
+
+On 2017a1'12ae??12ae?JPY 16:11, Michal Hocko wrote:
+> On Tue 12-12-17 10:05:26, kemi wrote:
 >>
 >>
->> > Florian Weimer has mentioned the following:
->> > : glibc ld.so currently maps DSOs without hints.  This means that the
->> > kernel
->> > : will map right next to each other, and the offsets between them a
->> > completely
->> > : predictable.  We would like to change that and supply a random address
->> > in a
->> > : window of the address space.  If there is a conflict, we do not want
->> > the
->> > : kernel to pick a non-random address. Instead, we would try again with
->> > a
->> > : random address.
->> >
->> > John Hubbard has mentioned CUDA example
->> > : a) Searches /proc/<pid>/maps for a "suitable" region of available
->> > : VA space.  "Suitable" generally means it has to have a base address
->> > : within a certain limited range (a particular device model might
->> > : have odd limitations, for example), it has to be large enough, and
->> > : alignment has to be large enough (again, various devices may have
->> > : constraints that lead us to do this).
->> > :
->> > : This is of course subject to races with other threads in the process.
->> > :
->> > : Let's say it finds a region starting at va.
->> > :
->> > : b) Next it does:
->> > :     p = mmap(va, ...)
->> > :
->> > : *without* setting MAP_FIXED, of course (so va is just a hint), to
->> > : attempt to safely reserve that region. If p != va, then in most cases,
->> > : this is a failure (almost certainly due to another thread getting a
->> > : mapping from that region before we did), and so this layer now has to
->> > : call munmap(), before returning a "failure: retry" to upper layers.
->> > :
->> > :     IMPROVEMENT: --> if instead, we could call this:
->> > :
->> > :             p = mmap(va, ... MAP_FIXED_SAFE ...)
->> > :
->> > :         , then we could skip the munmap() call upon failure. This
->> > :         is a small thing, but it is useful here. (Thanks to Piotr
->> > :         Jaroszynski and Mark Hairgrove for helping me get that detail
->> > :         exactly right, btw.)
->> > :
->> > : c) After that, CUDA suballocates from p, via:
->> > :
->> > :      q = mmap(sub_region_start, ... MAP_FIXED ...)
->> > :
->> > : Interestingly enough, "freeing" is also done via MAP_FIXED, and
->> > : setting PROT_NONE to the subregion. Anyway, I just included (c) for
->> > : general interest.
->> >
->> > Atomic address range probing in the multithreaded programs in general
->> > sounds like an interesting thing to me.
->> >
->> > The second patch simply replaces MAP_FIXED use in elf loader by
->> > MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
->> > follow. Actually real MAP_FIXED usages should be docummented properly
->> > and they should be more of an exception.
+>> On 2017a1'12ae??08ae?JPY 16:47, Michal Hocko wrote:
+>>> On Fri 08-12-17 16:38:46, kemi wrote:
+>>>>
+>>>>
+>>>> On 2017a1'11ae??30ae?JPY 17:45, Michal Hocko wrote:
+>>>>> On Thu 30-11-17 17:32:08, kemi wrote:
+>>>>
+>>>> After thinking about how to optimize our per-node stats more gracefully, 
+>>>> we may add u64 vm_numa_stat_diff[] in struct per_cpu_nodestat, thus,
+>>>> we can keep everything in per cpu counter and sum them up when read /proc
+>>>> or /sys for numa stats. 
+>>>> What's your idea for that? thanks
+>>>
+>>> I would like to see a strong argument why we cannot make it a _standard_
+>>> node counter.
+>>>
 >>
->
+>> all right. 
+>> This issue is first reported and discussed in 2017 MM summit, referred to
+>> the topic "Provoking and fixing memory bottlenecks -Focused on the page 
+>> allocator presentation" presented by Jesper.
+>>
+>> http://people.netfilter.org/hawk/presentations/MM-summit2017/MM-summit
+>> 2017-JesperBrouer.pdf (slide 15/16)
+>>
+>> As you know, page allocator is too slow and has becomes a bottleneck
+>> in high-speed network.
+>> Jesper also showed some data in that presentation: with micro benchmark 
+>> stresses order-0 fast path(per CPU pages), *32%* extra CPU cycles cost 
+>> (143->97) comes from CONFIG_NUMA. 
+>>
+>> When I took a look at this issue, I reproduced this issue and got a
+>> similar result to Jesper's. Furthermore, with the help from Jesper, 
+>> the overhead is root caused and the real cause of this overhead comes
+>> from an extra level of function calls such as zone_statistics() (*10%*,
+>> nearly 1/3, including __inc_numa_state), policy_zonelist, get_task_policy(),
+>> policy_nodemask and etc (perf profiling cpu cycles).  zone_statistics() 
+>> is the biggest one introduced by CONFIG_NUMA in fast path that we can 
+>> do something for optimizing page allocator. Plus, the overhead of 
+>> zone_statistics() significantly increase with more and more cpu 
+>> cores and nodes due to cache bouncing.
+>>
+>> Therefore, we submitted a patch before to mitigate the overhead of 
+>> zone_statistics() by reducing global NUMA counter update frequency 
+>> (enlarge threshold size, as suggested by Dave Hansen). I also would
+>> like to have an implementation of a "_standard_node counter" for NUMA
+>> stats, but I wonder how we can keep the performance gain at the
+>> same time.
+> 
+> I understand all that. But we do have a way to put all that overhead
+> away by disabling the stats altogether. I presume that CPU cycle
+> sensitive workloads would simply use that option because the stats are
+> quite limited in their usefulness anyway IMHO. So we are back to: Do
+> normal workloads care all that much to have 3rd way to account for
+> events? I haven't heard a sound argument for that.
+> 
+
+I'm not a fan of adding code that nobody(or 0.001%) cares.
+We can't depend on that tunable interface too much, because our customers 
+or even kernel hacker may not know that new added interface, or sometimes 
+NUMA stats can't be disabled in their environments. That's the reason
+why we spent time to do that optimization other than simply adding a runtime
+configuration interface.
+
+Furthermore, the code we optimized for is the core area of kernel that can
+benefit most of kernel actions, more or less I think.
+
+All right, let's think about it in another way, does a u64 percpu array per-node
+for NUMA stats really make code too much complicated and hard to maintain?
+I'm afraid not IMHO.
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
