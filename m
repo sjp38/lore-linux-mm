@@ -1,83 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 658036B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 03:57:57 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a6so4117281pff.17
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:57:57 -0800 (PST)
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id k21si2859936pff.411.2017.12.14.00.57.55
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B97786B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:19:21 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l33so2875494wrl.5
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:19:21 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j16si2949662wme.109.2017.12.14.01.19.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 00:57:56 -0800 (PST)
-From: kemi <kemi.wang@intel.com>
-Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
-References: <20171129121740.f6drkbktc43l5ib6@dhcp22.suse.cz>
- <4b840074-cb5f-3c10-d65b-916bc02fb1ee@intel.com>
- <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
- <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
- <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
- <9cd6cc9f-252a-3c6f-2f1f-e39d4ec0457b@intel.com>
- <20171208084755.GS20234@dhcp22.suse.cz>
- <f082f521-44a2-0585-3435-63dab24efbb7@intel.com>
- <20171212081126.GK4779@dhcp22.suse.cz>
- <d48b89f4-34d2-f3c8-f20a-b799f4878901@intel.com>
- <20171214072927.GB16951@dhcp22.suse.cz>
-Message-ID: <2176cf74-210a-01fe-3a7e-272a69b7bdc6@intel.com>
-Date: Thu, 14 Dec 2017 16:55:54 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Dec 2017 01:19:20 -0800 (PST)
+Date: Thu, 14 Dec 2017 10:19:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mm/memcontrol.c:5364:1: warning: the frame size of 1032 bytes is
+ larger than 1024 bytes [-Wframe-larger-than=]
+Message-ID: <20171214091917.GE16951@dhcp22.suse.cz>
+References: <a16d8181-3bb4-90cc-3c4b-ac44529494ed@molgen.mpg.de>
 MIME-Version: 1.0
-In-Reply-To: <20171214072927.GB16951@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
+In-Reply-To: <a16d8181-3bb4-90cc-3c4b-ac44529494ed@molgen.mpg.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>, Paul Menzel <pmenzel+linux-cgroups@molgen.mpg.de>
+Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, it+linux-cgroups@molgen.mpg.de
 
-
-
-On 2017a1'12ae??14ae?JPY 15:29, Michal Hocko wrote:
-> On Thu 14-12-17 09:40:32, kemi wrote:
->>
->>
->> or sometimes 
->> NUMA stats can't be disabled in their environments.
+On Thu 14-12-17 07:49:29, Paul Menzel wrote:
+> Dear Linux folks,
 > 
-> why?
 > 
->> That's the reason
->> why we spent time to do that optimization other than simply adding a runtime
->> configuration interface.
->>
->> Furthermore, the code we optimized for is the core area of kernel that can
->> benefit most of kernel actions, more or less I think.
->>
->> All right, let's think about it in another way, does a u64 percpu array per-node
->> for NUMA stats really make code too much complicated and hard to maintain?
->> I'm afraid not IMHO.
+> I enabled the undefined behavior sanitizer, and built Linusa?? master branch
+> under Ubuntu 17.10 with gcc (Ubuntu 7.2.0-8ubuntu3) 7.2.0.
 > 
-> I disagree. The whole numa stat things has turned out to be nasty to
-> maintain. For a very limited gain. Now you are just shifting that
-> elsewhere. Look, there are other counters taken in the allocator, we do
-> not want to treat them specially. We have a nice per-cpu infrastructure
-> here so I really fail to see why we should code-around it. If that can
-> be improved then by all means let's do it.
+> ```
+> $ grep UBSAN /boot/config-4.15.0-rc3+
+> CONFIG_ARCH_HAS_UBSAN_SANITIZE_ALL=y
+> # CONFIG_ARCH_WANTS_UBSAN_NO_NULL is not set
+> CONFIG_UBSAN=y
+> CONFIG_UBSAN_SANITIZE_ALL=y
+> # CONFIG_UBSAN_ALIGNMENT is not set
+> CONFIG_UBSAN_NULL=y
+> ```
 > 
+> The warning below is shown when building Linux.
+> 
+> ```
+> $ git describe --tags
+> v4.15-rc3-37-gd39a01eff9af
+> $ git log --oneline -1
+> d39a01eff9af (HEAD -> master, origin/master, origin/HEAD) Merge tag
+> 'platform-drivers-x86-v4.15-3' of
+> git://git.infradead.org/linux-platform-drivers-x86
+> [a?|]
+> $ make -j
+> [a?|]
+> mm/memcontrol.c: In function a??memory_stat_showa??:
+> mm/memcontrol.c:5364:1: warning: the frame size of 1032 bytes is larger than
+> 1024 bytes [-Wframe-larger-than=]
 
-Yes, I agree with you that we may improve current per-cpu infrastructure.
-May we have a chance to increase the size of vm_node_stat_diff from s8 to s16 for
-this "per-cpu infrastructure" (s32 in per-cpu counter infrastructure)? The 
-limitation of type s8 seems not enough with more and more cpu cores, especially
-for those monotone increasing type of counters like NUMA counters.
+Interesting. My compiler does this
+$ scripts/stackusage mm/memcontrol.o
+$ grep memory_stat_show /tmp/stackusage.1405.RTP8
+./mm/memcontrol.c:5526  memory_stat_show        976     static
 
-                               before     after(moving numa to per_cpu_nodestat
-                                              and change s8 to s16)   
-sizeof(struct per_cpu_nodestat)  28                 68
-
-If ok, we can also keep that improvement in a nice way.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+But this depends on the configuration because NR_VM_EVENT_ITEMS enables
+some counters depending on the config. The stack is really large but
+this is a function which is called from a shallow context wrt. stack so
+we should fit into a single page. One way we could do, though, is to
+make those large arrays static and use a internal lock around them.
+Something like the following. What do you think Johannes?
+---
