@@ -1,114 +1,122 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F3E756B026B
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 11:36:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id v25so5109779pfg.14
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:36:13 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id n15si3120587pgr.695.2017.12.14.08.36.12
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 37DD96B0268
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 11:53:25 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id a74so5135995pfg.20
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:53:25 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id bi5si3381423plb.4.2017.12.14.08.53.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 08:36:12 -0800 (PST)
-Received: from mail-it0-f47.google.com (mail-it0-f47.google.com [209.85.214.47])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 28B4221879
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 16:36:12 +0000 (UTC)
-Received: by mail-it0-f47.google.com with SMTP id 68so12441502ite.4
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:36:12 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Dec 2017 08:53:20 -0800 (PST)
+Date: Thu, 14 Dec 2017 17:53:14 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH] mm: save/restore current->journal_info in handle_mm_fault
+Message-ID: <20171214165314.GB1930@quack2.suse.cz>
+References: <20171214105527.5885-1-zyan@redhat.com>
+ <20171214134338.GA1474@quack2.suse.cz>
+ <CAAM7YA=ThWbBpOe1wgeYjGt3ogr9kT6uy3UpqSn94XqbhjOHJw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171214120853.u2vc4x55faurkgec@hirez.programming.kicks-ass.net>
-References: <20171214112726.742649793@infradead.org> <alpine.DEB.2.20.1712141302540.4998@nanos>
- <20171214120853.u2vc4x55faurkgec@hirez.programming.kicks-ass.net>
-From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 14 Dec 2017 08:35:50 -0800
-Message-ID: <CALCETrV8MAVD_4mvQQ_=E2H1CMtRm=Axutqwc9hzjqkK8NwVSQ@mail.gmail.com>
-Subject: Re: [PATCH v2 00/17] x86/ldt: Use a VMA based read only mapping
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAAM7YA=ThWbBpOe1wgeYjGt3ogr9kT6uy3UpqSn94XqbhjOHJw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+To: "Yan, Zheng" <ukernel@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, "Yan, Zheng" <zyan@redhat.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux FS-devel Mailing List <linux-fsdevel@vger.kernel.org>, ceph-devel <ceph-devel@vger.kernel.org>, linux-ext4@vger.kernel.org, linux-btrfs <linux-btrfs@vger.kernel.org>, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Jeff Layton <jlayton@redhat.com>, stable@vger.kernel.org
 
-On Thu, Dec 14, 2017 at 4:08 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Thu, Dec 14, 2017 at 01:03:37PM +0100, Thomas Gleixner wrote:
->> On Thu, 14 Dec 2017, Peter Zijlstra wrote:
->> > So here's a second posting of the VMA based LDT implementation; now without
->> > most of the crazy.
->> >
->> > I took out the write fault handler and the magic LAR touching code.
->> >
->> > Additionally there are a bunch of patches that address generic vm issue.
->> >
->> >  - gup() access control; In specific I looked at accessing !_PAGE_USER pages
->> >    because these patches rely on not being able to do that.
->> >
->> >  - special mappings; A whole bunch of mmap ops don't make sense on special
->> >    mappings so disallow them.
->> >
->> > Both things make sense independent of the rest of the series. Similarly, the
->> > patches that kill that rediculous LDT inherit on exec() are also unquestionably
->> > good.
->> >
->> > So I think at least the first 6 patches are good, irrespective of the
->> > VMA approach.
->> >
->> > On the whole VMA approach, Andy I know you hate it with a passion, but I really
->> > rather like how it ties the LDT to the process that it belongs to and it
->> > reduces the amount of 'special' pages in the whole PTI mapping.
->> >
->> > I'm not the one going to make the decision on this; but I figured I at least
->> > post a version without the obvious crap parts of the last one.
->> >
->> > Note: if we were to also disallow munmap() for special mappings (which I
->> > suppose makes perfect sense) then we could further reduce the actual LDT
->> > code (we'd no longer need the sm::close callback and related things).
->>
->> That makes a lot of sense for the other special mapping users like VDSO and
->> kprobes.
->
-> Right, and while looking at that I also figured it might make sense to
-> unconditionally disallow splitting special mappings.
->
->
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2698,6 +2698,9 @@ int do_munmap(struct mm_struct *mm, unsi
->         }
->         vma = prev ? prev->vm_next : mm->mmap;
->
-> +       if (vma_is_special_mapping(vma))
-> +               return -EINVAL;
-> +
->         if (unlikely(uf)) {
->                 /*
->                  * If userfaultfd_unmap_prep returns an error the vmas
-> @@ -3223,10 +3226,11 @@ static int special_mapping_fault(struct
->   */
->  static void special_mapping_close(struct vm_area_struct *vma)
->  {
-> -       struct vm_special_mapping *sm = vma->vm_private_data;
-> +}
->
-> -       if (sm->close)
-> -               sm->close(sm, vma);
-> +static int special_mapping_split(struct vm_area_struct *vma, unsigned long addr)
-> +{
-> +       return -EINVAL;
->  }
->
->  static const char *special_mapping_name(struct vm_area_struct *vma)
-> @@ -3252,6 +3256,7 @@ static const struct vm_operations_struct
->         .fault = special_mapping_fault,
->         .mremap = special_mapping_mremap,
->         .name = special_mapping_name,
-> +       .split = special_mapping_split,
->  };
->
->  static const struct vm_operations_struct legacy_special_mapping_vmops = {
+On Thu 14-12-17 22:30:26, Yan, Zheng wrote:
+> On Thu, Dec 14, 2017 at 9:43 PM, Jan Kara <jack@suse.cz> wrote:
+> > On Thu 14-12-17 18:55:27, Yan, Zheng wrote:
+> >> We recently got an Oops report:
+> >>
+> >> BUG: unable to handle kernel NULL pointer dereference at (null)
+> >> IP: jbd2__journal_start+0x38/0x1a2
+> >> [...]
+> >> Call Trace:
+> >>   ext4_page_mkwrite+0x307/0x52b
+> >>   _ext4_get_block+0xd8/0xd8
+> >>   do_page_mkwrite+0x6e/0xd8
+> >>   handle_mm_fault+0x686/0xf9b
+> >>   mntput_no_expire+0x1f/0x21e
+> >>   __do_page_fault+0x21d/0x465
+> >>   dput+0x4a/0x2f7
+> >>   page_fault+0x22/0x30
+> >>   copy_user_generic_string+0x2c/0x40
+> >>   copy_page_to_iter+0x8c/0x2b8
+> >>   generic_file_read_iter+0x26e/0x845
+> >>   timerqueue_del+0x31/0x90
+> >>   ceph_read_iter+0x697/0xa33 [ceph]
+> >>   hrtimer_cancel+0x23/0x41
+> >>   futex_wait+0x1c8/0x24d
+> >>   get_futex_key+0x32c/0x39a
+> >>   __vfs_read+0xe0/0x130
+> >>   vfs_read.part.1+0x6c/0x123
+> >>   handle_mm_fault+0x831/0xf9b
+> >>   __fget+0x7e/0xbf
+> >>   SyS_read+0x4d/0xb5
+> >>
+> >> ceph_read_iter() uses current->journal_info to pass context info to
+> >> ceph_readpages(). Because ceph_readpages() needs to know if its caller
+> >> has already gotten capability of using page cache (distinguish read
+> >> from readahead/fadvise). ceph_read_iter() set current->journal_info,
+> >> then calls generic_file_read_iter().
+> >>
+> >> In above Oops, page fault happened when copying data to userspace.
+> >> Page fault handler called ext4_page_mkwrite(). Ext4 code read
+> >> current->journal_info and assumed it is journal handle.
+> >>
+> >> I checked other filesystems, btrfs probably suffers similar problem
+> >> for its readpage. (page fault happens when write() copies data from
+> >> userspace memory and the memory is mapped to a file in btrfs.
+> >> verify_parent_transid() can be called during readpage)
+> >>
+> >> Cc: stable@vger.kernel.org
+> >> Signed-off-by: "Yan, Zheng" <zyan@redhat.com>
+> >
+> > I agree with the analysis but the patch is too ugly too live. Ceph just
+> > should not be abusing current->journal_info for passing information between
+> > two random functions or when it does a hackery like this, it should just
+> > make sure the pieces hold together. Poluting generic code to accommodate
+> > this hack in Ceph is not acceptable. Also bear in mind there are likely
+> > other code paths (e.g. memory reclaim) which could recurse into another
+> > filesystem confusing it with non-NULL current->journal_info in the same
+> > way.
+> 
+> But ...
+> 
+> some filesystem set journal_info in its write_begin(), then clear it
+> in write_end(). If buffer for write is mapped to another filesystem,
+> current->journal can leak to the later filesystem's page_readpage().
+> The later filesystem may read current->journal and treat it as its own
+> journal handle.  Besides, most filesystem's vm fault handle is
+> filemap_fault(), filemap also may tigger memory reclaim.
 
-Disallowing splitting seems fine.  Disallowing munmap might not be.
-Certainly CRIU relies on being able to mremap() the VDSO.
+Did you really observe this? Because write path uses
+iov_iter_copy_from_user_atomic() which does not allow page faults to
+happen. All page faulting happens in iov_iter_fault_in_readable() before
+->write_begin() is called. And the recursion problems like you mention
+above are exactly the reason why things are done in a more complicated way
+like this.
+
+> >
+> > In this particular case I'm not sure why does ceph pass 'filp' into
+> > readpage() / readpages() handler when it already gets that pointer as part
+> > of arguments...
+> 
+> It actually a flag which tells ceph_readpages() if its caller is
+> ceph_read_iter or readahead/fadvise/madvise. because when there are
+> multiple clients read/write a file a the same time, page cache should
+> be disabled.
+
+I'm not sure I understand the reasoning properly but from what you say
+above it rather seems the 'hint' should be stored in the inode (or possibly
+struct file)?
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
