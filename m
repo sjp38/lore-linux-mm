@@ -1,66 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B0CA6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:23:35 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id v25so5597347pfg.14
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:23:35 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id o3si3628832pld.695.2017.12.14.12.23.33
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CC17D6B0253
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:33:14 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id k126so3106644wmd.5
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:33:14 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id y66si3437120wmh.175.2017.12.14.12.33.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 12:23:33 -0800 (PST)
-Date: Thu, 14 Dec 2017 19:08:54 -0800
-From: "Raj, Ashok" <ashok.raj@intel.com>
-Subject: Re: [PATCH 1/2] mm: Add kernel MMU notifier to manage IOTLB/DEVTLB
-Message-ID: <20171215030854.GA69597@otc-nc-03>
-References: <1513213366-22594-1-git-send-email-baolu.lu@linux.intel.com>
- <1513213366-22594-2-git-send-email-baolu.lu@linux.intel.com>
- <a98903c2-e67c-a0cc-3ad1-60b9aa4e4c93@huawei.com>
- <5A31F232.90901@linux.intel.com>
- <e7462b54-9d3a-abfd-8df2-2db3780de78d@huawei.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <e7462b54-9d3a-abfd-8df2-2db3780de78d@huawei.com>
+        Thu, 14 Dec 2017 12:33:13 -0800 (PST)
+Date: Thu, 14 Dec 2017 12:33:09 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
+Message-Id: <20171214123309.bdee142c82809f4c4ff3ce5b@linux-foundation.org>
+In-Reply-To: <20171214140608.GQ16951@dhcp22.suse.cz>
+References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
+	<20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
+	<20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
+	<20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
+	<20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
+	<20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
+	<20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
+	<20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
+	<20171214140608.GQ16951@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bob Liu <liubo95@huawei.com>
-Cc: Lu Baolu <baolu.lu@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, Alex Williamson <alex.williamson@redhat.com>, Joerg Roedel <joro@8bytes.org>, David Woodhouse <dwmw2@infradead.org>, Rik van Riel <riel@redhat.com>, Michal Hocko <mhocko@suse.com>, Dave Jiang <dave.jiang@intel.com>, Kees Cook <keescook@chromium.org>, linux-mm@kvack.org, x86@kernel.org, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, iommu@lists.linux-foundation.org, Vegard Nossum <vegard.nossum@oracle.com>, Andy Lutomirski <luto@kernel.org>, Huang Ying <ying.huang@intel.com>, Matthew Wilcox <willy@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ashok Raj <ashok.raj@intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
 
-Hi Bob
+On Thu, 14 Dec 2017 15:06:08 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-On Thu, Dec 14, 2017 at 02:07:38PM +0800, Bob Liu wrote:
-> On 2017/12/14 11:38, Lu Baolu wrote:
-
-> >>>> We already have an existing MMU notifiers for userspace updates,
-> >>>> however we lack the same thing for kernel page table updates. To
-> >> Sorry, I didn't get which situation need this notification.
-> >> Could you please describe the full scenario?
+> On Fri 01-12-17 12:18:45, Michal Hocko wrote:
+> > On Fri 01-12-17 08:24:14, Michal Hocko wrote:
+> > > On Thu 30-11-17 13:17:06, Andrew Morton wrote:
+> > > > On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> > > > 
+> > > > > > mm...  So we have a caller which hopes to be getting highmem pages but
+> > > > > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
+> > > > > > why it isn't getting as much memory as it would like on 32-bit systems,
+> > > > > > etc.
+> > > > > 
+> > > > > How he can kmap the page when he gets a _virtual_ address?
+> > > > 
+> > > > doh.
+> > > > 
+> > > > > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
+> > > > > > would suffice.
+> > > > > 
+> > > > > This function has always been about lowmem pages. I seriously doubt we
+> > > > > have anybody confused and asking for a highmem page in the kernel. I
+> > > > > haven't checked that but it would already blow up as VM_BUG_ON tends to
+> > > > > be enabled on many setups.
+> > > > 
+> > > > OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
+> > > > shouldn't be doing that in the first place.
+> > > 
+> > > Yes, they shouldn't be.
+> > > 
+> > > > I wonder what happens if we just remove the WARN_ON and pass any
+> > > > __GFP_HIGHMEM straight through.  The caller gets a weird address from
+> > > > page_to_virt(highmem page) and usually goes splat?  Good enough
+> > > > treatment for something which never happens anyway?
+> > > 
+> > > page_address will return NULL so they will blow up and leak the freshly
+> > > allocated memory.
 > > 
-> > Okay.
-> > 
-> > 1. When an SVM capable driver calls intel_svm_bind_mm() with
-> >     SVM_FLAG_SUPERVISOR_MODE set in the @flags, the kernel
-> >     memory page mappings will be shared between CPUs and
-> >     the DMA remapping agent (a.k.a. IOMMU). The page table
-> >     entries will also be cached in both IOTLB (located in IOMMU)
-> >     and the DEVTLB (located in device).
-> > 
+> > let me be more specific. They will blow up and leak if the returned
+> > address is not checked. If it is then we just leak. None of that sounds
+> > good to me.
 > 
-> But who/what kind of real device has the requirement to access a kernel VA?
-> Looks like SVM_FLAG_SUPERVISOR_MODE is used by nobody?
+> So do we care and I will resend the patch in that case or I just drop
+> this from my patch queue?
 
-That's right, there is no inkernel user at the moment, but we certainly see
-them coming.
-
-Maybe not the best example :-), but I'm told Lustre and some of the 
-modern NIC's also can benefit from SVM in kernel use.
-
-Not a hypothetical use case certainly!
-
-
-Cheers,
-Ashok
+Well..  I still think that silently accepting bad input would be bad
+practice.  If we can just delete the assertion and have such a caller
+reliably blow up later on then that's good enough.  Otherwise let's
+leave the code as-is?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
