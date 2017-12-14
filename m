@@ -1,70 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 899F26B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:55:04 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id n6so5652389pfg.19
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:55:04 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n7si3365500pgu.398.2017.12.14.12.55.00
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07F096B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 15:58:05 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id o29so5418202qto.12
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 12:58:05 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id 202si308503qkl.26.2017.12.14.12.58.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 12:55:00 -0800 (PST)
-Date: Thu, 14 Dec 2017 21:54:50 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
-Message-ID: <20171214205450.GI3326@worktop>
-References: <20171214112726.742649793@infradead.org>
- <20171214113851.146259969@infradead.org>
- <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
- <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
- <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com>
+        Thu, 14 Dec 2017 12:58:04 -0800 (PST)
+Subject: Re: [RFC PATCH 3/5] mm, hugetlb: do not rely on overcommit limit
+ during migration
+References: <20171204140117.7191-1-mhocko@kernel.org>
+ <20171204140117.7191-4-mhocko@kernel.org>
+ <ec386202-9bee-e230-1b37-bc05c4cd8f49@oracle.com>
+ <20171214074053.GC16951@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <1ce15f58-4b39-3e03-d0e3-4cd30bcc69b9@oracle.com>
+Date: Thu, 14 Dec 2017 12:57:54 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com>
+In-Reply-To: <20171214074053.GC16951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 14, 2017 at 12:44:58PM -0800, Dave Hansen wrote:
-> On 12/14/2017 06:37 AM, Peter Zijlstra wrote:
-> > I'm also looking at pte_access_permitted() in handle_pte_fault(); that
-> > looks very dodgy to me. How does that not result in endlessly CoW'ing
-> > the same page over and over when we have a PKEY disallowing write access
-> > on that page?
+On 12/13/2017 11:40 PM, Michal Hocko wrote:
+> On Wed 13-12-17 15:35:33, Mike Kravetz wrote:
+>> On 12/04/2017 06:01 AM, Michal Hocko wrote:
+> [...]
+>>> Before migration
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:1
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:0
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
+>>>
+>>> After
+>>>
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/free_hugepages:0
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/nr_hugepages:0
+>>> /sys/devices/system/node/node0/hugepages/hugepages-2048kB/surplus_hugepages:0
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/free_hugepages:0
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/nr_hugepages:1
+>>> /sys/devices/system/node/node1/hugepages/hugepages-2048kB/surplus_hugepages:0
+>>>
+>>> with the previous implementation, both nodes would have nr_hugepages:1
+>>> until the page is freed.
+>>
+>> With the previous implementation, the migration would have failed unless
+>> nr_overcommit_hugepages was explicitly set.  Correct?
 > 
-> I'm not seeing the pte_access_permitted() in handle_pte_fault().  I
-> assume that's something you added in this series.
-
-No, Dan did in 5c9d2d5c269c4.
-
-> But, one of the ways that we keep pkeys from causing these kinds of
-> repeating loops when interacting with other things is this hunk in the
-> page fault code:
+> yes
 > 
-> > static inline int
-> > access_error(unsigned long error_code, struct vm_area_struct *vma)
-> > {
-> ...
-> >         /*
-> >          * Read or write was blocked by protection keys.  This is
-> >          * always an unconditional error and can never result in
-> >          * a follow-up action to resolve the fault, like a COW.
-> >          */
-> >         if (error_code & PF_PK)
-> >                 return 1;
+> [...]
 > 
-> That short-circuits the page fault pretty quickly.  So, basically, the
-> rule is: if the hardware says you tripped over pkey permissions, you
-> die.  We don't try to do anything to the underlying page *before* saying
-> that you die.
+>> In the previous version of this patch, I asked about handling of 'free' huge
+>> pages.  I did a little digging and IIUC, we do not attempt migration of
+>> free huge pages.  The routine isolate_huge_page() has this check:
+>>
+>>         if (!page_huge_active(page) || !get_page_unless_zero(page)) {
+>>                 ret = false;
+>>                 goto unlock;
+>>         }
+>>
+>> I believe one of your motivations for this effort was memory offlining.
+>> So, this implies that a memory area can not be offlined if it contains
+>> a free (not in use) huge page?
+> 
+> do_migrate_range will ignore this free huge page and then we will free
+> it up in dissolve_free_huge_pages
+> 
+>> Just FYI and may be something we want to address later.
+> 
+> Maybe yes. The free pool might be reserved which would make
+> dissolve_free_huge_pages to fail. Maybe we can be more clever and
+> allocate a new huge page in that case.
 
-That only works when you trip the fault from hardware. Not if you do a
-software fault using gup().
+Don't think we need to try and do anything more clever right now.  I was
+just a little confused about the hot plug code.  Thanks for the explanation.
 
-AFAIK __get_user_pages(FOLL_FORCE|FOLL_WRITE|FOLL_GET) will loop
-indefinitely on the case I described.
+-- 
+Mike Kravetz
+
+>  
+>> My other issues were addressed.
+>>
+>> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+> 
+> Thanks!
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
