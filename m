@@ -1,75 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1762C6B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:37:50 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id c18so8467159itd.8
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:37:50 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 193si2815921iou.68.2017.12.14.06.37.48
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 04FA46B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:54:48 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id m6so3359424wrf.1
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:54:47 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q3sor2102878wrd.74.2017.12.14.06.54.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 06:37:48 -0800 (PST)
-Date: Thu, 14 Dec 2017 15:37:30 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
-Message-ID: <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
-References: <20171214112726.742649793@infradead.org>
- <20171214113851.146259969@infradead.org>
- <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
+        (Google Transport Security);
+        Thu, 14 Dec 2017 06:54:46 -0800 (PST)
+Date: Thu, 14 Dec 2017 14:54:43 +0000
+From: Edward Napierala <trasz@freebsd.org>
+Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171214145443.GA2202@brick>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
+ <CAFLM3-oANXKEU=tuurSJx9rdzfWGfym-0FUEWnfBq8mOaVMzOA@mail.gmail.com>
+ <20171214131526.GM16951@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
+In-Reply-To: <20171214131526.GM16951@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, tglx@linutronix.de
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, jasone@google.com, davidtgoldblatt@gmail.com
 
-On Thu, Dec 14, 2017 at 01:41:17PM +0100, Peter Zijlstra wrote:
-> On Thu, Dec 14, 2017 at 12:27:27PM +0100, Peter Zijlstra wrote:
-> > The gup_*_range() functions which implement __get_user_pages_fast() do
-> > a p*_access_permitted() test to see if the memory is at all accessible
-> > (tests both _PAGE_USER|_PAGE_RW as well as architectural things like
-> > pkeys).
+On 1214T1415, Michal Hocko wrote:
+> On Thu 14-12-17 12:44:17, Edward Napierala wrote:
+> > Regarding the name - how about adopting MAP_EXCL?  It was introduced in
+> > FreeBSD,
+> > and seems to do exactly this; quoting mmap(2):
 > > 
-> > But the follow_*() functions which implement __get_user_pages() do not
-> > have this test. Recently, commit:
-> > 
-> >   5c9d2d5c269c ("mm: replace pte_write with pte_access_permitted in fault + gup paths")
-> > 
-> > added it to a few specific write paths, but it failed to consistently
-> > apply it (I've not audited anything outside of gup).
-> > 
-> > Revert the change from that patch and insert the tests in the right
-> > locations such that they cover all READ / WRITE accesses for all
-> > pte/pmd/pud levels.
-> > 
-> > In particular I care about the _PAGE_USER test, we should not ever,
-> > allow access to pages not marked with it, but it also makes the pkey
-> > accesses more consistent.
+> > MAP_FIXED    Do not permit the system to select a different address
+> >                         than the one specified.  If the specified address
+> >                         cannot be used, mmap() will fail.  If MAP_FIXED is
+> >                         specified, addr must be a multiple of the page size.
+> >                         If MAP_EXCL is not specified, a successful MAP_FIXED
+> >                         request replaces any previous mappings for the
+> >                         process' pages in the range from addr to addr + len.
+> >                         In contrast, if MAP_EXCL is specified, the request
+> >                         will fail if a mapping already exists within the
+> >                         range.
 > 
-> This should probably go on top. These are now all superfluous and
-> slightly wrong.
+> I am not familiar with the FreeBSD implementation but from the above it
+> looks like MAP_EXCL is a MAP_FIXED mofifier which is not how we are
+> going to implement it in linux due to reasons mentioned in this cover
+> letter. Using the same name would be more confusing than helpful I am
+> afraid.
 
-I also cannot explain dax_mapping_entry_mkclean(), why would we not make
-clean those pages that are not pkey writable (but clearly are writable
-and dirty)? That doesn't make any sense at all.
-
-Kirill did point out that my patch(es) break FOLL_DUMP in that it would
-now exclude pkey protected pages from core-dumps.
-
-My counter argument is that it will now properly exclude !_PAGE_USER
-pages.
-
-If we change p??_access_permitted() to pass the full follow flags
-instead of just the write part we could fix that.
-
-I'm also looking at pte_access_permitted() in handle_pte_fault(); that
-looks very dodgy to me. How does that not result in endlessly CoW'ing
-the same page over and over when we have a PKEY disallowing write access
-on that page?
-
-Bah... /me grumpy
+Sorry, missed that.  Indeed, reusing a name with a different semantics
+would be a bad idea.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
