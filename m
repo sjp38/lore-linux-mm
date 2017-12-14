@@ -1,135 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 994AB6B0261
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:30:44 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id b82so2581987wmd.5
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 05:30:44 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t9si3090580wmd.155.2017.12.14.05.30.42
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 21DA46B0261
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:30:45 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id c67so3436044qkj.19
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 05:30:45 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y196si3699555qky.74.2017.12.14.05.30.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Dec 2017 05:30:43 -0800 (PST)
-Date: Thu, 14 Dec 2017 14:30:41 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm: save/restore current->journal_info in handle_mm_fault
-Message-ID: <20171214133041.GO16951@dhcp22.suse.cz>
-References: <20171214105527.5885-1-zyan@redhat.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 05:30:44 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBEDT8Kn134682
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:30:44 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2eus24394b-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:30:43 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 14 Dec 2017 13:30:40 -0000
+Subject: Re: [PATCH V2] mm/mprotect: Add a cond_resched() inside
+ change_pmd_range()
+References: <20171214111426.25912-1-khandual@linux.vnet.ibm.com>
+ <20171214112928.GH16951@dhcp22.suse.cz>
+ <28e54a80-73d9-76aa-31d5-f71375f14b96@linux.vnet.ibm.com>
+ <20171214130435.GL16951@dhcp22.suse.cz>
+ <cc03168b-dd53-73e7-88fd-717eba6e6ce0@linux.vnet.ibm.com>
+ <20171214132753.GN16951@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 14 Dec 2017 19:00:36 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171214105527.5885-1-zyan@redhat.com>
+In-Reply-To: <20171214132753.GN16951@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <988a79ce-2803-85e7-d810-b4b2d4ba6b26@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Yan, Zheng" <zyan@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, ceph-devel@vger.kernel.org, linux-ext4@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org, viro@zeniv.linux.org.uk, jlayton@redhat.com, stable@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, akpm@linux-foundation.org
 
-On Thu 14-12-17 18:55:27, Yan, Zheng wrote:
-> We recently got an Oops report:
+On 12/14/2017 06:57 PM, Michal Hocko wrote:
+> On Thu 14-12-17 18:50:41, Anshuman Khandual wrote:
+>> On 12/14/2017 06:34 PM, Michal Hocko wrote:
+>>> On Thu 14-12-17 18:25:54, Anshuman Khandual wrote:
+>>>> On 12/14/2017 04:59 PM, Michal Hocko wrote:
+>>>>> On Thu 14-12-17 16:44:26, Anshuman Khandual wrote:
+>>>>>> diff --git a/mm/mprotect.c b/mm/mprotect.c
+>>>>>> index ec39f73..43c29fa 100644
+>>>>>> --- a/mm/mprotect.c
+>>>>>> +++ b/mm/mprotect.c
+>>>>>> @@ -196,6 +196,7 @@ static inline unsigned long change_pmd_range(struct vm_area_struct *vma,
+>>>>>>  		this_pages = change_pte_range(vma, pmd, addr, next, newprot,
+>>>>>>  				 dirty_accountable, prot_numa);
+>>>>>>  		pages += this_pages;
+>>>>>> +		cond_resched();
+>>>>>>  	} while (pmd++, addr = next, addr != end);
+>>>>>>  
+>>>>>>  	if (mni_start)
+>>>>> this is not exactly what I meant. See how change_huge_pmd does continue.
+>>>>> That's why I mentioned zap_pmd_range which does goto next...
+>>>> I might be still missing something but is this what you meant ?
+>>> yes, except
+>>>
+>>>> Here we will give cond_resched() cover to the THP backed pages
+>>>> as well.
+>>> but there is still 
+>>> 		if (!is_swap_pmd(*pmd) && !pmd_trans_huge(*pmd) && !pmd_devmap(*pmd)
+>>> 				&& pmd_none_or_clear_bad(pmd))
+>>> 			continue;
+>>>
+>>> so we won't have scheduling point on pmd holes. Maybe this doesn't
+>>> matter, I haven't checked but why should we handle those differently?
+>>
+>> May be because it is not spending much time for those entries which
+>> can really trigger stalls, hence they dont need scheduling points.
+>> In case of zap_pmd_range(), it was spending time either in
+>> __split_huge_pmd() or zap_huge_pmd() hence deserved a scheduling point.
 > 
-> BUG: unable to handle kernel NULL pointer dereference at (null)
-> IP: jbd2__journal_start+0x38/0x1a2
-> [...]
-> Call Trace:
->   ext4_page_mkwrite+0x307/0x52b
->   _ext4_get_block+0xd8/0xd8
->   do_page_mkwrite+0x6e/0xd8
->   handle_mm_fault+0x686/0xf9b
->   mntput_no_expire+0x1f/0x21e
->   __do_page_fault+0x21d/0x465
->   dput+0x4a/0x2f7
->   page_fault+0x22/0x30
->   copy_user_generic_string+0x2c/0x40
->   copy_page_to_iter+0x8c/0x2b8
->   generic_file_read_iter+0x26e/0x845
->   timerqueue_del+0x31/0x90
->   ceph_read_iter+0x697/0xa33 [ceph]
->   hrtimer_cancel+0x23/0x41
->   futex_wait+0x1c8/0x24d
->   get_futex_key+0x32c/0x39a
->   __vfs_read+0xe0/0x130
->   vfs_read.part.1+0x6c/0x123
->   handle_mm_fault+0x831/0xf9b
->   __fget+0x7e/0xbf
->   SyS_read+0x4d/0xb5
-> 
-> ceph_read_iter() uses current->journal_info to pass context info to
-> ceph_readpages(). Because ceph_readpages() needs to know if its caller
-> has already gotten capability of using page cache (distinguish read
-> from readahead/fadvise). ceph_read_iter() set current->journal_info,
-> then calls generic_file_read_iter().
-> 
-> In above Oops, page fault happened when copying data to userspace.
-> Page fault handler called ext4_page_mkwrite(). Ext4 code read
-> current->journal_info and assumed it is journal handle.
-> 
-> I checked other filesystems, btrfs probably suffers similar problem
-> for its readpage. (page fault happens when write() copies data from
-> userspace memory and the memory is mapped to a file in btrfs.
-> verify_parent_transid() can be called during readpage)
-> 
-> Cc: stable@vger.kernel.org
-> Signed-off-by: "Yan, Zheng" <zyan@redhat.com>
+> As I've said, I haven't thought much about that but the discrepancy just
+> hit my eyes. So if there is not a really good reason I would rather use
+> goto next consistently.
 
-I am not an FS expert so (ab)using journal_info for unrelated purposes
-might be acceptable in general but hooking into the generic PF path like
-this is just too ugly to live. Can this be limited to a FS code so that
-not everybody has to pay additional cycles? With a big fat warning that
-(ab)users might want to find a better way to comunicate their internal
-stuff.
-
-> ---
->  mm/memory.c | 14 ++++++++++++++
->  1 file changed, 14 insertions(+)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index a728bed16c20..db2a50233c49 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -4044,6 +4044,7 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  		unsigned int flags)
->  {
->  	int ret;
-> +	void *old_journal_info;
->  
->  	__set_current_state(TASK_RUNNING);
->  
-> @@ -4065,11 +4066,24 @@ int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  	if (flags & FAULT_FLAG_USER)
->  		mem_cgroup_oom_enable();
->  
-> +	/*
-> +	 * Fault can happen when filesystem A's read_iter()/write_iter()
-> +	 * copies data to/from userspace. Filesystem A may have set
-> +	 * current->journal_info. If the userspace memory is MAP_SHARED
-> +	 * mapped to a file in filesystem B, we later may call filesystem
-> +	 * B's vm operation. Filesystem B may also want to read/set
-> +	 * current->journal_info.
-> +	 */
-> +	old_journal_info = current->journal_info;
-> +	current->journal_info = NULL;
-> +
->  	if (unlikely(is_vm_hugetlb_page(vma)))
->  		ret = hugetlb_fault(vma->vm_mm, vma, address, flags);
->  	else
->  		ret = __handle_mm_fault(vma, address, flags);
->  
-> +	current->journal_info = old_journal_info;
-> +
->  	if (flags & FAULT_FLAG_USER) {
->  		mem_cgroup_oom_disable();
->  		/*
-> -- 
-> 2.13.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
--- 
-Michal Hocko
-SUSE Labs
+Sure, will respin with the changes.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
