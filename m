@@ -1,80 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 572826B0069
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:06:12 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id w22so4218582pge.10
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:06:12 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z64si3328910pfa.207.2017.12.14.06.06.10
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC1636B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 09:12:45 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id y62so4808384pfd.3
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:12:45 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id o3si3187912pld.695.2017.12.14.06.12.44
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Dec 2017 06:06:11 -0800 (PST)
-Date: Thu, 14 Dec 2017 15:06:08 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH resend] mm/page_alloc: fix comment is __get_free_pages
-Message-ID: <20171214140608.GQ16951@dhcp22.suse.cz>
-References: <1511780964-64864-1-git-send-email-chenjiankang1@huawei.com>
- <20171127113341.ldx32qvexqe2224d@dhcp22.suse.cz>
- <20171129160446.jluzpv3n6mjc3fwv@dhcp22.suse.cz>
- <20171129134159.c9100ea6dacad870d69929b7@linux-foundation.org>
- <20171130065335.zno7peunnl2zpozq@dhcp22.suse.cz>
- <20171130131706.0550cd28ce47aaa976f7db2a@linux-foundation.org>
- <20171201072414.3kc3pbvdbqbxhnfx@dhcp22.suse.cz>
- <20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 06:12:44 -0800 (PST)
+Date: Thu, 14 Dec 2017 06:12:40 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: d1fc031747 ("sched/wait: assert the wait_queue_head lock is
+ .."):  EIP: __wake_up_common
+Message-ID: <20171214141240.GD30288@bombadil.infradead.org>
+References: <5a31cac7.i9WLKx5al8+rBn73%fengguang.wu@intel.com>
+ <20171213170300.b0bb26900dd00641819b4872@linux-foundation.org>
+ <20171214125809.GB30288@bombadil.infradead.org>
+ <20171214131037.GD10791@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201111845.iyoua7hhjodpuvoy@dhcp22.suse.cz>
+In-Reply-To: <20171214131037.GD10791@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: JianKang Chen <chenjiankang1@huawei.com>, mgorman@techsingularity.net, hannes@cmpxchg.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, xieyisheng1@huawei.com, guohanjun@huawei.com, wangkefeng.wang@huawei.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, kernel test robot <fengguang.wu@intel.com>, LKP <lkp@01.org>, linux-kernel@vger.kernel.org, Linux Memory Management List <linux-mm@kvack.org>, wfg@linux.intel.com, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Fri 01-12-17 12:18:45, Michal Hocko wrote:
-> On Fri 01-12-17 08:24:14, Michal Hocko wrote:
-> > On Thu 30-11-17 13:17:06, Andrew Morton wrote:
-> > > On Thu, 30 Nov 2017 07:53:35 +0100 Michal Hocko <mhocko@kernel.org> wrote:
-> > > 
-> > > > > mm...  So we have a caller which hopes to be getting highmem pages but
-> > > > > isn't.  Caller then proceeds to pointlessly kmap the page and wonders
-> > > > > why it isn't getting as much memory as it would like on 32-bit systems,
-> > > > > etc.
-> > > > 
-> > > > How he can kmap the page when he gets a _virtual_ address?
-> > > 
-> > > doh.
-> > > 
-> > > > > I do think we should help ferret out such bogosity.  A WARN_ON_ONCE
-> > > > > would suffice.
-> > > > 
-> > > > This function has always been about lowmem pages. I seriously doubt we
-> > > > have anybody confused and asking for a highmem page in the kernel. I
-> > > > haven't checked that but it would already blow up as VM_BUG_ON tends to
-> > > > be enabled on many setups.
-> > > 
-> > > OK.  But silently accepting __GFP_HIGHMEM is a bit weird - callers
-> > > shouldn't be doing that in the first place.
+On Thu, Dec 14, 2017 at 02:10:37PM +0100, Christoph Hellwig wrote:
+> On Thu, Dec 14, 2017 at 04:58:09AM -0800, Matthew Wilcox wrote:
+> > Looks pretty clear to me that userfaultfd is also abusing the wake_up_locked
+> > interfaces:
 > > 
-> > Yes, they shouldn't be.
+> >         spin_lock(&ctx->fault_pending_wqh.lock);
+> >         __wake_up_locked_key(&ctx->fault_pending_wqh, TASK_NORMAL, &range);
+> >         __wake_up_locked_key(&ctx->fault_wqh, TASK_NORMAL, &range);
+> >         spin_unlock(&ctx->fault_pending_wqh.lock);
 > > 
-> > > I wonder what happens if we just remove the WARN_ON and pass any
-> > > __GFP_HIGHMEM straight through.  The caller gets a weird address from
-> > > page_to_virt(highmem page) and usually goes splat?  Good enough
-> > > treatment for something which never happens anyway?
+> > Sure, it's locked, but not by the lock you thought it was going to be.
 > > 
-> > page_address will return NULL so they will blow up and leak the freshly
-> > allocated memory.
+> > There doesn't actually appear to be a bug here; fault_wqh is always serialised
+> > by fault_pending_wqh.lock, but lockdep can't know that.  I think this patch
+> > will solve the problem.
 > 
-> let me be more specific. They will blow up and leak if the returned
-> address is not checked. If it is then we just leak. None of that sounds
-> good to me.
+> Or userfaultfd could just always use the waitqueue lock, similar to what
+> we are doing in epoll.
+> 
+> But unless someone care about micro-optimizatations I'm tempted to
+> add your patch to the next iteration of the series.
 
-So do we care and I will resend the patch in that case or I just drop
-this from my patch queue?
+userfaultfd is using the waitqueue lock -- it just has two waitqueues
+that it's protecting with the same lock.
 
--- 
-Michal Hocko
-SUSE Labs
+If the patch goes through as-is, try this changelog:
+
+[PATCH] userfaultfd: Use fault_wqh lock
+
+userfaultfd was using the fault_pending_wq lock to protect both
+fault_pending_wq and fault_wqh.  With Christoph's addition of a lockdep
+assert to the wait queue code, that will trigger warnings (although there
+is no bug).  Remove the warning by using __wake_up which will take the
+fault_wqh lock.  This lock now nests inside the fault_pending_wqh lock,
+but that's not a problem since it was entireyl unused before.
+
+Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
