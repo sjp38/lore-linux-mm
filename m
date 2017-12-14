@@ -1,179 +1,115 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 96C1F6B0268
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3F366B026C
 	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:43:42 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id c33so7895787itf.8
+Received: by mail-it0-f70.google.com with SMTP id 14so7679397itm.6
         for <linux-mm@kvack.org>; Thu, 14 Dec 2017 03:43:42 -0800 (PST)
 Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id 71si3434711itt.113.2017.12.14.03.43.41
+        by mx.google.com with ESMTPS id u10si3187558ita.114.2017.12.14.03.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 03:43:41 -0800 (PST)
-Message-Id: <20171214113851.299024297@infradead.org>
-Date: Thu, 14 Dec 2017 12:27:30 +0100
+        Thu, 14 Dec 2017 03:43:42 -0800 (PST)
+Message-Id: <20171214113851.498681375@infradead.org>
+Date: Thu, 14 Dec 2017 12:27:34 +0100
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH v2 04/17] x86/ldt: Rework locking
+Subject: [PATCH v2 08/17] mm/x86: Allow special mappings with user access cleared
 References: <20171214112726.742649793@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=x86-ldt--Rework-locking.patch
+Content-Disposition: inline; filename=mm--Allow-special-mappings-with-user-access-cleared.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, tglx@linutronix.de
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-From: Thomas Gleixner <tglx@linutronix.de>
+From: Peter Zijstra <peterz@infradead.org>
 
-The LDT is duplicated on fork() and on exec(), which is wrong as exec()
-should start from a clean state, i.e. without LDT. To fix this the LDT
-duplication code will be moved into arch_dup_mmap() which is only called
-for fork().
+In order to create VMAs that are not accessible to userspace create a new
+VM_NOUSER flag. This can be used in conjunction with
+install_special_mapping() to inject 'kernel' data into the userspace map.
 
-This introduces a locking problem. arch_dup_mmap() holds mmap_sem of the
-parent process, but the LDT duplication code needs to acquire
-mm->context.lock to access the LDT data safely, which is the reverse lock
-order of write_ldt() where mmap_sem nests into context.lock.
+Similar to how arch_vm_get_page_prot() allows adding _PAGE_flags to
+pgprot_t, introduce arch_vm_get_page_prot_excl() which masks
+_PAGE_flags from pgprot_t and use this to implement VM_NOUSER for x86.
 
-Solve this by introducing a new rw semaphore which serializes the
-read/write_ldt() syscall operations and use context.lock to protect the
-actual installment of the LDT descriptor.
+get_user_page() will allow things like FOLL_POPULATE but will fail
+FOLL_GET (with or without FOLL_WRITE).
 
-So context.lock stabilizes mm->context.ldt and can nest inside of the new
-semaphore or mmap_sem.
-
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Peter Zijstra <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/x86/include/asm/mmu.h         |    4 +++-
- arch/x86/include/asm/mmu_context.h |    2 ++
- arch/x86/kernel/ldt.c              |   33 +++++++++++++++++++++------------
- 3 files changed, 26 insertions(+), 13 deletions(-)
+ arch/x86/include/uapi/asm/mman.h |    4 ++++
+ include/linux/mm.h               |    2 ++
+ include/linux/mman.h             |    4 ++++
+ mm/mmap.c                        |   12 ++++++++++--
+ 4 files changed, 20 insertions(+), 2 deletions(-)
 
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -3,6 +3,7 @@
- #define _ASM_X86_MMU_H
- 
- #include <linux/spinlock.h>
-+#include <linux/rwsem.h>
- #include <linux/mutex.h>
- #include <linux/atomic.h>
- 
-@@ -27,7 +28,8 @@ typedef struct {
- 	atomic64_t tlb_gen;
- 
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
--	struct ldt_struct *ldt;
-+	struct rw_semaphore	ldt_usr_sem;
-+	struct ldt_struct	*ldt;
+--- a/arch/x86/include/uapi/asm/mman.h
++++ b/arch/x86/include/uapi/asm/mman.h
+@@ -26,6 +26,10 @@
+ 		((key) & 0x8 ? VM_PKEY_BIT3 : 0))
  #endif
  
- #ifdef CONFIG_X86_64
---- a/arch/x86/include/asm/mmu_context.h
-+++ b/arch/x86/include/asm/mmu_context.h
-@@ -132,6 +132,8 @@ void enter_lazy_tlb(struct mm_struct *mm
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
-+	mutex_init(&mm->context.lock);
++#define arch_vm_get_page_prot_excl(vm_flags) __pgprot(		\
++		((vm_flags) & VM_NOUSER ? _PAGE_USER : 0)	\
++		)
 +
- 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
- 	atomic64_set(&mm->context.tlb_gen, 0);
+ #include <asm-generic/mman.h>
  
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -5,6 +5,11 @@
-  * Copyright (C) 2002 Andi Kleen
-  *
-  * This handles calls from both 32bit and 64bit mode.
-+ *
-+ * Lock order:
-+ *	contex.ldt_usr_sem
-+ *	  mmap_sem
-+ *	    context.lock
-  */
+ #endif /* _ASM_X86_MMAN_H */
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -193,6 +193,7 @@ extern unsigned int kobjsize(const void
+ #define VM_ARCH_1	0x01000000	/* Architecture-specific flag */
+ #define VM_WIPEONFORK	0x02000000	/* Wipe VMA contents in child. */
+ #define VM_DONTDUMP	0x04000000	/* Do not include in the core dump */
++#define VM_ARCH_0	0x08000000	/* Architecture-specific flag */
  
- #include <linux/errno.h>
-@@ -42,7 +47,7 @@ static void refresh_ldt_segments(void)
+ #define VM_MIXEDMAP	0x10000000	/* Can contain "struct page" and pure PFN pages */
+ #define VM_HUGEPAGE	0x20000000	/* MADV_HUGEPAGE marked this vma */
+@@ -224,6 +225,7 @@ extern unsigned int kobjsize(const void
  #endif
- }
  
--/* context.lock is held for us, so we don't need any locking. */
-+/* context.lock is held by the task which issued the smp function call */
- static void flush_ldt(void *__mm)
+ #if defined(CONFIG_X86)
++# define VM_NOUSER	VM_ARCH_0	/* Not accessible by userspace */
+ # define VM_PAT		VM_ARCH_1	/* PAT reserves whole VMA at once (x86) */
+ #if defined (CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS)
+ # define VM_PKEY_SHIFT	VM_HIGH_ARCH_BIT_0
+--- a/include/linux/mman.h
++++ b/include/linux/mman.h
+@@ -43,6 +43,10 @@ static inline void vm_unacct_memory(long
+ #define arch_vm_get_page_prot(vm_flags) __pgprot(0)
+ #endif
+ 
++#ifndef arch_vm_get_page_prot_excl
++#define arch_vm_get_page_prot_excl(vm_flags) __pgprot(0)
++#endif
++
+ #ifndef arch_validate_prot
+ /*
+  * This is called from mprotect().  PROT_GROWSDOWN and PROT_GROWSUP have
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -102,9 +102,17 @@ pgprot_t protection_map[16] __ro_after_i
+ 
+ pgprot_t vm_get_page_prot(unsigned long vm_flags)
  {
- 	struct mm_struct *mm = __mm;
-@@ -99,15 +104,17 @@ static void finalize_ldt_struct(struct l
- 	paravirt_alloc_ldt(ldt->entries, ldt->nr_entries);
- }
- 
--/* context.lock is held */
--static void install_ldt(struct mm_struct *current_mm,
--			struct ldt_struct *ldt)
-+static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)
- {
-+	mutex_lock(&mm->context.lock);
+-	return __pgprot(pgprot_val(protection_map[vm_flags &
+-				(VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)]) |
++	pgprot_t prot;
 +
- 	/* Synchronizes with READ_ONCE in load_mm_ldt. */
--	smp_store_release(&current_mm->context.ldt, ldt);
-+	smp_store_release(&mm->context.ldt, ldt);
- 
--	/* Activate the LDT for all CPUs using current_mm. */
--	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);
-+	/* Activate the LDT for all CPUs using currents mm. */
-+	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);
++	prot = protection_map[vm_flags & (VM_READ|VM_WRITE|VM_EXEC|VM_SHARED)];
 +
-+	mutex_unlock(&mm->context.lock);
- }
- 
- static void free_ldt_struct(struct ldt_struct *ldt)
-@@ -133,7 +140,8 @@ int init_new_context_ldt(struct task_str
- 	struct mm_struct *old_mm;
- 	int retval = 0;
- 
--	mutex_init(&mm->context.lock);
-+	init_rwsem(&mm->context.ldt_usr_sem);
++	prot = __pgprot(pgprot_val(prot) |
+ 			pgprot_val(arch_vm_get_page_prot(vm_flags)));
 +
- 	old_mm = current->mm;
- 	if (!old_mm) {
- 		mm->context.ldt = NULL;
-@@ -180,7 +188,7 @@ static int read_ldt(void __user *ptr, un
- 	unsigned long entries_size;
- 	int retval;
- 
--	mutex_lock(&mm->context.lock);
-+	down_read(&mm->context.ldt_usr_sem);
- 
- 	if (!mm->context.ldt) {
- 		retval = 0;
-@@ -209,7 +217,7 @@ static int read_ldt(void __user *ptr, un
- 	retval = bytecount;
- 
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_read(&mm->context.ldt_usr_sem);
- 	return retval;
++	prot = __pgprot(pgprot_val(prot) &
++			~pgprot_val(arch_vm_get_page_prot_excl(vm_flags)));
++
++	return prot;
  }
+ EXPORT_SYMBOL(vm_get_page_prot);
  
-@@ -269,7 +277,8 @@ static int write_ldt(void __user *ptr, u
- 			ldt.avl = 0;
- 	}
- 
--	mutex_lock(&mm->context.lock);
-+	if (down_write_killable(&mm->context.ldt_usr_sem))
-+		return -EINTR;
- 
- 	old_ldt       = mm->context.ldt;
- 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
-@@ -291,7 +300,7 @@ static int write_ldt(void __user *ptr, u
- 	error = 0;
- 
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_write(&mm->context.ldt_usr_sem);
- out:
- 	return error;
- }
 
 
 --
