@@ -1,72 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B97786B0033
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:19:21 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id l33so2875494wrl.5
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:19:21 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j16si2949662wme.109.2017.12.14.01.19.19
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7863E6B0069
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:19:24 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id k186so7138747ith.1
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:19:24 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t194sor2369073ita.60.2017.12.14.01.19.23
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Dec 2017 01:19:20 -0800 (PST)
-Date: Thu, 14 Dec 2017 10:19:17 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: mm/memcontrol.c:5364:1: warning: the frame size of 1032 bytes is
- larger than 1024 bytes [-Wframe-larger-than=]
-Message-ID: <20171214091917.GE16951@dhcp22.suse.cz>
-References: <a16d8181-3bb4-90cc-3c4b-ac44529494ed@molgen.mpg.de>
+        (Google Transport Security);
+        Thu, 14 Dec 2017 01:19:23 -0800 (PST)
+Date: Thu, 14 Dec 2017 01:19:20 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: Re: [patch 1/2] mm, mmu_notifier: annotate mmu notifiers with
+ blockable invalidate callbacks
+In-Reply-To: <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
+Message-ID: <alpine.DEB.2.10.1712140118160.260574@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com> <20171212200542.GJ5848@hpe.com> <alpine.DEB.2.10.1712121326280.134224@chino.kir.corp.google.com> <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <a16d8181-3bb4-90cc-3c4b-ac44529494ed@molgen.mpg.de>
+Content-Type: MULTIPART/MIXED; BOUNDARY="1113868975-822497440-1513243162=:260574"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Johannes Weiner <hannes@cmpxchg.org>, Paul Menzel <pmenzel+linux-cgroups@molgen.mpg.de>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, it+linux-cgroups@molgen.mpg.de
+To: =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
+Cc: Dimitri Sivanich <sivanich@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?Q?Radim_Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Thu 14-12-17 07:49:29, Paul Menzel wrote:
-> Dear Linux folks,
-> 
-> 
-> I enabled the undefined behavior sanitizer, and built Linusa?? master branch
-> under Ubuntu 17.10 with gcc (Ubuntu 7.2.0-8ubuntu3) 7.2.0.
-> 
-> ```
-> $ grep UBSAN /boot/config-4.15.0-rc3+
-> CONFIG_ARCH_HAS_UBSAN_SANITIZE_ALL=y
-> # CONFIG_ARCH_WANTS_UBSAN_NO_NULL is not set
-> CONFIG_UBSAN=y
-> CONFIG_UBSAN_SANITIZE_ALL=y
-> # CONFIG_UBSAN_ALIGNMENT is not set
-> CONFIG_UBSAN_NULL=y
-> ```
-> 
-> The warning below is shown when building Linux.
-> 
-> ```
-> $ git describe --tags
-> v4.15-rc3-37-gd39a01eff9af
-> $ git log --oneline -1
-> d39a01eff9af (HEAD -> master, origin/master, origin/HEAD) Merge tag
-> 'platform-drivers-x86-v4.15-3' of
-> git://git.infradead.org/linux-platform-drivers-x86
-> [a?|]
-> $ make -j
-> [a?|]
-> mm/memcontrol.c: In function a??memory_stat_showa??:
-> mm/memcontrol.c:5364:1: warning: the frame size of 1032 bytes is larger than
-> 1024 bytes [-Wframe-larger-than=]
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
 
-Interesting. My compiler does this
-$ scripts/stackusage mm/memcontrol.o
-$ grep memory_stat_show /tmp/stackusage.1405.RTP8
-./mm/memcontrol.c:5526  memory_stat_show        976     static
+--1113868975-822497440-1513243162=:260574
+Content-Type: TEXT/PLAIN; charset=UTF-8
+Content-Transfer-Encoding: 8BIT
 
-But this depends on the configuration because NR_VM_EVENT_ITEMS enables
-some counters depending on the config. The stack is really large but
-this is a function which is called from a shallow context wrt. stack so
-we should fit into a single page. One way we could do, though, is to
-make those large arrays static and use a internal lock around them.
-Something like the following. What do you think Johannes?
----
+On Wed, 13 Dec 2017, Christian KA?nig wrote:
+
+> > > > --- a/drivers/misc/sgi-gru/grutlbpurge.c
+> > > > +++ b/drivers/misc/sgi-gru/grutlbpurge.c
+> > > > @@ -298,6 +298,7 @@ struct gru_mm_struct
+> > > > *gru_register_mmu_notifier(void)
+> > > >   			return ERR_PTR(-ENOMEM);
+> > > >   		STAT(gms_alloc);
+> > > >   		spin_lock_init(&gms->ms_asid_lock);
+> > > > +		gms->ms_notifier.flags = 0;
+> > > >   		gms->ms_notifier.ops = &gru_mmuops;
+> > > >   		atomic_set(&gms->ms_refcnt, 1);
+> > > >   		init_waitqueue_head(&gms->ms_wait_queue);
+> > > > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> > > There is a kzalloc() just above this:
+> > > 	gms = kzalloc(sizeof(*gms), GFP_KERNEL);
+> > > 
+> > > Is that not sufficient to clear the 'flags' field?
+> > > 
+> > Absolutely, but whether it is better to explicitly document that the mmu
+> > notifier has cleared flags, i.e. there are no blockable callbacks, is
+> > another story.  I can change it if preferred.
+> 
+> Actually I would invert the new flag, in other words specify that an MMU
+> notifier will never sleep.
+> 
+
+Very good idea, I'll do that.  I'll also move the flags member to ops as 
+Paolo suggested.
+
+Thanks both!
+--1113868975-822497440-1513243162=:260574--
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
