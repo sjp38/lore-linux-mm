@@ -1,72 +1,179 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 84B046B026B
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 96C1F6B0268
 	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 06:43:42 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id x24so3984544pgv.5
+Received: by mail-it0-f69.google.com with SMTP id c33so7895787itf.8
         for <linux-mm@kvack.org>; Thu, 14 Dec 2017 03:43:42 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n69si3111867pfk.214.2017.12.14.03.43.34
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 71si3434711itt.113.2017.12.14.03.43.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 03:43:35 -0800 (PST)
-Message-Id: <20171214113851.747073137@infradead.org>
-Date: Thu, 14 Dec 2017 12:27:39 +0100
+        Thu, 14 Dec 2017 03:43:41 -0800 (PST)
+Message-Id: <20171214113851.299024297@infradead.org>
+Date: Thu, 14 Dec 2017 12:27:30 +0100
 From: Peter Zijlstra <peterz@infradead.org>
-Subject: [PATCH v2 13/17] x86/mm: Force LDT desc accessed bit
+Subject: [PATCH v2 04/17] x86/ldt: Rework locking
 References: <20171214112726.742649793@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=peterz-ldt-force-accessed.patch
+Content-Disposition: inline; filename=x86-ldt--Rework-locking.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org, tglx@linutronix.de
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-In preparation to mapping the LDT RO, unconditionally set the accessed
-bit.
+From: Thomas Gleixner <tglx@linutronix.de>
+
+The LDT is duplicated on fork() and on exec(), which is wrong as exec()
+should start from a clean state, i.e. without LDT. To fix this the LDT
+duplication code will be moved into arch_dup_mmap() which is only called
+for fork().
+
+This introduces a locking problem. arch_dup_mmap() holds mmap_sem of the
+parent process, but the LDT duplication code needs to acquire
+mm->context.lock to access the LDT data safely, which is the reverse lock
+order of write_ldt() where mmap_sem nests into context.lock.
+
+Solve this by introducing a new rw semaphore which serializes the
+read/write_ldt() syscall operations and use context.lock to protect the
+actual installment of the LDT descriptor.
+
+So context.lock stabilizes mm->context.ldt and can nest inside of the new
+semaphore or mmap_sem.
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 ---
- arch/x86/include/asm/desc.h |    5 +++++
- arch/x86/kernel/tls.c       |   11 ++---------
- 2 files changed, 7 insertions(+), 9 deletions(-)
+ arch/x86/include/asm/mmu.h         |    4 +++-
+ arch/x86/include/asm/mmu_context.h |    2 ++
+ arch/x86/kernel/ldt.c              |   33 +++++++++++++++++++++------------
+ 3 files changed, 26 insertions(+), 13 deletions(-)
 
---- a/arch/x86/include/asm/desc.h
-+++ b/arch/x86/include/asm/desc.h
-@@ -20,6 +20,11 @@ static inline void fill_ldt(struct desc_
+--- a/arch/x86/include/asm/mmu.h
++++ b/arch/x86/include/asm/mmu.h
+@@ -3,6 +3,7 @@
+ #define _ASM_X86_MMU_H
  
- 	desc->type		= (info->read_exec_only ^ 1) << 1;
- 	desc->type	       |= info->contents << 2;
-+	/*
-+	 * Always set the accessed bit so that the CPU
-+	 * doesn't try to write to the (read-only) GDT/LDT.
-+	 */
-+	desc->type             |= 1;
+ #include <linux/spinlock.h>
++#include <linux/rwsem.h>
+ #include <linux/mutex.h>
+ #include <linux/atomic.h>
  
- 	desc->s			= 1;
- 	desc->dpl		= 0x3;
---- a/arch/x86/kernel/tls.c
-+++ b/arch/x86/kernel/tls.c
-@@ -93,17 +93,10 @@ static void set_tls_desc(struct task_str
- 	cpu = get_cpu();
+@@ -27,7 +28,8 @@ typedef struct {
+ 	atomic64_t tlb_gen;
  
- 	while (n-- > 0) {
--		if (LDT_empty(info) || LDT_zero(info)) {
-+		if (LDT_empty(info) || LDT_zero(info))
- 			memset(desc, 0, sizeof(*desc));
--		} else {
-+		else
- 			fill_ldt(desc, info);
--
--			/*
--			 * Always set the accessed bit so that the CPU
--			 * doesn't try to write to the (read-only) GDT.
--			 */
--			desc->type |= 1;
--		}
- 		++info;
- 		++desc;
+ #ifdef CONFIG_MODIFY_LDT_SYSCALL
+-	struct ldt_struct *ldt;
++	struct rw_semaphore	ldt_usr_sem;
++	struct ldt_struct	*ldt;
+ #endif
+ 
+ #ifdef CONFIG_X86_64
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -132,6 +132,8 @@ void enter_lazy_tlb(struct mm_struct *mm
+ static inline int init_new_context(struct task_struct *tsk,
+ 				   struct mm_struct *mm)
+ {
++	mutex_init(&mm->context.lock);
++
+ 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	atomic64_set(&mm->context.tlb_gen, 0);
+ 
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -5,6 +5,11 @@
+  * Copyright (C) 2002 Andi Kleen
+  *
+  * This handles calls from both 32bit and 64bit mode.
++ *
++ * Lock order:
++ *	contex.ldt_usr_sem
++ *	  mmap_sem
++ *	    context.lock
+  */
+ 
+ #include <linux/errno.h>
+@@ -42,7 +47,7 @@ static void refresh_ldt_segments(void)
+ #endif
+ }
+ 
+-/* context.lock is held for us, so we don't need any locking. */
++/* context.lock is held by the task which issued the smp function call */
+ static void flush_ldt(void *__mm)
+ {
+ 	struct mm_struct *mm = __mm;
+@@ -99,15 +104,17 @@ static void finalize_ldt_struct(struct l
+ 	paravirt_alloc_ldt(ldt->entries, ldt->nr_entries);
+ }
+ 
+-/* context.lock is held */
+-static void install_ldt(struct mm_struct *current_mm,
+-			struct ldt_struct *ldt)
++static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)
+ {
++	mutex_lock(&mm->context.lock);
++
+ 	/* Synchronizes with READ_ONCE in load_mm_ldt. */
+-	smp_store_release(&current_mm->context.ldt, ldt);
++	smp_store_release(&mm->context.ldt, ldt);
+ 
+-	/* Activate the LDT for all CPUs using current_mm. */
+-	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);
++	/* Activate the LDT for all CPUs using currents mm. */
++	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);
++
++	mutex_unlock(&mm->context.lock);
+ }
+ 
+ static void free_ldt_struct(struct ldt_struct *ldt)
+@@ -133,7 +140,8 @@ int init_new_context_ldt(struct task_str
+ 	struct mm_struct *old_mm;
+ 	int retval = 0;
+ 
+-	mutex_init(&mm->context.lock);
++	init_rwsem(&mm->context.ldt_usr_sem);
++
+ 	old_mm = current->mm;
+ 	if (!old_mm) {
+ 		mm->context.ldt = NULL;
+@@ -180,7 +188,7 @@ static int read_ldt(void __user *ptr, un
+ 	unsigned long entries_size;
+ 	int retval;
+ 
+-	mutex_lock(&mm->context.lock);
++	down_read(&mm->context.ldt_usr_sem);
+ 
+ 	if (!mm->context.ldt) {
+ 		retval = 0;
+@@ -209,7 +217,7 @@ static int read_ldt(void __user *ptr, un
+ 	retval = bytecount;
+ 
+ out_unlock:
+-	mutex_unlock(&mm->context.lock);
++	up_read(&mm->context.ldt_usr_sem);
+ 	return retval;
+ }
+ 
+@@ -269,7 +277,8 @@ static int write_ldt(void __user *ptr, u
+ 			ldt.avl = 0;
  	}
+ 
+-	mutex_lock(&mm->context.lock);
++	if (down_write_killable(&mm->context.ldt_usr_sem))
++		return -EINTR;
+ 
+ 	old_ldt       = mm->context.ldt;
+ 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
+@@ -291,7 +300,7 @@ static int write_ldt(void __user *ptr, u
+ 	error = 0;
+ 
+ out_unlock:
+-	mutex_unlock(&mm->context.lock);
++	up_write(&mm->context.ldt_usr_sem);
+ out:
+ 	return error;
+ }
 
 
 --
