@@ -1,151 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 98D396B0253
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:02:02 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id q62so1117633lfg.5
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:02:02 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t3sor600462lfd.1.2017.12.13.21.02.00
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F8AB6B0253
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:30 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id w5so3198496pgt.4
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:10:30 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id 59si654496ple.24.2017.12.13.21.10.28
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 21:02:00 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171213104617.7lffucjhaa6xb7lp@gmail.com>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171213104617.7lffucjhaa6xb7lp@gmail.com>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Thu, 14 Dec 2017 14:01:59 +0900
-Message-ID: <CANrsvRPuhPyh1nFnzdYj8ph7e1FQRw_W_WN2a1tm9fzpAYks4g@mail.gmail.com>
-Subject: Re: [PATCH] locking/lockdep: Remove the cross-release locking checks
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 13 Dec 2017 21:10:28 -0800 (PST)
+Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBE58s69066081
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:28 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2euf58quj3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:27 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 14 Dec 2017 05:10:26 -0000
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Subject: [PATCH] mm/mprotect: Add a cond_resched() inside change_pte_range()
+Date: Thu, 14 Dec 2017 10:40:21 +0530
+Message-Id: <20171214051021.20880-1-khandual@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, david@fromorbit.com, Theodore Ts'o <tytso@mit.edu>, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Cc: akpm@linux-foundation.org, mhocko@suse.com
 
-On Wed, Dec 13, 2017 at 7:46 PM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Byungchul Park <max.byungchul.park@gmail.com> wrote:
->
->> Lockdep works, based on the following:
->>
->>    (1) Classifying locks properly
->>    (2) Checking relationship between the classes
->>
->> If (1) is not good or (2) is not good, then we
->> might get false positives.
->>
->> For (1), we don't have to classify locks 100%
->> properly but need as enough as lockdep works.
->>
->> For (2), we should have a mechanism w/o
->> logical defects.
->>
->> Cross-release added an additional capacity to
->> (2) and requires (1) to get more precisely classified.
->>
->> Since the current classification level is too low for
->> cross-release to work, false positives are being
->> reported frequently with enabling cross-release.
->> Yes. It's a obvious problem. It needs to be off by
->> default until the classification is done by the level
->> that cross-release requires.
->>
->> But, the logic (2) is valid and logically true. Please
->> keep the code, mechanism, and logic.
->
-> Just to give a full context to everyone: the patch that removes the cross-release
-> locking checks was Cc:-ed to lkml, I've attached the patch below again.
->
-> In general, as described in the changelog, the cross-release checks were
-> historically just too painful (first they were too slow, and they also had a lot
-> of false positives), and today, 4 months after its introduction, the cross-release
-> checks *still* produce numerous false positives, especially in the filesystem
-> space, but the continuous-integration testing folks were still having trouble with
-> kthread locking patterns causing false positives:
+While testing on a large CPU system, detected the following RCU
+stall many times over the span of the workload. This problem
+is solved by adding a cond_resched() in the change_pte_range()
+function.
 
-I admit false positives are the main problem, that should be solved.
+[  850.962530] INFO: rcu_sched detected stalls on CPUs/tasks:
+[  850.962584]  154-....: (670 ticks this GP) idle=022/140000000000000/0 softirq=2825/2825 fqs=612
+[  850.962605]  (detected by 955, t=6002 jiffies, g=4486, c=4485, q=90864)
+[  850.962895] Sending NMI from CPU 955 to CPUs 154:
+[  850.992667] NMI backtrace for cpu 154
+[  850.993069] CPU: 154 PID: 147071 Comm: workload Not tainted 4.15.0-rc3+ #3
+[  850.993258] NIP:  c0000000000b3f64 LR: c0000000000b33d4 CTR: 000000000000aa18
+[  850.993503] REGS: 00000000a4b0fb44 TRAP: 0501   Not tainted  (4.15.0-rc3+)
+[  850.993707] MSR:  8000000000009033 <SF,EE,ME,IR,DR,RI,LE>  CR: 22422082  XER: 00000000
+[  850.994386] CFAR: 00000000006cf8f0 SOFTE: 1
+GPR00: 0010000000000000 c00003ef9b1cb8c0 c0000000010cc600 0000000000000000
+GPR04: 8e0000018c32b200 40017b3858fd6e00 8e0000018c32b208 40017b3858fd6e00
+GPR08: 8e0000018c32b210 40017b3858fd6e00 8e0000018c32b218 40017b3858fd6e00
+GPR12: ffffffffffffffff c00000000fb25100
+[  850.995976] NIP [c0000000000b3f64] plpar_hcall9+0x44/0x7c
+[  850.996174] LR [c0000000000b33d4] pSeries_lpar_flush_hash_range+0x384/0x420
+[  850.996401] Call Trace:
+[  850.996600] [c00003ef9b1cb8c0] [c00003fa8fff7d40] 0xc00003fa8fff7d40 (unreliable)
+[  850.996959] [c00003ef9b1cba40] [c0000000000688a8] flush_hash_range+0x48/0x100
+[  850.997261] [c00003ef9b1cba90] [c000000000071b14] __flush_tlb_pending+0x44/0xd0
+[  850.997600] [c00003ef9b1cbac0] [c000000000071fa8] hpte_need_flush+0x408/0x470
+[  850.997958] [c00003ef9b1cbb30] [c0000000002c646c] change_protection_range+0xaac/0xf10
+[  850.998180] [c00003ef9b1cbcb0] [c0000000002f2510] change_prot_numa+0x30/0xb0
+[  850.998502] [c00003ef9b1cbce0] [c00000000013a950] task_numa_work+0x2d0/0x3e0
+[  850.998816] [c00003ef9b1cbda0] [c00000000011ea30] task_work_run+0x130/0x190
+[  850.999121] [c00003ef9b1cbe00] [c00000000001bcd8] do_notify_resume+0x118/0x120
+[  850.999421] [c00003ef9b1cbe30] [c00000000000b744] ret_from_except_lite+0x70/0x74
+[  850.999716] Instruction dump:
+[  850.999959] 60000000 f8810028 7ca42b78 7cc53378 7ce63b78 7d074378 7d284b78 7d495378
+[  851.000575] e9410060 e9610068 e9810070 44000022 <7d806378> e9810028 f88c0000 f8ac0008
 
-I'm going willingly to try my best to solve that. However, as you may
-know through introduction of lockdep, it's not something that I can
-do easily and shortly on my own. It need take time to annotate
-properly to avoid false positives.
+Suggested-by: Nicholas Piggin <npiggin@gmail.com>
+Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+---
+ mm/mprotect.c | 1 +
+ 1 file changed, 1 insertion(+)
 
->   https://bugs.freedesktop.org/show_bug.cgi?id=103950
->
-> which were resulting in two bad reactions:
->
->  - turning off lockdep
->
->  - writing patches that uglified unrelated subsystems
-
-I can't give you a solution at the moment but it's something we
-think more so that we classify locks properly and not uglify them.
-
-Even without cross-release, once we start to add lock_acquire() in
-submit_bio_wait() in the ugly way to consider wait_for_completion()
-someday, we would face this problem again. It's not an easy problem,
-however, it's worth trying.
-
-> So while I appreciate the fixes that resulted from running cross-release, there's
-> still numerous false positives, months after its interaction, which is
-> unacceptable. For us to have this feature it has to have roughly similar qualities
-> as compiler warnings:
->
->  - there's a "zero false positive warnings" policy
-
-It's almost impossible... but need time. I wonder if lockdep did at the
-beginning. If I can, I want to fix false positive as many as possible by
-myself. But, unluckily it does not happen in my machine. I want to get
-informed from others, keeping it in mainline tree.
-
->  - plus any widespread changes to avoid warnings has to improve the code,
->    not make it uglier.
-
-Agree.
-
-> Lockdep itself is a following that policy: the default state is that it produces
-> no warnings upstream, and any annotations added to unrelated code documents the
-> locking hierarchies.
->
-> While technically we could keep the cross-release checking code upstream and turn
-> it off by default via the Kconfig switch, I'm not a big believer in such a policy
-> for complex debugging code:
->
->  - We already did that for v4.14, two months ago:
->
->      b483cf3bc249: locking/lockdep: Disable cross-release features for now
-
-The main reason disabling it was "performance regression".
-
->
->    ... and re-enabled it for v4.15 - but the false positives are still not fixed.
-
-Right. But, all false positives cannot be fixed in a short period. We need
-time to annotate them one by one.
-
->  - either the cross-release checking code can be fixed and then having it off by
-
-It's not a problem of cross-release checking code. The way I have to fix it
-should be to add additional annotation or change the way to assign lock
-classes.
-
->    default is just wrong, because we can apply the fixed code again once it's
->    fixed.
->
->  - or it cannot be fixed (or we don't have the manpower/interest to fix it),
->    in which case having it off is only delaying the inevitable.
-
-The more precisely assigning lock classes, the more false positives
-would be getting fixed. It's not something messing it as time goes.
-
-> In any case, for v4.15 it's clear that the false positives are too numerous.
->
-> Thanks,
->
->         Ingo
->
->
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ec39f73..4fce0f5 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -144,6 +144,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+ 	} while (pte++, addr += PAGE_SIZE, addr != end);
+ 	arch_leave_lazy_mmu_mode();
+ 	pte_unmap_unlock(pte - 1, ptl);
++	cond_resched();
+ 
+ 	return pages;
+ }
+-- 
+2.9.3
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
