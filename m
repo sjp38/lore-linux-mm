@@ -1,144 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5219E6B0253
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:32:15 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id a45so2246001wra.14
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:32:15 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k186si2239637wma.21.2017.12.13.16.32.13
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DCB746B0038
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:33:21 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so1871918wmd.0
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:33:21 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r1sor2025987edc.30.2017.12.13.16.33.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 16:32:13 -0800 (PST)
-Date: Wed, 13 Dec 2017 16:32:10 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
-Message-Id: <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
-In-Reply-To: <20171213092550.2774-1-mhocko@kernel.org>
-References: <20171213092550.2774-1-mhocko@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Wed, 13 Dec 2017 16:33:20 -0800 (PST)
+Date: Thu, 14 Dec 2017 03:33:18 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv4 09/12] x86/mm: Provide pmdp_establish() helper
+Message-ID: <20171214003318.xli42qgybplln754@node.shutemov.name>
+References: <20171213105756.69879-1-kirill.shutemov@linux.intel.com>
+ <20171213105756.69879-10-kirill.shutemov@linux.intel.com>
+ <20171213160951.249071f2aecdccb38b6bb646@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171213160951.249071f2aecdccb38b6bb646@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>, jasone@google.com, davidtgoldblatt@gmail.com, trasz@FreeBSD.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Vlastimil Babka <vbabka@suse.cz>, Andrea Arcangeli <aarcange@redhat.com>, Michal Hocko <mhocko@kernel.org>, linux-arch@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, "H . Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Wed, 13 Dec 2017 10:25:48 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+On Wed, Dec 13, 2017 at 04:09:51PM -0800, Andrew Morton wrote:
+> > @@ -181,6 +182,40 @@ static inline pmd_t native_pmdp_get_and_clear(pmd_t *pmdp)
+> >  #define native_pmdp_get_and_clear(xp) native_local_pmdp_get_and_clear(xp)
+> >  #endif
+> >  
+> > +#ifndef pmdp_establish
+> > +#define pmdp_establish pmdp_establish
+> > +static inline pmd_t pmdp_establish(struct vm_area_struct *vma,
+> > +		unsigned long address, pmd_t *pmdp, pmd_t pmd)
+> > +{
+> > +	pmd_t old;
+> > +
+> > +	/*
+> > +	 * If pmd has present bit cleared we can get away without expensive
+> > +	 * cmpxchg64: we can update pmdp half-by-half without racing with
+> > +	 * anybody.
+> > +	 */
+> > +	if (!(pmd_val(pmd) & _PAGE_PRESENT)) {
+> > +		union split_pmd old, new, *ptr;
+> > +
+> > +		ptr = (union split_pmd *)pmdp;
+> > +
+> > +		new.pmd = pmd;
+> > +
+> > +		/* xchg acts as a barrier before setting of the high bits */
+> > +		old.pmd_low = xchg(&ptr->pmd_low, new.pmd_low);
+> > +		old.pmd_high = ptr->pmd_high;
+> > +		ptr->pmd_high = new.pmd_high;
+> > +		return old.pmd;
+> > +	}
+> > +
+> > +	{
+> > +		old = *pmdp;
+> > +	} while (cmpxchg64(&pmdp->pmd, old.pmd, pmd.pmd) != old.pmd);
+> 
+> um, what happened here?
 
-> 
-> Hi,
-> I am resending with some minor updates based on Michael's review and
-> ask for inclusion. There haven't been any fundamental objections for
-> the RFC [1] nor the previous version [2].  The biggest discussion
-> revolved around the naming. There were many suggestions flowing
-> around MAP_REQUIRED, MAP_EXACT, MAP_FIXED_NOCLOBBER, MAP_AT_ADDR,
-> MAP_FIXED_NOREPLACE etc...
+Ouch.. Yeah, we need 'do' here. :-/
 
-I like MAP_FIXED_CAREFUL :)
+Apparently, it's a valid C code that would run the body once and it worked for
+me because I didn't hit the race condition.
 
-> I am afraid we can bikeshed this to death and there will still be
-> somebody finding yet another better name. Therefore I've decided to
-> stick with my original MAP_FIXED_SAFE. Why? Well, because it keeps the
-> MAP_FIXED prefix which should be recognized by developers and _SAFE
-> suffix should also be clear that all dangerous side effects of the old
-> MAP_FIXED are gone.
-> 
-> If somebody _really_ hates this then feel free to nack and resubmit
-> with a different name you can find a consensus for. I am sorry to be
-> stubborn here but I would rather have this merged than go over few more
-> iterations changing the name just because it seems like a good idea
-> now. My experience tells me that chances are that the name will turn out
-> to be "suboptimal" anyway over time.
-> 
-> Some more background:
-> This has started as a follow up discussion [3][4] resulting in the
-> runtime failure caused by hardening patch [5] which removes MAP_FIXED
-> from the elf loader because MAP_FIXED is inherently dangerous as it
-> might silently clobber an existing underlying mapping (e.g. stack). The
-> reason for the failure is that some architectures enforce an alignment
-> for the given address hint without MAP_FIXED used (e.g. for shared or
-> file backed mappings).
-> 
-> One way around this would be excluding those archs which do alignment
-> tricks from the hardening [6]. The patch is really trivial but it has
-> been objected, rightfully so, that this screams for a more generic
-> solution. We basically want a non-destructive MAP_FIXED.
-> 
-> The first patch introduced MAP_FIXED_SAFE which enforces the given
-> address but unlike MAP_FIXED it fails with EEXIST if the given range
-> conflicts with an existing one. The flag is introduced as a completely
-> new one rather than a MAP_FIXED extension because of the backward
-> compatibility. We really want a never-clobber semantic even on older
-> kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
-> flags evaluation because we do not EINVAL on unknown flags. On those
-> kernels we would simply use the traditional hint based semantic so the
-> caller can still get a different address (which sucks) but at least not
-> silently corrupt an existing mapping. I do not see a good way around
-> that. Except we won't export expose the new semantic to the userspace at
-> all. 
-> 
-> It seems there are users who would like to have something like that.
-> Jemalloc has been mentioned by Michael Ellerman [7]
-
-http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au.
-
-It would be useful to get feedback from jemalloc developers (please). 
-I'll add some cc's.
-
-
-> Florian Weimer has mentioned the following:
-> : glibc ld.so currently maps DSOs without hints.  This means that the kernel
-> : will map right next to each other, and the offsets between them a completely
-> : predictable.  We would like to change that and supply a random address in a
-> : window of the address space.  If there is a conflict, we do not want the
-> : kernel to pick a non-random address. Instead, we would try again with a
-> : random address.
-> 
-> John Hubbard has mentioned CUDA example
-> : a) Searches /proc/<pid>/maps for a "suitable" region of available
-> : VA space.  "Suitable" generally means it has to have a base address
-> : within a certain limited range (a particular device model might
-> : have odd limitations, for example), it has to be large enough, and
-> : alignment has to be large enough (again, various devices may have
-> : constraints that lead us to do this).
-> : 
-> : This is of course subject to races with other threads in the process.
-> : 
-> : Let's say it finds a region starting at va.
-> : 
-> : b) Next it does: 
-> :     p = mmap(va, ...) 
-> : 
-> : *without* setting MAP_FIXED, of course (so va is just a hint), to
-> : attempt to safely reserve that region. If p != va, then in most cases,
-> : this is a failure (almost certainly due to another thread getting a
-> : mapping from that region before we did), and so this layer now has to
-> : call munmap(), before returning a "failure: retry" to upper layers.
-> : 
-> :     IMPROVEMENT: --> if instead, we could call this:
-> : 
-> :             p = mmap(va, ... MAP_FIXED_SAFE ...)
-> : 
-> :         , then we could skip the munmap() call upon failure. This
-> :         is a small thing, but it is useful here. (Thanks to Piotr
-> :         Jaroszynski and Mark Hairgrove for helping me get that detail
-> :         exactly right, btw.)
-> : 
-> : c) After that, CUDA suballocates from p, via: 
-> :  
-> :      q = mmap(sub_region_start, ... MAP_FIXED ...)
-> : 
-> : Interestingly enough, "freeing" is also done via MAP_FIXED, and
-> : setting PROT_NONE to the subregion. Anyway, I just included (c) for
-> : general interest.
-> 
-> Atomic address range probing in the multithreaded programs in general
-> sounds like an interesting thing to me.
-> 
-> The second patch simply replaces MAP_FIXED use in elf loader by
-> MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
-> follow. Actually real MAP_FIXED usages should be docummented properly
-> and they should be more of an exception.
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
