@@ -1,67 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7863E6B0069
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:19:24 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id k186so7138747ith.1
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:19:24 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t194sor2369073ita.60.2017.12.14.01.19.23
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 070BE6B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:23:41 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id f9so2880955wra.2
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 01:23:40 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j127si2647208wma.144.2017.12.14.01.23.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Dec 2017 01:19:23 -0800 (PST)
-Date: Thu, 14 Dec 2017 01:19:20 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [patch 1/2] mm, mmu_notifier: annotate mmu notifiers with
- blockable invalidate callbacks
-In-Reply-To: <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
-Message-ID: <alpine.DEB.2.10.1712140118160.260574@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com> <20171212200542.GJ5848@hpe.com> <alpine.DEB.2.10.1712121326280.134224@chino.kir.corp.google.com> <d6487124-b613-6614-f355-14b7388a8ae3@amd.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 14 Dec 2017 01:23:39 -0800 (PST)
+Date: Thu, 14 Dec 2017 10:23:38 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm: NUMA stats code cleanup and enhancement
+Message-ID: <20171214092338.GF16951@dhcp22.suse.cz>
+References: <20171130085322.tyys6xbzzvui7ogz@dhcp22.suse.cz>
+ <0f039a89-5500-1bf5-c013-d39ba3bf62bd@intel.com>
+ <20171130094523.vvcljyfqjpbloe5e@dhcp22.suse.cz>
+ <9cd6cc9f-252a-3c6f-2f1f-e39d4ec0457b@intel.com>
+ <20171208084755.GS20234@dhcp22.suse.cz>
+ <f082f521-44a2-0585-3435-63dab24efbb7@intel.com>
+ <20171212081126.GK4779@dhcp22.suse.cz>
+ <d48b89f4-34d2-f3c8-f20a-b799f4878901@intel.com>
+ <20171214072927.GB16951@dhcp22.suse.cz>
+ <2176cf74-210a-01fe-3a7e-272a69b7bdc6@intel.com>
 MIME-Version: 1.0
-Content-Type: MULTIPART/MIXED; BOUNDARY="1113868975-822497440-1513243162=:260574"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <2176cf74-210a-01fe-3a7e-272a69b7bdc6@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>
-Cc: Dimitri Sivanich <sivanich@hpe.com>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?Q?Radim_Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: kemi <kemi.wang@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-  This message is in MIME format.  The first part should be readable text,
-  while the remaining parts are likely unreadable without MIME-aware tools.
-
---1113868975-822497440-1513243162=:260574
-Content-Type: TEXT/PLAIN; charset=UTF-8
-Content-Transfer-Encoding: 8BIT
-
-On Wed, 13 Dec 2017, Christian KA?nig wrote:
-
-> > > > --- a/drivers/misc/sgi-gru/grutlbpurge.c
-> > > > +++ b/drivers/misc/sgi-gru/grutlbpurge.c
-> > > > @@ -298,6 +298,7 @@ struct gru_mm_struct
-> > > > *gru_register_mmu_notifier(void)
-> > > >   			return ERR_PTR(-ENOMEM);
-> > > >   		STAT(gms_alloc);
-> > > >   		spin_lock_init(&gms->ms_asid_lock);
-> > > > +		gms->ms_notifier.flags = 0;
-> > > >   		gms->ms_notifier.ops = &gru_mmuops;
-> > > >   		atomic_set(&gms->ms_refcnt, 1);
-> > > >   		init_waitqueue_head(&gms->ms_wait_queue);
-> > > > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> > > There is a kzalloc() just above this:
-> > > 	gms = kzalloc(sizeof(*gms), GFP_KERNEL);
-> > > 
-> > > Is that not sufficient to clear the 'flags' field?
-> > > 
-> > Absolutely, but whether it is better to explicitly document that the mmu
-> > notifier has cleared flags, i.e. there are no blockable callbacks, is
-> > another story.  I can change it if preferred.
+On Thu 14-12-17 16:55:54, kemi wrote:
 > 
-> Actually I would invert the new flag, in other words specify that an MMU
-> notifier will never sleep.
 > 
+> On 2017a1'12ae??14ae?JPY 15:29, Michal Hocko wrote:
+> > On Thu 14-12-17 09:40:32, kemi wrote:
+> >>
+> >>
+> >> or sometimes 
+> >> NUMA stats can't be disabled in their environments.
+> > 
+> > why?
+> > 
+> >> That's the reason
+> >> why we spent time to do that optimization other than simply adding a runtime
+> >> configuration interface.
+> >>
+> >> Furthermore, the code we optimized for is the core area of kernel that can
+> >> benefit most of kernel actions, more or less I think.
+> >>
+> >> All right, let's think about it in another way, does a u64 percpu array per-node
+> >> for NUMA stats really make code too much complicated and hard to maintain?
+> >> I'm afraid not IMHO.
+> > 
+> > I disagree. The whole numa stat things has turned out to be nasty to
+> > maintain. For a very limited gain. Now you are just shifting that
+> > elsewhere. Look, there are other counters taken in the allocator, we do
+> > not want to treat them specially. We have a nice per-cpu infrastructure
+> > here so I really fail to see why we should code-around it. If that can
+> > be improved then by all means let's do it.
+> > 
+> 
+> Yes, I agree with you that we may improve current per-cpu infrastructure.
+> May we have a chance to increase the size of vm_node_stat_diff from s8 to s16 for
+> this "per-cpu infrastructure" (s32 in per-cpu counter infrastructure)? The 
+> limitation of type s8 seems not enough with more and more cpu cores, especially
+> for those monotone increasing type of counters like NUMA counters.
+> 
+>                                before     after(moving numa to per_cpu_nodestat
+>                                               and change s8 to s16)   
+> sizeof(struct per_cpu_nodestat)  28                 68
+> 
+> If ok, we can also keep that improvement in a nice way.
 
-Very good idea, I'll do that.  I'll also move the flags member to ops as 
-Paolo suggested.
+I wouldn't be opposed. Maybe we should make it nr_cpus sized.
 
-Thanks both!
---1113868975-822497440-1513243162=:260574--
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
