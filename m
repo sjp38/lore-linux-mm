@@ -1,143 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F6956B0033
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:53:22 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id u128so1972878oib.8
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 18:53:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u20sor1057281oti.233.2017.12.13.18.53.20
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 38DB86B0033
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 22:07:20 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id 64so2791674yby.11
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:07:20 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id x1si626570ybk.7.2017.12.13.19.07.19
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 13 Dec 2017 18:53:20 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 13 Dec 2017 19:07:19 -0800 (PST)
+Date: Wed, 13 Dec 2017 22:07:11 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20171214030711.gtxzm57h7h4hwbfe@thunk.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171213093110.3550-2-mhocko@kernel.org>
-References: <20171213092550.2774-1-mhocko@kernel.org> <20171213093110.3550-1-mhocko@kernel.org>
- <20171213093110.3550-2-mhocko@kernel.org>
-From: Jann Horn <jannh@google.com>
-Date: Thu, 14 Dec 2017 03:52:59 +0100
-Message-ID: <CAG48ez0JZ3PVW3vgSXDmDijS+a_5bSX9qNuyggnsB6JTSkKngA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mmap.2: MAP_FIXED updated documentation
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CANrsvRMAci5Vxj0kKsgW4-cgK4X4BAvq9jOwkAx0TWHqBjogVw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Pavel Machek <pavel@ucw.cz>, Michal Hocko <mhocko@suse.com>
+To: Byungchul Park <max.byungchul.park@gmail.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
 
-On Wed, Dec 13, 2017 at 10:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
->
->     -- Expand the documentation to discuss the hazards in
->        enough detail to allow avoiding them.
->
->     -- Mention the upcoming MAP_FIXED_SAFE flag.
->
->     -- Enhance the alignment requirement slightly.
->
-> CC: Michael Ellerman <mpe@ellerman.id.au>
-> CC: Jann Horn <jannh@google.com>
-> CC: Matthew Wilcox <willy@infradead.org>
-> CC: Michal Hocko <mhocko@kernel.org>
-> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
-> CC: Cyril Hrubis <chrubis@suse.cz>
-> CC: Pavel Machek <pavel@ucw.cz>
-> Acked-by: Michal Hocko <mhocko@suse.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  man2/mmap.2 | 32 ++++++++++++++++++++++++++++++--
->  1 file changed, 30 insertions(+), 2 deletions(-)
->
-> diff --git a/man2/mmap.2 b/man2/mmap.2
-> index 02d391697ce6..cb8789daec2d 100644
-> --- a/man2/mmap.2
-> +++ b/man2/mmap.2
-[...]
-> @@ -226,6 +227,33 @@ Software that aspires to be portable should use this option with care, keeping
->  in mind that the exact layout of a process' memory map is allowed to change
->  significantly between kernel versions, C library versions, and operating system
->  releases.
-> +.IP
-> +Furthermore, this option is extremely hazardous (when used on its own), because
-> +it forcibly removes pre-existing mappings, making it easy for a multi-threaded
-> +process to corrupt its own address space.
+On Wed, Dec 13, 2017 at 04:13:07PM +0900, Byungchul Park wrote:
+> 
+> Therefore, I want to say the fundamental problem
+> comes from classification, not cross-release
+> specific.
 
-I think this is worded unfortunately. It is dangerous if used
-incorrectly, and it's a good tool when used correctly.
+You keep saying that it is "just" a matter of classificaion.
 
-[...]
-> +Thread B need not create a mapping directly; simply making a library call
-> +that, internally, uses
-> +.I dlopen(3)
-> +to load some other shared library, will
-> +suffice. The dlopen(3) call will map the library into the process's address
-> +space. Furthermore, almost any library call may be implemented using this
-> +technique.
-> +Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
-> +(http://www.linux-pam.org).
+However, it is not obvious how to do the classification in a sane
+manner.  And this is why I keep pointing out that there is no
+documentation on how to do this, and somehow you never respond to this
+point....
 
-This is arkward. This first mentions dlopen(), which is a very niche
-case, and then just very casually mentions the much bigger
-problem that tons of library functions can allocate memory through
-malloc(), causing mmap() calls, sometimes without that even being
-a documented property of the function.
+In the case where you have multiple unrelated subsystems that can be
+stacked in different ways, with potentially multiple instances stacked
+on top of each other, it is not at all clear to me how this problem
+should be solved.
 
-> +.IP
-> +Newer kernels
-> +(Linux 4.16 and later) have a
-> +.B MAP_FIXED_SAFE
-> +option that avoids the corruption problem; if available, MAP_FIXED_SAFE
-> +should be preferred over MAP_FIXED.
+It was said on one of these threads (perhaps by you, perhaps by
+someone else), that we can't expect the lockdep maintainers to
+understand all of the subsystems in the kernels, and so therefore it
+must be up to the subsystem maintainers to classify the locks.  I
+interpreted this as the lockdep maintainers saying, "hey, not my
+fault, it's the subsystem maintainer's fault for not properly
+classifying the locks" --- and thus dumping the responsibility in the
+subsystem maintainers' laps.
 
-This is bad advice. MAP_FIXED is completely safe if you use it on an address
-range you've allocated, and it is used in this way by core system libraries to
-place multiple VMAs in virtually contiguous memory, for example:
+I don't know if the situation is just that lockdep is insufficiently
+documented, and with the proper tutorial, it would be obvious how to
+solve the classification problem.
 
-ld.so (from glibc) uses it to load dynamic libraries:
+Or, if perhaps, there *is* no way to solve the classification problem,
+at least not in a general form.
 
-$ strace -e trace=open,mmap,close /usr/bin/id 2>&1 >/dev/null | head -n20
-mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,
-0) = 0x7f35811c0000
-open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
-mmap(NULL, 161237, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f3581198000
-close(3)                                = 0
-open("/lib/x86_64-linux-gnu/libselinux.so.1", O_RDONLY|O_CLOEXEC) = 3
-mmap(NULL, 2259664, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3,
-0) = 0x7f3580d78000
-mmap(0x7f3580f9c000, 8192, PROT_READ|PROT_WRITE,
-MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x24000) = 0x7f3580f9c000
-mmap(0x7f3580f9e000, 6864, PROT_READ|PROT_WRITE,
-MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f3580f9e000
-close(3)                                = 0
-open("/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
-mmap(NULL, 3795360, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3,
-0) = 0x7f35809d9000
-mmap(0x7f3580d6e000, 24576, PROT_READ|PROT_WRITE,
-MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x195000) = 0x7f3580d6e000
-mmap(0x7f3580d74000, 14752, PROT_READ|PROT_WRITE,
-MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f3580d74000
-close(3)                                = 0
-[...]
+For example --- suppose we have a network block device on which there
+is an btrfs file system, which is then exported via NFS.  Now all of
+the TCP locks will be used twice for two different instances, once for
+the TCP connection for the network block device, and then for the NFS
+export.
 
-As a comment in dl-map-segments.h in glibc explains:
-      /* This is a position-independent shared object.  We can let the
-         kernel map it anywhere it likes, but we must have space for all
-         the segments in their specified positions relative to the first.
-         So we map the first segment without MAP_FIXED, but with its
-         extent increased to cover all the segments.  Then we remove
-         access from excess portion, and there is known sufficient space
-         there to remap from the later segments.
+How exactly are we supposed to classify the locks to make it all work?
 
+Or the loop device built on top of an ext4 file system which on a
+LVM/device mapper device.  And suppose the loop device is then layered
+with a dm-error device for regression testing, and with another ext4
+file system on top of that?
 
-And AFAIK anything that allocates thread stacks uses MAP_FIXED to
-create the guard page at the bottom.
+How exactly are we supposed to classify the locks in that situation?
+Where's the documentation and tutorials which explain how to make this
+work, if the responsibility is going to be dumped on the subsystem
+maintainers' laps?  Or if the lockdep maintainers are expected to fix
+and classify all of these locks, are you volunteering to do this?
 
+How hard is it exactly to do all of this classification work, no
+matter whose responsibility it will ultimately be?
 
-MAP_FIXED is a better solution for these usecases than MAP_FIXED_SAFE,
-or whatever it ends up being called. Please remove this advice or, better,
-clarify what MAP_FIXED should be used for (creation of virtually contiguous
-VMAs) and what MAP_FIXED_SAFE should be used for (attempting to
-allocate memory at a fixed address for some reason, with a failure instead of
-the normal fallback to using a different address).
+And if the answer is that it is too hard, then let me gently suggest
+to you that perhaps, if this is a case, that maybe this is a
+fundamental and fatal flaw with the cross-release and completion
+lockdep feature?
+
+Best regards,
+
+						- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
