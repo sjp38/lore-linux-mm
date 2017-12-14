@@ -1,80 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E0EB26B025E
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:05 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id f9so3374278qtf.6
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:18:05 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id k42si3190826qtf.429.2017.12.13.16.18.04
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5219E6B0253
+	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:32:15 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id a45so2246001wra.14
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 16:32:15 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id k186si2239637wma.21.2017.12.13.16.32.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 16:18:05 -0800 (PST)
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBE0GHco096284
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:04 -0500
-Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2eub3tymqy-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 13 Dec 2017 19:18:03 -0500
-Received: from localhost
-	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Wed, 13 Dec 2017 19:18:02 -0500
-Date: Wed, 13 Dec 2017 16:17:56 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys: Support setting access rights for signal handlers
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <5fee976a-42d4-d469-7058-b78ad8897219@redhat.com>
- <c034f693-95d1-65b8-2031-b969c2771fed@intel.com>
- <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
- <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
- <20171212231324.GE5460@ram.oc3035372033.ibm.com>
- <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
- <20171213113544.GG5460@ram.oc3035372033.ibm.com>
- <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
- <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
- <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
-Message-Id: <20171214001756.GA5471@ram.oc3035372033.ibm.com>
+        Wed, 13 Dec 2017 16:32:13 -0800 (PST)
+Date: Wed, 13 Dec 2017 16:32:10 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
+Message-Id: <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
+In-Reply-To: <20171213092550.2774-1-mhocko@kernel.org>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>, jasone@google.com, davidtgoldblatt@gmail.com, trasz@FreeBSD.org
 
-On Wed, Dec 13, 2017 at 04:40:11PM +0100, Florian Weimer wrote:
-> On 12/13/2017 04:22 PM, Dave Hansen wrote:
-> >On 12/13/2017 07:08 AM, Florian Weimer wrote:
-> >>Okay, this model is really quite different from x86.  Is there a
-> >>good reason for the difference?
-> >
-> >Yes, both implementations are simple and take the "natural" behavior.
-> >x86 changes XSAVE-controlled register values on entering a signal, so we
-> >let them be changed (including PKRU).  POWER hardware does not do this
-> >to its PKRU-equivalent, so we do not force it to.
+On Wed, 13 Dec 2017 10:25:48 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+
 > 
-> Whuy?  Is there a technical reason not have fully-aligned behavior?
-> Can POWER at least implement the original PKEY_ALLOC_SETSIGNAL
-> semantics (reset the access rights for certain keys before switching
-> to the signal handler) in a reasonably efficient manner?
+> Hi,
+> I am resending with some minor updates based on Michael's review and
+> ask for inclusion. There haven't been any fundamental objections for
+> the RFC [1] nor the previous version [2].  The biggest discussion
+> revolved around the naming. There were many suggestions flowing
+> around MAP_REQUIRED, MAP_EXACT, MAP_FIXED_NOCLOBBER, MAP_AT_ADDR,
+> MAP_FIXED_NOREPLACE etc...
 
-This can be done on POWER. I can also change the behavior on POWER
-to exactly match x86; i.e reset the value to init value before
-calling the signal handler.
+I like MAP_FIXED_CAREFUL :)
 
-But I think, we should clearly define the default behavior, the behavior
-when no flag is specified. Applications tend to rely on default behavior
-and expect the most intuitive behavior to be the default behavior.
+> I am afraid we can bikeshed this to death and there will still be
+> somebody finding yet another better name. Therefore I've decided to
+> stick with my original MAP_FIXED_SAFE. Why? Well, because it keeps the
+> MAP_FIXED prefix which should be recognized by developers and _SAFE
+> suffix should also be clear that all dangerous side effects of the old
+> MAP_FIXED are gone.
+> 
+> If somebody _really_ hates this then feel free to nack and resubmit
+> with a different name you can find a consensus for. I am sorry to be
+> stubborn here but I would rather have this merged than go over few more
+> iterations changing the name just because it seems like a good idea
+> now. My experience tells me that chances are that the name will turn out
+> to be "suboptimal" anyway over time.
+> 
+> Some more background:
+> This has started as a follow up discussion [3][4] resulting in the
+> runtime failure caused by hardening patch [5] which removes MAP_FIXED
+> from the elf loader because MAP_FIXED is inherently dangerous as it
+> might silently clobber an existing underlying mapping (e.g. stack). The
+> reason for the failure is that some architectures enforce an alignment
+> for the given address hint without MAP_FIXED used (e.g. for shared or
+> file backed mappings).
+> 
+> One way around this would be excluding those archs which do alignment
+> tricks from the hardening [6]. The patch is really trivial but it has
+> been objected, rightfully so, that this screams for a more generic
+> solution. We basically want a non-destructive MAP_FIXED.
+> 
+> The first patch introduced MAP_FIXED_SAFE which enforces the given
+> address but unlike MAP_FIXED it fails with EEXIST if the given range
+> conflicts with an existing one. The flag is introduced as a completely
+> new one rather than a MAP_FIXED extension because of the backward
+> compatibility. We really want a never-clobber semantic even on older
+> kernels which do not recognize the flag. Unfortunately mmap sucks wrt.
+> flags evaluation because we do not EINVAL on unknown flags. On those
+> kernels we would simply use the traditional hint based semantic so the
+> caller can still get a different address (which sucks) but at least not
+> silently corrupt an existing mapping. I do not see a good way around
+> that. Except we won't export expose the new semantic to the userspace at
+> all. 
+> 
+> It seems there are users who would like to have something like that.
+> Jemalloc has been mentioned by Michael Ellerman [7]
 
-I tend to think; keeping my biases aside, that the most intuitive
-behavior is to preserve access/write permissions of any key, i.e not
-reset to the init value.  If the application has set the permissions of
-a key to some value, it would'nt expect anyone to change them,
-irrespective of which context it is in.
+http://lkml.kernel.org/r/87efp1w7vy.fsf@concordia.ellerman.id.au.
 
-RP
+It would be useful to get feedback from jemalloc developers (please). 
+I'll add some cc's.
+
+
+> Florian Weimer has mentioned the following:
+> : glibc ld.so currently maps DSOs without hints.  This means that the kernel
+> : will map right next to each other, and the offsets between them a completely
+> : predictable.  We would like to change that and supply a random address in a
+> : window of the address space.  If there is a conflict, we do not want the
+> : kernel to pick a non-random address. Instead, we would try again with a
+> : random address.
+> 
+> John Hubbard has mentioned CUDA example
+> : a) Searches /proc/<pid>/maps for a "suitable" region of available
+> : VA space.  "Suitable" generally means it has to have a base address
+> : within a certain limited range (a particular device model might
+> : have odd limitations, for example), it has to be large enough, and
+> : alignment has to be large enough (again, various devices may have
+> : constraints that lead us to do this).
+> : 
+> : This is of course subject to races with other threads in the process.
+> : 
+> : Let's say it finds a region starting at va.
+> : 
+> : b) Next it does: 
+> :     p = mmap(va, ...) 
+> : 
+> : *without* setting MAP_FIXED, of course (so va is just a hint), to
+> : attempt to safely reserve that region. If p != va, then in most cases,
+> : this is a failure (almost certainly due to another thread getting a
+> : mapping from that region before we did), and so this layer now has to
+> : call munmap(), before returning a "failure: retry" to upper layers.
+> : 
+> :     IMPROVEMENT: --> if instead, we could call this:
+> : 
+> :             p = mmap(va, ... MAP_FIXED_SAFE ...)
+> : 
+> :         , then we could skip the munmap() call upon failure. This
+> :         is a small thing, but it is useful here. (Thanks to Piotr
+> :         Jaroszynski and Mark Hairgrove for helping me get that detail
+> :         exactly right, btw.)
+> : 
+> : c) After that, CUDA suballocates from p, via: 
+> :  
+> :      q = mmap(sub_region_start, ... MAP_FIXED ...)
+> : 
+> : Interestingly enough, "freeing" is also done via MAP_FIXED, and
+> : setting PROT_NONE to the subregion. Anyway, I just included (c) for
+> : general interest.
+> 
+> Atomic address range probing in the multithreaded programs in general
+> sounds like an interesting thing to me.
+> 
+> The second patch simply replaces MAP_FIXED use in elf loader by
+> MAP_FIXED_SAFE. I believe other places which rely on MAP_FIXED should
+> follow. Actually real MAP_FIXED usages should be docummented properly
+> and they should be more of an exception.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
