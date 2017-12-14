@@ -1,90 +1,162 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F8AB6B0253
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:30 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id w5so3198496pgt.4
-        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:10:30 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 59si654496ple.24.2017.12.13.21.10.28
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 77A966B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:28:41 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id s9so2114072oie.2
+        for <linux-mm@kvack.org>; Wed, 13 Dec 2017 21:28:41 -0800 (PST)
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id c46si1195670oth.175.2017.12.13.21.28.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 13 Dec 2017 21:10:28 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBE58s69066081
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:28 -0500
-Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2euf58quj3-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 00:10:27 -0500
-Received: from localhost
-	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 14 Dec 2017 05:10:26 -0000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: [PATCH] mm/mprotect: Add a cond_resched() inside change_pte_range()
-Date: Thu, 14 Dec 2017 10:40:21 +0530
-Message-Id: <20171214051021.20880-1-khandual@linux.vnet.ibm.com>
+        Wed, 13 Dec 2017 21:28:40 -0800 (PST)
+Subject: Re: [PATCH 2/2] mmap.2: MAP_FIXED updated documentation
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213093110.3550-1-mhocko@kernel.org>
+ <20171213093110.3550-2-mhocko@kernel.org>
+ <CAG48ez0JZ3PVW3vgSXDmDijS+a_5bSX9qNuyggnsB6JTSkKngA@mail.gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <1d9061d5-eb18-e083-a786-1997d34e8707@nvidia.com>
+Date: Wed, 13 Dec 2017 21:28:37 -0800
+MIME-Version: 1.0
+In-Reply-To: <CAG48ez0JZ3PVW3vgSXDmDijS+a_5bSX9qNuyggnsB6JTSkKngA@mail.gmail.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Cc: akpm@linux-foundation.org, mhocko@suse.com
+To: Jann Horn <jannh@google.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Michael Kerrisk <mtk.manpages@gmail.com>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, Matthew Wilcox <willy@infradead.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Pavel Machek <pavel@ucw.cz>, Michal Hocko <mhocko@suse.com>
 
-While testing on a large CPU system, detected the following RCU
-stall many times over the span of the workload. This problem
-is solved by adding a cond_resched() in the change_pte_range()
-function.
+On 12/13/2017 06:52 PM, Jann Horn wrote:
+> On Wed, Dec 13, 2017 at 10:31 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>> From: John Hubbard <jhubbard@nvidia.com>
+>>
+>>     -- Expand the documentation to discuss the hazards in
+>>        enough detail to allow avoiding them.
+>>
+>>     -- Mention the upcoming MAP_FIXED_SAFE flag.
+>>
+>>     -- Enhance the alignment requirement slightly.
+>>
+>> CC: Michael Ellerman <mpe@ellerman.id.au>
+>> CC: Jann Horn <jannh@google.com>
+>> CC: Matthew Wilcox <willy@infradead.org>
+>> CC: Michal Hocko <mhocko@kernel.org>
+>> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>> CC: Cyril Hrubis <chrubis@suse.cz>
+>> CC: Pavel Machek <pavel@ucw.cz>
+>> Acked-by: Michal Hocko <mhocko@suse.com>
+>> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+>> Signed-off-by: Michal Hocko <mhocko@suse.com>
+>> ---
+>>  man2/mmap.2 | 32 ++++++++++++++++++++++++++++++--
+>>  1 file changed, 30 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/man2/mmap.2 b/man2/mmap.2
+>> index 02d391697ce6..cb8789daec2d 100644
+>> --- a/man2/mmap.2
+>> +++ b/man2/mmap.2
+> [...]
+>> @@ -226,6 +227,33 @@ Software that aspires to be portable should use this option with care, keeping
+>>  in mind that the exact layout of a process' memory map is allowed to change
+>>  significantly between kernel versions, C library versions, and operating system
+>>  releases.
+>> +.IP
+>> +Furthermore, this option is extremely hazardous (when used on its own), because
+>> +it forcibly removes pre-existing mappings, making it easy for a multi-threaded
+>> +process to corrupt its own address space.
+> 
+> I think this is worded unfortunately. It is dangerous if used
+> incorrectly, and it's a good tool when used correctly.
+> 
 
-[  850.962530] INFO: rcu_sched detected stalls on CPUs/tasks:
-[  850.962584]  154-....: (670 ticks this GP) idle=022/140000000000000/0 softirq=2825/2825 fqs=612
-[  850.962605]  (detected by 955, t=6002 jiffies, g=4486, c=4485, q=90864)
-[  850.962895] Sending NMI from CPU 955 to CPUs 154:
-[  850.992667] NMI backtrace for cpu 154
-[  850.993069] CPU: 154 PID: 147071 Comm: workload Not tainted 4.15.0-rc3+ #3
-[  850.993258] NIP:  c0000000000b3f64 LR: c0000000000b33d4 CTR: 000000000000aa18
-[  850.993503] REGS: 00000000a4b0fb44 TRAP: 0501   Not tainted  (4.15.0-rc3+)
-[  850.993707] MSR:  8000000000009033 <SF,EE,ME,IR,DR,RI,LE>  CR: 22422082  XER: 00000000
-[  850.994386] CFAR: 00000000006cf8f0 SOFTE: 1
-GPR00: 0010000000000000 c00003ef9b1cb8c0 c0000000010cc600 0000000000000000
-GPR04: 8e0000018c32b200 40017b3858fd6e00 8e0000018c32b208 40017b3858fd6e00
-GPR08: 8e0000018c32b210 40017b3858fd6e00 8e0000018c32b218 40017b3858fd6e00
-GPR12: ffffffffffffffff c00000000fb25100
-[  850.995976] NIP [c0000000000b3f64] plpar_hcall9+0x44/0x7c
-[  850.996174] LR [c0000000000b33d4] pSeries_lpar_flush_hash_range+0x384/0x420
-[  850.996401] Call Trace:
-[  850.996600] [c00003ef9b1cb8c0] [c00003fa8fff7d40] 0xc00003fa8fff7d40 (unreliable)
-[  850.996959] [c00003ef9b1cba40] [c0000000000688a8] flush_hash_range+0x48/0x100
-[  850.997261] [c00003ef9b1cba90] [c000000000071b14] __flush_tlb_pending+0x44/0xd0
-[  850.997600] [c00003ef9b1cbac0] [c000000000071fa8] hpte_need_flush+0x408/0x470
-[  850.997958] [c00003ef9b1cbb30] [c0000000002c646c] change_protection_range+0xaac/0xf10
-[  850.998180] [c00003ef9b1cbcb0] [c0000000002f2510] change_prot_numa+0x30/0xb0
-[  850.998502] [c00003ef9b1cbce0] [c00000000013a950] task_numa_work+0x2d0/0x3e0
-[  850.998816] [c00003ef9b1cbda0] [c00000000011ea30] task_work_run+0x130/0x190
-[  850.999121] [c00003ef9b1cbe00] [c00000000001bcd8] do_notify_resume+0x118/0x120
-[  850.999421] [c00003ef9b1cbe30] [c00000000000b744] ret_from_except_lite+0x70/0x74
-[  850.999716] Instruction dump:
-[  850.999959] 60000000 f8810028 7ca42b78 7cc53378 7ce63b78 7d074378 7d284b78 7d495378
-[  851.000575] e9410060 e9610068 e9810070 44000022 <7d806378> e9810028 f88c0000 f8ac0008
+Hi Jann,
 
-Suggested-by: Nicholas Piggin <npiggin@gmail.com>
-Signed-off-by: Anshuman Khandual <khandual@linux.vnet.ibm.com>
----
- mm/mprotect.c | 1 +
- 1 file changed, 1 insertion(+)
+Hey, thanks for reviewing this again. I think I can accomodate all of your requests,
+without contradicting other reviewers' earlier feedback...approximately. :)  I'll 
+have a go at rewording this, and addressing your additional comments below, tomorrow
+afternoon, so please look for an updated version later that day.
 
-diff --git a/mm/mprotect.c b/mm/mprotect.c
-index ec39f73..4fce0f5 100644
---- a/mm/mprotect.c
-+++ b/mm/mprotect.c
-@@ -144,6 +144,7 @@ static unsigned long change_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
- 	} while (pte++, addr += PAGE_SIZE, addr != end);
- 	arch_leave_lazy_mmu_mode();
- 	pte_unmap_unlock(pte - 1, ptl);
-+	cond_resched();
- 
- 	return pages;
- }
+thanks,
 -- 
-2.9.3
+John Hubbard
+NVIDIA
+
+> [...]
+>> +Thread B need not create a mapping directly; simply making a library call
+>> +that, internally, uses
+>> +.I dlopen(3)
+>> +to load some other shared library, will
+>> +suffice. The dlopen(3) call will map the library into the process's address
+>> +space. Furthermore, almost any library call may be implemented using this
+>> +technique.
+>> +Examples include brk(2), malloc(3), pthread_create(3), and the PAM libraries
+>> +(http://www.linux-pam.org).
+> 
+> This is arkward. This first mentions dlopen(), which is a very niche
+> case, and then just very casually mentions the much bigger
+> problem that tons of library functions can allocate memory through
+> malloc(), causing mmap() calls, sometimes without that even being
+> a documented property of the function.
+> 
+>> +.IP
+>> +Newer kernels
+>> +(Linux 4.16 and later) have a
+>> +.B MAP_FIXED_SAFE
+>> +option that avoids the corruption problem; if available, MAP_FIXED_SAFE
+>> +should be preferred over MAP_FIXED.
+> 
+> This is bad advice. MAP_FIXED is completely safe if you use it on an address
+> range you've allocated, and it is used in this way by core system libraries to
+> place multiple VMAs in virtually contiguous memory, for example:
+> 
+> ld.so (from glibc) uses it to load dynamic libraries:
+> 
+> $ strace -e trace=open,mmap,close /usr/bin/id 2>&1 >/dev/null | head -n20
+> mmap(NULL, 12288, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1,
+> 0) = 0x7f35811c0000
+> open("/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+> mmap(NULL, 161237, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f3581198000
+> close(3)                                = 0
+> open("/lib/x86_64-linux-gnu/libselinux.so.1", O_RDONLY|O_CLOEXEC) = 3
+> mmap(NULL, 2259664, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3,
+> 0) = 0x7f3580d78000
+> mmap(0x7f3580f9c000, 8192, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x24000) = 0x7f3580f9c000
+> mmap(0x7f3580f9e000, 6864, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f3580f9e000
+> close(3)                                = 0
+> open("/lib/x86_64-linux-gnu/libc.so.6", O_RDONLY|O_CLOEXEC) = 3
+> mmap(NULL, 3795360, PROT_READ|PROT_EXEC, MAP_PRIVATE|MAP_DENYWRITE, 3,
+> 0) = 0x7f35809d9000
+> mmap(0x7f3580d6e000, 24576, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_DENYWRITE, 3, 0x195000) = 0x7f3580d6e000
+> mmap(0x7f3580d74000, 14752, PROT_READ|PROT_WRITE,
+> MAP_PRIVATE|MAP_FIXED|MAP_ANONYMOUS, -1, 0) = 0x7f3580d74000
+> close(3)                                = 0
+> [...]
+> 
+> As a comment in dl-map-segments.h in glibc explains:
+>       /* This is a position-independent shared object.  We can let the
+>          kernel map it anywhere it likes, but we must have space for all
+>          the segments in their specified positions relative to the first.
+>          So we map the first segment without MAP_FIXED, but with its
+>          extent increased to cover all the segments.  Then we remove
+>          access from excess portion, and there is known sufficient space
+>          there to remap from the later segments.
+> 
+> 
+> And AFAIK anything that allocates thread stacks uses MAP_FIXED to
+> create the guard page at the bottom.
+> 
+> 
+> MAP_FIXED is a better solution for these usecases than MAP_FIXED_SAFE,
+> or whatever it ends up being called. Please remove this advice or, better,
+> clarify what MAP_FIXED should be used for (creation of virtually contiguous
+> VMAs) and what MAP_FIXED_SAFE should be used for (attempting to
+> allocate memory at a fixed address for some reason, with a failure instead of
+> the normal fallback to using a different address).
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
