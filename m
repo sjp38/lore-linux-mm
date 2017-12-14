@@ -1,28 +1,28 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BB5E6B025F
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 11:22:44 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id k1so4504675pgq.2
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:22:44 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id F22D26B0033
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 11:23:36 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id n187so5087428pfn.10
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:23:36 -0800 (PST)
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id e91si3400790plb.28.2017.12.14.08.22.42
+        by mx.google.com with ESMTPS id e12si3074509pgu.403.2017.12.14.08.23.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 08:22:42 -0800 (PST)
-Received: from mail-it0-f52.google.com (mail-it0-f52.google.com [209.85.214.52])
+        Thu, 14 Dec 2017 08:23:35 -0800 (PST)
+Received: from mail-it0-f41.google.com (mail-it0-f41.google.com [209.85.214.41])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7A7E8218DC
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 16:22:42 +0000 (UTC)
-Received: by mail-it0-f52.google.com with SMTP id d137so12354652itc.2
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:22:42 -0800 (PST)
+	by mail.kernel.org (Postfix) with ESMTPSA id 50EFA218DC
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 16:23:35 +0000 (UTC)
+Received: by mail-it0-f41.google.com with SMTP id b5so12687057itc.3
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 08:23:35 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171214113851.248131745@infradead.org>
-References: <20171214112726.742649793@infradead.org> <20171214113851.248131745@infradead.org>
+In-Reply-To: <20171214113851.797295832@infradead.org>
+References: <20171214112726.742649793@infradead.org> <20171214113851.797295832@infradead.org>
 From: Andy Lutomirski <luto@kernel.org>
-Date: Thu, 14 Dec 2017 08:22:20 -0800
-Message-ID: <CALCETrX-dN6TfixtrG9H9uF2rH8xpXp+LbmSrQEf9YF5zB1HWQ@mail.gmail.com>
-Subject: Re: [PATCH v2 03/17] arch: Allow arch_dup_mmap() to fail
+Date: Thu, 14 Dec 2017 08:23:13 -0800
+Message-ID: <CALCETrU5H_X6kfOxnsb1d92oUJHa-6kWm=BWANYD9JJgDD=YOA@mail.gmail.com>
+Subject: Re: [PATCH v2 14/17] x86/ldt: Reshuffle code
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
@@ -32,10 +32,10 @@ Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixn
 On Thu, Dec 14, 2017 at 3:27 AM, Peter Zijlstra <peterz@infradead.org> wrote:
 > From: Thomas Gleixner <tglx@linutronix.de>
 >
-> In order to sanitize the LDT initialization on x86 arch_dup_mmap() must be
-> allowed to fail. Fix up all instances.
+> Restructure the code, so the following VMA changes do not create an
+> unreadable mess. No functional change.
 
-Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Can the PF_KTHREAD thing be its own patch so it can be reviewed on its own?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
