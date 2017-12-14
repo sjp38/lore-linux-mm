@@ -1,87 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 618706B026B
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 07:41:29 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a6so4600193pff.17
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:41:29 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id d25si3152688plj.693.2017.12.14.04.41.28
+Received: from mail-vk0-f70.google.com (mail-vk0-f70.google.com [209.85.213.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 31F176B026B
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 07:44:19 -0500 (EST)
+Received: by mail-vk0-f70.google.com with SMTP id a67so2673790vkf.5
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 04:44:19 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e5sor1396817vkb.102.2017.12.14.04.44.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 04:41:28 -0800 (PST)
-Date: Thu, 14 Dec 2017 13:41:17 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
-Message-ID: <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
-References: <20171214112726.742649793@infradead.org>
- <20171214113851.146259969@infradead.org>
+        (Google Transport Security);
+        Thu, 14 Dec 2017 04:44:18 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171214113851.146259969@infradead.org>
+In-Reply-To: <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
+References: <20171213092550.2774-1-mhocko@kernel.org> <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
+From: Edward Napierala <trasz@freebsd.org>
+Date: Thu, 14 Dec 2017 12:44:17 +0000
+Message-ID: <CAFLM3-oANXKEU=tuurSJx9rdzfWGfym-0FUEWnfBq8mOaVMzOA@mail.gmail.com>
+Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
+Content-Type: multipart/alternative; boundary="001a11458e22081e6a05604c3e56"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, tglx@linutronix.de
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-api@vger.kernel.org, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@suse.com>, jasone@google.com, davidtgoldblatt@gmail.com
 
-On Thu, Dec 14, 2017 at 12:27:27PM +0100, Peter Zijlstra wrote:
-> The gup_*_range() functions which implement __get_user_pages_fast() do
-> a p*_access_permitted() test to see if the memory is at all accessible
-> (tests both _PAGE_USER|_PAGE_RW as well as architectural things like
-> pkeys).
-> 
-> But the follow_*() functions which implement __get_user_pages() do not
-> have this test. Recently, commit:
-> 
->   5c9d2d5c269c ("mm: replace pte_write with pte_access_permitted in fault + gup paths")
-> 
-> added it to a few specific write paths, but it failed to consistently
-> apply it (I've not audited anything outside of gup).
-> 
-> Revert the change from that patch and insert the tests in the right
-> locations such that they cover all READ / WRITE accesses for all
-> pte/pmd/pud levels.
-> 
-> In particular I care about the _PAGE_USER test, we should not ever,
-> allow access to pages not marked with it, but it also makes the pkey
-> accesses more consistent.
+--001a11458e22081e6a05604c3e56
+Content-Type: text/plain; charset="UTF-8"
 
-This should probably go on top. These are now all superfluous and
-slightly wrong.
+Regarding the name - how about adopting MAP_EXCL?  It was introduced in
+FreeBSD,
+and seems to do exactly this; quoting mmap(2):
 
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 2f2f5e774902..1797368cc83a 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -870,9 +870,6 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 	 */
- 	WARN_ONCE(flags & FOLL_COW, "mm: In follow_devmap_pmd with FOLL_COW set");
- 
--	if (!pmd_access_permitted(*pmd, flags & FOLL_WRITE))
--		return NULL;
--
- 	if (pmd_present(*pmd) && pmd_devmap(*pmd))
- 		/* pass */;
- 	else
-@@ -1012,9 +1009,6 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
- 
- 	assert_spin_locked(pud_lockptr(mm, pud));
- 
--	if (!pud_access_permitted(*pud, flags & FOLL_WRITE))
--		return NULL;
--
- 	if (pud_present(*pud) && pud_devmap(*pud))
- 		/* pass */;
- 	else
-@@ -1386,7 +1380,7 @@ int do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
-  */
- static inline bool can_follow_write_pmd(pmd_t pmd, unsigned int flags)
- {
--	return pmd_access_permitted(pmd, WRITE) ||
-+	return pmd_write(pmd) ||
- 	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) && pmd_dirty(pmd));
- }
- 
+MAP_FIXED    Do not permit the system to select a different address
+                        than the one specified.  If the specified address
+                        cannot be used, mmap() will fail.  If MAP_FIXED is
+                        specified, addr must be a multiple of the page size.
+                        If MAP_EXCL is not specified, a successful MAP_FIXED
+                        request replaces any previous mappings for the
+                        process' pages in the range from addr to addr + len.
+                        In contrast, if MAP_EXCL is specified, the request
+                        will fail if a mapping already exists within the
+                        range.
+
+--001a11458e22081e6a05604c3e56
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: base64
+
+PGRpdiBkaXI9Imx0ciI+UmVnYXJkaW5nIHRoZSBuYW1lIC0gaG93IGFib3V0IGFkb3B0aW5nIE1B
+UF9FWENMP8KgIEl0IHdhcyBpbnRyb2R1Y2VkIGluIEZyZWVCU0QsPGRpdj5hbmQgc2VlbXMgdG8g
+ZG8gZXhhY3RseSB0aGlzOyBxdW90aW5nIG1tYXAoMik6PC9kaXY+PGRpdj48YnI+PC9kaXY+PGRp
+dj5NQVBfRklYRUQgwqAgwqBEbyBub3QgcGVybWl0IHRoZSBzeXN0ZW0gdG8gc2VsZWN0IGEgZGlm
+ZmVyZW50IGFkZHJlc3M8YnI+PC9kaXY+PGRpdj48ZGl2PsKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIHRoYW4gdGhlIG9uZSBzcGVjaWZpZWQuwqAgSWYgdGhlIHNwZWNpZmllZCBh
+ZGRyZXNzPC9kaXY+PGRpdj7CoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBjYW5u
+b3QgYmUgdXNlZCwgbW1hcCgpIHdpbGwgZmFpbC7CoCBJZiBNQVBfRklYRUQgaXM8L2Rpdj48ZGl2
+PsKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHNwZWNpZmllZCwgYWRkciBtdXN0
+IGJlIGEgbXVsdGlwbGUgb2YgdGhlIHBhZ2Ugc2l6ZS48L2Rpdj48ZGl2PsKgIMKgIMKgIMKgIMKg
+IMKgIMKgIMKgIMKgIMKgIMKgIMKgIElmIE1BUF9FWENMIGlzIG5vdCBzcGVjaWZpZWQsIGEgc3Vj
+Y2Vzc2Z1bCBNQVBfRklYRUQ8L2Rpdj48ZGl2PsKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKg
+IMKgIMKgIHJlcXVlc3QgcmVwbGFjZXMgYW55IHByZXZpb3VzIG1hcHBpbmdzIGZvciB0aGU8L2Rp
+dj48ZGl2PsKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIMKgIHByb2Nlc3MmIzM5OyBw
+YWdlcyBpbiB0aGUgcmFuZ2UgZnJvbSBhZGRyIHRvIGFkZHIgKyBsZW4uPC9kaXY+PGRpdj7CoCDC
+oCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCBJbiBjb250cmFzdCwgaWYgTUFQX0VYQ0wg
+aXMgc3BlY2lmaWVkLCB0aGUgcmVxdWVzdDwvZGl2PjxkaXY+wqAgwqAgwqAgwqAgwqAgwqAgwqAg
+wqAgwqAgwqAgwqAgwqAgd2lsbCBmYWlsIGlmIGEgbWFwcGluZyBhbHJlYWR5IGV4aXN0cyB3aXRo
+aW4gdGhlPC9kaXY+PGRpdj7CoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCDCoCByYW5n
+ZS48L2Rpdj48L2Rpdj48ZGl2Pjxicj48L2Rpdj48L2Rpdj4NCg==
+--001a11458e22081e6a05604c3e56--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
