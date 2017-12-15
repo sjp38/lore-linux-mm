@@ -1,122 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BCA26B0253
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:25:43 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id k126so4334745wmd.5
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 08:25:43 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t10si1472760wra.454.2017.12.15.08.25.41
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Dec 2017 08:25:41 -0800 (PST)
-Date: Fri, 15 Dec 2017 17:25:34 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2 1/2] mm, mmu_notifier: annotate mmu notifiers with
- blockable invalidate callbacks
-Message-ID: <20171215162534.GA16951@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A3596B0253
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:34:02 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id 207so15554571iti.5
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 08:34:02 -0800 (PST)
+Received: from wolff.to (wolff.to. [98.103.208.27])
+        by mx.google.com with SMTP id m62si5180825iof.251.2017.12.15.08.34.00
+        for <linux-mm@kvack.org>;
+        Fri, 15 Dec 2017 08:34:00 -0800 (PST)
+Date: Fri, 15 Dec 2017 10:30:48 -0600
+From: Bruno Wolff III <bruno@wolff.to>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171215163048.GA15928@wolff.to>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171214082452.GA16698@wolff.to>
+ <20171214100927.GA26167@localhost.didichuxing.com>
+ <20171214154136.GA12936@wolff.to>
+ <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
+ <20171215014417.GA17757@wolff.to>
+ <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
+ <20171215111050.GA30737@wolff.to>
+ <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
+In-Reply-To: <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: weiping zhang <zwp10758@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
 
-On Thu 14-12-17 13:30:56, David Rientjes wrote:
-> Commit 4d4bbd8526a8 ("mm, oom_reaper: skip mm structs with mmu notifiers")
-> prevented the oom reaper from unmapping private anonymous memory with the
-> oom reaper when the oom victim mm had mmu notifiers registered.
-> 
-> The rationale is that doing mmu_notifier_invalidate_range_{start,end}()
-> around the unmap_page_range(), which is needed, can block and the oom
-> killer will stall forever waiting for the victim to exit, which may not
-> be possible without reaping.
-> 
-> That concern is real, but only true for mmu notifiers that have blockable
-> invalidate_range_{start,end}() callbacks.  This patch adds a "flags" field
-> to mmu notifier ops that can set a bit to indicate that these callbacks do
-> not block.
-> 
-> The implementation is steered toward an expensive slowpath, such as after
-> the oom reaper has grabbed mm->mmap_sem of a still alive oom victim.
-> 
-> Signed-off-by: David Rientjes <rientjes@google.com>
+On Fri, Dec 15, 2017 at 22:02:20 +0800,
+  weiping zhang <zwp10758@gmail.com> wrote:
+>
+>Yes, please help reproduce this issue include my debug patch. Reproduce means
+>we can see WARN_ON in device_add_disk caused by failure of bdi_register_owner.
 
-Yes, this make sense. I haven't checked all the existing mmu notifiers
-but those that you have marked seem to be OK.
+I'm not sure why yet, but I'm only getting the warning message you want 
+with Fedora kernels, not the ones I am building (with or without your test 
+patch). I'll attach a debug config file if you want to look there. But in 
+theory that should be essentially what Fedora is using for theirs. They 
+probably have some out of tree patches they are applying, but I wouldn't 
+expect those to make a difference here. I think they now have a tree 
+somewhere that I can try to build from that has their patches applied 
+to the upstream kernel and if I can find it I will try building it just 
+to test this out.
 
-I just think that the semantic of the flag should be describe more. See
-below
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-> ---
->  v2:
->    - specifically exclude mmu_notifiers without invalidate callbacks
->    - move flags to mmu_notifier_ops per Paolo
->    - reverse flag from blockable -> not blockable per Christian
-> 
->  drivers/infiniband/hw/hfi1/mmu_rb.c |  1 +
->  drivers/iommu/amd_iommu_v2.c        |  1 +
->  drivers/iommu/intel-svm.c           |  1 +
->  drivers/misc/sgi-gru/grutlbpurge.c  |  1 +
->  include/linux/mmu_notifier.h        | 21 +++++++++++++++++++++
->  mm/mmu_notifier.c                   | 31 +++++++++++++++++++++++++++++++
->  virt/kvm/kvm_main.c                 |  1 +
->  7 files changed, 57 insertions(+)
-> 
-[...]
-> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
-> --- a/include/linux/mmu_notifier.h
-> +++ b/include/linux/mmu_notifier.h
-> @@ -10,6 +10,9 @@
->  struct mmu_notifier;
->  struct mmu_notifier_ops;
->  
-> +/* mmu_notifier_ops flags */
-> +#define MMU_INVALIDATE_DOES_NOT_BLOCK	(0x01)
-> +
->  #ifdef CONFIG_MMU_NOTIFIER
->  
->  /*
-> @@ -26,6 +29,15 @@ struct mmu_notifier_mm {
->  };
->  
->  struct mmu_notifier_ops {
-> +	/*
-> +	 * Flags to specify behavior of callbacks for this MMU notifier.
-> +	 * Used to determine which context an operation may be called.
-> +	 *
-> +	 * MMU_INVALIDATE_DOES_NOT_BLOCK: invalidate_{start,end} does not
-> +	 *				  block
-> +	 */
-> +	int flags;
-
-This should be more specific IMHO. What do you think about the following
-wording?
-
-invalidate_{start,end,range} doesn't block on any locks which depend
-directly or indirectly (via lock chain or resources e.g. worker context)
-on a memory allocation.
-
-> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-> --- a/virt/kvm/kvm_main.c
-> +++ b/virt/kvm/kvm_main.c
-> @@ -476,6 +476,7 @@ static void kvm_mmu_notifier_release(struct mmu_notifier *mn,
->  }
->  
->  static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
-> +	.flags			= MMU_INVALIDATE_DOES_NOT_BLOCK,
->  	.invalidate_range_start	= kvm_mmu_notifier_invalidate_range_start,
->  	.invalidate_range_end	= kvm_mmu_notifier_invalidate_range_end,
->  	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
-
--- 
-Michal Hocko
-SUSE Labs
+I only have about 6 hours of physical access to the machine exhibiting 
+the problem, and after that I won't be able to do test boots until Monday.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
