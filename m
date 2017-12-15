@@ -1,58 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 03FB16B025F
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:36:01 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id u4so16396755iti.2
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:36:00 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 135si6700436itp.126.2017.12.15.11.35.59
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 11:36:00 -0800 (PST)
-Date: Fri, 15 Dec 2017 11:35:51 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [Question ]: Avoid kernel panic when killing an application if
- happen RAS page table error
-Message-ID: <20171215193551.GD27160@bombadil.infradead.org>
-References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
- <20171205165727.GG3070@tassilo.jf.intel.com>
- <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com>
- <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com>
- <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com>
- <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
- <5A3419F3.1030804@arm.com>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 547966B0033
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:54:37 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id v21so161232iob.0
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:54:37 -0800 (PST)
+Received: from wolff.to (wolff.to. [98.103.208.27])
+        by mx.google.com with SMTP id c20si5188092ioj.187.2017.12.15.11.54.35
+        for <linux-mm@kvack.org>;
+        Fri, 15 Dec 2017 11:54:36 -0800 (PST)
+Date: Fri, 15 Dec 2017 13:51:22 -0600
+From: Bruno Wolff III <bruno@wolff.to>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171215195122.GA27126@wolff.to>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171214082452.GA16698@wolff.to>
+ <20171214100927.GA26167@localhost.didichuxing.com>
+ <20171214154136.GA12936@wolff.to>
+ <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
+ <20171215014417.GA17757@wolff.to>
+ <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
+ <20171215111050.GA30737@wolff.to>
+ <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <5A3419F3.1030804@arm.com>
+In-Reply-To: <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morse <james.morse@arm.com>
-Cc: gengdongjiu <gengdongjiu@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: weiping zhang <zwp10758@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
 
-On Fri, Dec 15, 2017 at 06:52:35PM +0000, James Morse wrote:
-> Leaking any memory that isn't marked as poisoned isn't a good idea.
-> 
-> What you would need is a way to know from the struct_page that: this page is
-> is page-table, and which struct_mm it belongs to. (If its the kernel's init_mm:
-> panic()).
-> Next you need a way to find all the other pages of page-table without walking
-> them. With these three pieces of information you can free all the unaffected
-> memory, with even more work you can probably regenerate the corrupted page.
-> 
-> It's going to be complicated to do, I don't think its worth the effort.
+On Fri, Dec 15, 2017 at 22:02:20 +0800,
+  weiping zhang <zwp10758@gmail.com> wrote:
+>Sorry to let you confuse, WARN_ON means we catch log as following:
+>WARNING: CPU: 3 PID: 3486 at block/genhd.c:680 device_add_disk+0x3d9/0x460
 
-We can find a bit in struct page that we guarantee will only be set if
-this is allocated as a pagetable.  Bit 1 of the third union is currently
-available (compound_head is a pointer if bit 0 is set, so nothing is
-using bit 1).  We can put a pointer to the mm_struct in the same word.
+I do not get this warning for any of the kernels I build, whether from 
+Linus' tree or Josh Boyer's Fedora tree. It shows up when I test kernels built 
+by Fedora, but those don't have your debug patch.
 
-Finding all the allocated pages will be the tricky bit.  We could put a
-list_head into struct page; perhaps in the same spot as page_deferred_list
-for tail pages.  Then we can link all the pagetables belonging to
-this mm together and tear them all down if any of them get an error.
-They'll repopulate on demand.  It won't be quick or scalable, but when
-the alternative is death, it looks relatively attractive.
+I do not know what is different. Do you have any ideas? Most likely I won't 
+be able to test any more kernels until Monday (unless I can use most of my 
+most recent build over again very soon).
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
