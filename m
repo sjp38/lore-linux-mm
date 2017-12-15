@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F6F96B028F
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:59 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id n186so7998030ybc.7
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:59 -0800 (PST)
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 630076B0291
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:06:00 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id v21so457326iob.0
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:06:00 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id u3si201884ybb.665.2017.12.15.14.05.56
+        by mx.google.com with ESMTPS id u39si5252776iou.131.2017.12.15.14.05.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:58 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:59 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 31/78] mm: Convert page-writeback to XArray
-Date: Fri, 15 Dec 2017 14:04:03 -0800
-Message-Id: <20171215220450.7899-32-willy@infradead.org>
+Subject: [PATCH v5 74/78] xfs: Convert mru cache to XArray
+Date: Fri, 15 Dec 2017 14:04:46 -0800
+Message-Id: <20171215220450.7899-75-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,187 +22,213 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Includes moving mapping_tagged() to fs.h as a static inline, and
-changing it to return bool.
+This eliminates a call to radix_tree_preload().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/fs.h  | 17 +++++++++------
- mm/page-writeback.c | 62 +++++++++++++++++++----------------------------------
- 2 files changed, 32 insertions(+), 47 deletions(-)
+ fs/xfs/xfs_mru_cache.c | 72 +++++++++++++++++++++++---------------------------
+ 1 file changed, 33 insertions(+), 39 deletions(-)
 
-diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e4345c13e237..c58bc3c619bf 100644
---- a/include/linux/fs.h
-+++ b/include/linux/fs.h
-@@ -470,15 +470,18 @@ struct block_device {
- 	struct mutex		bd_fsfreeze_mutex;
- } __randomize_layout;
- 
-+/* XArray tags, for tagging dirty and writeback pages in the pagecache. */
-+#define PAGECACHE_TAG_DIRTY	XA_TAG_0
-+#define PAGECACHE_TAG_WRITEBACK	XA_TAG_1
-+#define PAGECACHE_TAG_TOWRITE	XA_TAG_2
-+
- /*
-- * Radix-tree tags, for tagging dirty and writeback pages within the pagecache
-- * radix trees
-+ * Returns true if any of the pages in the mapping are marked with the tag.
+diff --git a/fs/xfs/xfs_mru_cache.c b/fs/xfs/xfs_mru_cache.c
+index f8a674d7f092..2179bede5396 100644
+--- a/fs/xfs/xfs_mru_cache.c
++++ b/fs/xfs/xfs_mru_cache.c
+@@ -101,10 +101,9 @@
+  * an infinite loop in the code.
   */
--#define PAGECACHE_TAG_DIRTY	0
--#define PAGECACHE_TAG_WRITEBACK	1
--#define PAGECACHE_TAG_TOWRITE	2
+ struct xfs_mru_cache {
+-	struct radix_tree_root	store;     /* Core storage data structure.  */
++	struct xarray		store;     /* Core storage data structure.  */
+ 	struct list_head	*lists;    /* Array of lists, one per grp.  */
+ 	struct list_head	reap_list; /* Elements overdue for reaping. */
+-	spinlock_t		lock;      /* Lock to protect this struct.  */
+ 	unsigned int		grp_count; /* Number of discrete groups.    */
+ 	unsigned int		grp_time;  /* Time period spanned by grps.  */
+ 	unsigned int		lru_grp;   /* Group containing time zero.   */
+@@ -232,22 +231,21 @@ _xfs_mru_cache_list_insert(
+  * data store, removing it from the reap list, calling the client's free
+  * function and deleting the element from the element zone.
+  *
+- * We get called holding the mru->lock, which we drop and then reacquire.
+- * Sparse need special help with this to tell it we know what we are doing.
++ * We get called holding the mru->store lock, which we drop and then reacquire.
++ * Sparse needs special help with this to tell it we know what we are doing.
+  */
+ STATIC void
+ _xfs_mru_cache_clear_reap_list(
+ 	struct xfs_mru_cache	*mru)
+-		__releases(mru->lock) __acquires(mru->lock)
++		__releases(mru->store) __acquires(mru->store)
+ {
+ 	struct xfs_mru_cache_elem *elem, *next;
+ 	struct list_head	tmp;
+ 
+ 	INIT_LIST_HEAD(&tmp);
+ 	list_for_each_entry_safe(elem, next, &mru->reap_list, list_node) {
 -
--int mapping_tagged(struct address_space *mapping, int tag);
-+static inline bool mapping_tagged(struct address_space *mapping, xa_tag_t tag)
-+{
-+	return xa_tagged(&mapping->pages, tag);
-+}
+ 		/* Remove the element from the data store. */
+-		radix_tree_delete(&mru->store, elem->key);
++		__xa_erase(&mru->store, elem->key);
  
- static inline void i_mmap_lock_write(struct address_space *mapping)
- {
-diff --git a/mm/page-writeback.c b/mm/page-writeback.c
-index 588ce729d199..0407436a8305 100644
---- a/mm/page-writeback.c
-+++ b/mm/page-writeback.c
-@@ -2098,33 +2098,25 @@ void __init page_writeback_init(void)
-  * dirty pages in the file (thus it is important for this function to be quick
-  * so that it can tag pages faster than a dirtying process can create them).
-  */
--/*
-- * We tag pages in batches of WRITEBACK_TAG_BATCH to reduce xa_lock latency.
-- */
- void tag_pages_for_writeback(struct address_space *mapping,
- 			     pgoff_t start, pgoff_t end)
- {
--#define WRITEBACK_TAG_BATCH 4096
--	unsigned long tagged = 0;
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->pages, start);
-+	unsigned int tagged = 0;
-+	void *page;
- 
--	xa_lock_irq(&mapping->pages);
--	radix_tree_for_each_tagged(slot, &mapping->pages, &iter, start,
--							PAGECACHE_TAG_DIRTY) {
--		if (iter.index > end)
--			break;
--		radix_tree_iter_tag_set(&mapping->pages, &iter,
--							PAGECACHE_TAG_TOWRITE);
--		tagged++;
--		if ((tagged % WRITEBACK_TAG_BATCH) != 0)
-+	xas_lock_irq(&xas);
-+	xas_for_each_tag(&xas, page, end, PAGECACHE_TAG_DIRTY) {
-+		xas_set_tag(&xas, PAGECACHE_TAG_TOWRITE);
-+		if (++tagged % XA_CHECK_SCHED)
- 			continue;
--		slot = radix_tree_iter_resume(slot, &iter);
--		xa_unlock_irq(&mapping->pages);
-+
-+		xas_pause(&xas);
-+		xas_unlock_irq(&xas);
- 		cond_resched();
--		xa_lock_irq(&mapping->pages);
-+		xas_lock_irq(&xas);
+ 		/*
+ 		 * remove to temp list so it can be freed without
+@@ -255,14 +253,14 @@ _xfs_mru_cache_clear_reap_list(
+ 		 */
+ 		list_move(&elem->list_node, &tmp);
  	}
--	xa_unlock_irq(&mapping->pages);
-+	xas_unlock_irq(&xas);
+-	spin_unlock(&mru->lock);
++	xa_unlock(&mru->store);
+ 
+ 	list_for_each_entry_safe(elem, next, &tmp, list_node) {
+ 		list_del_init(&elem->list_node);
+ 		mru->free_func(elem);
+ 	}
+ 
+-	spin_lock(&mru->lock);
++	xa_lock(&mru->store);
  }
- EXPORT_SYMBOL(tag_pages_for_writeback);
- 
-@@ -2164,7 +2156,7 @@ int write_cache_pages(struct address_space *mapping,
- 	pgoff_t done_index;
- 	int cycled;
- 	int range_whole = 0;
--	int tag;
-+	xa_tag_t tag;
- 
- 	pagevec_init(&pvec);
- 	if (wbc->range_cyclic) {
-@@ -2445,7 +2437,7 @@ void account_page_cleaned(struct page *page, struct address_space *mapping,
  
  /*
-  * For address_spaces which do not use buffers.  Just tag the page as dirty in
-- * its radix tree.
-+ * the xarray.
-  *
-  * This is also used when a single buffer is being dirtied: we want to set the
-  * page dirty in that case, but not all the buffers.  This is a "bottom-up"
-@@ -2471,7 +2463,7 @@ int __set_page_dirty_nobuffers(struct page *page)
- 		BUG_ON(page_mapping(page) != mapping);
- 		WARN_ON_ONCE(!PagePrivate(page) && !PageUptodate(page));
- 		account_page_dirtied(page, mapping);
--		radix_tree_tag_set(&mapping->pages, page_index(page),
-+		__xa_set_tag(&mapping->pages, page_index(page),
- 				   PAGECACHE_TAG_DIRTY);
- 		xa_unlock_irqrestore(&mapping->pages, flags);
- 		unlock_page_memcg(page);
-@@ -2634,13 +2626,13 @@ EXPORT_SYMBOL(__cancel_dirty_page);
-  * Returns true if the page was previously dirty.
-  *
-  * This is for preparing to put the page under writeout.  We leave the page
-- * tagged as dirty in the radix tree so that a concurrent write-for-sync
-+ * tagged as dirty in the xarray so that a concurrent write-for-sync
-  * can discover it via a PAGECACHE_TAG_DIRTY walk.  The ->writepage
-  * implementation will run either set_page_writeback() or set_page_dirty(),
-- * at which stage we bring the page's dirty flag and radix-tree dirty tag
-+ * at which stage we bring the page's dirty flag and xarray dirty tag
-  * back into sync.
-  *
-- * This incoherency between the page's dirty flag and radix-tree tag is
-+ * This incoherency between the page's dirty flag and xarray tag is
-  * unfortunate, but it only exists while the page is locked.
-  */
- int clear_page_dirty_for_io(struct page *page)
-@@ -2721,7 +2713,7 @@ int test_clear_page_writeback(struct page *page)
- 		xa_lock_irqsave(&mapping->pages, flags);
- 		ret = TestClearPageWriteback(page);
- 		if (ret) {
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi)) {
- 				struct bdi_writeback *wb = inode_to_wb(inode);
-@@ -2773,7 +2765,7 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 			on_wblist = mapping_tagged(mapping,
- 						   PAGECACHE_TAG_WRITEBACK);
+@@ -284,7 +282,7 @@ _xfs_mru_cache_reap(
+ 	if (!mru || !mru->lists)
+ 		return;
  
--			radix_tree_tag_set(&mapping->pages, page_index(page),
-+			__xa_set_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_WRITEBACK);
- 			if (bdi_cap_account_writeback(bdi))
- 				inc_wb_stat(inode_to_wb(inode), WB_WRITEBACK);
-@@ -2787,10 +2779,10 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
- 				sb_mark_inode_writeback(mapping->host);
- 		}
- 		if (!PageDirty(page))
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_DIRTY);
- 		if (!keep_write)
--			radix_tree_tag_clear(&mapping->pages, page_index(page),
-+			__xa_clear_tag(&mapping->pages, page_index(page),
- 						PAGECACHE_TAG_TOWRITE);
- 		xa_unlock_irqrestore(&mapping->pages, flags);
- 	} else {
-@@ -2806,16 +2798,6 @@ int __test_set_page_writeback(struct page *page, bool keep_write)
+-	spin_lock(&mru->lock);
++	xa_lock(&mru->store);
+ 	next = _xfs_mru_cache_migrate(mru, jiffies);
+ 	_xfs_mru_cache_clear_reap_list(mru);
+ 
+@@ -298,7 +296,7 @@ _xfs_mru_cache_reap(
+ 		queue_delayed_work(xfs_mru_reap_wq, &mru->work, next);
+ 	}
+ 
+-	spin_unlock(&mru->lock);
++	xa_unlock(&mru->store);
  }
- EXPORT_SYMBOL(__test_set_page_writeback);
  
--/*
-- * Return true if any of the pages in the mapping are marked with the
-- * passed tag.
-- */
--int mapping_tagged(struct address_space *mapping, int tag)
--{
--	return radix_tree_tagged(&mapping->pages, tag);
--}
--EXPORT_SYMBOL(mapping_tagged);
+ int
+@@ -358,13 +356,8 @@ xfs_mru_cache_create(
+ 	for (grp = 0; grp < mru->grp_count; grp++)
+ 		INIT_LIST_HEAD(mru->lists + grp);
+ 
+-	/*
+-	 * We use GFP_KERNEL radix tree preload and do inserts under a
+-	 * spinlock so GFP_ATOMIC is appropriate for the radix tree itself.
+-	 */
+-	INIT_RADIX_TREE(&mru->store, GFP_ATOMIC);
++	xa_init(&mru->store);
+ 	INIT_LIST_HEAD(&mru->reap_list);
+-	spin_lock_init(&mru->lock);
+ 	INIT_DELAYED_WORK(&mru->work, _xfs_mru_cache_reap);
+ 
+ 	mru->grp_time  = grp_time;
+@@ -394,17 +387,17 @@ xfs_mru_cache_flush(
+ 	if (!mru || !mru->lists)
+ 		return;
+ 
+-	spin_lock(&mru->lock);
++	xa_lock(&mru->store);
+ 	if (mru->queued) {
+-		spin_unlock(&mru->lock);
++		xa_unlock(&mru->store);
+ 		cancel_delayed_work_sync(&mru->work);
+-		spin_lock(&mru->lock);
++		xa_lock(&mru->store);
+ 	}
+ 
+ 	_xfs_mru_cache_migrate(mru, jiffies + mru->grp_count * mru->grp_time);
+ 	_xfs_mru_cache_clear_reap_list(mru);
+ 
+-	spin_unlock(&mru->lock);
++	xa_unlock(&mru->store);
+ }
+ 
+ void
+@@ -431,24 +424,24 @@ xfs_mru_cache_insert(
+ 	unsigned long		key,
+ 	struct xfs_mru_cache_elem *elem)
+ {
++	XA_STATE(xas, &mru->store, key);
+ 	int			error;
+ 
+ 	ASSERT(mru && mru->lists);
+ 	if (!mru || !mru->lists)
+ 		return -EINVAL;
+ 
+-	if (radix_tree_preload(GFP_NOFS))
+-		return -ENOMEM;
 -
- /**
-  * wait_for_stable_page() - wait for writeback to finish, if necessary.
-  * @page:	The page to wait on.
+ 	INIT_LIST_HEAD(&elem->list_node);
+ 	elem->key = key;
+ 
+-	spin_lock(&mru->lock);
+-	error = radix_tree_insert(&mru->store, key, elem);
+-	radix_tree_preload_end();
+-	if (!error)
+-		_xfs_mru_cache_list_insert(mru, elem);
+-	spin_unlock(&mru->lock);
++	do {
++		xas_lock(&xas);
++		xas_store(&xas, elem);
++		error = xas_error(&xas);
++		if (!error)
++			_xfs_mru_cache_list_insert(mru, elem);
++		xas_unlock(&xas);
++	} while (xas_nomem(&xas, GFP_NOFS));
+ 
+ 	return error;
+ }
+@@ -470,11 +463,11 @@ xfs_mru_cache_remove(
+ 	if (!mru || !mru->lists)
+ 		return NULL;
+ 
+-	spin_lock(&mru->lock);
+-	elem = radix_tree_delete(&mru->store, key);
++	xa_lock(&mru->store);
++	elem = __xa_erase(&mru->store, key);
+ 	if (elem)
+ 		list_del(&elem->list_node);
+-	spin_unlock(&mru->lock);
++	xa_unlock(&mru->store);
+ 
+ 	return elem;
+ }
+@@ -520,20 +513,21 @@ xfs_mru_cache_lookup(
+ 	struct xfs_mru_cache	*mru,
+ 	unsigned long		key)
+ {
++	XA_STATE(xas, &mru->store, key);
+ 	struct xfs_mru_cache_elem *elem;
+ 
+ 	ASSERT(mru && mru->lists);
+ 	if (!mru || !mru->lists)
+ 		return NULL;
+ 
+-	spin_lock(&mru->lock);
+-	elem = radix_tree_lookup(&mru->store, key);
++	xas_lock(&xas);
++	elem = xas_load(&xas);
+ 	if (elem) {
+ 		list_del(&elem->list_node);
+ 		_xfs_mru_cache_list_insert(mru, elem);
+-		__release(mru_lock); /* help sparse not be stupid */
++		__release(&xas); /* help sparse not be stupid */
+ 	} else
+-		spin_unlock(&mru->lock);
++		xas_unlock(&xas);
+ 
+ 	return elem;
+ }
+@@ -546,7 +540,7 @@ xfs_mru_cache_lookup(
+ void
+ xfs_mru_cache_done(
+ 	struct xfs_mru_cache	*mru)
+-		__releases(mru->lock)
++		__releases(mru->store)
+ {
+-	spin_unlock(&mru->lock);
++	xa_unlock(&mru->store);
+ }
 -- 
 2.15.1
 
