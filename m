@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A3DC46B027D
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:45 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id x62so3113741iod.7
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:45 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 73F856B027D
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:47 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id x63so3114644ioe.18
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:47 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 15si5610968itg.134.2017.12.15.14.05.44
+        by mx.google.com with ESMTPS id n126si3953519itd.46.2017.12.15.14.05.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:44 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:46 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 21/78] xarray: Add ability to store errno values
-Date: Fri, 15 Dec 2017 14:03:53 -0800
-Message-Id: <20171215220450.7899-22-willy@infradead.org>
+Subject: [PATCH v5 32/78] mm: Convert workingset to XArray
+Date: Fri, 15 Dec 2017 14:04:04 -0800
+Message-Id: <20171215220450.7899-33-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,124 +22,149 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-While the radix tree offers no ability to store IS_ERR pointers,
-documenting that the XArray does not led to some concern.  Here is a
-sanctioned way to store errnos in the XArray.  I'm concerned that it
-will confuse people who can't tell the difference between xa_is_err()
-and xa_is_errno(), so I've added copious kernel-doc to help them tell
-the difference.
+We construct a fake XA_STATE and use it to delete the node with xa_store()
+rather than adding a special function for this unique use case.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- Documentation/core-api/xarray.rst      |  9 ++++---
- include/linux/xarray.h                 | 46 +++++++++++++++++++++++++++++++++-
- tools/testing/radix-tree/xarray-test.c |  8 +++++-
- 3 files changed, 57 insertions(+), 6 deletions(-)
+ include/linux/swap.h |  4 ++--
+ mm/workingset.c      | 49 +++++++++++++++++++++----------------------------
+ 2 files changed, 23 insertions(+), 30 deletions(-)
 
-diff --git a/Documentation/core-api/xarray.rst b/Documentation/core-api/xarray.rst
-index 706081bfe92f..57a494026d96 100644
---- a/Documentation/core-api/xarray.rst
-+++ b/Documentation/core-api/xarray.rst
-@@ -42,11 +42,12 @@ When you retrieve an entry from the XArray, you can check whether it is
- a value entry by calling :c:func:`xa_is_value`, and convert it back to
- an integer by calling :c:func:`xa_to_value`.
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index c2b8128799c1..e4a8afcb214c 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -300,12 +300,12 @@ bool workingset_refault(void *shadow);
+ void workingset_activation(struct page *page);
  
--The XArray does not support storing :c:func:`IS_ERR` pointers as some
-+The XArray does not support storing :c:func:`IS_ERR` pointers because some
- conflict with value entries or internal entries.  If you need to store
--error numbers in the array, you can store ``(errno << 2)`` as these values
--will be aligned to a multiple of 4 and are not valid kernel pointers.
--The values 4, 8, ... 4092 are also not valid kernel pointers.
-+error numbers in the array, you can encode them into error entries
-+with :c:func:`xa_mk_errno`, check whether a returned entry is an error
-+with :c:func:`xa_is_errno` and convert it back into an errno with
-+:c:func:`xa_to_errno`.
+ /* Do not use directly, use workingset_lookup_update */
+-void workingset_update_node(struct radix_tree_node *node);
++void workingset_update_node(struct xa_node *node);
  
- An unusual feature of the XArray is the ability to create entries which
- occupy a range of indices.  Once stored to, looking up any index in
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index bcc321fb280f..e0f8eb06b874 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -231,6 +231,50 @@ static inline bool xa_is_value(const void *entry)
- 	return (unsigned long)entry & 1;
- }
+ /* Returns workingset_update_node() if the mapping has shadow entries. */
+ #define workingset_lookup_update(mapping)				\
+ ({									\
+-	radix_tree_update_node_t __helper = workingset_update_node;	\
++	xa_update_node_t __helper = workingset_update_node;		\
+ 	if (dax_mapping(mapping) || shmem_mapping(mapping))		\
+ 		__helper = NULL;					\
+ 	__helper;							\
+diff --git a/mm/workingset.c b/mm/workingset.c
+index 91b6e16ad4c1..405076233999 100644
+--- a/mm/workingset.c
++++ b/mm/workingset.c
+@@ -148,7 +148,7 @@
+  * and activations is maintained (node->inactive_age).
+  *
+  * On eviction, a snapshot of this counter (along with some bits to
+- * identify the node) is stored in the now empty page cache radix tree
++ * identify the node) is stored in the now empty page cache
+  * slot of the evicted page.  This is called a shadow entry.
+  *
+  * On cache misses for which there are shadow entries, an eligible
+@@ -162,7 +162,7 @@
  
-+/**
-+ * xa_mk_errno() - Create an XArray entry from an error number.
-+ * @error: Error number to store in XArray.
-+ *
-+ * Return: An entry suitable for storing in the XArray.
-+ */
-+static inline void *xa_mk_errno(long error)
-+{
-+	return (void *)(error << 2);
-+}
-+
-+/**
-+ * xa_to_errno() - Get error number stored in an XArray entry.
-+ * @entry: XArray entry.
-+ *
-+ * Calling this function on an entry which is not an xa_is_errno() will
-+ * yield unpredictable results.  Do not confuse this function with xa_err();
-+ * this function is for errnos which have been stored in the XArray, and
-+ * that function is for errors returned from the XArray implementation.
-+ *
-+ * Return: The error number stored in the XArray entry.
-+ */
-+static inline long xa_to_errno(const void *entry)
-+{
-+	return (long)entry >> 2;
-+}
-+
-+/**
-+ * xa_is_errno() - Determine if an entry is an errno.
-+ * @entry: XArray entry.
-+ *
-+ * Do not confuse this function with xa_is_err(); that function tells you
-+ * whether the XArray implementation returned an error; this function
-+ * tells you whether the entry you successfully stored in the XArray
-+ * represented an errno.  If you have never stored an errno in the XArray,
-+ * you do not have to check this.
-+ *
-+ * Return: True if the entry is an errno, false if it is a pointer.
-+ */
-+static inline bool xa_is_errno(const void *entry)
-+{
-+	return (((unsigned long)entry & 3) == 0) && (entry > (void *)-4096);
-+}
-+
- /**
-  * xa_is_internal() - Is the entry an internal entry?
-  * @entry: Entry retrieved from the XArray
-@@ -277,7 +321,7 @@ static inline int xa_err(void *entry)
+ /*
+  * Eviction timestamps need to be able to cover the full range of
+- * actionable refaults. However, bits are tight in the radix tree
++ * actionable refaults. However, bits are tight in the xarray
+  * entry, and after storing the identifier for the lruvec there might
+  * not be enough left to represent every single actionable refault. In
+  * that case, we have to sacrifice granularity for distance, and group
+@@ -338,7 +338,7 @@ void workingset_activation(struct page *page)
  
- /**
-  * xa_store_empty() - Store this entry in the XArray unless another entry is
-- * 			already present.
-+ *			already present.
-  * @xa: XArray.
-  * @index: Index into array.
-  * @entry: New entry.
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-index 43111786ebdd..b843cedf3988 100644
---- a/tools/testing/radix-tree/xarray-test.c
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -29,7 +29,13 @@ void check_xa_err(struct xarray *xa)
- 	assert(xa_err(xa_store(xa, 1, xa_mk_value(0), GFP_KERNEL)) == 0);
- 	assert(xa_err(xa_store(xa, 1, NULL, 0)) == 0);
- // kills the test-suite :-(
--//     assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
-+//	assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
-+
-+	assert(xa_err(xa_store(xa, 0, xa_mk_errno(-ENOMEM), GFP_KERNEL)) == 0);
-+	assert(xa_err(xa_load(xa, 0)) == 0);
-+	assert(xa_is_errno(xa_load(xa, 0)) == true);
-+	assert(xa_to_errno(xa_load(xa, 0)) == -ENOMEM);
-+	xa_erase(xa, 0);
- }
+ static struct list_lru shadow_nodes;
  
- void check_xa_tag(struct xarray *xa)
+-void workingset_update_node(struct radix_tree_node *node)
++void workingset_update_node(struct xa_node *node)
+ {
+ 	/*
+ 	 * Track non-empty nodes that contain only shadow entries;
+@@ -370,7 +370,7 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	local_irq_enable();
+ 
+ 	/*
+-	 * Approximate a reasonable limit for the radix tree nodes
++	 * Approximate a reasonable limit for the nodes
+ 	 * containing shadow entries. We don't need to keep more
+ 	 * shadow entries than possible pages on the active list,
+ 	 * since refault distances bigger than that are dismissed.
+@@ -385,11 +385,11 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ 	 * worst-case density of 1/8th. Below that, not all eligible
+ 	 * refaults can be detected anymore.
+ 	 *
+-	 * On 64-bit with 7 radix_tree_nodes per page and 64 slots
++	 * On 64-bit with 7 xa_nodes per page and 64 slots
+ 	 * each, this will reclaim shadow entries when they consume
+ 	 * ~1.8% of available memory:
+ 	 *
+-	 * PAGE_SIZE / radix_tree_nodes / node_entries * 8 / PAGE_SIZE
++	 * PAGE_SIZE / xa_nodes / node_entries * 8 / PAGE_SIZE
+ 	 */
+ 	if (sc->memcg) {
+ 		cache = mem_cgroup_node_nr_lru_pages(sc->memcg, sc->nid,
+@@ -408,11 +408,11 @@ static unsigned long count_shadow_nodes(struct shrinker *shrinker,
+ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 					  struct list_lru_one *lru,
+ 					  spinlock_t *lru_lock,
+-					  void *arg)
++					  void *arg) __must_hold(lru_lock)
+ {
++	XA_STATE(xas, NULL, 0);
+ 	struct address_space *mapping;
+-	struct radix_tree_node *node;
+-	unsigned int i;
++	struct xa_node *node;
+ 	int ret;
+ 
+ 	/*
+@@ -420,7 +420,7 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 	 * the shadow node LRU under the mapping->pages.xa_lock and the
+ 	 * lru_lock.  Because the page cache tree is emptied before
+ 	 * the inode can be destroyed, holding the lru_lock pins any
+-	 * address_space that has radix tree nodes on the LRU.
++	 * address_space that has nodes on the LRU.
+ 	 *
+ 	 * We can then safely transition to the mapping->pages.xa_lock to
+ 	 * pin only the address_space of the particular node we want
+@@ -449,25 +449,18 @@ static enum lru_status shadow_lru_isolate(struct list_head *item,
+ 		goto out_invalid;
+ 	if (WARN_ON_ONCE(node->count != node->nr_values))
+ 		goto out_invalid;
+-	for (i = 0; i < RADIX_TREE_MAP_SIZE; i++) {
+-		if (node->slots[i]) {
+-			if (WARN_ON_ONCE(!xa_is_value(node->slots[i])))
+-				goto out_invalid;
+-			if (WARN_ON_ONCE(!node->nr_values))
+-				goto out_invalid;
+-			if (WARN_ON_ONCE(!mapping->nrexceptional))
+-				goto out_invalid;
+-			node->slots[i] = NULL;
+-			node->nr_values--;
+-			node->count--;
+-			mapping->nrexceptional--;
+-		}
+-	}
+-	if (WARN_ON_ONCE(node->nr_values))
+-		goto out_invalid;
++	mapping->nrexceptional -= node->nr_values;
++	xas.xa = node->array;
++	xas.xa_node = rcu_dereference_protected(node->parent,
++				lockdep_is_held(&mapping->pages.xa_lock));
++	xas.xa_offset = node->offset;
++	xas.xa_update = workingset_update_node;
++	/*
++	 * We could store a shadow entry here which was the minimum of the
++	 * shadow entries we were tracking ...
++	 */
++	xas_store(&xas, NULL);
+ 	inc_lruvec_page_state(virt_to_page(node), WORKINGSET_NODERECLAIM);
+-	__radix_tree_delete_node(&mapping->pages, node,
+-				 workingset_lookup_update(mapping));
+ 
+ out_invalid:
+ 	xa_unlock(&mapping->pages);
 -- 
 2.15.1
 
