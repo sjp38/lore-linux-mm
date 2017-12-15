@@ -1,104 +1,157 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DE84D6B026C
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:44 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f3so7048120pgv.21
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 06:10:44 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA9096B026D
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:50 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 73so7917158pfz.11
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 06:10:50 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id v29si5146131pfl.292.2017.12.15.06.10.43
+        by mx.google.com with ESMTPS id e74si5181679pfd.260.2017.12.15.06.10.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 06:10:43 -0800 (PST)
+        Fri, 15 Dec 2017 06:10:49 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 10/17] mm: merge vmem_altmap_alloc into altmap_alloc_block_buf
-Date: Fri, 15 Dec 2017 15:09:40 +0100
-Message-Id: <20171215140947.26075-11-hch@lst.de>
+Subject: [PATCH 11/17] mm: move get_dev_pagemap out of line
+Date: Fri, 15 Dec 2017 15:09:41 +0100
+Message-Id: <20171215140947.26075-12-hch@lst.de>
 In-Reply-To: <20171215140947.26075-1-hch@lst.de>
 References: <20171215140947.26075-1-hch@lst.de>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-There is no clear separation between the two, so merge them.
+This is a pretty big function, which should be out of line in general,
+and a no-op stub if CONFIG_ZONE_DEVICD? is not set.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
 ---
- mm/sparse-vmemmap.c | 45 ++++++++++++++++-----------------------------
- 1 file changed, 16 insertions(+), 29 deletions(-)
+ include/linux/memremap.h | 39 ++++-----------------------------------
+ kernel/memremap.c        | 36 ++++++++++++++++++++++++++++++++++--
+ 2 files changed, 38 insertions(+), 37 deletions(-)
 
-diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
-index d012c9e2811b..bd0276d5f66b 100644
---- a/mm/sparse-vmemmap.c
-+++ b/mm/sparse-vmemmap.c
-@@ -107,33 +107,16 @@ static unsigned long __meminit vmem_altmap_nr_free(struct vmem_altmap *altmap)
+diff --git a/include/linux/memremap.h b/include/linux/memremap.h
+index d5a6736d9737..26e8aaba27d5 100644
+--- a/include/linux/memremap.h
++++ b/include/linux/memremap.h
+@@ -133,7 +133,8 @@ struct dev_pagemap {
+ #ifdef CONFIG_ZONE_DEVICE
+ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 		struct percpu_ref *ref, struct vmem_altmap *altmap);
+-struct dev_pagemap *find_dev_pagemap(resource_size_t phys);
++struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
++		struct dev_pagemap *pgmap);
+ 
+ unsigned long vmem_altmap_offset(struct vmem_altmap *altmap);
+ void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns);
+@@ -153,7 +154,8 @@ static inline void *devm_memremap_pages(struct device *dev,
+ 	return ERR_PTR(-ENXIO);
  }
  
- /**
-- * vmem_altmap_alloc - allocate pages from the vmem_altmap reservation
-- * @altmap - reserved page pool for the allocation
-- * @nr_pfns - size (in pages) of the allocation
-+ * altmap_alloc_block_buf - allocate pages from the device page map
-+ * @altmap:	device page map
-+ * @size:	size (in bytes) of the allocation
-  *
-- * Allocations are aligned to the size of the request
-+ * Allocations are aligned to the size of the request.
-  */
--static unsigned long __meminit vmem_altmap_alloc(struct vmem_altmap *altmap,
--		unsigned long nr_pfns)
+-static inline struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
++static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
++		struct dev_pagemap *pgmap)
+ {
+ 	return NULL;
+ }
+@@ -183,39 +185,6 @@ static inline bool is_device_public_page(const struct page *page)
+ }
+ #endif /* CONFIG_DEVICE_PRIVATE || CONFIG_DEVICE_PUBLIC */
+ 
+-/**
+- * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
+- * @pfn: page frame number to lookup page_map
+- * @pgmap: optional known pgmap that already has a reference
+- *
+- * @pgmap allows the overhead of a lookup to be bypassed when @pfn lands in the
+- * same mapping.
+- */
+-static inline struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
+-		struct dev_pagemap *pgmap)
 -{
--	unsigned long pfn = vmem_altmap_next_pfn(altmap);
--	unsigned long nr_align;
+-	const struct resource *res = pgmap ? pgmap->res : NULL;
+-	resource_size_t phys = PFN_PHYS(pfn);
 -
--	nr_align = 1UL << find_first_bit(&nr_pfns, BITS_PER_LONG);
--	nr_align = ALIGN(pfn, nr_align) - pfn;
+-	/*
+-	 * In the cached case we're already holding a live reference so
+-	 * we can simply do a blind increment
+-	 */
+-	if (res && phys >= res->start && phys <= res->end) {
+-		percpu_ref_get(pgmap->ref);
+-		return pgmap;
+-	}
 -
--	if (nr_pfns + nr_align > vmem_altmap_nr_free(altmap))
--		return ULONG_MAX;
--	altmap->alloc += nr_pfns;
--	altmap->align += nr_align;
--	return pfn + nr_align;
+-	/* fall back to slow path lookup */
+-	rcu_read_lock();
+-	pgmap = find_dev_pagemap(phys);
+-	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
+-		pgmap = NULL;
+-	rcu_read_unlock();
+-
+-	return pgmap;
 -}
 -
- void * __meminit altmap_alloc_block_buf(unsigned long size,
- 		struct vmem_altmap *altmap)
+ static inline void put_dev_pagemap(struct dev_pagemap *pgmap)
  {
--	unsigned long pfn, nr_pfns;
--	void *ptr;
-+	unsigned long pfn, nr_pfns, nr_align;
- 
- 	if (size & ~PAGE_MASK) {
- 		pr_warn_once("%s: allocations must be multiple of PAGE_SIZE (%ld)\n",
-@@ -141,16 +124,20 @@ void * __meminit altmap_alloc_block_buf(unsigned long size,
- 		return NULL;
- 	}
- 
-+	pfn = vmem_altmap_next_pfn(altmap);
- 	nr_pfns = size >> PAGE_SHIFT;
--	pfn = vmem_altmap_alloc(altmap, nr_pfns);
--	if (pfn < ULONG_MAX)
--		ptr = __va(__pfn_to_phys(pfn));
--	else
--		ptr = NULL;
-+	nr_align = 1UL << find_first_bit(&nr_pfns, BITS_PER_LONG);
-+	nr_align = ALIGN(pfn, nr_align) - pfn;
-+	if (nr_pfns + nr_align > vmem_altmap_nr_free(altmap))
-+		return NULL;
-+
-+	altmap->alloc += nr_pfns;
-+	altmap->align += nr_align;
-+	pfn += nr_align;
-+
- 	pr_debug("%s: pfn: %#lx alloc: %ld align: %ld nr: %#lx\n",
- 			__func__, pfn, altmap->alloc, altmap->align, nr_pfns);
--
--	return ptr;
-+	return __va(__pfn_to_phys(pfn));
+ 	if (pgmap)
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index 8e85803b6b0e..43d94db97ff4 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -314,7 +314,7 @@ static void devm_memremap_pages_release(struct device *dev, void *data)
  }
  
- void __meminit vmemmap_verify(pte_t *pte, int node,
+ /* assumes rcu_read_lock() held at entry */
+-struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
++static struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
+ {
+ 	struct page_map *page_map;
+ 
+@@ -500,8 +500,40 @@ struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
+ 
+ 	return pgmap ? pgmap->altmap : NULL;
+ }
+-#endif /* CONFIG_ZONE_DEVICE */
+ 
++/**
++ * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
++ * @pfn: page frame number to lookup page_map
++ * @pgmap: optional known pgmap that already has a reference
++ *
++ * @pgmap allows the overhead of a lookup to be bypassed when @pfn lands in the
++ * same mapping.
++ */
++struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
++		struct dev_pagemap *pgmap)
++{
++	const struct resource *res = pgmap ? pgmap->res : NULL;
++	resource_size_t phys = PFN_PHYS(pfn);
++
++	/*
++	 * In the cached case we're already holding a live reference so
++	 * we can simply do a blind increment
++	 */
++	if (res && phys >= res->start && phys <= res->end) {
++		percpu_ref_get(pgmap->ref);
++		return pgmap;
++	}
++
++	/* fall back to slow path lookup */
++	rcu_read_lock();
++	pgmap = find_dev_pagemap(phys);
++	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
++		pgmap = NULL;
++	rcu_read_unlock();
++
++	return pgmap;
++}
++#endif /* CONFIG_ZONE_DEVICE */
+ 
+ #if IS_ENABLED(CONFIG_DEVICE_PRIVATE) ||  IS_ENABLED(CONFIG_DEVICE_PUBLIC)
+ void put_zone_device_private_or_public_page(struct page *page)
 -- 
 2.14.2
 
