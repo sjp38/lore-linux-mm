@@ -1,82 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FDDD6B0033
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 13:54:42 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id x204so4407577oif.18
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 10:54:42 -0800 (PST)
-Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
-        by mx.google.com with ESMTP id r69si2435308ota.125.2017.12.15.10.54.41
-        for <linux-mm@kvack.org>;
-        Fri, 15 Dec 2017 10:54:41 -0800 (PST)
-Message-ID: <5A3419F3.1030804@arm.com>
-Date: Fri, 15 Dec 2017 18:52:35 +0000
-From: James Morse <james.morse@arm.com>
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0DE6B0069
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:22:35 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a74so8538300pfg.20
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:22:35 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id 33si5164000plv.465.2017.12.15.11.22.33
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Dec 2017 11:22:34 -0800 (PST)
+Date: Fri, 15 Dec 2017 11:22:03 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v19 3/7] xbitmap: add more operations
+Message-ID: <20171215192203.GC27160@bombadil.infradead.org>
+References: <5A311C5E.7000304@intel.com>
+ <201712132316.EJJ57332.MFOSJHOFFVLtQO@I-love.SAKURA.ne.jp>
+ <5A31F445.6070504@intel.com>
+ <201712150129.BFC35949.FFtFOLSOJOQHVM@I-love.SAKURA.ne.jp>
+ <20171214181219.GA26124@bombadil.infradead.org>
+ <201712160121.BEJ26052.HOFFOOQFMLtSVJ@I-love.SAKURA.ne.jp>
+ <20171215184915.GB27160@bombadil.infradead.org>
 MIME-Version: 1.0
-Subject: Re: [Question ]: Avoid kernel panic when killing an application if
- happen RAS page table error
-References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com> <20171205165727.GG3070@tassilo.jf.intel.com> <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com> <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com> <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com> <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
-In-Reply-To: <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171215184915.GB27160@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: gengdongjiu <gengdongjiu@huawei.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
 
-Hi gengdongjiu,
+On Fri, Dec 15, 2017 at 10:49:15AM -0800, Matthew Wilcox wrote:
+> Here's the API I'm looking at right now.  The user need take no lock;
+> the locking (spinlock) is handled internally to the implementation.
 
-On 15/12/17 02:00, gengdongjiu wrote:
-> change the mail title and resend.
+I looked at the API some more and found some flaws:
+ - how does xbit_alloc communicate back which bit it allocated?
+ - What if xbit_find_set() is called on a completely empty array with
+   a range of 0, ULONG_MAX -- there's no invalid number to return.
+ - xbit_clear() can't return an error.  Neither can xbit_zero().
+ - Need to add __must_check to various return values to discourage sloppy
+   programming
 
-(please don't do this, we all got the first version)
+So I modify the proposed API we compete with thusly:
 
+bool xbit_test(struct xbitmap *, unsigned long bit);
+int __must_check xbit_set(struct xbitmap *, unsigned long bit, gfp_t);
+void xbit_clear(struct xbitmap *, unsigned long bit);
+int __must_check xbit_alloc(struct xbitmap *, unsigned long *bit, gfp_t);
 
-> If the user space application happen page table RAS error,Memory error handler(memory_failure()) will
-> do nothing except making a poisoned page flag,
+int __must_check xbit_fill(struct xbitmap *, unsigned long start,
+                        unsigned long nbits, gfp_t);
+void xbit_zero(struct xbitmap *, unsigned long start, unsigned long nbits);
+int __must_check xbit_alloc_range(struct xbitmap *, unsigned long *bit,
+                        unsigned long nbits, gfp_t);
 
-Yes, because user-space process's page tables are kernel memory.
+bool xbit_find_clear(struct xbitmap *, unsigned long *start, unsigned long max);
+bool xbit_find_set(struct xbitmap *, unsigned long *start, unsigned long max);
 
-memory_failure() depends on the system being able to contain these faults,
-giving us another RAS exception if we touch the page again.
-
-
-> and fault handler in arch/arm64/mm/fault.c
-> will deliver a signal to kill this application. when this application exits, it will call unmap_vmas ()
-> to release his vma resource, but here it will touch the error page table
-again, then will
-> trigger RAS error again, so this application cannot be killed and system will be panic, the log is shown in [2].
-
-Kernel memory is corrupt, we panic().
-
-You want to add a distinction to handle user-space process's page tables:
-
-> As shown the stack in [1], unmap_page_range() will touch the error page table, so system will panic,
-> there are some simple way to avoid this panic and avoid change much about
-> the memory management.
-> 1. put the tasks to dead status, not run it again.
-> 2. not release the page table for this task.
-> 
-> Of cause, above methods may happen memory leakage. do you have good suggestion about how to solve it?, or do you think this panic is expected behavior? thanks.
-
-I don't think this is worth the effort, the page tables are small compared to
-the memory they map. Even if this were fixed, you still have the chance of other
-kernel memory being corrupted.
-
-Leaking any memory that isn't marked as poisoned isn't a good idea.
-
-What you would need is a way to know from the struct_page that: this page is
-is page-table, and which struct_mm it belongs to. (If its the kernel's init_mm:
-panic()).
-Next you need a way to find all the other pages of page-table without walking
-them. With these three pieces of information you can free all the unaffected
-memory, with even more work you can probably regenerate the corrupted page.
-
-It's going to be complicated to do, I don't think its worth the effort.
-
-
-Thanks,
-
-James
+(I'm a little sceptical about the API accepting 'max' for the find
+functions and 'nbits' in the fill/zero/alloc_range functions, but I think
+that matches how people want to use it, and it matches how bitmap.h works)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
