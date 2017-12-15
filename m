@@ -1,55 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4538B6B0038
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 04:02:10 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id j3so7291691pfh.16
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 01:02:10 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id h34si4661933pld.202.2017.12.15.01.02.08
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FD276B0253
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 04:29:02 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id t92so4738500wrc.13
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 01:29:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p13si4465455wre.321.2017.12.15.01.29.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 15 Dec 2017 01:02:09 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
-In-Reply-To: <CAGXu5jKjjsyYJTWTqzO0mQKM+9mCH=jY_x90wJpoXbsDcLSv+Q@mail.gmail.com>
-References: <20171213092550.2774-1-mhocko@kernel.org> <CAGXu5jKjjsyYJTWTqzO0mQKM+9mCH=jY_x90wJpoXbsDcLSv+Q@mail.gmail.com>
-Date: Fri, 15 Dec 2017 20:02:04 +1100
-Message-ID: <876098ictv.fsf@concordia.ellerman.id.au>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 15 Dec 2017 01:29:01 -0800 (PST)
+Date: Fri, 15 Dec 2017 10:28:59 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20171215092859.GT16951@dhcp22.suse.cz>
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+ <20171213143948.GM25185@dhcp22.suse.cz>
+ <20171214153558.trgov6dbclav6ui7@node.shutemov.name>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171214153558.trgov6dbclav6ui7@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>, Michal Hocko <mhocko@kernel.org>
-Cc: Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Michal Hocko <mhocko@suse.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-Kees Cook <keescook@chromium.org> writes:
+On Thu 14-12-17 18:35:58, Kirill A. Shutemov wrote:
+> On Wed, Dec 13, 2017 at 03:39:48PM +0100, Michal Hocko wrote:
+[...]
+> > +	err = 0;
+> > +	if (page_to_nid(page) == node)
+> > +		goto out_putpage;
+> > +
+> > +	err = -EACCES;
+> > +	if (page_mapcount(page) > 1 &&
+> > +			!migrate_all)
+> 
+> Non-sensible line break.
 
-> On Wed, Dec 13, 2017 at 1:25 AM, Michal Hocko <mhocko@kernel.org> wrote:
->>
->> Hi,
->> I am resending with some minor updates based on Michael's review and
->> ask for inclusion. There haven't been any fundamental objections for
->> the RFC [1] nor the previous version [2].  The biggest discussion
->> revolved around the naming. There were many suggestions flowing
->> around MAP_REQUIRED, MAP_EXACT, MAP_FIXED_NOCLOBBER, MAP_AT_ADDR,
->> MAP_FIXED_NOREPLACE etc...
->
-> With this named MAP_FIXED_NOREPLACE (the best consensus we've got on a
-> name), please consider this series:
->
-> Acked-by: Kees Cook <keescook@chromium.org>
+fixed
 
-I don't feel like I'm actually qualified to ack the mm and binfmt
-changes, but everything *looks* correct to me, and you've fixed the flag
-numbering such that it can go in mman-common.h as I suggested.
+> > +		goto out_putpage;
+> > +
+> > +	if (PageHuge(page)) {
+> > +		if (PageHead(page)) {
+> > +			isolate_huge_page(page, pagelist);
+> > +			err = 0;
+> > +		}
+> > +	} else {
+> 
+> Hm. I think if the page is PageTail() we have to split the huge page.
+> If an user asks to migrate part of THP, we shouldn't migrate the whole page,
+> otherwise it's not transparent anymore.
 
-So if the name was MAP_FIXED_NOREPLACE I would also be happy with it.
+Well, as I've said in the cover letter. There are more things which are
+worth considering but I've tried to keep the original semantic so
+further changes should be done in separete patches. I will work on those
+but I would prefer this to stay smaller if you do not mind.
 
-Acked-by: Michael Ellerman <mpe@ellerman.id.au>
+> Otherwise, the patch looks good to me.
 
-I can resubmit with the name changed if that's what it takes.
-
-cheers
+Thanks for the review
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
