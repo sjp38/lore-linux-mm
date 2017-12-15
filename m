@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A41176B0271
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:41 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id m78so8039471ybm.3
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:41 -0800 (PST)
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 468C76B0273
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:42 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id 64so7987666yby.11
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:42 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y142si1494641ybe.810.2017.12.15.14.05.39
+        by mx.google.com with ESMTPS id w139si1517006ybb.342.2017.12.15.14.05.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:40 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:41 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 26/78] page cache: Add and replace pages using the XArray
-Date: Fri, 15 Dec 2017 14:03:58 -0800
-Message-Id: <20171215220450.7899-27-willy@infradead.org>
+Subject: [PATCH v5 62/78] dax: Convert dax_writeback_one to XArray
+Date: Fri, 15 Dec 2017 14:04:34 -0800
+Message-Id: <20171215220450.7899-63-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,221 +22,76 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Use the XArray APIs to add and replace pages in the page cache.  This
-removes two uses of the radix tree preload API and is significantly
-shorter code.
+Likewise easy
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 143 +++++++++++++++++++++++++----------------------------------
- 1 file changed, 61 insertions(+), 82 deletions(-)
+ fs/dax.c | 17 +++++++----------
+ 1 file changed, 7 insertions(+), 10 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index f1b4480723dd..91df92f5c96d 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -112,35 +112,6 @@
-  *   ->tasklist_lock            (memory_failure, collect_procs_ao)
-  */
- 
--static int page_cache_tree_insert(struct address_space *mapping,
--				  struct page *page, void **shadowp)
--{
--	struct radix_tree_node *node;
--	void **slot;
--	int error;
--
--	error = __radix_tree_create(&mapping->pages, page->index, 0,
--				    &node, &slot);
--	if (error)
--		return error;
--	if (*slot) {
--		void *p;
--
--		p = radix_tree_deref_slot_protected(slot,
--						    &mapping->pages.xa_lock);
--		if (!xa_is_value(p))
--			return -EEXIST;
--
--		mapping->nrexceptional--;
--		if (shadowp)
--			*shadowp = p;
--	}
--	__radix_tree_replace(&mapping->pages, node, slot, page,
--			     workingset_lookup_update(mapping));
--	mapping->nrpages++;
--	return 0;
--}
--
- static void page_cache_tree_delete(struct address_space *mapping,
- 				   struct page *page, void *shadow)
+diff --git a/fs/dax.c b/fs/dax.c
+index d3894c15609a..d6dd779e1b46 100644
+--- a/fs/dax.c
++++ b/fs/dax.c
+@@ -633,8 +633,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 		struct dax_device *dax_dev, struct address_space *mapping,
+ 		pgoff_t index, void *entry)
  {
-@@ -776,51 +747,44 @@ EXPORT_SYMBOL(file_write_and_wait_range);
-  * locked.  This function does not add the new page to the LRU, the
-  * caller must do that.
-  *
-- * The remove + add is atomic.  The only way this function can fail is
-- * memory allocation failure.
-+ * The remove + add is atomic.  This function cannot fail.
-  */
- int replace_page_cache_page(struct page *old, struct page *new, gfp_t gfp_mask)
- {
--	int error;
-+	struct address_space *mapping = old->mapping;
-+	void (*freepage)(struct page *) = mapping->a_ops->freepage;
-+	pgoff_t offset = old->index;
-+	XA_STATE(xas, &mapping->pages, offset);
-+	unsigned long flags;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(old), old);
- 	VM_BUG_ON_PAGE(!PageLocked(new), new);
- 	VM_BUG_ON_PAGE(new->mapping, new);
- 
--	error = radix_tree_preload(gfp_mask & ~__GFP_HIGHMEM);
--	if (!error) {
--		struct address_space *mapping = old->mapping;
--		void (*freepage)(struct page *);
--		unsigned long flags;
--
--		pgoff_t offset = old->index;
--		freepage = mapping->a_ops->freepage;
--
--		get_page(new);
--		new->mapping = mapping;
--		new->index = offset;
-+	get_page(new);
-+	new->mapping = mapping;
-+	new->index = offset;
- 
--		xa_lock_irqsave(&mapping->pages, flags);
--		__delete_from_page_cache(old, NULL);
--		error = page_cache_tree_insert(mapping, new, NULL);
--		BUG_ON(error);
-+	xas_lock_irqsave(&xas, flags);
-+	xas_store(&xas, new);
- 
--		/*
--		 * hugetlb pages do not participate in page cache accounting.
--		 */
--		if (!PageHuge(new))
--			__inc_node_page_state(new, NR_FILE_PAGES);
--		if (PageSwapBacked(new))
--			__inc_node_page_state(new, NR_SHMEM);
--		xa_unlock_irqrestore(&mapping->pages, flags);
--		mem_cgroup_migrate(old, new);
--		radix_tree_preload_end();
--		if (freepage)
--			freepage(old);
--		put_page(old);
--	}
-+	old->mapping = NULL;
-+	/* hugetlb pages do not participate in page cache accounting. */
-+	if (!PageHuge(old))
-+		__dec_node_page_state(new, NR_FILE_PAGES);
-+	if (!PageHuge(new))
-+		__inc_node_page_state(new, NR_FILE_PAGES);
-+	if (PageSwapBacked(old))
-+		__dec_node_page_state(new, NR_SHMEM);
-+	if (PageSwapBacked(new))
-+		__inc_node_page_state(new, NR_SHMEM);
-+	xas_unlock_irqrestore(&xas, flags);
-+	mem_cgroup_migrate(old, new);
-+	if (freepage)
-+		freepage(old);
-+	put_page(old);
- 
--	return error;
-+	return 0;
- }
- EXPORT_SYMBOL_GPL(replace_page_cache_page);
- 
-@@ -829,12 +793,15 @@ static int __add_to_page_cache_locked(struct page *page,
- 				      pgoff_t offset, gfp_t gfp_mask,
- 				      void **shadowp)
- {
-+	XA_STATE(xas, &mapping->pages, offset);
- 	int huge = PageHuge(page);
- 	struct mem_cgroup *memcg;
- 	int error;
-+	void *old;
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageSwapBacked(page), page);
-+	xas_set_update(&xas, workingset_lookup_update(mapping));
- 
- 	if (!huge) {
- 		error = mem_cgroup_try_charge(page, current->mm,
-@@ -843,39 +810,51 @@ static int __add_to_page_cache_locked(struct page *page,
- 			return error;
- 	}
- 
--	error = radix_tree_maybe_preload(gfp_mask & ~__GFP_HIGHMEM);
--	if (error) {
--		if (!huge)
--			mem_cgroup_cancel_charge(page, memcg, false);
--		return error;
--	}
--
- 	get_page(page);
- 	page->mapping = mapping;
- 	page->index = offset;
+-	struct radix_tree_root *pages = &mapping->pages;
+-	XA_STATE(xas, pages, index);
++	XA_STATE(xas, &mapping->pages, index);
+ 	void *entry2, *kaddr;
+ 	long ret = 0, id;
+ 	sector_t sector;
+@@ -649,7 +648,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	if (WARN_ON(!xa_is_value(entry)))
+ 		return -EIO;
  
 -	xa_lock_irq(&mapping->pages);
--	error = page_cache_tree_insert(mapping, page, shadowp);
--	radix_tree_preload_end();
--	if (unlikely(error))
--		goto err_insert;
-+	do {
-+		xas_lock_irq(&xas);
-+		old = xas_create(&xas);
-+		if (xas_error(&xas))
-+			goto unlock;
-+		if (xa_is_value(old)) {
-+			mapping->nrexceptional--;
-+			if (shadowp)
-+				*shadowp = old;
-+		} else if (old) {
-+			xas_set_err(&xas, -EEXIST);
-+			goto unlock;
-+		}
-+
-+		xas_store(&xas, page);
-+		mapping->nrpages++;
-+
-+		/*
-+		 * hugetlb pages do not participate in
-+		 * page cache accounting.
-+		 */
-+		if (!huge)
-+			__inc_node_page_state(page, NR_FILE_PAGES);
-+unlock:
-+		xas_unlock_irq(&xas);
-+	} while (xas_nomem(&xas, gfp_mask & ~__GFP_HIGHMEM));
-+
-+	if (xas_error(&xas))
-+		goto error;
++	xas_lock_irq(&xas);
+ 	entry2 = get_unlocked_mapping_entry(&xas);
+ 	/* Entry got punched out / reallocated? */
+ 	if (!entry2 || WARN_ON_ONCE(!xa_is_value(entry2)))
+@@ -668,7 +667,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	}
  
--	/* hugetlb pages do not participate in page cache accounting. */
--	if (!huge)
--		__inc_node_page_state(page, NR_FILE_PAGES);
+ 	/* Another fsync thread may have already written back this entry */
+-	if (!radix_tree_tag_get(pages, index, PAGECACHE_TAG_TOWRITE))
++	if (!xas_get_tag(&xas, PAGECACHE_TAG_TOWRITE))
+ 		goto put_unlocked;
+ 	/* Lock the entry to serialize with page faults */
+ 	entry = lock_slot(&xas);
+@@ -679,8 +678,8 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	 * at the entry only under xa_lock and once they do that they will
+ 	 * see the entry locked and wait for it to unlock.
+ 	 */
+-	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_TOWRITE);
 -	xa_unlock_irq(&mapping->pages);
- 	if (!huge)
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 	trace_mm_filemap_add_to_page_cache(page);
- 	return 0;
--err_insert:
-+error:
- 	page->mapping = NULL;
- 	/* Leave page->index set: truncation relies upon it */
++	xas_clear_tag(&xas, PAGECACHE_TAG_TOWRITE);
++	xas_unlock_irq(&xas);
+ 
+ 	/*
+ 	 * Even if dax_writeback_mapping_range() was given a wbc->range_start
+@@ -718,9 +717,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 	 * the pfn mappings are writeprotected and fault waits for mapping
+ 	 * entry lock.
+ 	 */
+-	xa_lock_irq(&mapping->pages);
+-	radix_tree_tag_clear(pages, index, PAGECACHE_TAG_DIRTY);
 -	xa_unlock_irq(&mapping->pages);
- 	if (!huge)
- 		mem_cgroup_cancel_charge(page, memcg, false);
- 	put_page(page);
--	return error;
-+	return xas_error(&xas);
++	xa_clear_tag(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
+ 	trace_dax_writeback_one(mapping->host, index, size >> PAGE_SHIFT);
+  dax_unlock:
+ 	dax_read_unlock(id);
+@@ -729,7 +726,7 @@ static int dax_writeback_one(struct block_device *bdev,
+ 
+  put_unlocked:
+ 	put_unlocked_mapping_entry(&xas, entry2);
+-	xa_unlock_irq(&mapping->pages);
++	xas_unlock_irq(&xas);
+ 	return ret;
  }
  
- /**
 -- 
 2.15.1
 
