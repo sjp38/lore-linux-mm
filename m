@@ -1,79 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B27086B0038
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 04:57:54 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id o16so3854896wmf.4
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 01:57:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j10si4807711wrc.446.2017.12.15.01.57.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CE3906B0038
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 05:00:27 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id 96so4715369wrk.7
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 02:00:27 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id w21sor3851898edl.48.2017.12.15.02.00.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Dec 2017 01:57:53 -0800 (PST)
-Date: Fri, 15 Dec 2017 10:57:51 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20171215095751.GW16951@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
- <20171213143948.GM25185@dhcp22.suse.cz>
- <20171214153558.trgov6dbclav6ui7@node.shutemov.name>
- <20171215092859.GT16951@dhcp22.suse.cz>
- <20171215095125.s6zl7qoaabhpzugz@node.shutemov.name>
+        (Google Transport Security);
+        Fri, 15 Dec 2017 02:00:26 -0800 (PST)
+Date: Fri, 15 Dec 2017 13:00:24 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH] mm: Reduce memory bloat with THP
+Message-ID: <20171215100024.gxuijdovjhkugarz@node.shutemov.name>
+References: <1513301359-117568-1-git-send-email-nitin.m.gupta@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171215095125.s6zl7qoaabhpzugz@node.shutemov.name>
+In-Reply-To: <1513301359-117568-1-git-send-email-nitin.m.gupta@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Nitin Gupta <nitin.m.gupta@oracle.com>
+Cc: linux-mm@kvack.org, steven.sistare@oracle.com, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, SeongJae Park <sj38.park@gmail.com>, Shaohua Li <shli@fb.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, open list <linux-kernel@vger.kernel.org>
 
-On Fri 15-12-17 12:51:25, Kirill A. Shutemov wrote:
-> On Fri, Dec 15, 2017 at 10:28:59AM +0100, Michal Hocko wrote:
-> > On Thu 14-12-17 18:35:58, Kirill A. Shutemov wrote:
-> > > On Wed, Dec 13, 2017 at 03:39:48PM +0100, Michal Hocko wrote:
-> > [...]
-> > > > +	err = 0;
-> > > > +	if (page_to_nid(page) == node)
-> > > > +		goto out_putpage;
-> > > > +
-> > > > +	err = -EACCES;
-> > > > +	if (page_mapcount(page) > 1 &&
-> > > > +			!migrate_all)
-> > > 
-> > > Non-sensible line break.
-> > 
-> > fixed
-> > 
-> > > > +		goto out_putpage;
-> > > > +
-> > > > +	if (PageHuge(page)) {
-> > > > +		if (PageHead(page)) {
-> > > > +			isolate_huge_page(page, pagelist);
-> > > > +			err = 0;
-> > > > +		}
-> > > > +	} else {
-> > > 
-> > > Hm. I think if the page is PageTail() we have to split the huge page.
-> > > If an user asks to migrate part of THP, we shouldn't migrate the whole page,
-> > > otherwise it's not transparent anymore.
-> > 
-> > Well, as I've said in the cover letter. There are more things which are
-> > worth considering but I've tried to keep the original semantic so
-> > further changes should be done in separete patches. I will work on those
-> > but I would prefer this to stay smaller if you do not mind.
+On Thu, Dec 14, 2017 at 05:28:52PM -0800, Nitin Gupta wrote:
+> Currently, if the THP enabled policy is "always", or the mode
+> is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
+> is allocated on a page fault if the pud or pmd is empty.  This
+> yields the best VA translation performance, but increases memory
+> consumption if some small page ranges within the huge page are
+> never accessed.
 > 
-> Sure.
+> An alternate behavior for such page faults is to install a
+> hugepage only when a region is actually found to be (almost)
+> fully mapped and active.  This is a compromise between
+> translation performance and memory consumption.  Currently there
+> is no way for an application to choose this compromise for the
+> page fault conditions above.
 > 
-> Fill free to use my ack.
+> With this change, when an application issues MADV_DONTNEED on a
+> memory region, the region is marked as "space-efficient". For
+> such regions, a hugepage is not immediately allocated on first
+> write.  Instead, it is left to the khugepaged thread to do
+> delayed hugepage promotion depending on whether the region is
+> actually mapped and active. When application issues
+> MADV_HUGEPAGE, the region is marked again as non-space-efficient
+> wherein hugepage is allocated on first touch.
 
-Thanks a lot Kirill! I will wait for some more feedback and then
-resubmit later next week.
+I think this would be NAK. At least in this form.
+
+What performance testing have you done? Any numbers?
+
+Making whole vma "space_efficient" just because somebody freed one page
+from it is just wrong. And there's no way back after this.
+
+> 
+> Orabug: 26910556
+
+Wat?
 
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
