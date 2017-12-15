@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9BD0C6B0297
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F12706B0299
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:06:04 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id w125so16793530itf.0
+Received: by mail-io0-f197.google.com with SMTP id v22so451344iog.10
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:06:04 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id u15si5969810ite.170.2017.12.15.14.06.03
+        by mx.google.com with ESMTPS id o12si5775381itg.159.2017.12.15.14.06.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:06:03 -0800 (PST)
+        Fri, 15 Dec 2017 14:06:04 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 27/78] page cache: Convert page deletion to XArray
-Date: Fri, 15 Dec 2017 14:03:59 -0800
-Message-Id: <20171215220450.7899-28-willy@infradead.org>
+Subject: [PATCH v5 69/78] vmalloc: Convert to XArray
+Date: Fri, 15 Dec 2017 14:04:41 -0800
+Message-Id: <20171215220450.7899-70-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,57 +22,117 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The code is slightly shorter and simpler.
+The radix tree of vmap blocks is simpler to express as an XArray.
+Saves a couple of hundred bytes of text and eliminates a user of the
+radix tree preload API.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/filemap.c | 26 ++++++++++++--------------
- 1 file changed, 12 insertions(+), 14 deletions(-)
+ mm/vmalloc.c | 39 +++++++++++++--------------------------
+ 1 file changed, 13 insertions(+), 26 deletions(-)
 
-diff --git a/mm/filemap.c b/mm/filemap.c
-index 91df92f5c96d..c9bc0dee0154 100644
---- a/mm/filemap.c
-+++ b/mm/filemap.c
-@@ -115,27 +115,25 @@
- static void page_cache_tree_delete(struct address_space *mapping,
- 				   struct page *page, void *shadow)
- {
--	int i, nr;
-+	XA_STATE(xas, &mapping->pages, page->index);
-+	unsigned int i, nr;
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index 673942094328..b6c138633592 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -23,7 +23,7 @@
+ #include <linux/list.h>
+ #include <linux/notifier.h>
+ #include <linux/rbtree.h>
+-#include <linux/radix-tree.h>
++#include <linux/xarray.h>
+ #include <linux/rcupdate.h>
+ #include <linux/pfn.h>
+ #include <linux/kmemleak.h>
+@@ -821,12 +821,11 @@ struct vmap_block {
+ static DEFINE_PER_CPU(struct vmap_block_queue, vmap_block_queue);
  
--	/* hugetlb pages are represented by one entry in the radix tree */
-+	xas_set_update(&xas, workingset_lookup_update(mapping));
-+
-+	/* hugetlb pages are represented by a single entry in the xarray */
- 	nr = PageHuge(page) ? 1 : hpage_nr_pages(page);
+ /*
+- * Radix tree of vmap blocks, indexed by address, to quickly find a vmap block
++ * XArray of vmap blocks, indexed by address, to quickly find a vmap block
+  * in the free path. Could get rid of this if we change the API to return a
+  * "cookie" from alloc, to be passed to free. But no big deal yet.
+  */
+-static DEFINE_SPINLOCK(vmap_block_tree_lock);
+-static RADIX_TREE(vmap_block_tree, GFP_ATOMIC);
++static DEFINE_XARRAY(vmap_block_tree);
  
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(PageTail(page), page);
- 	VM_BUG_ON_PAGE(nr != 1 && shadow, page);
+ /*
+  * We should probably have a fallback mechanism to allocate virtual memory
+@@ -865,8 +864,8 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	struct vmap_block *vb;
+ 	struct vmap_area *va;
+ 	unsigned long vb_idx;
+-	int node, err;
+-	void *vaddr;
++	int node;
++	void *ret, *vaddr;
  
--	for (i = 0; i < nr; i++) {
--		struct radix_tree_node *node;
--		void **slot;
--
--		__radix_tree_lookup(&mapping->pages, page->index + i,
--				    &node, &slot);
--
--		VM_BUG_ON_PAGE(!node && nr != 1, page);
--
--		radix_tree_clear_tags(&mapping->pages, node, slot);
--		__radix_tree_replace(&mapping->pages, node, slot, shadow,
--				workingset_lookup_update(mapping));
-+	i = nr;
-+repeat:
-+	xas_store(&xas, shadow);
-+	xas_init_tags(&xas);
-+	if (--i) {
-+		xas_next(&xas);
-+		goto repeat;
+ 	node = numa_node_id();
+ 
+@@ -883,13 +882,6 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 		return ERR_CAST(va);
  	}
  
- 	page->mapping = NULL;
+-	err = radix_tree_preload(gfp_mask);
+-	if (unlikely(err)) {
+-		kfree(vb);
+-		free_vmap_area(va);
+-		return ERR_PTR(err);
+-	}
+-
+ 	vaddr = vmap_block_vaddr(va->va_start, 0);
+ 	spin_lock_init(&vb->lock);
+ 	vb->va = va;
+@@ -902,11 +894,12 @@ static void *new_vmap_block(unsigned int order, gfp_t gfp_mask)
+ 	INIT_LIST_HEAD(&vb->free_list);
+ 
+ 	vb_idx = addr_to_vb_idx(va->va_start);
+-	spin_lock(&vmap_block_tree_lock);
+-	err = radix_tree_insert(&vmap_block_tree, vb_idx, vb);
+-	spin_unlock(&vmap_block_tree_lock);
+-	BUG_ON(err);
+-	radix_tree_preload_end();
++	ret = xa_store(&vmap_block_tree, vb_idx, vb, gfp_mask);
++	if (xa_is_err(ret)) {
++		kfree(vb);
++		free_vmap_area(va);
++		return ERR_PTR(xa_err(ret));
++	}
+ 
+ 	vbq = &get_cpu_var(vmap_block_queue);
+ 	spin_lock(&vbq->lock);
+@@ -923,9 +916,7 @@ static void free_vmap_block(struct vmap_block *vb)
+ 	unsigned long vb_idx;
+ 
+ 	vb_idx = addr_to_vb_idx(vb->va->va_start);
+-	spin_lock(&vmap_block_tree_lock);
+-	tmp = radix_tree_delete(&vmap_block_tree, vb_idx);
+-	spin_unlock(&vmap_block_tree_lock);
++	tmp = xa_erase(&vmap_block_tree, vb_idx);
+ 	BUG_ON(tmp != vb);
+ 
+ 	free_vmap_area_noflush(vb->va);
+@@ -1031,7 +1022,6 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
+ static void vb_free(const void *addr, unsigned long size)
+ {
+ 	unsigned long offset;
+-	unsigned long vb_idx;
+ 	unsigned int order;
+ 	struct vmap_block *vb;
+ 
+@@ -1045,10 +1035,7 @@ static void vb_free(const void *addr, unsigned long size)
+ 	offset = (unsigned long)addr & (VMAP_BLOCK_SIZE - 1);
+ 	offset >>= PAGE_SHIFT;
+ 
+-	vb_idx = addr_to_vb_idx((unsigned long)addr);
+-	rcu_read_lock();
+-	vb = radix_tree_lookup(&vmap_block_tree, vb_idx);
+-	rcu_read_unlock();
++	vb = xa_load(&vmap_block_tree, addr_to_vb_idx((unsigned long)addr));
+ 	BUG_ON(!vb);
+ 
+ 	vunmap_page_range((unsigned long)addr, (unsigned long)addr + size);
 -- 
 2.15.1
 
