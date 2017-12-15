@@ -1,60 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 823566B02FA
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:08:01 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id s1so2218976ybl.5
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:08:01 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q136si1534062ybq.589.2017.12.15.14.05.37
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0099C6B02FF
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:27:57 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id f4so5787904wre.9
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:27:56 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z41si2108362wrb.354.2017.12.15.14.27.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:38 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 49/78] shmem: Convert shmem_free_swap to XArray
-Date: Fri, 15 Dec 2017 14:04:21 -0800
-Message-Id: <20171215220450.7899-50-willy@infradead.org>
-In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
-References: <20171215220450.7899-1-willy@infradead.org>
+        Fri, 15 Dec 2017 14:27:55 -0800 (PST)
+Date: Fri, 15 Dec 2017 14:27:52 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH -mm -V2] mm, swap: Fix race between swapoff and some
+ swap operations
+Message-Id: <20171215142752.8680ebf607aeae94c32760b5@linux-foundation.org>
+In-Reply-To: <20171215100443.GX16951@dhcp22.suse.cz>
+References: <20171214133832.11266-1-ying.huang@intel.com>
+	<20171214151718.GS16951@dhcp22.suse.cz>
+	<20171214124246.ceebc9c955bd32601c01a28b@linux-foundation.org>
+	<20171215100443.GX16951@dhcp22.suse.cz>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Howells <dhowells@redhat.com>, Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, Marc Zyngier <marc.zyngier@arm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-raid@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On Fri, 15 Dec 2017 11:04:43 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 
-This is a perfect use for xa_cmpxchg().  Note the use of 0 for GFP
-flags; we won't be allocating memory.
+> On Thu 14-12-17 12:42:46, Andrew Morton wrote:
+> > On Thu, 14 Dec 2017 16:17:18 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+> > 
+> > > > as fast as possible, SRCU instead of reference count is used to
+> > > > implement get/put_swap_device().  From get_swap_device() to
+> > > > put_swap_device(), the reader side of SRCU is locked, so
+> > > > synchronize_srcu() in swapoff() will wait until put_swap_device() is
+> > > > called.
+> > > 
+> > > It is quite unfortunate to pull SRCU as a dependency to the core kernel.
+> > > Different attempts to do this have failed in the past. This one is
+> > > slightly different though because I would suspect that those tiny
+> > > systems do not configure swap. But who knows, maybe they do.
+> > > 
+> > > Anyway, if you are worried about performance then I would expect some
+> > > numbers to back that worry. So why don't simply start with simpler
+> > > ref count based and then optimize it later based on some actual numbers.
+> > > Btw. have you considered pcp refcount framework. I would suspect that
+> > > this would give you close to SRCU performance.
+> > 
+> > <squeaky-wheel>Or use stop_kernel() ;)</squeaky-wheel>
+> 
+> well, stop_kernel is a _huge_ hammer.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
----
- mm/shmem.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+But it's very simple and requires zero code changes on the fast path. 
+This makes it appropriate for swapoff!
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index bd66bbd40499..dd663341e01e 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -635,16 +635,13 @@ static void shmem_delete_from_page_cache(struct page *page, void *radswap)
- }
- 
- /*
-- * Remove swap entry from radix tree, free the swap and its page cache.
-+ * Remove swap entry from page cache, free the swap and its page cache.
-  */
- static int shmem_free_swap(struct address_space *mapping,
- 			   pgoff_t index, void *radswap)
- {
--	void *old;
-+	void *old = xa_cmpxchg(&mapping->pages, index, radswap, NULL, 0);
- 
--	xa_lock_irq(&mapping->pages);
--	old = radix_tree_delete_item(&mapping->pages, index, radswap);
--	xa_unlock_irq(&mapping->pages);
- 	if (old != radswap)
- 		return -ENOENT;
- 	free_swap_and_cache(radix_to_swp_entry(radswap));
--- 
-2.15.1
+> I think we can do much better
+> without a large complexity. A simple ref counting (or pcp refcounting if
+> the former has measurable complexity) should do just fine.
+
+I'd like to be able to compare the implementations ;)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
