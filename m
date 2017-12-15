@@ -1,183 +1,129 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 81BEE6B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:05:46 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id p18so1877344lfp.22
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:05:46 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id t3sor1056988lfd.1.2017.12.14.20.05.44
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D65A76B0038
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:22:17 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id 143so5781227ybe.18
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:22:17 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id h11si1136074ywj.415.2017.12.14.20.22.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Dec 2017 20:05:44 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 20:22:16 -0800 (PST)
+Date: Thu, 14 Dec 2017 20:22:14 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v4 08/73] xarray: Add documentation
+Message-ID: <20171215042214.GA17444@bombadil.infradead.org>
+References: <20171206004159.3755-1-willy@infradead.org>
+ <20171206004159.3755-9-willy@infradead.org>
+ <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CANrsvRPuhPyh1nFnzdYj8ph7e1FQRw_W_WN2a1tm9fzpAYks4g@mail.gmail.com>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171213104617.7lffucjhaa6xb7lp@gmail.com> <CANrsvRPuhPyh1nFnzdYj8ph7e1FQRw_W_WN2a1tm9fzpAYks4g@mail.gmail.com>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Fri, 15 Dec 2017 13:05:43 +0900
-Message-ID: <CANrsvRP3-bWatoaq1teNFG1RXRbazqnHvOKXe458eAxSdAnsfg@mail.gmail.com>
-Subject: Re: [PATCH] locking/lockdep: Remove the cross-release locking checks
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, david@fromorbit.com, Theodore Ts'o <tytso@mit.edu>, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Thu, Dec 14, 2017 at 2:01 PM, Byungchul Park
-<max.byungchul.park@gmail.com> wrote:
-> On Wed, Dec 13, 2017 at 7:46 PM, Ingo Molnar <mingo@kernel.org> wrote:
->>
->> * Byungchul Park <max.byungchul.park@gmail.com> wrote:
->>
->>> Lockdep works, based on the following:
->>>
->>>    (1) Classifying locks properly
->>>    (2) Checking relationship between the classes
->>>
->>> If (1) is not good or (2) is not good, then we
->>> might get false positives.
->>>
->>> For (1), we don't have to classify locks 100%
->>> properly but need as enough as lockdep works.
->>>
->>> For (2), we should have a mechanism w/o
->>> logical defects.
->>>
->>> Cross-release added an additional capacity to
->>> (2) and requires (1) to get more precisely classified.
->>>
->>> Since the current classification level is too low for
->>> cross-release to work, false positives are being
->>> reported frequently with enabling cross-release.
->>> Yes. It's a obvious problem. It needs to be off by
->>> default until the classification is done by the level
->>> that cross-release requires.
->>>
->>> But, the logic (2) is valid and logically true. Please
->>> keep the code, mechanism, and logic.
->>
->> Just to give a full context to everyone: the patch that removes the cross-release
->> locking checks was Cc:-ed to lkml, I've attached the patch below again.
->>
->> In general, as described in the changelog, the cross-release checks were
->> historically just too painful (first they were too slow, and they also had a lot
->> of false positives), and today, 4 months after its introduction, the cross-release
->> checks *still* produce numerous false positives, especially in the filesystem
->> space, but the continuous-integration testing folks were still having trouble with
->> kthread locking patterns causing false positives:
->
-> I admit false positives are the main problem, that should be solved.
->
-> I'm going willingly to try my best to solve that. However, as you may
-> know through introduction of lockdep, it's not something that I can
-> do easily and shortly on my own. It need take time to annotate
-> properly to avoid false positives.
->
->>   https://bugs.freedesktop.org/show_bug.cgi?id=103950
->>
->> which were resulting in two bad reactions:
->>
->>  - turning off lockdep
->>
->>  - writing patches that uglified unrelated subsystems
->
-> I can't give you a solution at the moment but it's something we
-> think more so that we classify locks properly and not uglify them.
->
-> Even without cross-release, once we start to add lock_acquire() in
-> submit_bio_wait() in the ugly way to consider wait_for_completion()
-> someday, we would face this problem again. It's not an easy problem,
-> however, it's worth trying.
->
->> So while I appreciate the fixes that resulted from running cross-release, there's
->> still numerous false positives, months after its interaction, which is
->> unacceptable. For us to have this feature it has to have roughly similar qualities
->> as compiler warnings:
->>
->>  - there's a "zero false positive warnings" policy
->
-> It's almost impossible... but need time. I wonder if lockdep did at the
-> beginning. If I can, I want to fix false positive as many as possible by
-> myself. But, unluckily it does not happen in my machine. I want to get
-> informed from others, keeping it in mainline tree.
->
->>  - plus any widespread changes to avoid warnings has to improve the code,
->>    not make it uglier.
->
-> Agree.
->
->> Lockdep itself is a following that policy: the default state is that it produces
->> no warnings upstream, and any annotations added to unrelated code documents the
->> locking hierarchies.
->>
->> While technically we could keep the cross-release checking code upstream and turn
->> it off by default via the Kconfig switch, I'm not a big believer in such a policy
->> for complex debugging code:
->>
->>  - We already did that for v4.14, two months ago:
->>
->>      b483cf3bc249: locking/lockdep: Disable cross-release features for now
->
-> The main reason disabling it was "performance regression".
->
->>
->>    ... and re-enabled it for v4.15 - but the false positives are still not fixed.
->
-> Right. But, all false positives cannot be fixed in a short period. We need
-> time to annotate them one by one.
->
->>  - either the cross-release checking code can be fixed and then having it off by
->
-> It's not a problem of cross-release checking code. The way I have to fix it
-> should be to add additional annotation or change the way to assign lock
-> classes.
->
->>    default is just wrong, because we can apply the fixed code again once it's
->>    fixed.
->>
->>  - or it cannot be fixed (or we don't have the manpower/interest to fix it),
->>    in which case having it off is only delaying the inevitable.
->
-> The more precisely assigning lock classes, the more false positives
-> would be getting fixed. It's not something messing it as time goes.
->
->> In any case, for v4.15 it's clear that the false positives are too numerous.
->>
->> Thanks,
->>
->>         Ingo
->>
->>
+On Mon, Dec 11, 2017 at 03:10:22PM -0800, Randy Dunlap wrote:
+> > +A freshly-initialised XArray contains a ``NULL`` pointer at every index.
+> > +Each non-``NULL`` entry in the array has three bits associated with
+> > +it called tags.  Each tag may be flipped on or off independently of
+> > +the others.  You can search for entries with a given tag set.
+> 
+> Only tags that are set, or search for entries with some tag(s) cleared?
+> Or is that like a mathematical set?
 
-Hello all,
+hmm ...
 
-I'm against the removing, not only because it's my work.
+"Each tag may be set or cleared independently of the others.  You can
+search for entries which have a particular tag set."
 
-We've already kept adding lock_acquire() manually to
-consider wait_for_completion() or general waiters one by
-one until now. It's certainly what we need.
+Doesn't completely remove the ambiguity, but I can't think of how to phrase
+that better ...
 
-Cross-release does it, but it makes trouble because it tries
-to consider all waiters *at one time* instead of one by one.
+> > +Normal pointers may be stored in the XArray directly.  They must be 4-byte
+> > +aligned, which is true for any pointer returned from :c:func:`kmalloc` and
+> > +:c:func:`alloc_page`.  It isn't true for arbitrary user-space pointers,
+> > +nor for function pointers.  You can store pointers to statically allocated
+> > +objects, as long as those objects have an alignment of at least 4.
+> 
+> This (above) is due to the internal usage of low bits for flags?
 
-Yes, it's a obvious problem. Doesn't we consider an option,
-that is, to invalidate locks making trouble quickly and validate
-it back one by one, so that almost other waiters can still get
-benefit from cross-release?
+Sort of ... if bit 0 is set then we're storing an integer (see below),
+and if bit 0 is clear and bit 1 is set, then it's an internal entry.
 
-Of course, it's not the ultimate solution. But, that would be
-much better than stopping all the benefit at once.
+But I don't want the implementation details to leak into the user manual.
+>From the user's point of view, they can store a pointer to anything they
+allocated with kmalloc.  If they want to store an arbitrary pointer,
+they're out of luck.
 
-For example, in the case of fs issues, for now we can
-invalidate wait_for_completion() in submit_bio_wait() and
-re-validate it later, of course, I really want to find more
-fundamental solution though.
+> > +The XArray does not support storing :c:func:`IS_ERR` pointers; some
+> > +conflict with data values and others conflict with entries the XArray
+> > +uses for its own purposes.  If you need to store special values which
+> > +cannot be confused with real kernel pointers, the values 4, 8, ... 4092
+> > +are available.
+> 
+> or if I know that they values are errno-range values, I can just shift them
+> left by 2 to store them and then shift them right by 2 to use them?
 
-Is it possible?
+Yes, the values -4 to -4092 also make good error signals.
 
--- 
-Thanks,
-Byungchul
+> oh, or use the following function?
+> 
+> > +You can also store integers between 0 and ``LONG_MAX`` in the XArray.
+> > +You must first convert it into an entry using :c:func:`xa_mk_value`.
+> > +When you retrieve an entry from the XArray, you can check whether it is
+> > +a data value by calling :c:func:`xa_is_value`, and convert it back to
+> > +an integer by calling :c:func:`xa_to_value`.
+
+Yup, you could also store errors as integers, if you like.  Your choice :-)
+
+> > +You can enquire whether a tag is set on an entry by using
+> > +:c:func:`xa_get_tag`.  If the entry is not ``NULL``, you can set a tag
+> > +on it by using :c:func:`xa_set_tag` and remove the tag from an entry by
+> > +calling :c:func:`xa_clear_tag`.  You can ask whether any entry in the
+> 
+>                                                         an entry
+> 
+> > +XArray has a particular tag set by calling :c:func:`xa_tagged`.
+> 
+> or maybe I don't understand.  Does xa_tagged() test one entry and return its
+> "tagged" result/status?  or does it test (potentially) the entire array to search
+> for a particular tag value?
+
+It asks the question "Does any entry in the array have tag N set?"
+
+> > +If the xa_state is holding an %ENOMEM error, calling :c:func:`xas_nomem`
+> > +will attempt to allocate more memory using the specified gfp flags and
+> > +cache it in the xa_state for the next attempt.  The idea is that you take
+> > +the xa_lock, attempt the operation and drop the lock.  The operation
+> > +attempts to allocate memory while holding the lock, but it is more
+> > +likely to fail.  Once you have dropped the lock, :c:func:`xas_nomem`
+> > +can try harder to allocate more memory.  It will return ``true`` if it
+> > +is worth retrying the operation (ie that there was a memory error *and*
+> 
+>                          usually    i.e.
+> 
+> > +more memory was allocated.  If it has previously allocated memory, and
+> 
+>                    allocated).
+
+Thanks!
+
+> > +If you need to move to a different index in the XArray, call
+> > +:c:func:`xas_set`.  This reinitialises the cursor which will generally
+> 
+> I would put a comma .... here.......................^
+> but consult your $editor.  :)
+
+I'll ask her, but I think you're right :-)
+
+> Nicely done.  Thanks.
+
+Thanks for the review!  I think we're still struggling a little to
+talk about tags in an unambiguous way, but apart from that it feels
+pretty good.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
