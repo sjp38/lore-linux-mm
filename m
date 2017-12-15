@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 430316B026A
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BA8776B026B
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:38 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id y200so16437432itc.7
+Received: by mail-yb0-f197.google.com with SMTP id 64so7987479yby.11
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:38 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 67si5278054ioc.178.2017.12.15.14.05.35
+        by mx.google.com with ESMTPS id d17si1489473ybe.487.2017.12.15.14.05.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:36 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:37 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 77/78] irqdomain: Convert to XArray
-Date: Fri, 15 Dec 2017 14:04:49 -0800
-Message-Id: <20171215220450.7899-78-willy@infradead.org>
+Subject: [PATCH v5 39/78] mm: Convert collapse_shmem to XArray
+Date: Fri, 15 Dec 2017 14:04:11 -0800
+Message-Id: <20171215220450.7899-40-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,230 +22,325 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-In a non-critical path, irqdomain wants to know how many entries are
-stored in the xarray, so add xa_count().  This is a pretty straightforward
-conversion; mostly just removing now-redundant locking.  The only thing
-of note is just how much simpler irq_domain_fix_revmap() becomes.
+I found another victim of the radix tree being hard to use.  Because
+there was no call to radix_tree_preload(), khugepaged was allocating
+radix_tree_nodes using GFP_ATOMIC.
+
+I also converted a local_irq_save()/restore() pair to
+disable()/enable().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/irqdomain.h | 10 ++++------
- include/linux/xarray.h    |  1 +
- kernel/irq/irqdomain.c    | 39 ++++++++++-----------------------------
- lib/xarray.c              | 25 +++++++++++++++++++++++++
- 4 files changed, 40 insertions(+), 35 deletions(-)
+ include/linux/swap.h |   4 +-
+ mm/khugepaged.c      | 158 +++++++++++++++++++++------------------------------
+ 2 files changed, 67 insertions(+), 95 deletions(-)
 
-diff --git a/include/linux/irqdomain.h b/include/linux/irqdomain.h
-index a34355d19546..0efccfb9e9f1 100644
---- a/include/linux/irqdomain.h
-+++ b/include/linux/irqdomain.h
-@@ -33,8 +33,7 @@
- #include <linux/types.h>
- #include <linux/irqhandler.h>
- #include <linux/of.h>
--#include <linux/mutex.h>
--#include <linux/radix-tree.h>
-+#include <linux/xarray.h>
+diff --git a/include/linux/swap.h b/include/linux/swap.h
+index 569a8ac4fe3f..9774f43d3e4f 100644
+--- a/include/linux/swap.h
++++ b/include/linux/swap.h
+@@ -300,12 +300,12 @@ bool workingset_refault(void *shadow);
+ void workingset_activation(struct page *page);
  
- struct device_node;
- struct irq_domain;
-@@ -151,7 +150,7 @@ struct irq_domain_chip_generic;
-  * @revmap_direct_max_irq: The largest hwirq that can be set for controllers that
-  *                         support direct mapping
-  * @revmap_size: Size of the linear map table @linear_revmap[]
-- * @revmap_tree: Radix map tree for hwirqs that don't fit in the linear map
-+ * @revmap_array: hwirqs that don't fit in the linear map
-  * @linear_revmap: Linear table of hwirq->virq reverse mappings
+ /* Do not use directly, use workingset_lookup_update */
+-void workingset_update_node(struct xa_node *node);
++void workingset_update_node(struct radix_tree_node *node);
+ 
+ /* Returns workingset_update_node() if the mapping has shadow entries. */
+ #define workingset_lookup_update(mapping)				\
+ ({									\
+-	xa_update_node_t __helper = workingset_update_node;		\
++	radix_tree_update_node_t __helper = workingset_update_node;	\
+ 	if (dax_mapping(mapping) || shmem_mapping(mapping))		\
+ 		__helper = NULL;					\
+ 	__helper;							\
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index 55ade70c33bb..9f49d0cd61c2 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1282,17 +1282,17 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+  *
+  * Basic scheme is simple, details are more complex:
+  *  - allocate and freeze a new huge page;
+- *  - scan over radix tree replacing old pages the new one
++ *  - scan page cache replacing old pages with the new one
+  *    + swap in pages if necessary;
+  *    + fill in gaps;
+- *    + keep old pages around in case if rollback is required;
+- *  - if replacing succeed:
++ *    + keep old pages around in case rollback is required;
++ *  - if replacing succeeds:
+  *    + copy data over;
+  *    + free old pages;
+  *    + unfreeze huge page;
+  *  - if replacing failed;
+  *    + put all pages back and unfreeze them;
+- *    + restore gaps in the radix-tree;
++ *    + restore gaps in the page cache;
+  *    + free huge page;
   */
- struct irq_domain {
-@@ -177,8 +176,7 @@ struct irq_domain {
- 	irq_hw_number_t hwirq_max;
- 	unsigned int revmap_direct_max_irq;
- 	unsigned int revmap_size;
--	struct radix_tree_root revmap_tree;
--	struct mutex revmap_tree_mutex;
-+	struct xarray revmap_array;
- 	unsigned int linear_revmap[];
- };
- 
-@@ -378,7 +376,7 @@ extern void irq_dispose_mapping(unsigned int virq);
-  * This is a fast path alternative to irq_find_mapping() that can be
-  * called directly by irq controller code to save a handful of
-  * instructions. It is always safe to call, but won't find irqs mapped
-- * using the radix tree.
-+ * using the xarray.
-  */
- static inline unsigned int irq_linear_revmap(struct irq_domain *domain,
- 					     irq_hw_number_t hwirq)
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index eba544f26b70..6af8b30a9310 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -145,6 +145,7 @@ int xa_get_entries(struct xarray *, void **dst, unsigned long start,
- 			unsigned long max, unsigned int n);
- int xa_get_tagged(struct xarray *, void **dst, unsigned long start,
- 			unsigned long max, unsigned int n, xa_tag_t);
-+unsigned long xa_count(struct xarray *);
- 
- /**
-  * xa_get_maybe_tag() - Copy entries from the XArray into a normal array.
-diff --git a/kernel/irq/irqdomain.c b/kernel/irq/irqdomain.c
-index 4f4f60015e8a..8225fe042f8a 100644
---- a/kernel/irq/irqdomain.c
-+++ b/kernel/irq/irqdomain.c
-@@ -114,7 +114,7 @@ EXPORT_SYMBOL_GPL(irq_domain_free_fwnode);
- /**
-  * __irq_domain_add() - Allocate a new irq_domain data structure
-  * @fwnode: firmware node for the interrupt controller
-- * @size: Size of linear map; 0 for radix mapping only
-+ * @size: Size of linear map; 0 for xarray mapping only
-  * @hwirq_max: Maximum number of interrupts supported by controller
-  * @direct_max: Maximum value of direct maps; Use ~0 for no limit; 0 for no
-  *              direct mapping
-@@ -209,8 +209,7 @@ struct irq_domain *__irq_domain_add(struct fwnode_handle *fwnode, int size,
- 	of_node_get(of_node);
- 
- 	/* Fill structure */
--	INIT_RADIX_TREE(&domain->revmap_tree, GFP_KERNEL);
--	mutex_init(&domain->revmap_tree_mutex);
-+	xa_init(&domain->revmap_array);
- 	domain->ops = ops;
- 	domain->host_data = host_data;
- 	domain->hwirq_max = hwirq_max;
-@@ -241,7 +240,7 @@ void irq_domain_remove(struct irq_domain *domain)
- 	mutex_lock(&irq_domain_mutex);
- 	debugfs_remove_domain_dir(domain);
- 
--	WARN_ON(!radix_tree_empty(&domain->revmap_tree));
-+	WARN_ON(!xa_empty(&domain->revmap_array));
- 
- 	list_del(&domain->link);
- 
-@@ -462,9 +461,7 @@ static void irq_domain_clear_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size) {
- 		domain->linear_revmap[hwirq] = 0;
- 	} else {
--		mutex_lock(&domain->revmap_tree_mutex);
--		radix_tree_delete(&domain->revmap_tree, hwirq);
--		mutex_unlock(&domain->revmap_tree_mutex);
-+		xa_erase(&domain->revmap_array, hwirq);
- 	}
- }
- 
-@@ -475,9 +472,7 @@ static void irq_domain_set_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size) {
- 		domain->linear_revmap[hwirq] = irq_data->irq;
- 	} else {
--		mutex_lock(&domain->revmap_tree_mutex);
--		radix_tree_insert(&domain->revmap_tree, hwirq, irq_data);
--		mutex_unlock(&domain->revmap_tree_mutex);
-+		xa_store(&domain->revmap_array, hwirq, irq_data, GFP_KERNEL);
- 	}
- }
- 
-@@ -585,7 +580,7 @@ EXPORT_SYMBOL_GPL(irq_domain_associate_many);
-  * This routine is used for irq controllers which can choose the hardware
-  * interrupt numbers they generate. In such a case it's simplest to use
-  * the linux irq as the hardware interrupt number. It still uses the linear
-- * or radix tree to store the mapping, but the irq controller can optimize
-+ * or xarray to store the mapping, but the irq controller can optimize
-  * the revmap path by using the hwirq directly.
-  */
- unsigned int irq_create_direct_mapping(struct irq_domain *domain)
-@@ -890,9 +885,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
- 	if (hwirq < domain->revmap_size)
- 		return domain->linear_revmap[hwirq];
- 
--	rcu_read_lock();
--	data = radix_tree_lookup(&domain->revmap_tree, hwirq);
--	rcu_read_unlock();
-+	data = xa_load(&domain->revmap_array, hwirq);
- 	return data ? data->irq : 0;
- }
- EXPORT_SYMBOL_GPL(irq_find_mapping);
-@@ -943,8 +936,6 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 	unsigned long flags;
- 	struct irq_desc *desc;
- 	struct irq_domain *domain;
--	struct radix_tree_iter iter;
--	void __rcu **slot;
- 	int i;
- 
- 	seq_printf(m, " %-16s  %-6s  %-10s  %-10s  %s\n",
-@@ -953,7 +944,6 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 	list_for_each_entry(domain, &irq_domain_list, link) {
- 		struct device_node *of_node;
- 		const char *name;
--
- 		int count = 0;
- 
- 		of_node = irq_domain_get_of_node(domain);
-@@ -965,8 +955,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
- 		else
- 			name = "";
- 
--		radix_tree_for_each_slot(slot, &domain->revmap_tree, &iter, 0)
--			count++;
-+		count = xa_count(&domain->revmap_array);
- 		seq_printf(m, "%c%-16s  %6u  %10u  %10u  %s\n",
- 			   domain == irq_default_domain ? '*' : ' ', domain->name,
- 			   domain->revmap_size + count, domain->revmap_size,
-@@ -1452,17 +1441,9 @@ int __irq_domain_alloc_irqs(struct irq_domain *domain, int irq_base,
- /* The irq_data was moved, fix the revmap to refer to the new location */
- static void irq_domain_fix_revmap(struct irq_data *d)
+ static void collapse_shmem(struct mm_struct *mm,
+@@ -1300,12 +1300,11 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		struct page **hpage, int node)
  {
--	void __rcu **slot;
--
- 	if (d->hwirq < d->domain->revmap_size)
--		return; /* Not using radix tree. */
--
--	/* Fix up the revmap. */
--	mutex_lock(&d->domain->revmap_tree_mutex);
--	slot = radix_tree_lookup_slot(&d->domain->revmap_tree, d->hwirq);
--	if (slot)
--		radix_tree_replace_slot(&d->domain->revmap_tree, slot, d);
--	mutex_unlock(&d->domain->revmap_tree_mutex);
-+		return;
-+	xa_store(&d->domain->revmap_array, d->hwirq, d, GFP_KERNEL);
- }
+ 	gfp_t gfp;
+-	struct page *page, *new_page, *tmp;
++	struct page *new_page;
+ 	struct mem_cgroup *memcg;
+ 	pgoff_t index, end = start + HPAGE_PMD_NR;
+ 	LIST_HEAD(pagelist);
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->pages, start);
+ 	int nr_none = 0, result = SCAN_SUCCEED;
  
- /**
-diff --git a/lib/xarray.c b/lib/xarray.c
-index 013e81281465..b94f71e30007 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -1518,6 +1518,31 @@ int xa_get_tagged(struct xarray *xa, void **dst, unsigned long start,
- }
- EXPORT_SYMBOL(xa_get_tagged);
+ 	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
+@@ -1330,48 +1329,48 @@ static void collapse_shmem(struct mm_struct *mm,
+ 	__SetPageLocked(new_page);
+ 	BUG_ON(!page_ref_freeze(new_page, 1));
  
-+/**
-+ * xa_count() - Count the number of present entries in the XArray
-+ * @xa: XArray.
-+ *
-+ * This function walks the XArray counting how many entries are present.
-+ * If every entry in the XArray is full, this function will return 0.  If
-+ * this is a theoretical possibility, check xa_empty() first.
-+ *
-+ * This is a naive implementation; faster implementations are possible.
-+ * If speed is important, consider maintaining a count variable in your
-+ * own data structure.
-+ */
-+unsigned long xa_count(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+	void *p;
-+	unsigned long count = 0;
+-
+ 	/*
+-	 * At this point the new_page is 'frozen' (page_count() is zero), locked
+-	 * and not up-to-date. It's safe to insert it into radix tree, because
+-	 * nobody would be able to map it or use it in other way until we
+-	 * unfreeze it.
++	 * At this point the new_page is 'frozen' (page_count() is zero),
++	 * locked and not up-to-date. It's safe to insert it into the page
++	 * cache, because nobody would be able to map it or use it in other
++	 * way until we unfreeze it.
+ 	 */
+ 
+-	index = start;
+-	xa_lock_irq(&mapping->pages);
+-	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
+-		int n = min(iter.index, end) - index;
+-
+-		/*
+-		 * Handle holes in the radix tree: charge it from shmem and
+-		 * insert relevant subpage of new_page into the radix-tree.
+-		 */
+-		if (n && !shmem_charge(mapping->host, n)) {
+-			result = SCAN_FAIL;
++	/* This will be less messy when we use multi-index entries */
++	do {
++		xas_lock_irq(&xas);
++		xas_create_range(&xas, end - 1);
++		if (!xas_error(&xas))
+ 			break;
+-		}
+-		nr_none += n;
+-		for (; index < min(iter.index, end); index++) {
+-			radix_tree_insert(&mapping->pages, index,
+-					new_page + (index % HPAGE_PMD_NR));
+-		}
++		xas_unlock_irq(&xas);
++		if (!xas_nomem(&xas, GFP_KERNEL))
++			goto out;
++	} while (1);
+ 
+-		/* We are done. */
+-		if (index >= end)
+-			break;
++	for (index = start; index < end; index++) {
++		struct page *page = xas_next(&xas);
 +
-+	xas_for_each(&xas, p, ULONG_MAX)
-+		count++;
-+
-+	return count;
-+}
-+EXPORT_SYMBOL(xa_count);
-+
- /**
-  * xa_destroy() - Free all internal data structures.
-  * @xa: XArray.
++		VM_BUG_ON(index != xas.xa_index);
++		if (!page) {
++			if (!shmem_charge(mapping->host, 1)) {
++				result = SCAN_FAIL;
++				break;
++			}
++			xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
++			nr_none++;
++			continue;
++		}
+ 
+-		page = radix_tree_deref_slot_protected(slot,
+-				&mapping->pages.xa_lock);
+ 		if (xa_is_value(page) || !PageUptodate(page)) {
+-			xa_unlock_irq(&mapping->pages);
++			xas_unlock_irq(&xas);
+ 			/* swap in or instantiate fallocated page */
+ 			if (shmem_getpage(mapping->host, index, &page,
+ 						SGP_NOHUGE)) {
+ 				result = SCAN_FAIL;
+-				goto tree_unlocked;
++				goto xa_unlocked;
+ 			}
+-			xa_lock_irq(&mapping->pages);
++			xas_lock_irq(&xas);
++			xas_set(&xas, index);
+ 		} else if (trylock_page(page)) {
+ 			get_page(page);
+ 		} else {
+@@ -1391,7 +1390,7 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			result = SCAN_TRUNCATED;
+ 			goto out_unlock;
+ 		}
+-		xa_unlock_irq(&mapping->pages);
++		xas_unlock_irq(&xas);
+ 
+ 		if (isolate_lru_page(page)) {
+ 			result = SCAN_DEL_PAGE_LRU;
+@@ -1402,17 +1401,16 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			unmap_mapping_range(mapping, index << PAGE_SHIFT,
+ 					PAGE_SIZE, 0);
+ 
+-		xa_lock_irq(&mapping->pages);
++		xas_lock(&xas);
++		xas_set(&xas, index);
+ 
+-		slot = radix_tree_lookup_slot(&mapping->pages, index);
+-		VM_BUG_ON_PAGE(page != radix_tree_deref_slot_protected(slot,
+-					&mapping->pages.xa_lock), page);
++		VM_BUG_ON_PAGE(page != xas_load(&xas), page);
+ 		VM_BUG_ON_PAGE(page_mapped(page), page);
+ 
+ 		/*
+ 		 * The page is expected to have page_count() == 3:
+ 		 *  - we hold a pin on it;
+-		 *  - one reference from radix tree;
++		 *  - one reference from page cache;
+ 		 *  - one from isolate_lru_page;
+ 		 */
+ 		if (!page_ref_freeze(page, 3)) {
+@@ -1427,56 +1425,30 @@ static void collapse_shmem(struct mm_struct *mm,
+ 		list_add_tail(&page->lru, &pagelist);
+ 
+ 		/* Finally, replace with the new page. */
+-		radix_tree_replace_slot(&mapping->pages, slot,
+-				new_page + (index % HPAGE_PMD_NR));
+-
+-		slot = radix_tree_iter_resume(slot, &iter);
+-		index++;
++		xas_store(&xas, new_page + (index % HPAGE_PMD_NR));
+ 		continue;
+ out_lru:
+-		xa_unlock_irq(&mapping->pages);
++		xas_unlock_irq(&xas);
+ 		putback_lru_page(page);
+ out_isolate_failed:
+ 		unlock_page(page);
+ 		put_page(page);
+-		goto tree_unlocked;
++		goto xa_unlocked;
+ out_unlock:
+ 		unlock_page(page);
+ 		put_page(page);
+ 		break;
+ 	}
++	xas_unlock_irq(&xas);
+ 
+-	/*
+-	 * Handle hole in radix tree at the end of the range.
+-	 * This code only triggers if there's nothing in radix tree
+-	 * beyond 'end'.
+-	 */
+-	if (result == SCAN_SUCCEED && index < end) {
+-		int n = end - index;
+-
+-		if (!shmem_charge(mapping->host, n)) {
+-			result = SCAN_FAIL;
+-			goto tree_locked;
+-		}
+-
+-		for (; index < end; index++) {
+-			radix_tree_insert(&mapping->pages, index,
+-					new_page + (index % HPAGE_PMD_NR));
+-		}
+-		nr_none += n;
+-	}
+-
+-tree_locked:
+-	xa_unlock_irq(&mapping->pages);
+-tree_unlocked:
+-
++xa_unlocked:
+ 	if (result == SCAN_SUCCEED) {
+-		unsigned long flags;
++		struct page *page, *tmp;
+ 		struct zone *zone = page_zone(new_page);
+ 
+ 		/*
+-		 * Replacing old pages with new one has succeed, now we need to
+-		 * copy the content and free old pages.
++		 * Replacing old pages with new one has succeeded, now we
++		 * need to copy the content and free the old pages.
+ 		 */
+ 		list_for_each_entry_safe(page, tmp, &pagelist, lru) {
+ 			copy_highpage(new_page + (page->index % HPAGE_PMD_NR),
+@@ -1490,16 +1462,16 @@ static void collapse_shmem(struct mm_struct *mm,
+ 			put_page(page);
+ 		}
+ 
+-		local_irq_save(flags);
++		local_irq_disable();
+ 		__inc_node_page_state(new_page, NR_SHMEM_THPS);
+ 		if (nr_none) {
+ 			__mod_node_page_state(zone->zone_pgdat, NR_FILE_PAGES, nr_none);
+ 			__mod_node_page_state(zone->zone_pgdat, NR_SHMEM, nr_none);
+ 		}
+-		local_irq_restore(flags);
++		local_irq_enable();
+ 
+ 		/*
+-		 * Remove pte page tables, so we can re-faulti
++		 * Remove pte page tables, so we can re-fault
+ 		 * the page as huge.
+ 		 */
+ 		retract_page_tables(mapping, start);
+@@ -1514,37 +1486,37 @@ static void collapse_shmem(struct mm_struct *mm,
+ 
+ 		*hpage = NULL;
+ 	} else {
+-		/* Something went wrong: rollback changes to the radix-tree */
++		struct page *page;
++		/* Something went wrong: roll back page cache changes */
+ 		shmem_uncharge(mapping->host, nr_none);
+-		xa_lock_irq(&mapping->pages);
+-		radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
+-			if (iter.index >= end)
+-				break;
++		xas_lock_irq(&xas);
++		xas_set(&xas, start);
++		xas_for_each(&xas, page, end - 1) {
+ 			page = list_first_entry_or_null(&pagelist,
+ 					struct page, lru);
+-			if (!page || iter.index < page->index) {
++			if (!page || xas.xa_index < page->index) {
+ 				if (!nr_none)
+ 					break;
+ 				nr_none--;
+ 				/* Put holes back where they were */
+-				radix_tree_delete(&mapping->pages, iter.index);
++				xas_store(&xas, NULL);
+ 				continue;
+ 			}
+ 
+-			VM_BUG_ON_PAGE(page->index != iter.index, page);
++			VM_BUG_ON_PAGE(page->index != xas.xa_index, page);
+ 
+ 			/* Unfreeze the page. */
+ 			list_del(&page->lru);
+ 			page_ref_unfreeze(page, 2);
+-			radix_tree_replace_slot(&mapping->pages, slot, page);
+-			slot = radix_tree_iter_resume(slot, &iter);
+-			xa_unlock_irq(&mapping->pages);
++			xas_store(&xas, page);
++			xas_pause(&xas);
++			xas_unlock_irq(&xas);
+ 			putback_lru_page(page);
+ 			unlock_page(page);
+-			xa_lock_irq(&mapping->pages);
++			xas_lock_irq(&xas);
+ 		}
+ 		VM_BUG_ON(nr_none);
+-		xa_unlock_irq(&mapping->pages);
++		xas_unlock_irq(&xas);
+ 
+ 		/* Unfreeze new_page, caller would take care about freeing it */
+ 		page_ref_unfreeze(new_page, 1);
 -- 
 2.15.1
 
