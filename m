@@ -1,42 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 1066F6B0069
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D4826B0038
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:12 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q186so7011892pga.23
+Received: by mail-pf0-f197.google.com with SMTP id u3so7934507pfl.5
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 06:10:12 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n12si5011231pls.677.2017.12.15.06.10.10
+        by mx.google.com with ESMTPS id f21si5233193plr.757.2017.12.15.06.10.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 15 Dec 2017 06:10:10 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: revamp vmem_altmap / dev_pagemap handling V2
-Date: Fri, 15 Dec 2017 15:09:30 +0100
-Message-Id: <20171215140947.26075-1-hch@lst.de>
+Subject: [PATCH 02/17] mm: don't export arch_add_memory
+Date: Fri, 15 Dec 2017 15:09:32 +0100
+Message-Id: <20171215140947.26075-3-hch@lst.de>
+In-Reply-To: <20171215140947.26075-1-hch@lst.de>
+References: <20171215140947.26075-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-Hi all,
+Only x86_64 and sh export this symbol, and it is not used by any
+modular code.
 
-this series started with two patches from Logan that now are in the
-middle of the series to kill the memremap-internal pgmap structure
-and to redo the dev_memreamp_pages interface to be better suitable
-for future PCI P2P uses.  I reviewed them and noticed that there
-isn't really any good reason to keep struct vmem_altmap either,
-and that a lot of these alternative device page map access should
-be better abstracted out instead of being sprinkled all over the
-mm code.  But when we got the RCU warnings in V1 I went for yet
-another approach, and now struct vmem_altmap is kept for now,
-but passed explicitly through the memory hotplug code instead of
-having to do unprotected lookups through the radix tree.  The
-end result is that only the get_user_pages path ever looks up
-struct dev_pagemap, and struct vmem_altmap is now always embedded
-into struct dev_pagemap, and explicitly passed where needed.
+Signed-off-by: Christoph Hellwig <hch@lst.de>
+---
+ arch/sh/mm/init.c     | 1 -
+ arch/x86/mm/init_64.c | 1 -
+ 2 files changed, 2 deletions(-)
 
-Please review carefully, this has only been tested with my legacy
-e820 NVDIMM system.
+diff --git a/arch/sh/mm/init.c b/arch/sh/mm/init.c
+index bf726af5f1a5..afc54d593a26 100644
+--- a/arch/sh/mm/init.c
++++ b/arch/sh/mm/init.c
+@@ -498,7 +498,6 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+ 
+ 	return ret;
+ }
+-EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
+ #ifdef CONFIG_NUMA
+ int memory_add_physaddr_to_nid(u64 addr)
+diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+index 4a837289f2ad..8acdc35c2dfa 100644
+--- a/arch/x86/mm/init_64.c
++++ b/arch/x86/mm/init_64.c
+@@ -796,7 +796,6 @@ int arch_add_memory(int nid, u64 start, u64 size, bool want_memblock)
+ 
+ 	return add_pages(nid, start_pfn, nr_pages, want_memblock);
+ }
+-EXPORT_SYMBOL_GPL(arch_add_memory);
+ 
+ #define PAGE_INUSE 0xFD
+ 
+-- 
+2.14.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
