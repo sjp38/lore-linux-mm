@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id ECB7F6B0287
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:55 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id v13so8034248ybe.1
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:55 -0800 (PST)
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 482B66B0287
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:56 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id i77so3932792ybg.21
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:56 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y11si1475723ybb.477.2017.12.15.14.05.53
+        by mx.google.com with ESMTPS id 63si778160ybz.312.2017.12.15.14.05.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:54 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:55 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 18/78] xarray: Add xas_next and xas_prev
-Date: Fri, 15 Dec 2017 14:03:50 -0800
-Message-Id: <20171215220450.7899-19-willy@infradead.org>
+Subject: [PATCH v5 34/78] mm: Convert add_to_swap_cache to XArray
+Date: Fri, 15 Dec 2017 14:04:06 -0800
+Message-Id: <20171215220450.7899-35-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,447 +22,176 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-These two functions move the xas index by one position, and adjust the
-rest of the iterator state to match it.  This is more efficient than
-calling xas_set() as it keeps the iterator at the leaves of the tree
-instead of walking the iterator from the root each time.
+Combine __add_to_swap_cache and add_to_swap_cache into one function
+since there is no more need to preload.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/xarray.h                 |  71 ++++++++++-
- lib/xarray.c                           |  74 ++++++++++++
- tools/testing/radix-tree/xarray-test.c | 213 +++++++++++++++++++++++++++++++++
- 3 files changed, 356 insertions(+), 2 deletions(-)
+ mm/swap_state.c | 93 ++++++++++++++++++---------------------------------------
+ 1 file changed, 29 insertions(+), 64 deletions(-)
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index fea81383a301..2d889208b68d 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -640,6 +640,12 @@ static inline bool xas_not_node(struct xa_node *node)
- 	return ((unsigned long)node & 3) || !node;
- }
- 
-+/* True if the node represents RESTART or an error */
-+static inline bool xas_frozen(struct xa_node *node)
-+{
-+	return (unsigned long)node & 2;
-+}
-+
- /* True if the node represents head-of-tree, RESTART or BOUNDS */
- static inline bool xas_top(struct xa_node *node)
- {
-@@ -758,8 +764,8 @@ static inline bool xa_iter_skip(const void *entry)
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 3f95e8fc4cb2..a57b5ad4c503 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -107,14 +107,15 @@ void show_swap_cache_info(void)
  }
  
  /*
-- * node->shift is always 0 for the inline iterators unless we're processing
-- * a multi-index entry.
-+ * node->shift is always 0 for next_entry and next_tag unless we're processing
-+ * a multi-index entry.  It can be non-0 for next/prev, so it's not used there.
+- * __add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
++ * add_to_swap_cache resembles add_to_page_cache_locked on swapper_space,
+  * but sets SwapCache flag and private instead of mapping and index.
   */
- #ifdef CONFIG_RADIX_TREE_MULTIORDER
- #define xa_node_shift(node)	node->shift
-@@ -767,6 +773,67 @@ static inline bool xa_iter_skip(const void *entry)
- #define xa_node_shift(node)	0
- #endif
+-int __add_to_swap_cache(struct page *page, swp_entry_t entry)
++int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
+ {
+-	int error, i, nr = hpage_nr_pages(page);
+-	struct address_space *address_space;
++	struct address_space *address_space = swap_address_space(entry);
+ 	pgoff_t idx = swp_offset(entry);
++	XA_STATE(xas, &address_space->pages, idx);
++	unsigned long i, nr = 1UL << compound_order(page);
  
-+void *__xas_next(struct xa_state *);
-+void *__xas_prev(struct xa_state *);
-+
-+/**
-+ * xas_prev() - Move iterator to previous index.
-+ * @xas: XArray operation state.
-+ *
-+ * If the @xas was in an error state, it will remain in an error state
-+ * and this function will return %NULL.  If the @xas has never been walked,
-+ * it will have the effect of calling xas_load().  Otherwise one will be
-+ * subtracted from the index and the state will be walked to the correct
-+ * location in the array for the next operation.
-+ *
-+ * If the iterator was referencing index 0, this function wraps
-+ * around to %ULONG_MAX.
-+ *
-+ * Return: The entry at the new index.  This may be %NULL or an internal
-+ * entry, although it should never be a node entry.
-+ */
-+static inline void *xas_prev(struct xa_state *xas)
-+{
-+	struct xa_node *node = xas->xa_node;
-+
-+	if (unlikely(xas_not_node(node) || node->shift ||
-+				xas->xa_offset == 0))
-+		return __xas_prev(xas);
-+
-+	xas->xa_index--;
-+	xas->xa_offset--;
-+	return xa_entry(xas->xa, node, xas->xa_offset);
-+}
-+
-+/**
-+ * xas_next() - Move state to next index.
-+ * @xas: XArray operation state.
-+ *
-+ * If the @xas was in an error state, it will remain in an error state
-+ * and this function will return %NULL.  If the @xas has never been walked,
-+ * it will have the effect of calling xas_load().  Otherwise one will be
-+ * added to the index and the state will be walked to the correct
-+ * location in the array for the next operation.
-+ *
-+ * If the iterator was referencing index %ULONG_MAX, this function wraps
-+ * around to 0.
-+ *
-+ * Return: The entry at the new index.  This may be %NULL or an internal
-+ * entry, although it should never be a node entry.
-+ */
-+static inline void *xas_next(struct xa_state *xas)
-+{
-+	struct xa_node *node = xas->xa_node;
-+
-+	if (unlikely(xas_not_node(node) || node->shift ||
-+				xas->xa_offset == XA_CHUNK_MASK))
-+		return __xas_next(xas);
-+
-+	xas->xa_index++;
-+	xas->xa_offset++;
-+	return xa_entry(xas->xa, node, xas->xa_offset);
-+}
-+
- /**
-  * xas_next_entry() - Advance iterator to next present entry.
-  * @xas: XArray operation state.
-diff --git a/lib/xarray.c b/lib/xarray.c
-index a51fa1e1f74f..a4975aeedf6b 100644
---- a/lib/xarray.c
-+++ b/lib/xarray.c
-@@ -838,6 +838,80 @@ void xas_pause(struct xa_state *xas)
- }
- EXPORT_SYMBOL_GPL(xas_pause);
+ 	VM_BUG_ON_PAGE(!PageLocked(page), page);
+ 	VM_BUG_ON_PAGE(PageSwapCache(page), page);
+@@ -123,50 +124,30 @@ int __add_to_swap_cache(struct page *page, swp_entry_t entry)
+ 	page_ref_add(page, nr);
+ 	SetPageSwapCache(page);
  
-+/*
-+ * __xas_prev() - Find the previous entry in the XArray.
-+ * @xas: XArray operation state.
-+ *
-+ * Helper function for xas_prev() which handles all the complex cases
-+ * out of line.
-+ */
-+void *__xas_prev(struct xa_state *xas)
-+{
-+	void *entry;
-+
-+	if (!xas_frozen(xas->xa_node))
-+		xas->xa_index--;
-+	if (xas_not_node(xas->xa_node))
-+		return xas_load(xas);
-+
-+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
-+		xas->xa_offset--;
-+
-+	while (xas->xa_offset == 255) {
-+		xas->xa_offset = xas->xa_node->offset - 1;
-+		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+		if (!xas->xa_node)
-+			return set_bounds(xas);
-+	}
-+
-+	for (;;) {
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (!xa_is_node(entry))
-+			return entry;
-+
-+		xas->xa_node = xa_to_node(entry);
-+		xas->xa_offset = get_offset(xas->xa_index, xas->xa_node);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(__xas_prev);
-+
-+/*
-+ * __xas_next() - Find the next entry in the XArray.
-+ * @xas: XArray operation state.
-+ *
-+ * Helper function for xas_next() which handles all the complex cases
-+ * out of line.
-+ */
-+void *__xas_next(struct xa_state *xas)
-+{
-+	void *entry;
-+
-+	if (!xas_frozen(xas->xa_node))
-+		xas->xa_index++;
-+	if (xas_not_node(xas->xa_node))
-+		return xas_load(xas);
-+
-+	if (xas->xa_offset != get_offset(xas->xa_index, xas->xa_node))
-+		xas->xa_offset++;
-+
-+	while (xas->xa_offset == XA_CHUNK_SIZE) {
-+		xas->xa_offset = xas->xa_node->offset + 1;
-+		xas->xa_node = xa_parent(xas->xa, xas->xa_node);
-+		if (!xas->xa_node)
-+			return set_bounds(xas);
-+	}
-+
-+	for (;;) {
-+		entry = xa_entry(xas->xa, xas->xa_node, xas->xa_offset);
-+		if (!xa_is_node(entry))
-+			return entry;
-+
-+		xas->xa_node = xa_to_node(entry);
-+		xas->xa_offset = get_offset(xas->xa_index, xas->xa_node);
-+	}
-+}
-+EXPORT_SYMBOL_GPL(__xas_next);
-+
- /**
-  * xas_find() - Find the next present entry in the XArray.
-  * @xas: XArray operation state.
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-index 10de5d3d977a..43111786ebdd 100644
---- a/tools/testing/radix-tree/xarray-test.c
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -92,6 +92,104 @@ void check_xas_error(struct xarray *xa)
- 	assert(xas.xa_node == XAS_BOUNDS);
- }
- 
-+void check_xas_pause(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, 0);
-+	void *entry;
-+	unsigned int seen;
-+
-+	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
-+	xa_set_tag(xa, 0, XA_TAG_0);
-+
-+	seen = 0;
-+	rcu_read_lock();
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++) {
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+			xa_set_tag(xa, 1, XA_TAG_0);
+-	address_space = swap_address_space(entry);
+-	xa_lock_irq(&address_space->pages);
+-	for (i = 0; i < nr; i++) {
+-		set_page_private(page + i, entry.val + i);
+-		error = radix_tree_insert(&address_space->pages,
+-					  idx + i, page + i);
+-		if (unlikely(error))
+-			break;
+-	}
+-	if (likely(!error)) {
++	do {
++		xas_lock_irq(&xas);
++		xas_create_range(&xas, idx + nr - 1);
++		if (xas_error(&xas))
++			goto unlock;
++		for (i = 0; i < nr; i++) {
++			VM_BUG_ON_PAGE(xas.xa_index != idx + i, page);
++			set_page_private(page + i, entry.val + i);
++			xas_store(&xas, page + i);
++			xas_next(&xas);
 +		}
-+	}
-+	rcu_read_unlock();
-+	/* We don't see an entry that was added after we started */
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	rcu_read_lock();
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xa_erase(xa, 1);
-+	}
-+	rcu_read_unlock();
-+	assert(seen == 1);
-+
-+	xa_store(xa, 1, xa_mk_value(1), GFP_KERNEL);
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	xas_for_each(&xas, entry, ULONG_MAX) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	for (entry = xas_load(&xas); entry; entry = xas_next(&xas)) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+
-+	seen = 0;
-+	xas_set(&xas, 0);
-+	xa_set_tag(xa, 1, XA_TAG_0);
-+	xas_for_each_tag(&xas, entry, ULONG_MAX, XA_TAG_0) {
-+		if (!seen++)
-+			xas_pause(&xas);
-+	}
-+	assert(seen == 2);
-+}
-+
- void check_xas_retry(struct xarray *xa)
- {
- 	XA_STATE(xas, xa, 0);
-@@ -249,9 +347,108 @@ void check_xas_delete(struct xarray *xa)
- 	}
+ 		address_space->nrpages += nr;
+ 		__mod_node_page_state(page_pgdat(page), NR_FILE_PAGES, nr);
+ 		ADD_CACHE_INFO(add_total, nr);
+-	} else {
+-		/*
+-		 * Only the context which have set SWAP_HAS_CACHE flag
+-		 * would call add_to_swap_cache().
+-		 * So add_to_swap_cache() doesn't returns -EEXIST.
+-		 */
+-		VM_BUG_ON(error == -EEXIST);
+-		set_page_private(page + i, 0UL);
+-		while (i--) {
+-			radix_tree_delete(&address_space->pages, idx + i);
+-			set_page_private(page + i, 0UL);
+-		}
+-		ClearPageSwapCache(page);
+-		page_ref_sub(page, nr);
+-	}
+-	xa_unlock_irq(&address_space->pages);
++unlock:
++		xas_unlock_irq(&xas);
++	} while (xas_nomem(&xas, gfp));
+ 
+-	return error;
+-}
+-
+-
+-int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp_mask)
+-{
+-	int error;
++	if (!xas_error(&xas))
++		return 0;
+ 
+-	error = radix_tree_maybe_preload_order(gfp_mask, compound_order(page));
+-	if (!error) {
+-		error = __add_to_swap_cache(page, entry);
+-		radix_tree_preload_end();
+-	}
+-	return error;
++	ClearPageSwapCache(page);
++	page_ref_sub(page, nr);
++	return xas_error(&xas);
  }
  
-+void check_move_small(struct xarray *xa, unsigned long idx)
-+{
-+	XA_STATE(xas, xa, 0);
-+	unsigned long i;
-+
-+	xa_store(xa, 0, xa_mk_value(0), GFP_KERNEL);
-+	xa_store(xa, idx, xa_mk_value(idx), GFP_KERNEL);
-+
-+	for (i = 0; i < idx * 4; i++) {
-+		void *entry = xas_next(&xas);
-+		if (i <= idx)
-+			assert(xas.xa_node != XAS_RESTART);
-+		assert(xas.xa_index == i);
-+		if (i == 0 || i == idx)
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+	}
-+	xas_next(&xas);
-+	assert(xas.xa_index == i);
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		if (i <= idx)
-+			assert(xas.xa_node != XAS_RESTART);
-+		assert(xas.xa_index == i);
-+		if (i == 0 || i == idx)
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+	} while (i > 0);
-+
-+	xas_set(&xas, ULONG_MAX);
-+	assert(xas_next(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+	assert(xas_next(&xas) == xa_mk_value(0));
-+	assert(xas.xa_index == 0);
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+}
-+
-+void check_move(struct xarray *xa)
-+{
-+	XA_STATE(xas, xa, (1 << 16) - 1);
-+	unsigned long i;
-+
-+	for (i = 0; i < (1 << 16); i++) {
-+		xa_store(xa, i, xa_mk_value(i), GFP_KERNEL);
-+	}
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		assert(entry == xa_mk_value(i));
-+		assert(i == xas.xa_index);
-+	} while (i != 0);
-+
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+
-+	do {
-+		void *entry = xas_next(&xas);
-+		assert(entry == xa_mk_value(i));
-+		assert(i == xas.xa_index);
-+		i++;
-+	} while (i < (1 << 16));
-+
-+	for (i = (1 << 8); i < (1 << 15); i++) {
-+		xa_erase(xa, i);
-+	}
-+
-+	i = xas.xa_index;
-+
-+	do {
-+		void *entry = xas_prev(&xas);
-+		i--;
-+		if ((i < (1 << 8)) || (i >= (1 << 15)))
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+		assert(i == xas.xa_index);
-+	} while (i != 0);
-+
-+	assert(xas_prev(&xas) == NULL);
-+	assert(xas.xa_index == ULONG_MAX);
-+
-+	do {
-+		void *entry = xas_next(&xas);
-+		if ((i < (1 << 8)) || (i >= (1 << 15)))
-+			assert(entry == xa_mk_value(i));
-+		else
-+			assert(entry == NULL);
-+		assert(i == xas.xa_index);
-+		i++;
-+	} while (i < (1 << 16));
-+}
-+
- void xarray_checks(void)
- {
- 	DEFINE_XARRAY(array);
-+	unsigned long i;
+ /*
+@@ -220,7 +201,7 @@ int add_to_swap(struct page *page)
+ 		goto fail;
  
- 	check_xa_err(&array);
- 	item_kill_tree(&array);
-@@ -265,6 +462,9 @@ void xarray_checks(void)
- 	check_xas_retry(&array);
- 	item_kill_tree(&array);
+ 	/*
+-	 * Radix-tree node allocations from PF_MEMALLOC contexts could
++	 * XArray node allocations from PF_MEMALLOC contexts could
+ 	 * completely exhaust the page allocator. __GFP_NOMEMALLOC
+ 	 * stops emergency reserves from being allocated.
+ 	 *
+@@ -232,7 +213,6 @@ int add_to_swap(struct page *page)
+ 	 */
+ 	err = add_to_swap_cache(page, entry,
+ 			__GFP_HIGH|__GFP_NOMEMALLOC|__GFP_NOWARN);
+-	/* -ENOMEM radix-tree allocation failure */
+ 	if (err)
+ 		/*
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
+@@ -400,19 +380,11 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 				break;		/* Out of memory */
+ 		}
  
-+	check_xas_pause(&array);
-+	item_kill_tree(&array);
-+
- 	check_xa_load(&array);
- 	item_kill_tree(&array);
+-		/*
+-		 * call radix_tree_preload() while we can wait.
+-		 */
+-		err = radix_tree_maybe_preload(gfp_mask & GFP_KERNEL);
+-		if (err)
+-			break;
+-
+ 		/*
+ 		 * Swap entry may have been freed since our caller observed it.
+ 		 */
+ 		err = swapcache_prepare(entry);
+ 		if (err == -EEXIST) {
+-			radix_tree_preload_end();
+ 			/*
+ 			 * We might race against get_swap_page() and stumble
+ 			 * across a SWAP_HAS_CACHE swap_map entry whose page
+@@ -420,26 +392,19 @@ struct page *__read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
+ 			 */
+ 			cond_resched();
+ 			continue;
+-		}
+-		if (err) {		/* swp entry is obsolete ? */
+-			radix_tree_preload_end();
++		} else if (err)		/* swp entry is obsolete ? */
+ 			break;
+-		}
  
-@@ -279,6 +479,19 @@ void xarray_checks(void)
- 
- 	check_xas_delete(&array);
- 	item_kill_tree(&array);
-+
-+	for (i = 0; i < 16; i++) {
-+		check_move_small(&array, 1UL << i);
-+		item_kill_tree(&array);
-+	}
-+
-+	for (i = 2; i < 16; i++) {
-+		check_move_small(&array, (1UL << i) - 1);
-+		item_kill_tree(&array);
-+	}
-+
-+	check_move(&array);
-+	item_kill_tree(&array);
- }
- 
- int __weak main(void)
+-		/* May fail (-ENOMEM) if radix-tree node allocation failed. */
++		/* May fail (-ENOMEM) if XArray node allocation failed. */
+ 		__SetPageLocked(new_page);
+ 		__SetPageSwapBacked(new_page);
+-		err = __add_to_swap_cache(new_page, entry);
++		err = add_to_swap_cache(new_page, entry, gfp_mask & GFP_KERNEL);
+ 		if (likely(!err)) {
+-			radix_tree_preload_end();
+-			/*
+-			 * Initiate read into locked page and return.
+-			 */
++			/* Initiate read into locked page */
+ 			lru_cache_add_anon(new_page);
+ 			*new_page_allocated = true;
+ 			return new_page;
+ 		}
+-		radix_tree_preload_end();
+ 		__ClearPageLocked(new_page);
+ 		/*
+ 		 * add_to_swap_cache() doesn't return -EEXIST, so we can safely
 -- 
 2.15.1
 
