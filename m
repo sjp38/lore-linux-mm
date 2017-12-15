@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 20ED96B0253
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 79CB36B025F
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:33 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id b11so16507407itj.0
+Received: by mail-io0-f197.google.com with SMTP id p204so3141590iod.16
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:33 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y139si5616667itc.57.2017.12.15.14.05.31
+        by mx.google.com with ESMTPS id o79si5626528itg.15.2017.12.15.14.05.31
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 15 Dec 2017 14:05:32 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 40/78] mm: Convert khugepaged_scan_shmem to XArray
-Date: Fri, 15 Dec 2017 14:04:12 -0800
-Message-Id: <20171215220450.7899-41-willy@infradead.org>
+Subject: [PATCH v5 57/78] lustre: Convert to XArray
+Date: Fri, 15 Dec 2017 14:04:29 -0800
+Message-Id: <20171215220450.7899-58-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,57 +22,85 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Slightly shorter and easier to read code.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/khugepaged.c | 17 +++++------------
- 1 file changed, 5 insertions(+), 12 deletions(-)
+ drivers/staging/lustre/lustre/llite/glimpse.c   | 12 +++++-------
+ drivers/staging/lustre/lustre/mdc/mdc_request.c | 16 ++++++++--------
+ 2 files changed, 13 insertions(+), 15 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index 9f49d0cd61c2..15f1b2d81a69 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1534,8 +1534,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 		pgoff_t start, struct page **hpage)
+diff --git a/drivers/staging/lustre/lustre/llite/glimpse.c b/drivers/staging/lustre/lustre/llite/glimpse.c
+index 5f2843da911c..25232fdf5797 100644
+--- a/drivers/staging/lustre/lustre/llite/glimpse.c
++++ b/drivers/staging/lustre/lustre/llite/glimpse.c
+@@ -57,7 +57,7 @@ static const struct cl_lock_descr whole_file = {
+ };
+ 
+ /*
+- * Check whether file has possible unwriten pages.
++ * Check whether file has possible unwritten pages.
+  *
+  * \retval 1    file is mmap-ed or has dirty pages
+  *	 0    otherwise
+@@ -66,16 +66,14 @@ blkcnt_t dirty_cnt(struct inode *inode)
  {
- 	struct page *page = NULL;
--	struct radix_tree_iter iter;
--	void **slot;
-+	XA_STATE(xas, &mapping->pages, start);
- 	int present, swap;
- 	int node = NUMA_NO_NODE;
- 	int result = SCAN_SUCCEED;
-@@ -1544,17 +1543,11 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 	swap = 0;
- 	memset(khugepaged_node_load, 0, sizeof(khugepaged_node_load));
- 	rcu_read_lock();
--	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
--		if (iter.index >= start + HPAGE_PMD_NR)
--			break;
--
--		page = radix_tree_deref_slot(slot);
--		if (radix_tree_deref_retry(page)) {
--			slot = radix_tree_iter_retry(&iter);
-+	xas_for_each(&xas, page, start + HPAGE_PMD_NR - 1) {
-+		if (xas_retry(&xas, page))
- 			continue;
--		}
+ 	blkcnt_t cnt = 0;
+ 	struct vvp_object *vob = cl_inode2vvp(inode);
+-	void	      *results[1];
  
--		if (radix_tree_exception(page)) {
-+		if (xa_is_value(page)) {
- 			if (++swap > khugepaged_max_ptes_swap) {
- 				result = SCAN_EXCEED_SWAP_PTE;
- 				break;
-@@ -1593,7 +1586,7 @@ static void khugepaged_scan_shmem(struct mm_struct *mm,
- 		present++;
+-	if (inode->i_mapping)
+-		cnt += radix_tree_gang_lookup_tag(&inode->i_mapping->pages,
+-						  results, 0, 1,
+-						  PAGECACHE_TAG_DIRTY);
++	if (inode->i_mapping && xa_tagged(&inode->i_mapping->pages,
++				PAGECACHE_TAG_DIRTY))
++		cnt = 1;
+ 	if (cnt == 0 && atomic_read(&vob->vob_mmap_cnt) > 0)
+ 		cnt = 1;
  
- 		if (need_resched()) {
--			slot = radix_tree_iter_resume(slot, &iter);
-+			xas_pause(&xas);
- 			cond_resched_rcu();
+-	return (cnt > 0) ? 1 : 0;
++	return cnt;
+ }
+ 
+ int cl_glimpse_lock(const struct lu_env *env, struct cl_io *io,
+diff --git a/drivers/staging/lustre/lustre/mdc/mdc_request.c b/drivers/staging/lustre/lustre/mdc/mdc_request.c
+index 2ec79a6b17da..ea23247e9e02 100644
+--- a/drivers/staging/lustre/lustre/mdc/mdc_request.c
++++ b/drivers/staging/lustre/lustre/mdc/mdc_request.c
+@@ -934,17 +934,18 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
+ 	 * hash _smaller_ than one we are looking for.
+ 	 */
+ 	unsigned long offset = hash_x_index(*hash, hash64);
++	XA_STATE(xas, &mapping->pages, offset);
+ 	struct page *page;
+-	int found;
+ 
+-	xa_lock_irq(&mapping->pages);
+-	found = radix_tree_gang_lookup(&mapping->pages,
+-				       (void **)&page, offset, 1);
+-	if (found > 0 && !xa_is_value(page)) {
++	xas_lock_irq(&xas);
++	page = xas_find(&xas, ULONG_MAX);
++	if (xa_is_value(page))
++		page = NULL;
++	if (page) {
+ 		struct lu_dirpage *dp;
+ 
+ 		get_page(page);
+-		xa_unlock_irq(&mapping->pages);
++		xas_unlock_irq(&xas);
+ 		/*
+ 		 * In contrast to find_lock_page() we are sure that directory
+ 		 * page cannot be truncated (while DLM lock is held) and,
+@@ -992,8 +993,7 @@ static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
+ 			page = ERR_PTR(-EIO);
  		}
+ 	} else {
+-		xa_unlock_irq(&mapping->pages);
+-		page = NULL;
++		xas_unlock_irq(&xas);
  	}
+ 	return page;
+ }
 -- 
 2.15.1
 
