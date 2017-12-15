@@ -1,119 +1,99 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f69.google.com (mail-vk0-f69.google.com [209.85.213.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 308476B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:30:24 -0500 (EST)
-Received: by mail-vk0-f69.google.com with SMTP id b62so3614480vke.23
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:30:24 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id t184si2083542vka.161.2017.12.14.17.30.22
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 868176B0038
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:33:12 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m9so6300505pff.0
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:33:12 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f19si3963384plr.481.2017.12.14.17.33.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 17:30:23 -0800 (PST)
-From: Nitin Gupta <nitin.m.gupta@oracle.com>
-Subject: [PATCH] mm: Reduce memory bloat with THP
-Date: Thu, 14 Dec 2017 17:28:52 -0800
-Message-Id: <1513301359-117568-1-git-send-email-nitin.m.gupta@oracle.com>
+        Thu, 14 Dec 2017 17:33:11 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -V2] mm, swap: Fix race between swapoff and some swap operations
+References: <20171214133832.11266-1-ying.huang@intel.com>
+	<20171214151718.GS16951@dhcp22.suse.cz>
+Date: Fri, 15 Dec 2017 09:33:03 +0800
+In-Reply-To: <20171214151718.GS16951@dhcp22.suse.cz> (Michal Hocko's message
+	of "Thu, 14 Dec 2017 16:17:18 +0100")
+Message-ID: <871sjwn5bk.fsf@yhuang-dev.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: steven.sistare@oracle.com, Nitin Gupta <nitin.m.gupta@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@kernel.org>, Mel Gorman <mgorman@suse.de>, Nadav Amit <namit@vmware.com>, Minchan Kim <minchan@kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Vegard Nossum <vegard.nossum@oracle.com>, "Levin, Alexander (Sasha Levin)" <alexander.levin@verizon.com>, Michal Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Vlastimil Babka <vbabka@suse.cz>, SeongJae Park <sj38.park@gmail.com>, Shaohua Li <shli@fb.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, Rik van Riel <riel@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Matthew Wilcox <willy@linux.intel.com>, Hugh Dickins <hughd@google.com>, Tobin C Harding <me@tobin.cc>, open list <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>, "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-Currently, if the THP enabled policy is "always", or the mode
-is "madvise" and a region is marked as MADV_HUGEPAGE, a hugepage
-is allocated on a page fault if the pud or pmd is empty.  This
-yields the best VA translation performance, but increases memory
-consumption if some small page ranges within the huge page are
-never accessed.
+Michal Hocko <mhocko@kernel.org> writes:
 
-An alternate behavior for such page faults is to install a
-hugepage only when a region is actually found to be (almost)
-fully mapped and active.  This is a compromise between
-translation performance and memory consumption.  Currently there
-is no way for an application to choose this compromise for the
-page fault conditions above.
+> On Thu 14-12-17 21:38:32, Huang, Ying wrote:
+>> From: Huang Ying <ying.huang@intel.com>
+>> 
+>> When the swapin is performed, after getting the swap entry information
+>> from the page table, system will swap in the swap entry, without any
+>> lock held to prevent the swap device from being swapoff.  This may
+>> cause the race like below,
+>> 
+>> CPU 1				CPU 2
+>> -----				-----
+>> 				do_swap_page
+>> 				  swapin_readahead
+>> 				    __read_swap_cache_async
+>> swapoff				      swapcache_prepare
+>>   p->swap_map = NULL		        __swap_duplicate
+>> 					  p->swap_map[?] /* !!! NULL pointer access */
+>> 
+>> Because swap off is usually done when system shutdown only, the race
+>> may not hit many people in practice.  But it is still a race need to
+>> be fixed.
+>> 
+>> To fix the race, get_swap_device() is added to prevent swap device
+>> from being swapoff until put_swap_device() is called.  When
+>> get_swap_device() is called, the caller should have some locks (like
+>> PTL, page lock, or swap_info_struct->lock) held to guarantee the swap
+>> entry is valid, or check the origin of swap entry again to make sure
+>> the swap device hasn't been swapoff already.
+>> 
+>> Because swapoff() is very race code path, to make the normal path runs
+>
+> s@race@rare@ I suppose
 
-With this change, when an application issues MADV_DONTNEED on a
-memory region, the region is marked as "space-efficient". For
-such regions, a hugepage is not immediately allocated on first
-write.  Instead, it is left to the khugepaged thread to do
-delayed hugepage promotion depending on whether the region is
-actually mapped and active. When application issues
-MADV_HUGEPAGE, the region is marked again as non-space-efficient
-wherein hugepage is allocated on first touch.
+Oops, thanks for pointing this out!
 
-Orabug: 26910556
+>> as fast as possible, SRCU instead of reference count is used to
+>> implement get/put_swap_device().  From get_swap_device() to
+>> put_swap_device(), the reader side of SRCU is locked, so
+>> synchronize_srcu() in swapoff() will wait until put_swap_device() is
+>> called.
+>
+> It is quite unfortunate to pull SRCU as a dependency to the core kernel.
+> Different attempts to do this have failed in the past. This one is
+> slightly different though because I would suspect that those tiny
+> systems do not configure swap. But who knows, maybe they do.
 
-Reviewed-by: Steve Sistare <steven.sistare@oracle.com>
-Signed-off-by: Nitin Gupta <nitin.m.gupta@oracle.com>
----
- include/linux/mm_types.h | 1 +
- mm/khugepaged.c          | 1 +
- mm/madvise.c             | 1 +
- mm/memory.c              | 6 ++++--
- 4 files changed, 7 insertions(+), 2 deletions(-)
+I remember Paul said there is a tiny implementation of SRCU which can
+fit this requirement.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index cfd0ac4..6d0783a 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -339,6 +339,7 @@ struct vm_area_struct {
- 	struct mempolicy *vm_policy;	/* NUMA policy for the VMA */
- #endif
- 	struct vm_userfaultfd_ctx vm_userfaultfd_ctx;
-+	bool space_efficient;
- } __randomize_layout;
- 
- struct core_thread {
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index ea4ff25..2f4037a 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -319,6 +319,7 @@ int hugepage_madvise(struct vm_area_struct *vma,
- #endif
- 		*vm_flags &= ~VM_NOHUGEPAGE;
- 		*vm_flags |= VM_HUGEPAGE;
-+		vma->space_efficient = false;
- 		/*
- 		 * If the vma become good for khugepaged to scan,
- 		 * register it here without waiting a page fault that
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 751e97a..b2ec07b 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -508,6 +508,7 @@ static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
- 					unsigned long start, unsigned long end)
- {
- 	zap_page_range(vma, start, end - start);
-+	vma->space_efficient = true;
- 	return 0;
- }
- 
-diff --git a/mm/memory.c b/mm/memory.c
-index 5eb3d25..6485014 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -4001,7 +4001,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pud = pud_alloc(mm, p4d, address);
- 	if (!vmf.pud)
- 		return VM_FAULT_OOM;
--	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)) {
-+	if (pud_none(*vmf.pud) && transparent_hugepage_enabled(vma)
-+		&& !vma->space_efficient) {
- 		ret = create_huge_pud(&vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
-@@ -4027,7 +4028,8 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
- 	vmf.pmd = pmd_alloc(mm, vmf.pud, address);
- 	if (!vmf.pmd)
- 		return VM_FAULT_OOM;
--	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)) {
-+	if (pmd_none(*vmf.pmd) && transparent_hugepage_enabled(vma)
-+		&& !vma->space_efficient) {
- 		ret = create_huge_pmd(&vmf);
- 		if (!(ret & VM_FAULT_FALLBACK))
- 			return ret;
--- 
-2.9.2
+Hi, Paul, whether my memory is correct?
+
+> Anyway, if you are worried about performance then I would expect some
+> numbers to back that worry. So why don't simply start with simpler
+> ref count based and then optimize it later based on some actual numbers.
+
+My -V1 is based on ref count.  I think the performance difference should
+be not measurable.  The idea is that swapoff() is so rare, so we should
+accelerate normal path as much as possible, even if this will cause slow
+down in swapoff.  If we cannot use SRCU in the end, we may try RCU,
+preempt off (for stop_machine()), etc.
+
+> Btw. have you considered pcp refcount framework. I would suspect that
+> this would give you close to SRCU performance.
+
+No.  I think pcp refcount doesn't fit here.  You should hold a initial
+refcount for pcp refcount, it isn't the case here.
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
