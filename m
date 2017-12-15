@@ -1,56 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 487666B0033
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 12:43:27 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id b11so15755863itj.0
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:43:27 -0800 (PST)
-Received: from wolff.to (wolff.to. [98.103.208.27])
-        by mx.google.com with SMTP id h133si4936905ioa.297.2017.12.15.09.43.26
-        for <linux-mm@kvack.org>;
-        Fri, 15 Dec 2017 09:43:26 -0800 (PST)
-Date: Fri, 15 Dec 2017 11:40:13 -0600
-From: Bruno Wolff III <bruno@wolff.to>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
- bdi_debug_register")
-Message-ID: <20171215174013.GA20381@wolff.to>
-References: <20171214082452.GA16698@wolff.to>
- <20171214100927.GA26167@localhost.didichuxing.com>
- <20171214154136.GA12936@wolff.to>
- <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
- <20171215014417.GA17757@wolff.to>
- <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
- <20171215111050.GA30737@wolff.to>
- <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
- <20171215163048.GA15928@wolff.to>
- <533198ad-b756-3e0a-c3bd-9aae0a42d170@redhat.com>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E8DB96B0033
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 13:01:21 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id a13so7503315pgt.0
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 10:01:21 -0800 (PST)
+Received: from out0-201.mail.aliyun.com (out0-201.mail.aliyun.com. [140.205.0.201])
+        by mx.google.com with ESMTPS id c7si5310487plr.486.2017.12.15.10.01.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Dec 2017 10:01:20 -0800 (PST)
+Subject: Re: [PATCH] mm: thp: avoid uninitialized variable use
+References: <20171215125129.2948634-1-arnd@arndb.de>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <8d5476e2-5f87-1134-62d4-9f649c4e709a@alibaba-inc.com>
+Date: Sat, 16 Dec 2017 02:01:08 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <533198ad-b756-3e0a-c3bd-9aae0a42d170@redhat.com>
+In-Reply-To: <20171215125129.2948634-1-arnd@arndb.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laura Abbott <labbott@redhat.com>
-Cc: weiping zhang <zwp10758@gmail.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
+To: Arnd Bergmann <arnd@arndb.de>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Stephen Rothwell <sfr@canb.auug.org.au>, Vlastimil Babka <vbabka@suse.cz>, David Rientjes <rientjes@google.com>, Ingo Molnar <mingo@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 15, 2017 at 09:18:56 -0800,
-  Laura Abbott <labbott@redhat.com> wrote:
->
->You can see the trees Fedora produces at https://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/fedora.git
->which includes the configs (you want to look at the ones withtout - debug)
 
-Thanks. I found it a little while ago and am already doing a test build 
-without weiping's test patch to see if that kernel provides what he(?) 
-needs. Doing a rebuild with the test patch will go pretty quickly. So 
-if I get the message with device_add_disk from these kernels, I should 
-be able to get the information this afternoon. If there is some other 
-reason I don't get that when I do the builds, I'm probably not going to be 
-able to figure it out and get a build done before I leave. I don't live 
-close enough to the office that I'm going to want to drive in just to 
-be able to do a reboot test. (And my hardware at home does exhibit the 
-problem.)
 
-If you have some other idea about why I might not be seeing the 
-device_add_disk message, I'd be interested in hearing it.
+On 12/15/17 4:51 AM, Arnd Bergmann wrote:
+> When the down_read_trylock() fails, 'vma' has not been initialized
+> yet, which gcc now warns about:
+> 
+> mm/khugepaged.c: In function 'khugepaged':
+> mm/khugepaged.c:1659:25: error: 'vma' may be used uninitialized in this function [-Werror=maybe-uninitialized]
+
+Arnd,
+
+Thanks for catching this. I'm wondering why my test didn't catch it. It 
+might be because my gcc is old. I'm using gcc 4.8.5 on centos 7.
+
+Regards,
+Yang
+
+> 
+> Presumable we are not supposed to call find_vma() without the mmap_sem
+> either, so setting it to NULL for this case seems appropriate.
+> 
+> Fixes: 0951b59acf3a ("mm: thp: use down_read_trylock() in khugepaged to avoid long block")
+> Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+> ---
+> I'm not completely sure this patch is sufficient, it gets rid of
+> the warning, but it would be good to have the code reviewed better
+> to see if other problems remain that result from down_read_trylock()
+> patch.
+> ---
+>   mm/khugepaged.c | 5 ++---
+>   1 file changed, 2 insertions(+), 3 deletions(-)
+> 
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index 521b908f9600..b7e2268dfc9a 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -1677,11 +1677,10 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>   	 * Don't wait for semaphore (to avoid long wait times).  Just move to
+>   	 * the next mm on the list.
+>   	 */
+> +	vma = NULL;
+>   	if (unlikely(!down_read_trylock(&mm->mmap_sem)))
+>   		goto breakouterloop_mmap_sem;
+> -	if (unlikely(khugepaged_test_exit(mm)))
+> -		vma = NULL;
+> -	else
+> +	if (likely(!khugepaged_test_exit(mm)))
+>   		vma = find_vma(mm, khugepaged_scan.address);
+>   
+>   	progress++;
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
