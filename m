@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 289E06B0293
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:06:03 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id b11so16508809itj.0
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:06:03 -0800 (PST)
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 33FF36B0295
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:06:04 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id 64so7988513yby.11
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:06:04 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id b83si5894545itd.87.2017.12.15.14.06.02
+        by mx.google.com with ESMTPS id t37si1510177ybd.776.2017.12.15.14.05.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:06:02 -0800 (PST)
+        Fri, 15 Dec 2017 14:06:03 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 64/78] dax: Convert dax_insert_mapping_entry to XArray
-Date: Fri, 15 Dec 2017 14:04:36 -0800
-Message-Id: <20171215220450.7899-65-willy@infradead.org>
+Subject: [PATCH v5 50/78] shmem: Convert shmem_partial_swap_usage to XArray
+Date: Fri, 15 Dec 2017 14:04:22 -0800
+Message-Id: <20171215220450.7899-51-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,61 +22,51 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
+Simpler code because the xarray takes care of things like the limit and
+dereferencing the slot.
+
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 18 ++++++------------
- 1 file changed, 6 insertions(+), 12 deletions(-)
+ mm/shmem.c | 18 +++---------------
+ 1 file changed, 3 insertions(+), 15 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index 9cfd4fcc0b0d..a3e795ad2493 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -498,9 +498,9 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 				      void *entry, sector_t sector,
- 				      unsigned long flags, bool dirty)
+diff --git a/mm/shmem.c b/mm/shmem.c
+index dd663341e01e..ecf05645509b 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -658,29 +658,17 @@ static int shmem_free_swap(struct address_space *mapping,
+ unsigned long shmem_partial_swap_usage(struct address_space *mapping,
+ 						pgoff_t start, pgoff_t end)
  {
--	struct radix_tree_root *pages = &mapping->pages;
- 	void *new_entry;
- 	pgoff_t index = vmf->pgoff;
-+	XA_STATE(xas, &mapping->pages, index);
+-	struct radix_tree_iter iter;
+-	void **slot;
++	XA_STATE(xas, &mapping->pages, start);
+ 	struct page *page;
+ 	unsigned long swapped = 0;
  
- 	if (dirty)
- 		__mark_inode_dirty(mapping->host, I_DIRTY_PAGES);
-@@ -516,7 +516,7 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 					PAGE_SIZE, 0);
- 	}
- 
--	xa_lock_irq(&mapping->pages);
-+	xas_lock_irq(&xas);
- 	new_entry = dax_radix_locked_entry(sector, flags);
- 
- 	if (dax_is_zero_entry(entry) || dax_is_empty_entry(entry)) {
-@@ -528,21 +528,15 @@ static void *dax_insert_mapping_entry(struct address_space *mapping,
- 		 * existing entry is a PMD, we will just leave the PMD in the
- 		 * tree and dirty it if necessary.
- 		 */
--		struct radix_tree_node *node;
--		void **slot;
--		void *ret;
+ 	rcu_read_lock();
 -
--		ret = __radix_tree_lookup(pages, index, &node, &slot);
--		WARN_ON_ONCE(ret != entry);
--		__radix_tree_replace(pages, node, slot,
--				     new_entry, NULL);
-+		void *prev = xas_store(&xas, new_entry);
-+		WARN_ON_ONCE(prev != entry);
- 		entry = new_entry;
+-	radix_tree_for_each_slot(slot, &mapping->pages, &iter, start) {
+-		if (iter.index >= end)
+-			break;
+-
+-		page = radix_tree_deref_slot(slot);
+-
+-		if (radix_tree_deref_retry(page)) {
+-			slot = radix_tree_iter_retry(&iter);
+-			continue;
+-		}
+-
++	xas_for_each(&xas, page, end - 1) {
+ 		if (xa_is_value(page))
+ 			swapped++;
+ 
+ 		if (need_resched()) {
+-			slot = radix_tree_iter_resume(slot, &iter);
++			xas_pause(&xas);
+ 			cond_resched_rcu();
+ 		}
  	}
- 
- 	if (dirty)
--		radix_tree_tag_set(pages, index, PAGECACHE_TAG_DIRTY);
-+		xas_set_tag(&xas, PAGECACHE_TAG_DIRTY);
- 
--	xa_unlock_irq(&mapping->pages);
-+	xas_unlock_irq(&xas);
- 	return entry;
- }
- 
 -- 
 2.15.1
 
