@@ -1,82 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f72.google.com (mail-lf0-f72.google.com [209.85.215.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 1A7146B0038
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 02:38:51 -0500 (EST)
-Received: by mail-lf0-f72.google.com with SMTP id w21so229003lfi.1
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:38:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j74sor1077512lfg.56.2017.12.14.23.38.48
+Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B2CA56B0253
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 02:52:06 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id u4so13297291iti.2
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:52:06 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id 31si799413iog.188.2017.12.14.23.52.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 14 Dec 2017 23:38:49 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 14 Dec 2017 23:52:05 -0800 (PST)
+Date: Fri, 15 Dec 2017 08:51:47 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+Message-ID: <20171215075147.nzpsmb7asyr6etig@hirez.programming.kicks-ass.net>
+References: <20171214112726.742649793@infradead.org>
+ <20171214113851.146259969@infradead.org>
+ <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
+ <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
+ <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com>
+ <20171214205450.GI3326@worktop>
+ <8eedb9a3-0ba2-52df-58f6-3ed869d18ca3@intel.com>
+ <CA+55aFyA1+_hnqKO11gVNTo7RV6d9qygC-p8yiAzFMb=9aR5-A@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171215062428.5dyv7wjbzn2ggxvz@thunk.org>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171213104617.7lffucjhaa6xb7lp@gmail.com> <CANrsvRPuhPyh1nFnzdYj8ph7e1FQRw_W_WN2a1tm9fzpAYks4g@mail.gmail.com>
- <CANrsvRP3-bWatoaq1teNFG1RXRbazqnHvOKXe458eAxSdAnsfg@mail.gmail.com> <20171215062428.5dyv7wjbzn2ggxvz@thunk.org>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Fri, 15 Dec 2017 16:38:47 +0900
-Message-ID: <CANrsvROu_Y6nOwnTGxyL8UbMcFpYdhZrQpa=ECNUsVxNftC=zQ@mail.gmail.com>
-Subject: Re: [PATCH] locking/lockdep: Remove the cross-release locking checks
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFyA1+_hnqKO11gVNTo7RV6d9qygC-p8yiAzFMb=9aR5-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <max.byungchul.park@gmail.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, david@fromorbit.com, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, tglx@linutronix.de, x86@kernel.org, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-On Fri, Dec 15, 2017 at 3:24 PM, Theodore Ts'o <tytso@mit.edu> wrote:
-> On Fri, Dec 15, 2017 at 01:05:43PM +0900, Byungchul Park wrote:
->> For example, in the case of fs issues, for now we can
->> invalidate wait_for_completion() in submit_bio_wait()....
->
-> And this will spawn a checkpatch.pl ERROR:
->
->                     ERROR("LOCKDEP",
->                     "lockdep_no_validate class is reserved for device->mutex.\n" . $herecurr);
->
-> This mention in checkpatch.pl is the only documentation I've been able
-> to find about lockdep_set_novalidate_class(), by the way.
->
->> ... and re-validate it later, of course, I really want to find more
->> fundamental solution though.
->
-> Oh, and I was finally able to find the quote that the *only* people
-> who are likely to be able to deal with lock annotations are the
+On Thu, Dec 14, 2017 at 10:09:24PM -0800, Linus Torvalds wrote:
+> On Dec 14, 2017 21:04, "Dave Hansen" <dave.hansen@intel.com> wrote:
+> Can we please just undo that broken crap instead of trying to "fix" it?
+> 
+> It was wrong. We absolutely do not want to complicate the gup path.
+> 
+> Let's fet rid of those broken p??_access_permited() things.
 
-Right. Using the word, "only", is one that I should not have done
-and I apologize for.
+So we actually need the pte_access_permitted() stuff if we want to
+ensure we're not stepping on !PAGE_USER things.
 
-They are just "only" people who solve and classify locks quickly,
-assuming all of kernel guys are familiar with lockdep annotations.
-Thus, even this statement is bad as well, since no good
-document for that exists, as you pointed out. I agree.
-
-> subsystem maintainers.  But if the ways of dealing with lock
-> annotations are not documented, such that subsystem maintainers are
-> going to have a very hard time figuring out *how* to deal with it, it
-
-Right. I've agreed with this, since you pointed out it's problem not
-to be documented well.
-
-> seems that lock classification as a solution to cross-release false
-> positives seems.... unlikely:
->
->    From: Byungchul Park <byungchul.park@lge.com>
->    Date: Fri, 8 Dec 2017 18:27:45 +0900
->    Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
->
->    1) Firstly, it's hard to assign lock classes *properly*. By
->    default, it relies on the caller site of lockdep_init_map(),
->    but we need to assign another class manually, where ordering
->    rules are complicated so cannot rely on the caller site. That
->    *only* can be done by experts of the subsystem.
->
->                                         - Ted
-
-
-
--- 
-Thanks,
-Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
