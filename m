@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 762DA6B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:54:30 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id a5so4193711pgu.1
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:54:30 -0800 (PST)
-Received: from huawei.com ([45.249.212.32])
-        by mx.google.com with ESMTPS id m89si4173940pfg.140.2017.12.14.17.54.28
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 170D86B0038
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:57:54 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j26so6308467pff.8
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 17:57:54 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id r1si3722737pgp.308.2017.12.14.17.57.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 17:54:29 -0800 (PST)
-Subject: [consult the suggestion]: Avoid kernel panic when killing an
- application if happen RAS page table error
-From: gengdongjiu <gengdongjiu@huawei.com>
-References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
- <20171205165727.GG3070@tassilo.jf.intel.com>
- <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com>
- <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com>
-Message-ID: <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com>
-Date: Fri, 15 Dec 2017 09:54:01 +0800
+        Thu, 14 Dec 2017 17:57:53 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -mm -V2] mm, swap: Fix race between swapoff and some swap operations
+References: <20171214133832.11266-1-ying.huang@intel.com>
+	<20171214151718.GS16951@dhcp22.suse.cz>
+	<20171214124246.ceebc9c955bd32601c01a28b@linux-foundation.org>
+Date: Fri, 15 Dec 2017 09:57:47 +0800
+In-Reply-To: <20171214124246.ceebc9c955bd32601c01a28b@linux-foundation.org>
+	(Andrew Morton's message of "Thu, 14 Dec 2017 12:42:46 -0800")
+Message-ID: <87wp1olplw.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: James Morse <james.morse@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jerome Glisse <jglisse@redhat.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
+Andrew Morton <akpm@linux-foundation.org> writes:
 
-Hi James/All,
-  If the user space application happen page table RAS error,Memory error handler(memory_failure()) will do nothing except making a poisoned page flag, and fault handler in arch/arm64/mm/fault.c
-will deliver a signal to kill this application. when this application exits, it will call unmap_vmas () to release his vma resource, but here it will touch the error page table again, then will
-trigger RAS error again, so this application cannot be killed and system will be panic, the log is shown in [2].
+> On Thu, 14 Dec 2017 16:17:18 +0100 Michal Hocko <mhocko@kernel.org> wrote:
+>
+>> > as fast as possible, SRCU instead of reference count is used to
+>> > implement get/put_swap_device().  From get_swap_device() to
+>> > put_swap_device(), the reader side of SRCU is locked, so
+>> > synchronize_srcu() in swapoff() will wait until put_swap_device() is
+>> > called.
+>> 
+>> It is quite unfortunate to pull SRCU as a dependency to the core kernel.
+>> Different attempts to do this have failed in the past. This one is
+>> slightly different though because I would suspect that those tiny
+>> systems do not configure swap. But who knows, maybe they do.
+>> 
+>> Anyway, if you are worried about performance then I would expect some
+>> numbers to back that worry. So why don't simply start with simpler
+>> ref count based and then optimize it later based on some actual numbers.
+>> Btw. have you considered pcp refcount framework. I would suspect that
+>> this would give you close to SRCU performance.
+>
+> <squeaky-wheel>Or use stop_kernel() ;)</squeaky-wheel>
 
-As shown the stack in [1], unmap_page_range() will touch the error page table, so system will panic, there are some simple way to avoid this panic and avoid change much about the memory management.
-1. put the tasks to dead status, not run it again.
-2. not release the page table for this task.
+Although I still thought SRCU based solution is better, I will prepare a
+version with preempt_disable() + stop_machine() or rcu_read_lock() +
+synchronize_rcu() based version for people to compare between them.
 
-Of cause, above methods may happen memory leakage. do you have good suggestion about how to solve it?, or do you think this panic is expected behavior? thanks.
+BTW, it appears that rcu_read_lock() + synchronize_rcu() is better than
+preempt_disable() + stop_machine(), why not use it?
 
-
-[1]:
-get_signal()
-   do_group_exit()
-      mmput()
-                exit_mmap()
-                        unmap_vmas()
-                                unmap_single_vma()
-                                        unmap_page_range()
-
-
-[2]
-[  676.669053] Synchronous External Abort: level 0 (translation table walk) (0x82000214) at 0x0000000033ff7008
-[  676.686469] Memory failure: 0xcd4b: already hardware poisoned
-[  676.700652] Synchronous External Abort: synchronous external abort (0x96000410) at 0x0000000033ff7008
-[  676.723301] Internal error: : 96000410 [#1] PREEMPT SMP
-[  676.723616] Modules linked in: inject_memory_error(O)
-[  676.724601] CPU: 0 PID: 1506 Comm: mca-recover Tainted: G           O    4.14.0-rc8-00019-g5b5c6f4-dirty #109
-[  676.724844] task: ffff80000cd41d00 task.stack: ffff000009b30000
-[  676.726616] PC is at unmap_page_range+0x78/0x6fc
-[  676.726960] LR is at unmap_single_vma+0x88/0xdc
-[  676.727122] pc : [<ffff0000081f109c>] lr : [<ffff0000081f17a8>] pstate: 80400149
-[  676.727227] sp : ffff000009b339b0
-[  676.727348] x29: ffff000009b339b0 x28: ffff80000cd41d00
-[  676.727653] x27: 0000000000000000 x26: ffff80000cd42410
-[  676.727919] x25: ffff80000cd41d00 x24: ffff80000cd1e180
-[  676.728161] x23: ffff80000ce22300 x22: 0000000000000000
-[  676.728407] x21: ffff000009b33b28 x20: 0000000000400000
-[  676.728642] x19: ffff80000cd1e180 x18: 000000000000016d
-[  676.728875] x17: 0000000000000190 x16: 0000000000000064
-[  676.729117] x15: 0000000000000339 x14: 0000000000000000
-[  676.729344] x13: 00000000000061a8 x12: 0000000000000339
-[  676.729582] x11: 0000000000000018 x10: 0000000000000a80
-[  676.729829] x9 : ffff000009b33c60 x8 : ffff80000cd427e0
-[  676.730065] x7 : ffff000009b33de8 x6 : 00000000004a2000
-[  676.730287] x5 : 0000000000400000 x4 : ffff80000cd4b000
-[  676.730517] x3 : 00000000004a1fff x2 : 0000008000000000
-[  676.730741] x1 : 0000007fffffffff x0 : 0000008000000000
-[  676.731101] Process mca-recover (pid: 1506, stack limit = 0xffff000009b30000)
-[  676.731281] Call trace:
-[  676.734196] [<ffff0000081f109c>] unmap_page_range+0x78/0x6fc
-[  676.734539] [<ffff0000081f17a8>] unmap_single_vma+0x88/0xdc
-[  676.734892] [<ffff0000081f1aa8>] unmap_vmas+0x68/0xb4
-[  676.735456] [<ffff0000081fa56c>] exit_mmap+0x90/0x140
-[  676.736468] [<ffff0000080ccb34>] mmput+0x60/0x118
-[  676.736791] [<ffff0000080d4060>] do_exit+0x240/0x9cc
-[  676.736997] [<ffff0000080d4854>] do_group_exit+0x38/0x98
-[  676.737384] [<ffff0000080df4d0>] get_signal+0x1ec/0x548
-[  676.738313] [<ffff000008088b80>] do_signal+0x7c/0x668
-[  676.738617] [<ffff000008089538>] do_notify_resume+0xcc/0x114
- [  676.740983] [<ffff0000080836c0>] work_pending+0x8/0x10
-[  676.741360] Code: f94043a4 f9404ba2 f94037a3 d1000441 (f9400080)
-[  676.741745] ---[ end trace e42d453027313552 ]---
-[  676.804174] Fixing recursive fault but reboot is needed!
-[  677.462082] Memory failure: 0xcd4b: already hardware poisoned
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
