@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 503DB6B026F
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:58 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id a13so7077793pgt.0
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 06:10:58 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 03AFD6B0270
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:11:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id w5so7078383pgt.4
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 06:11:02 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id g64si5129955pfc.386.2017.12.15.06.10.56
+        by mx.google.com with ESMTPS id q6si5261506pli.627.2017.12.15.06.11.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 06:10:57 -0800 (PST)
+        Fri, 15 Dec 2017 06:11:01 -0800 (PST)
 From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 13/17] memremap: remove to_vmem_altmap
-Date: Fri, 15 Dec 2017 15:09:43 +0100
-Message-Id: <20171215140947.26075-14-hch@lst.de>
+Subject: [PATCH 14/17] memremap: simplify duplicate region handling in devm_memremap_pages
+Date: Fri, 15 Dec 2017 15:09:44 +0100
+Message-Id: <20171215140947.26075-15-hch@lst.de>
 In-Reply-To: <20171215140947.26075-1-hch@lst.de>
 References: <20171215140947.26075-1-hch@lst.de>
 Sender: owner-linux-mm@kvack.org
@@ -20,71 +20,37 @@ List-ID: <linux-mm.kvack.org>
 To: Dan Williams <dan.j.williams@intel.com>
 Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-All callers are gone now.
+__radix_tree_insert already checks for duplicates and returns -EEXIST in
+that case, so remove the duplicate (and racy) duplicates check.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
+Reviewed-by: Logan Gunthorpe <logang@deltatee.com>
 ---
- include/linux/memremap.h |  9 ---------
- kernel/memremap.c        | 26 --------------------------
- 2 files changed, 35 deletions(-)
+ kernel/memremap.c | 11 -----------
+ 1 file changed, 11 deletions(-)
 
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 26e8aaba27d5..3fddcfe57bb0 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -26,15 +26,6 @@ struct vmem_altmap {
- 	unsigned long alloc;
- };
- 
--#ifdef CONFIG_ZONE_DEVICE
--struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start);
--#else
--static inline struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
--{
--	return NULL;
--}
--#endif
--
- /*
-  * Specialize ZONE_DEVICE memory into multiple types each having differents
-  * usage.
 diff --git a/kernel/memremap.c b/kernel/memremap.c
-index 26764085785d..891491ddccdb 100644
+index 891491ddccdb..901404094df1 100644
 --- a/kernel/memremap.c
 +++ b/kernel/memremap.c
-@@ -475,32 +475,6 @@ void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns)
- 	altmap->alloc -= nr_pfns;
- }
+@@ -395,17 +395,6 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+ 	align_end = align_start + align_size - 1;
  
--struct vmem_altmap *to_vmem_altmap(unsigned long memmap_start)
--{
--	/*
--	 * 'memmap_start' is the virtual address for the first "struct
--	 * page" in this range of the vmemmap array.  In the case of
--	 * CONFIG_SPARSEMEM_VMEMMAP a page_to_pfn conversion is simple
--	 * pointer arithmetic, so we can perform this to_vmem_altmap()
--	 * conversion without concern for the initialization state of
--	 * the struct page fields.
--	 */
--	struct page *page = (struct page *) memmap_start;
--	struct dev_pagemap *pgmap;
+ 	foreach_order_pgoff(res, order, pgoff) {
+-		struct dev_pagemap *dup;
 -
--	/*
--	 * Unconditionally retrieve a dev_pagemap associated with the
--	 * given physical address, this is only for use in the
--	 * arch_{add|remove}_memory() for setting up and tearing down
--	 * the memmap.
--	 */
--	rcu_read_lock();
--	pgmap = find_dev_pagemap(__pfn_to_phys(page_to_pfn(page)));
--	rcu_read_unlock();
--
--	return pgmap ? pgmap->altmap : NULL;
--}
--
- /**
-  * get_dev_pagemap() - take a new live reference on the dev_pagemap for @pfn
-  * @pfn: page frame number to lookup page_map
+-		rcu_read_lock();
+-		dup = find_dev_pagemap(res->start + PFN_PHYS(pgoff));
+-		rcu_read_unlock();
+-		if (dup) {
+-			dev_err(dev, "%s: %pr collides with mapping for %s\n",
+-					__func__, res, dev_name(dup->dev));
+-			error = -EBUSY;
+-			break;
+-		}
+ 		error = __radix_tree_insert(&pgmap_radix,
+ 				PHYS_PFN(res->start) + pgoff, order, page_map);
+ 		if (error) {
 -- 
 2.14.2
 
