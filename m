@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF106B026B
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E9BC26B026F
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:39 -0500 (EST)
-Received: by mail-yb0-f199.google.com with SMTP id s6so8037884ybg.0
+Received: by mail-it0-f71.google.com with SMTP id c33so16628131itf.8
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:39 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id u107si1469996ybi.614.2017.12.15.14.05.36
+        by mx.google.com with ESMTPS id o1si5378118iof.134.2017.12.15.14.05.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:37 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:38 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 58/78] dax: Convert dax_unlock_mapping_entry to XArray
-Date: Fri, 15 Dec 2017 14:04:30 -0800
-Message-Id: <20171215220450.7899-59-willy@infradead.org>
+Subject: [PATCH v5 63/78] dax: Convert dax_insert_pfn_mkwrite to XArray
+Date: Fri, 15 Dec 2017 14:04:35 -0800
+Message-Id: <20171215220450.7899-64-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,104 +22,41 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Replace slot_locked() with dax_locked() and inline unlock_slot() into
-its only caller.
-
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- fs/dax.c | 48 ++++++++++++++++--------------------------------
- 1 file changed, 16 insertions(+), 32 deletions(-)
+ fs/dax.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/fs/dax.c b/fs/dax.c
-index 92693859efb5..dd4674ce48f5 100644
+index d6dd779e1b46..9cfd4fcc0b0d 100644
 --- a/fs/dax.c
 +++ b/fs/dax.c
-@@ -73,6 +73,11 @@ fs_initcall(init_dax_wait_table);
- #define DAX_ZERO_PAGE	(1UL << 2)
- #define DAX_EMPTY	(1UL << 3)
- 
-+static bool dax_locked(void *entry)
-+{
-+	return xa_to_value(entry) & DAX_ENTRY_LOCK;
-+}
-+
- static unsigned long dax_radix_sector(void *entry)
- {
- 	return xa_to_value(entry) >> DAX_SHIFT;
-@@ -180,16 +185,6 @@ static void dax_wake_mapping_entry_waiter(struct address_space *mapping,
- 		__wake_up(wq, TASK_NORMAL, wake_all ? 0 : 1, &key);
- }
- 
--/*
-- * Check whether the given slot is locked.  Must be called with xa_lock held.
-- */
--static inline int slot_locked(struct address_space *mapping, void **slot)
--{
--	unsigned long entry = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
--	return entry & DAX_ENTRY_LOCK;
--}
--
- /*
-  * Mark the given slot as locked.  Must be called with xa_lock held.
-  */
-@@ -202,18 +197,6 @@ static inline void *lock_slot(struct address_space *mapping, void **slot)
- 	return entry;
- }
- 
--/*
-- * Mark the given slot as unlocked.  Must be called with xa_lock held.
-- */
--static inline void *unlock_slot(struct address_space *mapping, void **slot)
--{
--	unsigned long v = xa_to_value(
--		radix_tree_deref_slot_protected(slot, &mapping->pages.xa_lock));
--	void *entry = xa_mk_value(v & ~DAX_ENTRY_LOCK);
--	radix_tree_replace_slot(&mapping->pages, slot, entry);
--	return entry;
--}
--
- /*
-  * Lookup entry in radix tree, wait for it to become unlocked if it is
-  * a DAX entry and return it. The caller must call
-@@ -237,8 +220,7 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- 		entry = __radix_tree_lookup(&mapping->pages, index, NULL,
- 					  &slot);
- 		if (!entry ||
--		    WARN_ON_ONCE(!xa_is_value(entry)) ||
--		    !slot_locked(mapping, slot)) {
-+		    WARN_ON_ONCE(!xa_is_value(entry)) || !dax_locked(entry)) {
- 			if (slotp)
- 				*slotp = slot;
- 			return entry;
-@@ -257,17 +239,19 @@ static void *get_unlocked_mapping_entry(struct address_space *mapping,
- static void dax_unlock_mapping_entry(struct address_space *mapping,
- 				     pgoff_t index)
- {
--	void *entry, **slot;
-+	XA_STATE(xas, &mapping->pages, index);
-+	void *entry;
+@@ -1498,21 +1498,21 @@ static int dax_insert_pfn_mkwrite(struct vm_fault *vmf,
+ 	void *entry;
+ 	int vmf_ret, error;
  
 -	xa_lock_irq(&mapping->pages);
--	entry = __radix_tree_lookup(&mapping->pages, index, NULL, &slot);
--	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) ||
--			 !slot_locked(mapping, slot))) {
--		xa_unlock_irq(&mapping->pages);
 +	xas_lock_irq(&xas);
-+	entry = xas_load(&xas);
-+	if (WARN_ON_ONCE(!entry || !xa_is_value(entry) || !dax_locked(entry))) {
+ 	entry = get_unlocked_mapping_entry(&xas);
+ 	/* Did we race with someone splitting entry or so? */
+ 	if (!entry ||
+ 	    (pe_size == PE_SIZE_PTE && !dax_is_pte_entry(entry)) ||
+ 	    (pe_size == PE_SIZE_PMD && !dax_is_pmd_entry(entry))) {
+ 		put_unlocked_mapping_entry(&xas, entry);
+-		xa_unlock_irq(&mapping->pages);
 +		xas_unlock_irq(&xas);
- 		return;
+ 		trace_dax_insert_pfn_mkwrite_no_entry(mapping->host, vmf,
+ 						      VM_FAULT_NOPAGE);
+ 		return VM_FAULT_NOPAGE;
  	}
--	unlock_slot(mapping, slot);
+-	radix_tree_tag_set(&mapping->pages, index, PAGECACHE_TAG_DIRTY);
++	xas_set_tag(&xas, PAGECACHE_TAG_DIRTY);
+ 	entry = lock_slot(&xas);
 -	xa_unlock_irq(&mapping->pages);
-+	entry = xa_mk_value(xa_to_value(entry) & ~DAX_ENTRY_LOCK);
-+	xas_store(&xas, entry);
-+	/* Safe to not call xas_pause here -- we don't touch the array after */
 +	xas_unlock_irq(&xas);
- 	dax_wake_mapping_entry_waiter(mapping, index, entry, false);
- }
- 
+ 	switch (pe_size) {
+ 	case PE_SIZE_PTE:
+ 		error = vm_insert_mixed_mkwrite(vmf->vma, vmf->address, pfn);
 -- 
 2.15.1
 
