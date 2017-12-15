@@ -1,97 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 48C226B025E
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 13:49:33 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id i7so7573894pgq.7
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 10:49:33 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w9si5282815plp.783.2017.12.15.10.49.31
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 10:49:31 -0800 (PST)
-Date: Fri, 15 Dec 2017 10:49:15 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v19 3/7] xbitmap: add more operations
-Message-ID: <20171215184915.GB27160@bombadil.infradead.org>
-References: <5A311C5E.7000304@intel.com>
- <201712132316.EJJ57332.MFOSJHOFFVLtQO@I-love.SAKURA.ne.jp>
- <5A31F445.6070504@intel.com>
- <201712150129.BFC35949.FFtFOLSOJOQHVM@I-love.SAKURA.ne.jp>
- <20171214181219.GA26124@bombadil.infradead.org>
- <201712160121.BEJ26052.HOFFOOQFMLtSVJ@I-love.SAKURA.ne.jp>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2FDDD6B0033
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 13:54:42 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id x204so4407577oif.18
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 10:54:42 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id r69si2435308ota.125.2017.12.15.10.54.41
+        for <linux-mm@kvack.org>;
+        Fri, 15 Dec 2017 10:54:41 -0800 (PST)
+Message-ID: <5A3419F3.1030804@arm.com>
+Date: Fri, 15 Dec 2017 18:52:35 +0000
+From: James Morse <james.morse@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201712160121.BEJ26052.HOFFOOQFMLtSVJ@I-love.SAKURA.ne.jp>
+Subject: Re: [Question ]: Avoid kernel panic when killing an application if
+ happen RAS page table error
+References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com> <20171205165727.GG3070@tassilo.jf.intel.com> <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com> <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com> <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com> <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
+In-Reply-To: <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu@aliyun.com, nilal@redhat.com, riel@redhat.com
+To: gengdongjiu <gengdongjiu@huawei.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
 
-On Sat, Dec 16, 2017 at 01:21:52AM +0900, Tetsuo Handa wrote:
-> My understanding is that virtio-balloon wants to handle sparsely spreaded
-> unsigned long values (which is PATCH 4/7) and wants to find all chunks of
-> consecutive "1" bits efficiently. Therefore, I guess that holding the values
-> in ascending order at store time is faster than sorting the values at read
-> time. I don't know how to use radix tree API, but I think that B+ tree API
-> suits for holding the values in ascending order.
+Hi gengdongjiu,
+
+On 15/12/17 02:00, gengdongjiu wrote:
+> change the mail title and resend.
+
+(please don't do this, we all got the first version)
+
+
+> If the user space application happen page table RAS error,Memory error handler(memory_failure()) will
+> do nothing except making a poisoned page flag,
+
+Yes, because user-space process's page tables are kernel memory.
+
+memory_failure() depends on the system being able to contain these faults,
+giving us another RAS exception if we touch the page again.
+
+
+> and fault handler in arch/arm64/mm/fault.c
+> will deliver a signal to kill this application. when this application exits, it will call unmap_vmas ()
+> to release his vma resource, but here it will touch the error page table
+again, then will
+> trigger RAS error again, so this application cannot be killed and system will be panic, the log is shown in [2].
+
+Kernel memory is corrupt, we panic().
+
+You want to add a distinction to handle user-space process's page tables:
+
+> As shown the stack in [1], unmap_page_range() will touch the error page table, so system will panic,
+> there are some simple way to avoid this panic and avoid change much about
+> the memory management.
+> 1. put the tasks to dead status, not run it again.
+> 2. not release the page table for this task.
 > 
-> We wait for Wei to post radix tree version combined into one patch and then
-> compare performance between radix tree version and B+ tree version (shown
-> below)?
+> Of cause, above methods may happen memory leakage. do you have good suggestion about how to solve it?, or do you think this panic is expected behavior? thanks.
 
-Sure.  We all benefit from some friendly competition.  Even if a
-competition between trees might remind one of the Entmoot ;-)
+I don't think this is worth the effort, the page tables are small compared to
+the memory they map. Even if this were fixed, you still have the chance of other
+kernel memory being corrupted.
 
-But let's not hold back -- let's figure out some good workloads to use
-in our competition.  And we should also decide on the API / locking
-constraints.  And of course we should compete based on not just speed,
-but also memory consumption (both as a runtime overhead for a given set
-of bits and as code size).  If you can replace the IDR, you get to count
-that savings against the cost of your implementation.
+Leaking any memory that isn't marked as poisoned isn't a good idea.
 
-Here's the API I'm looking at right now.  The user need take no lock;
-the locking (spinlock) is handled internally to the implementation.
+What you would need is a way to know from the struct_page that: this page is
+is page-table, and which struct_mm it belongs to. (If its the kernel's init_mm:
+panic()).
+Next you need a way to find all the other pages of page-table without walking
+them. With these three pieces of information you can free all the unaffected
+memory, with even more work you can probably regenerate the corrupted page.
 
-void xbit_init(struct xbitmap *xb);
-int xbit_alloc(struct xbitmap *, unsigned long bit, gfp_t);
-int xbit_alloc_range(struct xbitmap *, unsigned long start,
-                        unsigned long nbits, gfp_t);
-int xbit_set(struct xbitmap *, unsigned long bit, gfp_t);
-bool xbit_test(struct xbitmap *, unsigned long bit);
-int xbit_clear(struct xbitmap *, unsigned long bit);
-int xbit_zero(struct xbitmap *, unsigned long start, unsigned long nbits);
-int xbit_fill(struct xbitmap *, unsigned long start, unsigned long nbits,
-                        gfp_t);
-unsigned long xbit_find_clear(struct xbitmap *, unsigned long start,
-                        unsigned long max);
-unsigned long xbit_find_set(struct xbitmap *, unsigned long start,
-                        unsigned long max);
+It's going to be complicated to do, I don't think its worth the effort.
 
-> static bool set_ulong(struct ulong_list_head *head, const unsigned long value)
-> {
-> 	if (!ptr) {
-> 		ptr = kzalloc(sizeof(*ptr), GFP_NOWAIT | __GFP_NOWARN);
-> 		if (!ptr)
-> 			goto out1;
-> 		ptr->bitmap = kzalloc(BITMAP_LEN / 8,
-> 				      GFP_NOWAIT | __GFP_NOWARN);
-> 		if (!ptr->bitmap)
-> 			goto out2;
-> 		if (btree_insertl(&head->btree, ~segment, ptr,
-> 				   GFP_NOWAIT | __GFP_NOWARN))
-> 			goto out3;
-> out3:
-> 	kfree(ptr->bitmap);
-> out2:
-> 	kfree(ptr);
-> out1:
-> 	return false;
-> }
 
-And what is the user supposed to do if this returns false?  How do they
-make headway?  The xb_ API is clear -- you call xb_prealloc and that
-ensures forward progress.
+Thanks,
+
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
