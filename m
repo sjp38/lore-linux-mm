@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F5CE6B027F
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:48 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id y76so3173480iod.1
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:48 -0800 (PST)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EDDC6B0280
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:49 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id z1so3126012iob.17
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:49 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n133si5340049ion.184.2017.12.15.14.05.45
+        by mx.google.com with ESMTPS id r130si5511911iod.147.2017.12.15.14.05.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 14:05:47 -0800 (PST)
+        Fri, 15 Dec 2017 14:05:48 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 35/78] mm: Convert delete_from_swap_cache to XArray
-Date: Fri, 15 Dec 2017 14:04:07 -0800
-Message-Id: <20171215220450.7899-36-willy@infradead.org>
+Subject: [PATCH v5 38/78] mm: Convert huge_memory to XArray
+Date: Fri, 15 Dec 2017 14:04:10 -0800
+Message-Id: <20171215220450.7899-39-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,105 +22,73 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Both callers of __delete_from_swap_cache have the swp_entry_t already,
-so pass that in to make constructing the XA_STATE easier.
+Quite a straightforward conversion.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/swap.h |  5 +++--
- mm/swap_state.c      | 24 ++++++++++--------------
- mm/vmscan.c          |  2 +-
- 3 files changed, 14 insertions(+), 17 deletions(-)
+ mm/huge_memory.c | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
 
-diff --git a/include/linux/swap.h b/include/linux/swap.h
-index e4a8afcb214c..569a8ac4fe3f 100644
---- a/include/linux/swap.h
-+++ b/include/linux/swap.h
-@@ -413,7 +413,7 @@ extern void show_swap_cache_info(void);
- extern int add_to_swap(struct page *page);
- extern int add_to_swap_cache(struct page *, swp_entry_t, gfp_t);
- extern int __add_to_swap_cache(struct page *page, swp_entry_t entry);
--extern void __delete_from_swap_cache(struct page *);
-+extern void __delete_from_swap_cache(struct page *, swp_entry_t entry);
- extern void delete_from_swap_cache(struct page *);
- extern void free_page_and_swap_cache(struct page *);
- extern void free_pages_and_swap_cache(struct page **, int);
-@@ -588,7 +588,8 @@ static inline int add_to_swap_cache(struct page *page, swp_entry_t entry,
- 	return -1;
- }
- 
--static inline void __delete_from_swap_cache(struct page *page)
-+static inline void __delete_from_swap_cache(struct page *page,
-+							swp_entry_t entry)
- {
- }
- 
-diff --git a/mm/swap_state.c b/mm/swap_state.c
-index a57b5ad4c503..219e3b4f09e6 100644
---- a/mm/swap_state.c
-+++ b/mm/swap_state.c
-@@ -154,23 +154,22 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry, gfp_t gfp)
-  * This must be called only on pages that have
-  * been verified to be in the swap cache.
-  */
--void __delete_from_swap_cache(struct page *page)
-+void __delete_from_swap_cache(struct page *page, swp_entry_t entry)
- {
--	struct address_space *address_space;
-+	struct address_space *address_space = swap_address_space(entry);
- 	int i, nr = hpage_nr_pages(page);
--	swp_entry_t entry;
--	pgoff_t idx;
-+	pgoff_t idx = swp_offset(entry);
-+	XA_STATE(xas, &address_space->pages, idx);
- 
- 	VM_BUG_ON_PAGE(!PageLocked(page), page);
- 	VM_BUG_ON_PAGE(!PageSwapCache(page), page);
- 	VM_BUG_ON_PAGE(PageWriteback(page), page);
- 
--	entry.val = page_private(page);
--	address_space = swap_address_space(entry);
--	idx = swp_offset(entry);
- 	for (i = 0; i < nr; i++) {
--		radix_tree_delete(&address_space->pages, idx + i);
-+		void *entry = xas_store(&xas, NULL);
-+		VM_BUG_ON_PAGE(entry != page + i, entry);
- 		set_page_private(page + i, 0);
-+		xas_next(&xas);
- 	}
- 	ClearPageSwapCache(page);
- 	address_space->nrpages -= nr;
-@@ -246,14 +245,11 @@ int add_to_swap(struct page *page)
-  */
- void delete_from_swap_cache(struct page *page)
- {
--	swp_entry_t entry;
--	struct address_space *address_space;
--
--	entry.val = page_private(page);
-+	swp_entry_t entry = { .val = page_private(page) };
-+	struct address_space *address_space = swap_address_space(entry);
- 
--	address_space = swap_address_space(entry);
- 	xa_lock_irq(&address_space->pages);
--	__delete_from_swap_cache(page);
-+	__delete_from_swap_cache(page, entry);
- 	xa_unlock_irq(&address_space->pages);
- 
- 	put_swap_page(page, entry);
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 96316bd91f91..51df3f9ba0bc 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -715,7 +715,7 @@ static int __remove_mapping(struct address_space *mapping, struct page *page,
- 	if (PageSwapCache(page)) {
- 		swp_entry_t swap = { .val = page_private(page) };
- 		mem_cgroup_swapout(page, swap);
--		__delete_from_swap_cache(page);
-+		__delete_from_swap_cache(page, swap);
- 		xa_unlock_irqrestore(&mapping->pages, flags);
- 		put_swap_page(page, swap);
+diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+index 28909c475ee5..5a41b00d86bd 100644
+--- a/mm/huge_memory.c
++++ b/mm/huge_memory.c
+@@ -2379,7 +2379,7 @@ static void __split_huge_page_tail(struct page *head, int tail,
+ 	if (PageAnon(head) && !PageSwapCache(head)) {
+ 		page_ref_inc(page_tail);
  	} else {
+-		/* Additional pin to radix tree */
++		/* Additional pin to page cache */
+ 		page_ref_add(page_tail, 2);
+ 	}
+ 
+@@ -2450,13 +2450,13 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+ 	ClearPageCompound(head);
+ 	/* See comment in __split_huge_page_tail() */
+ 	if (PageAnon(head)) {
+-		/* Additional pin to radix tree of swap cache */
++		/* Additional pin to swap cache */
+ 		if (PageSwapCache(head))
+ 			page_ref_add(head, 2);
+ 		else
+ 			page_ref_inc(head);
+ 	} else {
+-		/* Additional pin to radix tree */
++		/* Additional pin to page cache */
+ 		page_ref_add(head, 2);
+ 		xa_unlock(&head->mapping->pages);
+ 	}
+@@ -2568,7 +2568,7 @@ bool can_split_huge_page(struct page *page, int *pextra_pins)
+ {
+ 	int extra_pins;
+ 
+-	/* Additional pins from radix tree */
++	/* Additional pins from page cache */
+ 	if (PageAnon(page))
+ 		extra_pins = PageSwapCache(page) ? HPAGE_PMD_NR : 0;
+ 	else
+@@ -2664,17 +2664,14 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
+ 	spin_lock_irqsave(zone_lru_lock(page_zone(head)), flags);
+ 
+ 	if (mapping) {
+-		void **pslot;
++		XA_STATE(xas, &mapping->pages, page_index(head));
+ 
+-		xa_lock(&mapping->pages);
+-		pslot = radix_tree_lookup_slot(&mapping->pages,
+-				page_index(head));
+ 		/*
+-		 * Check if the head page is present in radix tree.
++		 * Check if the head page is present in page cache.
+ 		 * We assume all tail are present too, if head is there.
+ 		 */
+-		if (radix_tree_deref_slot_protected(pslot,
+-					&mapping->pages.xa_lock) != head)
++		xa_lock(&mapping->pages);
++		if (xas_load(&xas) != head)
+ 			goto fail;
+ 	}
+ 
 -- 
 2.15.1
 
