@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2CCC66B0281
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D3276B0282
 	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:52 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id f92so447224ioi.5
+Received: by mail-io0-f199.google.com with SMTP id t73so3145274iof.6
         for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:52 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x63si5787364itf.27.2017.12.15.14.05.50
+        by mx.google.com with ESMTPS id 97si5380052iod.195.2017.12.15.14.05.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 15 Dec 2017 14:05:51 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 51/78] shmem: Comment fixups
-Date: Fri, 15 Dec 2017 14:04:23 -0800
-Message-Id: <20171215220450.7899-52-willy@infradead.org>
+Subject: [PATCH v5 67/78] page cache: Finish XArray conversion
+Date: Fri, 15 Dec 2017 14:04:39 -0800
+Message-Id: <20171215220450.7899-68-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,75 +22,55 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Remove the last mentions of radix tree from various comments.
+With no more radix tree API users left, we can drop the GFP flags
+and use xa_init() instead of INIT_RADIX_TREE().
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+ fs/inode.c         | 2 +-
+ include/linux/fs.h | 2 +-
+ mm/swap_state.c    | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index ecf05645509b..3cfc247e4796 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -743,7 +743,7 @@ void shmem_unlock_mapping(struct address_space *mapping)
- }
- 
- /*
-- * Remove range of pages and swap entries from radix tree, and free them.
-+ * Remove range of pages and swap entries from page cache, and free them.
-  * If !unfalloc, truncate or punch hole; if unfalloc, undo failed fallocate.
+diff --git a/fs/inode.c b/fs/inode.c
+index c7b00573c10d..2046ff6dd1b3 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -348,7 +348,7 @@ EXPORT_SYMBOL(inc_nlink);
+ void address_space_init_once(struct address_space *mapping)
+ {
+ 	memset(mapping, 0, sizeof(*mapping));
+-	INIT_RADIX_TREE(&mapping->pages, GFP_ATOMIC | __GFP_ACCOUNT);
++	xa_init(&mapping->pages);
+ 	init_rwsem(&mapping->i_mmap_rwsem);
+ 	INIT_LIST_HEAD(&mapping->private_list);
+ 	spin_lock_init(&mapping->private_lock);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index c58bc3c619bf..b459bf4ddb62 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -410,7 +410,7 @@ int pagecache_write_end(struct file *, struct address_space *mapping,
   */
- static void shmem_undo_range(struct inode *inode, loff_t lstart, loff_t lend,
-@@ -1118,10 +1118,10 @@ static int shmem_unuse_inode(struct shmem_inode_info *info,
- 		 * We needed to drop mutex to make that restrictive page
- 		 * allocation, but the inode might have been freed while we
- 		 * dropped it: although a racing shmem_evict_inode() cannot
--		 * complete without emptying the radix_tree, our page lock
-+		 * complete without emptying the page cache, our page lock
- 		 * on this swapcache page is not enough to prevent that -
- 		 * free_swap_and_cache() of our swap entry will only
--		 * trylock_page(), removing swap from radix_tree whatever.
-+		 * trylock_page(), removing swap from page cache whatever.
- 		 *
- 		 * We must not proceed to shmem_add_to_page_cache() if the
- 		 * inode has been freed, but of course we cannot rely on
-@@ -1187,7 +1187,7 @@ int shmem_unuse(swp_entry_t swap, struct page *page)
- 			false);
- 	if (error)
- 		goto out;
--	/* No radix_tree_preload: swap entry keeps a place for page in tree */
-+	/* No memory allocation: swap entry occupies the slot for the page */
- 	error = -EAGAIN;
- 
- 	mutex_lock(&shmem_swaplist_mutex);
-@@ -1862,7 +1862,7 @@ alloc_nohuge:		page = shmem_alloc_and_acct_page(gfp, inode,
- 		spin_unlock_irq(&info->lock);
- 		goto repeat;
- 	}
--	if (error == -EEXIST)	/* from above or from radix_tree_insert */
-+	if (error == -EEXIST)
- 		goto repeat;
- 	return error;
- }
-@@ -2474,7 +2474,7 @@ static ssize_t shmem_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
- }
- 
- /*
-- * llseek SEEK_DATA or SEEK_HOLE through the radix_tree.
-+ * llseek SEEK_DATA or SEEK_HOLE through the page cache.
-  */
- static pgoff_t shmem_seek_hole_data(struct address_space *mapping,
- 				    pgoff_t index, pgoff_t end, int whence)
-@@ -2562,7 +2562,7 @@ static loff_t shmem_file_llseek(struct file *file, loff_t offset, int whence)
- }
- 
- /*
-- * We need a tag: a new tag would expand every radix_tree_node by 8 bytes,
-+ * We need a tag: a new tag would expand every xa_node by 8 bytes,
-  * so reuse a tag which we firmly believe is never set or cleared on shmem.
-  */
- #define SHMEM_TAG_PINNED        PAGECACHE_TAG_TOWRITE
+ struct address_space {
+ 	struct inode		*host;
+-	struct radix_tree_root	pages;
++	struct xarray		pages;
+ 	gfp_t			gfp_mask;
+ 	atomic_t		i_mmap_writable;
+ 	struct rb_root_cached	i_mmap;
+diff --git a/mm/swap_state.c b/mm/swap_state.c
+index 219e3b4f09e6..6ee5b17d7e79 100644
+--- a/mm/swap_state.c
++++ b/mm/swap_state.c
+@@ -573,7 +573,7 @@ int init_swap_address_space(unsigned int type, unsigned long nr_pages)
+ 		return -ENOMEM;
+ 	for (i = 0; i < nr; i++) {
+ 		space = spaces + i;
+-		INIT_RADIX_TREE(&space->pages, GFP_ATOMIC|__GFP_NOWARN);
++		xa_init(&space->pages);
+ 		atomic_set(&space->i_mmap_writable, 0);
+ 		space->a_ops = &swap_aops;
+ 		/* swap cache doesn't use writeback related tags */
 -- 
 2.15.1
 
