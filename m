@@ -1,129 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D65A76B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:22:17 -0500 (EST)
-Received: by mail-yb0-f197.google.com with SMTP id 143so5781227ybe.18
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:22:17 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h11si1136074ywj.415.2017.12.14.20.22.16
+Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BAD8F6B0038
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:38 -0500 (EST)
+Received: by mail-qk0-f199.google.com with SMTP id 12so4950035qkf.23
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:34:38 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j185si6186980qka.259.2017.12.14.20.34.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 20:22:16 -0800 (PST)
-Date: Thu, 14 Dec 2017 20:22:14 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v4 08/73] xarray: Add documentation
-Message-ID: <20171215042214.GA17444@bombadil.infradead.org>
-References: <20171206004159.3755-1-willy@infradead.org>
- <20171206004159.3755-9-willy@infradead.org>
- <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
+        Thu, 14 Dec 2017 20:34:38 -0800 (PST)
+Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBF4YQKg049165
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:36 -0500
+Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ev31582vt-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:36 -0500
+Received: from localhost
+	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 15 Dec 2017 04:34:33 -0000
+Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
+ long block
+References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 15 Dec 2017 10:04:27 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
+In-Reply-To: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <16a06998-34ba-65d9-c6d0-8078d9ef98f9@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Yang Shi <yang.s@alibaba-inc.com>, kirill.shutemov@linux.intel.com, mhocko@suse.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, Dec 11, 2017 at 03:10:22PM -0800, Randy Dunlap wrote:
-> > +A freshly-initialised XArray contains a ``NULL`` pointer at every index.
-> > +Each non-``NULL`` entry in the array has three bits associated with
-> > +it called tags.  Each tag may be flipped on or off independently of
-> > +the others.  You can search for entries with a given tag set.
+On 12/15/2017 01:23 AM, Yang Shi wrote:
+> In the current design, khugepaged need acquire mmap_sem before scanning
+> mm, but in some corner case, khugepaged may scan the current running
+> process which might be modifying memory mapping, so khugepaged might
+> block in uninterruptible state. But, the process might hold the mmap_sem
+> for long time when modifying a huge memory space, then it may trigger
+> the below khugepaged hung issue:
 > 
-> Only tags that are set, or search for entries with some tag(s) cleared?
-> Or is that like a mathematical set?
-
-hmm ...
-
-"Each tag may be set or cleared independently of the others.  You can
-search for entries which have a particular tag set."
-
-Doesn't completely remove the ambiguity, but I can't think of how to phrase
-that better ...
-
-> > +Normal pointers may be stored in the XArray directly.  They must be 4-byte
-> > +aligned, which is true for any pointer returned from :c:func:`kmalloc` and
-> > +:c:func:`alloc_page`.  It isn't true for arbitrary user-space pointers,
-> > +nor for function pointers.  You can store pointers to statically allocated
-> > +objects, as long as those objects have an alignment of at least 4.
+> INFO: task khugepaged:270 blocked for more than 120 seconds. 
+> Tainted: G E 4.9.65-006.ali3000.alios7.x86_64 #1
+> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message. 
+> khugepaged D 0 270 2 0x00000000 
+> ffff883f3deae4c0 0000000000000000 ffff883f610596c0 ffff883f7d359440
+> ffff883f63818000 ffffc90019adfc78 ffffffff817079a5 d67e5aa8c1860a64
+> 0000000000000246 ffff883f7d359440 ffffc90019adfc88 ffff883f610596c0
+> Call Trace: 
+> [<ffffffff817079a5>] ? __schedule+0x235/0x6e0 
+> [<ffffffff81707e86>] schedule+0x36/0x80
+> [<ffffffff8170a970>] rwsem_down_read_failed+0xf0/0x150
+> [<ffffffff81384998>] call_rwsem_down_read_failed+0x18/0x30
+> [<ffffffff8170a1c0>] down_read+0x20/0x40
+> [<ffffffff81226836>] khugepaged+0x476/0x11d0
+> [<ffffffff810c9d0e>] ? idle_balance+0x1ce/0x300
+> [<ffffffff810d0850>] ? prepare_to_wait_event+0x100/0x100
+> [<ffffffff812263c0>] ? collapse_shmem+0xbf0/0xbf0
+> [<ffffffff810a8d46>] kthread+0xe6/0x100
+> [<ffffffff810a8c60>] ? kthread_park+0x60/0x60
+> [<ffffffff8170cd15>] ret_from_fork+0x25/0x30
 > 
-> This (above) is due to the internal usage of low bits for flags?
+> So, it sounds pointless to just block for waiting for the semaphore for
+> khugepaged, here replace down_read() to down_read_trylock() to move to
+> scan next mm quickly instead of just blocking on the semaphore so that
+> other processes can get more chances to install THP.
+> Then khugepaged can come back to scan the skipped mm when finish the
+> current round full_scan.
 
-Sort of ... if bit 0 is set then we're storing an integer (see below),
-and if bit 0 is clear and bit 1 is set, then it's an internal entry.
-
-But I don't want the implementation details to leak into the user manual.
->From the user's point of view, they can store a pointer to anything they
-allocated with kmalloc.  If they want to store an arbitrary pointer,
-they're out of luck.
-
-> > +The XArray does not support storing :c:func:`IS_ERR` pointers; some
-> > +conflict with data values and others conflict with entries the XArray
-> > +uses for its own purposes.  If you need to store special values which
-> > +cannot be confused with real kernel pointers, the values 4, 8, ... 4092
-> > +are available.
-> 
-> or if I know that they values are errno-range values, I can just shift them
-> left by 2 to store them and then shift them right by 2 to use them?
-
-Yes, the values -4 to -4092 also make good error signals.
-
-> oh, or use the following function?
-> 
-> > +You can also store integers between 0 and ``LONG_MAX`` in the XArray.
-> > +You must first convert it into an entry using :c:func:`xa_mk_value`.
-> > +When you retrieve an entry from the XArray, you can check whether it is
-> > +a data value by calling :c:func:`xa_is_value`, and convert it back to
-> > +an integer by calling :c:func:`xa_to_value`.
-
-Yup, you could also store errors as integers, if you like.  Your choice :-)
-
-> > +You can enquire whether a tag is set on an entry by using
-> > +:c:func:`xa_get_tag`.  If the entry is not ``NULL``, you can set a tag
-> > +on it by using :c:func:`xa_set_tag` and remove the tag from an entry by
-> > +calling :c:func:`xa_clear_tag`.  You can ask whether any entry in the
-> 
->                                                         an entry
-> 
-> > +XArray has a particular tag set by calling :c:func:`xa_tagged`.
-> 
-> or maybe I don't understand.  Does xa_tagged() test one entry and return its
-> "tagged" result/status?  or does it test (potentially) the entire array to search
-> for a particular tag value?
-
-It asks the question "Does any entry in the array have tag N set?"
-
-> > +If the xa_state is holding an %ENOMEM error, calling :c:func:`xas_nomem`
-> > +will attempt to allocate more memory using the specified gfp flags and
-> > +cache it in the xa_state for the next attempt.  The idea is that you take
-> > +the xa_lock, attempt the operation and drop the lock.  The operation
-> > +attempts to allocate memory while holding the lock, but it is more
-> > +likely to fail.  Once you have dropped the lock, :c:func:`xas_nomem`
-> > +can try harder to allocate more memory.  It will return ``true`` if it
-> > +is worth retrying the operation (ie that there was a memory error *and*
-> 
->                          usually    i.e.
-> 
-> > +more memory was allocated.  If it has previously allocated memory, and
-> 
->                    allocated).
-
-Thanks!
-
-> > +If you need to move to a different index in the XArray, call
-> > +:c:func:`xas_set`.  This reinitialises the cursor which will generally
-> 
-> I would put a comma .... here.......................^
-> but consult your $editor.  :)
-
-I'll ask her, but I think you're right :-)
-
-> Nicely done.  Thanks.
-
-Thanks for the review!  I think we're still struggling a little to
-talk about tags in an unambiguous way, but apart from that it feels
-pretty good.
+That may be too harsh on the process which now has to wait for a complete
+round of full scan before the khugepaged comes back. What if the mmap_sem
+contention because of VMA changes in the process was just temporary ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
