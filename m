@@ -1,91 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE5F66B025E
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 11:38:04 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id v8so4975970otd.4
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 08:38:04 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p124sor2432523oib.26.2017.12.15.08.38.03
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CC366B0033
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 12:10:33 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f7so8276545pfa.21
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:33 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id w189si4855424pgd.73.2017.12.15.09.10.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Dec 2017 08:38:03 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Dec 2017 09:10:31 -0800 (PST)
+Date: Fri, 15 Dec 2017 09:10:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Storing errors in the XArray
+Message-ID: <20171215171012.GA11918@bombadil.infradead.org>
+References: <20171206004159.3755-1-willy@infradead.org>
+ <20171206004159.3755-9-willy@infradead.org>
+ <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171215113838.nqxcjyyhfy4g7ipk@hirez.programming.kicks-ass.net>
-References: <20171214112726.742649793@infradead.org> <20171214113851.146259969@infradead.org>
- <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
- <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
- <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com> <20171214205450.GI3326@worktop>
- <8eedb9a3-0ba2-52df-58f6-3ed869d18ca3@intel.com> <20171215080041.zftzuxdonxrtmssq@hirez.programming.kicks-ass.net>
- <20171215102529.vtsjhb7h7jiufkr3@hirez.programming.kicks-ass.net> <20171215113838.nqxcjyyhfy4g7ipk@hirez.programming.kicks-ass.net>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 15 Dec 2017 08:38:02 -0800
-Message-ID: <CAPcyv4ghxbdWoRF6U=PSLLQaUKGx55MzYSPVrtsBug7ETv5ybg@mail.gmail.com>
-Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, X86 ML <x86@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, Linux MM <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
 
-On Fri, Dec 15, 2017 at 3:38 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> On Fri, Dec 15, 2017 at 11:25:29AM +0100, Peter Zijlstra wrote:
->> The memory one is also clearly wrong, not having access does not a write
->> fault make. If we have pte_write() set we should not do_wp_page() just
->> because we don't have access. This falls under the "doing anything other
->> than hard failure for !access is crazy" header.
->
-> So per the very same reasoning I think the below is warranted too; also
-> rename that @dirty variable, because its also wrong.
->
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 5eb3d2524bdc..0d43b347eb0a 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -3987,7 +3987,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->                 .pgoff = linear_page_index(vma, address),
->                 .gfp_mask = __get_fault_gfp_mask(vma),
->         };
-> -       unsigned int dirty = flags & FAULT_FLAG_WRITE;
-> +       unsigned int write = flags & FAULT_FLAG_WRITE;
->         struct mm_struct *mm = vma->vm_mm;
->         pgd_t *pgd;
->         p4d_t *p4d;
-> @@ -4013,7 +4013,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->
->                         /* NUMA case for anonymous PUDs would go here */
->
-> -                       if (dirty && !pud_access_permitted(orig_pud, WRITE)) {
-> +                       if (write && !pud_write(orig_pud)) {
->                                 ret = wp_huge_pud(&vmf, orig_pud);
->                                 if (!(ret & VM_FAULT_FALLBACK))
->                                         return ret;
-> @@ -4046,7 +4046,7 @@ static int __handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->                         if (pmd_protnone(orig_pmd) && vma_is_accessible(vma))
->                                 return do_huge_pmd_numa_page(&vmf, orig_pmd);
->
-> -                       if (dirty && !pmd_access_permitted(orig_pmd, WRITE)) {
-> +                       if (write && !pmd_write(orig_pmd)) {
->                                 ret = wp_huge_pmd(&vmf, orig_pmd);
->                                 if (!(ret & VM_FAULT_FALLBACK))
->                                         return ret;
->
->
-> I still cannot make sense of what the intention behind these changes
-> were, the Changelog that went with them is utter crap, it doesn't
-> explain anything.
+On Mon, Dec 11, 2017 at 03:10:22PM -0800, Randy Dunlap wrote:
+> > +The XArray does not support storing :c:func:`IS_ERR` pointers; some
+> > +conflict with data values and others conflict with entries the XArray
+> > +uses for its own purposes.  If you need to store special values which
+> > +cannot be confused with real kernel pointers, the values 4, 8, ... 4092
+> > +are available.
+> 
+> or if I know that they values are errno-range values, I can just shift them
+> left by 2 to store them and then shift them right by 2 to use them?
 
-The motivation was that I noticed that get_user_pages_fast() was doing
-a full pud_access_permitted() check, but the get_user_pages() slow
-path was only doing a pud_write() check. That was inconsistent so I
-went to go resolve that across all the pte types and ended up making a
-mess of things, I'm fine if the answer is that we should have went the
-other way to only do write checks. However, when I was investigating
-which way to go the aspect that persuaded me to start sprinkling
-p??_access_permitted checks around was that the application behavior
-changed between mmap access and direct-i/o access to the same buffer.
-I assumed that different access behavior between those would be an
-inconsistent surprise to userspace. Although, infinitely looping in
-handle_mm_fault is an even worse surprise, apologies for that.
+On further thought, I like this idea so much, it's worth writing helpers
+for this usage.  And test-suite (also doubles as a demonstration of how
+to use it).
+
+diff --git a/include/linux/xarray.h b/include/linux/xarray.h
+index c616e9319c7c..53aa251df57a 100644
+--- a/include/linux/xarray.h
++++ b/include/linux/xarray.h
+@@ -232,6 +232,39 @@ static inline bool xa_is_value(const void *entry)
+ 	return (unsigned long)entry & 1;
+ }
+ 
++/**
++ * xa_mk_errno() - Create an XArray entry from an error number.
++ * @error: Error number to store in XArray.
++ *
++ * Return: An entry suitable for storing in the XArray.
++ */
++static inline void *xa_mk_errno(long error)
++{
++	return (void *)(error << 2);
++}
++
++/**
++ * xa_to_errno() - Get error number stored in an XArray entry.
++ * @entry: XArray entry.
++ *
++ * Return: The error number stored in the XArray entry.
++ */
++static inline unsigned long xa_to_errno(const void *entry)
++{
++	return (long)entry >> 2;
++}
++
++/**
++ * xa_is_errno() - Determine if an entry is an errno.
++ * @entry: XArray entry.
++ *
++ * Return: True if the entry is an errno, false if it is a pointer.
++ */
++static inline bool xa_is_errno(const void *entry)
++{
++	return (((unsigned long)entry & 3) == 0) && (entry > (void *)-4096);
++}
++
+ /**
+  * xa_is_internal() - Is the entry an internal entry?
+  * @entry: Entry retrieved from the XArray
+diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
+index 43111786ebdd..b843cedf3988 100644
+--- a/tools/testing/radix-tree/xarray-test.c
++++ b/tools/testing/radix-tree/xarray-test.c
+@@ -29,7 +29,13 @@ void check_xa_err(struct xarray *xa)
+ 	assert(xa_err(xa_store(xa, 1, xa_mk_value(0), GFP_KERNEL)) == 0);
+ 	assert(xa_err(xa_store(xa, 1, NULL, 0)) == 0);
+ // kills the test-suite :-(
+-//     assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
++//	assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
++
++	assert(xa_err(xa_store(xa, 0, xa_mk_errno(-ENOMEM), GFP_KERNEL)) == 0);
++	assert(xa_err(xa_load(xa, 0)) == 0);
++	assert(xa_is_errno(xa_load(xa, 0)) == true);
++	assert(xa_to_errno(xa_load(xa, 0)) == -ENOMEM);
++	xa_erase(xa, 0);
+ }
+ 
+ void check_xa_tag(struct xarray *xa)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
