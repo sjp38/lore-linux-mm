@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E531B6B0283
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:52 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id k186so16507645ith.1
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:52 -0800 (PST)
+Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C8B56B0284
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:05:53 -0500 (EST)
+Received: by mail-yb0-f200.google.com with SMTP id v13so8034140ybe.1
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 14:05:53 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id k100si5606804ioi.55.2017.12.15.14.05.51
+        by mx.google.com with ESMTPS id p81si1412126ywb.766.2017.12.15.14.05.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 15 Dec 2017 14:05:52 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v5 46/78] shmem: Convert shmem_wait_for_pins to XArray
-Date: Fri, 15 Dec 2017 14:04:18 -0800
-Message-Id: <20171215220450.7899-47-willy@infradead.org>
+Subject: [PATCH v5 33/78] mm: Convert truncate to XArray
+Date: Fri, 15 Dec 2017 14:04:05 -0800
+Message-Id: <20171215220450.7899-34-willy@infradead.org>
 In-Reply-To: <20171215220450.7899-1-willy@infradead.org>
 References: <20171215220450.7899-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,106 +22,51 @@ Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.in
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-As with shmem_tag_pins(), hold the lock around the entire loop instead
-of acquiring & dropping it for each entry we're going to untag.
+This is essentially xa_cmpxchg() with the locking handled above us,
+and it doesn't have to handle replacing a NULL entry.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- mm/shmem.c | 59 ++++++++++++++++++++++++-----------------------------------
- 1 file changed, 24 insertions(+), 35 deletions(-)
+ mm/truncate.c | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
 
-diff --git a/mm/shmem.c b/mm/shmem.c
-index 2f41c7ceea18..e4a2eb1336be 100644
---- a/mm/shmem.c
-+++ b/mm/shmem.c
-@@ -2636,9 +2636,7 @@ static void shmem_tag_pins(struct address_space *mapping)
-  */
- static int shmem_wait_for_pins(struct address_space *mapping)
+diff --git a/mm/truncate.c b/mm/truncate.c
+index 69bb743dd7e5..70323c347298 100644
+--- a/mm/truncate.c
++++ b/mm/truncate.c
+@@ -33,15 +33,12 @@
+ static inline void __clear_shadow_entry(struct address_space *mapping,
+ 				pgoff_t index, void *entry)
  {
--	struct radix_tree_iter iter;
+-	struct radix_tree_node *node;
 -	void **slot;
--	pgoff_t start;
-+	XA_STATE(xas, &mapping->pages, 0);
- 	struct page *page;
- 	int error, scan;
++	XA_STATE(xas, &mapping->pages, index);
  
-@@ -2646,7 +2644,9 @@ static int shmem_wait_for_pins(struct address_space *mapping)
+-	if (!__radix_tree_lookup(&mapping->pages, index, &node, &slot))
++	xas_set_update(&xas, workingset_update_node);
++	if (xas_load(&xas) != entry)
+ 		return;
+-	if (*slot != entry)
+-		return;
+-	__radix_tree_replace(&mapping->pages, node, slot, NULL,
+-			     workingset_update_node);
++	xas_store(&xas, NULL);
+ 	mapping->nrexceptional--;
+ }
  
- 	error = 0;
- 	for (scan = 0; scan <= LAST_SCAN; scan++) {
--		if (!radix_tree_tagged(&mapping->pages, SHMEM_TAG_PINNED))
-+		unsigned int tagged = 0;
-+
-+		if (!xas_tagged(&xas, SHMEM_TAG_PINNED))
- 			break;
- 
- 		if (!scan)
-@@ -2654,45 +2654,34 @@ static int shmem_wait_for_pins(struct address_space *mapping)
- 		else if (schedule_timeout_killable((HZ << scan) / 200))
- 			scan = LAST_SCAN;
- 
--		start = 0;
--		rcu_read_lock();
--		radix_tree_for_each_tagged(slot, &mapping->pages, &iter,
--					   start, SHMEM_TAG_PINNED) {
--
--			page = radix_tree_deref_slot(slot);
--			if (radix_tree_exception(page)) {
--				if (radix_tree_deref_retry(page)) {
--					slot = radix_tree_iter_retry(&iter);
--					continue;
--				}
--
--				page = NULL;
--			}
--
--			if (page &&
--			    page_count(page) - page_mapcount(page) != 1) {
--				if (scan < LAST_SCAN)
--					goto continue_resched;
--
-+		xas_set(&xas, 0);
-+		xas_lock_irq(&xas);
-+		xas_for_each_tag(&xas, page, ULONG_MAX, SHMEM_TAG_PINNED) {
-+			bool clear = true;
-+			if (xa_is_value(page))
-+				continue;
-+			if (page_count(page) - page_mapcount(page) != 1) {
- 				/*
- 				 * On the last scan, we clean up all those tags
- 				 * we inserted; but make a note that we still
- 				 * found pages pinned.
- 				 */
--				error = -EBUSY;
-+				if (scan == LAST_SCAN)
-+					error = -EBUSY;
-+				else
-+					clear = false;
- 			}
-+			if (clear)
-+				xas_clear_tag(&xas, SHMEM_TAG_PINNED);
-+			if (++tagged % XA_CHECK_SCHED)
-+				continue;
- 
--			xa_lock_irq(&mapping->pages);
--			radix_tree_tag_clear(&mapping->pages,
--					     iter.index, SHMEM_TAG_PINNED);
--			xa_unlock_irq(&mapping->pages);
--continue_resched:
--			if (need_resched()) {
--				slot = radix_tree_iter_resume(slot, &iter);
--				cond_resched_rcu();
--			}
-+			xas_pause(&xas);
-+			xas_unlock_irq(&xas);
-+			cond_resched();
-+			xas_lock_irq(&xas);
- 		}
--		rcu_read_unlock();
-+		xas_unlock_irq(&xas);
+@@ -746,10 +743,10 @@ int invalidate_inode_pages2_range(struct address_space *mapping,
+ 		index++;
  	}
- 
- 	return error;
+ 	/*
+-	 * For DAX we invalidate page tables after invalidating radix tree.  We
++	 * For DAX we invalidate page tables after invalidating page cache.  We
+ 	 * could invalidate page tables while invalidating each entry however
+ 	 * that would be expensive. And doing range unmapping before doesn't
+-	 * work as we have no cheap way to find whether radix tree entry didn't
++	 * work as we have no cheap way to find whether page cache entry didn't
+ 	 * get remapped later.
+ 	 */
+ 	if (dax_mapping(mapping)) {
 -- 
 2.15.1
 
