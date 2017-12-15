@@ -1,107 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4CC366B0033
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 12:10:33 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id f7so8276545pfa.21
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:10:33 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id w189si4855424pgd.73.2017.12.15.09.10.29
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D1CA6B0033
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 12:19:01 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id p4so5039334oti.15
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 09:19:01 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e138sor594985oih.175.2017.12.15.09.18.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 09:10:31 -0800 (PST)
-Date: Fri, 15 Dec 2017 09:10:12 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Storing errors in the XArray
-Message-ID: <20171215171012.GA11918@bombadil.infradead.org>
-References: <20171206004159.3755-1-willy@infradead.org>
- <20171206004159.3755-9-willy@infradead.org>
- <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
+        (Google Transport Security);
+        Fri, 15 Dec 2017 09:19:00 -0800 (PST)
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171214082452.GA16698@wolff.to>
+ <20171214100927.GA26167@localhost.didichuxing.com>
+ <20171214154136.GA12936@wolff.to>
+ <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
+ <20171215014417.GA17757@wolff.to>
+ <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
+ <20171215111050.GA30737@wolff.to>
+ <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
+ <20171215163048.GA15928@wolff.to>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <533198ad-b756-3e0a-c3bd-9aae0a42d170@redhat.com>
+Date: Fri, 15 Dec 2017 09:18:56 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <66ad068b-1973-ca41-7bbf-8a0634cc488d@infradead.org>
+In-Reply-To: <20171215163048.GA15928@wolff.to>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org
+To: Bruno Wolff III <bruno@wolff.to>, weiping zhang <zwp10758@gmail.com>
+Cc: Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
 
-On Mon, Dec 11, 2017 at 03:10:22PM -0800, Randy Dunlap wrote:
-> > +The XArray does not support storing :c:func:`IS_ERR` pointers; some
-> > +conflict with data values and others conflict with entries the XArray
-> > +uses for its own purposes.  If you need to store special values which
-> > +cannot be confused with real kernel pointers, the values 4, 8, ... 4092
-> > +are available.
+On 12/15/2017 08:30 AM, Bruno Wolff III wrote:
+> On Fri, Dec 15, 2017 at 22:02:20 +0800,
+>  A weiping zhang <zwp10758@gmail.com> wrote:
+>>
+>> Yes, please help reproduce this issue include my debug patch. Reproduce means
+>> we can see WARN_ON in device_add_disk caused by failure of bdi_register_owner.
 > 
-> or if I know that they values are errno-range values, I can just shift them
-> left by 2 to store them and then shift them right by 2 to use them?
+> I'm not sure why yet, but I'm only getting the warning message you want with Fedora kernels, not the ones I am building (with or without your test patch). I'll attach a debug config file if you want to look there. But in theory that should be essentially what Fedora is using for theirs. They probably have some out of tree patches they are applying, but I wouldn't expect those to make a difference here. I think they now have a tree somewhere that I can try to build from that has their patches applied to the upstream kernel and if I can find it I will try building it just to test this out.
+> 
+> I only have about 6 hours of physical access to the machine exhibiting the problem, and after that I won't be able to do test boots until Monday.
 
-On further thought, I like this idea so much, it's worth writing helpers
-for this usage.  And test-suite (also doubles as a demonstration of how
-to use it).
 
-diff --git a/include/linux/xarray.h b/include/linux/xarray.h
-index c616e9319c7c..53aa251df57a 100644
---- a/include/linux/xarray.h
-+++ b/include/linux/xarray.h
-@@ -232,6 +232,39 @@ static inline bool xa_is_value(const void *entry)
- 	return (unsigned long)entry & 1;
- }
- 
-+/**
-+ * xa_mk_errno() - Create an XArray entry from an error number.
-+ * @error: Error number to store in XArray.
-+ *
-+ * Return: An entry suitable for storing in the XArray.
-+ */
-+static inline void *xa_mk_errno(long error)
-+{
-+	return (void *)(error << 2);
-+}
-+
-+/**
-+ * xa_to_errno() - Get error number stored in an XArray entry.
-+ * @entry: XArray entry.
-+ *
-+ * Return: The error number stored in the XArray entry.
-+ */
-+static inline unsigned long xa_to_errno(const void *entry)
-+{
-+	return (long)entry >> 2;
-+}
-+
-+/**
-+ * xa_is_errno() - Determine if an entry is an errno.
-+ * @entry: XArray entry.
-+ *
-+ * Return: True if the entry is an errno, false if it is a pointer.
-+ */
-+static inline bool xa_is_errno(const void *entry)
-+{
-+	return (((unsigned long)entry & 3) == 0) && (entry > (void *)-4096);
-+}
-+
- /**
-  * xa_is_internal() - Is the entry an internal entry?
-  * @entry: Entry retrieved from the XArray
-diff --git a/tools/testing/radix-tree/xarray-test.c b/tools/testing/radix-tree/xarray-test.c
-index 43111786ebdd..b843cedf3988 100644
---- a/tools/testing/radix-tree/xarray-test.c
-+++ b/tools/testing/radix-tree/xarray-test.c
-@@ -29,7 +29,13 @@ void check_xa_err(struct xarray *xa)
- 	assert(xa_err(xa_store(xa, 1, xa_mk_value(0), GFP_KERNEL)) == 0);
- 	assert(xa_err(xa_store(xa, 1, NULL, 0)) == 0);
- // kills the test-suite :-(
--//     assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
-+//	assert(xa_err(xa_store(xa, 0, xa_mk_internal(0), 0)) == -EINVAL);
-+
-+	assert(xa_err(xa_store(xa, 0, xa_mk_errno(-ENOMEM), GFP_KERNEL)) == 0);
-+	assert(xa_err(xa_load(xa, 0)) == 0);
-+	assert(xa_is_errno(xa_load(xa, 0)) == true);
-+	assert(xa_to_errno(xa_load(xa, 0)) == -ENOMEM);
-+	xa_erase(xa, 0);
- }
- 
- void check_xa_tag(struct xarray *xa)
+You can see the trees Fedora produces at https://git.kernel.org/pub/scm/linux/kernel/git/jwboyer/fedora.git
+which includes the configs (you want to look at the ones withtout - debug)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
