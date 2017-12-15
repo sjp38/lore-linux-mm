@@ -1,103 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E91386B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 21:03:46 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id y124so3437245oie.0
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 18:03:46 -0800 (PST)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id k187si1641449oih.517.2017.12.14.18.03.44
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C0226B0069
+	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 21:04:34 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l4so4190034wre.10
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 18:04:34 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e24sor3788587edc.17.2017.12.14.18.04.33
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 14 Dec 2017 18:03:45 -0800 (PST)
-Subject: [Question ]: Avoid kernel panic when killing an application if happen
- RAS page table error
-From: gengdongjiu <gengdongjiu@huawei.com>
-References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
- <20171205165727.GG3070@tassilo.jf.intel.com>
- <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com>
- <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com>
- <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com>
-Message-ID: <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com>
-Date: Fri, 15 Dec 2017 10:00:02 +0800
+        (Google Transport Security);
+        Thu, 14 Dec 2017 18:04:33 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171215014417.GA17757@wolff.to>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171214082452.GA16698@wolff.to> <20171214100927.GA26167@localhost.didichuxing.com>
+ <20171214154136.GA12936@wolff.to> <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
+ <20171215014417.GA17757@wolff.to>
+From: weiping zhang <zwp10758@gmail.com>
+Date: Fri, 15 Dec 2017 10:04:32 +0800
+Message-ID: <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-Cc: James Morse <james.morse@arm.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Bruno Wolff III <bruno@wolff.to>
+Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
 
-change the mail title and resend.
+2017-12-15 9:44 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
+> On Fri, Dec 15, 2017 at 09:22:21 +0800,
+>  weiping zhang <zwp10758@gmail.com> wrote:
+>>
+>>
+>> Thanks your testing, but I cann't find WARN_ON in device_add_disk from
+>> this boot1.log, could you help reproduce that issue? And does this issue
+>> can be
+>> triggered at every bootup ?
+>
+>
+> I don't know what you need for the first question. When I am physically at
+> the machine I can do test reboots. If you have something specific you want
+> me to try I should be able to.
+>
+> Every time I boot with the problem commit, the boot never completes. However
+> it does seem to get pretty far. I get multiple register dumps every time.
+> After a while (a few minutes) I reboot to a wrking kernel.
+>
+> The output I included is from: journalctl -k -b -1
+> If you think it would be better to see more than dmesg output let me know.
+I just want to know WARN_ON WHAT in device_add_disk,
+if bdi_register_owner return error code, it may fail at any step of following:
 
-Hi James/All,
-  If the user space application happen page table RAS error,Memory error handler(memory_failure()) will do nothing except making a poisoned page flag, and fault handler in arch/arm64/mm/fault.c
-will deliver a signal to kill this application. when this application exits, it will call unmap_vmas () to release his vma resource, but here it will touch the error page table again, then will
-trigger RAS error again, so this application cannot be killed and system will be panic, the log is shown in [2].
+bdi_debug_root is NULL
+bdi->debug_dir is NULL
+bdi->debug_stats is NULL
 
-As shown the stack in [1], unmap_page_range() will touch the error page table, so system will panic, there are some simple way to avoid this panic and avoid change much about the memory management.
-1. put the tasks to dead status, not run it again.
-2. not release the page table for this task.
-
-Of cause, above methods may happen memory leakage. do you have good suggestion about how to solve it?, or do you think this panic is expected behavior? thanks.
-
-
-[1]:
-get_signal()
-   do_group_exit()
-      mmput()
-                exit_mmap()
-                        unmap_vmas()
-                                unmap_single_vma()
-                                        unmap_page_range()
-
-
-[2]
-[  676.669053] Synchronous External Abort: level 0 (translation table walk) (0x82000214) at 0x0000000033ff7008
-[  676.686469] Memory failure: 0xcd4b: already hardware poisoned
-[  676.700652] Synchronous External Abort: synchronous external abort (0x96000410) at 0x0000000033ff7008
-[  676.723301] Internal error: : 96000410 [#1] PREEMPT SMP
-[  676.723616] Modules linked in: inject_memory_error(O)
-[  676.724601] CPU: 0 PID: 1506 Comm: mca-recover Tainted: G           O    4.14.0-rc8-00019-g5b5c6f4-dirty #109
-[  676.724844] task: ffff80000cd41d00 task.stack: ffff000009b30000
-[  676.726616] PC is at unmap_page_range+0x78/0x6fc
-[  676.726960] LR is at unmap_single_vma+0x88/0xdc
-[  676.727122] pc : [<ffff0000081f109c>] lr : [<ffff0000081f17a8>] pstate: 80400149
-[  676.727227] sp : ffff000009b339b0
-[  676.727348] x29: ffff000009b339b0 x28: ffff80000cd41d00
-[  676.727653] x27: 0000000000000000 x26: ffff80000cd42410
-[  676.727919] x25: ffff80000cd41d00 x24: ffff80000cd1e180
-[  676.728161] x23: ffff80000ce22300 x22: 0000000000000000
-[  676.728407] x21: ffff000009b33b28 x20: 0000000000400000
-[  676.728642] x19: ffff80000cd1e180 x18: 000000000000016d
-[  676.728875] x17: 0000000000000190 x16: 0000000000000064
-[  676.729117] x15: 0000000000000339 x14: 0000000000000000
-[  676.729344] x13: 00000000000061a8 x12: 0000000000000339
-[  676.729582] x11: 0000000000000018 x10: 0000000000000a80
-[  676.729829] x9 : ffff000009b33c60 x8 : ffff80000cd427e0
-[  676.730065] x7 : ffff000009b33de8 x6 : 00000000004a2000
-[  676.730287] x5 : 0000000000400000 x4 : ffff80000cd4b000
-[  676.730517] x3 : 00000000004a1fff x2 : 0000008000000000
-[  676.730741] x1 : 0000007fffffffff x0 : 0000008000000000
-[  676.731101] Process mca-recover (pid: 1506, stack limit = 0xffff000009b30000)
-[  676.731281] Call trace:
-[  676.734196] [<ffff0000081f109c>] unmap_page_range+0x78/0x6fc
-[  676.734539] [<ffff0000081f17a8>] unmap_single_vma+0x88/0xdc
-[  676.734892] [<ffff0000081f1aa8>] unmap_vmas+0x68/0xb4
-[  676.735456] [<ffff0000081fa56c>] exit_mmap+0x90/0x140
-[  676.736468] [<ffff0000080ccb34>] mmput+0x60/0x118
-[  676.736791] [<ffff0000080d4060>] do_exit+0x240/0x9cc
-[  676.736997] [<ffff0000080d4854>] do_group_exit+0x38/0x98
-[  676.737384] [<ffff0000080df4d0>] get_signal+0x1ec/0x548
-[  676.738313] [<ffff000008088b80>] do_signal+0x7c/0x668
-[  676.738617] [<ffff000008089538>] do_notify_resume+0xcc/0x114
- [  676.740983] [<ffff0000080836c0>] work_pending+0x8/0x10
-[  676.741360] Code: f94043a4 f9404ba2 f94037a3 d1000441 (f9400080)
-[  676.741745] ---[ end trace e42d453027313552 ]---
-[  676.804174] Fixing recursive fault but reboot is needed!
-[  677.462082] Memory failure: 0xcd4b: already hardware poisoned
-
-
+so I want see the WARN_ON as you paste before, also my DEBUG log will help
+to find which step fail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
