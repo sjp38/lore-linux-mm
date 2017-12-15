@@ -1,79 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAD8F6B0038
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:38 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id 12so4950035qkf.23
-        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 20:34:38 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j185si6186980qka.259.2017.12.14.20.34.37
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5FF0C6B0038
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 00:04:59 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id w22so5998939pge.10
+        for <linux-mm@kvack.org>; Thu, 14 Dec 2017 21:04:59 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id z15si3993033pgr.595.2017.12.14.21.04.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 14 Dec 2017 20:34:38 -0800 (PST)
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBF4YQKg049165
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:36 -0500
-Received: from e06smtp12.uk.ibm.com (e06smtp12.uk.ibm.com [195.75.94.108])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ev31582vt-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 14 Dec 2017 23:34:36 -0500
-Received: from localhost
-	by e06smtp12.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 15 Dec 2017 04:34:33 -0000
-Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
- long block
-References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 15 Dec 2017 10:04:27 +0530
+        Thu, 14 Dec 2017 21:04:58 -0800 (PST)
+Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+References: <20171214112726.742649793@infradead.org>
+ <20171214113851.146259969@infradead.org>
+ <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
+ <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
+ <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com>
+ <20171214205450.GI3326@worktop>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <8eedb9a3-0ba2-52df-58f6-3ed869d18ca3@intel.com>
+Date: Thu, 14 Dec 2017 21:04:56 -0800
 MIME-Version: 1.0
-In-Reply-To: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+In-Reply-To: <20171214205450.GI3326@worktop>
 Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-Message-Id: <16a06998-34ba-65d9-c6d0-8078d9ef98f9@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yang Shi <yang.s@alibaba-inc.com>, kirill.shutemov@linux.intel.com, mhocko@suse.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: linux-kernel@vger.kernel.org, tglx@linutronix.de, x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com
 
-On 12/15/2017 01:23 AM, Yang Shi wrote:
-> In the current design, khugepaged need acquire mmap_sem before scanning
-> mm, but in some corner case, khugepaged may scan the current running
-> process which might be modifying memory mapping, so khugepaged might
-> block in uninterruptible state. But, the process might hold the mmap_sem
-> for long time when modifying a huge memory space, then it may trigger
-> the below khugepaged hung issue:
+On 12/14/2017 12:54 PM, Peter Zijlstra wrote:
+>> That short-circuits the page fault pretty quickly.  So, basically, the
+>> rule is: if the hardware says you tripped over pkey permissions, you
+>> die.  We don't try to do anything to the underlying page *before* saying
+>> that you die.
+> That only works when you trip the fault from hardware. Not if you do a
+> software fault using gup().
 > 
-> INFO: task khugepaged:270 blocked for more than 120 seconds. 
-> Tainted: G E 4.9.65-006.ali3000.alios7.x86_64 #1
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message. 
-> khugepaged D 0 270 2 0x00000000 
-> ffff883f3deae4c0 0000000000000000 ffff883f610596c0 ffff883f7d359440
-> ffff883f63818000 ffffc90019adfc78 ffffffff817079a5 d67e5aa8c1860a64
-> 0000000000000246 ffff883f7d359440 ffffc90019adfc88 ffff883f610596c0
-> Call Trace: 
-> [<ffffffff817079a5>] ? __schedule+0x235/0x6e0 
-> [<ffffffff81707e86>] schedule+0x36/0x80
-> [<ffffffff8170a970>] rwsem_down_read_failed+0xf0/0x150
-> [<ffffffff81384998>] call_rwsem_down_read_failed+0x18/0x30
-> [<ffffffff8170a1c0>] down_read+0x20/0x40
-> [<ffffffff81226836>] khugepaged+0x476/0x11d0
-> [<ffffffff810c9d0e>] ? idle_balance+0x1ce/0x300
-> [<ffffffff810d0850>] ? prepare_to_wait_event+0x100/0x100
-> [<ffffffff812263c0>] ? collapse_shmem+0xbf0/0xbf0
-> [<ffffffff810a8d46>] kthread+0xe6/0x100
-> [<ffffffff810a8c60>] ? kthread_park+0x60/0x60
-> [<ffffffff8170cd15>] ret_from_fork+0x25/0x30
-> 
-> So, it sounds pointless to just block for waiting for the semaphore for
-> khugepaged, here replace down_read() to down_read_trylock() to move to
-> scan next mm quickly instead of just blocking on the semaphore so that
-> other processes can get more chances to install THP.
-> Then khugepaged can come back to scan the skipped mm when finish the
-> current round full_scan.
+> AFAIK __get_user_pages(FOLL_FORCE|FOLL_WRITE|FOLL_GET) will loop
+> indefinitely on the case I described.
 
-That may be too harsh on the process which now has to wait for a complete
-round of full scan before the khugepaged comes back. What if the mmap_sem
-contention because of VMA changes in the process was just temporary ?
+So, the underlying bug here is that we now a get_user_pages_remote() and
+then go ahead and do the p*_access_permitted() checks against the
+current PKRU.  This was introduced recently with the addition of the new
+p??_access_permitted() calls.
+
+We have checks in the VMA path for the "remote" gups and we avoid
+consulting PKRU for them.  This got missed in the pkeys selftests
+because I did a ptrace read, but not a *write*.  I also didn't
+explicitly test it against something where a COW needed to be done.
+
+I've got some additions to the selftests and a fix where we pass FOLL_*
+flags around a bit more instead of just 'write'.  I'll get those out as
+soon as I do a bit more testing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
