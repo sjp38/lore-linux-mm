@@ -1,128 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D797C4403D7
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 12:20:36 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id o29so9157657qto.12
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 09:20:36 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id g82si9383337qke.10.2017.12.16.09.20.35
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EAC824403D7
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 12:47:32 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id x62so4812366iod.7
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 09:47:32 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id j9si6295748iof.109.2017.12.16.09.47.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Dec 2017 09:20:35 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBGHIwYj098308
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 12:20:35 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ew0h5js2s-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 12:20:34 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Sat, 16 Dec 2017 10:20:34 -0700
-Date: Sat, 16 Dec 2017 09:20:26 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: pkeys: Support setting access rights for signal handlers
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <20171212231324.GE5460@ram.oc3035372033.ibm.com>
- <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
- <20171213113544.GG5460@ram.oc3035372033.ibm.com>
- <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
- <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
- <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
- <20171214001756.GA5471@ram.oc3035372033.ibm.com>
- <cf13f6e0-2405-4c58-4cf1-266e8baae825@redhat.com>
- <20171216150910.GA5461@ram.oc3035372033.ibm.com>
- <2eba29f4-804d-b211-1293-52a567739cad@redhat.com>
+        Sat, 16 Dec 2017 09:47:28 -0800 (PST)
+Subject: Re: [PATCH 7/8] mm: Document how to use struct page
+References: <20171216164425.8703-1-willy@infradead.org>
+ <20171216164425.8703-8-willy@infradead.org>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <4d963b8f-0010-fd20-013e-f53f27c8a7ce@infradead.org>
+Date: Sat, 16 Dec 2017 09:47:16 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2eba29f4-804d-b211-1293-52a567739cad@redhat.com>
-Message-Id: <20171216172026.GC5461@ram.oc3035372033.ibm.com>
+In-Reply-To: <20171216164425.8703-8-willy@infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Sat, Dec 16, 2017 at 04:25:14PM +0100, Florian Weimer wrote:
-> On 12/16/2017 04:09 PM, Ram Pai wrote:
+On 12/16/2017 08:44 AM, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> >>It still restores the PKRU register value upon
-> >>regular exit from the signal handler, which I think is something we
-> >>should keep.
-> >
-> >On x86, the pkru value is restored, on return from the signal handler,
-> >to the value before the signal handler was called. right?
-> >
-> >In other words, if 'x' was the value when signal handler was called, it
-> >will be 'x' when return from the signal handler.
-> >
-> >If correct, than it is consistent with the behavior on POWER.
+> Be really explicit about what bits / bytes are reserved for users that
+> want to store extra information about the pages they allocate.
 > 
-> That's good to know.  I tended to implement the same semantics on x86.
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> ---
+>  include/linux/mm_types.h | 23 ++++++++++++++++++++++-
+>  1 file changed, 22 insertions(+), 1 deletion(-)
 > 
-> >>I think we still should add a flag, so that applications can easily
-> >>determine if a kernel has this patch.  Setting up a signal handler,
-> >>sending the signal, and thus checking for inheritance is a bit
-> >>involved, and we'd have to do this in the dynamic linker before we
-> >>can use pkeys to harden lazy binding.  The flag could just be a
-> >>no-op, apart from the lack of an EINVAL failure if it is specified.
-> >
-> >Sorry. I am little confused.  What should I implement on POWER?
-> >PKEY_ALLOC_SETSIGNAL semantics?
-> 
-> No, we would add a flag, with a different name, and this patch only:
-> 
-> diff --git a/mm/mprotect.c b/mm/mprotect.c
-> index ec39f73..021f1d4 100644
-> --- a/mm/mprotect.c
-> +++ b/mm/mprotect.c
-> @@ -523,14 +523,17 @@ static int do_mprotect_pkey(unsigned long
-> start, size_t l
->         return do_mprotect_pkey(start, len, prot, pkey);
->  }
-> 
-> +#define PKEY_ALLOC_FLAGS ((unsigned long) (PKEY_ALLOC_SETSIGNAL))
-> +
->  SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
->  {
->         int pkey;
->         int ret;
-> 
-> -       /* No flags supported yet. */
-> -       if (flags)
-> +       /* check for unsupported flags */
-> +       if (flags & ~PKEY_ALLOC_FLAGS)
->                 return -EINVAL;
-> +
->         /* check for unsupported init values */
->         if (init_val & ~PKEY_ACCESS_MASK)
->                 return -EINVAL;
-> 
-> 
-> This way, an application can specify the flag during key allocation,
-> and knows that if the allocation succeeds, the kernel implements
-> access rights inheritance in signal handlers.  I think we need this
-> so that applications which are incompatible with the earlier x86
-> implementation of memory protection keys do not use them.
-> 
-> With my second patch (not the first one implementing
-> PKEY_ALLOC_SETSIGNAL), no further changes to architecture=specific
-> code are needed, except for the definition of the flag in the header
-> files.
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index 1a3ba1f1605d..a517d210f177 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -31,7 +31,28 @@ struct hmm;
+>   * it to keep track of whatever it is we are using the page for at the
+>   * moment. Note that we have no way to track which tasks are using
+>   * a page, though if it is a pagecache page, rmap structures can tell us
+> - * who is mapping it.
+> + * who is mapping it. If you allocate the page using alloc_pages(), you
+> + * can use some of the space in struct page for your own purposes.
+> + *
+> + * Pages that were once in the page cache may be found under the RCU lock
+> + * even after they have been recycled to a different purpose.  The page cache
+> + * will read and writes some of the fields in struct page to lock the page,
 
-Ok. Sounds like I do not have much to do. My patches in its current form
-will continue to work and provide the semantics you envision.
+"will read and writes" seems awkward to me.
+Can that be:
+    * reads and writes
 
-
-> 
-> I'm open to a different way towards conveying this information to
-> userspace.  I don't want to probe for the behavior by sending a
-> signal because that is quite involved and would also be visible in
-> debuggers, confusing programmers.
-
-I am fine with your proposal.
-RP
+> + * then check that it's still in the page cache.  It is vital that all users
+> + * of struct page:
+ta.
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
