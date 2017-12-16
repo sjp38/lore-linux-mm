@@ -1,144 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AC4A6B026E
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 18:04:37 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id r20so5680132wrg.23
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 15:04:37 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id j16si5659146wme.109.2017.12.15.15.04.35
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 62A526B025F
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 19:20:33 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id v22so692011iog.10
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 16:20:33 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id k200sor1567693iok.24.2017.12.15.16.20.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 15 Dec 2017 15:04:36 -0800 (PST)
-Date: Fri, 15 Dec 2017 15:04:29 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [patch v2 1/2] mm, mmu_notifier: annotate mmu notifiers with
- blockable invalidate callbacks
-Message-Id: <20171215150429.f68862867392337f35a49848@linux-foundation.org>
-In-Reply-To: <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com>
-	<alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+        (Google Transport Security);
+        Fri, 15 Dec 2017 16:20:32 -0800 (PST)
+MIME-Version: 1.0
+In-Reply-To: <20171215075147.nzpsmb7asyr6etig@hirez.programming.kicks-ass.net>
+References: <20171214112726.742649793@infradead.org> <20171214113851.146259969@infradead.org>
+ <20171214124117.wfzcjdczyta2sery@hirez.programming.kicks-ass.net>
+ <20171214143730.s6w7sd6c7b5t6fqp@hirez.programming.kicks-ass.net>
+ <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com> <20171214205450.GI3326@worktop>
+ <8eedb9a3-0ba2-52df-58f6-3ed869d18ca3@intel.com> <CA+55aFyA1+_hnqKO11gVNTo7RV6d9qygC-p8yiAzFMb=9aR5-A@mail.gmail.com>
+ <20171215075147.nzpsmb7asyr6etig@hirez.programming.kicks-ass.net>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Fri, 15 Dec 2017 16:20:31 -0800
+Message-ID: <CA+55aFxdHSYYA0HOctCXeqLMjku8WjuAcddCGR_Lr5sOfca10Q@mail.gmail.com>
+Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Rientjes <rientjes@google.com>
-Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?UTF-8?B?S8O2bmln?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
 
-On Thu, 14 Dec 2017 13:30:56 -0800 (PST) David Rientjes <rientjes@google.com> wrote:
+On Thu, Dec 14, 2017 at 11:51 PM, Peter Zijlstra <peterz@infradead.org> wrote:
+>
+> So we actually need the pte_access_permitted() stuff if we want to
+> ensure we're not stepping on !PAGE_USER things.
 
-> Commit 4d4bbd8526a8 ("mm, oom_reaper: skip mm structs with mmu notifiers")
-> prevented the oom reaper from unmapping private anonymous memory with the
-> oom reaper when the oom victim mm had mmu notifiers registered.
-> 
-> The rationale is that doing mmu_notifier_invalidate_range_{start,end}()
-> around the unmap_page_range(), which is needed, can block and the oom
-> killer will stall forever waiting for the victim to exit, which may not
-> be possible without reaping.
-> 
-> That concern is real, but only true for mmu notifiers that have blockable
-> invalidate_range_{start,end}() callbacks.  This patch adds a "flags" field
-> to mmu notifier ops that can set a bit to indicate that these callbacks do
-> not block.
-> 
-> The implementation is steered toward an expensive slowpath, such as after
-> the oom reaper has grabbed mm->mmap_sem of a still alive oom victim.
+We really don't. Not in that complex and broken format, and not for every level.
 
-some tweakage, please review.
+Also, while I think we *should* check the PAGE_USER bit when walking
+the page tables, like we used to, we should
 
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix
+ (a) do it much more simply, not with that broken interface that takes
+insane and pointless flags
 
-make mm_has_blockable_invalidate_notifiers() return bool, use rwsem_is_locked()
+ (b) not tie it together with this issue at all, since the PAGE_USER
+thing really is largely immaterial.
 
-Cc: Alex Deucher <alexander.deucher@amd.com>
-Cc: Andrea Arcangeli <aarcange@redhat.com>
-Cc: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Christian KA?nig <christian.koenig@amd.com>
-Cc: David Airlie <airlied@linux.ie>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Dimitri Sivanich <sivanich@hpe.com>
-Cc: Doug Ledford <dledford@redhat.com>
-Cc: Jani Nikula <jani.nikula@linux.intel.com>
-Cc: JA(C)rA'me Glisse <jglisse@redhat.com>
-Cc: Joerg Roedel <joro@8bytes.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mike Marciniszyn <mike.marciniszyn@intel.com>
-Cc: Oded Gabbay <oded.gabbay@gmail.com>
-Cc: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Paul Mackerras <paulus@samba.org>
-Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
-Cc: Sean Hefty <sean.hefty@intel.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
+The fact is, if we have non-user mappings in the user part of the
+address space, we _need_ to teach access_ok() about them, because
+fundamentally any "get_user()/put_user()" will happily ignore the lack
+of PAGE_USER (since those happen from kernel space).
 
- include/linux/mmu_notifier.h |    7 ++++---
- mm/mmu_notifier.c            |    8 ++++----
- 2 files changed, 8 insertions(+), 7 deletions(-)
+So I'd like to check PAGE_USER in GUP simply because it's a simple
+sanity check, not because it is important.
 
-diff -puN include/linux/mmu_notifier.h~mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h~mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix
-+++ a/include/linux/mmu_notifier.h
-@@ -2,6 +2,7 @@
- #ifndef _LINUX_MMU_NOTIFIER_H
- #define _LINUX_MMU_NOTIFIER_H
- 
-+#include <linux/types.h>
- #include <linux/list.h>
- #include <linux/spinlock.h>
- #include <linux/mm_types.h>
-@@ -233,7 +234,7 @@ extern void __mmu_notifier_invalidate_ra
- 				  bool only_end);
- extern void __mmu_notifier_invalidate_range(struct mm_struct *mm,
- 				  unsigned long start, unsigned long end);
--extern int mm_has_blockable_invalidate_notifiers(struct mm_struct *mm);
-+extern bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm);
- 
- static inline void mmu_notifier_release(struct mm_struct *mm)
- {
-@@ -473,9 +474,9 @@ static inline void mmu_notifier_invalida
- {
- }
- 
--static inline int mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-+static inline bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
- {
--	return 0;
-+	return false;
- }
- 
- static inline void mmu_notifier_mm_init(struct mm_struct *mm)
-diff -puN mm/mmu_notifier.c~mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix mm/mmu_notifier.c
---- a/mm/mmu_notifier.c~mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix
-+++ a/mm/mmu_notifier.c
-@@ -240,13 +240,13 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_invalid
-  * Must be called while holding mm->mmap_sem for either read or write.
-  * The result is guaranteed to be valid until mm->mmap_sem is dropped.
-  */
--int mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-+bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
- {
- 	struct mmu_notifier *mn;
- 	int id;
--	int ret = 0;
-+	bool ret = false;
- 
--	WARN_ON_ONCE(down_write_trylock(&mm->mmap_sem));
-+	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
- 
- 	if (!mm_has_notifiers(mm))
- 		return ret;
-@@ -259,7 +259,7 @@ int mm_has_blockable_invalidate_notifier
- 				continue;
- 
- 		if (!(mn->ops->flags & MMU_INVALIDATE_DOES_NOT_BLOCK)) {
--			ret = 1;
-+			ret = true;
- 			break;
- 		}
- 	}
-_
+And that whole "p??_access_permitted() checks against the current
+PKRU" is just incredible shit. It's currently broken, exactly because
+"current PKRU" isn't even well-defined when you do it across different
+threads, much less different address spaces.
+
+This is why I'm 100% convinced that the current
+"p??_access_permitted()" is just pure and utter garbage. And it's
+garbage at a _fundamental_ level, not because of some small
+implementation detail.
+
+            Linus
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
