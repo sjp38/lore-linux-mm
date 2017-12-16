@@ -1,85 +1,349 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDE4C6B0268
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 20:57:09 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id t47so5675413otd.19
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 17:57:09 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id ED64B6B0268
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 21:03:03 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id u22so5683209otd.13
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 18:03:03 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 33sor2836022otq.314.2017.12.15.17.57.09
+        by mx.google.com with SMTPS id f126sor2865245oib.213.2017.12.15.18.03.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 15 Dec 2017 17:57:09 -0800 (PST)
+        Fri, 15 Dec 2017 18:03:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1658696.rIK19Js0WO@aspire.rjw.lan>
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
- <20171214021019.13579-2-ross.zwisler@linux.intel.com> <CAPcyv4gnZ3NJsEUugjBrsBHcs9-yqxkvs_G4V1HHGWF2JDi13g@mail.gmail.com>
- <1658696.rIK19Js0WO@aspire.rjw.lan>
+In-Reply-To: <20171215140947.26075-6-hch@lst.de>
+References: <20171215140947.26075-1-hch@lst.de> <20171215140947.26075-6-hch@lst.de>
 From: Dan Williams <dan.j.williams@intel.com>
-Date: Fri, 15 Dec 2017 17:57:08 -0800
-Message-ID: <CAPcyv4hN6obiLuMGLpufL83E42fu=9ax_dU5YQ5dZjTE78c0Mg@mail.gmail.com>
-Subject: Re: [PATCH v3 1/3] acpi: HMAT support in acpi_parse_entries_array()
+Date: Fri, 15 Dec 2017 18:03:01 -0800
+Message-ID: <CAPcyv4hTnBjCL_aTJmV-HZGzPC+rEw-1eAnrf5sMFnfo7=TAXg@mail.gmail.com>
+Subject: Re: [PATCH 05/17] mm: pass the vmem_altmap to vmemmap_populate
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rjw@rjwysocki.net>
-Cc: Linux ACPI <linux-acpi@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@kernel.org>
 
-On Fri, Dec 15, 2017 at 5:53 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> On Friday, December 15, 2017 2:10:17 AM CET Dan Williams wrote:
->> On Wed, Dec 13, 2017 at 6:10 PM, Ross Zwisler
->> <ross.zwisler@linux.intel.com> wrote:
->> > The current implementation of acpi_parse_entries_array() assumes that each
->> > subtable has a standard ACPI subtable entry of type struct
->> > acpi_subtable_header.  This standard subtable header has a one byte length
->> > followed by a one byte type.
->> >
->> > The HMAT subtables have to allow for a longer length so they have subtable
->> > headers of type struct acpi_hmat_structure which has a 2 byte type and a 4
->> > byte length.
->>
->> Hmm, NFIT has a 2 byte type and a 2 byte length, so its one more
->> permutation. I happened to reinvent sub-table parsing in the NFIT
->> driver, but it might be nice in the future to refactor that to use the
->> common parsing.
->>
->> >
->> > Enhance the subtable parsing in acpi_parse_entries_array() so that it can
->> > handle these new HMAT subtables.
->> >
->> > Signed-off-by: Ross Zwisler <ross.zwisler@linux.intel.com>
->> > ---
->> >  drivers/acpi/tables.c | 52 ++++++++++++++++++++++++++++++++++++++++-----------
->> >  1 file changed, 41 insertions(+), 11 deletions(-)
->> >
->> > diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
->> > index 80ce2a7d224b..f777b94c234a 100644
->> > --- a/drivers/acpi/tables.c
->> > +++ b/drivers/acpi/tables.c
->> > @@ -218,6 +218,33 @@ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
->> >         }
->> >  }
->> >
->> > +static unsigned long __init
->> > +acpi_get_entry_type(char *id, void *entry)
->> > +{
->> > +       if (strncmp(id, ACPI_SIG_HMAT, 4) == 0)
->> > +               return ((struct acpi_hmat_structure *)entry)->type;
->> > +       else
->> > +               return ((struct acpi_subtable_header *)entry)->type;
->> > +}
->>
->> It seems inefficient to make all checks keep asking "is HMAT?".
->
-> Well, ideally, the signature should be checked once.  I guess that can be
-> arranged for here.
->
->> Especially if we want to extend this to other table types should we
->> instead setup and pass a pair of function pointers to parse the
->> sub-table format?
->
-> Function pointers may be too much even. :-)
+[ cc Michal ]
 
-True, how about an enum of acpi sub-table header types?
+On Fri, Dec 15, 2017 at 6:09 AM, Christoph Hellwig <hch@lst.de> wrote:
+> We can just pass this on instead of having to do a radix tree lookup
+> without proper locking a few levels into the callchain.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+
+I know Michal has concerns about the complexity of the memory hotplug
+implementation, but I think this just means I need to go write up
+better kerneldoc for the vmem_altmap definition so that memory hotplug
+developers know what's happening.
+
+Other than that:
+
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
+
+Including the patch for Michal just in case he doesn't have it in his archives.
+
+> ---
+>  arch/arm64/mm/mmu.c            |  6 ++++--
+>  arch/ia64/mm/discontig.c       |  3 ++-
+>  arch/powerpc/mm/init_64.c      |  7 ++-----
+>  arch/s390/mm/vmem.c            |  3 ++-
+>  arch/sparc/mm/init_64.c        |  2 +-
+>  arch/x86/mm/init_64.c          |  4 ++--
+>  include/linux/memory_hotplug.h |  3 ++-
+>  include/linux/mm.h             |  6 ++++--
+>  mm/memory_hotplug.c            |  7 ++++---
+>  mm/sparse-vmemmap.c            |  7 ++++---
+>  mm/sparse.c                    | 20 ++++++++++++--------
+>  11 files changed, 39 insertions(+), 29 deletions(-)
+>
+> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+> index 267d2b79d52d..ec8952ff13be 100644
+> --- a/arch/arm64/mm/mmu.c
+> +++ b/arch/arm64/mm/mmu.c
+> @@ -654,12 +654,14 @@ int kern_addr_valid(unsigned long addr)
+>  }
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>  #if !ARM64_SWAPPER_USES_SECTION_MAPS
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+>         return vmemmap_populate_basepages(start, end, node);
+>  }
+>  #else  /* !ARM64_SWAPPER_USES_SECTION_MAPS */
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+>         unsigned long addr = start;
+>         unsigned long next;
+> diff --git a/arch/ia64/mm/discontig.c b/arch/ia64/mm/discontig.c
+> index 9b2d994cddf6..1555aecaaf85 100644
+> --- a/arch/ia64/mm/discontig.c
+> +++ b/arch/ia64/mm/discontig.c
+> @@ -754,7 +754,8 @@ void arch_refresh_nodedata(int update_node, pg_data_t *update_pgdat)
+>  #endif
+>
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+>         return vmemmap_populate_basepages(start, end, node);
+>  }
+> diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
+> index a07722531b32..779b74a96b8f 100644
+> --- a/arch/powerpc/mm/init_64.c
+> +++ b/arch/powerpc/mm/init_64.c
+> @@ -183,7 +183,8 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
+>         vmemmap_list = vmem_back;
+>  }
+>
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+>         unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
+>
+> @@ -193,16 +194,12 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+>         pr_debug("vmemmap_populate %lx..%lx, node %d\n", start, end, node);
+>
+>         for (; start < end; start += page_size) {
+> -               struct vmem_altmap *altmap;
+>                 void *p;
+>                 int rc;
+>
+>                 if (vmemmap_populated(start, page_size))
+>                         continue;
+>
+> -               /* altmap lookups only work at section boundaries */
+> -               altmap = to_vmem_altmap(SECTION_ALIGN_DOWN(start));
+> -
+>                 p =  __vmemmap_alloc_block_buf(page_size, node, altmap);
+>                 if (!p)
+>                         return -ENOMEM;
+> diff --git a/arch/s390/mm/vmem.c b/arch/s390/mm/vmem.c
+> index 3316d463fc29..c44ef0e7c466 100644
+> --- a/arch/s390/mm/vmem.c
+> +++ b/arch/s390/mm/vmem.c
+> @@ -211,7 +211,8 @@ static void vmem_remove_range(unsigned long start, unsigned long size)
+>  /*
+>   * Add a backed mem_map array to the virtual mem_map array.
+>   */
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+>         unsigned long pgt_prot, sgt_prot;
+>         unsigned long address = start;
+> diff --git a/arch/sparc/mm/init_64.c b/arch/sparc/mm/init_64.c
+> index 55ba62957e64..42d27a1a042a 100644
+> --- a/arch/sparc/mm/init_64.c
+> +++ b/arch/sparc/mm/init_64.c
+> @@ -2628,7 +2628,7 @@ EXPORT_SYMBOL(_PAGE_CACHE);
+>
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+>  int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
+> -                              int node)
+> +                              int node, struct vmem_altmap *altmap)
+>  {
+>         unsigned long pte_base;
+>
+> diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
+> index e26ade50ae18..0c898098feaf 100644
+> --- a/arch/x86/mm/init_64.c
+> +++ b/arch/x86/mm/init_64.c
+> @@ -1411,9 +1411,9 @@ static int __meminit vmemmap_populate_hugepages(unsigned long start,
+>         return 0;
+>  }
+>
+> -int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node)
+> +int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap)
+>  {
+> -       struct vmem_altmap *altmap = to_vmem_altmap(start);
+>         int err;
+>
+>         if (boot_cpu_has(X86_FEATURE_PSE))
+> diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
+> index db276afbefcc..cbdd6d52e877 100644
+> --- a/include/linux/memory_hotplug.h
+> +++ b/include/linux/memory_hotplug.h
+> @@ -327,7 +327,8 @@ extern void move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  extern int offline_pages(unsigned long start_pfn, unsigned long nr_pages);
+>  extern bool is_memblock_offlined(struct memory_block *mem);
+>  extern void remove_memory(int nid, u64 start, u64 size);
+> -extern int sparse_add_one_section(struct pglist_data *pgdat, unsigned long start_pfn);
+> +extern int sparse_add_one_section(struct pglist_data *pgdat,
+> +               unsigned long start_pfn, struct vmem_altmap *altmap);
+>  extern void sparse_remove_one_section(struct zone *zone, struct mem_section *ms,
+>                 unsigned long map_offset);
+>  extern struct page *sparse_decode_mem_map(unsigned long coded_mem_map,
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ea818ff739cd..2f3a7ebecbe2 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -2538,7 +2538,8 @@ void sparse_mem_maps_populate_node(struct page **map_map,
+>                                    unsigned long map_count,
+>                                    int nodeid);
+>
+> -struct page *sparse_mem_map_populate(unsigned long pnum, int nid);
+> +struct page *sparse_mem_map_populate(unsigned long pnum, int nid,
+> +               struct vmem_altmap *altmap);
+>  pgd_t *vmemmap_pgd_populate(unsigned long addr, int node);
+>  p4d_t *vmemmap_p4d_populate(pgd_t *pgd, unsigned long addr, int node);
+>  pud_t *vmemmap_pud_populate(p4d_t *p4d, unsigned long addr, int node);
+> @@ -2556,7 +2557,8 @@ static inline void *vmemmap_alloc_block_buf(unsigned long size, int node)
+>  void vmemmap_verify(pte_t *, int, unsigned long, unsigned long);
+>  int vmemmap_populate_basepages(unsigned long start, unsigned long end,
+>                                int node);
+> -int vmemmap_populate(unsigned long start, unsigned long end, int node);
+> +int vmemmap_populate(unsigned long start, unsigned long end, int node,
+> +               struct vmem_altmap *altmap);
+>  void vmemmap_populate_print_last(void);
+>  #ifdef CONFIG_MEMORY_HOTPLUG
+>  void vmemmap_free(unsigned long start, unsigned long end);
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index fc0485dcece1..b36f1822c432 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -250,7 +250,7 @@ void __init register_page_bootmem_info_node(struct pglist_data *pgdat)
+>  #endif /* CONFIG_HAVE_BOOTMEM_INFO_NODE */
+>
+>  static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+> -               bool want_memblock)
+> +               struct vmem_altmap *altmap, bool want_memblock)
+>  {
+>         int ret;
+>         int i;
+> @@ -258,7 +258,7 @@ static int __meminit __add_section(int nid, unsigned long phys_start_pfn,
+>         if (pfn_valid(phys_start_pfn))
+>                 return -EEXIST;
+>
+> -       ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn);
+> +       ret = sparse_add_one_section(NODE_DATA(nid), phys_start_pfn, altmap);
+>         if (ret < 0)
+>                 return ret;
+>
+> @@ -317,7 +317,8 @@ int __ref __add_pages(int nid, unsigned long phys_start_pfn,
+>         }
+>
+>         for (i = start_sec; i <= end_sec; i++) {
+> -               err = __add_section(nid, section_nr_to_pfn(i), want_memblock);
+> +               err = __add_section(nid, section_nr_to_pfn(i), altmap,
+> +                               want_memblock);
+>
+>                 /*
+>                  * EEXIST is finally dealt with by ioresource collision
+> diff --git a/mm/sparse-vmemmap.c b/mm/sparse-vmemmap.c
+> index 17acf01791fa..376dcf05a39c 100644
+> --- a/mm/sparse-vmemmap.c
+> +++ b/mm/sparse-vmemmap.c
+> @@ -278,7 +278,8 @@ int __meminit vmemmap_populate_basepages(unsigned long start,
+>         return 0;
+>  }
+>
+> -struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
+> +struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid,
+> +               struct vmem_altmap *altmap)
+>  {
+>         unsigned long start;
+>         unsigned long end;
+> @@ -288,7 +289,7 @@ struct page * __meminit sparse_mem_map_populate(unsigned long pnum, int nid)
+>         start = (unsigned long)map;
+>         end = (unsigned long)(map + PAGES_PER_SECTION);
+>
+> -       if (vmemmap_populate(start, end, nid))
+> +       if (vmemmap_populate(start, end, nid, altmap))
+>                 return NULL;
+>
+>         return map;
+> @@ -318,7 +319,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>                 if (!present_section_nr(pnum))
+>                         continue;
+>
+> -               map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+> +               map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+>                 if (map_map[pnum])
+>                         continue;
+>                 ms = __nr_to_section(pnum);
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 7a5dacaa06e3..5f4a0dac7836 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -417,7 +417,8 @@ static void __init sparse_early_usemaps_alloc_node(void *data,
+>  }
+>
+>  #ifndef CONFIG_SPARSEMEM_VMEMMAP
+> -struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid)
+> +struct page __init *sparse_mem_map_populate(unsigned long pnum, int nid,
+> +               struct vmem_altmap *altmap)
+>  {
+>         struct page *map;
+>         unsigned long size;
+> @@ -472,7 +473,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
+>
+>                 if (!present_section_nr(pnum))
+>                         continue;
+> -               map_map[pnum] = sparse_mem_map_populate(pnum, nodeid);
+> +               map_map[pnum] = sparse_mem_map_populate(pnum, nodeid, NULL);
+>                 if (map_map[pnum])
+>                         continue;
+>                 ms = __nr_to_section(pnum);
+> @@ -500,7 +501,7 @@ static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
+>         struct mem_section *ms = __nr_to_section(pnum);
+>         int nid = sparse_early_nid(ms);
+>
+> -       map = sparse_mem_map_populate(pnum, nid);
+> +       map = sparse_mem_map_populate(pnum, nid, NULL);
+>         if (map)
+>                 return map;
+>
+> @@ -678,10 +679,11 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
+>  #endif
+>
+>  #ifdef CONFIG_SPARSEMEM_VMEMMAP
+> -static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +               struct vmem_altmap *altmap)
+>  {
+>         /* This will make the necessary allocations eventually. */
+> -       return sparse_mem_map_populate(pnum, nid);
+> +       return sparse_mem_map_populate(pnum, nid, altmap);
+>  }
+>  static void __kfree_section_memmap(struct page *memmap)
+>  {
+> @@ -721,7 +723,8 @@ static struct page *__kmalloc_section_memmap(void)
+>         return ret;
+>  }
+>
+> -static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid)
+> +static inline struct page *kmalloc_section_memmap(unsigned long pnum, int nid,
+> +               struct vmem_altmap *altmap)
+>  {
+>         return __kmalloc_section_memmap();
+>  }
+> @@ -773,7 +776,8 @@ static void free_map_bootmem(struct page *memmap)
+>   * set.  If this is <=0, then that means that the passed-in
+>   * map was not consumed and must be freed.
+>   */
+> -int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long start_pfn)
+> +int __meminit sparse_add_one_section(struct pglist_data *pgdat,
+> +               unsigned long start_pfn, struct vmem_altmap *altmap)
+>  {
+>         unsigned long section_nr = pfn_to_section_nr(start_pfn);
+>         struct mem_section *ms;
+> @@ -789,7 +793,7 @@ int __meminit sparse_add_one_section(struct pglist_data *pgdat, unsigned long st
+>         ret = sparse_index_init(section_nr, pgdat->node_id);
+>         if (ret < 0 && ret != -EEXIST)
+>                 return ret;
+> -       memmap = kmalloc_section_memmap(section_nr, pgdat->node_id);
+> +       memmap = kmalloc_section_memmap(section_nr, pgdat->node_id, altmap);
+>         if (!memmap)
+>                 return -ENOMEM;
+>         usemap = __kmalloc_section_usemap();
+> --
+> 2.14.2
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
