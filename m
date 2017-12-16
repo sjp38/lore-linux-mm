@@ -1,99 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EBE796B025E
-	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 21:41:45 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id m3so2652077lfe.3
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 18:41:45 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u29sor1596134ljd.55.2017.12.15.18.41.43
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2806D6B0261
+	for <linux-mm@kvack.org>; Fri, 15 Dec 2017 21:49:08 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id r20so5901021wrg.23
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 18:49:08 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id d4si6055495wrc.518.2017.12.15.18.49.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 15 Dec 2017 18:41:44 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 15 Dec 2017 18:49:06 -0800 (PST)
+Date: Sat, 16 Dec 2017 02:48:24 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: [PATCH v2 01/17] mm/gup: Fixup p*_access_permitted()
+Message-ID: <20171216024824.GK21978@ZenIV.linux.org.uk>
+References: <f0244eb7-bd9f-dce4-68a5-cf5f8b43652e@intel.com>
+ <20171214205450.GI3326@worktop>
+ <8eedb9a3-0ba2-52df-58f6-3ed869d18ca3@intel.com>
+ <CA+55aFyA1+_hnqKO11gVNTo7RV6d9qygC-p8yiAzFMb=9aR5-A@mail.gmail.com>
+ <20171215075147.nzpsmb7asyr6etig@hirez.programming.kicks-ass.net>
+ <CA+55aFxdHSYYA0HOctCXeqLMjku8WjuAcddCGR_Lr5sOfca10Q@mail.gmail.com>
+ <CAPcyv4hFCHGNadbMv8iTsLqbWm9rkBc7ww-Zax9tjaMJGrXu+w@mail.gmail.com>
+ <CA+55aFz2aY-0hG1E_x7Don1pwgDQkHZfP2J3qW+QbvcvLBWTNQ@mail.gmail.com>
+ <629d90d9-df33-2c31-e644-0bc356b61f25@intel.com>
+ <CA+55aFxcA4Ht2urZY+ZvaTHKDjOHH5NqPWHCrvZYnsG=EOx4jQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171215211501.v6x6o2ft4khqgbgy@thunk.org>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171213104617.7lffucjhaa6xb7lp@gmail.com> <CANrsvRPuhPyh1nFnzdYj8ph7e1FQRw_W_WN2a1tm9fzpAYks4g@mail.gmail.com>
- <CANrsvRP3-bWatoaq1teNFG1RXRbazqnHvOKXe458eAxSdAnsfg@mail.gmail.com>
- <20171215062428.5dyv7wjbzn2ggxvz@thunk.org> <CANrsvROwvaZzAmTGFH=BaPohkXEB=HhDRdM3xdmPu0m4mjDpfw@mail.gmail.com>
- <20171215211501.v6x6o2ft4khqgbgy@thunk.org>
-From: Byungchul Park <max.byungchul.park@gmail.com>
-Date: Sat, 16 Dec 2017 11:41:42 +0900
-Message-ID: <CANrsvRMAhG0ofEXt-yWm+WhqJDtYZSaVhqguwQHnMU++pGqbVQ@mail.gmail.com>
-Subject: Re: [PATCH] locking/lockdep: Remove the cross-release locking checks
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CA+55aFxcA4Ht2urZY+ZvaTHKDjOHH5NqPWHCrvZYnsG=EOx4jQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <max.byungchul.park@gmail.com>, Ingo Molnar <mingo@kernel.org>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, david@fromorbit.com, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, byungchul.park@lge.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Dan Williams <dan.j.williams@intel.com>, Peter Zijlstra <peterz@infradead.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Thomas Gleixner <tglx@linutronix.de>, the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirsky <luto@kernel.org>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 
-On Sat, Dec 16, 2017 at 6:15 AM, Theodore Ts'o <tytso@mit.edu> wrote:
-> On Fri, Dec 15, 2017 at 05:39:25PM +0900, Byungchul Park wrote:
->>
->> All locks should belong to one class if each path of acquisition
->> can be switchable each other within the class at any time.
->> Otherwise, they should belong to a different class.
->
-> OK, so let's go back to my case of a Network Block Device with a local
-> file system mounted on it, which is then exported via NFS.
->
-> So an incoming TCP packet can go into the NFS server subsystem, then
-> be processed by local disk file system, which then does an I/O
-> operation to the NBD device, which results in an TCP packet being sent
-> out.  Then the response will come back over TCP, into the NBD block
-> layer, then into the local disk file system, and that will result in
-> an outgoing response to the TCP connection for the NFS protocol.
->
-> In order to avoid cross release problems, all locks associated with
-> the incoming TCP connection will need to be classified as belonging to
-> a different class as the outgoing TCP connection.  Correct?  One
-> solution might be to put every single TCP connection into a separate
-> class --- but that will explode the number of lock classes which
-> Lockdep will need to track, and there is a limited number of lock
-> classes (set at compile time) that Lockdep can track.  So if that
-> doesn't work, we will have to put something ugly which manually makes
-> certain TCP connections "magic" and require them to be put into a
-> separate class than all other TCP connections, which will get
-> collapsed into a single class.  Basically, any TCP connection which is
-> either originated by the kernel, or passed in from userspace into the
-> kernel and used by some kernel subsystem, will have to be assigned its
-> own lockdep class.
->
-> If the TCP connection gets closed, we don't need to track that lockdep
-> class any more.  (Or if a device mapper device is torn down, we
-> similarly don't need any unique lockdep classes created for that
-> device mapper device.)  Is there a way to tell lockdep that a set of
-> lockdep classes can be released so we can recover the kernel memory to
-> be used to track some new TCP connection or some new device mapper
-> device?
+On Fri, Dec 15, 2017 at 06:28:36PM -0800, Linus Torvalds wrote:
+> On Fri, Dec 15, 2017 at 5:25 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+> >
+> > I think the reason we needed VMA and PTE checks was the
+> > get_user_pages_fast() path not having a VMA.
+> 
+> That is indeed the point of get_user_pages_fast(): no vma lookup, no
+> locking, just "do the default case as streamlined as possible".
+> 
+> But part of it is also that we should fall back to the slow case if
+> the fast case doesn't work (eg because the page isn't there or
+> whatever).
+> 
+> So what we could do - perhaps - is to just make get_user_pages_fast()
+> check whether any of the protection key bits are set, and fail for
+> that case.
 
-Right. I also think lockdep should be able to reflect that
-kind of dynamic situations to do a better job.
+FWIW, a good description of fast path in get_user_pages_fast() is
+"simulate a TLB miss", the slow path being "... and go for simulated
+page fault if TLB miss would have escalated to #PF".
 
-The fact that kernel works well w/o that work doesn't
-mean current status is perfect, in my opinion.
-
-As you know, lockdep is running within very limited
-environment so it's very hard to achieve it.
-
-However, anyway, I think that's a problem and should
-be solved by modifying lockdep core. Actually, that had
-been one on my to-dos, if allowed.
-
-For some waiters, for which this is only solution to play
-with cross-release, I think we can invalidate those
-waiters for now, while all others still get benefit.
-
-We have added acquire annotations manually to
-consider waiters one by one, and I am sure it's going
-to continue in the future.
-
-IMO, considering all waiters at once and fixing false
-positives in a right way or invalidating one by one is
-better than considering waiters one by one as is, of
-course, while keeping off by default.
-
--- 
-Thanks,
-Byungchul
+Treating protection key bits as "escalate to page fault and let that
+deal with the checks" should be fine - page fault handler must
+cope with the page actually being present in page tables anyway, for
+obvious reasons...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
