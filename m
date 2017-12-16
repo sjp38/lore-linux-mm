@@ -1,55 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 712426B0033
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 02:10:52 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id a107so6187893wrc.11
-        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 23:10:52 -0800 (PST)
-Received: from szxga05-in.huawei.com (szxga05-in.huawei.com. [45.249.212.191])
-        by mx.google.com with ESMTPS id m19si5665101wma.113.2017.12.15.23.10.49
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 900096B0033
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 02:16:30 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id w127so3918961iow.22
+        for <linux-mm@kvack.org>; Fri, 15 Dec 2017 23:16:30 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x70si5748173ioi.296.2017.12.15.23.16.29
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 15 Dec 2017 23:10:51 -0800 (PST)
-Subject: Re: [Question ]: Avoid kernel panic when killing an application if
- happen RAS page table error
-References: <0184EA26B2509940AA629AE1405DD7F2019C8B36@DGGEMA503-MBS.china.huawei.com>
- <20171205165727.GG3070@tassilo.jf.intel.com>
- <0276f3b3-94a5-8a47-dfb7-8773cd2f99c5@huawei.com>
- <dedf9af6-7979-12dc-2a52-f00b2ec7f3b6@huawei.com>
- <0b7bb7b3-ae39-0c97-9c0a-af37b0701ab4@huawei.com>
- <eab54efe-0ab4-bf6a-5831-128ff02a018b@huawei.com> <5A3419F3.1030804@arm.com>
- <20171215193551.GD27160@bombadil.infradead.org>
-From: gengdongjiu <gengdongjiu@huawei.com>
-Message-ID: <42ebc814-fd8d-0de5-5c3c-e2eec02ebf66@huawei.com>
-Date: Sat, 16 Dec 2017 15:09:42 +0800
+        Fri, 15 Dec 2017 23:16:29 -0800 (PST)
+Subject: Re: [patch v2 1/2] mm, mmu_notifier: annotate mmu notifiers with
+ blockable invalidate callbacks
+References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com>
+ <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
+ <20171215150429.f68862867392337f35a49848@linux-foundation.org>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <cafa6cdb-886b-b010-753f-600ae86f5e71@I-love.SAKURA.ne.jp>
+Date: Sat, 16 Dec 2017 16:14:07 +0900
 MIME-Version: 1.0
-In-Reply-To: <20171215193551.GD27160@bombadil.infradead.org>
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <20171215150429.f68862867392337f35a49848@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, James Morse <james.morse@arm.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Huangshaoyu <huangshaoyu@huawei.com>, Wuquanming <wuquanming@huawei.com>, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>
+Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=c3=b6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On 2017/12/16 3:35, Matthew Wilcox wrote:
->> It's going to be complicated to do, I don't think its worth the effort.
-> We can find a bit in struct page that we guarantee will only be set if
-> this is allocated as a pagetable.  Bit 1 of the third union is currently
-> available (compound_head is a pointer if bit 0 is set, so nothing is
-> using bit 1).  We can put a pointer to the mm_struct in the same word.
+On 2017/12/16 8:04, Andrew Morton wrote:
+>> The implementation is steered toward an expensive slowpath, such as after
+>> the oom reaper has grabbed mm->mmap_sem of a still alive oom victim.
 > 
-> Finding all the allocated pages will be the tricky bit.  We could put a
-> list_head into struct page; perhaps in the same spot as page_deferred_list
-> for tail pages.  Then we can link all the pagetables belonging to
-> this mm together and tear them all down if any of them get an error.
-> They'll repopulate on demand.  It won't be quick or scalable, but when
-> the alternative is death, it looks relatively attractive.
-Thanks for the comments, I will check it in detailed and investigate whether it is worth to do for it.
-Thanks!
+> some tweakage, please review.
+> 
+> From: Andrew Morton <akpm@linux-foundation.org>
+> Subject: mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix
+> 
+> make mm_has_blockable_invalidate_notifiers() return bool, use rwsem_is_locked()
+> 
 
-> 
-> .
-> 
+> @@ -240,13 +240,13 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_invalid
+>   * Must be called while holding mm->mmap_sem for either read or write.
+>   * The result is guaranteed to be valid until mm->mmap_sem is dropped.
+>   */
+> -int mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
+> +bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
+>  {
+>  	struct mmu_notifier *mn;
+>  	int id;
+> -	int ret = 0;
+> +	bool ret = false;
+>  
+> -	WARN_ON_ONCE(down_write_trylock(&mm->mmap_sem));
+> +	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
+>  
+>  	if (!mm_has_notifiers(mm))
+>  		return ret;
+
+rwsem_is_locked() test isn't equivalent with __mutex_owner() == current test, is it?
+If rwsem_is_locked() returns true because somebody else has locked it, there is
+no guarantee that current thread has locked it before calling this function.
+
+down_write_trylock() test isn't equivalent with __mutex_owner() == current test, is it?
+What if somebody else held it for read or write (the worst case is registration path),
+down_write_trylock() will return false even if current thread has not locked it for
+read or write.
+
+I think this WARN_ON_ONCE() can not detect incorrect call to this function.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
