@@ -1,62 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 23796440404
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C201244040A
 	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:39:38 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id l99so1481909wrc.18
+Received: by mail-wm0-f69.google.com with SMTP id k126so5617196wmd.5
         for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:39:38 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 44si7527200wrm.70.2017.12.16.13.39.37
+        by mx.google.com with ESMTPS id g40si7339219wrd.475.2017.12.16.13.39.37
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Sat, 16 Dec 2017 13:39:37 -0800 (PST)
-Message-Id: <20171216213138.074872626@linutronix.de>
-Date: Sat, 16 Dec 2017 22:24:14 +0100
+Message-Id: <20171216213137.830714333@linutronix.de>
+Date: Sat, 16 Dec 2017 22:24:11 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 20/50] x86/mm/pti: Disable global pages if
- PAGE_TABLE_ISOLATION=y
+Subject: [patch V149 17/50] x86/mm: Put MMU to hardware ASID translation in
+ one place
 References: <20171216212354.120930222@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0028-x86-mm-pti-Disable-global-pages-if-PAGE_TABLE_ISOLAT.patch
+ filename=0049-x86-mm-Put-MMU-to-hardware-ASID-translation-in-one-p.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Global pages stay in the TLB across context switches.  Since all contexts
-share the same kernel mapping, these mappings are marked as global pages
-so kernel entries in the TLB are not flushed out on a context switch.
+There are effectively two ASID types:
 
-But, even having these entries in the TLB opens up something that an
-attacker can use, such as the double-page-fault attack:
+ 1. The one stored in the mmu_context that goes from 0..5
+ 2. The one programmed into the hardware that goes from 1..6
 
-   http://www.ieee-security.org/TC/SP2013/papers/4977a191.pdf
-
-That means that even when PAGE_TABLE_ISOLATION switches page tables
-on return to user space the global pages would stay in the TLB cache.
-
-Disable global pages so that kernel TLB entries can be flushed before
-returning to user space. This way, all accesses to kernel addresses from
-userspace result in a TLB miss independent of the existence of a kernel
-mapping.
-
-Suppress global pages via the __supported_pte_mask. The user space
-mappings set PAGE_GLOBAL for the minimal kernel mappings which are
-required for entry/exit. These mappings are set up manually so the
-filtering does not take place.
-
-[ The __supported_pte_mask simplification was written by Thomas Gleixner. ]
+This consolidates the locations where converting between the two (by doing
+a +1) to a single place which gives us a nice place to comment.
+PAGE_TABLE_ISOLATION will also need to, given an ASID, know which hardware
+ASID to flush for the userspace mapping.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Borislav Petkov <bp@suse.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -73,39 +60,63 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/mm/init.c |   12 +++++++++---
- 1 file changed, 9 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/tlbflush.h | 29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)
 
---- a/arch/x86/mm/init.c
-+++ b/arch/x86/mm/init.c
-@@ -160,6 +160,12 @@ struct map_range {
+diff --git a/arch/x86/include/asm/tlbflush.h b/arch/x86/include/asm/tlbflush.h
+index 35da2b9871f1..5c945ee819fb 100644
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -91,20 +91,26 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+  */
+ #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
  
- static int page_size_mask;
- 
-+static void enable_global_pages(void)
+-/*
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
+- * This serves two purposes.  It prevents a nasty situation in which
+- * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
+- * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
+- * ASID was nonzero.  It also means that any bugs involving loading a
+- * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
+- */
++static inline u16 kern_pcid(u16 asid)
 +{
-+	if (!static_cpu_has_bug(X86_BUG_CPU_SECURE_MODE_PTI))
-+		__supported_pte_mask |= _PAGE_GLOBAL;
++	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
++	/*
++	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
++	 * PCID bits.  This serves two purposes.  It prevents a nasty
++	 * situation in which PCID-unaware code saves CR3, loads some other
++	 * value (with PCID == 0), and then restores CR3, thus corrupting
++	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
++	 * that any bugs involving loading a PCID-enabled CR3 with
++	 * CR4.PCIDE off will trigger deterministically.
++	 */
++	return asid + 1;
 +}
 +
- static void __init probe_page_size_mask(void)
+ struct pgd_t;
+ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
  {
- 	/*
-@@ -177,11 +183,11 @@ static void __init probe_page_size_mask(
- 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
+ 	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+-		return __sme_pa(pgd) | (asid + 1);
++		return __sme_pa(pgd) | kern_pcid(asid);
+ 	} else {
+ 		VM_WARN_ON_ONCE(asid != 0);
+ 		return __sme_pa(pgd);
+@@ -114,7 +120,8 @@ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
+ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+ {
+ 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+-	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
++	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
+ }
  
- 	/* Enable PGE if available */
-+	__supported_pte_mask &= ~_PAGE_GLOBAL;
- 	if (boot_cpu_has(X86_FEATURE_PGE)) {
- 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
--		__supported_pte_mask |= _PAGE_GLOBAL;
--	} else
--		__supported_pte_mask &= ~_PAGE_GLOBAL;
-+		enable_global_pages();
-+	}
- 
- 	/* Enable 1 GB linear kernel mappings if available: */
- 	if (direct_gbpages && boot_cpu_has(X86_FEATURE_GBPAGES)) {
+ #ifdef CONFIG_PARAVIRT
+-- 
+2.14.1
+
 
 
 --
