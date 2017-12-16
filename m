@@ -1,66 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC824403D7
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 12:47:32 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id x62so4812366iod.7
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 09:47:32 -0800 (PST)
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id j9si6295748iof.109.2017.12.16.09.47.28
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE696B0271
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 14:30:10 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id m3so2992091lfe.3
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 11:30:10 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x88sor377040lfi.105.2017.12.16.11.30.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Dec 2017 09:47:28 -0800 (PST)
-Subject: Re: [PATCH 7/8] mm: Document how to use struct page
-References: <20171216164425.8703-1-willy@infradead.org>
- <20171216164425.8703-8-willy@infradead.org>
-From: Randy Dunlap <rdunlap@infradead.org>
-Message-ID: <4d963b8f-0010-fd20-013e-f53f27c8a7ce@infradead.org>
-Date: Sat, 16 Dec 2017 09:47:16 -0800
-MIME-Version: 1.0
-In-Reply-To: <20171216164425.8703-8-willy@infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (Google Transport Security);
+        Sat, 16 Dec 2017 11:30:08 -0800 (PST)
+From: Aliaksei Karaliou <akaraliou.dev@gmail.com>
+Subject: [PATCH] mm: vmscan: make unregister_shrinker() safer
+Date: Sat, 16 Dec 2017 22:29:37 +0300
+Message-Id: <20171216192937.13549-1-akaraliou.dev@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: akpm@linux-foundation.org, mhocko@suse.com, hannes@cmpxchg.org, hillf.zj@alibaba-inc.com, minchan@kernel.org
+Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>, linux-mm@kvack.org
 
-On 12/16/2017 08:44 AM, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> Be really explicit about what bits / bytes are reserved for users that
-> want to store extra information about the pages they allocate.
-> 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> ---
->  include/linux/mm_types.h | 23 ++++++++++++++++++++++-
->  1 file changed, 22 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 1a3ba1f1605d..a517d210f177 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -31,7 +31,28 @@ struct hmm;
->   * it to keep track of whatever it is we are using the page for at the
->   * moment. Note that we have no way to track which tasks are using
->   * a page, though if it is a pagecache page, rmap structures can tell us
-> - * who is mapping it.
-> + * who is mapping it. If you allocate the page using alloc_pages(), you
-> + * can use some of the space in struct page for your own purposes.
-> + *
-> + * Pages that were once in the page cache may be found under the RCU lock
-> + * even after they have been recycled to a different purpose.  The page cache
-> + * will read and writes some of the fields in struct page to lock the page,
+unregister_shrinker() does not have any sanitizing inside so
+calling it twice will oops because of double free attempt or so.
+This patch makes unregister_shrinker() safer and allows calling
+it on resource freeing path without explicit knowledge of whether
+shrinker was successfully registered or not.
 
-"will read and writes" seems awkward to me.
-Can that be:
-    * reads and writes
+Signed-off-by: Aliaksei Karaliou <akaraliou.dev@gmail.com>
+---
+ mm/vmscan.c | 4 ++++
+ 1 file changed, 4 insertions(+)
 
-> + * then check that it's still in the page cache.  It is vital that all users
-> + * of struct page:
-ta.
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 65c4fa26abfa..7cb56db5e9ca 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -281,10 +281,14 @@ EXPORT_SYMBOL(register_shrinker);
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
++	if (!shrinker->nr_deferred)
++		return;
++
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
+ 	kfree(shrinker->nr_deferred);
++	shrinker->nr_deferred = NULL;
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+ 
 -- 
-~Randy
+2.11.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
