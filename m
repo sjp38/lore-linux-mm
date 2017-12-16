@@ -1,29 +1,15 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f199.google.com (mail-qk0-f199.google.com [209.85.220.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 448CA6B0069
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 10:09:19 -0500 (EST)
-Received: by mail-qk0-f199.google.com with SMTP id c142so4785234qke.15
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 07:09:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id n39si6239533qtc.319.2017.12.16.07.09.18
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 002926B0033
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 10:25:18 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id f62so6348347otf.6
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 07:25:18 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q189si2686582oig.281.2017.12.16.07.25.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 16 Dec 2017 07:09:18 -0800 (PST)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBGF8YJM053210
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 10:09:17 -0500
-Received: from e17.ny.us.ibm.com (e17.ny.us.ibm.com [129.33.205.207])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ew08mrbp1-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 10:09:17 -0500
-Received: from localhost
-	by e17.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Sat, 16 Dec 2017 10:09:17 -0500
-Date: Sat, 16 Dec 2017 07:09:10 -0800
-From: Ram Pai <linuxram@us.ibm.com>
+        Sat, 16 Dec 2017 07:25:17 -0800 (PST)
 Subject: Re: pkeys: Support setting access rights for signal handlers
-Reply-To: Ram Pai <linuxram@us.ibm.com>
 References: <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
  <aa4d127f-0315-3ac9-3fdf-1f0a89cf60b8@intel.com>
  <20171212231324.GE5460@ram.oc3035372033.ibm.com>
@@ -34,71 +20,92 @@ References: <5965d682-61b2-d7da-c4d7-c223aa396fab@redhat.com>
  <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
  <20171214001756.GA5471@ram.oc3035372033.ibm.com>
  <cf13f6e0-2405-4c58-4cf1-266e8baae825@redhat.com>
+ <20171216150910.GA5461@ram.oc3035372033.ibm.com>
+From: Florian Weimer <fweimer@redhat.com>
+Message-ID: <2eba29f4-804d-b211-1293-52a567739cad@redhat.com>
+Date: Sat, 16 Dec 2017 16:25:14 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <cf13f6e0-2405-4c58-4cf1-266e8baae825@redhat.com>
-Message-Id: <20171216150910.GA5461@ram.oc3035372033.ibm.com>
+In-Reply-To: <20171216150910.GA5461@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Florian Weimer <fweimer@redhat.com>
+To: Ram Pai <linuxram@us.ibm.com>
 Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
 
-On Thu, Dec 14, 2017 at 12:21:44PM +0100, Florian Weimer wrote:
-> On 12/14/2017 01:17 AM, Ram Pai wrote:
-> >On Wed, Dec 13, 2017 at 04:40:11PM +0100, Florian Weimer wrote:
-> >>On 12/13/2017 04:22 PM, Dave Hansen wrote:
-> >>>On 12/13/2017 07:08 AM, Florian Weimer wrote:
-> >>>>Okay, this model is really quite different from x86.  Is there a
-> >>>>good reason for the difference?
-> >>>
-> >>>Yes, both implementations are simple and take the "natural" behavior.
-> >>>x86 changes XSAVE-controlled register values on entering a signal, so we
-> >>>let them be changed (including PKRU).  POWER hardware does not do this
-> >>>to its PKRU-equivalent, so we do not force it to.
-> >>
-> >>Whuy?  Is there a technical reason not have fully-aligned behavior?
-> >>Can POWER at least implement the original PKEY_ALLOC_SETSIGNAL
-> >>semantics (reset the access rights for certain keys before switching
-> >>to the signal handler) in a reasonably efficient manner?
-> >
-> >This can be done on POWER. I can also change the behavior on POWER
-> >to exactly match x86; i.e reset the value to init value before
-> >calling the signal handler.
+On 12/16/2017 04:09 PM, Ram Pai wrote:
+
+>> It still restores the PKRU register value upon
+>> regular exit from the signal handler, which I think is something we
+>> should keep.
 > 
-> Maybe we can implement a compromise?
+> On x86, the pkru value is restored, on return from the signal handler,
+> to the value before the signal handler was called. right?
 > 
-> Assuming I got the attached patch right, it implements PKRU
-> inheritance in signal handlers, similar to what you intend to
-> implement for POWER.
-
-Ok.
-
-> It still restores the PKRU register value upon
-> regular exit from the signal handler, which I think is something we
-> should keep.
-
-On x86, the pkru value is restored, on return from the signal handler,
-to the value before the signal handler was called. right?
-
-In other words, if 'x' was the value when signal handler was called, it
-will be 'x' when return from the signal handler.
-
-If correct, than it is consistent with the behavior on POWER.
-
+> In other words, if 'x' was the value when signal handler was called, it
+> will be 'x' when return from the signal handler.
 > 
-> I think we still should add a flag, so that applications can easily
-> determine if a kernel has this patch.  Setting up a signal handler,
-> sending the signal, and thus checking for inheritance is a bit
-> involved, and we'd have to do this in the dynamic linker before we
-> can use pkeys to harden lazy binding.  The flag could just be a
-> no-op, apart from the lack of an EINVAL failure if it is specified.
+> If correct, than it is consistent with the behavior on POWER.
 
-Sorry. I am little confused.  What should I implement on POWER? 
-PKEY_ALLOC_SETSIGNAL semantics?
+That's good to know.  I tended to implement the same semantics on x86.
 
-Let me know. Thanks for driving this to some consistency.
-RP
+>> I think we still should add a flag, so that applications can easily
+>> determine if a kernel has this patch.  Setting up a signal handler,
+>> sending the signal, and thus checking for inheritance is a bit
+>> involved, and we'd have to do this in the dynamic linker before we
+>> can use pkeys to harden lazy binding.  The flag could just be a
+>> no-op, apart from the lack of an EINVAL failure if it is specified.
+> 
+> Sorry. I am little confused.  What should I implement on POWER?
+> PKEY_ALLOC_SETSIGNAL semantics?
+
+No, we would add a flag, with a different name, and this patch only:
+
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index ec39f73..021f1d4 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -523,14 +523,17 @@ static int do_mprotect_pkey(unsigned long start, 
+size_t l
+         return do_mprotect_pkey(start, len, prot, pkey);
+  }
+
++#define PKEY_ALLOC_FLAGS ((unsigned long) (PKEY_ALLOC_SETSIGNAL))
++
+  SYSCALL_DEFINE2(pkey_alloc, unsigned long, flags, unsigned long, init_val)
+  {
+         int pkey;
+         int ret;
+
+-       /* No flags supported yet. */
+-       if (flags)
++       /* check for unsupported flags */
++       if (flags & ~PKEY_ALLOC_FLAGS)
+                 return -EINVAL;
++
+         /* check for unsupported init values */
+         if (init_val & ~PKEY_ACCESS_MASK)
+                 return -EINVAL;
+
+
+This way, an application can specify the flag during key allocation, and 
+knows that if the allocation succeeds, the kernel implements access 
+rights inheritance in signal handlers.  I think we need this so that 
+applications which are incompatible with the earlier x86 implementation 
+of memory protection keys do not use them.
+
+With my second patch (not the first one implementing 
+PKEY_ALLOC_SETSIGNAL), no further changes to architecture=specific code 
+are needed, except for the definition of the flag in the header files.
+
+I'm open to a different way towards conveying this information to 
+userspace.  I don't want to probe for the behavior by sending a signal 
+because that is quite involved and would also be visible in debuggers, 
+confusing programmers.
+
+Thanks,
+Florian
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
