@@ -1,81 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 89B506B0033
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 06:36:50 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id h18so9749568pfi.2
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 03:36:50 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C1896B0033
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 06:45:28 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id t92so6532959wrc.13
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 03:45:28 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x10si6485464plm.608.2017.12.16.03.36.49
+        by mx.google.com with ESMTPS id b7si5991930wmg.80.2017.12.16.03.45.27
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 16 Dec 2017 03:36:49 -0800 (PST)
-Date: Sat, 16 Dec 2017 12:36:45 +0100
+        Sat, 16 Dec 2017 03:45:27 -0800 (PST)
+Date: Sat, 16 Dec 2017 12:45:25 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [patch v2 1/2] mm, mmu_notifier: annotate mmu notifiers with
- blockable invalidate callbacks
-Message-ID: <20171216113645.GG16951@dhcp22.suse.cz>
-References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com>
- <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com>
- <20171215150429.f68862867392337f35a49848@linux-foundation.org>
- <cafa6cdb-886b-b010-753f-600ae86f5e71@I-love.SAKURA.ne.jp>
+Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
+ long block
+Message-ID: <20171216114525.GH16951@dhcp22.suse.cz>
+References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171215102753.GY16951@dhcp22.suse.cz>
+ <13f935a9-42af-98f4-1813-456a25200d9d@alibaba-inc.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <cafa6cdb-886b-b010-753f-600ae86f5e71@I-love.SAKURA.ne.jp>
+In-Reply-To: <13f935a9-42af-98f4-1813-456a25200d9d@alibaba-inc.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Andrew Morton <akpm@linux-foundation.org>, David Rientjes <rientjes@google.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat 16-12-17 16:14:07, Tetsuo Handa wrote:
-> On 2017/12/16 8:04, Andrew Morton wrote:
-> >> The implementation is steered toward an expensive slowpath, such as after
-> >> the oom reaper has grabbed mm->mmap_sem of a still alive oom victim.
-> > 
-> > some tweakage, please review.
-> > 
-> > From: Andrew Morton <akpm@linux-foundation.org>
-> > Subject: mm-mmu_notifier-annotate-mmu-notifiers-with-blockable-invalidate-callbacks-fix
-> > 
-> > make mm_has_blockable_invalidate_notifiers() return bool, use rwsem_is_locked()
-> > 
+On Sat 16-12-17 04:04:10, Yang Shi wrote:
+> Hi Kirill & Michal,
 > 
-> > @@ -240,13 +240,13 @@ EXPORT_SYMBOL_GPL(__mmu_notifier_invalid
-> >   * Must be called while holding mm->mmap_sem for either read or write.
-> >   * The result is guaranteed to be valid until mm->mmap_sem is dropped.
-> >   */
-> > -int mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-> > +bool mm_has_blockable_invalidate_notifiers(struct mm_struct *mm)
-> >  {
-> >  	struct mmu_notifier *mn;
-> >  	int id;
-> > -	int ret = 0;
-> > +	bool ret = false;
-> >  
-> > -	WARN_ON_ONCE(down_write_trylock(&mm->mmap_sem));
-> > +	WARN_ON_ONCE(!rwsem_is_locked(&mm->mmap_sem));
-> >  
-> >  	if (!mm_has_notifiers(mm))
-> >  		return ret;
+> Since both of you raised the same question about who holds the semaphore for
+> that long time, I just reply here to both of you.
 > 
-> rwsem_is_locked() test isn't equivalent with __mutex_owner() == current test, is it?
-> If rwsem_is_locked() returns true because somebody else has locked it, there is
-> no guarantee that current thread has locked it before calling this function.
+> The backtrace shows vm-scalability is running with 300G memory and it is
+> doing munmap as below:
 > 
-> down_write_trylock() test isn't equivalent with __mutex_owner() == current test, is it?
-> What if somebody else held it for read or write (the worst case is registration path),
-> down_write_trylock() will return false even if current thread has not locked it for
-> read or write.
+> [188995.241865] CPU: 15 PID: 8063 Comm: usemem Tainted: G            E
+> 4.9.65-006.ali3000.alios7.x86_64 #1
+> [188995.242252] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2288H
+> V2-12L/BC11SRSG1, BIOS RMIBV368 11/01/2013
+> [188995.242637] task: ffff883f610a5b00 task.stack: ffffc90037280000
+> [188995.242838] RIP: 0010:[<ffffffff811e2319>] .c [<ffffffff811e2319>]
+> unmap_page_range+0x619/0x940
+> [188995.243231] RSP: 0018:ffffc90037283c98  EFLAGS: 00000282
+> [188995.243429] RAX: 00002b760ac57000 RBX: 00002b760ac56000 RCX:
+> 0000000003eb13ca
+> [188995.243820] RDX: ffffea003971e420 RSI: 00002b760ac56000 RDI:
+> ffff8837cb832e80
+> [188995.244211] RBP: ffffc90037283d78 R08: ffff883ebf8fc3c0 R09:
+> 0000000000008000
+> [188995.244600] R10: 00000000826b7e00 R11: 0000000000000000 R12:
+> ffff8821e70f72b0
+> [188995.244993] R13: ffffea00fac4f280 R14: ffffc90037283e00 R15:
+> 00002b760ac57000
+> [188995.245390] FS:  00002b34b4861700(0000) GS:ffff883f7d3c0000(0000)
+> knlGS:0000000000000000
+> [188995.245788] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [188995.245990] CR2: 00002b7092160fed CR3: 0000000977850000 CR4:
+> 00000000001406e0
+> [188995.246388] Stack:
+> [188995.246581]  00002b92f71edfff.c 00002b7fffffffff.c 00002b92f71ee000.c
+> ffff8809778502b0.c
+> [188995.246981]  00002b763fffffff.c ffff8802e1895ec0.c ffffc90037283d48.c
+> ffff883f610a5b00.c
+> [188995.247365]  ffffc90037283d70.c 00002b8000000000.c ffffc00000000fff.c
+> ffffea00879c3df0.c
+> [188995.247759] Call Trace:
+> [188995.247957]  [<ffffffff811e26bd>] unmap_single_vma+0x7d/0xe0
+> [188995.248161]  [<ffffffff811e2a11>] unmap_vmas+0x51/0xa0
+> [188995.248367]  [<ffffffff811e98ed>] unmap_region+0xbd/0x130
+> [188995.248571]  [<ffffffff8170b04c>] ?
+> rwsem_down_write_failed_killable+0x31c/0x3f0
+> [188995.248961]  [<ffffffff811eb94c>] do_munmap+0x26c/0x420
+> [188995.249162]  [<ffffffff811ebbc0>] SyS_munmap+0x50/0x70
+> [188995.249361]  [<ffffffff8170cab7>] entry_SYSCALL_64_fastpath+0x1a/0xa9
 > 
-> I think this WARN_ON_ONCE() can not detect incorrect call to this function.
+> By analyzing vmcore, khugepaged is waiting for vm-scalability process's
+> mmap_sem.
 
-Yes it cannot catch _all_ cases. This is an inherent problem of
-rwsem_is_locked because semaphores do not really have the owner concept.
-The core idea behind this, I guess, is to catch obviously incorrect
-usage and as such it gives us a reasonabe coverage. I could live without
-the annotation but rwsem_is_locked looks better than down_write_trylock
-to me.
+OK, I see.
+ 
+> unmap_vmas will unmap every vma in the memory space, it sounds the test
+> generated huge amount of vmas.
 
+I would expect that it just takes some time to munmap 300G address
+range.
+
+> Shall we add "cond_resched()" in unmap_vmas(), i.e for every 100 vmas? It
+> may improve the responsiveness a little bit for non-preempt kernel, although
+> it still can't release the semaphore.
+
+We already do, once per pmd (see zap_pmd_range).
 -- 
 Michal Hocko
 SUSE Labs
