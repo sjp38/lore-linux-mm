@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA9854403D7
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D146F4403E0
 	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:38:31 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 55so7028295wrx.21
+Received: by mail-wr0-f198.google.com with SMTP id s41so6970183wrc.22
         for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:38:31 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id n44si3161016wrf.351.2017.12.16.13.38.30
+        by mx.google.com with ESMTPS id 59si7500386wrp.0.2017.12.16.13.38.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Sat, 16 Dec 2017 13:38:30 -0800 (PST)
-Message-Id: <20171216213136.737021374@linutronix.de>
-Date: Sat, 16 Dec 2017 22:23:58 +0100
+Message-Id: <20171216213136.898900107@linutronix.de>
+Date: Sat, 16 Dec 2017 22:24:00 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 04/50] arch: Allow arch_dup_mmap() to fail
+Subject: [patch V149 06/50] x86/ldt: Prevent ldt inheritance on exec
 References: <20171216212354.120930222@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=arch--Allow_arch_dup_mmap--_to_fail.patch
+Content-Disposition: inline;
+ filename=x86-ldt--Prevent_ldt_inheritance_on_exec.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -24,11 +25,22 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Thomas Gleixner <tglx@linutronix.de>
 
-In order to sanitize the LDT initialization on x86 arch_dup_mmap() must be
-allowed to fail. Fix up all instances.
+The LDT is inheritet independent of fork or exec, but that makes no sense
+at all because exec is supposed to start the process clean.
+
+The reason why this happens is that init_new_context_ldt() is called from
+init_new_context() which obviously needs to be called for both fork() and
+exec().
+
+It would be surprising if anything relies on that behaviour, so it seems to
+be safe to remove that misfeature.
+
+Split the context initialization into two parts. Clear the ldt pointer and
+initialize the mutex from the general context init and move the LDT
+duplication to arch_dup_mmap() which is only called on fork().
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
@@ -50,100 +62,121 @@ Cc: dan.j.williams@intel.com
 Cc: kirill.shutemov@linux.intel.com
 
 ---
- arch/powerpc/include/asm/mmu_context.h   |    5 +++--
- arch/um/include/asm/mmu_context.h        |    3 ++-
- arch/unicore32/include/asm/mmu_context.h |    5 +++--
- arch/x86/include/asm/mmu_context.h       |    4 ++--
- include/asm-generic/mm_hooks.h           |    5 +++--
- kernel/fork.c                            |    3 +--
- 6 files changed, 14 insertions(+), 11 deletions(-)
+ arch/x86/include/asm/mmu_context.h    |   21 ++++++++++++++-------
+ arch/x86/kernel/ldt.c                 |   18 +++++-------------
+ tools/testing/selftests/x86/ldt_gdt.c |    9 +++------
+ 3 files changed, 22 insertions(+), 26 deletions(-)
 
---- a/arch/powerpc/include/asm/mmu_context.h
-+++ b/arch/powerpc/include/asm/mmu_context.h
-@@ -160,9 +160,10 @@ static inline void enter_lazy_tlb(struct
- #endif
- }
- 
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
- {
-+	return 0;
- }
- 
- #ifndef CONFIG_PPC_BOOK3S_64
---- a/arch/um/include/asm/mmu_context.h
-+++ b/arch/um/include/asm/mmu_context.h
-@@ -15,9 +15,10 @@ extern void uml_setup_stubs(struct mm_st
- /*
-  * Needed since we do not use the asm-generic/mm_hooks.h:
-  */
--static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
- {
- 	uml_setup_stubs(mm);
-+	return 0;
- }
- extern void arch_exit_mmap(struct mm_struct *mm);
- static inline void arch_unmap(struct mm_struct *mm,
---- a/arch/unicore32/include/asm/mmu_context.h
-+++ b/arch/unicore32/include/asm/mmu_context.h
-@@ -81,9 +81,10 @@ do { \
- 	} \
- } while (0)
- 
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
- {
-+	return 0;
- }
- 
- static inline void arch_unmap(struct mm_struct *mm,
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -176,10 +176,10 @@ do {						\
- } while (0)
- #endif
+@@ -57,11 +57,17 @@ struct ldt_struct {
+ /*
+  * Used for LDT copy/destruction.
+  */
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
++static inline void init_new_context_ldt(struct mm_struct *mm)
++{
++	mm->context.ldt = NULL;
++	init_rwsem(&mm->context.ldt_usr_sem);
++}
++int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
+ void destroy_context_ldt(struct mm_struct *mm);
+ #else	/* CONFIG_MODIFY_LDT_SYSCALL */
+-static inline int init_new_context_ldt(struct task_struct *tsk,
+-				       struct mm_struct *mm)
++static inline void init_new_context_ldt(struct mm_struct *mm) { }
++static inline int ldt_dup_context(struct mm_struct *oldmm,
++				  struct mm_struct *mm)
+ {
+ 	return 0;
+ }
+@@ -137,15 +143,16 @@ static inline int init_new_context(struc
+ 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	atomic64_set(&mm->context.tlb_gen, 0);
  
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+-	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+ 		/* pkey 0 is the default and always allocated */
+ 		mm->context.pkey_allocation_map = 0x1;
+ 		/* -1 means unallocated or invalid */
+ 		mm->context.execute_only_pkey = -1;
+ 	}
+-	#endif
+-	return init_new_context_ldt(tsk, mm);
++#endif
++	init_new_context_ldt(mm);
++	return 0;
+ }
+ static inline void destroy_context(struct mm_struct *mm)
+ {
+@@ -181,7 +188,7 @@ do {						\
+ static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
  {
  	paravirt_arch_dup_mmap(oldmm, mm);
-+	return 0;
+-	return 0;
++	return ldt_dup_context(oldmm, mm);
  }
  
  static inline void arch_exit_mmap(struct mm_struct *mm)
---- a/include/asm-generic/mm_hooks.h
-+++ b/include/asm-generic/mm_hooks.h
-@@ -7,9 +7,10 @@
- #ifndef _ASM_GENERIC_MM_HOOKS_H
- #define _ASM_GENERIC_MM_HOOKS_H
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -131,28 +131,20 @@ static void free_ldt_struct(struct ldt_s
+ }
  
--static inline void arch_dup_mmap(struct mm_struct *oldmm,
--				 struct mm_struct *mm)
-+static inline int arch_dup_mmap(struct mm_struct *oldmm,
-+				struct mm_struct *mm)
+ /*
+- * we do not have to muck with descriptors here, that is
+- * done in switch_mm() as needed.
++ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
++ * the new task is not running, so nothing can be installed.
+  */
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
++int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
  {
-+	return 0;
- }
+ 	struct ldt_struct *new_ldt;
+-	struct mm_struct *old_mm;
+ 	int retval = 0;
  
- static inline void arch_exit_mmap(struct mm_struct *mm)
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -721,8 +721,7 @@ static __latent_entropy int dup_mmap(str
- 			goto out;
- 	}
- 	/* a new mm has just been created */
--	arch_dup_mmap(oldmm, mm);
--	retval = 0;
-+	retval = arch_dup_mmap(oldmm, mm);
- out:
- 	up_write(&mm->mmap_sem);
- 	flush_tlb_mm(oldmm);
+-	init_rwsem(&mm->context.ldt_usr_sem);
+-
+-	old_mm = current->mm;
+-	if (!old_mm) {
+-		mm->context.ldt = NULL;
++	if (!old_mm)
+ 		return 0;
+-	}
+ 
+ 	mutex_lock(&old_mm->context.lock);
+-	if (!old_mm->context.ldt) {
+-		mm->context.ldt = NULL;
++	if (!old_mm->context.ldt)
+ 		goto out_unlock;
+-	}
+ 
+ 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
+ 	if (!new_ldt) {
+--- a/tools/testing/selftests/x86/ldt_gdt.c
++++ b/tools/testing/selftests/x86/ldt_gdt.c
+@@ -627,13 +627,10 @@ static void do_multicpu_tests(void)
+ static int finish_exec_test(void)
+ {
+ 	/*
+-	 * In a sensible world, this would be check_invalid_segment(0, 1);
+-	 * For better or for worse, though, the LDT is inherited across exec.
+-	 * We can probably change this safely, but for now we test it.
++	 * Older kernel versions did inherit the LDT on exec() which is
++	 * wrong because exec() starts from a clean state.
+ 	 */
+-	check_valid_segment(0, 1,
+-			    AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB,
+-			    42, true);
++	check_invalid_segment(0, 1);
+ 
+ 	return nerrs ? 1 : 0;
+ }
+
+
+
 
 
 --
