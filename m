@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C95B6B025F
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 31AFD6B0069
 	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 11:44:44 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 31so2367712plk.20
+Received: by mail-pf0-f199.google.com with SMTP id t65so10000490pfe.22
         for <linux-mm@kvack.org>; Sat, 16 Dec 2017 08:44:44 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 73si5005397ple.357.2017.12.16.08.44.42
+        by mx.google.com with ESMTPS id t24si6750806plo.449.2017.12.16.08.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 16 Dec 2017 08:44:42 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 3/8] mm: Remove misleading alignment claims
-Date: Sat, 16 Dec 2017 08:44:20 -0800
-Message-Id: <20171216164425.8703-4-willy@infradead.org>
+Subject: [PATCH 2/8] mm: De-indent struct page
+Date: Sat, 16 Dec 2017 08:44:19 -0800
+Message-Id: <20171216164425.8703-3-willy@infradead.org>
 In-Reply-To: <20171216164425.8703-1-willy@infradead.org>
 References: <20171216164425.8703-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,62 +22,71 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <c
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The "third double word block" isn't on 32-bit systems.  The layout
-looks like this:
-
-	unsigned long flags;
-	struct address_space *mapping
-	pgoff_t index;
-	atomic_t _mapcount;
-	atomic_t _refcount;
-
-which is 32 bytes on 64-bit, but 20 bytes on 32-bit.  Nobody is trying
-to use the fact that it's double-word aligned today, so just remove the
-misleading claims.
+I found the struct { union { struct { union { struct { } } } } }
+layout rather confusing.  Fortunately, there is an easier way to write
+this.  The innermost union is of four things which are the size of an
+int, so the ones which are used by slab/slob/slub can be pulled up
+two levels to be in the outermost union with 'counters'.  That leaves
+us with struct { union { struct { atomic_t; atomic_t; } } } which
+has the same layout, but is easier to read.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ include/linux/mm_types.h | 40 +++++++++++++++++++---------------------
+ 1 file changed, 19 insertions(+), 21 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 27973166af28..c2294e6204e8 100644
+index 4509f0cfaf39..27973166af28 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -33,11 +33,11 @@ struct hmm;
-  * a page, though if it is a pagecache page, rmap structures can tell us
-  * who is mapping it.
-  *
-- * The objects in struct page are organized in double word blocks in
-- * order to allows us to use atomic double word operations on portions
-- * of struct page. That is currently only used by slub but the arrangement
-- * allows the use of atomic double word operations on the flags/mapping
-- * and lru list pointers also.
-+ * SLUB uses cmpxchg_double() to atomically update its freelist and
-+ * counters.  That requires that freelist & counters be adjacent and
-+ * double-word aligned.  We align all struct pages to double-word
-+ * boundaries, and ensure that 'freelist' is aligned within the
-+ * struct.
-  */
- #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
- #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-@@ -113,8 +113,6 @@ struct page {
- 	};
- 
- 	/*
--	 * Third double word block
--	 *
- 	 * WARNING: bit 0 of the first word encode PageTail(). That means
- 	 * the rest users of the storage space MUST NOT use the bit to
- 	 * avoid collision and false-positive PageTail().
-@@ -175,7 +173,6 @@ struct page {
+@@ -84,28 +84,26 @@ struct page {
+ 		 */
+ 		unsigned counters;
  #endif
- 	};
+-		struct {
++		unsigned int active;		/* SLAB */
++		struct {			/* SLUB */
++			unsigned inuse:16;
++			unsigned objects:15;
++			unsigned frozen:1;
++		};
++		int units;			/* SLOB */
++
++		struct {			/* Page cache */
++			/*
++			 * Count of ptes mapped in mms, to show when
++			 * page is mapped & limit reverse map searches.
++			 *
++			 * Extra information about page type may be
++			 * stored here for pages that are never mapped,
++			 * in which case the value MUST BE <= -2.
++			 * See page-flags.h for more details.
++			 */
++			atomic_t _mapcount;
  
--	/* Remainder is not double word aligned */
- 	union {
- 		unsigned long private;		/* Mapping-private opaque data:
- 					 	 * usually used for buffer_heads
+-			union {
+-				/*
+-				 * Count of ptes mapped in mms, to show when
+-				 * page is mapped & limit reverse map searches.
+-				 *
+-				 * Extra information about page type may be
+-				 * stored here for pages that are never mapped,
+-				 * in which case the value MUST BE <= -2.
+-				 * See page-flags.h for more details.
+-				 */
+-				atomic_t _mapcount;
+-
+-				unsigned int active;		/* SLAB */
+-				struct {			/* SLUB */
+-					unsigned inuse:16;
+-					unsigned objects:15;
+-					unsigned frozen:1;
+-				};
+-				int units;			/* SLOB */
+-			};
+ 			/*
+ 			 * Usage count, *USE WRAPPER FUNCTION* when manual
+ 			 * accounting. See page_ref.h
 -- 
 2.15.1
 
