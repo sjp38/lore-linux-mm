@@ -1,41 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E4A54403E0
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:38:42 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id e70so5614703wmc.6
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:38:42 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 462E94403E5
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:38:44 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y15so7045156wrc.6
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:38:44 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id g70si6616720wmc.179.2017.12.16.13.38.41
+        by mx.google.com with ESMTPS id i29si2257318wra.76.2017.12.16.13.38.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 16 Dec 2017 13:38:41 -0800 (PST)
-Message-Id: <20171216213137.560512708@linutronix.de>
-Date: Sat, 16 Dec 2017 22:24:08 +0100
+        Sat, 16 Dec 2017 13:38:43 -0800 (PST)
+Message-Id: <20171216213137.656511168@linutronix.de>
+Date: Sat, 16 Dec 2017 22:24:09 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 14/50] x86/mm: Clarify which functions are supposed to
- flush what
+Subject: [patch V149 15/50] x86/mm: Move the CR3 construction functions to
+ tlbflush.h
 References: <20171216212354.120930222@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0067-x86-mm-Clarify-which-functions-are-supposed-to-flush.patch
+ filename=0047-x86-mm-Move-the-CR3-construction-functions-to-tlbflu.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+For flushing the TLB, the ASID which has been programmed into the hardware
+must be known.  That differs from what is in 'cpu_tlbstate'.
 
-Per popular request..
+Add functions to transform the 'cpu_tlbstate' values into to the one
+programmed into the hardware (CR3).
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+It's not easy to include mmu_context.h into tlbflush.h, so just move the
+CR3 building over to tlbflush.h.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -44,78 +48,138 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
 Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
----
- arch/x86/include/asm/tlbflush.h |   23 +++++++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
 
+---
+ arch/x86/include/asm/mmu_context.h |   29 +----------------------------
+ arch/x86/include/asm/tlbflush.h    |   26 ++++++++++++++++++++++++++
+ arch/x86/mm/tlb.c                  |    8 ++++----
+ 3 files changed, 31 insertions(+), 32 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -291,33 +291,6 @@ static inline bool arch_vma_access_permi
+ }
+ 
+ /*
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID
+- * bits.  This serves two purposes.  It prevents a nasty situation in
+- * which PCID-unaware code saves CR3, loads some other value (with PCID
+- * == 0), and then restores CR3, thus corrupting the TLB for ASID 0 if
+- * the saved ASID was nonzero.  It also means that any bugs involving
+- * loading a PCID-enabled CR3 with CR4.PCIDE off will trigger
+- * deterministically.
+- */
+-
+-static inline unsigned long build_cr3(struct mm_struct *mm, u16 asid)
+-{
+-	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
+-		return __sme_pa(mm->pgd) | (asid + 1);
+-	} else {
+-		VM_WARN_ON_ONCE(asid != 0);
+-		return __sme_pa(mm->pgd);
+-	}
+-}
+-
+-static inline unsigned long build_cr3_noflush(struct mm_struct *mm, u16 asid)
+-{
+-	VM_WARN_ON_ONCE(asid > 4094);
+-	return __sme_pa(mm->pgd) | (asid + 1) | CR3_NOFLUSH;
+-}
+-
+-/*
+  * This can be used from process context to figure out what the value of
+  * CR3 is without needing to do a (slow) __read_cr3().
+  *
+@@ -326,7 +299,7 @@ static inline unsigned long build_cr3_no
+  */
+ static inline unsigned long __get_current_cr3_fast(void)
+ {
+-	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm),
++	unsigned long cr3 = build_cr3(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd,
+ 		this_cpu_read(cpu_tlbstate.loaded_mm_asid));
+ 
+ 	/* For now, be very restrictive about when this can be called. */
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -231,6 +231,9 @@ static inline void cr4_set_bits_and_upda
- 
- extern void initialize_tlbstate_and_flush(void);
- 
-+/*
-+ * flush the entire current user mapping
-+ */
- static inline void __native_flush_tlb(void)
- {
- 	/*
-@@ -243,6 +246,9 @@ static inline void __native_flush_tlb(vo
- 	preempt_enable();
+@@ -69,6 +69,32 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return atomic64_inc_return(&mm->context.tlb_gen);
  }
  
 +/*
-+ * flush everything
++ * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
++ * This serves two purposes.  It prevents a nasty situation in which
++ * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
++ * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
++ * ASID was nonzero.  It also means that any bugs involving loading a
++ * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
 + */
- static inline void __native_flush_tlb_global(void)
- {
- 	unsigned long cr4, flags;
-@@ -272,17 +278,27 @@ static inline void __native_flush_tlb_gl
- 	raw_local_irq_restore(flags);
- }
- 
-+/*
-+ * flush one page in the user mapping
-+ */
- static inline void __native_flush_tlb_single(unsigned long addr)
- {
- 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
- }
- 
-+/*
-+ * flush everything
-+ */
- static inline void __flush_tlb_all(void)
- {
--	if (boot_cpu_has(X86_FEATURE_PGE))
-+	if (boot_cpu_has(X86_FEATURE_PGE)) {
- 		__flush_tlb_global();
--	else
++struct pgd_t;
++static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
++{
++	if (static_cpu_has(X86_FEATURE_PCID)) {
++		VM_WARN_ON_ONCE(asid > 4094);
++		return __sme_pa(pgd) | (asid + 1);
 +	} else {
-+		/*
-+		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
-+		 */
- 		__flush_tlb();
++		VM_WARN_ON_ONCE(asid != 0);
++		return __sme_pa(pgd);
 +	}
- 
- 	/*
- 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
-@@ -293,6 +309,9 @@ static inline void __flush_tlb_all(void)
++}
++
++static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
++{
++	VM_WARN_ON_ONCE(asid > 4094);
++	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++}
++
+ #ifdef CONFIG_PARAVIRT
+ #include <asm/paravirt.h>
+ #else
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -128,7 +128,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 	 * isn't free.
  	 */
- }
+ #ifdef CONFIG_DEBUG_VM
+-	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev, prev_asid))) {
++	if (WARN_ON_ONCE(__read_cr3() != build_cr3(real_prev->pgd, prev_asid))) {
+ 		/*
+ 		 * If we were to BUG here, we'd be very likely to kill
+ 		 * the system so hard that we don't see the call trace.
+@@ -195,7 +195,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 		if (need_flush) {
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+ 			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+-			write_cr3(build_cr3(next, new_asid));
++			write_cr3(build_cr3(next->pgd, new_asid));
  
-+/*
-+ * flush one page in the kernel mapping
-+ */
- static inline void __flush_tlb_one(unsigned long addr)
- {
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+ 			/*
+ 			 * NB: This gets called via leave_mm() in the idle path
+@@ -208,7 +208,7 @@ void switch_mm_irqs_off(struct mm_struct
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+ 		} else {
+ 			/* The new ASID is already up to date. */
+-			write_cr3(build_cr3_noflush(next, new_asid));
++			write_cr3(build_cr3_noflush(next->pgd, new_asid));
+ 
+ 			/* See above wrt _rcuidle. */
+ 			trace_tlb_flush_rcuidle(TLB_FLUSH_ON_TASK_SWITCH, 0);
+@@ -288,7 +288,7 @@ void initialize_tlbstate_and_flush(void)
+ 		!(cr4_read_shadow() & X86_CR4_PCIDE));
+ 
+ 	/* Force ASID 0 and force a TLB flush. */
+-	write_cr3(build_cr3(mm, 0));
++	write_cr3(build_cr3(mm->pgd, 0));
+ 
+ 	/* Reinitialize tlbstate. */
+ 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, 0);
 
 
 --
