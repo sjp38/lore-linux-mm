@@ -1,48 +1,34 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E35064403D7
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:38:29 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id b82so5303305wmd.5
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:38:29 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id BA9854403D7
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:38:31 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id 55so7028295wrx.21
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:38:31 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id u18si2750686wrg.415.2017.12.16.13.38.28
+        by mx.google.com with ESMTPS id n44si3161016wrf.351.2017.12.16.13.38.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 16 Dec 2017 13:38:28 -0800 (PST)
-Message-Id: <20171216213136.819372419@linutronix.de>
-Date: Sat, 16 Dec 2017 22:23:59 +0100
+        Sat, 16 Dec 2017 13:38:30 -0800 (PST)
+Message-Id: <20171216213136.737021374@linutronix.de>
+Date: Sat, 16 Dec 2017 22:23:58 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 05/50] x86/ldt: Rework locking
+Subject: [patch V149 04/50] arch: Allow arch_dup_mmap() to fail
 References: <20171216212354.120930222@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=x86-ldt--Rework_locking.patch
+Content-Disposition: inline; filename=arch--Allow_arch_dup_mmap--_to_fail.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, linux-mm@kvack.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Thomas Gleixner <tglx@linutronix.de>
 
-The LDT is duplicated on fork() and on exec(), which is wrong as exec()
-should start from a clean state, i.e. without LDT. To fix this the LDT
-duplication code will be moved into arch_dup_mmap() which is only called
-for fork().
+In order to sanitize the LDT initialization on x86 arch_dup_mmap() must be
+allowed to fail. Fix up all instances.
 
-This introduces a locking problem. arch_dup_mmap() holds mmap_sem of the
-parent process, but the LDT duplication code needs to acquire
-mm->context.lock to access the LDT data safely, which is the reverse lock
-order of write_ldt() where mmap_sem nests into context.lock.
-
-Solve this by introducing a new rw semaphore which serializes the
-read/write_ldt() syscall operations and use context.lock to protect the
-actual installment of the LDT descriptor.
-
-So context.lock stabilizes mm->context.ldt and can nest inside of the new
-semaphore or mmap_sem.
-
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
@@ -64,139 +50,100 @@ Cc: dan.j.williams@intel.com
 Cc: kirill.shutemov@linux.intel.com
 
 ---
- arch/x86/include/asm/mmu.h         |    4 +++-
- arch/x86/include/asm/mmu_context.h |    2 ++
- arch/x86/kernel/ldt.c              |   33 +++++++++++++++++++++------------
- 3 files changed, 26 insertions(+), 13 deletions(-)
+ arch/powerpc/include/asm/mmu_context.h   |    5 +++--
+ arch/um/include/asm/mmu_context.h        |    3 ++-
+ arch/unicore32/include/asm/mmu_context.h |    5 +++--
+ arch/x86/include/asm/mmu_context.h       |    4 ++--
+ include/asm-generic/mm_hooks.h           |    5 +++--
+ kernel/fork.c                            |    3 +--
+ 6 files changed, 14 insertions(+), 11 deletions(-)
 
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -3,6 +3,7 @@
- #define _ASM_X86_MMU_H
- 
- #include <linux/spinlock.h>
-+#include <linux/rwsem.h>
- #include <linux/mutex.h>
- #include <linux/atomic.h>
- 
-@@ -27,7 +28,8 @@ typedef struct {
- 	atomic64_t tlb_gen;
- 
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
--	struct ldt_struct *ldt;
-+	struct rw_semaphore	ldt_usr_sem;
-+	struct ldt_struct	*ldt;
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -160,9 +160,10 @@ static inline void enter_lazy_tlb(struct
  #endif
+ }
  
- #ifdef CONFIG_X86_64
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
+ {
++	return 0;
+ }
+ 
+ #ifndef CONFIG_PPC_BOOK3S_64
+--- a/arch/um/include/asm/mmu_context.h
++++ b/arch/um/include/asm/mmu_context.h
+@@ -15,9 +15,10 @@ extern void uml_setup_stubs(struct mm_st
+ /*
+  * Needed since we do not use the asm-generic/mm_hooks.h:
+  */
+-static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+ {
+ 	uml_setup_stubs(mm);
++	return 0;
+ }
+ extern void arch_exit_mmap(struct mm_struct *mm);
+ static inline void arch_unmap(struct mm_struct *mm,
+--- a/arch/unicore32/include/asm/mmu_context.h
++++ b/arch/unicore32/include/asm/mmu_context.h
+@@ -81,9 +81,10 @@ do { \
+ 	} \
+ } while (0)
+ 
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
+ {
++	return 0;
+ }
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -132,6 +132,8 @@ void enter_lazy_tlb(struct mm_struct *mm
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
- {
-+	mutex_init(&mm->context.lock);
-+
- 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
- 	atomic64_set(&mm->context.tlb_gen, 0);
- 
---- a/arch/x86/kernel/ldt.c
-+++ b/arch/x86/kernel/ldt.c
-@@ -5,6 +5,11 @@
-  * Copyright (C) 2002 Andi Kleen
-  *
-  * This handles calls from both 32bit and 64bit mode.
-+ *
-+ * Lock order:
-+ *	contex.ldt_usr_sem
-+ *	  mmap_sem
-+ *	    context.lock
-  */
- 
- #include <linux/errno.h>
-@@ -42,7 +47,7 @@ static void refresh_ldt_segments(void)
+@@ -176,10 +176,10 @@ do {						\
+ } while (0)
  #endif
- }
  
--/* context.lock is held for us, so we don't need any locking. */
-+/* context.lock is held by the task which issued the smp function call */
- static void flush_ldt(void *__mm)
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
  {
- 	struct mm_struct *mm = __mm;
-@@ -99,15 +104,17 @@ static void finalize_ldt_struct(struct l
- 	paravirt_alloc_ldt(ldt->entries, ldt->nr_entries);
+ 	paravirt_arch_dup_mmap(oldmm, mm);
++	return 0;
  }
  
--/* context.lock is held */
--static void install_ldt(struct mm_struct *current_mm,
--			struct ldt_struct *ldt)
-+static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/include/asm-generic/mm_hooks.h
++++ b/include/asm-generic/mm_hooks.h
+@@ -7,9 +7,10 @@
+ #ifndef _ASM_GENERIC_MM_HOOKS_H
+ #define _ASM_GENERIC_MM_HOOKS_H
+ 
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
  {
-+	mutex_lock(&mm->context.lock);
-+
- 	/* Synchronizes with READ_ONCE in load_mm_ldt. */
--	smp_store_release(&current_mm->context.ldt, ldt);
-+	smp_store_release(&mm->context.ldt, ldt);
- 
--	/* Activate the LDT for all CPUs using current_mm. */
--	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);
-+	/* Activate the LDT for all CPUs using currents mm. */
-+	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);
-+
-+	mutex_unlock(&mm->context.lock);
++	return 0;
  }
  
- static void free_ldt_struct(struct ldt_struct *ldt)
-@@ -133,7 +140,8 @@ int init_new_context_ldt(struct task_str
- 	struct mm_struct *old_mm;
- 	int retval = 0;
- 
--	mutex_init(&mm->context.lock);
-+	init_rwsem(&mm->context.ldt_usr_sem);
-+
- 	old_mm = current->mm;
- 	if (!old_mm) {
- 		mm->context.ldt = NULL;
-@@ -180,7 +188,7 @@ static int read_ldt(void __user *ptr, un
- 	unsigned long entries_size;
- 	int retval;
- 
--	mutex_lock(&mm->context.lock);
-+	down_read(&mm->context.ldt_usr_sem);
- 
- 	if (!mm->context.ldt) {
- 		retval = 0;
-@@ -209,7 +217,7 @@ static int read_ldt(void __user *ptr, un
- 	retval = bytecount;
- 
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_read(&mm->context.ldt_usr_sem);
- 	return retval;
- }
- 
-@@ -269,7 +277,8 @@ static int write_ldt(void __user *ptr, u
- 			ldt.avl = 0;
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -721,8 +721,7 @@ static __latent_entropy int dup_mmap(str
+ 			goto out;
  	}
- 
--	mutex_lock(&mm->context.lock);
-+	if (down_write_killable(&mm->context.ldt_usr_sem))
-+		return -EINTR;
- 
- 	old_ldt       = mm->context.ldt;
- 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
-@@ -291,7 +300,7 @@ static int write_ldt(void __user *ptr, u
- 	error = 0;
- 
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_write(&mm->context.ldt_usr_sem);
+ 	/* a new mm has just been created */
+-	arch_dup_mmap(oldmm, mm);
+-	retval = 0;
++	retval = arch_dup_mmap(oldmm, mm);
  out:
- 	return error;
- }
-
-
-
+ 	up_write(&mm->mmap_sem);
+ 	flush_tlb_mm(oldmm);
 
 
 --
