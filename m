@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E949F6B025E
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 11:44:43 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u16so10017431pfh.7
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 08:44:43 -0800 (PST)
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C95B6B025F
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 11:44:44 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id 31so2367712plk.20
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 08:44:44 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x14si6876007pfj.235.2017.12.16.08.44.42
+        by mx.google.com with ESMTPS id 73si5005397ple.357.2017.12.16.08.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 16 Dec 2017 08:44:42 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 1/8] mm: Align struct page more aesthetically
-Date: Sat, 16 Dec 2017 08:44:18 -0800
-Message-Id: <20171216164425.8703-2-willy@infradead.org>
+Subject: [PATCH 3/8] mm: Remove misleading alignment claims
+Date: Sat, 16 Dec 2017 08:44:20 -0800
+Message-Id: <20171216164425.8703-4-willy@infradead.org>
 In-Reply-To: <20171216164425.8703-1-willy@infradead.org>
 References: <20171216164425.8703-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,49 +22,62 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <c
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-instead of an ifdef block at the end of the struct, which needed
-its own comment, define _struct_page_alignment up at the top where it
-fits nicely with the existing comment.
+The "third double word block" isn't on 32-bit systems.  The layout
+looks like this:
+
+	unsigned long flags;
+	struct address_space *mapping
+	pgoff_t index;
+	atomic_t _mapcount;
+	atomic_t _refcount;
+
+which is 32 bytes on 64-bit, but 20 bytes on 32-bit.  Nobody is trying
+to use the fact that it's double-word aligned today, so just remove the
+misleading claims.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 16 +++++++---------
- 1 file changed, 7 insertions(+), 9 deletions(-)
+ include/linux/mm_types.h | 13 +++++--------
+ 1 file changed, 5 insertions(+), 8 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index cfd0ac4e5e0e..4509f0cfaf39 100644
+index 27973166af28..c2294e6204e8 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -39,6 +39,12 @@ struct hmm;
-  * allows the use of atomic double word operations on the flags/mapping
-  * and lru list pointers also.
+@@ -33,11 +33,11 @@ struct hmm;
+  * a page, though if it is a pagecache page, rmap structures can tell us
+  * who is mapping it.
+  *
+- * The objects in struct page are organized in double word blocks in
+- * order to allows us to use atomic double word operations on portions
+- * of struct page. That is currently only used by slub but the arrangement
+- * allows the use of atomic double word operations on the flags/mapping
+- * and lru list pointers also.
++ * SLUB uses cmpxchg_double() to atomically update its freelist and
++ * counters.  That requires that freelist & counters be adjacent and
++ * double-word aligned.  We align all struct pages to double-word
++ * boundaries, and ensure that 'freelist' is aligned within the
++ * struct.
   */
-+#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
-+#define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-+#else
-+#define _struct_page_alignment
-+#endif
-+
- struct page {
- 	/* First double word block */
- 	unsigned long flags;		/* Atomic flags, some possibly
-@@ -212,15 +218,7 @@ struct page {
- #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
- 	int _last_cpupid;
- #endif
--}
--/*
-- * The struct page can be forced to be double word aligned so that atomic ops
-- * on double words work. The SLUB allocator can make use of such a feature.
-- */
--#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
--	__aligned(2 * sizeof(unsigned long))
--#endif
--;
-+} _struct_page_alignment;
+ #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+ #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
+@@ -113,8 +113,6 @@ struct page {
+ 	};
  
- #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
- #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+ 	/*
+-	 * Third double word block
+-	 *
+ 	 * WARNING: bit 0 of the first word encode PageTail(). That means
+ 	 * the rest users of the storage space MUST NOT use the bit to
+ 	 * avoid collision and false-positive PageTail().
+@@ -175,7 +173,6 @@ struct page {
+ #endif
+ 	};
+ 
+-	/* Remainder is not double word aligned */
+ 	union {
+ 		unsigned long private;		/* Mapping-private opaque data:
+ 					 	 * usually used for buffer_heads
 -- 
 2.15.1
 
