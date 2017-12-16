@@ -1,153 +1,121 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 81EF544040A
-	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:40:14 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id v69so5621521wmd.2
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:40:14 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id a64si6246607wmd.147.2017.12.16.13.40.13
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D622A44040A
+	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 17:22:46 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id j3so10324515pfh.16
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 14:22:46 -0800 (PST)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTPS id s59si7067920plb.276.2017.12.16.14.22.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 16 Dec 2017 13:40:13 -0800 (PST)
-Message-Id: <20171216213140.137090325@linutronix.de>
-Date: Sat, 16 Dec 2017 22:24:39 +0100
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 45/50] x86/mm: Clarify the whole ASID/kernel PCID/user
- PCID naming
-References: <20171216212354.120930222@linutronix.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 16 Dec 2017 14:22:45 -0800 (PST)
+Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
+ long block
+References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171215102753.GY16951@dhcp22.suse.cz>
+ <13f935a9-42af-98f4-1813-456a25200d9d@alibaba-inc.com>
+ <20171216114525.GH16951@dhcp22.suse.cz>
+ <20171216200925.kxvkuqoyhkonj7m6@node.shutemov.name>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <6624c1ea-1321-d999-fc77-3c5010f7bdd5@alibaba-inc.com>
+Date: Sun, 17 Dec 2017 06:22:20 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline;
- filename=0068-x86-mm-Clarify-the-whole-ASID-kernel-PCID-user-PCID-.patch
+In-Reply-To: <20171216200925.kxvkuqoyhkonj7m6@node.shutemov.name>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>, Michal Hocko <mhocko@kernel.org>
+Cc: kirill.shutemov@linux.intel.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: Peter Zijlstra <peterz@infradead.org>
 
-Ideally we'd also use sparse to enforce this separation so it becomes much
-more difficult to mess up.
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: linux-mm@kvack.org
----
- arch/x86/include/asm/tlbflush.h |   55 +++++++++++++++++++++++++++++++---------
- 1 file changed, 43 insertions(+), 12 deletions(-)
+On 12/16/17 12:09 PM, Kirill A. Shutemov wrote:
+> On Sat, Dec 16, 2017 at 12:45:25PM +0100, Michal Hocko wrote:
+>> On Sat 16-12-17 04:04:10, Yang Shi wrote:
+>>> Hi Kirill & Michal,
+>>>
+>>> Since both of you raised the same question about who holds the semaphore for
+>>> that long time, I just reply here to both of you.
+>>>
+>>> The backtrace shows vm-scalability is running with 300G memory and it is
+>>> doing munmap as below:
+>>>
+>>> [188995.241865] CPU: 15 PID: 8063 Comm: usemem Tainted: G            E
+>>> 4.9.65-006.ali3000.alios7.x86_64 #1
+>>> [188995.242252] Hardware name: Huawei Technologies Co., Ltd. Tecal RH2288H
+>>> V2-12L/BC11SRSG1, BIOS RMIBV368 11/01/2013
+>>> [188995.242637] task: ffff883f610a5b00 task.stack: ffffc90037280000
+>>> [188995.242838] RIP: 0010:[<ffffffff811e2319>] .c [<ffffffff811e2319>]
+>>> unmap_page_range+0x619/0x940
+>>> [188995.243231] RSP: 0018:ffffc90037283c98  EFLAGS: 00000282
+>>> [188995.243429] RAX: 00002b760ac57000 RBX: 00002b760ac56000 RCX:
+>>> 0000000003eb13ca
+>>> [188995.243820] RDX: ffffea003971e420 RSI: 00002b760ac56000 RDI:
+>>> ffff8837cb832e80
+>>> [188995.244211] RBP: ffffc90037283d78 R08: ffff883ebf8fc3c0 R09:
+>>> 0000000000008000
+>>> [188995.244600] R10: 00000000826b7e00 R11: 0000000000000000 R12:
+>>> ffff8821e70f72b0
+>>> [188995.244993] R13: ffffea00fac4f280 R14: ffffc90037283e00 R15:
+>>> 00002b760ac57000
+>>> [188995.245390] FS:  00002b34b4861700(0000) GS:ffff883f7d3c0000(0000)
+>>> knlGS:0000000000000000
+>>> [188995.245788] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>> [188995.245990] CR2: 00002b7092160fed CR3: 0000000977850000 CR4:
+>>> 00000000001406e0
+>>> [188995.246388] Stack:
+>>> [188995.246581]  00002b92f71edfff.c 00002b7fffffffff.c 00002b92f71ee000.c
+>>> ffff8809778502b0.c
+>>> [188995.246981]  00002b763fffffff.c ffff8802e1895ec0.c ffffc90037283d48.c
+>>> ffff883f610a5b00.c
+>>> [188995.247365]  ffffc90037283d70.c 00002b8000000000.c ffffc00000000fff.c
+>>> ffffea00879c3df0.c
+>>> [188995.247759] Call Trace:
+>>> [188995.247957]  [<ffffffff811e26bd>] unmap_single_vma+0x7d/0xe0
+>>> [188995.248161]  [<ffffffff811e2a11>] unmap_vmas+0x51/0xa0
+>>> [188995.248367]  [<ffffffff811e98ed>] unmap_region+0xbd/0x130
+>>> [188995.248571]  [<ffffffff8170b04c>] ?
+>>> rwsem_down_write_failed_killable+0x31c/0x3f0
+>>> [188995.248961]  [<ffffffff811eb94c>] do_munmap+0x26c/0x420
+>>> [188995.249162]  [<ffffffff811ebbc0>] SyS_munmap+0x50/0x70
+>>> [188995.249361]  [<ffffffff8170cab7>] entry_SYSCALL_64_fastpath+0x1a/0xa9
+>>>
+>>> By analyzing vmcore, khugepaged is waiting for vm-scalability process's
+>>> mmap_sem.
+>>
+>> OK, I see.
+>>   
+>>> unmap_vmas will unmap every vma in the memory space, it sounds the test
+>>> generated huge amount of vmas.
+>>
+>> I would expect that it just takes some time to munmap 300G address
+>> range.
+>>
+>>> Shall we add "cond_resched()" in unmap_vmas(), i.e for every 100 vmas? It
+>>> may improve the responsiveness a little bit for non-preempt kernel, although
+>>> it still can't release the semaphore.
+>>
+>> We already do, once per pmd (see zap_pmd_range).
+> 
+> It doesn't help. We would need to find a way to drop mmap_sem, if we're
+> holding it way too long. And doing it on per-vma count basis is not right
+> call. It won't address issue with single huge vma.
 
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -13,16 +13,33 @@
- #include <asm/pti.h>
- #include <asm/processor-flags.h>
- 
--static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
--{
--	/*
--	 * Bump the generation count.  This also serves as a full barrier
--	 * that synchronizes with switch_mm(): callers are required to order
--	 * their read of mm_cpumask after their writes to the paging
--	 * structures.
--	 */
--	return atomic64_inc_return(&mm->context.tlb_gen);
--}
-+/*
-+ * The x86 feature is called PCID (Process Context IDentifier). It is similar
-+ * to what is traditionally called ASID on the RISC processors.
-+ *
-+ * We don't use the traditional ASID implementation, where each process/mm gets
-+ * its own ASID and flush/restart when we run out of ASID space.
-+ *
-+ * Instead we have a small per-cpu array of ASIDs and cache the last few mm's
-+ * that came by on this CPU, allowing cheaper switch_mm between processes on
-+ * this CPU.
-+ *
-+ * We end up with different spaces for different things. To avoid confusion we
-+ * use different names for each of them:
-+ *
-+ * ASID  - [0, TLB_NR_DYN_ASIDS-1]
-+ *         the canonical identifier for an mm
-+ *
-+ * kPCID - [1, TLB_NR_DYN_ASIDS]
-+ *         the value we write into the PCID part of CR3; corresponds to the
-+ *         ASID+1, because PCID 0 is special.
-+ *
-+ * uPCID - [2048 + 1, 2048 + TLB_NR_DYN_ASIDS]
-+ *         for KPTI each mm has two address spaces and thus needs two
-+ *         PCID values, but we can still do with a single ASID denomination
-+ *         for each mm. Corresponds to kPCID + 2048.
-+ *
-+ */
- 
- /* There are 12 bits of space for ASIDS in CR3 */
- #define CR3_HW_ASID_BITS		12
-@@ -41,7 +58,7 @@ static inline u64 inc_mm_tlb_gen(struct
- 
- /*
-  * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
-- * for them being zero-based.  Another -1 is because ASID 0 is reserved for
-+ * for them being zero-based.  Another -1 is because PCID 0 is reserved for
-  * use by non-PCID-aware users.
-  */
- #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_PCID_BITS) - 2)
-@@ -52,6 +69,9 @@ static inline u64 inc_mm_tlb_gen(struct
-  */
- #define TLB_NR_DYN_ASIDS	6
- 
-+/*
-+ * Given @asid, compute kPCID
-+ */
- static inline u16 kern_pcid(u16 asid)
- {
- 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-@@ -86,7 +106,7 @@ static inline u16 kern_pcid(u16 asid)
- }
- 
- /*
-- * The user PCID is just the kernel one, plus the "switch bit".
-+ * Given @asid, compute uPCID
-  */
- static inline u16 user_pcid(u16 asid)
- {
-@@ -487,6 +507,17 @@ static inline void flush_tlb_page(struct
- void native_flush_tlb_others(const struct cpumask *cpumask,
- 			     const struct flush_tlb_info *info);
- 
-+static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
-+{
-+	/*
-+	 * Bump the generation count.  This also serves as a full barrier
-+	 * that synchronizes with switch_mm(): callers are required to order
-+	 * their read of mm_cpumask after their writes to the paging
-+	 * structures.
-+	 */
-+	return atomic64_inc_return(&mm->context.tlb_gen);
-+}
-+
- static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
- 					struct mm_struct *mm)
- {
+Yes, I agree. We have to find a way to release the semaphore at some 
+point instead of holding it for the whole unmap.
 
+> 
+> Do we have any instrumentation that would help detect starvation on a
+> rw_semaphore?
+
+ebpf might help?
+
+Thanks,
+Yang
+
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
