@@ -1,24 +1,24 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0231C440404
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EA0E2440404
 	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 16:39:29 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id p8so3239379wrh.17
-        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:39:28 -0800 (PST)
+Received: by mail-wr0-f200.google.com with SMTP id 96so6982350wrk.7
+        for <linux-mm@kvack.org>; Sat, 16 Dec 2017 13:39:29 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id l94si3377679wrc.290.2017.12.16.13.39.27
+        by mx.google.com with ESMTPS id u205si6359283wmu.15.2017.12.16.13.39.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Sat, 16 Dec 2017 13:39:28 -0800 (PST)
-Message-Id: <20171216213140.392855255@linutronix.de>
-Date: Sat, 16 Dec 2017 22:24:42 +0100
+        Sat, 16 Dec 2017 13:39:29 -0800 (PST)
+Message-Id: <20171216213140.472703911@linutronix.de>
+Date: Sat, 16 Dec 2017 22:24:43 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V149 48/50] x86/mm/dump_pagetables: Check user space page
- table for WX pages
+Subject: [patch V149 49/50] x86/mm/dump_pagetables: Allow dumping current
+ pagetables
 References: <20171216212354.120930222@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0058-x86-mm-dump_pagetables-Check-user-space-page-table-f.patch
+ filename=0059-x86-mm-dump_pagetables-Allow-dumping-current-pagetab.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -26,13 +26,19 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Thomas Gleixner <tglx@linutronix.de>
 
-ptdump_walk_pgd_level_checkwx() checks the kernel page table for WX pages,
-but does not check the PAGE_TABLE_ISOLATION user space page table.
+Add two debugfs files which allow to dump the pagetable of the current
+task.
 
-Restructure the code so that dmesg output is selected by an explicit
-argument and not implicit via checking the pgd argument for !NULL.
+current_kernel dumps the regular page table. This is the page table which
+is normally shared between kernel and user space. If kernel page table
+isolation is enabled this is the kernel space mapping.
 
-Add the check for the user space page table.
+If kernel page table isolation is enabled the second file, current_user,
+dumps the user space page table.
+
+These files allow to verify the resulting page tables for page table
+isolation, but even in the normal case its useful to be able to inspect
+user space page tables of current for debugging purposes.
 
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
@@ -57,18 +63,19 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/pgtable.h |    1 +
- arch/x86/mm/debug_pagetables.c |    2 +-
- arch/x86/mm/dump_pagetables.c  |   30 +++++++++++++++++++++++++-----
- 3 files changed, 27 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/pgtable.h |    2 -
+ arch/x86/mm/debug_pagetables.c |   71 ++++++++++++++++++++++++++++++++++++++---
+ arch/x86/mm/dump_pagetables.c  |    6 ++-
+ 3 files changed, 73 insertions(+), 6 deletions(-)
 
 --- a/arch/x86/include/asm/pgtable.h
 +++ b/arch/x86/include/asm/pgtable.h
-@@ -28,6 +28,7 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD]
+@@ -28,7 +28,7 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD]
  int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
  
  void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd);
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd);
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user);
  void ptdump_walk_pgd_level_checkwx(void);
  
  #ifdef CONFIG_DEBUG_WX
@@ -78,68 +85,111 @@ Cc: linux-mm@kvack.org
  
  static int ptdump_show(struct seq_file *m, void *v)
  {
--	ptdump_walk_pgd_level(m, NULL);
-+	ptdump_walk_pgd_level_debugfs(m, NULL);
+-	ptdump_walk_pgd_level_debugfs(m, NULL);
++	ptdump_walk_pgd_level_debugfs(m, NULL, false);
  	return 0;
  }
  
+@@ -22,7 +22,57 @@ static const struct file_operations ptdu
+ 	.release	= single_release,
+ };
+ 
+-static struct dentry *dir, *pe;
++static int ptdump_show_curknl(struct seq_file *m, void *v)
++{
++	if (current->mm->pgd) {
++		down_read(&current->mm->mmap_sem);
++		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, false);
++		up_read(&current->mm->mmap_sem);
++	}
++	return 0;
++}
++
++static int ptdump_open_curknl(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, ptdump_show_curknl, NULL);
++}
++
++static const struct file_operations ptdump_curknl_fops = {
++	.owner		= THIS_MODULE,
++	.open		= ptdump_open_curknl,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++static struct dentry *pe_curusr;
++
++static int ptdump_show_curusr(struct seq_file *m, void *v)
++{
++	if (current->mm->pgd) {
++		down_read(&current->mm->mmap_sem);
++		ptdump_walk_pgd_level_debugfs(m, current->mm->pgd, true);
++		up_read(&current->mm->mmap_sem);
++	}
++	return 0;
++}
++
++static int ptdump_open_curusr(struct inode *inode, struct file *filp)
++{
++	return single_open(filp, ptdump_show_curusr, NULL);
++}
++
++static const struct file_operations ptdump_curusr_fops = {
++	.owner		= THIS_MODULE,
++	.open		= ptdump_open_curusr,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++#endif
++
++static struct dentry *dir, *pe_knl, *pe_curknl;
+ 
+ static int __init pt_dump_debug_init(void)
+ {
+@@ -30,9 +80,22 @@ static int __init pt_dump_debug_init(voi
+ 	if (!dir)
+ 		return -ENOMEM;
+ 
+-	pe = debugfs_create_file("kernel", 0400, dir, NULL, &ptdump_fops);
+-	if (!pe)
++	pe_knl = debugfs_create_file("kernel", 0400, dir, NULL,
++				     &ptdump_fops);
++	if (!pe_knl)
++		goto err;
++
++	pe_curknl = debugfs_create_file("current_kernel", 0400,
++					dir, NULL, &ptdump_curknl_fops);
++	if (!pe_curknl)
++		goto err;
++
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++	pe_curusr = debugfs_create_file("current_user", 0400,
++					dir, NULL, &ptdump_curusr_fops);
++	if (!pe_curusr)
+ 		goto err;
++#endif
+ 	return 0;
+ err:
+ 	debugfs_remove_recursive(dir);
 --- a/arch/x86/mm/dump_pagetables.c
 +++ b/arch/x86/mm/dump_pagetables.c
-@@ -459,7 +459,7 @@ static inline bool is_hypervisor_range(i
+@@ -513,8 +513,12 @@ void ptdump_walk_pgd_level(struct seq_fi
+ 	ptdump_walk_pgd_level_core(m, pgd, false, true);
  }
  
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
--				       bool checkwx)
-+				       bool checkwx, bool dmesg)
+-void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
++void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd, bool user)
  {
- #ifdef CONFIG_X86_64
- 	pgd_t *start = (pgd_t *) &init_top_pgt;
-@@ -472,7 +472,7 @@ static void ptdump_walk_pgd_level_core(s
- 
- 	if (pgd) {
- 		start = pgd;
--		st.to_dmesg = true;
-+		st.to_dmesg = dmesg;
- 	}
- 
- 	st.check_wx = checkwx;
-@@ -510,13 +510,33 @@ static void ptdump_walk_pgd_level_core(s
- 
- void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
- {
--	ptdump_walk_pgd_level_core(m, pgd, false);
-+	ptdump_walk_pgd_level_core(m, pgd, false, true);
-+}
-+
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
-+{
-+	ptdump_walk_pgd_level_core(m, pgd, false, false);
-+}
-+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
-+
-+static void ptdump_walk_user_pgd_level_checkwx(void)
-+{
 +#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+
-+	if (!static_cpu_has_bug(X86_BUG_CPU_SECURE_MODE_PTI))
-+		return;
-+
-+	pr_info("x86/mm: Checking user space page tables\n");
-+	pgd = kernel_to_user_pgdp(pgd);
-+	ptdump_walk_pgd_level_core(NULL, pgd, true, false);
++	if (user && static_cpu_has_bug(X86_BUG_CPU_SECURE_MODE_PTI))
++		pgd = kernel_to_user_pgdp(pgd);
 +#endif
+ 	ptdump_walk_pgd_level_core(m, pgd, false, false);
  }
--EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level);
- 
- void ptdump_walk_pgd_level_checkwx(void)
- {
--	ptdump_walk_pgd_level_core(NULL, NULL, true);
-+	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
-+	ptdump_walk_user_pgd_level_checkwx();
- }
- 
- static int __init pt_dump_init(void)
+ EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
 
 
 --
