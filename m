@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D4F346B0069
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E949F6B025E
 	for <linux-mm@kvack.org>; Sat, 16 Dec 2017 11:44:43 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 3so10037380pfo.1
+Received: by mail-pf0-f200.google.com with SMTP id u16so10017431pfh.7
         for <linux-mm@kvack.org>; Sat, 16 Dec 2017 08:44:43 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id o24si6737760pll.390.2017.12.16.08.44.42
+        by mx.google.com with ESMTPS id x14si6876007pfj.235.2017.12.16.08.44.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 16 Dec 2017 08:44:42 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 5/8] mm: Introduce _slub_counter_t
-Date: Sat, 16 Dec 2017 08:44:22 -0800
-Message-Id: <20171216164425.8703-6-willy@infradead.org>
+Subject: [PATCH 1/8] mm: Align struct page more aesthetically
+Date: Sat, 16 Dec 2017 08:44:18 -0800
+Message-Id: <20171216164425.8703-2-willy@infradead.org>
 In-Reply-To: <20171216164425.8703-1-willy@infradead.org>
 References: <20171216164425.8703-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,56 +22,49 @@ Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <c
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-Instead of putting the ifdef in the middle of the definition of struct
-page, pull it forward to the rest of the ifdeffery around the SLUB
-cmpxchg_double optimisation.
+instead of an ifdef block at the end of the struct, which needed
+its own comment, define _struct_page_alignment up at the top where it
+fits nicely with the existing comment.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 21 ++++++++-------------
- 1 file changed, 8 insertions(+), 13 deletions(-)
+ include/linux/mm_types.h | 16 +++++++---------
+ 1 file changed, 7 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 8c3b8cea22ee..5521c9799c50 100644
+index cfd0ac4e5e0e..4509f0cfaf39 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -41,9 +41,15 @@ struct hmm;
+@@ -39,6 +39,12 @@ struct hmm;
+  * allows the use of atomic double word operations on the flags/mapping
+  * and lru list pointers also.
   */
- #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
- #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE)
-+#define _slub_counter_t		unsigned long
- #else
--#define _struct_page_alignment
-+#define _slub_counter_t		unsigned int
- #endif
-+#else /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
++#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
++#define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
++#else
 +#define _struct_page_alignment
-+#define _slub_counter_t		unsigned int
-+#endif /* !CONFIG_HAVE_ALIGNED_STRUCT_PAGE */
- 
++#endif
++
  struct page {
  	/* First double word block */
-@@ -66,18 +72,7 @@ struct page {
- 	};
- 
- 	union {
--#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
--	defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
--		/* Used for cmpxchg_double in slub */
--		unsigned long counters;
--#else
--		/*
--		 * Keep _refcount separate from slub cmpxchg_double data.
--		 * As the rest of the double word is protected by slab_lock
--		 * but _refcount is not.
--		 */
--		unsigned counters;
+ 	unsigned long flags;		/* Atomic flags, some possibly
+@@ -212,15 +218,7 @@ struct page {
+ #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+ 	int _last_cpupid;
+ #endif
+-}
+-/*
+- * The struct page can be forced to be double word aligned so that atomic ops
+- * on double words work. The SLUB allocator can make use of such a feature.
+- */
+-#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+-	__aligned(2 * sizeof(unsigned long))
 -#endif
-+		_slub_counter_t counters;
- 		unsigned int active;		/* SLAB */
- 		struct {			/* SLUB */
- 			unsigned inuse:16;
+-;
++} _struct_page_alignment;
+ 
+ #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
+ #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
 -- 
 2.15.1
 
