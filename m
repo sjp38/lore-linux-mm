@@ -1,138 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 12E736B0033
-	for <linux-mm@kvack.org>; Sun, 17 Dec 2017 11:45:53 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id 49so8379352uat.8
-        for <linux-mm@kvack.org>; Sun, 17 Dec 2017 08:45:53 -0800 (PST)
+Received: from mail-oi0-f72.google.com (mail-oi0-f72.google.com [209.85.218.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C7456B0033
+	for <linux-mm@kvack.org>; Sun, 17 Dec 2017 12:22:54 -0500 (EST)
+Received: by mail-oi0-f72.google.com with SMTP id c85so6146385oib.13
+        for <linux-mm@kvack.org>; Sun, 17 Dec 2017 09:22:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 32sor4113600uat.303.2017.12.17.08.45.51
+        by mx.google.com with SMTPS id u184sor3845325oie.163.2017.12.17.09.22.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 17 Dec 2017 08:45:51 -0800 (PST)
+        Sun, 17 Dec 2017 09:22:53 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <001a1141c43a5f5178056084703f@google.com>
-References: <001a1141c43a5f5178056084703f@google.com>
-From: Kees Cook <keescook@chromium.org>
-Date: Sun, 17 Dec 2017 08:45:50 -0800
-Message-ID: <CAGXu5jLAvE9GaF=VdzR=wrUpquDSJkUXCidZMU-qb02+FDZW6g@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in old_dev_ioctl
+In-Reply-To: <CAPcyv4g_6izDX780Fqv=zx=aYrASivwYpQcNkRmZW3iSZfKQHQ@mail.gmail.com>
+References: <20171215140947.26075-1-hch@lst.de> <20171215140947.26075-5-hch@lst.de>
+ <CAPcyv4g_6izDX780Fqv=zx=aYrASivwYpQcNkRmZW3iSZfKQHQ@mail.gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Sun, 17 Dec 2017 09:22:52 -0800
+Message-ID: <CAPcyv4h2EsZO2g+YVyVVJFx_Cv3wiZH+xNj=koAux1+_uuF1UA@mail.gmail.com>
+Subject: Re: [PATCH 04/17] mm: pass the vmem_altmap to arch_add_memory and __add_pages
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+5e56fb40e0f2bc3f20402f782f0b3913cb959acc@syzkaller.appspotmail.com>
-Cc: David Windsor <dave@nullcore.net>, James Morse <james.morse@arm.com>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sat, Dec 16, 2017 at 11:47 PM, syzbot
-<bot+5e56fb40e0f2bc3f20402f782f0b3913cb959acc@syzkaller.appspotmail.com>
-wrote:
-> Hello,
+On Fri, Dec 15, 2017 at 5:48 PM, Dan Williams <dan.j.williams@intel.com> wrote:
+> On Fri, Dec 15, 2017 at 6:09 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> We can just pass this on instead of having to do a radix tree lookup
+>> without proper locking 2 levels into the callchain.
+>>
+>> Signed-off-by: Christoph Hellwig <hch@lst.de>
 >
-> syzkaller hit the following crash on
-> 6084b576dca2e898f5c101baef151f7bfdbb606d
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached
-> Raw console output is attached.
+> Yeah, the lookup of vmem_altmap is too magical and surprising this is better.
 >
-> Unfortunately, I don't have any reproducer for this bug yet.
->
->
-> device gre0 entered promiscuous mode
-> usercopy: kernel memory exposure attempt detected from 00000000a6830059
-> (kmalloc-1024) (1024 bytes)
-> ------------[ cut here ]------------
-> kernel BUG at mm/usercopy.c:84!
-> invalid opcode: 0000 [#1] SMP
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 1 PID: 28799 Comm: syz-executor4 Not tainted 4.15.0-rc3-next-20171214+
-> #67
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: 0010:report_usercopy mm/usercopy.c:76 [inline]
-> RIP: 0010:__check_object_size+0x1e2/0x250 mm/usercopy.c:276
-> RSP: 0018:ffffc9000116fc50 EFLAGS: 00010286
-> RAX: 0000000000000063 RBX: ffffffff82e6518f RCX: ffffffff8123dede
-> RDX: 0000000000004c58 RSI: ffffc900050ed000 RDI: ffff88021fd136f8
-> RBP: ffffc9000116fc88 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000000 R12: ffff880216bb6050
-> R13: 0000000000000400 R14: 0000000000000001 R15: ffffffff82eda864
-> FS:  00007f61a06bc700(0000) GS:ffff88021fd00000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 0000000020a5afd8 CR3: 000000020f8a9000 CR4: 00000000001406e0
-> Call Trace:
->  check_object_size include/linux/thread_info.h:112 [inline]
->  check_copy_size include/linux/thread_info.h:143 [inline]
->  copy_to_user include/linux/uaccess.h:154 [inline]
->  old_dev_ioctl.isra.1+0x21d/0x9a0 net/bridge/br_ioctl.c:178
+> Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
-Uhh, this doesn't make sense, much like the other report...
-
-                indices = kcalloc(num, sizeof(int), GFP_KERNEL);
-                if (indices == NULL)
-                        return -ENOMEM;
-
-                get_port_ifindices(br, indices, num);
-                if (copy_to_user((void __user *)args[1], indices,
-num*sizeof(int)))
-
-offset is 0. size overlaps. usercopy checks in -next must be broken. I
-will double-check.
-
--Kees
-
->  br_dev_ioctl+0x3f/0xa0 net/bridge/br_ioctl.c:392
->  dev_ifsioc+0x175/0x520 net/core/dev_ioctl.c:354
->  dev_ioctl+0x548/0x7a0 net/core/dev_ioctl.c:589
->  sock_ioctl+0x150/0x320 net/socket.c:998
->  vfs_ioctl fs/ioctl.c:46 [inline]
->  do_vfs_ioctl+0xaf/0x840 fs/ioctl.c:686
->  SYSC_ioctl fs/ioctl.c:701 [inline]
->  SyS_ioctl+0x8f/0xc0 fs/ioctl.c:692
->  entry_SYSCALL_64_fastpath+0x1f/0x96
-> RIP: 0033:0x452a39
-> RSP: 002b:00007f61a06bbc58 EFLAGS: 00000212 ORIG_RAX: 0000000000000010
-> RAX: ffffffffffffffda RBX: 00007f61a06bc700 RCX: 0000000000452a39
-> RDX: 0000000020a59fd8 RSI: 00000000000089f0 RDI: 0000000000000014
-> RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000212 R12: 0000000000000000
-> R13: 0000000000a6f7ff R14: 00007f61a06bc9c0 R15: 0000000000000000
-> Code: 7b e5 82 48 0f 44 da e8 8d 82 eb ff 48 8b 45 d0 4d 89 e9 4c 89 e1 4c
-> 89 fa 48 89 de 48 c7 c7 a8 51 e6 82 49 89 c0 e8 76 b7 e3 ff <0f> 0b 48 c7 c0
-> 43 51 e6 82 eb a1 48 c7 c0 53 51 e6 82 eb 98 48
-> RIP: report_usercopy mm/usercopy.c:76 [inline] RSP: ffffc9000116fc50
-> RIP: __check_object_size+0x1e2/0x250 mm/usercopy.c:276 RSP: ffffc9000116fc50
-> ---[ end trace 5fadb883cda020dc ]---
-> Kernel panic - not syncing: Fatal exception
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Kernel Offset: disabled
-> Rebooting in 86400 seconds..
->
->
-> ---
-> This bug is generated by a dumb bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for details.
-> Direct all questions to syzkaller@googlegroups.com.
-> Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
->
-> syzbot will keep track of this bug report.
-> Once a fix for this bug is merged into any tree, reply to this email with:
-> #syz fix: exact-commit-title
-> To mark this as a duplicate of another syzbot report, please reply with:
-> #syz dup: exact-subject-of-another-report
-> If it's a one-off invalid bug report, please reply with:
-> #syz invalid
-> Note: if the crash happens again, it will cause creation of a new bug
-> report.
-> Note: all commands must start from beginning of the line in the email body.
-
-
-
--- 
-Kees Cook
-Pixel Security
+I'll also note that the locking is not necessary in the memory map
+init path because we can't possibly be racing mutations of the radix
+as everyone who might touch the radix is serialized by the
+mem_hotplug_begin() lock. It's only accesses outside of the
+arch_{add,remove}_memory() that need the rcu lock. However, that is
+another subtle/magic assumption of this code and its better to pass
+the altmap down through the call chain. I just don't want people
+thinking that -stable needs to pick any of this up, because afaics the
+locking is fine as is, and we can drop that mention from the
+changelog.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
