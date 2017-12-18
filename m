@@ -1,38 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1E956B025E
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:54:39 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id o20so9111508wro.8
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:54:39 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E8D4F6B0261
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:54:42 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c9so9356437wrb.4
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:54:42 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id y34si2309777wrd.181.2017.12.18.03.54.38
+        by mx.google.com with ESMTPS id x20si8724105wme.178.2017.12.18.03.54.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 03:54:39 -0800 (PST)
-Message-Id: <20171218115254.247700454@linutronix.de>
-Date: Mon, 18 Dec 2017 12:42:23 +0100
+        Mon, 18 Dec 2017 03:54:41 -0800 (PST)
+Message-Id: <20171218115255.418928476@linutronix.de>
+Date: Mon, 18 Dec 2017 12:42:37 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V163 08/51] x86/doc: Remove obvious weirdness
+Subject: [patch V163 22/51] x86/mm/pti: Prepare the x86/entry assembly code
+ for entry/exit CR3 switching
 References: <20171218114215.239543034@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0069-x86-doc-Remove-obvious-weirdness.patch
+ filename=0029-x86-mm-pti-Prepare-the-x86-entry-assembly-code-for-e.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@suse.de>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+PAGE_TABLE_ISOLATION needs to switch to a different CR3 value when it
+enters the kernel and switch back when it exits.  This essentially needs to
+be done before leaving assembly code.
+
+This is extra challenging because the switching context is tricky: the
+registers that can be clobbered can vary.  It is also hard to store things
+on the stack because there is an established ABI (ptregs) or the stack is
+entirely unsafe to use.
+
+Establish a set of macros that allow changing to the user and kernel CR3
+values.
+
+Interactions with SWAPGS:
+
+  Previous versions of the PAGE_TABLE_ISOLATION code relied on having
+  per-CPU scratch space to save/restore a register that can be used for the
+  CR3 MOV.  The %GS register is used to index into our per-CPU space, so
+  SWAPGS *had* to be done before the CR3 switch.  That scratch space is gone
+  now, but the semantic that SWAPGS must be done before the CR3 MOV is
+  retained.  This is good to keep because it is not that hard to do and it
+  allows to do things like add per-CPU debugging information.
+
+What this does in the NMI code is worth pointing out.  NMIs can interrupt
+*any* context and they can also be nested with NMIs interrupting other
+NMIs.  The comments below ".Lnmi_from_kernel" explain the format of the
+stack during this situation.  Changing the format of this stack is hard.
+Instead of storing the old CR3 value on the stack, this depends on the
+*regular* register save/restore mechanism and then uses %r14 to keep CR3
+during the NMI.  It is callee-saved and will not be clobbered by the C NMI
+handlers that get called.
+
+[ PeterZ: ESPFIX optimization ]
+
+Based-on-code-from: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -41,6 +77,7 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
@@ -48,46 +85,304 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- Documentation/x86/x86_64/mm.txt |   12 +++---------
- 1 file changed, 3 insertions(+), 9 deletions(-)
+ arch/x86/entry/calling.h         |   66 +++++++++++++++++++++++++++++++++++++++
+ arch/x86/entry/entry_64.S        |   45 +++++++++++++++++++++++---
+ arch/x86/entry/entry_64_compat.S |   24 +++++++++++++-
+ 3 files changed, 128 insertions(+), 7 deletions(-)
 
---- a/Documentation/x86/x86_64/mm.txt
-+++ b/Documentation/x86/x86_64/mm.txt
-@@ -1,6 +1,4 @@
+--- a/arch/x86/entry/calling.h
++++ b/arch/x86/entry/calling.h
+@@ -1,6 +1,8 @@
+ /* SPDX-License-Identifier: GPL-2.0 */
+ #include <linux/jump_label.h>
+ #include <asm/unwind_hints.h>
++#include <asm/cpufeatures.h>
++#include <asm/page_types.h>
  
--<previous description obsolete, deleted>
--
- Virtual memory map with 4 level page tables:
+ /*
  
- 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
-@@ -49,8 +47,9 @@ ffffffffffe00000 - ffffffffffffffff (=2
+@@ -187,6 +189,70 @@ For 32-bit we have the following convent
+ #endif
+ .endm
  
- Architecture defines a 64-bit virtual address. Implementations can support
- less. Currently supported are 48- and 57-bit virtual addresses. Bits 63
--through to the most-significant implemented bit are set to either all ones
--or all zero. This causes hole between user space and kernel addresses.
-+through to the most-significant implemented bit are sign extended.
-+This causes hole between user space and kernel addresses if you interpret them
-+as unsigned.
++#ifdef CONFIG_PAGE_TABLE_ISOLATION
++
++/* PAGE_TABLE_ISOLATION PGDs are 8k.  Flip bit 12 to switch between the two halves: */
++#define PTI_SWITCH_MASK (1<<PAGE_SHIFT)
++
++.macro ADJUST_KERNEL_CR3 reg:req
++	/* Clear "PAGE_TABLE_ISOLATION bit", point CR3 at kernel pagetables: */
++	andq	$(~PTI_SWITCH_MASK), \reg
++.endm
++
++.macro ADJUST_USER_CR3 reg:req
++	/* Move CR3 up a page to the user page tables: */
++	orq	$(PTI_SWITCH_MASK), \reg
++.endm
++
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++	mov	%cr3, \scratch_reg
++	ADJUST_KERNEL_CR3 \scratch_reg
++	mov	\scratch_reg, %cr3
++.endm
++
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++	mov	%cr3, \scratch_reg
++	ADJUST_USER_CR3 \scratch_reg
++	mov	\scratch_reg, %cr3
++.endm
++
++.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
++	movq	%cr3, \scratch_reg
++	movq	\scratch_reg, \save_reg
++	/*
++	 * Is the switch bit zero?  This means the address is
++	 * up in real PAGE_TABLE_ISOLATION patches in a moment.
++	 */
++	testq	$(PTI_SWITCH_MASK), \scratch_reg
++	jz	.Ldone_\@
++
++	ADJUST_KERNEL_CR3 \scratch_reg
++	movq	\scratch_reg, %cr3
++
++.Ldone_\@:
++.endm
++
++.macro RESTORE_CR3 save_reg:req
++	/*
++	 * The CR3 write could be avoided when not changing its value,
++	 * but would require a CR3 read *and* a scratch register.
++	 */
++	movq	\save_reg, %cr3
++.endm
++
++#else /* CONFIG_PAGE_TABLE_ISOLATION=n: */
++
++.macro SWITCH_TO_KERNEL_CR3 scratch_reg:req
++.endm
++.macro SWITCH_TO_USER_CR3 scratch_reg:req
++.endm
++.macro SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg:req save_reg:req
++.endm
++.macro RESTORE_CR3 save_reg:req
++.endm
++
++#endif
++
+ #endif /* CONFIG_X86_64 */
  
- The direct mapping covers all memory in the system up to the highest
- memory address (this means in some cases it can also include PCI memory
-@@ -60,9 +59,6 @@ vmalloc space is lazily synchronized int
- the processes using the page fault handler, with init_top_pgt as
- reference.
+ /*
+--- a/arch/x86/entry/entry_64.S
++++ b/arch/x86/entry/entry_64.S
+@@ -164,6 +164,9 @@ ENTRY(entry_SYSCALL_64_trampoline)
+ 	/* Stash the user RSP. */
+ 	movq	%rsp, RSP_SCRATCH
  
--Current X86-64 implementations support up to 46 bits of address space (64 TB),
--which is our current limit. This expands into MBZ space in the page tables.
--
- We map EFI runtime services in the 'efi_pgd' PGD in a 64Gb large virtual
- memory window (this size is arbitrary, it can be raised later if needed).
- The mappings are not part of any other kernel PGD and are only available
-@@ -74,5 +70,3 @@ following fixmap section.
- Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
- physical memory, vmalloc/ioremap space and virtual memory map are randomized.
- Their order is preserved but their base will be offset early at boot time.
--
---Andi Kleen, Jul 2004
++	/* Note: using %rsp as a scratch reg. */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
++
+ 	/* Load the top of the task stack into RSP */
+ 	movq	CPU_ENTRY_AREA_tss + TSS_sp1 + CPU_ENTRY_AREA, %rsp
+ 
+@@ -203,6 +206,10 @@ ENTRY(entry_SYSCALL_64)
+ 	 */
+ 
+ 	swapgs
++	/*
++	 * This path is not taken when PAGE_TABLE_ISOLATION is disabled so it
++	 * is not required to switch CR3.
++	 */
+ 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
+ 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+ 
+@@ -399,6 +406,7 @@ GLOBAL(entry_SYSCALL_64_after_hwframe)
+ 	 * We are on the trampoline stack.  All regs except RDI are live.
+ 	 * We can do future final exit work right here.
+ 	 */
++	SWITCH_TO_USER_CR3 scratch_reg=%rdi
+ 
+ 	popq	%rdi
+ 	popq	%rsp
+@@ -736,6 +744,8 @@ GLOBAL(swapgs_restore_regs_and_return_to
+ 	 * We can do future final exit work right here.
+ 	 */
+ 
++	SWITCH_TO_USER_CR3 scratch_reg=%rdi
++
+ 	/* Restore RDI. */
+ 	popq	%rdi
+ 	SWAPGS
+@@ -818,7 +828,9 @@ ENTRY(native_iret)
+ 	 */
+ 
+ 	pushq	%rdi				/* Stash user RDI */
+-	SWAPGS
++	SWAPGS					/* to kernel GS */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi	/* to kernel CR3 */
++
+ 	movq	PER_CPU_VAR(espfix_waddr), %rdi
+ 	movq	%rax, (0*8)(%rdi)		/* user RAX */
+ 	movq	(1*8)(%rsp), %rax		/* user RIP */
+@@ -834,7 +846,6 @@ ENTRY(native_iret)
+ 	/* Now RAX == RSP. */
+ 
+ 	andl	$0xffff0000, %eax		/* RAX = (RSP & 0xffff0000) */
+-	popq	%rdi				/* Restore user RDI */
+ 
+ 	/*
+ 	 * espfix_stack[31:16] == 0.  The page tables are set up such that
+@@ -845,7 +856,11 @@ ENTRY(native_iret)
+ 	 * still points to an RO alias of the ESPFIX stack.
+ 	 */
+ 	orq	PER_CPU_VAR(espfix_stack), %rax
+-	SWAPGS
++
++	SWITCH_TO_USER_CR3 scratch_reg=%rdi	/* to user CR3 */
++	SWAPGS					/* to user GS */
++	popq	%rdi				/* Restore user RDI */
++
+ 	movq	%rax, %rsp
+ 	UNWIND_HINT_IRET_REGS offset=8
+ 
+@@ -945,6 +960,8 @@ ENTRY(switch_to_thread_stack)
+ 	UNWIND_HINT_FUNC
+ 
+ 	pushq	%rdi
++	/* Need to switch before accessing the thread stack. */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
+ 	movq	%rsp, %rdi
+ 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+ 	UNWIND_HINT sp_offset=16 sp_reg=ORC_REG_DI
+@@ -1244,7 +1261,11 @@ ENTRY(paranoid_entry)
+ 	js	1f				/* negative -> in kernel */
+ 	SWAPGS
+ 	xorl	%ebx, %ebx
+-1:	ret
++
++1:
++	SAVE_AND_SWITCH_TO_KERNEL_CR3 scratch_reg=%rax save_reg=%r14
++
++	ret
+ END(paranoid_entry)
+ 
+ /*
+@@ -1266,6 +1287,7 @@ ENTRY(paranoid_exit)
+ 	testl	%ebx, %ebx			/* swapgs needed? */
+ 	jnz	.Lparanoid_exit_no_swapgs
+ 	TRACE_IRQS_IRETQ
++	RESTORE_CR3	save_reg=%r14
+ 	SWAPGS_UNSAFE_STACK
+ 	jmp	.Lparanoid_exit_restore
+ .Lparanoid_exit_no_swapgs:
+@@ -1293,6 +1315,8 @@ ENTRY(error_entry)
+ 	 * from user mode due to an IRET fault.
+ 	 */
+ 	SWAPGS
++	/* We have user CR3.  Change to kernel CR3. */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
+ 
+ .Lerror_entry_from_usermode_after_swapgs:
+ 	/* Put us onto the real thread stack. */
+@@ -1339,6 +1363,7 @@ ENTRY(error_entry)
+ 	 * .Lgs_change's error handler with kernel gsbase.
+ 	 */
+ 	SWAPGS
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
+ 	jmp .Lerror_entry_done
+ 
+ .Lbstep_iret:
+@@ -1348,10 +1373,11 @@ ENTRY(error_entry)
+ 
+ .Lerror_bad_iret:
+ 	/*
+-	 * We came from an IRET to user mode, so we have user gsbase.
+-	 * Switch to kernel gsbase:
++	 * We came from an IRET to user mode, so we have user
++	 * gsbase and CR3.  Switch to kernel gsbase and CR3:
+ 	 */
+ 	SWAPGS
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rax
+ 
+ 	/*
+ 	 * Pretend that the exception came from user mode: set up pt_regs
+@@ -1383,6 +1409,10 @@ END(error_exit)
+ /*
+  * Runs on exception stack.  Xen PV does not go through this path at all,
+  * so we can use real assembly here.
++ *
++ * Registers:
++ *	%r14: Used to save/restore the CR3 of the interrupted context
++ *	      when PAGE_TABLE_ISOLATION is in use.  Do not clobber.
+  */
+ ENTRY(nmi)
+ 	UNWIND_HINT_IRET_REGS
+@@ -1446,6 +1476,7 @@ ENTRY(nmi)
+ 
+ 	swapgs
+ 	cld
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdx
+ 	movq	%rsp, %rdx
+ 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+ 	UNWIND_HINT_IRET_REGS base=%rdx offset=8
+@@ -1698,6 +1729,8 @@ ENTRY(nmi)
+ 	movq	$-1, %rsi
+ 	call	do_nmi
+ 
++	RESTORE_CR3 save_reg=%r14
++
+ 	testl	%ebx, %ebx			/* swapgs needed? */
+ 	jnz	nmi_restore
+ nmi_swapgs:
+--- a/arch/x86/entry/entry_64_compat.S
++++ b/arch/x86/entry/entry_64_compat.S
+@@ -49,6 +49,10 @@
+ ENTRY(entry_SYSENTER_compat)
+ 	/* Interrupts are off on entry. */
+ 	SWAPGS
++
++	/* We are about to clobber %rsp anyway, clobbering here is OK */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rsp
++
+ 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
+ 
+ 	/*
+@@ -216,6 +220,12 @@ GLOBAL(entry_SYSCALL_compat_after_hwfram
+ 	pushq   $0			/* pt_regs->r15 = 0 */
+ 
+ 	/*
++	 * We just saved %rdi so it is safe to clobber.  It is not
++	 * preserved during the C calls inside TRACE_IRQS_OFF anyway.
++	 */
++	SWITCH_TO_KERNEL_CR3 scratch_reg=%rdi
++
++	/*
+ 	 * User mode is traced as though IRQs are on, and SYSENTER
+ 	 * turned them off.
+ 	 */
+@@ -256,10 +266,22 @@ GLOBAL(entry_SYSCALL_compat_after_hwfram
+ 	 * when the system call started, which is already known to user
+ 	 * code.  We zero R8-R10 to avoid info leaks.
+          */
++	movq	RSP-ORIG_RAX(%rsp), %rsp
++
++	/*
++	 * The original userspace %rsp (RSP-ORIG_RAX(%rsp)) is stored
++	 * on the process stack which is not mapped to userspace and
++	 * not readable after we SWITCH_TO_USER_CR3.  Delay the CR3
++	 * switch until after after the last reference to the process
++	 * stack.
++	 *
++	 * %r8 is zeroed before the sysret, thus safe to clobber.
++	 */
++	SWITCH_TO_USER_CR3 scratch_reg=%r8
++
+ 	xorq	%r8, %r8
+ 	xorq	%r9, %r9
+ 	xorq	%r10, %r10
+-	movq	RSP-ORIG_RAX(%rsp), %rsp
+ 	swapgs
+ 	sysretl
+ END(entry_SYSCALL_compat)
 
 
 --
