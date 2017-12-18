@@ -1,49 +1,61 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D0CD76B0038
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 13:49:22 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id g8so11286287pgs.14
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:49:22 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 1sor4594910plq.100.2017.12.18.10.49.21
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FBA46B0033
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 13:57:24 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id w22so11282437pge.10
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:57:24 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id n18si436524pgc.416.2017.12.18.10.54.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 18 Dec 2017 10:49:21 -0800 (PST)
-From: Andrei Vagin <avagin@openvz.org>
-Subject: [PATCH] mm: don't use the same value for MAP_FIXED_SAFE and MAP_SYNC
-Date: Mon, 18 Dec 2017 10:49:16 -0800
-Message-Id: <20171218184916.24445-1-avagin@openvz.org>
-In-Reply-To: <20171218091302.GL16951@dhcp22.suse.cz>
-References: <20171218091302.GL16951@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Dec 2017 10:54:32 -0800 (PST)
+Subject: Re: [PATCH v9 29/51] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys: Add
+ sysfs interface
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+ <1509958663-18737-30-git-send-email-linuxram@us.ibm.com>
+From: Dave Hansen <dave.hansen@intel.com>
+Message-ID: <bbc5593e-31ec-183a-01a5-1a253dc0c275@intel.com>
+Date: Mon, 18 Dec 2017 10:54:26 -0800
+MIME-Version: 1.0
+In-Reply-To: <1509958663-18737-30-git-send-email-linuxram@us.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, Andrei Vagin <avagin@openvz.org>, Michal Hocko <mhocko@kernel.org>
+To: Ram Pai <linuxram@us.ibm.com>, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de
+Cc: linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, benh@kernel.crashing.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
 
-Cc: Michal Hocko <mhocko@kernel.org>
-Fixes: ("fs, elf: drop MAP_FIXED usage from elf_map")
-Signed-off-by: Andrei Vagin <avagin@openvz.org>
----
- include/uapi/asm-generic/mman-common.h | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
+On 11/06/2017 12:57 AM, Ram Pai wrote:
+> Expose useful information for programs using memory protection keys.
+> Provide implementation for powerpc and x86.
+> 
+> On a powerpc system with pkeys support, here is what is shown:
+> 
+> $ head /sys/kernel/mm/protection_keys/*
+> ==> /sys/kernel/mm/protection_keys/disable_access_supported <==
+> true
 
-diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-index b37502cbbef7..2db3fa287274 100644
---- a/include/uapi/asm-generic/mman-common.h
-+++ b/include/uapi/asm-generic/mman-common.h
-@@ -26,7 +26,9 @@
- #else
- # define MAP_UNINITIALIZED 0x0		/* Don't support this flag */
- #endif
--#define MAP_FIXED_SAFE	0x80000		/* MAP_FIXED which doesn't unmap underlying mapping */
-+
-+/* 0x0100 - 0x80000 flags are defined in asm-generic/mman.h */
-+#define MAP_FIXED_SAFE	0x100000		/* MAP_FIXED which doesn't unmap underlying mapping */
- 
- /*
-  * Flags for mlock
--- 
-2.13.6
+This is cute, but I don't think it should be part of the ABI.  Put it in
+debugfs if you want it for cute tests.  The stuff that this tells you
+can and should come from pkey_alloc() for the ABI.
+
+http://man7.org/linux/man-pages/man7/pkeys.7.html
+
+>        Any application wanting to use protection keys needs to be able to
+>        function without them.  They might be unavailable because the
+>        hardware that the application runs on does not support them, the
+>        kernel code does not contain support, the kernel support has been
+>        disabled, or because the keys have all been allocated, perhaps by a
+>        library the application is using.  It is recommended that
+>        applications wanting to use protection keys should simply call
+>        pkey_alloc(2) and test whether the call succeeds, instead of
+>        attempting to detect support for the feature in any other way.
+
+Do you really not have standard way on ppc to say whether hardware
+features are supported by the kernel?  For instance, how do you know if
+a given set of registers are known to and are being context-switched by
+the kernel?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
