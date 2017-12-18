@@ -1,209 +1,100 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E0C616B0273
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:24:57 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id v8so8915854otd.4
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:24:57 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E50636B0274
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:25:10 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id z30so8920384otd.9
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:25:10 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id e203si3723327oia.330.2017.12.18.04.24.56
+        by mx.google.com with ESMTPS id q32si325795otc.318.2017.12.18.04.25.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 04:24:56 -0800 (PST)
+        Mon, 18 Dec 2017 04:25:10 -0800 (PST)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V4 08/45] block: move bio_alloc_pages() to bcache
-Date: Mon, 18 Dec 2017 20:22:10 +0800
-Message-Id: <20171218122247.3488-9-ming.lei@redhat.com>
+Subject: [PATCH V4 09/45] btrfs: avoid access to .bi_vcnt directly
+Date: Mon, 18 Dec 2017 20:22:11 +0800
+Message-Id: <20171218122247.3488-10-ming.lei@redhat.com>
 In-Reply-To: <20171218122247.3488-1-ming.lei@redhat.com>
 References: <20171218122247.3488-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
-Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ming Lei <ming.lei@redhat.com>
+Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ming Lei <ming.lei@redhat.com>, Chris Mason <clm@fb.com>, Josef Bacik <jbacik@fb.com>, David Sterba <dsterba@suse.com>, linux-btrfs@vger.kernel.org
 
-bcache is the only user of bio_alloc_pages(), so move this function into
-bcache, and avoid it misused in future.
+BTRFS uses bio->bi_vcnt to figure out page numbers, this way becomes not
+correct once we start to enable multipage bvec.
 
-Also rename it as bch_bio_allo_pages() since it is bcache only.
+So use bio_nr_pages() to do that instead.
 
+Cc: Chris Mason <clm@fb.com>
+Cc: Josef Bacik <jbacik@fb.com>
+Cc: David Sterba <dsterba@suse.com>
+Cc: linux-btrfs@vger.kernel.org
+Acked-by: David Sterba <dsterba@suse.com>
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- block/bio.c                   | 28 ----------------------------
- drivers/md/bcache/btree.c     |  2 +-
- drivers/md/bcache/debug.c     |  2 +-
- drivers/md/bcache/movinggc.c  |  2 +-
- drivers/md/bcache/request.c   |  2 +-
- drivers/md/bcache/util.c      | 27 +++++++++++++++++++++++++++
- drivers/md/bcache/util.h      |  1 +
- drivers/md/bcache/writeback.c |  2 +-
- include/linux/bio.h           |  1 -
- 9 files changed, 33 insertions(+), 34 deletions(-)
+ fs/btrfs/extent_io.c | 9 +++++----
+ fs/btrfs/extent_io.h | 2 +-
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/block/bio.c b/block/bio.c
-index 8bfdea58159b..fe1efbeaf4aa 100644
---- a/block/bio.c
-+++ b/block/bio.c
-@@ -969,34 +969,6 @@ void bio_advance(struct bio *bio, unsigned bytes)
- EXPORT_SYMBOL(bio_advance);
- 
- /**
-- * bio_alloc_pages - allocates a single page for each bvec in a bio
-- * @bio: bio to allocate pages for
-- * @gfp_mask: flags for allocation
-- *
-- * Allocates pages up to @bio->bi_vcnt.
-- *
-- * Returns 0 on success, -ENOMEM on failure. On failure, any allocated pages are
-- * freed.
-- */
--int bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
--{
--	int i;
--	struct bio_vec *bv;
--
--	bio_for_each_segment_all(bv, bio, i) {
--		bv->bv_page = alloc_page(gfp_mask);
--		if (!bv->bv_page) {
--			while (--bv >= bio->bi_io_vec)
--				__free_page(bv->bv_page);
--			return -ENOMEM;
--		}
--	}
--
--	return 0;
--}
--EXPORT_SYMBOL(bio_alloc_pages);
--
--/**
-  * bio_copy_data - copy contents of data buffers from one chain of bios to
-  * another
-  * @src: source bio list
-diff --git a/drivers/md/bcache/btree.c b/drivers/md/bcache/btree.c
-index 02a4cf646fdc..ebb1874218e7 100644
---- a/drivers/md/bcache/btree.c
-+++ b/drivers/md/bcache/btree.c
-@@ -419,7 +419,7 @@ static void do_btree_node_write(struct btree *b)
- 	SET_PTR_OFFSET(&k.key, 0, PTR_OFFSET(&k.key, 0) +
- 		       bset_sector_offset(&b->keys, i));
- 
--	if (!bio_alloc_pages(b->bio, __GFP_NOWARN|GFP_NOWAIT)) {
-+	if (!bch_bio_alloc_pages(b->bio, __GFP_NOWARN|GFP_NOWAIT)) {
- 		int j;
- 		struct bio_vec *bv;
- 		void *base = (void *) ((unsigned long) i & ~(PAGE_SIZE - 1));
-diff --git a/drivers/md/bcache/debug.c b/drivers/md/bcache/debug.c
-index c7a02c4900da..879ab21074c6 100644
---- a/drivers/md/bcache/debug.c
-+++ b/drivers/md/bcache/debug.c
-@@ -116,7 +116,7 @@ void bch_data_verify(struct cached_dev *dc, struct bio *bio)
- 		return;
- 	check->bi_opf = REQ_OP_READ;
- 
--	if (bio_alloc_pages(check, GFP_NOIO))
-+	if (bch_bio_alloc_pages(check, GFP_NOIO))
- 		goto out_put;
- 
- 	submit_bio_wait(check);
-diff --git a/drivers/md/bcache/movinggc.c b/drivers/md/bcache/movinggc.c
-index d50c1c97da68..a24c3a95b2c0 100644
---- a/drivers/md/bcache/movinggc.c
-+++ b/drivers/md/bcache/movinggc.c
-@@ -162,7 +162,7 @@ static void read_moving(struct cache_set *c)
- 		bio_set_op_attrs(bio, REQ_OP_READ, 0);
- 		bio->bi_end_io	= read_moving_endio;
- 
--		if (bio_alloc_pages(bio, GFP_KERNEL))
-+		if (bch_bio_alloc_pages(bio, GFP_KERNEL))
- 			goto err;
- 
- 		trace_bcache_gc_copy(&w->key);
-diff --git a/drivers/md/bcache/request.c b/drivers/md/bcache/request.c
-index 643c3021624f..c493fb947dc9 100644
---- a/drivers/md/bcache/request.c
-+++ b/drivers/md/bcache/request.c
-@@ -841,7 +841,7 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
- 	cache_bio->bi_private	= &s->cl;
- 
- 	bch_bio_map(cache_bio, NULL);
--	if (bio_alloc_pages(cache_bio, __GFP_NOWARN|GFP_NOIO))
-+	if (bch_bio_alloc_pages(cache_bio, __GFP_NOWARN|GFP_NOIO))
- 		goto out_put;
- 
- 	if (reada)
-diff --git a/drivers/md/bcache/util.c b/drivers/md/bcache/util.c
-index 61813d230015..a23cd6a14b74 100644
---- a/drivers/md/bcache/util.c
-+++ b/drivers/md/bcache/util.c
-@@ -283,6 +283,33 @@ start:		bv->bv_len	= min_t(size_t, PAGE_SIZE - bv->bv_offset,
- 	}
+diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+index 69cd63d4503d..d43360b33ef6 100644
+--- a/fs/btrfs/extent_io.c
++++ b/fs/btrfs/extent_io.c
+@@ -2257,7 +2257,7 @@ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+ 	return 0;
  }
  
-+/**
-+ * bch_bio_alloc_pages - allocates a single page for each bvec in a bio
-+ * @bio: bio to allocate pages for
-+ * @gfp_mask: flags for allocation
-+ *
-+ * Allocates pages up to @bio->bi_vcnt.
-+ *
-+ * Returns 0 on success, -ENOMEM on failure. On failure, any allocated pages are
-+ * freed.
-+ */
-+int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask)
-+{
-+	int i;
-+	struct bio_vec *bv;
-+
-+	bio_for_each_segment_all(bv, bio, i) {
-+		bv->bv_page = alloc_page(gfp_mask);
-+		if (!bv->bv_page) {
-+			while (--bv >= bio->bi_io_vec)
-+				__free_page(bv->bv_page);
-+			return -ENOMEM;
-+		}
-+	}
-+
-+	return 0;
-+}
-+
- /*
-  * Portions Copyright (c) 1996-2001, PostgreSQL Global Development Group (Any
-  * use permitted, subject to terms of PostgreSQL license; see.)
-diff --git a/drivers/md/bcache/util.h b/drivers/md/bcache/util.h
-index ed5e8a412eb8..4df4c5c1cab2 100644
---- a/drivers/md/bcache/util.h
-+++ b/drivers/md/bcache/util.h
-@@ -558,6 +558,7 @@ static inline unsigned fract_exp_two(unsigned x, unsigned fract_bits)
- }
- 
- void bch_bio_map(struct bio *bio, void *base);
-+int bch_bio_alloc_pages(struct bio *bio, gfp_t gfp_mask);
- 
- static inline sector_t bdev_sectors(struct block_device *bdev)
+-bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
++bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
+ 			   struct io_failure_record *failrec, int failed_mirror)
  {
-diff --git a/drivers/md/bcache/writeback.c b/drivers/md/bcache/writeback.c
-index 56a37884ca8b..1ac2af6128b1 100644
---- a/drivers/md/bcache/writeback.c
-+++ b/drivers/md/bcache/writeback.c
-@@ -278,7 +278,7 @@ static void read_dirty(struct cached_dev *dc)
- 		bio_set_dev(&io->bio, PTR_CACHE(dc->disk.c, &w->key, 0)->bdev);
- 		io->bio.bi_end_io	= read_dirty_endio;
+ 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+@@ -2281,7 +2281,7 @@ bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
+ 	 *	a) deliver good data to the caller
+ 	 *	b) correct the bad sectors on disk
+ 	 */
+-	if (failed_bio->bi_vcnt > 1) {
++	if (failed_bio_pages > 1) {
+ 		/*
+ 		 * to fulfill b), we need to know the exact failing sectors, as
+ 		 * we don't want to rewrite any more than the failed ones. thus,
+@@ -2374,6 +2374,7 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	int read_mode = 0;
+ 	blk_status_t status;
+ 	int ret;
++	unsigned failed_bio_pages = bio_pages_all(failed_bio);
  
--		if (bio_alloc_pages(&io->bio, GFP_KERNEL))
-+		if (bch_bio_alloc_pages(&io->bio, GFP_KERNEL))
- 			goto err_free;
+ 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
  
- 		trace_bcache_writeback(&w->key);
-diff --git a/include/linux/bio.h b/include/linux/bio.h
-index 435ddf04e889..367a979fd4a6 100644
---- a/include/linux/bio.h
-+++ b/include/linux/bio.h
-@@ -500,7 +500,6 @@ static inline void bio_flush_dcache_pages(struct bio *bi)
- #endif
+@@ -2381,13 +2382,13 @@ static int bio_readpage_error(struct bio *failed_bio, u64 phy_offset,
+ 	if (ret)
+ 		return ret;
  
- extern void bio_copy_data(struct bio *dst, struct bio *src);
--extern int bio_alloc_pages(struct bio *bio, gfp_t gfp);
- extern void bio_free_pages(struct bio *bio);
+-	if (!btrfs_check_repairable(inode, failed_bio, failrec,
++	if (!btrfs_check_repairable(inode, failed_bio_pages, failrec,
+ 				    failed_mirror)) {
+ 		free_io_failure(failure_tree, tree, failrec);
+ 		return -EIO;
+ 	}
  
- extern struct bio *bio_copy_user_iov(struct request_queue *,
+-	if (failed_bio->bi_vcnt > 1)
++	if (failed_bio_pages > 1)
+ 		read_mode |= REQ_FAILFAST_DEV;
+ 
+ 	phy_offset >>= inode->i_sb->s_blocksize_bits;
+diff --git a/fs/btrfs/extent_io.h b/fs/btrfs/extent_io.h
+index 93dcae0c3183..20854d63c75b 100644
+--- a/fs/btrfs/extent_io.h
++++ b/fs/btrfs/extent_io.h
+@@ -540,7 +540,7 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start,
+ 		u64 end);
+ int btrfs_get_io_failure_record(struct inode *inode, u64 start, u64 end,
+ 				struct io_failure_record **failrec_ret);
+-bool btrfs_check_repairable(struct inode *inode, struct bio *failed_bio,
++bool btrfs_check_repairable(struct inode *inode, unsigned failed_bio_pages,
+ 			    struct io_failure_record *failrec, int fail_mirror);
+ struct bio *btrfs_create_repair_bio(struct inode *inode, struct bio *failed_bio,
+ 				    struct io_failure_record *failrec,
 -- 
 2.9.5
 
