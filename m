@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 677676B02AB
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:31:46 -0500 (EST)
-Received: by mail-ot0-f197.google.com with SMTP id c33so5334748ote.1
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:31:46 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C2B026B02AD
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:31:58 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id p4so8916708oti.15
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:31:58 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k51si3977840otc.367.2017.12.18.04.31.45
+        by mx.google.com with ESMTPS id u9si949556oti.201.2017.12.18.04.31.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 04:31:45 -0800 (PST)
+        Mon, 18 Dec 2017 04:31:57 -0800 (PST)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V4 36/45] f2fs: conver to bio_for_each_page_all2
-Date: Mon, 18 Dec 2017 20:22:38 +0800
-Message-Id: <20171218122247.3488-37-ming.lei@redhat.com>
+Subject: [PATCH V4 37/45] xfs: conver to bio_for_each_page_all2
+Date: Mon, 18 Dec 2017 20:22:39 +0800
+Message-Id: <20171218122247.3488-38-ming.lei@redhat.com>
 In-Reply-To: <20171218122247.3488-1-ming.lei@redhat.com>
 References: <20171218122247.3488-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -23,60 +23,44 @@ Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block
 bio_for_each_page_all() can't be used any more after multipage bvec is
 enabled, so we have to convert to bio_for_each_page_all2().
 
+Given bvec can't be changed under bio_for_each_page_all2(), this patch
+marks the bvec parameter as 'const' for xfs_finish_page_writeback().
+
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/f2fs/data.c | 9 ++++++---
- 1 file changed, 6 insertions(+), 3 deletions(-)
+ fs/xfs/xfs_aops.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
-index c404bd86169e..dc76e0b38ebb 100644
---- a/fs/f2fs/data.c
-+++ b/fs/f2fs/data.c
-@@ -54,6 +54,7 @@ static void f2fs_read_end_io(struct bio *bio)
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index 8c19f7e0fd32..c0d970817cdc 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -107,7 +107,7 @@ xfs_find_daxdev_for_inode(
+ static void
+ xfs_finish_page_writeback(
+ 	struct inode		*inode,
+-	struct bio_vec		*bvec,
++	const struct bio_vec	*bvec,
+ 	int			error)
  {
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all bia;
+ 	struct buffer_head	*head = page_buffers(bvec->bv_page), *bh = head;
+@@ -169,6 +169,7 @@ xfs_destroy_ioend(
+ 	for (bio = &ioend->io_inline_bio; bio; bio = next) {
+ 		struct bio_vec	*bvec;
+ 		int		i;
++		struct bvec_iter_all bia;
  
- #ifdef CONFIG_F2FS_FAULT_INJECTION
- 	if (time_to_inject(F2FS_P_SB(bio_first_page_all(bio)), FAULT_IO)) {
-@@ -71,7 +72,7 @@ static void f2fs_read_end_io(struct bio *bio)
- 		}
- 	}
+ 		/*
+ 		 * For the last bio, bi_private points to the ioend, so we
+@@ -180,7 +181,7 @@ xfs_destroy_ioend(
+ 			next = bio->bi_private;
  
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		struct page *page = bvec->bv_page;
+ 		/* walk each page on bio, ending page IO on them */
+-		bio_for_each_page_all(bvec, bio, i)
++		bio_for_each_page_all2(bvec, bio, i, bia)
+ 			xfs_finish_page_writeback(inode, bvec, error);
  
- 		if (!bio->bi_status) {
-@@ -91,8 +92,9 @@ static void f2fs_write_end_io(struct bio *bio)
- 	struct f2fs_sb_info *sbi = bio->bi_private;
- 	struct bio_vec *bvec;
- 	int i;
-+	struct bvec_iter_all bia;
- 
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		struct page *page = bvec->bv_page;
- 		enum count_type type = WB_DATA_TYPE(page);
- 
-@@ -253,6 +255,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io,
- 	struct bio_vec *bvec;
- 	struct page *target;
- 	int i;
-+	struct bvec_iter_all bia;
- 
- 	if (!io->bio)
- 		return false;
-@@ -260,7 +263,7 @@ static bool __has_merged_page(struct f2fs_bio_info *io,
- 	if (!inode && !ino)
- 		return true;
- 
--	bio_for_each_page_all(bvec, io->bio, i) {
-+	bio_for_each_page_all2(bvec, io->bio, i, bia) {
- 
- 		if (bvec->bv_page->mapping)
- 			target = bvec->bv_page;
+ 		bio_put(bio);
 -- 
 2.9.5
 
