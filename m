@@ -1,132 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 921856B0268
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 09:53:23 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id n13so7537495wmc.3
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:53:23 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 09DC46B0266
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:22:19 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so7585538wmd.0
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:22:18 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g29si9615171wrb.457.2017.12.18.06.53.22
+        by mx.google.com with ESMTPS id o24si8835724wmi.38.2017.12.18.07.22.16
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 06:53:22 -0800 (PST)
-Date: Mon, 18 Dec 2017 15:53:20 +0100
+        Mon, 18 Dec 2017 07:22:17 -0800 (PST)
+Date: Mon, 18 Dec 2017 16:22:16 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Memory hotplug regression in 4.13
-Message-ID: <20171218145320.GO16951@dhcp22.suse.cz>
-References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
- <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
- <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
- <20170925125825.zpgasjhjufupbias@dhcp22.suse.cz>
- <20171201142327.GA16952@ubuntu-xps13>
+Subject: Re: [PATCH 1/8] mm: Align struct page more aesthetically
+Message-ID: <20171218152216.GB3876@dhcp22.suse.cz>
+References: <20171216164425.8703-1-willy@infradead.org>
+ <20171216164425.8703-2-willy@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171201142327.GA16952@ubuntu-xps13>
+In-Reply-To: <20171216164425.8703-2-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Seth Forshee <seth.forshee@canonical.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Fri 01-12-17 08:23:27, Seth Forshee wrote:
-> On Mon, Sep 25, 2017 at 02:58:25PM +0200, Michal Hocko wrote:
-> > On Thu 21-09-17 00:40:34, Seth Forshee wrote:
-[...]
-> > > It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
-> > > and the problem still occurs there. It's pointing to the call to
-> > > __builtin_memcpy in memcpy (include/linux/string.h line 340), which we
-> > > get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
-> > 
-> > Hmm, this is interesting. That would mean that we have successfully
-> > mapped the destination page but its memory is still not accessible.
-> > 
-> > Right now I do not see how the patch you have bisected to could make any
-> > difference because it only postponed the onlining to be independent but
-> > your config simply onlines automatically so there shouldn't be any
-> > semantic change. Maybe there is some sort of off-by-one or something.
-> > 
-> > I will try to investigate some more. Do you think it would be possible
-> > to configure kdump on your system and provide me with the vmcore in some
-> > way?
+On Sat 16-12-17 08:44:18, Matthew Wilcox wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> Sorry, I got busy with other stuff and this kind of fell off my radar.
-> It came to my attention again recently though.
+> instead of an ifdef block at the end of the struct, which needed
+> its own comment, define _struct_page_alignment up at the top where it
+> fits nicely with the existing comment.
+> 
+> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 
-Apology on my side. This has completely fall of my radar.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-> I was looking through the hotplug rework changes, and I noticed that
-> 32-bit x86 previously was using ZONE_HIGHMEM as a default but after the
-> rework it doesn't look like it's possible for memory to be associated
-> with ZONE_HIGHMEM when onlining. So I made the change below against 4.14
-> and am now no longer seeing the oopses.
+> ---
+>  include/linux/mm_types.h | 16 +++++++---------
+>  1 file changed, 7 insertions(+), 9 deletions(-)
+> 
+> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+> index cfd0ac4e5e0e..4509f0cfaf39 100644
+> --- a/include/linux/mm_types.h
+> +++ b/include/linux/mm_types.h
+> @@ -39,6 +39,12 @@ struct hmm;
+>   * allows the use of atomic double word operations on the flags/mapping
+>   * and lru list pointers also.
+>   */
+> +#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+> +#define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
+> +#else
+> +#define _struct_page_alignment
+> +#endif
+> +
+>  struct page {
+>  	/* First double word block */
+>  	unsigned long flags;		/* Atomic flags, some possibly
+> @@ -212,15 +218,7 @@ struct page {
+>  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
+>  	int _last_cpupid;
+>  #endif
+> -}
+> -/*
+> - * The struct page can be forced to be double word aligned so that atomic ops
+> - * on double words work. The SLUB allocator can make use of such a feature.
+> - */
+> -#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
+> -	__aligned(2 * sizeof(unsigned long))
+> -#endif
+> -;
+> +} _struct_page_alignment;
+>  
+>  #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
+>  #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+> -- 
+> 2.15.1
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-Thanks a lot for debugging! Do I read the above correctly that the
-current code simply returns ZONE_NORMAL and maps an unrelated pfn into
-this zone and that leads to later blowups? Could you attach the fresh
-boot dmesg output please?
-
-> I'm sure this isn't the correct fix, but I think it does confirm that
-> the problem is that the memory should be associated with ZONE_HIGHMEM
-> but is not.
-
-
-Yes, the fix is not quite right. HIGHMEM is not a _kernel_ memory
-zone. The kernel cannot access that memory directly. It is essentially a
-movable zone from the hotplug API POV. We simply do not have any way to
-tell into which zone we want to online this memory range in.
-Unfortunately both zones _can_ be present. It would require an explicit
-configuration (movable_node and a NUMA hoptlugable nodes running in 32b
-or and movable memory configured explicitly on the kernel command line).
-
-The below patch is not really complete but I would rather start simple.
-Maybe we do not even have to care as most 32b users will never use both
-zones at the same time. I've placed a warning to learn about those.
-
-Does this pass your testing?
----
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 262bfd26baf9..18fec18bdb60 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -855,12 +855,29 @@ static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn
- 	return &pgdat->node_zones[ZONE_NORMAL];
- }
- 
-+static struct zone *default_movable_zone_for_pfn(int nid)
-+{
-+	/*
-+	 * Please note that 32b HIGHMEM systems might have 2 movable zones
-+	 * actually so we have to check for both. This is rather ugly hack
-+	 * to enforce using Highmem on those systems but we do not have a
-+	 * good user API to tell into which movable zone we should online.
-+	 * WARN if we have a movable zone which is not highmem.
-+	 */
-+#ifdef CONFIG_HIGHMEM
-+	WARN_ON_ONCE(!zone_movable_is_highmem());
-+	return &NODE_DATA(nid)->node_zones[ZONE_HIGHMEM];
-+#else
-+	return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-+#endif
-+}
-+
- static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
- 		unsigned long nr_pages)
- {
- 	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
- 			nr_pages);
--	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-+	struct zone *movable_zone = default_movable_zone_for_pfn(nid);
- 	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
- 	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
- 
-@@ -886,7 +903,7 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
- 		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
- 
- 	if (online_type == MMOP_ONLINE_MOVABLE)
--		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-+		return default_movable_zone_for_pfn(nid);
- 
- 	return default_zone_for_pfn(nid, start_pfn, nr_pages);
- }
 -- 
 Michal Hocko
 SUSE Labs
