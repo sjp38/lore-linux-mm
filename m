@@ -1,64 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3860F6B0033
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:00:35 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id x187so6919738oix.3
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:00:35 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k41si2170693otb.73.2017.12.18.03.00.33
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 213D06B0033
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:31:55 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id y36so5267432plh.10
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:31:55 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x81si9396338pff.17.2017.12.18.03.31.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 03:00:33 -0800 (PST)
-Subject: Re: pkeys: Support setting access rights for signal handlers
-References: <20171212231324.GE5460@ram.oc3035372033.ibm.com>
- <9dc13a32-b1a6-8462-7e19-cfcf9e2c151e@redhat.com>
- <20171213113544.GG5460@ram.oc3035372033.ibm.com>
- <9f86d79e-165a-1b8e-32dd-7e4e8579da59@redhat.com>
- <c220f36f-c04a-50ae-3fd7-2c6245e27057@intel.com>
- <93153ac4-70f0-9d17-37f1-97b80e468922@redhat.com>
- <20171214001756.GA5471@ram.oc3035372033.ibm.com>
- <cf13f6e0-2405-4c58-4cf1-266e8baae825@redhat.com>
- <20171216150910.GA5461@ram.oc3035372033.ibm.com>
- <2eba29f4-804d-b211-1293-52a567739cad@redhat.com>
- <20171216172026.GC5461@ram.oc3035372033.ibm.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <7ab875c5-dc7c-b36e-8612-3d4aaf86a15c@redhat.com>
-Date: Mon, 18 Dec 2017 12:00:30 +0100
-MIME-Version: 1.0
-In-Reply-To: <20171216172026.GC5461@ram.oc3035372033.ibm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Dec 2017 03:31:52 -0800 (PST)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Subject: [PATCH v3] mm,vmscan: Make unregister_shrinker() no-op if register_shrinker() failed.
+Date: Mon, 18 Dec 2017 20:31:41 +0900
+Message-Id: <1513596701-4518-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ram Pai <linuxram@us.ibm.com>
-Cc: Dave Hansen <dave.hansen@intel.com>, linux-mm <linux-mm@kvack.org>, x86@kernel.org, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Aliaksei Karaliou <akaraliou.dev@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>, Glauber Costa <glauber@scylladb.com>, syzbot <syzkaller@googlegroups.com>
 
-On 12/16/2017 06:20 PM, Ram Pai wrote:
-> Ok. Sounds like I do not have much to do. My patches in its current form
-> will continue to work and provide the semantics you envision.
+Syzbot caught an oops at unregister_shrinker() because combination of
+commit 1d3d4437eae1bb29 ("vmscan: per-node deferred work") and fault
+injection made register_shrinker() fail and the caller of
+register_shrinker() did not check for failure.
 
-Thanks for confirming.
+----------
+[  554.881422] FAULT_INJECTION: forcing a failure.
+[  554.881422] name failslab, interval 1, probability 0, space 0, times 0
+[  554.881438] CPU: 1 PID: 13231 Comm: syz-executor1 Not tainted 4.14.0-rc8+ #82
+[  554.881443] Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+[  554.881445] Call Trace:
+[  554.881459]  dump_stack+0x194/0x257
+[  554.881474]  ? arch_local_irq_restore+0x53/0x53
+[  554.881486]  ? find_held_lock+0x35/0x1d0
+[  554.881507]  should_fail+0x8c0/0xa40
+[  554.881522]  ? fault_create_debugfs_attr+0x1f0/0x1f0
+[  554.881537]  ? check_noncircular+0x20/0x20
+[  554.881546]  ? find_next_zero_bit+0x2c/0x40
+[  554.881560]  ? ida_get_new_above+0x421/0x9d0
+[  554.881577]  ? find_held_lock+0x35/0x1d0
+[  554.881594]  ? __lock_is_held+0xb6/0x140
+[  554.881628]  ? check_same_owner+0x320/0x320
+[  554.881634]  ? lock_downgrade+0x990/0x990
+[  554.881649]  ? find_held_lock+0x35/0x1d0
+[  554.881672]  should_failslab+0xec/0x120
+[  554.881684]  __kmalloc+0x63/0x760
+[  554.881692]  ? lock_downgrade+0x990/0x990
+[  554.881712]  ? register_shrinker+0x10e/0x2d0
+[  554.881721]  ? trace_event_raw_event_module_request+0x320/0x320
+[  554.881737]  register_shrinker+0x10e/0x2d0
+[  554.881747]  ? prepare_kswapd_sleep+0x1f0/0x1f0
+[  554.881755]  ? _down_write_nest_lock+0x120/0x120
+[  554.881765]  ? memcpy+0x45/0x50
+[  554.881785]  sget_userns+0xbcd/0xe20
+(...snipped...)
+[  554.898693] kasan: CONFIG_KASAN_INLINE enabled
+[  554.898724] kasan: GPF could be caused by NULL-ptr deref or user memory access
+[  554.898732] general protection fault: 0000 [#1] SMP KASAN
+[  554.898737] Dumping ftrace buffer:
+[  554.898741]    (ftrace buffer empty)
+[  554.898743] Modules linked in:
+[  554.898752] CPU: 1 PID: 13231 Comm: syz-executor1 Not tainted 4.14.0-rc8+ #82
+[  554.898755] Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+[  554.898760] task: ffff8801d1dbe5c0 task.stack: ffff8801c9e38000
+[  554.898772] RIP: 0010:__list_del_entry_valid+0x7e/0x150
+[  554.898775] RSP: 0018:ffff8801c9e3f108 EFLAGS: 00010246
+[  554.898780] RAX: dffffc0000000000 RBX: 0000000000000000 RCX: 0000000000000000
+[  554.898784] RDX: 0000000000000000 RSI: ffff8801c53c6f98 RDI: ffff8801c53c6fa0
+[  554.898788] RBP: ffff8801c9e3f120 R08: 1ffff100393c7d55 R09: 0000000000000004
+[  554.898791] R10: ffff8801c9e3ef70 R11: 0000000000000000 R12: 0000000000000000
+[  554.898795] R13: dffffc0000000000 R14: 1ffff100393c7e45 R15: ffff8801c53c6f98
+[  554.898800] FS:  0000000000000000(0000) GS:ffff8801db300000(0000) knlGS:0000000000000000
+[  554.898804] CS:  0010 DS: 002b ES: 002b CR0: 0000000080050033
+[  554.898807] CR2: 00000000dbc23000 CR3: 00000001c7269000 CR4: 00000000001406e0
+[  554.898813] DR0: 0000000020000000 DR1: 0000000020000000 DR2: 0000000000000000
+[  554.898816] DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000600
+[  554.898818] Call Trace:
+[  554.898828]  unregister_shrinker+0x79/0x300
+[  554.898837]  ? perf_trace_mm_vmscan_writepage+0x750/0x750
+[  554.898844]  ? down_write+0x87/0x120
+[  554.898851]  ? deactivate_super+0x139/0x1b0
+[  554.898857]  ? down_read+0x150/0x150
+[  554.898864]  ? check_same_owner+0x320/0x320
+[  554.898875]  deactivate_locked_super+0x64/0xd0
+[  554.898883]  deactivate_super+0x141/0x1b0
+----------
 
->> I'm open to a different way towards conveying this information to
->> userspace.  I don't want to probe for the behavior by sending a
->> signal because that is quite involved and would also be visible in
->> debuggers, confusing programmers.
+Since allowing register_shrinker() callers to call unregister_shrinker()
+when register_shrinker() failed can simplify error recovery path, this
+patch makes unregister_shrinker() no-op when register_shrinker() failed.
+Also, reset shrinker->nr_deferred in case unregister_shrinker() was
+by error called twice.
 
-> I am fine with your proposal.
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Signed-off-by: Aliaksei Karaliou <akaraliou.dev@gmail.com>
+Reported-by: syzbot <syzkaller@googlegroups.com>
+Cc: Glauber Costa <glauber@scylladb.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
+---
+ mm/vmscan.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-So how can we move this forward?  Should I submit a single new patch 
-with the new flag with a more appropriate name (PKEY_ALLOC_SIGNALINHERIT 
-comes to my mind) and the signal inheritance change?
-
-Dave, do you still want to wait for feedback from the x86 maintainer 
-regarding a general interface?  Is this really feasible without detailed 
-knowledge of the XSAVE output structure?  Otherwise, there probably 
-isn't a way around code which explicitly copies the bits we want to 
-preserve from the interrupted CPU context to the signal handler context.
-
-Thanks,
-Florian
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 65c4fa2..4111a1e 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -281,10 +281,13 @@ int register_shrinker(struct shrinker *shrinker)
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
++	if (!shrinker->nr_deferred)
++		return;
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
+ 	kfree(shrinker->nr_deferred);
++	shrinker->nr_deferred = NULL;
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+ 
+-- 
+1.8.3.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
