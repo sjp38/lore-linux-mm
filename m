@@ -1,18 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 833EE6B0033
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9358A6B0038
 	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 14:06:59 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b82so7305574wmd.5
+Received: by mail-wr0-f200.google.com with SMTP id j4so9947070wrg.15
         for <linux-mm@kvack.org>; Mon, 18 Dec 2017 11:06:59 -0800 (PST)
 Received: from mx02.buh.bitdefender.com (mx02.bbu.dsd.mx.bitdefender.com. [91.199.104.133])
-        by mx.google.com with ESMTPS id z51si2856959wrc.174.2017.12.18.11.06.57
+        by mx.google.com with ESMTPS id a126si13421wme.124.2017.12.18.11.06.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 11:06:57 -0800 (PST)
+        Mon, 18 Dec 2017 11:06:58 -0800 (PST)
 From: =?UTF-8?q?Adalber=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v4 00/18] VM introspection
-Date: Mon, 18 Dec 2017 21:06:24 +0200
-Message-Id: <20171218190642.7790-1-alazar@bitdefender.com>
+Subject: [RFC PATCH v4 03/18] kvm: x86: add kvm_arch_msr_intercept()
+Date: Mon, 18 Dec 2017 21:06:27 +0200
+Message-Id: <20171218190642.7790-4-alazar@bitdefender.com>
+In-Reply-To: <20171218190642.7790-1-alazar@bitdefender.com>
+References: <20171218190642.7790-1-alazar@bitdefender.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -23,188 +25,159 @@ Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20K
 
 From: Adalbert Lazar <alazar@bitdefender.com>
 
-This patch series proposes a VM introspection subsystem for KVM (KVMI).
+This function is used by the introspection subsytem to enable/disable
+MSR register interception.
 
-The previous RFC can be read here: https://marc.info/?l=kvm&m=150514457912721
+The patch adds back the __vmx_enable_intercept_for_msr() function
+removed with the commit 40d8338d095e
+("KVM: VMX: remove functions that enable msr intercepts").
 
-These patches were tested on kvm/master,
-commit 43aabca38aa9668eee3c3c1206207034614c0901 (Merge tag 'kvm-arm-fixes-for-v4.15-2' of git://git.kernel.org/pub/scm/linux/kernel/git/kvmarm/kvmarm into HEAD).
+Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
+---
+ arch/x86/include/asm/kvm_host.h |  4 ++++
+ arch/x86/kvm/svm.c              | 11 +++++++++
+ arch/x86/kvm/vmx.c              | 53 +++++++++++++++++++++++++++++++++++++++++
+ arch/x86/kvm/x86.c              |  7 ++++++
+ 4 files changed, 75 insertions(+)
 
-In this iteration we refactored the code based on the feedback received
-from Paolo and others.
-
-The handshake
--------------
-We no longer listen on a vsock in kernel, accepting introspectors
-to control all the other VM-s. Instead, QEMU (ie. every introspected
-guest) initiates the connection with an introspection tool (running on
-the same host, in another VM, etc.) and passes the control to KVM where
-the in-kernel mechanism will take over.
-
-The administrator has to choose which guests should be introspected, by
-which introspectors, what commands and events are allowed and for which
-guests. Currently, there is a bitmask for allowed commands/events, but
-it seems to be too complicated. For example, being allowed to set page
-accesses (eg. r--) and not being allowed to receive page fault events
-(eg. -wx) doesn't make sense.
-
-The memory maping
------------------
-Besides the read/write commands to access guest memory, for performance
-reasons, we've implemented memory mapping for introspection tools running
-in another guest (on the same host, like page sharing between guests,
-but without copy-on-write): the KVMI_GET_TOKEN command is used to obtain
-a token, which is passed with a hypercall from the introspecting guest
-to the KVMI.
-
-While this didn't had a high priority, somehow the stars aligned and we
-have it.
-
-Page tracking
--------------
-The current page tracking mechanism from KVM has support to track write
-accesses (after the write operation took place). We've extended it with
-preread, prewrite and preexec tracking.
-
-We also added a notification for when a new memory slot is being
-created (see track_create_slot()).
-
-Pause VM
---------
-We've removed the commands to pause/resume VM. Having a "pause vCPU"
-command and a "paused vCPU" event seems to be enough for now.
-
-Not implemented yet
--------------------
-
-There are a few things documented, but not implemented yet: virtualized
-exceptions, single-stepping and EPT views.
-
-We are also working on accomodating SPP (Sub Page Protection).
-
-We hope to make public our repositories (kernel, QEMU,
-userland/simple-introspector) in a couple of days and we're looking
-forward to add unit tests.
-
-Changes since v3:
-  - move the accept/handshake worker to QEMU
-  - extend and use the 'page_track' infrastructure to intercept page
-    accesses during emulation
-  - remove the 0x40000000-0x40001fff range from monitored MSR-s
-  - make small changes to the wire protocol (error codes, padding, names)
-  - simplify KVMI_PAUSE_VCPU
-  - add new commands: KVMI_GET_MAP_TOKEN, KVMI_GET_XSAVE
-  - add pat to KVMI_EVENT
-  - document KVM_HC_MEM_MAP and KVM_HC_MEM_UNMAP hypercalls
-
-Changes since v2:
-  - make small changes to the wire protocol (eg. use kvmi_error_code
-    with every command reply, a few renames, etc.)
-  - removed '_x86' from x86 specific structure names. Architecture
-    specific structures will have the same name.
-  - drop KVMI_GET_MTRR_TYPE and KVMI_GET_MTRRS (use KVMI_SET_REGISTERS)
-  - drop KVMI_EVENT_ACTION_SET_REGS (use KVMI_SET_REGISTERS)
-  - remove KVMI_MAP_PHYSICAL_PAGE_TO_GUEST and KVMI_UNMAP_PHYSICAL_PAGE_FROM_GUEST
-    (to be replaced by a token+hypercall pair)
-  - extend KVMI_GET_VERSION with allowed commnd/event masks
-  - replace KVMI_PAUSE_GUEST/KVMI_UNPAUSE_GUEST with KVMI_PAUSE_VCPU
-  - replace KVMI_SHUTDOWN_GUEST with KVMI_EVENT_ACTION_CRASH
-  - replace KVMI_GET_XSAVE_INFO with KVMI_GET_CPUID
-  - merge KVMI_INJECT_PAGE_FAULT and KVMI_INJECT_BREAKPOINT
-    in KVMI_INJECT_EXCEPTION
-  - replace event reply flags with ALLOW/SKIP/RETRY/CRASH actions
-  - make KVMI_SET_REGISTERS work with vCPU events only
-  - add EPT view support in KVMI_GET_PAGE_ACCESS/KVMI_SET_PAGE_ACCESS
-  - add support for multiple pages in KVMI_GET_PAGE_ACCESS/KVMI_SET_PAGE_ACCESS
-  - add (back) KVMI_READ_PHYSICAL/KVMI_WRITE_PHYSICAL
-  - add KVMI_CONTROL_VE
-  - add cstar to KVMI_EVENT
-  - add new events: KVMI_EVENT_VCPU_PAUSED, KVMI_EVENT_CREATE_VCPU, 
-    KVMI_EVENT_DESCRIPTOR_ACCESS, KVMI_EVENT_SINGLESTEP
-  - add new sections: "Introspection capabilities", "Live migrations",
-    "Guest snapshots with memory", "Memory access safety"
-  - document the hypercall used by the KVMI_EVENT_HYPERCALL command
-    (was KVMI_EVENT_USER_CALL)
-
-Changes since v1:
-  - add documentation and ABI [Paolo, Jan]
-  - drop all the other patches for now [Paolo]
-  - remove KVMI_GET_GUESTS, KVMI_EVENT_GUEST_ON, KVMI_EVENT_GUEST_OFF,
-    and let libvirt/qemu handle this [Stefan, Paolo]
-  - change the license from LGPL to GPL [Jan]
-  - remove KVMI_READ_PHYSICAL and KVMI_WRITE_PHYSICAL (not used anymore)
-  - make the interface a little more consistent
-
-
-Adalbert Lazar (18):
-  kvm: add documentation and ABI/API headers for the VM introspection
-    subsystem
-  add memory map/unmap support for VM introspection on the guest side
-  kvm: x86: add kvm_arch_msr_intercept()
-  kvm: x86: add kvm_mmu_nested_guest_page_fault() and
-    kvmi_mmu_fault_gla()
-  kvm: x86: add kvm_arch_vcpu_set_regs()
-  kvm: vmx: export the availability of EPT views
-  kvm: page track: add support for preread, prewrite and preexec
-  kvm: add the VM introspection subsystem
-  kvm: hook in the VM introspection subsystem
-  kvm: x86: handle the new vCPU request (KVM_REQ_INTROSPECTION)
-  kvm: x86: hook in the page tracking
-  kvm: x86: hook in kvmi_breakpoint_event()
-  kvm: x86: hook in kvmi_descriptor_event()
-  kvm: x86: hook in kvmi_cr_event()
-  kvm: x86: hook in kvmi_xsetbv_event()
-  kvm: x86: hook in kvmi_msr_event()
-  kvm: x86: handle the introspection hypercalls
-  kvm: x86: hook in kvmi_trap_event()
-
- Documentation/virtual/kvm/00-INDEX       |    2 +
- Documentation/virtual/kvm/hypercalls.txt |   66 ++
- Documentation/virtual/kvm/kvmi.rst       | 1323 ++++++++++++++++++++++++++++
- arch/x86/Kconfig                         |    9 +
- arch/x86/include/asm/kvm_emulate.h       |    1 +
- arch/x86/include/asm/kvm_host.h          |   13 +
- arch/x86/include/asm/kvm_page_track.h    |   24 +-
- arch/x86/include/asm/kvmi_guest.h        |   10 +
- arch/x86/include/asm/vmx.h               |    2 +
- arch/x86/include/uapi/asm/kvmi.h         |  213 +++++
- arch/x86/kernel/Makefile                 |    1 +
- arch/x86/kernel/kvmi_mem_guest.c         |   26 +
- arch/x86/kvm/Makefile                    |    1 +
- arch/x86/kvm/emulate.c                   |    9 +-
- arch/x86/kvm/mmu.c                       |  156 +++-
- arch/x86/kvm/mmu.h                       |    4 +
- arch/x86/kvm/page_track.c                |  129 ++-
- arch/x86/kvm/svm.c                       |   66 ++
- arch/x86/kvm/vmx.c                       |  109 ++-
- arch/x86/kvm/x86.c                       |  141 ++-
- include/linux/kvm_host.h                 |    5 +
- include/linux/kvmi.h                     |   32 +
- include/linux/mm.h                       |    3 +
- include/trace/events/kvmi.h              |  174 ++++
- include/uapi/linux/kvm.h                 |    8 +
- include/uapi/linux/kvm_para.h            |   10 +-
- include/uapi/linux/kvmi.h                |  150 ++++
- mm/internal.h                            |    5 -
- virt/kvm/kvm_main.c                      |   19 +
- virt/kvm/kvmi.c                          | 1410 ++++++++++++++++++++++++++++++
- virt/kvm/kvmi_int.h                      |  121 +++
- virt/kvm/kvmi_mem.c                      |  730 ++++++++++++++++
- virt/kvm/kvmi_mem_guest.c                |  379 ++++++++
- virt/kvm/kvmi_msg.c                      | 1134 ++++++++++++++++++++++++
- 34 files changed, 6438 insertions(+), 47 deletions(-)
- create mode 100644 Documentation/virtual/kvm/kvmi.rst
- create mode 100644 arch/x86/include/asm/kvmi_guest.h
- create mode 100644 arch/x86/include/uapi/asm/kvmi.h
- create mode 100644 arch/x86/kernel/kvmi_mem_guest.c
- create mode 100644 include/linux/kvmi.h
- create mode 100644 include/trace/events/kvmi.h
- create mode 100644 include/uapi/linux/kvmi.h
- create mode 100644 virt/kvm/kvmi.c
- create mode 100644 virt/kvm/kvmi_int.h
- create mode 100644 virt/kvm/kvmi_mem.c
- create mode 100644 virt/kvm/kvmi_mem_guest.c
- create mode 100644 virt/kvm/kvmi_msg.c
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 516798431328..8842d8e1e4ee 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -1079,6 +1079,8 @@ struct kvm_x86_ops {
+ 	int (*pre_enter_smm)(struct kvm_vcpu *vcpu, char *smstate);
+ 	int (*pre_leave_smm)(struct kvm_vcpu *vcpu, u64 smbase);
+ 	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
++
++	void (*msr_intercept)(struct kvm_vcpu *vcpu, unsigned int msr, bool enable);
+ };
+ 
+ struct kvm_arch_async_pf {
+@@ -1451,4 +1453,6 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
+ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+ 		unsigned long start, unsigned long end);
+ 
++void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
++				bool enable);
+ #endif /* _ASM_X86_KVM_HOST_H */
+diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
+index eb714f1cdf7e..5f7482851223 100644
+--- a/arch/x86/kvm/svm.c
++++ b/arch/x86/kvm/svm.c
+@@ -5505,6 +5505,15 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
+ 	return 0;
+ }
+ 
++static void svm_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
++				bool enable)
++{
++	struct vcpu_svm *svm = to_svm(vcpu);
++	u32 *msrpm = svm->msrpm;
++
++	set_msr_interception(msrpm, msr, enable, enable);
++}
++
+ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+ 	.cpu_has_kvm_support = has_svm,
+ 	.disabled_by_bios = is_disabled,
+@@ -5620,6 +5629,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+ 	.pre_enter_smm = svm_pre_enter_smm,
+ 	.pre_leave_smm = svm_pre_leave_smm,
+ 	.enable_smi_window = enable_smi_window,
++
++	.msr_intercept = svm_msr_intercept,
+ };
+ 
+ static int __init svm_init(void)
+diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+index 8eba631c4dbd..9c984bbe263e 100644
+--- a/arch/x86/kvm/vmx.c
++++ b/arch/x86/kvm/vmx.c
+@@ -12069,6 +12069,57 @@ static int enable_smi_window(struct kvm_vcpu *vcpu)
+ 	return 0;
+ }
+ 
++static void __vmx_enable_intercept_for_msr(unsigned long *msr_bitmap,
++						u32 msr, int type)
++{
++	int f = sizeof(unsigned long);
++
++	if (!cpu_has_vmx_msr_bitmap())
++		return;
++
++	/*
++	 * See Intel PRM Vol. 3, 24.6.9 (MSR-Bitmap Address). Early manuals
++	 * have the write-low and read-high bitmap offsets the wrong way round.
++	 * We can control MSRs 0x00000000-0x00001fff and 0xc0000000-0xc0001fff.
++	 */
++	if (msr <= 0x1fff) {
++		if (type & MSR_TYPE_R)
++			/* read-low */
++			__set_bit(msr, msr_bitmap + 0x000 / f);
++
++		if (type & MSR_TYPE_W)
++			/* write-low */
++			__set_bit(msr, msr_bitmap + 0x800 / f);
++
++	} else if ((msr >= 0xc0000000) && (msr <= 0xc0001fff)) {
++		msr &= 0x1fff;
++		if (type & MSR_TYPE_R)
++			/* read-high */
++			__set_bit(msr, msr_bitmap + 0x400 / f);
++
++		if (type & MSR_TYPE_W)
++			/* write-high */
++			__set_bit(msr, msr_bitmap + 0xc00 / f);
++
++	}
++}
++
++static void vmx_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
++				bool enabled)
++{
++	if (enabled) {
++		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_longmode, msr,
++					       MSR_TYPE_W);
++		__vmx_enable_intercept_for_msr(vmx_msr_bitmap_legacy, msr,
++					       MSR_TYPE_W);
++	} else {
++		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_legacy, msr,
++						MSR_TYPE_W);
++		__vmx_disable_intercept_for_msr(vmx_msr_bitmap_longmode, msr,
++						MSR_TYPE_W);
++	}
++}
++
+ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+ 	.cpu_has_kvm_support = cpu_has_kvm_support,
+ 	.disabled_by_bios = vmx_disabled_by_bios,
+@@ -12199,6 +12250,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+ 	.pre_enter_smm = vmx_pre_enter_smm,
+ 	.pre_leave_smm = vmx_pre_leave_smm,
+ 	.enable_smi_window = enable_smi_window,
++
++	.msr_intercept = vmx_msr_intercept,
+ };
+ 
+ static int __init vmx_init(void)
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 1cec2c62a0b0..e1a3c2c6ec08 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -8871,6 +8871,13 @@ bool kvm_vector_hashing_enabled(void)
+ }
+ EXPORT_SYMBOL_GPL(kvm_vector_hashing_enabled);
+ 
++void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
++				bool enable)
++{
++	kvm_x86_ops->msr_intercept(vcpu, msr, enable);
++}
++EXPORT_SYMBOL_GPL(kvm_arch_msr_intercept);
++
+ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_exit);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_fast_mmio);
+ EXPORT_TRACEPOINT_SYMBOL_GPL(kvm_inj_virq);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
