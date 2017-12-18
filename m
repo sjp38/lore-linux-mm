@@ -1,78 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 09DC46B0266
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:22:19 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p190so7585538wmd.0
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:22:18 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C6AF6B0266
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:36:54 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 96so9520599wrk.7
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:36:54 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id o24si8835724wmi.38.2017.12.18.07.22.16
+        by mx.google.com with ESMTPS id n22si1911265wrn.262.2017.12.18.07.36.52
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 07:22:17 -0800 (PST)
-Date: Mon, 18 Dec 2017 16:22:16 +0100
+        Mon, 18 Dec 2017 07:36:53 -0800 (PST)
+Date: Mon, 18 Dec 2017 16:36:52 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/8] mm: Align struct page more aesthetically
-Message-ID: <20171218152216.GB3876@dhcp22.suse.cz>
+Subject: Re: [PATCH 2/8] mm: De-indent struct page
+Message-ID: <20171218153652.GC3876@dhcp22.suse.cz>
 References: <20171216164425.8703-1-willy@infradead.org>
- <20171216164425.8703-2-willy@infradead.org>
+ <20171216164425.8703-3-willy@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171216164425.8703-2-willy@infradead.org>
+In-Reply-To: <20171216164425.8703-3-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Sat 16-12-17 08:44:18, Matthew Wilcox wrote:
+On Sat 16-12-17 08:44:19, Matthew Wilcox wrote:
 > From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> instead of an ifdef block at the end of the struct, which needed
-> its own comment, define _struct_page_alignment up at the top where it
-> fits nicely with the existing comment.
-> 
+> I found the struct { union { struct { union { struct { } } } } }
+> layout rather confusing.  Fortunately, there is an easier way to write
+> this.  The innermost union is of four things which are the size of an
+> int, so the ones which are used by slab/slob/slub can be pulled up
+> two levels to be in the outermost union with 'counters'.  That leaves
+> us with struct { union { struct { atomic_t; atomic_t; } } } which
+> has the same layout, but is easier to read.
+
+This is where the pahole output would be really helpeful. The patch
+looks OK, I will double check with a fresh brain tomorrow (with the rest
+of the series), though.
+
 > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
 > ---
->  include/linux/mm_types.h | 16 +++++++---------
->  1 file changed, 7 insertions(+), 9 deletions(-)
+>  include/linux/mm_types.h | 40 +++++++++++++++++++---------------------
+>  1 file changed, 19 insertions(+), 21 deletions(-)
 > 
 > diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index cfd0ac4e5e0e..4509f0cfaf39 100644
+> index 4509f0cfaf39..27973166af28 100644
 > --- a/include/linux/mm_types.h
 > +++ b/include/linux/mm_types.h
-> @@ -39,6 +39,12 @@ struct hmm;
->   * allows the use of atomic double word operations on the flags/mapping
->   * and lru list pointers also.
->   */
-> +#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
-> +#define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-> +#else
-> +#define _struct_page_alignment
-> +#endif
-> +
->  struct page {
->  	/* First double word block */
->  	unsigned long flags;		/* Atomic flags, some possibly
-> @@ -212,15 +218,7 @@ struct page {
->  #ifdef LAST_CPUPID_NOT_IN_PAGE_FLAGS
->  	int _last_cpupid;
+> @@ -84,28 +84,26 @@ struct page {
+>  		 */
+>  		unsigned counters;
 >  #endif
-> -}
-> -/*
-> - * The struct page can be forced to be double word aligned so that atomic ops
-> - * on double words work. The SLUB allocator can make use of such a feature.
-> - */
-> -#ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
-> -	__aligned(2 * sizeof(unsigned long))
-> -#endif
-> -;
-> +} _struct_page_alignment;
+> -		struct {
+> +		unsigned int active;		/* SLAB */
+> +		struct {			/* SLUB */
+> +			unsigned inuse:16;
+> +			unsigned objects:15;
+> +			unsigned frozen:1;
+> +		};
+> +		int units;			/* SLOB */
+> +
+> +		struct {			/* Page cache */
+> +			/*
+> +			 * Count of ptes mapped in mms, to show when
+> +			 * page is mapped & limit reverse map searches.
+> +			 *
+> +			 * Extra information about page type may be
+> +			 * stored here for pages that are never mapped,
+> +			 * in which case the value MUST BE <= -2.
+> +			 * See page-flags.h for more details.
+> +			 */
+> +			atomic_t _mapcount;
 >  
->  #define PAGE_FRAG_CACHE_MAX_SIZE	__ALIGN_MASK(32768, ~PAGE_MASK)
->  #define PAGE_FRAG_CACHE_MAX_ORDER	get_order(PAGE_FRAG_CACHE_MAX_SIZE)
+> -			union {
+> -				/*
+> -				 * Count of ptes mapped in mms, to show when
+> -				 * page is mapped & limit reverse map searches.
+> -				 *
+> -				 * Extra information about page type may be
+> -				 * stored here for pages that are never mapped,
+> -				 * in which case the value MUST BE <= -2.
+> -				 * See page-flags.h for more details.
+> -				 */
+> -				atomic_t _mapcount;
+> -
+> -				unsigned int active;		/* SLAB */
+> -				struct {			/* SLUB */
+> -					unsigned inuse:16;
+> -					unsigned objects:15;
+> -					unsigned frozen:1;
+> -				};
+> -				int units;			/* SLOB */
+> -			};
+>  			/*
+>  			 * Usage count, *USE WRAPPER FUNCTION* when manual
+>  			 * accounting. See page_ref.h
 > -- 
 > 2.15.1
 > 
