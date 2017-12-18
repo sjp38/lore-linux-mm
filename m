@@ -1,113 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6AF6B0266
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 10:36:54 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id 96so9520599wrk.7
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:36:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id n22si1911265wrn.262.2017.12.18.07.36.52
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CBC396B0033
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 11:12:55 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id 194so7619675wmv.9
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 08:12:55 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u4si8510255wmg.32.2017.12.18.08.12.53
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 07:36:53 -0800 (PST)
-Date: Mon, 18 Dec 2017 16:36:52 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 2/8] mm: De-indent struct page
-Message-ID: <20171218153652.GC3876@dhcp22.suse.cz>
-References: <20171216164425.8703-1-willy@infradead.org>
- <20171216164425.8703-3-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 18 Dec 2017 08:12:53 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.14 037/178] x86/boot/compressed/64: Detect and handle 5-level paging at boot-time
+Date: Mon, 18 Dec 2017 16:47:53 +0100
+Message-Id: <20171218152922.093379611@linuxfoundation.org>
+In-Reply-To: <20171218152920.567991776@linuxfoundation.org>
+References: <20171218152920.567991776@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171216164425.8703-3-willy@infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Andi Kleen <ak@linux.intel.com>, Andy Lutomirski <luto@amacapital.net>, linux-mm@kvack.org, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Linus Torvalds <torvalds@linux-foundation.org>
 
-On Sat 16-12-17 08:44:19, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> I found the struct { union { struct { union { struct { } } } } }
-> layout rather confusing.  Fortunately, there is an easier way to write
-> this.  The innermost union is of four things which are the size of an
-> int, so the ones which are used by slab/slob/slub can be pulled up
-> two levels to be in the outermost union with 'counters'.  That leaves
-> us with struct { union { struct { atomic_t; atomic_t; } } } which
-> has the same layout, but is easier to read.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
-This is where the pahole output would be really helpeful. The patch
-looks OK, I will double check with a fresh brain tomorrow (with the rest
-of the series), though.
+------------------
 
-> Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> ---
->  include/linux/mm_types.h | 40 +++++++++++++++++++---------------------
->  1 file changed, 19 insertions(+), 21 deletions(-)
-> 
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 4509f0cfaf39..27973166af28 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -84,28 +84,26 @@ struct page {
->  		 */
->  		unsigned counters;
->  #endif
-> -		struct {
-> +		unsigned int active;		/* SLAB */
-> +		struct {			/* SLUB */
-> +			unsigned inuse:16;
-> +			unsigned objects:15;
-> +			unsigned frozen:1;
-> +		};
-> +		int units;			/* SLOB */
-> +
-> +		struct {			/* Page cache */
-> +			/*
-> +			 * Count of ptes mapped in mms, to show when
-> +			 * page is mapped & limit reverse map searches.
-> +			 *
-> +			 * Extra information about page type may be
-> +			 * stored here for pages that are never mapped,
-> +			 * in which case the value MUST BE <= -2.
-> +			 * See page-flags.h for more details.
-> +			 */
-> +			atomic_t _mapcount;
->  
-> -			union {
-> -				/*
-> -				 * Count of ptes mapped in mms, to show when
-> -				 * page is mapped & limit reverse map searches.
-> -				 *
-> -				 * Extra information about page type may be
-> -				 * stored here for pages that are never mapped,
-> -				 * in which case the value MUST BE <= -2.
-> -				 * See page-flags.h for more details.
-> -				 */
-> -				atomic_t _mapcount;
-> -
-> -				unsigned int active;		/* SLAB */
-> -				struct {			/* SLUB */
-> -					unsigned inuse:16;
-> -					unsigned objects:15;
-> -					unsigned frozen:1;
-> -				};
-> -				int units;			/* SLOB */
-> -			};
->  			/*
->  			 * Usage count, *USE WRAPPER FUNCTION* when manual
->  			 * accounting. See page_ref.h
-> -- 
-> 2.15.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+From: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
--- 
-Michal Hocko
-SUSE Labs
+commit 08529078d8d9adf689bf39cc38d53979a0869970 upstream.
+
+Prerequisite for fixing the current problem of instantaneous reboots when a
+5-level paging kernel is booted on 4-level paging hardware.
+
+At the same time this change prepares the decompression code to boot-time
+switching between 4- and 5-level paging.
+
+[ tglx: Folded the GCC < 5 fix. ]
+
+Fixes: 77ef56e4f0fb ("x86: Enable 5-level paging support via CONFIG_X86_5LEVEL=y")
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andi Kleen <ak@linux.intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: linux-mm@kvack.org
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Link: https://lkml.kernel.org/r/20171204124059.63515-2-kirill.shutemov@linux.intel.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/boot/compressed/Makefile     |    1 +
+ arch/x86/boot/compressed/head_64.S    |   16 ++++++++++++----
+ arch/x86/boot/compressed/pgtable_64.c |   28 ++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 4 deletions(-)
+
+--- a/arch/x86/boot/compressed/Makefile
++++ b/arch/x86/boot/compressed/Makefile
+@@ -78,6 +78,7 @@ vmlinux-objs-$(CONFIG_EARLY_PRINTK) += $
+ vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/kaslr.o
+ ifdef CONFIG_X86_64
+ 	vmlinux-objs-$(CONFIG_RANDOMIZE_BASE) += $(obj)/pagetable.o
++	vmlinux-objs-y += $(obj)/pgtable_64.o
+ endif
+ 
+ $(obj)/eboot.o: KBUILD_CFLAGS += -fshort-wchar -mno-red-zone
+--- a/arch/x86/boot/compressed/head_64.S
++++ b/arch/x86/boot/compressed/head_64.S
+@@ -289,10 +289,18 @@ ENTRY(startup_64)
+ 	leaq	boot_stack_end(%rbx), %rsp
+ 
+ #ifdef CONFIG_X86_5LEVEL
+-	/* Check if 5-level paging has already enabled */
+-	movq	%cr4, %rax
+-	testl	$X86_CR4_LA57, %eax
+-	jnz	lvl5
++	/*
++	 * Check if we need to enable 5-level paging.
++	 * RSI holds real mode data and need to be preserved across
++	 * a function call.
++	 */
++	pushq	%rsi
++	call	l5_paging_required
++	popq	%rsi
++
++	/* If l5_paging_required() returned zero, we're done here. */
++	cmpq	$0, %rax
++	je	lvl5
+ 
+ 	/*
+ 	 * At this point we are in long mode with 4-level paging enabled,
+--- /dev/null
++++ b/arch/x86/boot/compressed/pgtable_64.c
+@@ -0,0 +1,28 @@
++#include <asm/processor.h>
++
++/*
++ * __force_order is used by special_insns.h asm code to force instruction
++ * serialization.
++ *
++ * It is not referenced from the code, but GCC < 5 with -fPIE would fail
++ * due to an undefined symbol. Define it to make these ancient GCCs work.
++ */
++unsigned long __force_order;
++
++int l5_paging_required(void)
++{
++	/* Check if leaf 7 is supported. */
++
++	if (native_cpuid_eax(0) < 7)
++		return 0;
++
++	/* Check if la57 is supported. */
++	if (!(native_cpuid_ecx(7) & (1 << (X86_FEATURE_LA57 & 31))))
++		return 0;
++
++	/* Check if 5-level paging has already been enabled. */
++	if (native_read_cr4() & X86_CR4_LA57)
++		return 0;
++
++	return 1;
++}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
