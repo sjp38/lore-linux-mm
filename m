@@ -1,51 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 91EE96B0033
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 05:10:49 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id t92so9204204wrc.13
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 02:10:49 -0800 (PST)
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id F00F26B0033
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 05:14:49 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a141so6700245wma.8
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 02:14:49 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e24sor7834539edc.17.2017.12.18.02.10.47
+        by mx.google.com with SMTPS id y8sor7730970edk.41.2017.12.18.02.14.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 18 Dec 2017 02:10:48 -0800 (PST)
-Date: Mon, 18 Dec 2017 13:10:45 +0300
+        Mon, 18 Dec 2017 02:14:48 -0800 (PST)
+Date: Mon, 18 Dec 2017 13:14:46 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv6 0/4] x86: 5-level related changes into decompression
- code<Paste>
-Message-ID: <20171218101045.arwbzmbxbhqgreeu@node.shutemov.name>
-References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
+ long block
+Message-ID: <20171218101446.prbrutyom2ya47by@node.shutemov.name>
+References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+ <20171215102753.GY16951@dhcp22.suse.cz>
+ <13f935a9-42af-98f4-1813-456a25200d9d@alibaba-inc.com>
+ <20171216114525.GH16951@dhcp22.suse.cz>
+ <20171216200925.kxvkuqoyhkonj7m6@node.shutemov.name>
+ <20171218084119.GJ16951@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+In-Reply-To: <20171218084119.GJ16951@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Yang Shi <yang.s@alibaba-inc.com>, kirill.shutemov@linux.intel.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Tue, Dec 12, 2017 at 04:57:35PM +0300, Kirill A. Shutemov wrote:
-> Here's few changes to x86 decompression code.
+On Mon, Dec 18, 2017 at 09:41:19AM +0100, Michal Hocko wrote:
+> On Sat 16-12-17 23:09:25, Kirill A. Shutemov wrote:
+> > On Sat, Dec 16, 2017 at 12:45:25PM +0100, Michal Hocko wrote:
+> > > On Sat 16-12-17 04:04:10, Yang Shi wrote:
+> [...]
+> > > > Shall we add "cond_resched()" in unmap_vmas(), i.e for every 100 vmas? It
+> > > > may improve the responsiveness a little bit for non-preempt kernel, although
+> > > > it still can't release the semaphore.
+> > > 
+> > > We already do, once per pmd (see zap_pmd_range).
+> > 
+> > It doesn't help. We would need to find a way to drop mmap_sem, if we're
+> > holding it way too long. And doing it on per-vma count basis is not right
+> > call. It won't address issue with single huge vma.
 > 
-> The first patch is pure cosmetic change: it gives file with KASLR helpers
-> a proper name.
+> Absolutely agreed. I just wanted to point out that a new cond_resched is
+> not really needed. One way to reduce the lock starvation is to use range
+> locking.
 > 
-> The last three patches bring support of booting into 5-level paging mode if
-> a bootloader put the kernel above 4G.
+> > Do we have any instrumentation that would help detect starvation on a
+> > rw_semaphore?
 > 
-> Patch 2/4 Renames l5_paging_required() into paging_prepare() and change
-> interface of the function.
-> Patch 3/4 Handles allocation of space for trampoline and gets it prepared.
-> Patch 4/4 Gets trampoline used.
-> 
-> Kirill A. Shutemov (4):
->   x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
->   x86/boot/compressed/64: Introduce paging_prepare()
->   x86/boot/compressed/64: Prepare trampoline memory
->   x86/boot/compressed/64: Handle 5-level paging boot if kernel is above
->     4G
+> I am afraid we don't.
 
-Ingo, does it look fine now?
+I guess we have enough info in mmu_gather to decide if we are doing munmap way
+too long. Although, getting everything right would be tricky...
 
 -- 
  Kirill A. Shutemov
