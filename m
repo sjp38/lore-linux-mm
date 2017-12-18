@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 673F76B02A7
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:31:19 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id q67so7035569oig.14
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:31:19 -0800 (PST)
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 825BC6B02A9
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 07:31:33 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id u126so6953423oif.23
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 04:31:33 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d6si3740232oib.37.2017.12.18.04.31.18
+        by mx.google.com with ESMTPS id 31si4001469otf.362.2017.12.18.04.31.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 04:31:18 -0800 (PST)
+        Mon, 18 Dec 2017 04:31:32 -0800 (PST)
 From: Ming Lei <ming.lei@redhat.com>
-Subject: [PATCH V4 34/45] btrfs: conver to bio_for_each_page_all2
-Date: Mon, 18 Dec 2017 20:22:36 +0800
-Message-Id: <20171218122247.3488-35-ming.lei@redhat.com>
+Subject: [PATCH V4 35/45] ext4: conver to bio_for_each_page_all2
+Date: Mon, 18 Dec 2017 20:22:37 +0800
+Message-Id: <20171218122247.3488-36-ming.lei@redhat.com>
 In-Reply-To: <20171218122247.3488-1-ming.lei@redhat.com>
 References: <20171218122247.3488-1-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
@@ -25,126 +25,46 @@ enabled, so we have to convert to bio_for_each_page_all2().
 
 Signed-off-by: Ming Lei <ming.lei@redhat.com>
 ---
- fs/btrfs/compression.c | 3 ++-
- fs/btrfs/disk-io.c     | 3 ++-
- fs/btrfs/extent_io.c   | 9 ++++++---
- fs/btrfs/inode.c       | 6 ++++--
- 4 files changed, 14 insertions(+), 7 deletions(-)
+ fs/ext4/page-io.c  | 3 ++-
+ fs/ext4/readpage.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
 
-diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
-index 1a62725a5f08..f399f298b446 100644
---- a/fs/btrfs/compression.c
-+++ b/fs/btrfs/compression.c
-@@ -165,13 +165,14 @@ static void end_compressed_bio_read(struct bio *bio)
- 	} else {
- 		int i;
- 		struct bio_vec *bvec;
-+		struct bvec_iter_all bia;
- 
- 		/*
- 		 * we have verified the checksum already, set page
- 		 * checked so the end_io handlers know about it
- 		 */
- 		ASSERT(!bio_flagged(bio, BIO_CLONED));
--		bio_for_each_page_all(bvec, cb->orig_bio, i)
-+		bio_for_each_page_all2(bvec, cb->orig_bio, i, bia)
- 			SetPageChecked(bvec->bv_page);
- 
- 		bio_endio(cb->orig_bio);
-diff --git a/fs/btrfs/disk-io.c b/fs/btrfs/disk-io.c
-index 4f80361fbea9..8f2afdbd0a27 100644
---- a/fs/btrfs/disk-io.c
-+++ b/fs/btrfs/disk-io.c
-@@ -803,9 +803,10 @@ static blk_status_t btree_csum_one_bio(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct btrfs_root *root;
- 	int i, ret = 0;
-+	struct bvec_iter_all bia;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		root = BTRFS_I(bvec->bv_page->mapping->host)->root;
- 		ret = csum_dirty_buffer(root->fs_info, bvec->bv_page);
- 		if (ret)
-diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-index f466289b66a3..9df1b70cfa9b 100644
---- a/fs/btrfs/extent_io.c
-+++ b/fs/btrfs/extent_io.c
-@@ -2451,9 +2451,10 @@ static void end_bio_extent_writepage(struct bio *bio)
- 	u64 start;
- 	u64 end;
+diff --git a/fs/ext4/page-io.c b/fs/ext4/page-io.c
+index 52f2937f5603..b56a733f33c0 100644
+--- a/fs/ext4/page-io.c
++++ b/fs/ext4/page-io.c
+@@ -63,8 +63,9 @@ static void ext4_finish_bio(struct bio *bio)
+ {
  	int i;
+ 	struct bio_vec *bvec;
 +	struct bvec_iter_all bia;
  
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 -	bio_for_each_page_all(bvec, bio, i) {
 +	bio_for_each_page_all2(bvec, bio, i, bia) {
  		struct page *page = bvec->bv_page;
- 		struct inode *inode = page->mapping->host;
- 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-@@ -2522,9 +2523,10 @@ static void end_bio_extent_readpage(struct bio *bio)
- 	int mirror;
- 	int ret;
+ #ifdef CONFIG_EXT4_FS_ENCRYPTION
+ 		struct page *data_page = NULL;
+diff --git a/fs/ext4/readpage.c b/fs/ext4/readpage.c
+index 572b6296f709..c46b5ff68fa8 100644
+--- a/fs/ext4/readpage.c
++++ b/fs/ext4/readpage.c
+@@ -72,6 +72,7 @@ static void mpage_end_io(struct bio *bio)
+ {
+ 	struct bio_vec *bv;
  	int i;
 +	struct bvec_iter_all bia;
  
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		struct page *page = bvec->bv_page;
- 		struct inode *inode = page->mapping->host;
- 		struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-@@ -3682,9 +3684,10 @@ static void end_bio_extent_buffer_writepage(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct extent_buffer *eb;
- 	int i, done;
-+	struct bvec_iter_all bia;
+ 	if (ext4_bio_encrypted(bio)) {
+ 		if (bio->bi_status) {
+@@ -81,7 +82,7 @@ static void mpage_end_io(struct bio *bio)
+ 			return;
+ 		}
+ 	}
+-	bio_for_each_page_all(bv, bio, i) {
++	bio_for_each_page_all2(bv, bio, i, bia) {
+ 		struct page *page = bv->bv_page;
  
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		struct page *page = bvec->bv_page;
- 
- 		eb = (struct extent_buffer *)page->private;
-diff --git a/fs/btrfs/inode.c b/fs/btrfs/inode.c
-index fda9f2a92f7a..1da401c60b9c 100644
---- a/fs/btrfs/inode.c
-+++ b/fs/btrfs/inode.c
-@@ -8069,6 +8069,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
- 	struct bio_vec *bvec;
- 	struct extent_io_tree *io_tree, *failure_tree;
- 	int i;
-+	struct bvec_iter_all bia;
- 
- 	if (bio->bi_status)
- 		goto end;
-@@ -8080,7 +8081,7 @@ static void btrfs_retry_endio_nocsum(struct bio *bio)
- 
- 	done->uptodate = 1;
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_page_all(bvec, bio, i)
-+	bio_for_each_page_all2(bvec, bio, i, bia)
- 		clean_io_failure(BTRFS_I(inode)->root->fs_info, failure_tree,
- 				 io_tree, done->start, bvec->bv_page,
- 				 btrfs_ino(BTRFS_I(inode)), 0);
-@@ -8159,6 +8160,7 @@ static void btrfs_retry_endio(struct bio *bio)
- 	int uptodate;
- 	int ret;
- 	int i;
-+	struct bvec_iter_all bia;
- 
- 	if (bio->bi_status)
- 		goto end;
-@@ -8172,7 +8174,7 @@ static void btrfs_retry_endio(struct bio *bio)
- 	failure_tree = &BTRFS_I(inode)->io_failure_tree;
- 
- 	ASSERT(!bio_flagged(bio, BIO_CLONED));
--	bio_for_each_page_all(bvec, bio, i) {
-+	bio_for_each_page_all2(bvec, bio, i, bia) {
- 		ret = __readpage_endio_check(inode, io_bio, i, bvec->bv_page,
- 					     bvec->bv_offset, done->start,
- 					     bvec->bv_len);
+ 		if (!bio->bi_status) {
 -- 
 2.9.5
 
