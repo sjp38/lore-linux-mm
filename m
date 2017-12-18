@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2D9A06B026D
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 14:07:12 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w141so7834612wme.1
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 11:07:12 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F5196B026F
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 14:07:13 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id w74so7319115wmf.0
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 11:07:13 -0800 (PST)
 Received: from mx02.buh.bitdefender.com (mx02.bbu.dsd.mx.bitdefender.com. [91.199.104.133])
-        by mx.google.com with ESMTPS id p12si9499606wrh.443.2017.12.18.11.07.10
+        by mx.google.com with ESMTPS id o6si10442581wrh.425.2017.12.18.11.07.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 18 Dec 2017 11:07:11 -0800 (PST)
 From: =?UTF-8?q?Adalber=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v4 14/18] kvm: x86: hook in kvmi_cr_event()
-Date: Mon, 18 Dec 2017 21:06:38 +0200
-Message-Id: <20171218190642.7790-15-alazar@bitdefender.com>
+Subject: [RFC PATCH v4 16/18] kvm: x86: hook in kvmi_msr_event()
+Date: Mon, 18 Dec 2017 21:06:40 +0200
+Message-Id: <20171218190642.7790-17-alazar@bitdefender.com>
 In-Reply-To: <20171218190642.7790-1-alazar@bitdefender.com>
 References: <20171218190642.7790-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -25,64 +25,36 @@ Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?q?Radim=20K
 
 From: Adalbert Lazar <alazar@bitdefender.com>
 
-Notify the guest introspection tool that cr{0,3,4} is going to be
-changed. The function kvmi_cr_event() will load in crX the new value
-if the tool permits it.
+Inform the guest introspection tool that an MSR is going to be changed.
+
+The kvmi_msr_event() function will check a bitmap of MSR-s of interest
+(configured via a KVMI_CONTROL_EVENTS(KVMI_MSR_CONTROL) request) and, if
+the new value differs from the previous one, it will generate a
+notification. The introspection tool can respond by allowing the guest
+to continue with normal execution or by discarding the change.
+
+This is meant to prevent malicious changes to MSR-s such as
+MSR_IA32_SYSENTER_EIP.
 
 Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
 ---
- arch/x86/kvm/x86.c | 13 ++++++++++++-
- 1 file changed, 12 insertions(+), 1 deletion(-)
+ arch/x86/kvm/x86.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index caf50b7307a4..8f5cc81c8760 100644
+index 284bb4c740fa..271028ccbeca 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -676,6 +676,9 @@ int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
- 	if (!(cr0 & X86_CR0_PG) && kvm_read_cr4_bits(vcpu, X86_CR4_PCIDE))
- 		return 1;
- 
-+	if (!kvmi_cr_event(vcpu, 0, old_cr0, &cr0))
-+		return 1;
-+
- 	kvm_x86_ops->set_cr0(vcpu, cr0);
- 
- 	if ((cr0 ^ old_cr0) & X86_CR0_PG) {
-@@ -816,6 +819,9 @@ int kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
- 			return 1;
- 	}
- 
-+	if (!kvmi_cr_event(vcpu, 4, old_cr4, &cr4))
-+		return 1;
-+
- 	if (kvm_x86_ops->set_cr4(vcpu, cr4))
- 		return 1;
- 
-@@ -832,11 +838,13 @@ EXPORT_SYMBOL_GPL(kvm_set_cr4);
- 
- int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
+@@ -1111,6 +1111,9 @@ EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
+  */
+ int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
  {
-+	unsigned long old_cr3 = kvm_read_cr3(vcpu);
-+
- #ifdef CONFIG_X86_64
- 	cr3 &= ~CR3_PCID_INVD;
- #endif
- 
--	if (cr3 == kvm_read_cr3(vcpu) && !pdptrs_changed(vcpu)) {
-+	if (cr3 == old_cr3 && !pdptrs_changed(vcpu)) {
- 		kvm_mmu_sync_roots(vcpu);
- 		kvm_make_request(KVM_REQ_TLB_FLUSH, vcpu);
- 		return 0;
-@@ -849,6 +857,9 @@ int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
- 		   !load_pdptrs(vcpu, vcpu->arch.walk_mmu, cr3))
- 		return 1;
- 
-+	if (!kvmi_cr_event(vcpu, 3, old_cr3, &cr3))
++	if (!kvmi_msr_event(vcpu, msr))
 +		return 1;
 +
- 	vcpu->arch.cr3 = cr3;
- 	__set_bit(VCPU_EXREG_CR3, (ulong *)&vcpu->arch.regs_avail);
- 	kvm_mmu_new_cr3(vcpu);
+ 	switch (msr->index) {
+ 	case MSR_FS_BASE:
+ 	case MSR_GS_BASE:
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
