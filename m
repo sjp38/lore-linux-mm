@@ -1,38 +1,44 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 470526B0277
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:55:35 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id c9so9357636wrb.4
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:55:35 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C00C76B027B
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:55:37 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id o2so6825671wmf.2
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:55:37 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 80si8306436wma.263.2017.12.18.03.55.34
+        by mx.google.com with ESMTPS id g80si8585965wmc.162.2017.12.18.03.55.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 03:55:34 -0800 (PST)
-Message-Id: <20171218115255.098486984@linutronix.de>
-Date: Mon, 18 Dec 2017 12:42:33 +0100
+        Mon, 18 Dec 2017 03:55:36 -0800 (PST)
+Message-Id: <20171218115254.922134851@linutronix.de>
+Date: Mon, 18 Dec 2017 12:42:31 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V163 18/51] x86/mm: Create asm/invpcid.h
+Subject: [patch V163 16/51] x86/mm: Remove hard-coded ASID limit checks
 References: <20171218114215.239543034@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=0062-x86-mm-Create-asm-invpcid.h.patch
+Content-Disposition: inline;
+ filename=0048-x86-mm-Remove-hard-coded-ASID-limit-checks.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Unclutter tlbflush.h a little.
+First, it's nice to remove the magic numbers.
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Second, PAGE_TABLE_ISOLATION is going to consume half of the available ASID
+space.  The space is currently unused, but add a comment to spell out this
+new restriction.
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -41,6 +47,7 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
@@ -48,124 +55,52 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/invpcid.h  |   53 ++++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/tlbflush.h |   49 ------------------------------------
- 2 files changed, 54 insertions(+), 48 deletions(-)
+ arch/x86/include/asm/tlbflush.h |   20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
 
---- /dev/null
-+++ b/arch/x86/include/asm/invpcid.h
-@@ -0,0 +1,53 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _ASM_X86_INVPCID
-+#define _ASM_X86_INVPCID
-+
-+static inline void __invpcid(unsigned long pcid, unsigned long addr,
-+			     unsigned long type)
-+{
-+	struct { u64 d[2]; } desc = { { pcid, addr } };
-+
-+	/*
-+	 * The memory clobber is because the whole point is to invalidate
-+	 * stale TLB entries and, especially if we're flushing global
-+	 * mappings, we don't want the compiler to reorder any subsequent
-+	 * memory accesses before the TLB flush.
-+	 *
-+	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
-+	 * invpcid (%rcx), %rax in long mode.
-+	 */
-+	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
-+		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
-+}
-+
-+#define INVPCID_TYPE_INDIV_ADDR		0
-+#define INVPCID_TYPE_SINGLE_CTXT	1
-+#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
-+#define INVPCID_TYPE_ALL_NON_GLOBAL	3
-+
-+/* Flush all mappings for a given pcid and addr, not including globals. */
-+static inline void invpcid_flush_one(unsigned long pcid,
-+				     unsigned long addr)
-+{
-+	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
-+}
-+
-+/* Flush all mappings for a given PCID, not including globals. */
-+static inline void invpcid_flush_single_context(unsigned long pcid)
-+{
-+	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
-+}
-+
-+/* Flush all mappings, including globals, for all PCIDs. */
-+static inline void invpcid_flush_all(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
-+}
-+
-+/* Flush all mappings for all PCIDs except globals. */
-+static inline void invpcid_flush_all_nonglobals(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
-+}
-+
-+#endif /* _ASM_X86_INVPCID */
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -9,54 +9,7 @@
- #include <asm/cpufeature.h>
- #include <asm/special_insns.h>
- #include <asm/smp.h>
--
--static inline void __invpcid(unsigned long pcid, unsigned long addr,
--			     unsigned long type)
--{
--	struct { u64 d[2]; } desc = { { pcid, addr } };
--
--	/*
--	 * The memory clobber is because the whole point is to invalidate
--	 * stale TLB entries and, especially if we're flushing global
--	 * mappings, we don't want the compiler to reorder any subsequent
--	 * memory accesses before the TLB flush.
--	 *
--	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
--	 * invpcid (%rcx), %rax in long mode.
--	 */
--	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
--		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
--}
--
--#define INVPCID_TYPE_INDIV_ADDR		0
--#define INVPCID_TYPE_SINGLE_CTXT	1
--#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
--#define INVPCID_TYPE_ALL_NON_GLOBAL	3
--
--/* Flush all mappings for a given pcid and addr, not including globals. */
--static inline void invpcid_flush_one(unsigned long pcid,
--				     unsigned long addr)
--{
--	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
--}
--
--/* Flush all mappings for a given PCID, not including globals. */
--static inline void invpcid_flush_single_context(unsigned long pcid)
--{
--	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
--}
--
--/* Flush all mappings, including globals, for all PCIDs. */
--static inline void invpcid_flush_all(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
--}
--
--/* Flush all mappings for all PCIDs except globals. */
--static inline void invpcid_flush_all_nonglobals(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
--}
-+#include <asm/invpcid.h>
+@@ -69,6 +69,22 @@ static inline u64 inc_mm_tlb_gen(struct
+ 	return atomic64_inc_return(&mm->context.tlb_gen);
+ }
  
- static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
++/* There are 12 bits of space for ASIDS in CR3 */
++#define CR3_HW_ASID_BITS		12
++/*
++ * When enabled, PAGE_TABLE_ISOLATION consumes a single bit for
++ * user/kernel switches
++ */
++#define PTI_CONSUMED_ASID_BITS		0
++
++#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS - PTI_CONSUMED_ASID_BITS)
++/*
++ * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
++ * for them being zero-based.  Another -1 is because ASID 0 is reserved for
++ * use by non-PCID-aware users.
++ */
++#define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
++
+ /*
+  * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
+  * This serves two purposes.  It prevents a nasty situation in which
+@@ -81,7 +97,7 @@ struct pgd_t;
+ static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
  {
+ 	if (static_cpu_has(X86_FEATURE_PCID)) {
+-		VM_WARN_ON_ONCE(asid > 4094);
++		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+ 		return __sme_pa(pgd) | (asid + 1);
+ 	} else {
+ 		VM_WARN_ON_ONCE(asid != 0);
+@@ -91,7 +107,7 @@ static inline unsigned long build_cr3(pg
+ 
+ static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+ {
+-	VM_WARN_ON_ONCE(asid > 4094);
++	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+ 	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
+ }
+ 
 
 
 --
