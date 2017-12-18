@@ -1,105 +1,135 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 57E186B0266
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 09:52:30 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id v8so9105006otd.4
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:52:30 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f32si4086168otb.352.2017.12.18.06.52.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 921856B0268
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 09:53:23 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n13so7537495wmc.3
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:53:23 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g29si9615171wrb.457.2017.12.18.06.53.22
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 06:52:28 -0800 (PST)
-Subject: Re: INFO: task hung in filemap_fault
-References: <001a11444d0e7bfd7f05609956c6@google.com>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <82d89066-7dd2-12fe-3cc0-c8d624fe0d51@I-love.SAKURA.ne.jp>
-Date: Mon, 18 Dec 2017 23:52:17 +0900
+        Mon, 18 Dec 2017 06:53:22 -0800 (PST)
+Date: Mon, 18 Dec 2017 15:53:20 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Memory hotplug regression in 4.13
+Message-ID: <20171218145320.GO16951@dhcp22.suse.cz>
+References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
+ <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
+ <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
+ <20170925125825.zpgasjhjufupbias@dhcp22.suse.cz>
+ <20171201142327.GA16952@ubuntu-xps13>
 MIME-Version: 1.0
-In-Reply-To: <001a11444d0e7bfd7f05609956c6@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171201142327.GA16952@ubuntu-xps13>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+980f5e5fc060c37505bd65abb49a963518b269d9@syzkaller.appspotmail.com>, ak@linux.intel.com, akpm@linux-foundation.org, jack@suse.cz, jlayton@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mingo@kernel.org, npiggin@gmail.com, rgoldwyn@suse.com, syzkaller-bugs@googlegroups.com
+To: Seth Forshee <seth.forshee@canonical.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 2017/12/18 17:43, syzbot wrote:
-> Hello,
+On Fri 01-12-17 08:23:27, Seth Forshee wrote:
+> On Mon, Sep 25, 2017 at 02:58:25PM +0200, Michal Hocko wrote:
+> > On Thu 21-09-17 00:40:34, Seth Forshee wrote:
+[...]
+> > > It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
+> > > and the problem still occurs there. It's pointing to the call to
+> > > __builtin_memcpy in memcpy (include/linux/string.h line 340), which we
+> > > get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
+> > 
+> > Hmm, this is interesting. That would mean that we have successfully
+> > mapped the destination page but its memory is still not accessible.
+> > 
+> > Right now I do not see how the patch you have bisected to could make any
+> > difference because it only postponed the onlining to be independent but
+> > your config simply onlines automatically so there shouldn't be any
+> > semantic change. Maybe there is some sort of off-by-one or something.
+> > 
+> > I will try to investigate some more. Do you think it would be possible
+> > to configure kdump on your system and provide me with the vmcore in some
+> > way?
 > 
-> syzkaller hit the following crash on 6084b576dca2e898f5c101baef151f7bfdbb606d
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached
-> Raw console output is attached.
-> 
-> Unfortunately, I don't have any reproducer for this bug yet.
-> 
+> Sorry, I got busy with other stuff and this kind of fell off my radar.
+> It came to my attention again recently though.
 
-This log has a lot of mmap() but also has Android's binder messages.
+Apology on my side. This has completely fall of my radar.
 
-r9 = syz_open_dev$binder(&(0x7f0000000000)='/dev/binder#\x00', 0x0, 0x800)
+> I was looking through the hotplug rework changes, and I noticed that
+> 32-bit x86 previously was using ZONE_HIGHMEM as a default but after the
+> rework it doesn't look like it's possible for memory to be associated
+> with ZONE_HIGHMEM when onlining. So I made the change below against 4.14
+> and am now no longer seeing the oopses.
 
-[   49.200735] binder: 9749:9755 IncRefs 0 refcount change on invalid ref 2 ret -22
-[   49.221514] binder: 9749:9755 Acquire 1 refcount change on invalid ref 4 ret -22
-[   49.233325] binder: 9749:9755 Acquire 1 refcount change on invalid ref 0 ret -22
-[   49.241979] binder: binder_mmap: 9749 205a3000-205a7000 bad vm_flags failed -1
-[   49.256949] binder: 9749:9755 unknown command 0
-[   49.262470] binder: 9749:9755 ioctl c0306201 20000fd0 returned -22
-[   49.293365] binder: 9749:9755 IncRefs 0 refcount change on invalid ref 2 ret -22
-[   49.301297] binder: binder_mmap: 9749 205a3000-205a7000 bad vm_flags failed -1
-[   49.314146] binder: 9749:9755 Acquire 1 refcount change on invalid ref 4 ret -22
-[   49.322732] binder: 9749:9755 Acquire 1 refcount change on invalid ref 0 ret -22
-[   49.332063] binder: 9749:9755 Release 1 refcount change on invalid ref 1 ret -22
-[   49.340796] binder: 9749:9755 Acquire 1 refcount change on invalid ref 2 ret -22
-[   49.349457] binder: 9749:9755 BC_DEAD_BINDER_DONE 0000000000000001 not found
-[   49.349462] binder: 9749:9755 BC_DEAD_BINDER_DONE 0000000000000000 not found
+Thanks a lot for debugging! Do I read the above correctly that the
+current code simply returns ZONE_NORMAL and maps an unrelated pfn into
+this zone and that leads to later blowups? Could you attach the fresh
+boot dmesg output please?
 
-[  246.752088] INFO: task syz-executor7:10280 blocked for more than 120 seconds.
+> I'm sure this isn't the correct fix, but I think it does confirm that
+> the problem is that the memory should be associated with ZONE_HIGHMEM
+> but is not.
 
-Anything that hung after uptime > 46.75 can be reported at uptime = 246.75, can't it?
 
-Is it possible to reproduce this problem by running the same program?
+Yes, the fix is not quite right. HIGHMEM is not a _kernel_ memory
+zone. The kernel cannot access that memory directly. It is essentially a
+movable zone from the hotplug API POV. We simply do not have any way to
+tell into which zone we want to online this memory range in.
+Unfortunately both zones _can_ be present. It would require an explicit
+configuration (movable_node and a NUMA hoptlugable nodes running in 32b
+or and movable memory configured explicitly on the kernel command line).
 
-> 
-> INFO: task syz-executor7:10280 blocked for more than 120 seconds.
-> A A A A A  Not tainted 4.15.0-rc3-next-20171214+ #67
-> "echo 0 > /proc/sys/kernel/hung_task_timeout_secs" disables this message.
-> syz-executor7A A  DA A A  0 10280A A  3310 0x00000004
-> Call Trace:
-> A context_switch kernel/sched/core.c:2800 [inline]
-> A __schedule+0x30b/0xaf0 kernel/sched/core.c:3376
-> A schedule+0x2e/0x90 kernel/sched/core.c:3435
-> A io_schedule+0x11/0x40 kernel/sched/core.c:5043
-> A wait_on_page_bit_common mm/filemap.c:1099 [inline]
-> A wait_on_page_bit mm/filemap.c:1132 [inline]
-> A wait_on_page_locked include/linux/pagemap.h:530 [inline]
-> A __lock_page_or_retry+0x391/0x3e0 mm/filemap.c:1310
-> A lock_page_or_retry include/linux/pagemap.h:510 [inline]
-> A filemap_fault+0x61c/0xa70 mm/filemap.c:2532
-> A __do_fault+0x23/0xa4 mm/memory.c:3206
-> A do_read_fault mm/memory.c:3616 [inline]
-> A do_fault mm/memory.c:3716 [inline]
-> A handle_pte_fault mm/memory.c:3947 [inline]
-> A __handle_mm_fault+0x10b5/0x1930 mm/memory.c:4071
-> A handle_mm_fault+0x215/0x450 mm/memory.c:4108
-> A faultin_page mm/gup.c:502 [inline]
-> A __get_user_pages+0x1ff/0x980 mm/gup.c:699
-> A populate_vma_page_range+0xa1/0xb0 mm/gup.c:1200
-> A __mm_populate+0xcc/0x190 mm/gup.c:1250
-> A mm_populate include/linux/mm.h:2233 [inline]
-> A vm_mmap_pgoff+0x103/0x110 mm/util.c:338
-> A SYSC_mmap_pgoff mm/mmap.c:1533 [inline]
-> A SyS_mmap_pgoff+0x215/0x2c0 mm/mmap.c:1491
-> A SYSC_mmap arch/x86/kernel/sys_x86_64.c:100 [inline]
-> A SyS_mmap+0x16/0x20 arch/x86/kernel/sys_x86_64.c:91
-> A entry_SYSCALL_64_fastpath+0x1f/0x96
-> RIP: 0033:0x452a09
-> RSP: 002b:00007efce66dac58 EFLAGS: 00000212 ORIG_RAX: 0000000000000009
-> RAX: ffffffffffffffda RBX: 000000000071bea0 RCX: 0000000000452a09
-> RDX: 0000000000000003 RSI: 0000000000001000 RDI: 0000000020e5b000
-> RBP: 0000000000000033 R08: 0000000000000016 R09: 0000000000000000
-> R10: 0000000000002011 R11: 0000000000000212 R12: 00000000006ed568
-> R13: 00000000ffffffff R14: 00007efce66db6d4 R15: 0000000000000000
+The below patch is not really complete but I would rather start simple.
+Maybe we do not even have to care as most 32b users will never use both
+zones at the same time. I've placed a warning to learn about those.
+
+Does this pass your testing?
+---
+diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+index 262bfd26baf9..18fec18bdb60 100644
+--- a/mm/memory_hotplug.c
++++ b/mm/memory_hotplug.c
+@@ -855,12 +855,29 @@ static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn
+ 	return &pgdat->node_zones[ZONE_NORMAL];
+ }
+ 
++static struct zone *default_movable_zone_for_pfn(int nid)
++{
++	/*
++	 * Please note that 32b HIGHMEM systems might have 2 movable zones
++	 * actually so we have to check for both. This is rather ugly hack
++	 * to enforce using Highmem on those systems but we do not have a
++	 * good user API to tell into which movable zone we should online.
++	 * WARN if we have a movable zone which is not highmem.
++	 */
++#ifdef CONFIG_HIGHMEM
++	WARN_ON_ONCE(!zone_movable_is_highmem());
++	return &NODE_DATA(nid)->node_zones[ZONE_HIGHMEM];
++#else
++	return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
++#endif
++}
++
+ static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
+ 		unsigned long nr_pages)
+ {
+ 	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
+ 			nr_pages);
+-	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
++	struct zone *movable_zone = default_movable_zone_for_pfn(nid);
+ 	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
+ 	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
+ 
+@@ -886,7 +903,7 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
+ 		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
+ 
+ 	if (online_type == MMOP_ONLINE_MOVABLE)
+-		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
++		return default_movable_zone_for_pfn(nid);
+ 
+ 	return default_zone_for_pfn(nid, start_pfn, nr_pages);
+ }
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
