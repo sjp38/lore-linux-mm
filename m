@@ -1,44 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A59A96B0268
+	by kanga.kvack.org (Postfix) with ESMTP id BB3CF6B026A
 	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:54:44 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id w141so7318719wme.1
+Received: by mail-wm0-f70.google.com with SMTP id o2so6824886wmf.2
         for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:54:44 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id n13si8125903wmh.184.2017.12.18.03.54.43
+        by mx.google.com with ESMTPS id w126si8421743wma.175.2017.12.18.03.54.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Mon, 18 Dec 2017 03:54:43 -0800 (PST)
-Message-Id: <20171218115254.495089171@linutronix.de>
-Date: Mon, 18 Dec 2017 12:42:26 +0100
+Message-Id: <20171218115255.339318779@linutronix.de>
+Date: Mon, 18 Dec 2017 12:42:36 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V163 11/51] x86/microcode: Dont abuse the tlbflush interface
+Subject: [patch V163 21/51] x86/mm/pti: Disable global pages if
+ PAGE_TABLE_ISOLATION=y
 References: <20171218114215.239543034@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0066-x86-microcode-Dont-abuse-the-tlbflush-interface.patch
+ filename=0028-x86-mm-pti-Disable-global-pages-if-PAGE_TABLE_ISOLAT.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, fenghua.yu@intel.com, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@suse.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-Commit: ec400ddeff20 ("x86/microcode_intel_early.c: Early update ucode on
-Intel's CPU") grubbed into tlbflush internals without coherent explanation.
+Global pages stay in the TLB across context switches.  Since all contexts
+share the same kernel mapping, these mappings are marked as global pages
+so kernel entries in the TLB are not flushed out on a context switch.
 
-Since it says its precaution and the SDM doesn't mention anything like
-this, take it out back.
+But, even having these entries in the TLB opens up something that an
+attacker can use, such as the double-page-fault attack:
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+   http://www.ieee-security.org/TC/SP2013/papers/4977a191.pdf
+
+That means that even when PAGE_TABLE_ISOLATION switches page tables
+on return to user space the global pages would stay in the TLB cache.
+
+Disable global pages so that kernel TLB entries can be flushed before
+returning to user space. This way, all accesses to kernel addresses from
+userspace result in a TLB miss independent of the existence of a kernel
+mapping.
+
+Suppress global pages via the __supported_pte_mask. The user space
+mappings set PAGE_GLOBAL for the minimal kernel mappings which are
+required for entry/exit. These mappings are set up manually so the
+filtering does not take place.
+
+[ The __supported_pte_mask simplification was written by Thomas Gleixner. ]
+
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -51,81 +69,43 @@ Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
-Cc: fenghua.yu@intel.com
 Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/tlbflush.h       |   19 ++++++-------------
- arch/x86/kernel/cpu/microcode/intel.c |   13 -------------
- 2 files changed, 6 insertions(+), 26 deletions(-)
+ arch/x86/mm/init.c |   12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -246,20 +246,9 @@ static inline void __native_flush_tlb(vo
- 	preempt_enable();
- }
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -161,6 +161,12 @@ struct map_range {
  
--static inline void __native_flush_tlb_global_irq_disabled(void)
--{
--	unsigned long cr4;
--
--	cr4 = this_cpu_read(cpu_tlbstate.cr4);
--	/* clear PGE */
--	native_write_cr4(cr4 & ~X86_CR4_PGE);
--	/* write old PGE again and flush TLBs */
--	native_write_cr4(cr4);
--}
--
- static inline void __native_flush_tlb_global(void)
+ static int page_size_mask;
+ 
++static void enable_global_pages(void)
++{
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		__supported_pte_mask |= _PAGE_GLOBAL;
++}
++
+ static void __init probe_page_size_mask(void)
  {
--	unsigned long flags;
-+	unsigned long cr4, flags;
+ 	/*
+@@ -179,11 +185,11 @@ static void __init probe_page_size_mask(
+ 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
  
- 	if (static_cpu_has(X86_FEATURE_INVPCID)) {
- 		/*
-@@ -277,7 +266,11 @@ static inline void __native_flush_tlb_gl
- 	 */
- 	raw_local_irq_save(flags);
+ 	/* Enable PGE if available */
++	__supported_pte_mask &= ~_PAGE_GLOBAL;
+ 	if (boot_cpu_has(X86_FEATURE_PGE)) {
+ 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
+-		__supported_pte_mask |= _PAGE_GLOBAL;
+-	} else
+-		__supported_pte_mask &= ~_PAGE_GLOBAL;
++		enable_global_pages();
++	}
  
--	__native_flush_tlb_global_irq_disabled();
-+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-+	/* toggle PGE */
-+	native_write_cr4(cr4 ^ X86_CR4_PGE);
-+	/* write old PGE again and flush TLBs */
-+	native_write_cr4(cr4);
- 
- 	raw_local_irq_restore(flags);
- }
---- a/arch/x86/kernel/cpu/microcode/intel.c
-+++ b/arch/x86/kernel/cpu/microcode/intel.c
-@@ -565,15 +565,6 @@ static void print_ucode(struct ucode_cpu
- }
- #else
- 
--/*
-- * Flush global tlb. We only do this in x86_64 where paging has been enabled
-- * already and PGE should be enabled as well.
-- */
--static inline void flush_tlb_early(void)
--{
--	__native_flush_tlb_global_irq_disabled();
--}
--
- static inline void print_ucode(struct ucode_cpu_info *uci)
- {
- 	struct microcode_intel *mc;
-@@ -602,10 +593,6 @@ static int apply_microcode_early(struct
- 	if (rev != mc->hdr.rev)
- 		return -1;
- 
--#ifdef CONFIG_X86_64
--	/* Flush global tlb. This is precaution. */
--	flush_tlb_early();
--#endif
- 	uci->cpu_sig.rev = rev;
- 
- 	if (early)
+ 	/* Enable 1 GB linear kernel mappings if available: */
+ 	if (direct_gbpages && boot_cpu_has(X86_FEATURE_GBPAGES)) {
 
 
 --
