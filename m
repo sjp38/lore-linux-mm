@@ -1,41 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6D8B76B0272
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:55:22 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id v184so2348553wmf.1
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:55:22 -0800 (PST)
+Received: from mail-yb0-f197.google.com (mail-yb0-f197.google.com [209.85.213.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 72BBA6B0274
+	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 06:55:30 -0500 (EST)
+Received: by mail-yb0-f197.google.com with SMTP id z18so7075040ybg.10
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 03:55:30 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 7si9230461wra.41.2017.12.18.03.55.21
+        by mx.google.com with ESMTPS id t4si2535752wmt.2.2017.12.18.03.55.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Mon, 18 Dec 2017 03:55:21 -0800 (PST)
-Message-Id: <20171218115257.668456163@linutronix.de>
-Date: Mon, 18 Dec 2017 12:43:04 +0100
+        Mon, 18 Dec 2017 03:55:29 -0800 (PST)
+Message-Id: <20171218115254.576165229@linutronix.de>
+Date: Mon, 18 Dec 2017 12:42:27 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V163 49/51] x86/mm/dump_pagetables: Check user space page
- table for WX pages
+Subject: [patch V163 12/51] x86/mm: Use __flush_tlb_one() for kernel memory
 References: <20171218114215.239543034@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0058-x86-mm-dump_pagetables-Check-user-space-page-table-f.patch
+ filename=0064-x86-mm-Use-__flush_tlb_one-for-kernel-memory.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
 Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Thomas Gleixner <tglx@linutronix.de>
+From: Peter Zijlstra <peterz@infradead.org>
 
-ptdump_walk_pgd_level_checkwx() checks the kernel page table for WX pages,
-but does not check the PAGE_TABLE_ISOLATION user space page table.
+__flush_tlb_single() is for user mappings, __flush_tlb_one() for
+kernel mappings.
 
-Restructure the code so that dmesg output is selected by an explicit
-argument and not implicit via checking the pgd argument for !NULL.
-
-Add the check for the user space page table.
-
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
@@ -49,7 +44,6 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
@@ -57,89 +51,20 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/pgtable.h |    1 +
- arch/x86/mm/debug_pagetables.c |    2 +-
- arch/x86/mm/dump_pagetables.c  |   30 +++++++++++++++++++++++++-----
- 3 files changed, 27 insertions(+), 6 deletions(-)
+ arch/x86/mm/tlb.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -28,6 +28,7 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD]
- int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -551,7 +551,7 @@ static void do_kernel_range_flush(void *
  
- void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd);
- void ptdump_walk_pgd_level_checkwx(void);
- 
- #ifdef CONFIG_DEBUG_WX
---- a/arch/x86/mm/debug_pagetables.c
-+++ b/arch/x86/mm/debug_pagetables.c
-@@ -5,7 +5,7 @@
- 
- static int ptdump_show(struct seq_file *m, void *v)
- {
--	ptdump_walk_pgd_level(m, NULL);
-+	ptdump_walk_pgd_level_debugfs(m, NULL);
- 	return 0;
+ 	/* flush range by one by one 'invlpg' */
+ 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
+-		__flush_tlb_single(addr);
++		__flush_tlb_one(addr);
  }
  
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -459,7 +459,7 @@ static inline bool is_hypervisor_range(i
- }
- 
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
--				       bool checkwx)
-+				       bool checkwx, bool dmesg)
- {
- #ifdef CONFIG_X86_64
- 	pgd_t *start = (pgd_t *) &init_top_pgt;
-@@ -472,7 +472,7 @@ static void ptdump_walk_pgd_level_core(s
- 
- 	if (pgd) {
- 		start = pgd;
--		st.to_dmesg = true;
-+		st.to_dmesg = dmesg;
- 	}
- 
- 	st.check_wx = checkwx;
-@@ -510,13 +510,33 @@ static void ptdump_walk_pgd_level_core(s
- 
- void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
- {
--	ptdump_walk_pgd_level_core(m, pgd, false);
-+	ptdump_walk_pgd_level_core(m, pgd, false, true);
-+}
-+
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
-+{
-+	ptdump_walk_pgd_level_core(m, pgd, false, false);
-+}
-+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
-+
-+static void ptdump_walk_user_pgd_level_checkwx(void)
-+{
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return;
-+
-+	pr_info("x86/mm: Checking user space page tables\n");
-+	pgd = kernel_to_user_pgdp(pgd);
-+	ptdump_walk_pgd_level_core(NULL, pgd, true, false);
-+#endif
- }
--EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level);
- 
- void ptdump_walk_pgd_level_checkwx(void)
- {
--	ptdump_walk_pgd_level_core(NULL, NULL, true);
-+	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
-+	ptdump_walk_user_pgd_level_checkwx();
- }
- 
- static int __init pt_dump_init(void)
+ void flush_tlb_kernel_range(unsigned long start, unsigned long end)
 
 
 --
