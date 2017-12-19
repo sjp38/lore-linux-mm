@@ -1,71 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 79BC06B0253
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:36:48 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id h200so3191754itb.3
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:36:48 -0800 (PST)
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 607206B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:41:11 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id u1so14197265qka.7
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:41:11 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a124sor1201337itg.111.2017.12.19.13.36.47
+        by mx.google.com with SMTPS id g5sor11732719qtk.24.2017.12.19.13.41.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 13:36:47 -0800 (PST)
+        Tue, 19 Dec 2017 13:41:10 -0800 (PST)
+Date: Tue, 19 Dec 2017 13:41:07 -0800
+From: Tejun Heo <tj@kernel.org>
+Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
+Message-ID: <20171219214107.GR3919388@devbig577.frc2.facebook.com>
+References: <20171219000131.149170-1-shakeelb@google.com>
+ <20171219124908.GS2787@dhcp22.suse.cz>
+ <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
+ <20171219152444.GP3919388@devbig577.frc2.facebook.com>
+ <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
+ <20171219173354.GQ3919388@devbig577.frc2.facebook.com>
+ <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171219132246.GD13680@bombadil.infradead.org>
-References: <001a113e9ca8a3affd05609d7ccf@google.com> <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
- <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros> <20171219132246.GD13680@bombadil.infradead.org>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 19 Dec 2017 13:36:46 -0800
-Message-ID: <CA+55aFwvMMg0Kt8z+tkgPREbX--Of0R5nr_wS4B64kFxiVVKmw@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in memdup_user
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: "Tobin C. Harding" <me@tobin.cc>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
+To: Shakeel Butt <shakeelb@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
 
-On Tue, Dec 19, 2017 at 5:22 AM, Matthew Wilcox <willy@infradead.org> wrote:
->
-> Could we have a way to know that the printed address is hashed and not just
-> a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
-> So this line would look like:
+Hello,
 
-The problem with that is that it will break tools that parse things.
+On Tue, Dec 19, 2017 at 10:25:12AM -0800, Shakeel Butt wrote:
+> Making the runtime environment, an invariant is very critical to make
+> the management of a job easier whose instances run on different
+> clusters across the world. Some clusters might have different type of
+> swaps installed while some might not have one at all and the
+> availability of the swap can be dynamic (i.e. swap medium outage).
+> 
+> So, if users want to run multiple instances of a job across multiple
+> clusters, they should be able to specify the limits of their jobs
+> irrespective of the knowledge of cluster. The best case would be they
+> just submits their jobs without any config and the system figures out
+> the right limit and enforce that. And to figure out the right limit
+> and enforcing it, the consistent memory usage history and consistent
+> memory limit enforcement is very critical.
 
-So no, it won't work.
+I'm having a hard time extracting anything concrete from your
+explanation on why memsw is required.  Can you please ELI5 with some
+examples?
 
-When we find something like this, we should either remove it, fix the
-permissions, or switch to %px.
+Thanks.
 
-In this case, there's obviously no permission issue: it's an error
-report. So it's either "remove it, or switch to %px".
-
-I'm personally not clear on whether the pointer really makes any sense
-at all. But if it does, it should just be changed to %px, since it's a
-bug report.
-
-But honestly, what do people expect that the pointer value will
-actually tell you if it is unhashed?
-
-I suspect that an "offset and size within the kernel object" value
-might make sense.  But what does the _pointer_ tell you?
-
-I've noticed this with pretty much every report. People get upset
-about the hashing, but don't seem to actually be able to ever tell
-what the f*ck they would use the non-hashed pointer value for.
-
-I've asked for this before: whenever somebody complains about the
-hashing, you had better tell exactly what the unhashed value would
-have given you, and how it would have helped debug the problem.
-
-Because if you can't tell that, then dammit, then we should just
-_remove_ the stupid %p.
-
-Instead, people ask for "can I get everything unhashed" even when they
-can't give a reason for it.
-
-            Linus
+-- 
+tejun
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
