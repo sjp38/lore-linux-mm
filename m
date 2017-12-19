@@ -1,604 +1,239 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F9416B026F
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:28:54 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id 96so11158406wrk.7
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:28:54 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e2si12068059wrd.412.2017.12.19.04.28.52
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E570E6B0271
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:34:42 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id d3so7366717plj.22
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:34:42 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id v8si9119558plg.831.2017.12.19.04.34.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 04:28:52 -0800 (PST)
-Date: Tue, 19 Dec 2017 13:28:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/5] mm: migrate NUMA stats from per-zone to per-node
-Message-ID: <20171219122848.GM2787@dhcp22.suse.cz>
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-2-git-send-email-kemi.wang@intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1513665566-4465-2-git-send-email-kemi.wang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 04:34:41 -0800 (PST)
+From: Wei Wang <wei.w.wang@intel.com>
+Subject: [PATCH v20 0/7] Virtio-balloon Enhancement
+Date: Tue, 19 Dec 2017 20:17:52 +0800
+Message-Id: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kemi Wang <kemi.wang@intel.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+Cc: david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Tue 19-12-17 14:39:22, Kemi Wang wrote:
-> There is not really any use to get NUMA stats separated by zone, and
-> current per-zone NUMA stats is only consumed in /proc/zoneinfo. For code
-> cleanup purpose, we move NUMA stats from per-zone to per-node and reuse the
-> existed per-cpu infrastructure.
+This patch series enhances the existing virtio-balloon with the following
+new features:
+1) fast ballooning: transfer ballooned pages between the guest and host in
+chunks using sgs, instead of one array each time; and
+2) free page block reporting: a new virtqueue to report guest free pages
+to the host.
 
-Let's hope that nobody really depends on the per-zone numbers. It would
-be really strange as those counters are inherently per-node and that is
-what users should care about but who knows...
+The second feature can be used to accelerate live migration of VMs. Here
+are some details:
 
-Anyway, I hoped we could get rid of NR_VM_NUMA_STAT_ITEMS but your patch
-keeps it and follow up patches even use it further. I will comment on
-those separately but this still makes these few counters really special
-which I think is wrong.
+Live migration needs to transfer the VM's memory from the source machine
+to the destination round by round. For the 1st round, all the VM's memory
+is transferred. From the 2nd round, only the pieces of memory that were
+written by the guest (after the 1st round) are transferred. One method
+that is popularly used by the hypervisor to track which part of memory is
+written is to write-protect all the guest memory.
 
-> Suggested-by: Andi Kleen <ak@linux.intel.com>
-> Suggested-by: Michal Hocko <mhocko@kernel.com>
-> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+The second feature enables the optimization of the 1st round memory
+transfer - the hypervisor can skip the transfer of guest free pages in the
+1st round. It is not concerned that the memory pages are used after they
+are given to the hypervisor as a hint of the free pages, because they will
+be tracked by the hypervisor and transferred in the next round if they are
+used and written.
 
-I have to fully grasp the rest of the series before I'll give my Ack,
-but I _really_ like the simplification this adds to the code. I believe
-it can be even simpler.
+ChangeLog:
+v19->v20:
+1) patch 1: xbitmap
+	- add __rcu to "void **slot";
+	- remove the exceptional path.
+2) patch 3: xbitmap
+	- DeveloperNotes: add an item to comment that the current bit range
+	  related APIs operating on extremely large ranges (e.g.
+          [0, ULONG_MAX)) will take too long time. This can be optimized in
+	  the future.
+	- remove the exceptional path;
+	- remove xb_preload_and_set();
+	- reimplement xb_clear_bit_range to make its usage close to
+	  bitmap_clear;
+	- rename xb_find_next_set_bit to xb_find_set, and re-implement it
+	  in a style close to find_next_bit;
+	- rename xb_find_next_zero_bit to xb_find_clear, and re-implement
+	  it in a stytle close to find_next_zero_bit;
+	- separate the implementation of xb_find_set and xb_find_clear for
+	  the convenience of future updates.
+3) patch 4: virtio-balloon
+	- xb_set_page: change the way to call xb_ related APIs
 
-> ---
->  drivers/base/node.c    |  23 +++----
->  include/linux/mmzone.h |  27 ++++----
->  include/linux/vmstat.h |  31 ---------
->  mm/mempolicy.c         |   2 +-
->  mm/page_alloc.c        |  16 +++--
->  mm/vmstat.c            | 177 +++++--------------------------------------------
->  6 files changed, 46 insertions(+), 230 deletions(-)
-> 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index ee090ab..a045ea1 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -169,13 +169,14 @@ static ssize_t node_read_numastat(struct device *dev,
->  		       "interleave_hit %lu\n"
->  		       "local_node %lu\n"
->  		       "other_node %lu\n",
-> -		       sum_zone_numa_state(dev->id, NUMA_HIT),
-> -		       sum_zone_numa_state(dev->id, NUMA_MISS),
-> -		       sum_zone_numa_state(dev->id, NUMA_FOREIGN),
-> -		       sum_zone_numa_state(dev->id, NUMA_INTERLEAVE_HIT),
-> -		       sum_zone_numa_state(dev->id, NUMA_LOCAL),
-> -		       sum_zone_numa_state(dev->id, NUMA_OTHER));
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_HIT),
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_MISS),
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_FOREIGN),
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_INTERLEAVE_HIT),
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_LOCAL),
-> +		       node_page_state(NODE_DATA(dev->id), NUMA_OTHER));
->  }
-> +
->  static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
->  
->  static ssize_t node_read_vmstat(struct device *dev,
-> @@ -190,17 +191,9 @@ static ssize_t node_read_vmstat(struct device *dev,
->  		n += sprintf(buf+n, "%s %lu\n", vmstat_text[i],
->  			     sum_zone_node_page_state(nid, i));
->  
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		n += sprintf(buf+n, "%s %lu\n",
-> -			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-> -			     sum_zone_numa_state(nid, i));
-> -#endif
-> -
->  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
->  		n += sprintf(buf+n, "%s %lu\n",
-> -			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-> -			     NR_VM_NUMA_STAT_ITEMS],
-> +			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
->  			     node_page_state(pgdat, i));
->  
->  	return n;
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 67f2e3c..c06d880 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -115,20 +115,6 @@ struct zone_padding {
->  #define ZONE_PADDING(name)
->  #endif
->  
-> -#ifdef CONFIG_NUMA
-> -enum numa_stat_item {
-> -	NUMA_HIT,		/* allocated in intended node */
-> -	NUMA_MISS,		/* allocated in non intended node */
-> -	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
-> -	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-> -	NUMA_LOCAL,		/* allocation from local node */
-> -	NUMA_OTHER,		/* allocation from other node */
-> -	NR_VM_NUMA_STAT_ITEMS
-> -};
-> -#else
-> -#define NR_VM_NUMA_STAT_ITEMS 0
-> -#endif
-> -
->  enum zone_stat_item {
->  	/* First 128 byte cacheline (assuming 64 bit words) */
->  	NR_FREE_PAGES,
-> @@ -151,7 +137,18 @@ enum zone_stat_item {
->  	NR_VM_ZONE_STAT_ITEMS };
->  
->  enum node_stat_item {
-> -	NR_LRU_BASE,
-> +#ifdef CONFIG_NUMA
-> +	NUMA_HIT,		/* allocated in intended node */
-> +	NUMA_MISS,		/* allocated in non intended node */
-> +	NUMA_FOREIGN,		/* was intended here, hit elsewhere */
-> +	NUMA_INTERLEAVE_HIT,	/* interleaver preferred this zone */
-> +	NUMA_LOCAL,		/* allocation from local node */
-> +	NUMA_OTHER,		/* allocation from other node */
-> +	NR_VM_NUMA_STAT_ITEMS,
-> +#else
-> +#define	NR_VM_NUMA_STAT_ITEMS 0
-> +#endif
-> +	NR_LRU_BASE = NR_VM_NUMA_STAT_ITEMS,
->  	NR_INACTIVE_ANON = NR_LRU_BASE, /* must match order of LRU_[IN]ACTIVE */
->  	NR_ACTIVE_ANON,		/*  "     "     "   "       "         */
->  	NR_INACTIVE_FILE,	/*  "     "     "   "       "         */
-> diff --git a/include/linux/vmstat.h b/include/linux/vmstat.h
-> index 1779c98..80bf290 100644
-> --- a/include/linux/vmstat.h
-> +++ b/include/linux/vmstat.h
-> @@ -118,37 +118,8 @@ static inline void vm_events_fold_cpu(int cpu)
->   * Zone and node-based page accounting with per cpu differentials.
->   */
->  extern atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS];
-> -extern atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
->  extern atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS];
->  
-> -#ifdef CONFIG_NUMA
-> -static inline void zone_numa_state_add(long x, struct zone *zone,
-> -				 enum numa_stat_item item)
-> -{
-> -	atomic_long_add(x, &zone->vm_numa_stat[item]);
-> -	atomic_long_add(x, &vm_numa_stat[item]);
-> -}
-> -
-> -static inline unsigned long global_numa_state(enum numa_stat_item item)
-> -{
-> -	long x = atomic_long_read(&vm_numa_stat[item]);
-> -
-> -	return x;
-> -}
-> -
-> -static inline unsigned long zone_numa_state_snapshot(struct zone *zone,
-> -					enum numa_stat_item item)
-> -{
-> -	long x = atomic_long_read(&zone->vm_numa_stat[item]);
-> -	int cpu;
-> -
-> -	for_each_online_cpu(cpu)
-> -		x += per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item];
-> -
-> -	return x;
-> -}
-> -#endif /* CONFIG_NUMA */
-> -
->  static inline void zone_page_state_add(long x, struct zone *zone,
->  				 enum zone_stat_item item)
->  {
-> @@ -234,10 +205,8 @@ static inline unsigned long node_page_state_snapshot(pg_data_t *pgdat,
->  
->  
->  #ifdef CONFIG_NUMA
-> -extern void __inc_numa_state(struct zone *zone, enum numa_stat_item item);
->  extern unsigned long sum_zone_node_page_state(int node,
->  					      enum zone_stat_item item);
-> -extern unsigned long sum_zone_numa_state(int node, enum numa_stat_item item);
->  extern unsigned long node_page_state(struct pglist_data *pgdat,
->  						enum node_stat_item item);
->  #else
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index 4ce44d3..b2293e3 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -1920,7 +1920,7 @@ static struct page *alloc_page_interleave(gfp_t gfp, unsigned order,
->  		return page;
->  	if (page && page_to_nid(page) == nid) {
->  		preempt_disable();
-> -		__inc_numa_state(page_zone(page), NUMA_INTERLEAVE_HIT);
-> +		inc_node_state(page_pgdat(page), NUMA_INTERLEAVE_HIT);
->  		preempt_enable();
->  	}
->  	return page;
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index 7e5e775..81e8d8f 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -2793,22 +2793,24 @@ int __isolate_free_page(struct page *page, unsigned int order)
->  static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
->  {
->  #ifdef CONFIG_NUMA
-> -	enum numa_stat_item local_stat = NUMA_LOCAL;
-> +	int preferred_nid = preferred_zone->node;
-> +	int nid = z->node;
-> +	enum node_stat_item local_stat = NUMA_LOCAL;
->  
->  	/* skip numa counters update if numa stats is disabled */
->  	if (!static_branch_likely(&vm_numa_stat_key))
->  		return;
->  
-> -	if (z->node != numa_node_id())
-> +	if (nid != numa_node_id())
->  		local_stat = NUMA_OTHER;
->  
-> -	if (z->node == preferred_zone->node)
-> -		__inc_numa_state(z, NUMA_HIT);
-> +	if (nid == preferred_nid)
-> +		inc_node_state(NODE_DATA(nid), NUMA_HIT);
->  	else {
-> -		__inc_numa_state(z, NUMA_MISS);
-> -		__inc_numa_state(preferred_zone, NUMA_FOREIGN);
-> +		inc_node_state(NODE_DATA(nid), NUMA_MISS);
-> +		inc_node_state(NODE_DATA(preferred_nid), NUMA_FOREIGN);
->  	}
-> -	__inc_numa_state(z, local_stat);
-> +	inc_node_state(NODE_DATA(nid), local_stat);
->  #endif
->  }
->  
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 40b2db6..1dd12ae 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -30,46 +30,44 @@
->  
->  #include "internal.h"
->  
-> -#define NUMA_STATS_THRESHOLD (U16_MAX - 2)
-> -
->  #ifdef CONFIG_NUMA
->  int sysctl_vm_numa_stat = ENABLE_NUMA_STAT;
->  
-> -/* zero numa counters within a zone */
-> -static void zero_zone_numa_counters(struct zone *zone)
-> +/* zero numa stats within a node */
-> +static void zero_node_numa_stats(int node)
->  {
->  	int item, cpu;
->  
->  	for (item = 0; item < NR_VM_NUMA_STAT_ITEMS; item++) {
-> -		atomic_long_set(&zone->vm_numa_stat[item], 0);
-> +		atomic_long_set(&(NODE_DATA(node)->vm_stat[item]), 0);
->  		for_each_online_cpu(cpu)
-> -			per_cpu_ptr(zone->pageset, cpu)->vm_numa_stat_diff[item]
-> -						= 0;
-> +			per_cpu_ptr(NODE_DATA(node)->per_cpu_nodestats,
-> +					cpu)->vm_node_stat_diff[item] = 0;
->  	}
->  }
->  
-> -/* zero numa counters of all the populated zones */
-> -static void zero_zones_numa_counters(void)
-> +/* zero numa stats of all the online nodes */
-> +static void zero_nodes_numa_stats(void)
->  {
-> -	struct zone *zone;
-> +	int node;
->  
-> -	for_each_populated_zone(zone)
-> -		zero_zone_numa_counters(zone);
-> +	for_each_online_node(node)
-> +		zero_node_numa_stats(node);
->  }
->  
-> -/* zero global numa counters */
-> -static void zero_global_numa_counters(void)
-> +/* zero global numa stats */
-> +static void zero_global_numa_stats(void)
->  {
->  	int item;
->  
->  	for (item = 0; item < NR_VM_NUMA_STAT_ITEMS; item++)
-> -		atomic_long_set(&vm_numa_stat[item], 0);
-> +		atomic_long_set(&vm_node_stat[item], 0);
->  }
->  
->  static void invalid_numa_statistics(void)
->  {
-> -	zero_zones_numa_counters();
-> -	zero_global_numa_counters();
-> +	zero_nodes_numa_stats();
-> +	zero_global_numa_stats();
->  }
->  
->  static DEFINE_MUTEX(vm_numa_stat_lock);
-> @@ -160,10 +158,8 @@ void vm_events_fold_cpu(int cpu)
->   * vm_stat contains the global counters
->   */
->  atomic_long_t vm_zone_stat[NR_VM_ZONE_STAT_ITEMS] __cacheline_aligned_in_smp;
-> -atomic_long_t vm_numa_stat[NR_VM_NUMA_STAT_ITEMS] __cacheline_aligned_in_smp;
->  atomic_long_t vm_node_stat[NR_VM_NODE_STAT_ITEMS] __cacheline_aligned_in_smp;
->  EXPORT_SYMBOL(vm_zone_stat);
-> -EXPORT_SYMBOL(vm_numa_stat);
->  EXPORT_SYMBOL(vm_node_stat);
->  
->  #ifdef CONFIG_SMP
-> @@ -679,32 +675,6 @@ EXPORT_SYMBOL(dec_node_page_state);
->   * Fold a differential into the global counters.
->   * Returns the number of counters updated.
->   */
-> -#ifdef CONFIG_NUMA
-> -static int fold_diff(int *zone_diff, int *numa_diff, int *node_diff)
-> -{
-> -	int i;
-> -	int changes = 0;
-> -
-> -	for (i = 0; i < NR_VM_ZONE_STAT_ITEMS; i++)
-> -		if (zone_diff[i]) {
-> -			atomic_long_add(zone_diff[i], &vm_zone_stat[i]);
-> -			changes++;
-> -	}
-> -
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		if (numa_diff[i]) {
-> -			atomic_long_add(numa_diff[i], &vm_numa_stat[i]);
-> -			changes++;
-> -	}
-> -
-> -	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
-> -		if (node_diff[i]) {
-> -			atomic_long_add(node_diff[i], &vm_node_stat[i]);
-> -			changes++;
-> -	}
-> -	return changes;
-> -}
-> -#else
->  static int fold_diff(int *zone_diff, int *node_diff)
->  {
->  	int i;
-> @@ -723,7 +693,6 @@ static int fold_diff(int *zone_diff, int *node_diff)
->  	}
->  	return changes;
->  }
-> -#endif /* CONFIG_NUMA */
->  
->  /*
->   * Update the zone counters for the current cpu.
-> @@ -747,9 +716,6 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
->  	struct zone *zone;
->  	int i;
->  	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-> -#ifdef CONFIG_NUMA
-> -	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
-> -#endif
->  	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
->  	int changes = 0;
->  
-> @@ -771,18 +737,6 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
->  			}
->  		}
->  #ifdef CONFIG_NUMA
-> -		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
-> -			int v;
-> -
-> -			v = this_cpu_xchg(p->vm_numa_stat_diff[i], 0);
-> -			if (v) {
-> -
-> -				atomic_long_add(v, &zone->vm_numa_stat[i]);
-> -				global_numa_diff[i] += v;
-> -				__this_cpu_write(p->expire, 3);
-> -			}
-> -		}
-> -
->  		if (do_pagesets) {
->  			cond_resched();
->  			/*
-> @@ -829,12 +783,7 @@ static int refresh_cpu_vm_stats(bool do_pagesets)
->  		}
->  	}
->  
-> -#ifdef CONFIG_NUMA
-> -	changes += fold_diff(global_zone_diff, global_numa_diff,
-> -			     global_node_diff);
-> -#else
->  	changes += fold_diff(global_zone_diff, global_node_diff);
-> -#endif
->  	return changes;
->  }
->  
-> @@ -849,9 +798,6 @@ void cpu_vm_stats_fold(int cpu)
->  	struct zone *zone;
->  	int i;
->  	int global_zone_diff[NR_VM_ZONE_STAT_ITEMS] = { 0, };
-> -#ifdef CONFIG_NUMA
-> -	int global_numa_diff[NR_VM_NUMA_STAT_ITEMS] = { 0, };
-> -#endif
->  	int global_node_diff[NR_VM_NODE_STAT_ITEMS] = { 0, };
->  
->  	for_each_populated_zone(zone) {
-> @@ -868,18 +814,6 @@ void cpu_vm_stats_fold(int cpu)
->  				atomic_long_add(v, &zone->vm_stat[i]);
->  				global_zone_diff[i] += v;
->  			}
-> -
-> -#ifdef CONFIG_NUMA
-> -		for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -			if (p->vm_numa_stat_diff[i]) {
-> -				int v;
-> -
-> -				v = p->vm_numa_stat_diff[i];
-> -				p->vm_numa_stat_diff[i] = 0;
-> -				atomic_long_add(v, &zone->vm_numa_stat[i]);
-> -				global_numa_diff[i] += v;
-> -			}
-> -#endif
->  	}
->  
->  	for_each_online_pgdat(pgdat) {
-> @@ -898,11 +832,7 @@ void cpu_vm_stats_fold(int cpu)
->  			}
->  	}
->  
-> -#ifdef CONFIG_NUMA
-> -	fold_diff(global_zone_diff, global_numa_diff, global_node_diff);
-> -#else
->  	fold_diff(global_zone_diff, global_node_diff);
-> -#endif
->  }
->  
->  /*
-> @@ -920,36 +850,10 @@ void drain_zonestat(struct zone *zone, struct per_cpu_pageset *pset)
->  			atomic_long_add(v, &zone->vm_stat[i]);
->  			atomic_long_add(v, &vm_zone_stat[i]);
->  		}
-> -
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		if (pset->vm_numa_stat_diff[i]) {
-> -			int v = pset->vm_numa_stat_diff[i];
-> -
-> -			pset->vm_numa_stat_diff[i] = 0;
-> -			atomic_long_add(v, &zone->vm_numa_stat[i]);
-> -			atomic_long_add(v, &vm_numa_stat[i]);
-> -		}
-> -#endif
->  }
->  #endif
->  
->  #ifdef CONFIG_NUMA
-> -void __inc_numa_state(struct zone *zone,
-> -				 enum numa_stat_item item)
-> -{
-> -	struct per_cpu_pageset __percpu *pcp = zone->pageset;
-> -	u16 __percpu *p = pcp->vm_numa_stat_diff + item;
-> -	u16 v;
-> -
-> -	v = __this_cpu_inc_return(*p);
-> -
-> -	if (unlikely(v > NUMA_STATS_THRESHOLD)) {
-> -		zone_numa_state_add(v, zone, item);
-> -		__this_cpu_write(*p, 0);
-> -	}
-> -}
-> -
->  /*
->   * Determine the per node value of a stat item. This function
->   * is called frequently in a NUMA machine, so try to be as
-> @@ -969,23 +873,6 @@ unsigned long sum_zone_node_page_state(int node,
->  }
->  
->  /*
-> - * Determine the per node value of a numa stat item. To avoid deviation,
-> - * the per cpu stat number in vm_numa_stat_diff[] is also included.
-> - */
-> -unsigned long sum_zone_numa_state(int node,
-> -				 enum numa_stat_item item)
-> -{
-> -	struct zone *zones = NODE_DATA(node)->node_zones;
-> -	int i;
-> -	unsigned long count = 0;
-> -
-> -	for (i = 0; i < MAX_NR_ZONES; i++)
-> -		count += zone_numa_state_snapshot(zones + i, item);
-> -
-> -	return count;
-> -}
-> -
-> -/*
->   * Determine the per node value of a stat item.
->   */
->  unsigned long node_page_state(struct pglist_data *pgdat,
-> @@ -1569,8 +1456,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		seq_printf(m, "\n  per-node stats");
->  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
->  			seq_printf(m, "\n      %-12s %lu",
-> -				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS +
-> -				NR_VM_NUMA_STAT_ITEMS],
-> +				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
->  				node_page_state(pgdat, i));
->  		}
->  	}
-> @@ -1607,13 +1493,6 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		seq_printf(m, "\n      %-12s %lu", vmstat_text[i],
->  				zone_page_state(zone, i));
->  
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		seq_printf(m, "\n      %-12s %lu",
-> -				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-> -				zone_numa_state_snapshot(zone, i));
-> -#endif
-> -
->  	seq_printf(m, "\n  pagesets");
->  	for_each_online_cpu(i) {
->  		struct per_cpu_pageset *pageset;
-> @@ -1688,7 +1567,6 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->  	if (*pos >= ARRAY_SIZE(vmstat_text))
->  		return NULL;
->  	stat_items_size = NR_VM_ZONE_STAT_ITEMS * sizeof(unsigned long) +
-> -			  NR_VM_NUMA_STAT_ITEMS * sizeof(unsigned long) +
->  			  NR_VM_NODE_STAT_ITEMS * sizeof(unsigned long) +
->  			  NR_VM_WRITEBACK_STAT_ITEMS * sizeof(unsigned long);
->  
-> @@ -1704,12 +1582,6 @@ static void *vmstat_start(struct seq_file *m, loff_t *pos)
->  		v[i] = global_zone_page_state(i);
->  	v += NR_VM_ZONE_STAT_ITEMS;
->  
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++)
-> -		v[i] = global_numa_state(i);
-> -	v += NR_VM_NUMA_STAT_ITEMS;
-> -#endif
-> -
->  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
->  		v[i] = global_node_page_state(i);
->  	v += NR_VM_NODE_STAT_ITEMS;
-> @@ -1811,16 +1683,6 @@ int vmstat_refresh(struct ctl_table *table, int write,
->  			err = -EINVAL;
->  		}
->  	}
-> -#ifdef CONFIG_NUMA
-> -	for (i = 0; i < NR_VM_NUMA_STAT_ITEMS; i++) {
-> -		val = atomic_long_read(&vm_numa_stat[i]);
-> -		if (val < 0) {
-> -			pr_warn("%s: %s %ld\n",
-> -				__func__, vmstat_text[i + NR_VM_ZONE_STAT_ITEMS], val);
-> -			err = -EINVAL;
-> -		}
-> -	}
-> -#endif
->  	if (err)
->  		return err;
->  	if (write)
-> @@ -1862,9 +1724,6 @@ static bool need_update(int cpu)
->  		struct per_cpu_pageset *p = per_cpu_ptr(zone->pageset, cpu);
->  
->  		BUILD_BUG_ON(sizeof(p->vm_stat_diff[0]) != 1);
-> -#ifdef CONFIG_NUMA
-> -		BUILD_BUG_ON(sizeof(p->vm_numa_stat_diff[0]) != 2);
-> -#endif
->  
->  		/*
->  		 * The fast way of checking if there are any vmstat diffs.
-> @@ -1872,10 +1731,6 @@ static bool need_update(int cpu)
->  		 */
->  		if (memchr_inv(p->vm_stat_diff, 0, NR_VM_ZONE_STAT_ITEMS))
->  			return true;
-> -#ifdef CONFIG_NUMA
-> -		if (memchr_inv(p->vm_numa_stat_diff, 0, NR_VM_NUMA_STAT_ITEMS))
-> -			return true;
-> -#endif
->  	}
->  	return false;
->  }
-> -- 
-> 2.7.4
-> 
+v18->v19:
+1) patch 3:
+	- xb_clear_bit_range and xb_find_next_bit will deal with range [start,
+	  end), where end is changed to be exclusive of the range.
+	- add overflow checks at the end of xb_clear_bit_range and
+	  xb_find_next_bit 
+	- add overflow related test cases
+2) patch 4:
+	- change back to the previous add_one_sg methond, which is based on the
+	  scatterlist struct
+        - tell_host_sgs: use "uint64_t len" to avoid overflow
+	- batch_balloon_page_sg: a simpler function to implement the batching of
+	  sgs
+3) patch 6: batch_free_page_sg: batch sgs using the previous scatterlist struct
+4) patch 7: add a config field, poison_val, to tell the host about the poison
+	    value
+v17->v18:
+1) patch 1-2: new to solve some tools related compilation issues
+2) patch 3: revert to the original xbitmap implementation from Matthew
+Wilcox with some minor changes (e.g. comments added to the exported
+functions)
+3) patch 4: summarize the changes we want to make to patch 3
+4) patch 5: add the developer notes as a reminder for users to avoid
+concurrent accesses to the ida bitmap
+5) patch 6: a new vring API to allow users to directly pass in a physical
+address to a vring desc
+6) patch 7: ballooning time is reduced from ~490ms to ~440ms with the new
+implementation
+	- use the new API from patch 6 to send balloon pages
+	- xb_preload with "GFP_NOWAIT | __GFP_NOWARN" flag;
+	- handle the case when xb_set_page() fails to avoid memory leak;
+	- put xb_set_page() under the balloon lock
+7) patch 9: simper implementation
+	- start free page reporting by sending a new cmd id from the host
+	- guest acks the start or stop via adding a cmd id to the free page vq
+	- use vb->report_free_page, instead of vb->report_free_page_stop
+	- use WRITE_ONCE/READ_ONCE to access vb->report_free_page
+	- use the new API from patch 6 to send free pages to avoid the
+	  unnecessary use of kaddr.
+8) patch 10: new patch to solve the page posioning issue reported by
+Michael S. Tsirkin 
+
+v16->v17:
+1) patch 1: please check the commit log there;
+2) patch 3: included Michael S. Tsirkin patch to fix the potential
+deadlock issue;
+3) patch 4: use BUG_ON if virtqueue_add_ returns error, which is
+expected never to happen;
+4) patch 4: add leak_balloon_sg_oom, which is used in the oom case when
+VIRTIO_BALLOON_F_SG is in use;
+5) patch 6: use config registers, instead of a vq, as the command channel
+between the host and guest;
+6) patch 6: add the command sequence id support.
+
+v15->v16:
+1) mm: stop reporting the free pfn range if the callback returns false;
+2) mm: move some implementaion of walk_free_mem_block into a function to
+make the code layout looks better;
+3) xbitmap: added some optimizations suggested by Matthew, please refer to
+the ChangLog in the xbitmap patch for details.
+4) xbitmap: added a test suite
+5) virtio-balloon: bail out with a warning when virtqueue_add_inbuf returns
+an error
+6) virtio-balloon: some small code re-arrangement, e.g. detachinf used buf
+from the vq before adding a new buf
+
+v14->v15:
+1) mm: make the report callback return a bool value - returning 1 to stop
+walking through the free page list.
+2) virtio-balloon: batching sgs of balloon pages till the vq is full
+3) virtio-balloon: create a new workqueue, rather than using the default
+system_wq, to queue the free page reporting work item.
+4) virtio-balloon: add a ctrl_vq to be a central control plane which will
+handle all the future control related commands between the host and guest.
+Add free page report as the first feature controlled under ctrl_vq, and
+the free_page_vq is a data plane vq dedicated to the transmission of free
+page blocks.
+
+v13->v14:
+1) xbitmap: move the code from lib/radix-tree.c to lib/xbitmap.c.
+2) xbitmap: consolidate the implementation of xb_bit_set/clear/test into
+one xb_bit_ops.
+3) xbitmap: add documents for the exported APIs.
+4) mm: rewrite the function to walk through free page blocks.
+5) virtio-balloon: when reporting a free page blcok to the device, if the
+vq is full (less likey to happen in practice), just skip reporting this
+block, instead of busywaiting till an entry gets released.
+6) virtio-balloon: fail the probe function if adding the signal buf in
+init_vqs fails.
+
+v12->v13:
+1) mm: use a callback function to handle the the free page blocks from the
+report function. This avoids exposing the zone internal to a kernel
+module.
+2) virtio-balloon: send balloon pages or a free page block using a single
+sg each time. This has the benefits of simpler implementation with no new
+APIs.
+3) virtio-balloon: the free_page_vq is used to report free pages only (no
+multiple usages interleaving)
+4) virtio-balloon: Balloon pages and free page blocks are sent via input
+sgs, and the completion signal to the host is sent via an output sg.
+
+v11->v12:
+1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
+2) virtio-ring: enable the driver to build up a desc chain using vring
+desc.
+3) virtio-ring: Add locking to the existing START_USE() and END_USE()
+macro to lock/unlock the vq when a vq operation starts/ends.
+4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
+5) virtio-balloon: describe chunks of ballooned pages and free pages
+blocks directly using one or more chains of desc from the vq.
+
+v10->v11:
+1) virtio_balloon: use vring_desc to describe a chunk;
+2) virtio_ring: support to add an indirect desc table to virtqueue;
+3)  virtio_balloon: use cmdq to report guest memory statistics.
+
+v9->v10:
+1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
+2) virtio-balloon: add virtballoon_validate();
+3) virtio-balloon: msg format change;
+4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
+5) virtio-balloon: code cleanup.
+
+v8->v9:
+1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
+VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
+implementation;
+2) Simpler function to get the free page block.
+
+v7->v8:
+1) Use only one chunk format, instead of two.
+2) re-write the virtio-balloon implementation patch.
+3) commit changes
+4) patch re-org
+
+Matthew Wilcox (1):
+  xbitmap: Introduce xbitmap
+
+Wei Wang (6):
+  xbitmap: potential improvement
+  xbitmap: add more operations
+  virtio-balloon: VIRTIO_BALLOON_F_SG
+  mm: support reporting free page blocks
+  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
+  virtio-balloon: don't report free pages when page poisoning is enabled
+
+ drivers/virtio/virtio_balloon.c          | 444 +++++++++++++++++++++++++++----
+ include/linux/mm.h                       |   6 +
+ include/linux/radix-tree.h               |   2 +
+ include/linux/xbitmap.h                  |  55 ++++
+ include/uapi/linux/virtio_balloon.h      |   7 +
+ lib/Makefile                             |   2 +-
+ lib/radix-tree.c                         |  40 ++-
+ lib/xbitmap.c                            | 330 +++++++++++++++++++++++
+ mm/page_alloc.c                          |  91 +++++++
+ tools/include/linux/bitmap.h             |  34 +++
+ tools/include/linux/kernel.h             |   2 +
+ tools/testing/radix-tree/Makefile        |  12 +-
+ tools/testing/radix-tree/linux/xbitmap.h |   1 +
+ tools/testing/radix-tree/main.c          |   4 +
+ tools/testing/radix-tree/test.h          |   1 +
+ 15 files changed, 976 insertions(+), 55 deletions(-)
+ create mode 100644 include/linux/xbitmap.h
+ create mode 100644 lib/xbitmap.c
+ create mode 100644 tools/testing/radix-tree/linux/xbitmap.h
 
 -- 
-Michal Hocko
-SUSE Labs
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
