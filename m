@@ -1,53 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D5AD96B029D
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:22:12 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id i83so1153056wma.4
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:22:12 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 94si4390845wre.31.2017.12.19.05.22.11
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 333FC6B029F
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:22:51 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 31so7429047plk.20
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:22:51 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id ay8si11037895plb.198.2017.12.19.05.22.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 05:22:11 -0800 (PST)
-Date: Tue, 19 Dec 2017 14:22:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in
- __list_del_entry_valid
-Message-ID: <20171219132209.GV2787@dhcp22.suse.cz>
-References: <001a11452568f5857c0560b0dc0e@google.com>
- <20171219130337.GU2787@dhcp22.suse.cz>
- <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Dec 2017 05:22:50 -0800 (PST)
+Date: Tue, 19 Dec 2017 05:22:46 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: BUG: bad usercopy in memdup_user
+Message-ID: <20171219132246.GD13680@bombadil.infradead.org>
+References: <001a113e9ca8a3affd05609d7ccf@google.com>
+ <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
+ <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+ <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
+ <20171219083746.GR19604@eros>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
+In-Reply-To: <20171219083746.GR19604@eros>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzbot <bot+83f46cd25e266359cd056c91f6ecd20b04eddf42@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, shakeelb@google.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com
+To: "Tobin C. Harding" <me@tobin.cc>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
 
-On Tue 19-12-17 14:12:38, Dmitry Vyukov wrote:
-> On Tue, Dec 19, 2017 at 2:03 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > Can we silence this duplicates [1] please?
-> >
-> > [1] http://lkml.kernel.org/r/001a1140f57806ebef05608b25a5@google.com
+On Tue, Dec 19, 2017 at 07:37:46PM +1100, Tobin C. Harding wrote:
+> On Tue, Dec 19, 2017 at 09:12:58AM +0100, Dmitry Vyukov wrote:
+> > On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
+> > > On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
+> > >> This BUG is reporting
+> > >>
+> > >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
+> > >>
+> > >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
+> > >
+> > > The address is hashed (see the %p threads for 4.15).
+> > 
+> > 
+> > +Tobin, is there a way to disable hashing entirely? The only
+> > designation of syzbot is providing crash reports to kernel developers
+> > with as much info as possible. It's fine for it to leak whatever.
 > 
-> Hi Michal,
-> 
-> What exactly do you mean?
-> 
-> These 2 are the same email with the same Message-ID just on different
-> mailing lists. I don't see anything wrong here.
+> We have new specifier %px to print addresses in hex if leaking info is
+> not a worry.
 
-Hmm the other one has Message-id: 001a1140f57806ebef05608b25a5@google.com
-while this one has 001a11452568f5857c0560b0dc0e@google.com
- 
-> https://marc.info/?l=linux-mm&m=151352562529458&w=2
-> https://marc.info/?l=linux-kernel&m=151352563729460&w=2
+Could we have a way to know that the printed address is hashed and not just
+a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
+So this line would look like:
 
--- 
-Michal Hocko
-SUSE Labs
+[   26.089789] usercopy: kernel memory overwrite attempt detected to #0000000022a5b430 (kmalloc-1024) (1024 bytes)
+
+Or does that miss the point of hashing the address, so the attacker
+thinks its a real address?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
