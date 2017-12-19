@@ -1,118 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id BC25F6B0069
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 14:56:50 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id c18so2926048itd.8
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 11:56:50 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id g126si10000096ioa.124.2017.12.19.11.56.46
+	by kanga.kvack.org (Postfix) with ESMTP id 3DD4D6B0253
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:00:18 -0500 (EST)
+Received: by mail-it0-f72.google.com with SMTP id x32so7417931ita.1
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:00:18 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id m35si1738452iti.46.2017.12.19.12.00.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 11:56:47 -0800 (PST)
-Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface for
- freeing rcu structures
-References: <rao.shoaib@oracle.com>
- <1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
- <20171219193039.GB6515@bombadil.infradead.org>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <24c9f1c0-58d4-5d27-8795-d211693455dd@oracle.com>
-Date: Tue, 19 Dec 2017 11:56:30 -0800
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Dec 2017 12:00:17 -0800 (PST)
+Subject: Re: mmots build error: version control conflict marker in file
+References: <CACT4Y+a0NvG-qpufVcvObd_hWKF9xmTjmjCvV3_13LSgcFXL+Q@mail.gmail.com>
+ <20171219090319.GD2787@dhcp22.suse.cz>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <7cec6594-94c7-a238-4046-0061a9adc20d@infradead.org>
+Date: Tue, 19 Dec 2017 12:00:12 -0800
 MIME-Version: 1.0
-In-Reply-To: <20171219193039.GB6515@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171219090319.GD2787@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
+
+On 12/19/2017 01:03 AM, Michal Hocko wrote:
+> [CC Johannes]
+> 
+> On Tue 19-12-17 09:36:20, Dmitry Vyukov wrote:
+>> Hello,
+>>
+>> syzbot hit the following crash on 80f3359313dfd0e574d0d245dd93a7c3bf39e1fa
+>> git://git.cmpxchg.org/linux-mmots.git master
+>>
+>> failed to run /usr/bin/make [make bzImage -j 32
+>> CC=/syzkaller/gcc/bin/gcc]: exit status 2
+>> scripts/kconfig/conf  --silentoldconfig Kconfig
+>>   CHK     include/config/kernel.release
+>>   CHK     include/generated/uapi/linux/version.h
+>>   UPD     include/config/kernel.release
+>>   CHK     scripts/mod/devicetable-offsets.h
+>>   CHK     include/generated/utsrelease.h
+>>   UPD     include/generated/utsrelease.h
+>>   CHK     include/generated/bounds.h
+>>   CHK     include/generated/timeconst.h
+>>   CC      arch/x86/kernel/asm-offsets.s
+>> In file included from ./arch/x86/include/asm/cpufeature.h:5:0,
+>>                  from ./arch/x86/include/asm/thread_info.h:53,
+>>                  from ./include/linux/thread_info.h:38,
+>>                  from ./arch/x86/include/asm/preempt.h:7,
+>>                  from ./include/linux/preempt.h:81,
+>>                  from ./include/linux/spinlock.h:51,
+>>                  from ./include/linux/mmzone.h:8,
+>>                  from ./include/linux/gfp.h:6,
+>>                  from ./include/linux/slab.h:15,
+>>                  from ./include/linux/crypto.h:24,
+>>                  from arch/x86/kernel/asm-offsets.c:9:
+>> ./arch/x86/include/asm/processor.h:340:1: error: version control
+>> conflict marker in file
+>>  <<<<<<< HEAD
+>>  ^~~~~~~
+>> ./arch/x86/include/asm/processor.h:346:24: error: field a??stacka?? has
+>> incomplete type
+>>   struct SYSENTER_stack stack;
+>>                         ^~~~~
+>> ./arch/x86/include/asm/processor.h:347:1: error: version control
+>> conflict marker in file
+>>  =======
+>>  ^~~~~~~
+>> Kbuild:56: recipe for target 'arch/x86/kernel/asm-offsets.s' failed
+>> make[1]: *** [arch/x86/kernel/asm-offsets.s] Error 1
+>> Makefile:1090: recipe for target 'prepare0' failed
+>> make: *** [prepare0] Error 2
+> 
+
+Wow. arch/x86/include/asm/processor.h around line 340++ looks like this:
+
+<<<<<<< HEAD
+struct SYSENTER_stack {
+	unsigned long		words[64];
+};
+
+struct SYSENTER_stack_page {
+	struct SYSENTER_stack stack;
+=======
+struct entry_stack {
+	unsigned long		words[64];
+};
+
+struct entry_stack_page {
+	struct entry_stack stack;
+>>>>>>> linux-next/akpm-base
+} __aligned(PAGE_SIZE);
 
 
 
-On 12/19/2017 11:30 AM, Matthew Wilcox wrote:
-> On Tue, Dec 19, 2017 at 09:52:27AM -0800, rao.shoaib@oracle.com wrote:
->> @@ -129,6 +130,7 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
->>   
->>   	for (i = 0; i < nr; i++) {
->>   		void *x = p[i] = kmem_cache_alloc(s, flags);
->> +
->>   		if (!x) {
->>   			__kmem_cache_free_bulk(s, i, p);
->>   			return 0;
-> Don't mix whitespace changes with significant patches.
-OK.
->
->> +/* Main RCU function that is called to free RCU structures */
->> +static void
->> +__rcu_bulk_free(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
->> +{
->> +	unsigned long offset;
->> +	void *ptr;
->> +	struct rcu_bulk_free *rbf;
->> +	struct rcu_bulk_free_container *rbfc = NULL;
->> +
->> +	rbf = this_cpu_ptr(&cpu_rbf);
->> +
->> +	if (unlikely(!rbf->rbf_init)) {
->> +		spin_lock_init(&rbf->rbf_lock);
->> +		rbf->rbf_cpu = smp_processor_id();
->> +		rbf->rbf_init = true;
->> +	}
->> +
->> +	/* hold lock to protect against other cpu's */
->> +	spin_lock_bh(&rbf->rbf_lock);
-> Are you sure we can't call kfree_rcu() from interrupt context?
-I thought about it, but the interrupts are off due to acquiring the 
-lock. No ?
->
->> +		rbfc = rbf->rbf_container;
->> +		rbfc->rbfc_entries = 0;
->> +
->> +		if (rbf->rbf_list_head != NULL)
->> +			__rcu_bulk_schedule_list(rbf);
-> You've broken RCU.  Consider this scenario:
->
-> Thread 1	Thread 2		Thread 3
-> kfree_rcu(a)	
-> 		schedule()
-> schedule()	
-> 		gets pointer to b
-> kfree_rcu(b)	
-> 					processes rcu callbacks
-> 		uses b
->
-> Thread 3 will free a and also free b, so thread 2 is going to use freed
-> memory and go splat.  You can't batch up memory to be freed without
-> taking into account the grace periods.
-The code does not change the grace period at all. In fact it adds to the 
-grace period.
-The free's are accumulated in an array, when a certain limit/time is 
-reached the frees are submitted
-to RCU for freeing. So the grace period is maintained starting from the 
-time of the last free.
-
-In case the memory allocation fails the code uses a list that is also 
-submitted to RCU for freeing.
->
-> It might make sense for RCU to batch up all the memory it's going to free
-> in a single grace period, and hand it all off to slub at once, but that's
-> not what you've done here.
-I am kind of doing that but not on a per grace period but on a per cpu 
-basis.
->
->
-> I've been doing a lot of thinking about this because I really want a
-> way to kfree_rcu() an object without embedding a struct rcu_head in it.
-> But I see no way to do that today; even if we have an external memory
-> allocation to point to the object to be freed, we have to keep track of
-> the grace periods.
-I am not sure I understand. If you had external memory you can easily do 
-that.
-I am exactly doing that, the only reason the RCU structure is needed is 
-to get the pointer to the object being freed.
-
-Shoaib
-
+-- 
+~Randy
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
