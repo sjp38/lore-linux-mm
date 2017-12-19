@@ -1,110 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8956B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 18:27:40 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id y15so12083644wrc.6
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:27:40 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 69B3A6B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 18:53:28 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id c82so1839237wme.8
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:53:28 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i6si11456126wrc.488.2017.12.19.15.27.39
+        by mx.google.com with ESMTPS id z74si2010358wmc.120.2017.12.19.15.53.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 15:27:39 -0800 (PST)
-Date: Tue, 19 Dec 2017 15:27:36 -0800
+        Tue, 19 Dec 2017 15:53:27 -0800 (PST)
+Date: Tue, 19 Dec 2017 15:53:23 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
-Message-Id: <20171219152736.55d064945a68d2d2ffc64b15@linux-foundation.org>
-In-Reply-To: <15c19718-c08e-e7f6-8af9-9651db1b11cc@gmail.com>
-References: <20171219102213.GA435@jagdpanzerIV>
-	<1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
-	<20171219151341.GC15210@dhcp22.suse.cz>
-	<20171219152536.GA591@tigerII.localdomain>
-	<20171219155815.GC2787@dhcp22.suse.cz>
-	<15c19718-c08e-e7f6-8af9-9651db1b11cc@gmail.com>
+Subject: Re: mmots build error: version control conflict marker in file
+Message-Id: <20171219155323.7ed0dcfbc89c76eb87aca592@linux-foundation.org>
+In-Reply-To: <7cec6594-94c7-a238-4046-0061a9adc20d@infradead.org>
+References: <CACT4Y+a0NvG-qpufVcvObd_hWKF9xmTjmjCvV3_13LSgcFXL+Q@mail.gmail.com>
+	<20171219090319.GD2787@dhcp22.suse.cz>
+	<7cec6594-94c7-a238-4046-0061a9adc20d@infradead.org>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Dmitry Vyukov <dvyukov@google.com>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
 
-On Tue, 19 Dec 2017 20:45:17 +0300 Aliaksei Karaliou <akaraliou.dev@gmail.com> wrote:
+On Tue, 19 Dec 2017 12:00:12 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-> >>> So what will happen if the pool is alive and used without any shrinker?
-> >>> How do objects get freed?
-> >> we use shrinker for "optional" de-fragmentation of zsmalloc pools. we
-> >> don't free any objects from that path. just move them around within their
-> >> size classes - to consolidate objects and to, may be, free unused pages
-> >> [but we first need to make them "unused"]. it's not a mandatory thing for
-> >> zsmalloc, we are just trying to be nice.
-> > OK, it smells like an abuse of the API but please add a comment
-> > clarifying that.
-> >
-> > Thanks!
-> I can update the existing comment to be like that:
->          /*
->           * Not critical since shrinker is only used to trigger internal
->           * de-fragmentation of the pool which is pretty optional thing.
->           * If registration fails we still can use the pool normally and
->           * user can trigger compaction manually. Thus, ignore return code.
->           */
 > 
-> Sergey, does this sound well to you ? Or not clear enough, Michal ?
+> Wow. arch/x86/include/asm/processor.h around line 340++ looks like this:
+> 
+> <<<<<<< HEAD
+> struct SYSENTER_stack {
+> 	unsigned long		words[64];
+> };
+> 
+> struct SYSENTER_stack_page {
+> 	struct SYSENTER_stack stack;
+> =======
+> struct entry_stack {
+> 	unsigned long		words[64];
+> };
+> 
+> struct entry_stack_page {
+> 	struct entry_stack stack;
+> >>>>>>> linux-next/akpm-base
+> } __aligned(PAGE_SIZE);
 
-I did this:
-
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: mm-zsmalloc-simplify-shrinker-init-destroy-fix
-
-update comment (Aliaksei), make zs_register_shrinker() return void
-
-Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Minchan Kim <minchan@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
-
- mm/zsmalloc.c |   12 +++++++-----
- 1 file changed, 7 insertions(+), 5 deletions(-)
-
-diff -puN mm/zsmalloc.c~mm-zsmalloc-simplify-shrinker-init-destroy-fix mm/zsmalloc.c
---- a/mm/zsmalloc.c~mm-zsmalloc-simplify-shrinker-init-destroy-fix
-+++ a/mm/zsmalloc.c
-@@ -2323,14 +2323,14 @@ static void zs_unregister_shrinker(struc
- 	unregister_shrinker(&pool->shrinker);
- }
- 
--static int zs_register_shrinker(struct zs_pool *pool)
-+static void zs_register_shrinker(struct zs_pool *pool)
- {
- 	pool->shrinker.scan_objects = zs_shrinker_scan;
- 	pool->shrinker.count_objects = zs_shrinker_count;
- 	pool->shrinker.batch = 0;
- 	pool->shrinker.seeks = DEFAULT_SEEKS;
- 
--	return register_shrinker(&pool->shrinker);
-+	register_shrinker(&pool->shrinker);
- }
- 
- /**
-@@ -2419,10 +2419,12 @@ struct zs_pool *zs_create_pool(const cha
- 		goto err;
- 
- 	/*
--	 * Not critical, we still can use the pool
--	 * and user can trigger compaction manually.
-+	 * Not critical since shrinker is only used to trigger internal
-+	 * defragmentation of the pool which is pretty optional thing.  If
-+	 * registration fails we still can use the pool normally and user can
-+	 * trigger compaction manually. Thus, ignore return code.
- 	 */
--	(void) zs_register_shrinker(pool);
-+	zs_register_shrinker(pool);
- 
- 	return pool;
- 
-_
+Yeah, sorry.  Normally I fix those my hand in
+linux-next-git-rejects.patch but there were sooooooo many yesterday
+that I said screwit.  That all got resolved in today's pull.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
