@@ -1,77 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f198.google.com (mail-qk0-f198.google.com [209.85.220.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 06BBE6B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:22:27 -0500 (EST)
-Received: by mail-qk0-f198.google.com with SMTP id d9so452611qkg.13
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:22:27 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id i190si182159qkf.377.2017.12.19.12.22.25
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 87B7D6B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:34:03 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l33so11984929wrl.5
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:34:03 -0800 (PST)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id b8si5343947edf.174.2017.12.19.12.34.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 12:22:25 -0800 (PST)
-Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBJKDwWa112790
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:22:25 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2ey4cksju0-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:22:25 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Tue, 19 Dec 2017 15:22:24 -0500
-Date: Tue, 19 Dec 2017 12:22:32 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
- for freeing rcu structures
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <rao.shoaib@oracle.com>
- <1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
- <20171219193039.GB6515@bombadil.infradead.org>
- <24c9f1c0-58d4-5d27-8795-d211693455dd@oracle.com>
+        Tue, 19 Dec 2017 12:34:02 -0800 (PST)
+Date: Wed, 20 Dec 2017 07:33:57 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+Subject: Re: BUG: bad usercopy in memdup_user
+Message-ID: <20171219203357.GT19604@eros>
+References: <001a113e9ca8a3affd05609d7ccf@google.com>
+ <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
+ <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+ <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
+ <20171219083746.GR19604@eros>
+ <20171219132246.GD13680@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <24c9f1c0-58d4-5d27-8795-d211693455dd@oracle.com>
-Message-Id: <20171219202232.GE7829@linux.vnet.ibm.com>
+In-Reply-To: <20171219132246.GD13680@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rao Shoaib <rao.shoaib@oracle.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
 
-On Tue, Dec 19, 2017 at 11:56:30AM -0800, Rao Shoaib wrote:
-> On 12/19/2017 11:30 AM, Matthew Wilcox wrote:
-> >On Tue, Dec 19, 2017 at 09:52:27AM -0800, rao.shoaib@oracle.com wrote:
+On Tue, Dec 19, 2017 at 05:22:46AM -0800, Matthew Wilcox wrote:
+> On Tue, Dec 19, 2017 at 07:37:46PM +1100, Tobin C. Harding wrote:
+> > On Tue, Dec 19, 2017 at 09:12:58AM +0100, Dmitry Vyukov wrote:
+> > > On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
+> > > > On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
+> > > >> This BUG is reporting
+> > > >>
+> > > >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
+> > > >>
+> > > >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
+> > > >
+> > > > The address is hashed (see the %p threads for 4.15).
+> > > 
+> > > 
+> > > +Tobin, is there a way to disable hashing entirely? The only
+> > > designation of syzbot is providing crash reports to kernel developers
+> > > with as much info as possible. It's fine for it to leak whatever.
+> > 
+> > We have new specifier %px to print addresses in hex if leaking info is
+> > not a worry.
+> 
+> Could we have a way to know that the printed address is hashed and not just
+> a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
+> So this line would look like:
+> 
+> [   26.089789] usercopy: kernel memory overwrite attempt detected to #0000000022a5b430 (kmalloc-1024) (1024 bytes)
 
-[ . . . ]
+This poses the risk of breaking userland tools that parse the
+address. The zeroing of the first 32 bits was a design compromise to
+keep the address format while making _kind of_ explicit that some funny
+business was going on.
 
-> >I've been doing a lot of thinking about this because I really want a
-> >way to kfree_rcu() an object without embedding a struct rcu_head in it.
-> >But I see no way to do that today; even if we have an external memory
-> >allocation to point to the object to be freed, we have to keep track of
-> >the grace periods.
-> I am not sure I understand. If you had external memory you can
-> easily do that.
-> I am exactly doing that, the only reason the RCU structure is needed
-> is to get the pointer to the object being freed.
+> Or does that miss the point of hashing the address, so the attacker
+> thinks its a real address?
 
-This can be done as long as you are willing to either:
+No subterfuge intended.
 
-1.	Occasionally have kfree_rcu() wait for a grace period.
+Bonus points Wily, I had to go to 'The New Hackers Dictionary' to look
+up 'scrogged' :)
 
-2.	Occasionally have kfree_rcu() allocate memory.
-
-3.	Keep the rcu_head, but use it only when you would otherwise
-	have to accept the above two penalties.  (The point of this
-	is that tracking lists of memory waiting for a grace period
-	using dense arrays improves cache locality.)
-
-There might be others, and if you come up with one, please don't keep it
-a secret.  The C++ standards committee insisted on an interface using
-option #2 above.  (There is also an option to use their equivalent of
-an rcu_head.)
-
-							Thanx, Paul
+thanks,
+Tobin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
