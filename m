@@ -1,75 +1,112 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 87B7D6B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:34:03 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id l33so11984929wrl.5
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:34:03 -0800 (PST)
-Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
-        by mx.google.com with ESMTPS id b8si5343947edf.174.2017.12.19.12.34.01
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6D956B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 15:36:55 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id u10so11438755otc.21
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:36:55 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 189sor5515303oii.149.2017.12.19.12.36.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 12:34:02 -0800 (PST)
-Date: Wed, 20 Dec 2017 07:33:57 +1100
-From: "Tobin C. Harding" <me@tobin.cc>
-Subject: Re: BUG: bad usercopy in memdup_user
-Message-ID: <20171219203357.GT19604@eros>
-References: <001a113e9ca8a3affd05609d7ccf@google.com>
- <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
- <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros>
- <20171219132246.GD13680@bombadil.infradead.org>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 12:36:54 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171219132246.GD13680@bombadil.infradead.org>
+In-Reply-To: <20171215140947.26075-1-hch@lst.de>
+References: <20171215140947.26075-1-hch@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 19 Dec 2017 12:36:53 -0800
+Message-ID: <CAPcyv4hLncPScEYoU2JA3B0C-jEve03it_-JbDJb1cpeP5pyMA@mail.gmail.com>
+Subject: Re: revamp vmem_altmap / dev_pagemap handling V2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 19, 2017 at 05:22:46AM -0800, Matthew Wilcox wrote:
-> On Tue, Dec 19, 2017 at 07:37:46PM +1100, Tobin C. Harding wrote:
-> > On Tue, Dec 19, 2017 at 09:12:58AM +0100, Dmitry Vyukov wrote:
-> > > On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
-> > > > On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
-> > > >> This BUG is reporting
-> > > >>
-> > > >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
-> > > >>
-> > > >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
-> > > >
-> > > > The address is hashed (see the %p threads for 4.15).
-> > > 
-> > > 
-> > > +Tobin, is there a way to disable hashing entirely? The only
-> > > designation of syzbot is providing crash reports to kernel developers
-> > > with as much info as possible. It's fine for it to leak whatever.
-> > 
-> > We have new specifier %px to print addresses in hex if leaking info is
-> > not a worry.
-> 
-> Could we have a way to know that the printed address is hashed and not just
-> a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
-> So this line would look like:
-> 
-> [   26.089789] usercopy: kernel memory overwrite attempt detected to #0000000022a5b430 (kmalloc-1024) (1024 bytes)
+On Fri, Dec 15, 2017 at 6:09 AM, Christoph Hellwig <hch@lst.de> wrote:
+>
+> Hi all,
+>
+> this series started with two patches from Logan that now are in the
+> middle of the series to kill the memremap-internal pgmap structure
+> and to redo the dev_memreamp_pages interface to be better suitable
+> for future PCI P2P uses.  I reviewed them and noticed that there
+> isn't really any good reason to keep struct vmem_altmap either,
+> and that a lot of these alternative device page map access should
+> be better abstracted out instead of being sprinkled all over the
+> mm code.  But when we got the RCU warnings in V1 I went for yet
+> another approach, and now struct vmem_altmap is kept for now,
+> but passed explicitly through the memory hotplug code instead of
+> having to do unprotected lookups through the radix tree.  The
+> end result is that only the get_user_pages path ever looks up
+> struct dev_pagemap, and struct vmem_altmap is now always embedded
+> into struct dev_pagemap, and explicitly passed where needed.
+>
+> Please review carefully, this has only been tested with my legacy
+> e820 NVDIMM system.
 
-This poses the risk of breaking userland tools that parse the
-address. The zeroing of the first 32 bits was a design compromise to
-keep the address format while making _kind of_ explicit that some funny
-business was going on.
+I hit the following regression in the error path with these patches
+applied. I'm working on a bisect and updating the unit tests to
+capture this scenario. 4.15-rc2 works as expected.
 
-> Or does that miss the point of hashing the address, so the attacker
-> thinks its a real address?
-
-No subterfuge intended.
-
-Bonus points Wily, I had to go to 'The New Hackers Dictionary' to look
-up 'scrogged' :)
-
-thanks,
-Tobin.
+[   47.102064] ------------[ cut here ]------------
+[   47.103099] dax_pmem dax1.0: devm_memremap_pages_release: failed to
+free all reserved pages
+[   47.104773] WARNING: CPU: 6 PID: 1226 at kernel/memremap.c:306
+devm_memremap_pages_release+0x399/0x3e0
+[   47.106578] Modules linked in: ip6t_rpfilter ip6t_REJECT
+nf_reject_ipv6 xt_conntrack ebtable_nat ebtable_broute bridge stp llc
+ip6table_nat nf_conntrack_ipv6 nf_defrag_ipv6 nf_nat_ipv6 ip
+6table_mangle ip6table_raw ip6table_security iptable_nat
+nf_conntrack_ipv4 nf_defrag_ipv4 nf_nat_ipv4 nf_nat nf_conntrack
+iptable_mangle iptable_raw iptable_security ebtable_filter ebtables
+ip6table_filter ip6_tables crct10dif_pclmul crc32_pclmul crc32c_intel
+ghash_clmulni_intel dax_pmem(O) nd_pmem(O) device_dax(O) nd_btt(O)
+nd_e820(O) nfit(O) serio_raw libnvdimm(O) nfit_test_i
+omap(O)
+[   47.114722] CPU: 6 PID: 1226 Comm: ndctl Tainted: G           O
+4.15.0-rc2+ #981
+[   47.116082] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996),
+BIOS rel-1.9.3-0-ge2fc41e-prebuilt.qemu-project.org 04/01/2014
+[   47.117993] task: 00000000f9fb534d task.stack: 00000000575f2a25
+[   47.119004] RIP: 0010:devm_memremap_pages_release+0x399/0x3e0
+[   47.119993] RSP: 0018:ffffc90002f2fd30 EFLAGS: 00010282
+[   47.120909] RAX: 0000000000000000 RBX: ffff88043715fa80 RCX: 0000000000000000
+[   47.122095] RDX: ffff8801f88d6900 RSI: ffff8801f88ce478 RDI: ffff8801f88ce478
+[   47.123284] RBP: ffffc90002f2fd50 R08: 0000000000000000 R09: 0000000000000000
+[   47.124466] R10: 0000000000000001 R11: 0000000000000000 R12: ffff8801f1fd2d10
+[   47.125648] R13: 0000000440000000 R14: ffff8801f4dc8018 R15: ffffffff81ed6dfe
+[   47.126831] FS:  00007fd93f2ba840(0000) GS:ffff8801f88c0000(0000)
+knlGS:0000000000000000
+[   47.128233] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   47.129216] CR2: 000055fa3e090fc0 CR3: 00000001f3dce000 CR4: 00000000000406e0
+[   47.130404] Call Trace:
+[   47.130913]  release_nodes+0x160/0x2a0
+[   47.131617]  driver_probe_device+0xf9/0x490
+[   47.132378]  bind_store+0x109/0x160
+[   47.133035]  kernfs_fop_write+0x110/0x1b0
+[   47.133775]  __vfs_write+0x33/0x170
+[   47.134438]  ? rcu_read_lock_sched_held+0x3f/0x70
+[   47.135275]  ? rcu_sync_lockdep_assert+0x2a/0x50
+[   47.136091]  ? __sb_start_write+0xd0/0x1b0
+[   47.136840]  ? vfs_write+0x18b/0x1b0
+[   47.137519]  vfs_write+0xc5/0x1b0
+[   47.138151]  SyS_write+0x55/0xc0
+[   47.138776]  entry_SYSCALL_64_fastpath+0x1f/0x96
+[   47.139600] RIP: 0033:0x7fd93e3a8f84
+[   47.140270] RSP: 002b:00007ffca9dc0f68 EFLAGS: 00000246 ORIG_RAX:
+0000000000000001
+[   47.141593] RAX: ffffffffffffffda RBX: 0000000000000000 RCX: 00007fd93e3a8f84
+[   47.142778] RDX: 0000000000000007 RSI: 0000000001d2de90 RDI: 0000000000000004
+[   47.143962] RBP: 00007ffca9dc0fa0 R08: 0000000001d283d0 R09: 00000000fffffff8
+[   47.145147] R10: 0000000000000000 R11: 0000000000000246 R12: 0000000000407d50
+[   47.146330] R13: 00007ffca9dc15a0 R14: 0000000000000000 R15: 0000000000000000
+[   47.147520] Code: f9 57 16 01 01 48 85 db 74 55 4c 89 f7 e8 00 21
+44 00 48 c7 c1 80 62 c2 81 48 89 da 48 89 c6 48 c7 c7 08 6a ee 81 e8
+c7 9f ea ff <0f> ff e9 ce fe ff ff 48 c7 c2 08 cf ec 81 be ed 02 00 00
+48 c7
+[   47.150607] ---[ end trace f384c72daa2ac9c5 ]---
+[   47.151458] dax_pmem dax1.0: dax_pmem_percpu_exit
+[   47.152478] dax_pmem: probe of dax1.0 failed with error -12
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
