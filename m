@@ -1,29 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id BDEEB6B0253
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:53:52 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id x32so6969955ita.1
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:53:52 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id a8si1468639itg.78.2017.12.19.07.53.52
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E0EBF6B025F
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:56:28 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id s5so7896088wra.3
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:56:28 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id t21sor8036512edd.40.2017.12.19.07.56.27
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 07:53:52 -0800 (PST)
-Date: Tue, 19 Dec 2017 09:53:51 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 8/8] mm: Remove reference to PG_buddy
-In-Reply-To: <20171219100226.GG2787@dhcp22.suse.cz>
-Message-ID: <alpine.DEB.2.20.1712190953350.16727@nuc-kabylake>
-References: <20171216164425.8703-1-willy@infradead.org> <20171216164425.8703-9-willy@infradead.org> <20171219100226.GG2787@dhcp22.suse.cz>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 07:56:27 -0800 (PST)
+Date: Tue, 19 Dec 2017 18:56:25 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 7/8] mm: Document how to use struct page
+Message-ID: <20171219155625.etst7kvn2wdixh5t@node.shutemov.name>
+References: <20171216164425.8703-1-willy@infradead.org>
+ <20171216164425.8703-8-willy@infradead.org>
+ <alpine.DEB.2.20.1712190952470.16727@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1712190952470.16727@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
+To: Christopher Lameter <cl@linux.com>
 Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
+On Tue, Dec 19, 2017 at 09:53:16AM -0600, Christopher Lameter wrote:
+> On Sat, 16 Dec 2017, Matthew Wilcox wrote:
+> 
+> > + * If you allocate pages of order > 0, you can use the fields in the struct
+> > + * page associated with each page, but bear in mind that the pages may have
+> > + * been inserted individually into the page cache, so you must use the above
+> > + * three fields in a compatible way for each struct page.
+> 
+> If they are inserted into the page cache then also other fields are
+> required like the lru one right?
 
-Acked-by: Christoph Lameter <cl@linux.com>
+No. For compound pages, only head is on lru.
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
