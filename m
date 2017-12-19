@@ -1,46 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 64AF06B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:01:34 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id b11so2285232itj.0
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:01:34 -0800 (PST)
-Received: from resqmta-ch2-11v.sys.comcast.net (resqmta-ch2-11v.sys.comcast.net. [2001:558:fe21:29:69:252:207:43])
-        by mx.google.com with ESMTPS id q143si10121031iod.78.2017.12.19.07.01.33
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A26916B0069
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:02:16 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id k1so12756371pgq.2
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:02:16 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id y5si11267477pfl.33.2017.12.19.07.02.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 07:01:33 -0800 (PST)
-Date: Tue, 19 Dec 2017 09:01:32 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 3/8] mm: Remove misleading alignment claims
-In-Reply-To: <20171216164425.8703-4-willy@infradead.org>
-Message-ID: <alpine.DEB.2.20.1712190900150.16727@nuc-kabylake>
-References: <20171216164425.8703-1-willy@infradead.org> <20171216164425.8703-4-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Dec 2017 07:02:14 -0800 (PST)
+Date: Tue, 19 Dec 2017 07:02:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] Provide useful debugging information for VM_BUG
+Message-ID: <20171219150212.GB30842@bombadil.infradead.org>
+References: <20171219133236.GE13680@bombadil.infradead.org>
+ <20171219144211.GY2787@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171219144211.GY2787@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, "Tobin C. Harding" <me@tobin.cc>, kernel-hardening@lists.openwall.com
 
-On Sat, 16 Dec 2017, Matthew Wilcox wrote:
+On Tue, Dec 19, 2017 at 03:42:11PM +0100, Michal Hocko wrote:
+> On Tue 19-12-17 05:32:36, Matthew Wilcox wrote:
+> > 
+> > From: Matthew Wilcox <mawilcox@microsoft.com>
+> > 
+> > With the recent addition of hashed kernel pointers, places which need
+> > to produce useful debug output have to specify %px, not %p.  This patch
+> > fixes all the VM debug to use %px.  This is appropriate because it's
+> > debug output that the user should never be able to trigger, and kernel
+> > developers need to see the actual pointers.
+> 
+> Agreed. This is essentially a BUG_ON so we shouldn't hide information.
+> I am just wondering why %px rather than %lx (like __show_regs e.g.)?
 
-> From: Matthew Wilcox <mawilcox@microsoft.com>
->
-> The "third double word block" isn't on 32-bit systems.  The layout
-> looks like this:
+commit 7b1924a1d930eb27fc79c4e4e2a6c1c970623e68
+Author: Tobin C. Harding <me@tobin.cc>
+Date:   Thu Nov 23 10:59:45 2017 +1100
 
-Right true.
+    vsprintf: add printk specifier %px
+    
+    printk specifier %p now hashes all addresses before printing. Sometimes
+    we need to see the actual unmodified address. This can be achieved using
+    %lx but then we face the risk that if in future we want to change the
+    way the Kernel handles printing of pointers we will have to grep through
+    the already existent 50 000 %lx call sites. Let's add specifier %px as a
+    clear, opt-in, way to print a pointer and maintain some level of
+    isolation from all the other hex integer output within the Kernel.
+    
+    Add printk specifier %px to print the actual unmodified address.
+    
+    Signed-off-by: Tobin C. Harding <me@tobin.cc>
 
-> which is 32 bytes on 64-bit, but 20 bytes on 32-bit.  Nobody is trying
-> to use the fact that it's double-word aligned today, so just remove the
-> misleading claims.
+> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Well there is the rcu field and the lru fields which I thought at some
-point would become useful to locklessly update.
-
-But it did not happen
-
-Acked-by: Christoph Lameter <cl@linux.com>
+Thanks.  Andrew, will you take this, or does it go through the hardening tree?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
