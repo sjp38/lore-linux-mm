@@ -1,68 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D0EEF6B0260
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 01:41:49 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id g8so12144000pgs.14
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 22:41:49 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id k91si10570919pld.115.2017.12.18.22.41.48
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 92F576B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 02:25:28 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id y62so14129602pfd.3
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 23:25:28 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h2si10900132pli.718.2017.12.18.23.25.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 22:41:48 -0800 (PST)
-From: Kemi Wang <kemi.wang@intel.com>
-Subject: [PATCH v2 5/5] mm: Rename zone_statistics() to numa_statistics()
-Date: Tue, 19 Dec 2017 14:39:26 +0800
-Message-Id: <1513665566-4465-6-git-send-email-kemi.wang@intel.com>
-In-Reply-To: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 18 Dec 2017 23:25:27 -0800 (PST)
+Date: Tue, 19 Dec 2017 08:25:23 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH v3 03/10] lib: add a __fprop_add_percpu_max
+Message-ID: <20171219072523.GA2277@quack2.suse.cz>
+References: <1513029335-5112-1-git-send-email-josef@toxicpanda.com>
+ <1513029335-5112-4-git-send-email-josef@toxicpanda.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1513029335-5112-4-git-send-email-josef@toxicpanda.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Kemi Wang <kemi.wang@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Josef Bacik <josef@toxicpanda.com>
+Cc: hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, jack@suse.cz, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-Since the functionality of zone_statistics() updates numa counters, but
-numa statistics has been separated from zone statistics framework. Thus,
-the function name makes people confused. So, change the name to
-numa_statistics() as well as its call sites accordingly.
+On Mon 11-12-17 16:55:28, Josef Bacik wrote:
+> From: Josef Bacik <jbacik@fb.com>
+> 
+> This helper allows us to add an arbitrary amount to the fprop
+> structures.
+> 
+> Signed-off-by: Josef Bacik <jbacik@fb.com>
 
-Signed-off-by: Kemi Wang <kemi.wang@intel.com>
----
- mm/page_alloc.c | 6 +++---
- 1 file changed, 3 insertions(+), 3 deletions(-)
+Looks good. You can add:
 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 81e8d8f..f7583de 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -2790,7 +2790,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
-  *
-  * Must be called with interrupts disabled.
-  */
--static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
-+static inline void numa_statistics(struct zone *preferred_zone, struct zone *z)
- {
- #ifdef CONFIG_NUMA
- 	int preferred_nid = preferred_zone->node;
-@@ -2854,7 +2854,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
- 	page = __rmqueue_pcplist(zone,  migratetype, pcp, list);
- 	if (page) {
- 		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
--		zone_statistics(preferred_zone, zone);
-+		numa_statistics(preferred_zone, zone);
- 	}
- 	local_irq_restore(flags);
- 	return page;
-@@ -2902,7 +2902,7 @@ struct page *rmqueue(struct zone *preferred_zone,
- 				  get_pcppage_migratetype(page));
- 
- 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
--	zone_statistics(preferred_zone, zone);
-+	numa_statistics(preferred_zone, zone);
- 	local_irq_restore(flags);
- 
- out:
+Reviewed-by: Jan Kara <jack@suse.cz>
+
+								Honza
+
+> ---
+>  include/linux/flex_proportions.h | 11 +++++++++--
+>  lib/flex_proportions.c           |  9 +++++----
+>  2 files changed, 14 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/flex_proportions.h b/include/linux/flex_proportions.h
+> index 0d348e011a6e..9f88684bf0a0 100644
+> --- a/include/linux/flex_proportions.h
+> +++ b/include/linux/flex_proportions.h
+> @@ -83,8 +83,8 @@ struct fprop_local_percpu {
+>  int fprop_local_init_percpu(struct fprop_local_percpu *pl, gfp_t gfp);
+>  void fprop_local_destroy_percpu(struct fprop_local_percpu *pl);
+>  void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl);
+> -void __fprop_inc_percpu_max(struct fprop_global *p, struct fprop_local_percpu *pl,
+> -			    int max_frac);
+> +void __fprop_add_percpu_max(struct fprop_global *p, struct fprop_local_percpu *pl,
+> +			    unsigned long nr, int max_frac);
+>  void fprop_fraction_percpu(struct fprop_global *p,
+>  	struct fprop_local_percpu *pl, unsigned long *numerator,
+>  	unsigned long *denominator);
+> @@ -99,4 +99,11 @@ void fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
+>  	local_irq_restore(flags);
+>  }
+>  
+> +static inline
+> +void __fprop_inc_percpu_max(struct fprop_global *p,
+> +			    struct fprop_local_percpu *pl, int max_frac)
+> +{
+> +	__fprop_add_percpu_max(p, pl, 1, max_frac);
+> +}
+> +
+>  #endif
+> diff --git a/lib/flex_proportions.c b/lib/flex_proportions.c
+> index 2cc1f94e03a1..31003989d34a 100644
+> --- a/lib/flex_proportions.c
+> +++ b/lib/flex_proportions.c
+> @@ -255,8 +255,9 @@ void fprop_fraction_percpu(struct fprop_global *p,
+>   * Like __fprop_inc_percpu() except that event is counted only if the given
+>   * type has fraction smaller than @max_frac/FPROP_FRAC_BASE
+>   */
+> -void __fprop_inc_percpu_max(struct fprop_global *p,
+> -			    struct fprop_local_percpu *pl, int max_frac)
+> +void __fprop_add_percpu_max(struct fprop_global *p,
+> +			    struct fprop_local_percpu *pl, unsigned long nr,
+> +			    int max_frac)
+>  {
+>  	if (unlikely(max_frac < FPROP_FRAC_BASE)) {
+>  		unsigned long numerator, denominator;
+> @@ -267,6 +268,6 @@ void __fprop_inc_percpu_max(struct fprop_global *p,
+>  			return;
+>  	} else
+>  		fprop_reflect_period_percpu(p, pl);
+> -	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
+> -	percpu_counter_add(&p->events, 1);
+> +	percpu_counter_add_batch(&pl->events, nr, PROP_BATCH);
+> +	percpu_counter_add(&p->events, nr);
+>  }
+> -- 
+> 2.7.5
+> 
 -- 
-2.7.4
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
