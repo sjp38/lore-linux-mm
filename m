@@ -1,59 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 607206B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:41:11 -0500 (EST)
-Received: by mail-qk0-f197.google.com with SMTP id u1so14197265qka.7
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:41:11 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g5sor11732719qtk.24.2017.12.19.13.41.10
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C14F6B025F
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:49:03 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b82so1674084wmd.5
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:49:03 -0800 (PST)
+Received: from ZenIV.linux.org.uk (zeniv.linux.org.uk. [195.92.253.2])
+        by mx.google.com with ESMTPS id i20si2087453wme.12.2017.12.19.13.49.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Dec 2017 13:41:10 -0800 (PST)
-Date: Tue, 19 Dec 2017 13:41:07 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
-Message-ID: <20171219214107.GR3919388@devbig577.frc2.facebook.com>
-References: <20171219000131.149170-1-shakeelb@google.com>
- <20171219124908.GS2787@dhcp22.suse.cz>
- <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
- <20171219152444.GP3919388@devbig577.frc2.facebook.com>
- <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
- <20171219173354.GQ3919388@devbig577.frc2.facebook.com>
- <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 13:49:02 -0800 (PST)
+Date: Tue, 19 Dec 2017 21:48:49 +0000
+From: Al Viro <viro@ZenIV.linux.org.uk>
+Subject: Re: BUG: bad usercopy in memdup_user
+Message-ID: <20171219214849.GU21978@ZenIV.linux.org.uk>
+References: <001a113e9ca8a3affd05609d7ccf@google.com>
+ <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
+ <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+ <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
+ <20171219083746.GR19604@eros>
+ <20171219132246.GD13680@bombadil.infradead.org>
+ <CA+55aFwvMMg0Kt8z+tkgPREbX--Of0R5nr_wS4B64kFxiVVKmw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
+In-Reply-To: <CA+55aFwvMMg0Kt8z+tkgPREbX--Of0R5nr_wS4B64kFxiVVKmw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
+To: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matthew Wilcox <willy@infradead.org>, "Tobin C. Harding" <me@tobin.cc>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
 
-Hello,
+On Tue, Dec 19, 2017 at 01:36:46PM -0800, Linus Torvalds wrote:
 
-On Tue, Dec 19, 2017 at 10:25:12AM -0800, Shakeel Butt wrote:
-> Making the runtime environment, an invariant is very critical to make
-> the management of a job easier whose instances run on different
-> clusters across the world. Some clusters might have different type of
-> swaps installed while some might not have one at all and the
-> availability of the swap can be dynamic (i.e. swap medium outage).
-> 
-> So, if users want to run multiple instances of a job across multiple
-> clusters, they should be able to specify the limits of their jobs
-> irrespective of the knowledge of cluster. The best case would be they
-> just submits their jobs without any config and the system figures out
-> the right limit and enforce that. And to figure out the right limit
-> and enforcing it, the consistent memory usage history and consistent
-> memory limit enforcement is very critical.
+> I suspect that an "offset and size within the kernel object" value
+> might make sense.  But what does the _pointer_ tell you?
 
-I'm having a hard time extracting anything concrete from your
-explanation on why memsw is required.  Can you please ELI5 with some
-examples?
+Well, for example seeing a 0xfffffffffffffff4 where a pointer to object
+must have been is a pretty strong hint to start looking for a way for
+that ERR_PTR(-ENOMEM) having ended up there...  Something like
+0x6e69622f7273752f is almost certainly a misplaced "/usr/bin", i.e. a
+pathname overwriting whatever it ends up in, etc.  And yes, I have run
+into both of those in real life.
 
-Thanks.
-
--- 
-tejun
+Debugging the situation when crap value has ended up in place of a
+pointer is certainly a case where you do want to see what exactly has
+ended up in there...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
