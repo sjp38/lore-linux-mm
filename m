@@ -1,89 +1,108 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A77FA6B0038
-	for <linux-mm@kvack.org>; Mon, 18 Dec 2017 20:57:29 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id j6so6445724pll.4
-        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 17:57:29 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id f4si7909700plr.189.2017.12.18.17.57.28
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D421A6B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 00:35:18 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so577506wmd.0
+        for <linux-mm@kvack.org>; Mon, 18 Dec 2017 21:35:18 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j25sor347886wme.32.2017.12.18.21.35.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 18 Dec 2017 17:57:28 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V3 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171218073424.29647-1-ying.huang@intel.com>
-	<877etkwki2.fsf@yhuang-dev.intel.com>
-	<20171218230945.GX7829@linux.vnet.ibm.com>
-Date: Tue, 19 Dec 2017 09:57:21 +0800
-In-Reply-To: <20171218230945.GX7829@linux.vnet.ibm.com> (Paul E. McKenney's
-	message of "Mon, 18 Dec 2017 15:09:45 -0800")
-Message-ID: <877etjv5ry.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Mon, 18 Dec 2017 21:35:17 -0800 (PST)
+Subject: Re: [PATCH v5] mmap.2: MAP_FIXED updated documentation
+References: <20171212002331.6838-1-jhubbard@nvidia.com>
+ <3a07ef4d-7435-7b8d-d5c7-3bce80042577@gmail.com>
+ <fb49f293-2048-e64f-51da-ff039929c7ac@nvidia.com>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Message-ID: <fb834f23-bbae-ea1b-1a55-a20e1cc88c0f@gmail.com>
+Date: Tue, 19 Dec 2017 06:35:12 +0100
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <fb49f293-2048-e64f-51da-ff039929c7ac@nvidia.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: mtk.manpages@gmail.com, linux-man <linux-man@vger.kernel.org>, linux-api@vger.kernel.org, Michael Ellerman <mpe@ellerman.id.au>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, linux-arch@vger.kernel.org, Jann Horn <jannh@google.com>, Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>, Cyril Hrubis <chrubis@suse.cz>, Michal Hocko <mhocko@suse.com>, Pavel Machek <pavel@ucw.cz>
 
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> writes:
+Hi John,
 
-> On Mon, Dec 18, 2017 at 03:41:41PM +0800, Huang, Ying wrote:
->> "Huang, Ying" <ying.huang@intel.com> writes:
->> And, it appears that if we replace smp_wmb() in _enable_swap_info() with
->> stop_machine() in some way, we can avoid smp_rmb() in get_swap_device().
->> This can reduce overhead in normal path further.  Can we get same effect
->> with RCU?  For example, use synchronize_rcu() instead of stop_machine()?
->> 
->> Hi, Paul, can you help me on this?
->
-> If the key loads before and after the smp_rmb() are within the same
-> RCU read-side critical section, -and- if one of the critical writes is
-> before the synchronize_rcu() and the other critical write is after the
-> synchronize_rcu(), then you normally don't need the smp_rmb().
->
-> Otherwise, you likely do still need the smp_rmb().
+On 12/18/2017 10:27 PM, John Hubbard wrote:
+> On 12/18/2017 11:15 AM, Michael Kerrisk (man-pages) wrote:
+>> On 12/12/2017 01:23 AM, john.hubbard@gmail.com wrote:
+>>> From: John Hubbard <jhubbard@nvidia.com>
+>>>
+>>>     -- Expand the documentation to discuss the hazards in
+>>>        enough detail to allow avoiding them.
+>>>
+>>>     -- Mention the upcoming MAP_FIXED_SAFE flag.
+>>>
+>>>     -- Enhance the alignment requirement slightly.
+>>>
+>>> CC: Michael Ellerman <mpe@ellerman.id.au>
+>>> CC: Jann Horn <jannh@google.com>
+>>> CC: Matthew Wilcox <willy@infradead.org>
+>>> CC: Michal Hocko <mhocko@kernel.org>
+>>> CC: Mike Rapoport <rppt@linux.vnet.ibm.com>
+>>> CC: Cyril Hrubis <chrubis@suse.cz>
+>>> CC: Michal Hocko <mhocko@suse.com>
+>>> CC: Pavel Machek <pavel@ucw.cz>
+>>> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+>>
+>> John,
+>>
+>> Thanks for the patch. I think you win the prize for the 
+>> most iterations ever on a man-pages patch! (And Michal,
+>> thanks for helping out.) I've applied your patch, made 
+>> some minor tweaks, and removed the mention of 
+>> MAP_FIXED_SAFE, since I don't like to document stuff
+>> that hasn't yet been merged. (I only later noticed the
+>> fuss about the naming...)
+>>
+> 
+> Hi Michael,
+> 
+> The final result looks nice, thanks for all the editing fixes.
+> 
+> One last thing: reading through this, I think it might need a wording
+> fix (this is my fault), in order to avoid implying that brk() or
+> malloc() use dlopen().
+> 
+> Something approximately like this:
+> 
+> diff --git a/man2/mmap.2 b/man2/mmap.2
+> index 79681b31e..1c0bd80de 100644
+> --- a/man2/mmap.2
+> +++ b/man2/mmap.2
+> @@ -250,8 +250,9 @@ suffice.
+>  The
+>  .BR dlopen (3)
+>  call will map the library into the process's address space.
+> -Furthermore, almost any library call may be implemented using this technique.
+> -Examples include
+> +Furthermore, almost any library call may be implemented in a way that
+> +adds memory mappings to the address space, either with this technique,
+> +or by simply allocating memory. Examples include
+>  .BR brk (2),
+>  .BR malloc (3),
+>  .BR pthread_create (3),
+> 
+> 
+> ...or does the current version seem OK to other people?
 
-My question may be too general, let make it more specific.  For the
-following program,
+Thanks. Looks good to me. Applied.
 
-"
-int a;
-int b;
+Cheers,
 
-void intialize(void)
-{
-        a = 1;
-        synchronize_rcu();
-        b = 2;
-}
-
-void test(void)
-{
-        int c;
-
-        rcu_read_lock();
-        c = b;
-        /* ignored smp_rmb() */
-        if (c)
-                pr_info("a=%d\n", a);
-        rcu_read_unlock();
-}
-"
-
-Is it possible for it to show
-
-"
-a=0
-"
-
-in kernel log?
+Michael
 
 
-If it couldn't, this could be a useful usage model of RCU to accelerate
-hot path.
 
-Best Regards,
-Huang, Ying
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
