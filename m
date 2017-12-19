@@ -1,89 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C86956B025F
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:07:56 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u16so14495832pfh.7
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:07:56 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g9si10893715plo.675.2017.12.19.04.07.55
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 3499B6B0261
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:10:23 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id y15so11242896wrc.6
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:10:23 -0800 (PST)
+Received: from smtp-out6.electric.net (smtp-out6.electric.net. [192.162.217.184])
+        by mx.google.com with ESMTPS id q6si3588452edg.489.2017.12.19.04.10.21
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 04:07:55 -0800 (PST)
-Date: Tue, 19 Dec 2017 13:07:53 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/3] mm: unclutter THP migration
-Message-ID: <20171219120753.GL2787@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 04:10:21 -0800 (PST)
+From: David Laight <David.Laight@ACULAB.COM>
+Subject: RE: [patch 11/16] x86/ldt: Force access bit for CS/SS
+Date: Tue, 19 Dec 2017 12:10:34 +0000
+Message-ID: <2956b9271ecf4a859ef8eb112940cd3b@AcuMS.aculab.com>
+References: <20171212173221.496222173@linutronix.de>
+ <20171212173334.176469949@linutronix.de>
+ <CA+55aFwzkdB7FoVcmyqBvHu2HyE+pBe_KEgN5G3KJx8ZCGW_jQ@mail.gmail.com>
+ <BF0E88FD-9438-4ABF-82BD-AA634F957C3D@amacapital.net>
+In-Reply-To: <BF0E88FD-9438-4ABF-82BD-AA634F957C3D@amacapital.net>
+Content-Language: en-US
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171208161559.27313-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: 'Andy Lutomirski' <luto@amacapital.net>, Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>, LKML <linux-kernel@vger.kernel.org>, the arch/x86 maintainers <x86@kernel.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, Kees Cook <keescook@google.com>, Hugh Dickins <hughd@google.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, Eduardo Valentin <eduval@amazon.com>, "Liguori, Anthony" <aliguori@amazon.com>, Will Deacon <will.deacon@arm.com>, linux-mm <linux-mm@kvack.org>
 
-Are there any more comments here? It seems the initial reaction wasn't
-all that bad and so I would like to post this with RFC dropped.
+From: Andy Lutomirski
+> Sent: 12 December 2017 19:27
+...
+> > Why is the iret exception unrecoverable anyway? Does anybody even know?
+> >
+>=20
+> Weird microcode shit aside, a fault on IRET will return to kernel code wi=
+th kernel GS, and then the
+> next time we enter the kernel we're backwards.  We could fix idtentry to =
+get this right, but the code
+> is already tangled enough.
+...
 
-On Fri 08-12-17 17:15:56, Michal Hocko wrote:
-> On Thu 07-12-17 15:34:01, Michal Hocko wrote:
-> > On Thu 07-12-17 22:10:47, Zi Yan wrote:
-> [...]
-> > > I agree with you that we should try to migrate all tail pages if the THP
-> > > needs to be split. But this might not be compatible with "getting
-> > > migration results" in unmap_and_move(), since a caller of
-> > > migrate_pages() may want to know the status of each page in the
-> > > migration list via int **result in get_new_page() (e.g.
-> > > new_page_node()). The caller has no idea whether a THP in its migration
-> > > list will be split or not, thus, storing migration results might be
-> > > quite tricky if tail pages are added into the migration list.
-> > 
-> > Ouch. I wasn't aware of this "beauty". I will try to wrap my head around
-> > this code and think about what to do about it. Thanks for point me to
-> > it.
-> 
-> OK, so was staring at this yesterday and concluded that the current
-> implementation of do_move_page_to_node_array is unfixable to work with
-> split_thp_page_list in migrate_pages. So I've reimplemented it to not
-> use the quite ugly fixed sized batching. Instead I am using dynamic
-> batching based on the same node request. See the patch 1 for more
-> details about implementation. This will allow us to remove the quite
-> ugly 'int **reason' from the allocation callback as well. This is patch
-> 2 and patch 3 is finally the thp migration code.
-> 
-> Diffstat is quite supportive for this cleanup.
->  include/linux/migrate.h        |   7 +-
->  include/linux/page-isolation.h |   3 +-
->  mm/compaction.c                |   3 +-
->  mm/huge_memory.c               |   6 +
->  mm/internal.h                  |   1 +
->  mm/memory_hotplug.c            |   5 +-
->  mm/mempolicy.c                 |  40 +----
->  mm/migrate.c                   | 350 ++++++++++++++++++-----------------------
->  mm/page_isolation.c            |   3 +-
->  9 files changed, 177 insertions(+), 241 deletions(-)
-> 
-> Does anybody see any issues with this approach?
-> 
-> On a side note:
-> There are some semantic issues I have encountered on the way but I am
-> not addressing them here. E.g. trying to move THP tail pages will result
-> in either success or EBUSY (the later one more likely once we isolate
-> head from the LRU list). Hugetlb reports EACCESS on tail pages.
-> Some errors are reported via status parameter but migration failures are
-> not even though the original `reason' argument suggests there was an
-> intention to do so. From a quick look into git history this never
-> worked. I have tried to keep the semantic unchanged.
-> 
-> Then there is a relatively minor thing that the page isolation might
-> fail because of pages not being on the LRU - e.g. because they are
-> sitting on the per-cpu LRU caches. Easily fixable.
+Notwithstanding a readonly LDT, the iret (and pop %ds, pop %es that probabl=
+y
+precede it) are all likely to fault in kernel if the segment registers are =
+invalid.
+(Setting %fs and %gs for 32 bit processes is left to the reader.)
 
--- 
-Michal Hocko
-SUSE Labs
+Unlike every other fault in the kernel code segment, gsbase will contain
+the user value, not the kernel one.
+
+The kernel code must detect this somehow and correct everything before (pro=
+bably)
+generating a SIGSEGV and returning to the user's signal handler with the
+invalid segment registers in the signal context.
+
+Assuming this won't happen (because the segment registers are always valid)
+is likely to be a recipe for disaster (or an escalation).
+
+I guess the problem with a readonly LDT is that you don't want to fault
+setting the 'accesses' bit.
+
+	David
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
