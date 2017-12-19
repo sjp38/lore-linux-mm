@@ -1,175 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E0E266B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 06:26:50 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id 8so14362070pfv.12
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:26:50 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1AB876B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 06:30:03 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id f8so12507883pgs.9
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:30:03 -0800 (PST)
 Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id v13si9928634pgr.136.2017.12.19.03.26.48
+        by mx.google.com with ESMTPS id z11si10775102plo.291.2017.12.19.03.30.00
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 03:26:49 -0800 (PST)
+        Tue, 19 Dec 2017 03:30:00 -0800 (PST)
+Subject: Re: [PATCH] mm: thp: use down_read_trylock in khugepaged to avoid
+ long block
+References: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
 From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Subject: [PATCH] mm,oom: Set ->signal->oom_mm to all thread groups sharing victim's memory.
-Date: Tue, 19 Dec 2017 20:26:14 +0900
-Message-Id: <1513682774-4416-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <fb89021a-a6f6-8bdb-4c9d-b66686589530@I-love.SAKURA.ne.jp>
+Date: Tue, 19 Dec 2017 20:29:56 +0900
+MIME-Version: 1.0
+In-Reply-To: <1513281203-54878-1-git-send-email-yang.s@alibaba-inc.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, David Rientjes <rientjes@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@suse.com>, Roman Gushchin <guro@fb.com>, Tejun Heo <tj@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+To: Yang Shi <yang.s@alibaba-inc.com>
+Cc: kirill.shutemov@linux.intel.com, mhocko@suse.com, hughd@google.com, aarcange@redhat.com, akpm@linux-foundation.org, linux-mm@kvack.org
 
-When the OOM reaper set MMF_OOM_SKIP on the victim's mm before threads
-sharing that mm get ->signal->oom_mm, the comment "That thread will now
-get access to memory reserves since it has a pending fatal signal." no
-longer stands. Also, since we introduced ALLOC_OOM watermark, the comment
-"They don't get access to memory reserves, though, to avoid depletion of
-all memory." no longer stands.
+On 2017/12/15 4:53, Yang Shi wrote:
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index ea4ff25..ecc2b68 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -1674,7 +1674,12 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>  	spin_unlock(&khugepaged_mm_lock);
+>  
+>  	mm = mm_slot->mm;
+> -	down_read(&mm->mmap_sem);
+> +	/*
+> + 	 * Not wait for semaphore to avoid long time waiting, just move
+> + 	 * to the next mm on the list.
+> + 	 */
+> +	if (unlikely(!down_read_trylock(&mm->mmap_sem)))
+> +		goto breakouterloop_mmap_sem;
+>  	if (unlikely(khugepaged_test_exit(mm)))
+>  		vma = NULL;
+>  	else
+> 
 
-This patch treats all thread groups sharing the victim's mm evenly,
-and updates the outdated comment.
+You are jumping before initializing vma.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
----
- mm/oom_kill.c | 58 ++++++++++++++++++++++++++++------------------------------
- 1 file changed, 28 insertions(+), 30 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 2b99e02..19028bd 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -833,7 +833,7 @@ static bool task_will_free_mem(struct task_struct *task)
- 	return ret;
- }
- 
--static void __oom_kill_process(struct task_struct *victim)
-+static void __oom_kill_process(struct task_struct *victim, const bool silent)
- {
- 	struct task_struct *p;
- 	struct mm_struct *mm;
-@@ -868,35 +868,19 @@ static void __oom_kill_process(struct task_struct *victim)
- 	count_vm_event(OOM_KILL);
- 	count_memcg_event_mm(mm, OOM_KILL);
- 
--	/*
--	 * We should send SIGKILL before granting access to memory reserves
--	 * in order to prevent the OOM victim from depleting the memory
--	 * reserves from the user space under its control.
--	 */
--	do_send_sig_info(SIGKILL, SEND_SIG_FORCED, victim, true);
--	mark_oom_victim(victim);
--	pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
--		task_pid_nr(victim), victim->comm, K(victim->mm->total_vm),
--		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
--		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
--		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
- 	task_unlock(victim);
- 
- 	/*
--	 * Kill all user processes sharing victim->mm in other thread groups, if
--	 * any.  They don't get access to memory reserves, though, to avoid
--	 * depletion of all memory.  This prevents mm->mmap_sem livelock when an
--	 * oom killed thread cannot exit because it requires the semaphore and
--	 * its contended by another thread trying to allocate memory itself.
--	 * That thread will now get access to memory reserves since it has a
--	 * pending fatal signal.
-+	 * Kill all user processes sharing this mm. This helps the OOM reaper
-+	 * to reclaim memory by interrupting threads waiting or holding
-+	 * mm->mmap_sem for write.
- 	 */
- 	rcu_read_lock();
- 	for_each_process(p) {
-+		struct task_struct *t;
-+
- 		if (!process_shares_mm(p, mm))
- 			continue;
--		if (same_thread_group(p, victim))
--			continue;
- 		if (is_global_init(p)) {
- 			can_oom_reap = false;
- 			set_bit(MMF_OOM_SKIP, &mm->flags);
-@@ -911,10 +895,26 @@ static void __oom_kill_process(struct task_struct *victim)
- 		 */
- 		if (unlikely(p->flags & PF_KTHREAD))
- 			continue;
-+		/*
-+		 * We should send SIGKILL before granting access to memory
-+		 * reserves in order to prevent the OOM victim from depleting
-+		 * the memory reserves from the user space under its control.
-+		 */
- 		do_send_sig_info(SIGKILL, SEND_SIG_FORCED, p, true);
-+		t = find_lock_task_mm(p);
-+		if (t) {
-+			mark_oom_victim(t);
-+			task_unlock(t);
-+		}
- 	}
- 	rcu_read_unlock();
- 
-+	if (!silent)
-+		pr_err("Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
-+		       task_pid_nr(victim), victim->comm, K(mm->total_vm),
-+		       K(get_mm_counter(mm, MM_ANONPAGES)),
-+		       K(get_mm_counter(mm, MM_FILEPAGES)),
-+		       K(get_mm_counter(mm, MM_SHMEMPAGES)));
- 	if (can_oom_reap)
- 		wake_oom_reaper(victim);
- 
-@@ -941,10 +941,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	 */
- 	task_lock(p);
- 	if (task_will_free_mem(p)) {
--		mark_oom_victim(p);
--		wake_oom_reaper(p);
- 		task_unlock(p);
--		put_task_struct(p);
-+		__oom_kill_process(p, true);
- 		return;
- 	}
- 	task_unlock(p);
-@@ -983,13 +981,13 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	}
- 	read_unlock(&tasklist_lock);
- 
--	__oom_kill_process(victim);
-+	__oom_kill_process(victim, false);
- }
- 
- static int oom_kill_memcg_member(struct task_struct *task, void *unused)
- {
- 	get_task_struct(task);
--	__oom_kill_process(task);
-+	__oom_kill_process(task, false);
- 	return 0;
- }
- 
-@@ -1017,7 +1015,7 @@ static bool oom_kill_memcg_victim(struct oom_control *oc)
- 		    oc->chosen_task == INFLIGHT_VICTIM)
- 			goto out;
- 
--		__oom_kill_process(oc->chosen_task);
-+		__oom_kill_process(oc->chosen_task, false);
- 	}
- 
- out:
-@@ -1095,8 +1093,8 @@ bool out_of_memory(struct oom_control *oc)
- 	 * quickly exit and free its memory.
- 	 */
- 	if (task_will_free_mem(current)) {
--		mark_oom_victim(current);
--		wake_oom_reaper(current);
-+		get_task_struct(current);
-+		__oom_kill_process(current, true);
- 		return true;
- 	}
- 
--- 
-1.8.3.1
+mm/khugepaged.c: In function a??khugepageda??:
+mm/khugepaged.c:1757:31: warning: a??vmaa?? may be used uninitialized in this function [-Wmaybe-uninitialized]
+  if (khugepaged_test_exit(mm) || !vma) {
+      ~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+mm/khugepaged.c:1659:25: note: a??vmaa?? was declared here
+  struct vm_area_struct *vma;
+                         ^~~ 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
