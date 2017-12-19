@@ -1,58 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD68C6B028B
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:46:07 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id x10so4418087pgx.12
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:46:07 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id k4si10789942pls.297.2017.12.19.04.46.06
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D7746B028D
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:46:49 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id r20so11069974wrg.23
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:46:49 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j6si2076411wrd.210.2017.12.19.04.46.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Dec 2017 04:46:06 -0800 (PST)
-Date: Tue, 19 Dec 2017 04:46:05 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 5/8] mm: Introduce _slub_counter_t
-Message-ID: <20171219124605.GA13680@bombadil.infradead.org>
-References: <20171216164425.8703-1-willy@infradead.org>
- <20171216164425.8703-6-willy@infradead.org>
- <20171219080731.GB2787@dhcp22.suse.cz>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Dec 2017 04:46:48 -0800 (PST)
+Date: Tue, 19 Dec 2017 13:46:46 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 0/2] mm: introduce MAP_FIXED_SAFE
+Message-ID: <20171219124646.GR2787@dhcp22.suse.cz>
+References: <20171213092550.2774-1-mhocko@kernel.org>
+ <20171213163210.6a16ccf8753b74a6982ef5b6@linux-foundation.org>
+ <CAFLM3-oANXKEU=tuurSJx9rdzfWGfym-0FUEWnfBq8mOaVMzOA@mail.gmail.com>
+ <20171214131526.GM16951@dhcp22.suse.cz>
+ <20171214145443.GA2202@brick>
+ <0ca2620ce7534c5491e69416621ac41b@AcuMS.aculab.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171219080731.GB2787@dhcp22.suse.cz>
+In-Reply-To: <0ca2620ce7534c5491e69416621ac41b@AcuMS.aculab.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: David Laight <David.Laight@ACULAB.COM>
+Cc: 'Edward Napierala' <trasz@freebsd.org>, Andrew Morton <akpm@linux-foundation.org>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Michael Ellerman <mpe@ellerman.id.au>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Abdul Haleem <abdhalee@linux.vnet.ibm.com>, Joel Stanley <joel@jms.id.au>, Kees Cook <keescook@chromium.org>, "jasone@google.com" <jasone@google.com>, "davidtgoldblatt@gmail.com" <davidtgoldblatt@gmail.com>
 
-On Tue, Dec 19, 2017 at 09:07:31AM +0100, Michal Hocko wrote:
-> On Sat 16-12-17 08:44:22, Matthew Wilcox wrote:
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
+On Tue 19-12-17 12:40:16, David Laight wrote:
+> From: Edward Napierala
+> > Sent: 14 December 2017 14:55
+> >
+> > On 1214T1415, Michal Hocko wrote:
+> > > On Thu 14-12-17 12:44:17, Edward Napierala wrote:
+> > > > Regarding the name - how about adopting MAP_EXCL?  It was introduced in
+> > > > FreeBSD,
+> > > > and seems to do exactly this; quoting mmap(2):
+> > > >
+> > > > MAP_FIXED    Do not permit the system to select a different address
+> > > >                         than the one specified.  If the specified address
+> > > >                         cannot be used, mmap() will fail.  If MAP_FIXED is
+> > > >                         specified, addr must be a multiple of the page size.
+> > > >                         If MAP_EXCL is not specified, a successful MAP_FIXED
+> > > >                         request replaces any previous mappings for the
+> > > >                         process' pages in the range from addr to addr + len.
+> > > >                         In contrast, if MAP_EXCL is specified, the request
+> > > >                         will fail if a mapping already exists within the
+> > > >                         range.
+> > >
+> > > I am not familiar with the FreeBSD implementation but from the above it
+> > > looks like MAP_EXCL is a MAP_FIXED mofifier which is not how we are
+> > > going to implement it in linux due to reasons mentioned in this cover
+> > > letter. Using the same name would be more confusing than helpful I am
+> > > afraid.
 > > 
-> > Instead of putting the ifdef in the middle of the definition of struct
-> > page, pull it forward to the rest of the ifdeffery around the SLUB
-> > cmpxchg_double optimisation.
-> > 
-> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
+> > Sorry, missed that.  Indeed, reusing a name with a different semantics
+> > would be a bad idea.
 > 
-> The definition of struct page looks better now. I think that slub.c
-> needs some love as well. I haven't checked too deeply but it seems that
-> it assumes counters to be unsigned long in some places. Maybe I've
-> missed some ifdef-ery but using the native type would be much better
+> I don't remember any discussion about using MAP_FIXED | MAP_EXCL ?
+> 
+> Why not match the prior art??
 
-I may have missed something, but I checked its use of 'counters' while
-I was working on this patch, and I didn't *see* a problem.  The only
-problem I really see is that it uses a bitfield for { inuse, objects,
-frozen } and if the architecture has big-endian bitfields, it's possible
-that slub's counters might end up conflicting with the special values we
-use for PageBuddy, PageKmemcg and PageBalloon.  I always get confused
-by big endian, so I can't even figure out how likely it is ... would
-'frozen' end up as bit 31?  And if so, would _mapcount have its sign
-bit at bit 31, or at bit 7?
-
-> Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
+See the cover letter which explains why an extension is not backward
+compatible.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
