@@ -1,70 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id BB6C66B026B
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:36:42 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id z3so7001366plh.18
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 00:36:42 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e11sor3553296pgu.150.2017.12.19.00.36.41
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A8D746B026D
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:37:53 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id b82so761595wmd.5
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 00:37:53 -0800 (PST)
+Received: from out3-smtp.messagingengine.com (out3-smtp.messagingengine.com. [66.111.4.27])
+        by mx.google.com with ESMTPS id g32si4744713edb.218.2017.12.19.00.37.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Dec 2017 00:36:41 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 00:37:52 -0800 (PST)
+Date: Tue, 19 Dec 2017 19:37:46 +1100
+From: "Tobin C. Harding" <me@tobin.cc>
+Subject: Re: BUG: bad usercopy in memdup_user
+Message-ID: <20171219083746.GR19604@eros>
+References: <001a113e9ca8a3affd05609d7ccf@google.com>
+ <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
+ <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+ <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
 MIME-Version: 1.0
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 19 Dec 2017 09:36:20 +0100
-Message-ID: <CACT4Y+a0NvG-qpufVcvObd_hWKF9xmTjmjCvV3_13LSgcFXL+Q@mail.gmail.com>
-Subject: mmots build error: version control conflict marker in file
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
 
-Hello,
+On Tue, Dec 19, 2017 at 09:12:58AM +0100, Dmitry Vyukov wrote:
+> On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
+> > On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
+> > <penguin-kernel@i-love.sakura.ne.jp> wrote:
+> >> On 2017/12/18 22:40, syzbot wrote:
+> >>> Hello,
+> >>>
+> >>> syzkaller hit the following crash on 6084b576dca2e898f5c101baef151f7bfdbb606d
+> >>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> >>> compiler: gcc (GCC) 7.1.1 20170620
+> >>> .config is attached
+> >>> Raw console output is attached.
+> >>>
+> >>> Unfortunately, I don't have any reproducer for this bug yet.
+> >>>
+> >>>
+> >>
+> >> This BUG is reporting
+> >>
+> >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
+> >>
+> >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
+> >
+> > The address is hashed (see the %p threads for 4.15).
+> 
+> 
+> +Tobin, is there a way to disable hashing entirely? The only
+> designation of syzbot is providing crash reports to kernel developers
+> with as much info as possible. It's fine for it to leak whatever.
 
-syzbot hit the following crash on 80f3359313dfd0e574d0d245dd93a7c3bf39e1fa
-git://git.cmpxchg.org/linux-mmots.git master
+We have new specifier %px to print addresses in hex if leaking info is
+not a worry.
 
-failed to run /usr/bin/make [make bzImage -j 32
-CC=3D/syzkaller/gcc/bin/gcc]: exit status 2
-scripts/kconfig/conf  --silentoldconfig Kconfig
-  CHK     include/config/kernel.release
-  CHK     include/generated/uapi/linux/version.h
-  UPD     include/config/kernel.release
-  CHK     scripts/mod/devicetable-offsets.h
-  CHK     include/generated/utsrelease.h
-  UPD     include/generated/utsrelease.h
-  CHK     include/generated/bounds.h
-  CHK     include/generated/timeconst.h
-  CC      arch/x86/kernel/asm-offsets.s
-In file included from ./arch/x86/include/asm/cpufeature.h:5:0,
-                 from ./arch/x86/include/asm/thread_info.h:53,
-                 from ./include/linux/thread_info.h:38,
-                 from ./arch/x86/include/asm/preempt.h:7,
-                 from ./include/linux/preempt.h:81,
-                 from ./include/linux/spinlock.h:51,
-                 from ./include/linux/mmzone.h:8,
-                 from ./include/linux/gfp.h:6,
-                 from ./include/linux/slab.h:15,
-                 from ./include/linux/crypto.h:24,
-                 from arch/x86/kernel/asm-offsets.c:9:
-./arch/x86/include/asm/processor.h:340:1: error: version control
-conflict marker in file
- <<<<<<< HEAD
- ^~~~~~~
-./arch/x86/include/asm/processor.h:346:24: error: field =E2=80=98stack=E2=
-=80=99 has
-incomplete type
-  struct SYSENTER_stack stack;
-                        ^~~~~
-./arch/x86/include/asm/processor.h:347:1: error: version control
-conflict marker in file
- =3D=3D=3D=3D=3D=3D=3D
- ^~~~~~~
-Kbuild:56: recipe for target 'arch/x86/kernel/asm-offsets.s' failed
-make[1]: *** [arch/x86/kernel/asm-offsets.s] Error 1
-Makefile:1090: recipe for target 'prepare0' failed
-make: *** [prepare0] Error 2
+Hope this helps,
+Tobin.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
