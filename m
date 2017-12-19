@@ -1,65 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6AC6B0275
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:42:38 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id t15so1177168wmh.3
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:42:38 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i88si11373948wri.407.2017.12.19.05.42.36
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C4A976B0276
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:43:03 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id w141so1229282wme.1
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:43:03 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l13sor7813925edj.1.2017.12.19.05.43.02
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 05:42:37 -0800 (PST)
-Date: Tue, 19 Dec 2017 14:42:35 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in
- __list_del_entry_valid
-Message-ID: <20171219134235.GW2787@dhcp22.suse.cz>
-References: <001a11452568f5857c0560b0dc0e@google.com>
- <20171219130337.GU2787@dhcp22.suse.cz>
- <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
- <20171219132209.GV2787@dhcp22.suse.cz>
- <CACT4Y+aqFuVToOQH8RnfahhonaQ=qvq5JTvL-9aAKBQAa7UOug@mail.gmail.com>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 05:43:02 -0800 (PST)
+Date: Tue, 19 Dec 2017 16:43:00 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCH 7/8] mm: Document how to use struct page
+Message-ID: <20171219134300.wyyatkub3x4nm5s3@node.shutemov.name>
+References: <20171216164425.8703-1-willy@infradead.org>
+ <20171216164425.8703-8-willy@infradead.org>
+ <20171219095927.GF2787@dhcp22.suse.cz>
+ <20171219130703.GC13680@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+aqFuVToOQH8RnfahhonaQ=qvq5JTvL-9aAKBQAa7UOug@mail.gmail.com>
+In-Reply-To: <20171219130703.GC13680@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzbot <bot+83f46cd25e266359cd056c91f6ecd20b04eddf42@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Hillf Danton <hillf.zj@alibaba-inc.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, shakeelb@google.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com, syzkaller <syzkaller@googlegroups.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Tue 19-12-17 14:38:35, Dmitry Vyukov wrote:
-> On Tue, Dec 19, 2017 at 2:22 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Tue 19-12-17 14:12:38, Dmitry Vyukov wrote:
-> >> On Tue, Dec 19, 2017 at 2:03 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> > Can we silence this duplicates [1] please?
-> >> >
-> >> > [1] http://lkml.kernel.org/r/001a1140f57806ebef05608b25a5@google.com
-> >>
-> >> Hi Michal,
-> >>
-> >> What exactly do you mean?
-> >>
-> >> These 2 are the same email with the same Message-ID just on different
-> >> mailing lists. I don't see anything wrong here.
-> >
-> > Hmm the other one has Message-id: 001a1140f57806ebef05608b25a5@google.com
-> > while this one has 001a11452568f5857c0560b0dc0e@google.com
-> 
-> Ah, I see.
-> These are reported separately because the crashes are titled
-> differently. Kernel titled one as "general protection fault" and
-> another as "BUG: unable to handle kernel NULL pointer dereference".
+On Tue, Dec 19, 2017 at 05:07:03AM -0800, Matthew Wilcox wrote:
+> I'm also teaching myself more about ReStructuredText, and to that end I've
+> started to document all these pages side-by-side in a table.
 
-Ahh, OK, so I've missed that part ;) I just thought it was duplicate
-because the report seemed very familiar.
+Maybe we should get the table to the point where we can generate C description
+of the struct and stop writing in C manually? :)
 
-> What algorithm do you propose to use to merge them?
-
-Maybe based on the stack trace?
 -- 
-Michal Hocko
-SUSE Labs
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
