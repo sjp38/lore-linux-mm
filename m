@@ -1,63 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F2D346B026A
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:58:16 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id 55so11540067wrx.21
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:58:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b62si1483793wma.55.2017.12.19.07.58.15
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C44D6B026B
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:58:53 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id r20so11335920wrg.23
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:58:53 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q5sor763325wmd.41.2017.12.19.07.58.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 07:58:15 -0800 (PST)
-Date: Tue, 19 Dec 2017 16:58:15 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
-Message-ID: <20171219155815.GC2787@dhcp22.suse.cz>
-References: <20171219102213.GA435@jagdpanzerIV>
- <1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
- <20171219151341.GC15210@dhcp22.suse.cz>
- <20171219152536.GA591@tigerII.localdomain>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 07:58:52 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171219152536.GA591@tigerII.localdomain>
+In-Reply-To: <1513685879-21823-2-git-send-email-wei.w.wang@intel.com>
+References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com> <1513685879-21823-2-git-send-email-wei.w.wang@intel.com>
+From: Philippe Ombredanne <pombredanne@nexb.com>
+Date: Tue, 19 Dec 2017 16:58:10 +0100
+Message-ID: <CAOFm3uHJF1X93iALES6njXrkpsk5bSsuXqcKQMWP4HGT0S8qeg@mail.gmail.com>
+Subject: Re: [PATCH v20 1/7] xbitmap: Introduce xbitmap
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
+To: mawilcox@microsoft.com
+Cc: virtio-dev@lists.oasis-open.org, LKML <linux-kernel@vger.kernel.org>, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, Andrew Morton <akpm@linux-foundation.org>, david@redhat.com, penguin-kernel@i-love.sakura.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, Paolo Bonzini <pbonzini@redhat.com>, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Wed 20-12-17 00:25:36, Sergey Senozhatsky wrote:
-> Hi Michal,
-> 
-> On (12/19/17 16:13), Michal Hocko wrote:
-> > On Tue 19-12-17 13:49:12, Aliaksei Karaliou wrote:
-> > [...]
-> > > @@ -2428,8 +2422,8 @@ struct zs_pool *zs_create_pool(const char *name)
-> > >  	 * Not critical, we still can use the pool
-> > >  	 * and user can trigger compaction manually.
-> > >  	 */
-> > > -	if (zs_register_shrinker(pool) == 0)
-> > > -		pool->shrinker_enabled = true;
-> > > +	(void) zs_register_shrinker(pool);
-> > > +
-> > >  	return pool;
-> > 
-> > So what will happen if the pool is alive and used without any shrinker?
-> > How do objects get freed?
-> 
-> we use shrinker for "optional" de-fragmentation of zsmalloc pools. we
-> don't free any objects from that path. just move them around within their
-> size classes - to consolidate objects and to, may be, free unused pages
-> [but we first need to make them "unused"]. it's not a mandatory thing for
-> zsmalloc, we are just trying to be nice.
+Matthew,
 
-OK, it smells like an abuse of the API but please add a comment
-clarifying that.
+On Tue, Dec 19, 2017 at 1:17 PM, Wei Wang <wei.w.wang@intel.com> wrote:
+> From: Matthew Wilcox <mawilcox@microsoft.com>
+>
+> The eXtensible Bitmap is a sparse bitmap representation which is
+> efficient for set bits which tend to cluster.  It supports up to
+> 'unsigned long' worth of bits, and this commit adds the bare bones --
+> xb_set_bit(), xb_clear_bit() and xb_test_bit().
 
-Thanks!
+<snip>
+
+> --- /dev/null
+> +++ b/include/linux/xbitmap.h
+> @@ -0,0 +1,49 @@
+> +/*
+> + * eXtensible Bitmaps
+> + * Copyright (c) 2017 Microsoft Corporation <mawilcox@microsoft.com>
+> + *
+> + * This program is free software; you can redistribute it and/or
+> + * modify it under the terms of the GNU General Public License as
+> + * published by the Free Software Foundation; either version 2 of the
+> + * License, or (at your option) any later version.
+> + *
+> + * This program is distributed in the hope that it will be useful,
+> + * but WITHOUT ANY WARRANTY; without even the implied warranty of
+> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+> + * GNU General Public License for more details.
+> + *
+> + * eXtensible Bitmaps provide an unlimited-size sparse bitmap facility.
+> + * All bits are initially zero.
+> + */
+
+Would you mind using the new SPDX tags documented in Thomas patch set
+[1] rather than this fine but longer legalese?
+
+And if you could spread the word to others in your team this would be very nice.
+
+Thank you!
+
+[1] https://lkml.org/lkml/2017/12/4/934
+
 -- 
-Michal Hocko
-SUSE Labs
+Cordially
+Philippe Ombredanne
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
