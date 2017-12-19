@@ -1,95 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 178326B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 11:38:11 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id z1so14840057pfl.9
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:38:11 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id be8sor5569765plb.89.2017.12.19.08.38.09
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id AE9166B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 11:40:41 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f7so14810329pfa.21
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:40:41 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id u12sor3638542pgq.389.2017.12.19.08.40.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 08:38:09 -0800 (PST)
+        Tue, 19 Dec 2017 08:40:40 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CACT4Y+ZbE5=yeb=3hL8KDpPLarHJgihsTb6xX2+4fnoLFuBTow@mail.gmail.com>
-References: <94eb2c03c9bc75aff2055f70734c@google.com> <001a113f711a528a3f0560b08e76@google.com>
- <201712192327.FIJ64026.tMQFOOVFFLHOSJ@I-love.SAKURA.ne.jp> <CACT4Y+ZbE5=yeb=3hL8KDpPLarHJgihsTb6xX2+4fnoLFuBTow@mail.gmail.com>
+In-Reply-To: <20171219134235.GW2787@dhcp22.suse.cz>
+References: <001a11452568f5857c0560b0dc0e@google.com> <20171219130337.GU2787@dhcp22.suse.cz>
+ <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
+ <20171219132209.GV2787@dhcp22.suse.cz> <CACT4Y+aqFuVToOQH8RnfahhonaQ=qvq5JTvL-9aAKBQAa7UOug@mail.gmail.com>
+ <20171219134235.GW2787@dhcp22.suse.cz>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 19 Dec 2017 17:37:48 +0100
-Message-ID: <CACT4Y+YZ6yuZqrjAxHEadW56TVS=x=WQqrfRrvMQ=LHU3+Kd8A@mail.gmail.com>
-Subject: Re: BUG: workqueue lockup (2)
+Date: Tue, 19 Dec 2017 17:40:19 +0100
+Message-ID: <CACT4Y+YqwhSyxRAGVQNQBqKPVe4WKa=5ZyKfW78qY9CDOs1r3w@mail.gmail.com>
+Subject: Re: BUG: unable to handle kernel NULL pointer dereference in __list_del_entry_valid
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: syzbot <bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com>, syzkaller-bugs@googlegroups.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: syzbot <bot+83f46cd25e266359cd056c91f6ecd20b04eddf42@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, shakeelb@google.com, syzkaller-bugs@googlegroups.com, ying.huang@intel.com, syzkaller <syzkaller@googlegroups.com>
 
-On Tue, Dec 19, 2017 at 3:40 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
-> On Tue, Dec 19, 2017 at 3:27 PM, Tetsuo Handa
-> <penguin-kernel@i-love.sakura.ne.jp> wrote:
->> syzbot wrote:
->>>
->>> syzkaller has found reproducer for the following crash on
->>> f3b5ad89de16f5d42e8ad36fbdf85f705c1ae051
+On Tue, Dec 19, 2017 at 2:42 PM, Michal Hocko <mhocko@kernel.org> wrote:
+>> >> > Can we silence this duplicates [1] please?
+>> >> >
+>> >> > [1] http://lkml.kernel.org/r/001a1140f57806ebef05608b25a5@google.com
+>> >>
+>> >> Hi Michal,
+>> >>
+>> >> What exactly do you mean?
+>> >>
+>> >> These 2 are the same email with the same Message-ID just on different
+>> >> mailing lists. I don't see anything wrong here.
+>> >
+>> > Hmm the other one has Message-id: 001a1140f57806ebef05608b25a5@google.com
+>> > while this one has 001a11452568f5857c0560b0dc0e@google.com
 >>
->> "BUG: workqueue lockup" is not a crash.
+>> Ah, I see.
+>> These are reported separately because the crashes are titled
+>> differently. Kernel titled one as "general protection fault" and
+>> another as "BUG: unable to handle kernel NULL pointer dereference".
 >
-> Hi Tetsuo,
->
-> What is the proper name for all of these collectively?
->
->
->>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
->>> compiler: gcc (GCC) 7.1.1 20170620
->>> .config is attached
->>> Raw console output is attached.
->>> C reproducer is attached
->>> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
->>> for information about syzkaller reproducers
->>>
->>>
->>> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 37s!
->>> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=-20 stuck for 32s!
->>> Showing busy workqueues and worker pools:
->>> workqueue events: flags=0x0
->>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
->>>      pending: cache_reap
->>> workqueue events_power_efficient: flags=0x80
->>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
->>>      pending: neigh_periodic_work, do_cache_clean
->>> workqueue mm_percpu_wq: flags=0x8
->>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
->>>      pending: vmstat_update
->>> workqueue kblockd: flags=0x18
->>>    pwq 3: cpus=1 node=0 flags=0x0 nice=-20 active=1/256
->>>      pending: blk_timeout_work
->>
->> You gave up too early. There is no hint for understanding what was going on.
->> While we can observe "BUG: workqueue lockup" under memory pressure, there is
->> no hint like SysRq-t and SysRq-m. Thus, I can't tell something is wrong.
->
-> Do you know how to send them programmatically? I tried to find a way
-> several times, but failed. Articles that I've found talk about
-> pressing some keys that don't translate directly to us-ascii.
+> Ahh, OK, so I've missed that part ;) I just thought it was duplicate
+> because the report seemed very familiar.
 
-On second though, some oopses automatically dump locks/tasks. Should
-we do the same for this oops?
 
-> But you can also run the reproducer. No report can possible provide
-> all possible useful information, sometimes debugging boils down to
-> manually adding printfs. That's why syzbot aims at providing a
-> reproducer as the ultimate source of details. Also since a developer
-> needs to test a proposed fix, it's easier to start with the reproducer
-> right away.
->
->
->> At least you need to confirm that lockup lasts for a few minutes. Otherwise,
->
-> Is it possible to increase the timeout? How? We could bump it up to 2 minutes.
->
->
->> this might be just overstressing. (According to repro.c , 12 threads are
->> created and soon SEGV follows? According to above message, only 2 CPUs?
->> Triggering SEGV suggests memory was low due to saving coredump?)
+So are these duplicates? If yes, we need to tell this syzbot:
+
+> syzbot will keep track of this bug report.
+> To mark this as a duplicate of another syzbot report, please reply with:
+> #syz dup: exact-subject-of-another-report
+> Note: all commands must start from beginning of the line in the email body.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
