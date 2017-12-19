@@ -1,77 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EEB266B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:24:55 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 31so7857998plk.20
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:24:55 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id r39si11424519pld.235.2017.12.19.10.24.54
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F2876B0069
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:25:15 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n13so1554336wmc.3
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:25:15 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z64sor884186wmh.26.2017.12.19.10.25.14
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 10:24:54 -0800 (PST)
-Date: Tue, 19 Dec 2017 10:24:52 -0800
-From: Shaohua Li <shli@kernel.org>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
- bdi_debug_register")
-Message-ID: <20171219182452.vpmqpi3yb4g2ecad@kernel.org>
-References: <20171214154136.GA12936@wolff.to>
- <CAA70yB6yofLz8pfhxXfq29sYqcGmBYLOvSruXi9XS_HM6mUrxg@mail.gmail.com>
- <20171215014417.GA17757@wolff.to>
- <CAA70yB6spi5c38kFVidRsJVaYc3W9tvpZz6wy+28rK7oeefQfw@mail.gmail.com>
- <20171215111050.GA30737@wolff.to>
- <CAA70yB66ekUGAvusQbqo7BLV+uBJtNz72cr+tZitsfjuVRWuXA@mail.gmail.com>
- <20171215195122.GA27126@wolff.to>
- <20171216163226.GA1796@wolff.to>
- <CAA70yB7wL_Wq5S8XQ9zHuLPDdwepv7dYdKALL8Sg0q6CNdAz5g@mail.gmail.com>
- <20171219161743.GA6960@wolff.to>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 10:25:14 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171219161743.GA6960@wolff.to>
+In-Reply-To: <20171219173354.GQ3919388@devbig577.frc2.facebook.com>
+References: <20171219000131.149170-1-shakeelb@google.com> <20171219124908.GS2787@dhcp22.suse.cz>
+ <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
+ <20171219152444.GP3919388@devbig577.frc2.facebook.com> <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
+ <20171219173354.GQ3919388@devbig577.frc2.facebook.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 19 Dec 2017 10:25:12 -0800
+Message-ID: <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno Wolff III <bruno@wolff.to>
-Cc: weiping zhang <zwp10758@gmail.com>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
 
-On Tue, Dec 19, 2017 at 10:17:43AM -0600, Bruno Wolff III wrote:
-> On Sun, Dec 17, 2017 at 21:43:50 +0800,
->  weiping zhang <zwp10758@gmail.com> wrote:
-> > Hi, thanks for testing, I think you first reproduce this issue(got WARNING
-> > at device_add_disk) by your own build, then add my debug patch.
-> 
-> The problem is still in rc4. Reverting the commit still fixes the problem. I
-> tested that warning level messages should appear using lkdtm. While there
-> could be something weird relating to the WARN_ON macro, more likely there is
-> something different about the boots with the kernels I build (the exact way
-> initramfs is built is probably different) and probably that (WARN_ON) code
-> is not getting executed.
+On Tue, Dec 19, 2017 at 9:33 AM, Tejun Heo <tj@kernel.org> wrote:
+> Hello,
+>
+> On Tue, Dec 19, 2017 at 09:23:29AM -0800, Shakeel Butt wrote:
+>> To provide consistent memory usage history using the current
+>> cgroup-v2's 'swap' interface, an additional metric expressing the
+>> intersection of memory and swap has to be exposed. Basically memsw is
+>> the union of memory and swap. So, if that additional metric can be
+>
+> Exposing anonymous pages with swap backing sounds pretty trivial.
+>
+>> used to find the union. However for consistent memory limit
+>> enforcement, I don't think there is an easy way to use current 'swap'
+>> interface.
+>
+> Can you please go into details on why this is important?  I get that
+> you can't do it as easily w/o memsw but I don't understand why this is
+> a critical feature.  Why is that?
+>
 
-Not sure if this is MD related, but could you please check if this debug patch
-changes anything?
+Making the runtime environment, an invariant is very critical to make
+the management of a job easier whose instances run on different
+clusters across the world. Some clusters might have different type of
+swaps installed while some might not have one at all and the
+availability of the swap can be dynamic (i.e. swap medium outage).
 
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 4e4dee0..c365179 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -518,7 +518,6 @@ static void mddev_put(struct mddev *mddev)
- 	    mddev->ctime == 0 && !mddev->hold_active) {
- 		/* Array is not configured at all, and not held active,
- 		 * so destroy it */
--		list_del_init(&mddev->all_mddevs);
- 		bs = mddev->bio_set;
- 		sync_bs = mddev->sync_set;
- 		mddev->bio_set = NULL;
-@@ -5210,6 +5209,10 @@ static void md_free(struct kobject *ko)
- 	}
- 	percpu_ref_exit(&mddev->writes_pending);
- 
-+	spin_lock(&all_mddevs_lock);
-+	list_del_init(&mddev->all_mddevs);
-+	spin_unlock(&all_mddevs_lock);
-+
- 	kfree(mddev);
- }
- 
+So, if users want to run multiple instances of a job across multiple
+clusters, they should be able to specify the limits of their jobs
+irrespective of the knowledge of cluster. The best case would be they
+just submits their jobs without any config and the system figures out
+the right limit and enforce that. And to figure out the right limit
+and enforcing it, the consistent memory usage history and consistent
+memory limit enforcement is very critical.
+
+thanks,
+Shakeel
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
