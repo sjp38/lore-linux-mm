@@ -1,55 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id AC0886B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:24:47 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id v30so14961756qtg.9
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:24:47 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id x47sor6284330qtx.160.2017.12.19.07.24.46
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 682676B0253
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:25:41 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id o17so7595438pli.7
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:25:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e7sor4004203pgq.135.2017.12.19.07.25.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 07:24:46 -0800 (PST)
-Date: Tue, 19 Dec 2017 07:24:44 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
-Message-ID: <20171219152444.GP3919388@devbig577.frc2.facebook.com>
-References: <20171219000131.149170-1-shakeelb@google.com>
- <20171219124908.GS2787@dhcp22.suse.cz>
- <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
+        Tue, 19 Dec 2017 07:25:40 -0800 (PST)
+Date: Wed, 20 Dec 2017 00:25:36 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
+Message-ID: <20171219152536.GA591@tigerII.localdomain>
+References: <20171219102213.GA435@jagdpanzerIV>
+ <1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
+ <20171219151341.GC15210@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
+In-Reply-To: <20171219151341.GC15210@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Shakeel Butt <shakeelb@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>
 
-Hello,
+Hi Michal,
 
-On Tue, Dec 19, 2017 at 07:12:19AM -0800, Shakeel Butt wrote:
-> Yes, there are pros & cons, therefore we should give users the option
-> to select the API that is better suited for their use-cases and
+On (12/19/17 16:13), Michal Hocko wrote:
+> On Tue 19-12-17 13:49:12, Aliaksei Karaliou wrote:
+> [...]
+> > @@ -2428,8 +2422,8 @@ struct zs_pool *zs_create_pool(const char *name)
+> >  	 * Not critical, we still can use the pool
+> >  	 * and user can trigger compaction manually.
+> >  	 */
+> > -	if (zs_register_shrinker(pool) == 0)
+> > -		pool->shrinker_enabled = true;
+> > +	(void) zs_register_shrinker(pool);
+> > +
+> >  	return pool;
+> 
+> So what will happen if the pool is alive and used without any shrinker?
+> How do objects get freed?
 
-Heh, that's not how API decisions should be made.  The long term
-outcome would be really really bad.
+we use shrinker for "optional" de-fragmentation of zsmalloc pools. we
+don't free any objects from that path. just move them around within their
+size classes - to consolidate objects and to, may be, free unused pages
+[but we first need to make them "unused"]. it's not a mandatory thing for
+zsmalloc, we are just trying to be nice.
 
-> environment. Both approaches are not interchangeable. We use memsw
-> internally for use-cases I mentioned in commit message. This is one of
-> the main blockers for us to even consider cgroup-v2 for memory
-> controller.
-
-Let's concentrate on the use case.  I couldn't quite understand what
-was missing from your description.  You said that it'd make things
-easier for the centralized monitoring system which isn't really a
-description of a use case.  Can you please go into more details
-focusing on the eventual goals (rather than what's currently
-implemented)?
-
-Thanks.
-
--- 
-tejun
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
