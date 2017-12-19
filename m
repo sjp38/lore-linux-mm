@@ -1,41 +1,66 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EEB46B02A1
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:28:56 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id y36so7434238plh.10
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:28:56 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id p9sor5454601pls.122.2017.12.19.05.28.55
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C5CEE6B02A3
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:28:58 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f8so12633907pgs.9
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:28:58 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d6sor5820413plo.30.2017.12.19.05.28.57
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 05:28:55 -0800 (PST)
+        Tue, 19 Dec 2017 05:28:57 -0800 (PST)
 From: Michal Hocko <mhocko@kernel.org>
-Subject: [resend PATCH 0/2] fix VFS register_shrinker fixup 
-Date: Tue, 19 Dec 2017 14:28:42 +0100
-Message-Id: <20171219132844.28354-1-mhocko@kernel.org>
+Subject: [PATCH 1/2] mm,vmscan: Make unregister_shrinker() no-op if register_shrinker() failed.
+Date: Tue, 19 Dec 2017 14:28:43 +0100
+Message-Id: <20171219132844.28354-2-mhocko@kernel.org>
+In-Reply-To: <20171219132844.28354-1-mhocko@kernel.org>
+References: <20171219132844.28354-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Aliaksei Karaliou <akaraliou.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Aliaksei Karaliou <akaraliou.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, Glauber Costa <glauber@scylladb.com>, Michal Hocko <mhocko@suse.com>
 
-Hi Andrew,
-Tetsuo has posted patch 1 already [1]. I had some minor concenrs about
-the changelog but the approach was already OK. Aliaksei came with an
-alternative patch [2] which also handles double unregistration. I have
-updated the changelog and moved the syzbot report to the 2nd patch
-because it is more related to the change there. The patch 1 is
-prerequisite. Maybe we should just merge those two. I've kept Tetsuo's
-s-o-b and his original authorship, but let me know if you disagree with
-the new wording or the additional change, Tetsuo.
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
 
-The patch 2 is based on Al's suggestion [3] and it fixes sget_userns
-shrinker registration code.
+Since allowing register_shrinker() callers to call unregister_shrinker()
+when register_shrinker() failed can simplify error recovery path, this
+patch makes unregister_shrinker() no-op when register_shrinker() failed.
+Let's also make sure that double unregister_shrinker doesn't blow up as
+well and NULL nr_deferred on successful de-registration to make the
+clean up even simpler and prevent from potential memory corruptions.
 
-Both of these stalled so can we have them merged finally?
+[akaraliou.dev@gmail.com: set nr_deferred = NULL to handle double
+ unregister]
+Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Reported-by: syzbot <syzkaller@googlegroups.com>
+Cc: Glauber Costa <glauber@scylladb.com>
+Cc: Al Viro <viro@zeniv.linux.org.uk>
 
-[1] http://lkml.kernel.org/r/1511523385-6433-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
-[2] http://lkml.kernel.org/r/20171216192937.13549-1-akaraliou.dev@gmail.com
-[3] http://lkml.kernel.org/r/20171123145540.GB21978@ZenIV.linux.org.uk
+Signed-off-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/vmscan.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 80dea50f421b..7a5801040fd4 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -281,10 +281,13 @@ EXPORT_SYMBOL(register_shrinker);
+  */
+ void unregister_shrinker(struct shrinker *shrinker)
+ {
++	if (!shrinker->nr_deferred)
++		return;
+ 	down_write(&shrinker_rwsem);
+ 	list_del(&shrinker->list);
+ 	up_write(&shrinker_rwsem);
+ 	kfree(shrinker->nr_deferred);
++	shrinker->nr_deferred = NULL;
+ }
+ EXPORT_SYMBOL(unregister_shrinker);
+ 
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
