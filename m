@@ -1,60 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 333FC6B029F
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:22:51 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 31so7429047plk.20
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:22:51 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id ay8si11037895plb.198.2017.12.19.05.22.50
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EEB46B02A1
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:28:56 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id y36so7434238plh.10
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 05:28:56 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p9sor5454601pls.122.2017.12.19.05.28.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Dec 2017 05:22:50 -0800 (PST)
-Date: Tue, 19 Dec 2017 05:22:46 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: BUG: bad usercopy in memdup_user
-Message-ID: <20171219132246.GD13680@bombadil.infradead.org>
-References: <001a113e9ca8a3affd05609d7ccf@google.com>
- <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
- <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171219083746.GR19604@eros>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 05:28:55 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [resend PATCH 0/2] fix VFS register_shrinker fixup 
+Date: Tue, 19 Dec 2017 14:28:42 +0100
+Message-Id: <20171219132844.28354-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Tobin C. Harding" <me@tobin.cc>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Al Viro <viro@zeniv.linux.org.uk>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Aliaksei Karaliou <akaraliou.dev@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 19, 2017 at 07:37:46PM +1100, Tobin C. Harding wrote:
-> On Tue, Dec 19, 2017 at 09:12:58AM +0100, Dmitry Vyukov wrote:
-> > On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
-> > > On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
-> > >> This BUG is reporting
-> > >>
-> > >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
-> > >>
-> > >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
-> > >
-> > > The address is hashed (see the %p threads for 4.15).
-> > 
-> > 
-> > +Tobin, is there a way to disable hashing entirely? The only
-> > designation of syzbot is providing crash reports to kernel developers
-> > with as much info as possible. It's fine for it to leak whatever.
-> 
-> We have new specifier %px to print addresses in hex if leaking info is
-> not a worry.
+Hi Andrew,
+Tetsuo has posted patch 1 already [1]. I had some minor concenrs about
+the changelog but the approach was already OK. Aliaksei came with an
+alternative patch [2] which also handles double unregistration. I have
+updated the changelog and moved the syzbot report to the 2nd patch
+because it is more related to the change there. The patch 1 is
+prerequisite. Maybe we should just merge those two. I've kept Tetsuo's
+s-o-b and his original authorship, but let me know if you disagree with
+the new wording or the additional change, Tetsuo.
 
-Could we have a way to know that the printed address is hashed and not just
-a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
-So this line would look like:
+The patch 2 is based on Al's suggestion [3] and it fixes sget_userns
+shrinker registration code.
 
-[   26.089789] usercopy: kernel memory overwrite attempt detected to #0000000022a5b430 (kmalloc-1024) (1024 bytes)
+Both of these stalled so can we have them merged finally?
 
-Or does that miss the point of hashing the address, so the attacker
-thinks its a real address?
+[1] http://lkml.kernel.org/r/1511523385-6433-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+[2] http://lkml.kernel.org/r/20171216192937.13549-1-akaraliou.dev@gmail.com
+[3] http://lkml.kernel.org/r/20171123145540.GB21978@ZenIV.linux.org.uk
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
