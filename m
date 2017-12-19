@@ -1,165 +1,126 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C29E66B025F
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:08:14 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j3so14154053pfh.16
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 00:08:14 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id g14si10829135plj.470.2017.12.19.00.08.13
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D9D66B0261
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 03:13:20 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id j6so7004372pll.4
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 00:13:20 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bi5sor5270338plb.115.2017.12.19.00.13.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 00:08:13 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V3 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171218073424.29647-1-ying.huang@intel.com>
-	<877etkwki2.fsf@yhuang-dev.intel.com>
-	<20171218230945.GX7829@linux.vnet.ibm.com>
-	<877etjv5ry.fsf@yhuang-dev.intel.com>
-	<20171219053650.GB7829@linux.vnet.ibm.com>
-Date: Tue, 19 Dec 2017 16:08:09 +0800
-In-Reply-To: <20171219053650.GB7829@linux.vnet.ibm.com> (Paul E. McKenney's
-	message of "Mon, 18 Dec 2017 21:36:50 -0800")
-Message-ID: <87lghzta1i.fsf@yhuang-dev.intel.com>
+        (Google Transport Security);
+        Tue, 19 Dec 2017 00:13:19 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+References: <001a113e9ca8a3affd05609d7ccf@google.com> <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
+ <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Tue, 19 Dec 2017 09:12:58 +0100
+Message-ID: <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
+Subject: Re: BUG: bad usercopy in memdup_user
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Minchan Kim <minchan@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, JXrXme Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Kees Cook <keescook@chromium.org>
+Cc: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>, me@tobin.cc
 
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> writes:
+On Tue, Dec 19, 2017 at 1:57 AM, Kees Cook <keescook@chromium.org> wrote:
+> On Mon, Dec 18, 2017 at 6:22 AM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>> On 2017/12/18 22:40, syzbot wrote:
+>>> Hello,
+>>>
+>>> syzkaller hit the following crash on 6084b576dca2e898f5c101baef151f7bfdbb606d
+>>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+>>> compiler: gcc (GCC) 7.1.1 20170620
+>>> .config is attached
+>>> Raw console output is attached.
+>>>
+>>> Unfortunately, I don't have any reproducer for this bug yet.
+>>>
+>>>
+>>
+>> This BUG is reporting
+>>
+>> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
+>>
+>> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
+>
+> The address is hashed (see the %p threads for 4.15).
 
-> On Tue, Dec 19, 2017 at 09:57:21AM +0800, Huang, Ying wrote:
->> "Paul E. McKenney" <paulmck@linux.vnet.ibm.com> writes:
->> 
->> > On Mon, Dec 18, 2017 at 03:41:41PM +0800, Huang, Ying wrote:
->> >> "Huang, Ying" <ying.huang@intel.com> writes:
->> >> And, it appears that if we replace smp_wmb() in _enable_swap_info() with
->> >> stop_machine() in some way, we can avoid smp_rmb() in get_swap_device().
->> >> This can reduce overhead in normal path further.  Can we get same effect
->> >> with RCU?  For example, use synchronize_rcu() instead of stop_machine()?
->> >> 
->> >> Hi, Paul, can you help me on this?
->> >
->> > If the key loads before and after the smp_rmb() are within the same
->> > RCU read-side critical section, -and- if one of the critical writes is
->> > before the synchronize_rcu() and the other critical write is after the
->> > synchronize_rcu(), then you normally don't need the smp_rmb().
->> >
->> > Otherwise, you likely do still need the smp_rmb().
->> 
->> My question may be too general, let make it more specific.  For the
->> following program,
->> 
->> "
->> int a;
->> int b;
->> 
->> void intialize(void)
->> {
->>         a = 1;
->>         synchronize_rcu();
->>         b = 2;
->> }
->> 
->> void test(void)
->> {
->>         int c;
->> 
->>         rcu_read_lock();
->>         c = b;
->>         /* ignored smp_rmb() */
->>         if (c)
->>                 pr_info("a=%d\n", a);
->>         rcu_read_unlock();
->> }
->> "
->> 
->> Is it possible for it to show
->> 
->> "
->> a=0
->> "
->> 
->> in kernel log?
->> 
->> 
->> If it couldn't, this could be a useful usage model of RCU to accelerate
->> hot path.
->
-> This is not possible, and it can be verified using the Linux kernel
-> memory model.  An introduction to an older version of this model may
-> be found here (including an introduction to litmus tests and their
-> output):
->
-> 	https://lwn.net/Articles/718628/
-> 	https://lwn.net/Articles/720550/
->
-> The litmus test and its output are shown below.
->
-> The reason it is not possible is that the entirety of test()'s RCU
-> read-side critical section must do one of two things:
->
-> 1.	Come before the return from initialize()'s synchronize_rcu().
-> 2.	Come after the call to initialize()'s synchronize_rcu().
->
-> Suppose test()'s load from "b" sees initialize()'s assignment.  Then
-> some part of test()'s RCU read-side critical section came after
-> initialize()'s call to synchronize_rcu(), which means that the entirety
-> of test()'s RCU read-side critical section must come after initialize()'s
-> call to synchronize_rcu().  Therefore, whenever "c" is non-zero, the
-> pr_info() must see "a" non-zero.
->
-> 							Thanx, Paul
->
-> ------------------------------------------------------------------------
->
-> C MP-o-sync-o+rl-o-ctl-o-rul
->
-> {}
->
-> P0(int *a, int *b)
-> {
-> 	WRITE_ONCE(*a, 1);
-> 	synchronize_rcu();
-> 	WRITE_ONCE(*b, 2);
-> }
->
-> P1(int *a, int *b)
-> {
-> 	int r0;
-> 	int r1;
->
-> 	rcu_read_lock();
-> 	r0 = READ_ONCE(*b);
-> 	if (r0)
-> 		r1 = READ_ONCE(*a);
-> 	rcu_read_unlock();
-> }
->
-> exists (1:r0=1 /\ 1:r1=0)
->
-> ------------------------------------------------------------------------
->
-> States 2
-> 1:r0=0; 1:r1=0;
-> 1:r0=2; 1:r1=1;
-> No
-> Witnesses
-> Positive: 0 Negative: 2
-> Condition exists (1:r0=1 /\ 1:r1=0)
-> Observation MP-o-sync-o+rl-o-ctl-o-rul Never 0 2
-> Time MP-o-sync-o+rl-o-ctl-o-rul 0.01
-> Hash=b20eca2da50fa84b15e489502420ff56
->
-> ------------------------------------------------------------------------
->
-> The "Never 0 2" means that the condition cannot happen.
 
-Thanks a lot for your detailed explanation!  That helps me much!
++Tobin, is there a way to disable hashing entirely? The only
+designation of syzbot is providing crash reports to kernel developers
+with as much info as possible. It's fine for it to leak whatever.
 
-Best Regards,
-Huang, Ying
+
+> There's something strange going on with the slab allocator (I haven't
+> tracked it down yet, unfortunately).
+>
+> -Kees
+>
+>>
+>>> netlink: 1 bytes leftover after parsing attributes in process `syz-executor5'.
+>>> ------------[ cut here ]------------
+>>> kernel BUG at mm/usercopy.c:84!
+>>> invalid opcode: 0000 [#1] SMP
+>>> Dumping ftrace buffer:
+>>>    (ftrace buffer empty)
+>>> Modules linked in:
+>>> CPU: 0 PID: 3943 Comm: syz-executor0 Not tainted 4.15.0-rc3-next-20171214+ #67
+>>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS Google 01/01/2011
+>>> RIP: 0010:report_usercopy mm/usercopy.c:76 [inline]
+>>> RIP: 0010:__check_object_size+0x1e2/0x250 mm/usercopy.c:276
+>>> RSP: 0018:ffffc90000d6fca8 EFLAGS: 00010292
+>>> RAX: 0000000000000062 RBX: ffffffff82e57be7 RCX: ffffffff8123dede
+>>> RDX: 0000000000006340 RSI: ffffc900036c9000 RDI: ffff88021fc136f8
+>>> RBP: ffffc90000d6fce0 R08: 0000000000000000 R09: 0000000000000000
+>>> R10: 0000000000000000 R11: 0000000000000000 R12: ffff8801e076dc50
+>>> R13: 0000000000000400 R14: 0000000000000000 R15: ffffffff82edf8a5
+>>> FS:  00007fe747e20700(0000) GS:ffff88021fc00000(0000) knlGS:0000000000000000
+>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>>> CR2: 000000002000bffa CR3: 00000001dbd02006 CR4: 00000000001626f0
+>>> DR0: 0000000020000000 DR1: 0000000000010000 DR2: 000000000000f004
+>>> DR3: 0000000000000000 DR6: 00000000fffe0ff3 DR7: 0000000000000600
+>>> Call Trace:
+>>>  check_object_size include/linux/thread_info.h:112 [inline]
+>>>  check_copy_size include/linux/thread_info.h:143 [inline]
+>>>  copy_from_user include/linux/uaccess.h:146 [inline]
+>>>  memdup_user+0x46/0x90 mm/util.c:168
+>>>  kvm_arch_vcpu_ioctl+0xc85/0x1810 arch/x86/kvm/x86.c:3499
+>>>  kvm_vcpu_ioctl+0xf3/0x820 arch/x86/kvm/../../../virt/kvm/kvm_main.c:2715
+>>>  vfs_ioctl fs/ioctl.c:46 [inline]
+>>>  do_vfs_ioctl+0xaf/0x840 fs/ioctl.c:686
+>>>  SYSC_ioctl fs/ioctl.c:701 [inline]
+>>>  SyS_ioctl+0x8f/0xc0 fs/ioctl.c:692
+>>>  entry_SYSCALL_64_fastpath+0x1f/0x96
+>>> RIP: 0033:0x452a09
+>>> RSP: 002b:00007fe747e1fc58 EFLAGS: 00000212 ORIG_RAX: 0000000000000010
+>>> RAX: ffffffffffffffda RBX: 000000000071bea0 RCX: 0000000000452a09
+>>> RDX: 0000000020ebec00 RSI: 000000004400ae8f RDI: 0000000000000019
+>>> RBP: 000000000000023b R08: 0000000000000000 R09: 0000000000000000
+>>> R10: 0000000000000000 R11: 0000000000000212 R12: 00000000006f0628
+>>> R13: 00000000ffffffff R14: 00007fe747e206d4 R15: 0000000000000000
+>>> Code: 7b e5 82 48 0f 44 da e8 8d 82 eb ff 48 8b 45 d0 4d 89 e9 4c 89 e1 4c 89 fa 48 89 de 48 c7 c7 a8 51 e6 82 49 89 c0 e8 76 b7 e3 ff <0f> 0b 48 c7 c0 43 51 e6 82 eb a1 48 c7 c0 53 51 e6 82 eb 98 48
+>>> RIP: report_usercopy mm/usercopy.c:76 [inline] RSP: ffffc90000d6fca8
+>>> RIP: __check_object_size+0x1e2/0x250 mm/usercopy.c:276 RSP: ffffc90000d6fca8
+>>> ---[ end trace 189465b430781fff ]---
+>>> Kernel panic - not syncing: Fatal exception
+>>> Dumping ftrace buffer:
+>>>    (ftrace buffer empty)
+>>> Kernel Offset: disabled
+>>> Rebooting in 86400 seconds..
+>
+>
+>
+> --
+> Kees Cook
+> Pixel Security
+>
+> --
+> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
+> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
+> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/CAGXu5jKLBuQ8Ne6BjjPH%2B1SVw-Fj4ko5H04GHn-dxXYwoMEZtw%40mail.gmail.com.
+> For more options, visit https://groups.google.com/d/optout.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
