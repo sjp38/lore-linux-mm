@@ -1,101 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5926B0287
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:43:20 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id f2so7381402plj.15
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:43:20 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E7CD6B0289
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:44:04 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y15so11290344wrc.6
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:44:04 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i8si11214020pfk.151.2017.12.19.04.43.19
+        by mx.google.com with ESMTPS id q82si1245760wmg.50.2017.12.19.04.44.02
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 19 Dec 2017 04:43:19 -0800 (PST)
-Date: Tue, 19 Dec 2017 13:43:17 +0100
+        Tue, 19 Dec 2017 04:44:02 -0800 (PST)
+Date: Tue, 19 Dec 2017 13:44:01 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 4/5] mm: use node_page_state_snapshot to avoid
- deviation
-Message-ID: <20171219124317.GP2787@dhcp22.suse.cz>
+Subject: Re: [PATCH v2 5/5] mm: Rename zone_statistics() to numa_statistics()
+Message-ID: <20171219124401.GQ2787@dhcp22.suse.cz>
 References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-5-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-6-git-send-email-kemi.wang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1513665566-4465-5-git-send-email-kemi.wang@intel.com>
+In-Reply-To: <1513665566-4465-6-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Kemi Wang <kemi.wang@intel.com>
 Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue 19-12-17 14:39:25, Kemi Wang wrote:
-> To avoid deviation, this patch uses node_page_state_snapshot instead of
-> node_page_state for node page stats query.
-> e.g. cat /proc/zoneinfo
->      cat /sys/devices/system/node/node*/vmstat
->      cat /sys/devices/system/node/node*/numastat
+On Tue 19-12-17 14:39:26, Kemi Wang wrote:
+> Since the functionality of zone_statistics() updates numa counters, but
+> numa statistics has been separated from zone statistics framework. Thus,
+> the function name makes people confused. So, change the name to
+> numa_statistics() as well as its call sites accordingly.
 > 
-> As it is a slow path and would not be read frequently, I would worry about
-> it.
-
-The changelog doesn't explain why these counters needs any special
-treatment. _snapshot variants where used only for internal handling
-where the precision really mattered. We do not have any in-tree user and
-Jack has removed this by http://lkml.kernel.org/r/20171122094416.26019-1-jack@suse.cz
-which is already sitting in the mmotm tree. We can re-add it but that
-would really require a _very good_ reason.
-
 > Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
 > ---
->  drivers/base/node.c | 17 ++++++++++-------
->  mm/vmstat.c         |  2 +-
->  2 files changed, 11 insertions(+), 8 deletions(-)
+>  mm/page_alloc.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
 > 
-> diff --git a/drivers/base/node.c b/drivers/base/node.c
-> index a045ea1..cf303f8 100644
-> --- a/drivers/base/node.c
-> +++ b/drivers/base/node.c
-> @@ -169,12 +169,15 @@ static ssize_t node_read_numastat(struct device *dev,
->  		       "interleave_hit %lu\n"
->  		       "local_node %lu\n"
->  		       "other_node %lu\n",
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_HIT),
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_MISS),
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_FOREIGN),
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_INTERLEAVE_HIT),
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_LOCAL),
-> -		       node_page_state(NODE_DATA(dev->id), NUMA_OTHER));
-> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_HIT),
-> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_MISS),
-> +		       node_page_state_snapshot(NODE_DATA(dev->id),
-> +			       NUMA_FOREIGN),
-> +		       node_page_state_snapshot(NODE_DATA(dev->id),
-> +			       NUMA_INTERLEAVE_HIT),
-> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_LOCAL),
-> +		       node_page_state_snapshot(NODE_DATA(dev->id),
-> +			       NUMA_OTHER));
->  }
->  
->  static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
-> @@ -194,7 +197,7 @@ static ssize_t node_read_vmstat(struct device *dev,
->  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
->  		n += sprintf(buf+n, "%s %lu\n",
->  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-> -			     node_page_state(pgdat, i));
-> +			     node_page_state_snapshot(pgdat, i));
->  
->  	return n;
->  }
-> diff --git a/mm/vmstat.c b/mm/vmstat.c
-> index 64e08ae..d65f28d 100644
-> --- a/mm/vmstat.c
-> +++ b/mm/vmstat.c
-> @@ -1466,7 +1466,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
->  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
->  			seq_printf(m, "\n      %-12s %lu",
->  				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
-> -				node_page_state(pgdat, i));
-> +				node_page_state_snapshot(pgdat, i));
->  		}
+> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> index 81e8d8f..f7583de 100644
+> --- a/mm/page_alloc.c
+> +++ b/mm/page_alloc.c
+> @@ -2790,7 +2790,7 @@ int __isolate_free_page(struct page *page, unsigned int order)
+>   *
+>   * Must be called with interrupts disabled.
+>   */
+> -static inline void zone_statistics(struct zone *preferred_zone, struct zone *z)
+> +static inline void numa_statistics(struct zone *preferred_zone, struct zone *z)
+>  {
+>  #ifdef CONFIG_NUMA
+>  	int preferred_nid = preferred_zone->node;
+> @@ -2854,7 +2854,7 @@ static struct page *rmqueue_pcplist(struct zone *preferred_zone,
+>  	page = __rmqueue_pcplist(zone,  migratetype, pcp, list);
+>  	if (page) {
+>  		__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+> -		zone_statistics(preferred_zone, zone);
+> +		numa_statistics(preferred_zone, zone);
 >  	}
->  	seq_printf(m,
+>  	local_irq_restore(flags);
+>  	return page;
+> @@ -2902,7 +2902,7 @@ struct page *rmqueue(struct zone *preferred_zone,
+>  				  get_pcppage_migratetype(page));
+>  
+>  	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
+> -	zone_statistics(preferred_zone, zone);
+> +	numa_statistics(preferred_zone, zone);
+>  	local_irq_restore(flags);
+>  
+>  out:
 > -- 
 > 2.7.4
 > 
