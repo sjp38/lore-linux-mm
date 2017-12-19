@@ -1,165 +1,159 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1096F6B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:20:47 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id b11so3165654itj.0
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:20:47 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id v124si1935517ith.4.2017.12.19.13.20.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 13:20:45 -0800 (PST)
-Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface for
- freeing rcu structures
-References: <rao.shoaib@oracle.com>
- <1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
- <20171219214158.353032f0@redhat.com>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <75f514a6-8121-7d5f-4b6a-7e68d8f226a8@oracle.com>
-Date: Tue, 19 Dec 2017 13:20:43 -0800
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6405E6B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 16:35:10 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id p1so15199627pfp.13
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 13:35:10 -0800 (PST)
+Received: from ipmailnode02.adl6.internode.on.net (ipmailnode02.adl6.internode.on.net. [150.101.137.148])
+        by mx.google.com with ESMTP id y68si11876176pfd.104.2017.12.19.13.35.07
+        for <linux-mm@kvack.org>;
+        Tue, 19 Dec 2017 13:35:08 -0800 (PST)
+Date: Wed, 20 Dec 2017 08:35:05 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v3 06/10] writeback: introduce
+ super_operations->write_metadata
+Message-ID: <20171219213505.GN5858@dastard>
+References: <1513029335-5112-1-git-send-email-josef@toxicpanda.com>
+ <1513029335-5112-7-git-send-email-josef@toxicpanda.com>
+ <20171211233619.GQ4094@dastard>
+ <20171212180534.c5f7luqz5oyfe7c3@destiny>
+ <20171212222004.GT4094@dastard>
+ <20171219120709.GE2277@quack2.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20171219214158.353032f0@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171219120709.GE2277@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jesper Dangaard Brouer <brouer@redhat.com>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, linux-mm@kvack.org
+To: Jan Kara <jack@suse.cz>
+Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
+On Tue, Dec 19, 2017 at 01:07:09PM +0100, Jan Kara wrote:
+> On Wed 13-12-17 09:20:04, Dave Chinner wrote:
+> > On Tue, Dec 12, 2017 at 01:05:35PM -0500, Josef Bacik wrote:
+> > > On Tue, Dec 12, 2017 at 10:36:19AM +1100, Dave Chinner wrote:
+> > > > On Mon, Dec 11, 2017 at 04:55:31PM -0500, Josef Bacik wrote:
+> > > This is just one of those things that's going to be slightly shitty.  It's the
+> > > same for memory reclaim, all of those places use pages so we just take
+> > > METADATA_*_BYTES >> PAGE_SHIFT to get pages and figure it's close enough.
+> > 
+> > Ok, so that isn't exactly easy to deal with, because all our
+> > metadata writeback is based on log sequence number targets (i.e. how
+> > far to push the tail of the log towards the current head). We've
+> > actually got no idea how pages/bytes actually map to a LSN target
+> > because while we might account a full buffer as dirty for memory
+> > reclaim purposes (up to 64k in size), we might have only logged 128
+> > bytes of it.
+> > 
+> > i.e. if we are asked to push 2MB of metadata and we treat that as
+> > 2MB of log space (i.e. push target of tail LSN + 2MB) we could have
+> > logged several tens of megabytes of dirty metadata in that LSN
+> > range and have to flush it all. OTOH, if the buffers are fully
+> > logged, then that same target might only flush 1.5MB of metadata
+> > once all the log overhead is taken into account.
+> > 
+> > So there's a fairly large disconnect between the "flush N bytes of
+> > metadata" API and the "push to a target LSN" that XFS uses for
+> > flushing metadata in aged order. I'm betting that extN and otehr
+> > filesystems might have similar mismatches with their journal
+> > flushing...
+> 
+> Well, for ext4 it isn't as bad since we do full block logging only. So if
+> we are asked to flush N pages, we can easily translate that to number of fs
+> blocks and flush that many from the oldest transaction.
+> 
+> Couldn't XFS just track how much it has cleaned (from reclaim perspective)
+> when pushing items from AIL (which is what I suppose XFS would do in
+> response to metadata writeback request) and just stop pushing when it has
+> cleaned as much as it was asked to?
 
+If only it were that simple :/
 
-On 12/19/2017 12:41 PM, Jesper Dangaard Brouer wrote:
-> On Tue, 19 Dec 2017 09:52:27 -0800 rao.shoaib@oracle.com wrote:
->
->> +/* Main RCU function that is called to free RCU structures */
->> +static void
->> +__rcu_bulk_free(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
->> +{
->> +	unsigned long offset;
->> +	void *ptr;
->> +	struct rcu_bulk_free *rbf;
->> +	struct rcu_bulk_free_container *rbfc = NULL;
->> +
->> +	rbf = this_cpu_ptr(&cpu_rbf);
->> +
->> +	if (unlikely(!rbf->rbf_init)) {
->> +		spin_lock_init(&rbf->rbf_lock);
->> +		rbf->rbf_cpu = smp_processor_id();
->> +		rbf->rbf_init = true;
->> +	}
->> +
->> +	/* hold lock to protect against other cpu's */
->> +	spin_lock_bh(&rbf->rbf_lock);
-> I'm not sure this will be faster.  Having to take a cross CPU lock here
-> (+ BH-disable) could cause scaling issues.   Hopefully this lock will
-> not be used intensively by other CPUs, right?
->
->
-> The current cost of __call_rcu() is a local_irq_save/restore (which is
-> quite expensive, but doesn't cause cross CPU chatter).
->
-> Later in __rcu_process_callbacks() we have a local_irq_save/restore for
-> the entire list, plus a per object cost doing local_bh_disable/enable.
-> And for each object we call __rcu_reclaim(), which in some cases
-> directly call kfree().
+To start with, flushing the dirty objects (such as inodes) to their
+backing buffers do not mean the the object is clean once the
+writeback completes. XFS has decoupled in-memory objects with
+logical object logging rather than logging physical buffers, and
+so can be modified and dirtied while the inode buffer
+is being written back. Hence if we just count things like "buffer
+size written" it's not actually a correct account of the amount of
+dirty metadata we've cleaned. If we don't get that right, it'll
+result in accounting errors and incorrect behaviour.
 
-As Paul has pointed out the lock is a per-cpu lock, the only reason for 
-another CPU to access this lock is if the rcu callbacks run on a 
-different CPU and there is nothing the code can do to avoid that but 
-that should be rare anyways.
+The bigger problem, however, is that we have no channel to return
+flush information from the AIL pushing to whatever caller asked for
+the push. Pushing metadata is completely decoupled from every other
+subsystem. i.e. the caller asked the xfsaild to push to a specific
+LSN (e.g. to free up a certain amount of log space for new
+transactions), and *nothing* has any idea of how much metadata we'll
+need to write to push the tail of the log to that LSN.
 
->
->
-> If I had to implement this: I would choose to do the optimization in
-> __rcu_process_callbacks() create small on-call-stack ptr-array for
-> kfree_bulk().  I would only optimize the case that call kfree()
-> directly.  In the while(list) loop I would defer calling
-> __rcu_reclaim() for __is_kfree_rcu_offset(head->func), and instead add
-> them to the ptr-array (and flush if the array is full in loop, and
-> kfree_bulk flush after loop).
-This is exactly what the current code is doing. It accumulates only the 
-calls made to
-__kfree_rcu(head, offset) ==> kfree_call_rcu() ==> __bulk_free_rcu
+It's also completely asynchronous - there's no mechanism for waiting
+on a push to a specific LSN. Anything that needs a specific amount
+of log space to be available waits in ordered ticket queues on the
+log tail moving forwards. The only interfaces that have access to
+the log tail ticket waiting is the transaction reservation
+subsystem, which cannot be used during metadata writeback because
+that's a guaranteed deadlock vector....
 
-__kfree_rcu has a check to make sure that an offset is being passed.
+Saying "just account for bytes written" assumes directly connected,
+synchronous dispatch metadata writeback infrastructure which we
+simply don't have in XFS. "just clean this many bytes" doesn't
+really fit at all because we have no way of referencing that to the
+distance we need to push the tail of the log. An interface that
+tells us "clean this percentage of dirty metadata" is much more
+useful because we can map that easily to a log sequence number
+based push target....
 
-When a function pointer is passed the caller has to call 
-call_rcu/call_rcu_sched
+> > IOWs, treating metadata like it's one great big data inode doesn't
+> > seem to me to be the right abstraction to use for this - in most
+> > fileystems it's a bunch of objects with a complex dependency tree
+> > and unknown write ordering, not an inode full of data that can be
+> > sequentially written.
+> > 
+> > Maybe we need multiple ops with well defined behaviours. e.g.
+> > ->writeback_metadata() for background writeback, ->sync_metadata() for
+> > sync based operations. That way different filesystems can ignore the
+> > parts they don't need simply by not implementing those operations,
+> > and the writeback code doesn't need to try to cater for all
+> > operations through the one op. The writeback code should be cleaner,
+> > the filesystem code should be cleaner, and we can tailor the work
+> > guidelines for each operation separately so there's less mismatch
+> > between what writeback is asking and how filesystems track dirty
+> > metadata...
+> 
+> I agree that writeback for memory cleaning and writeback for data integrity
+> are two very different things especially for metadata. In fact for data
+> integrity writeback we already have ->sync_fs operation so there the
+> functionality gets duplicated. What we could do is that in
+> writeback_sb_inodes() we'd call ->write_metadata only when
+> work->for_kupdate or work->for_background is set. That way ->write_metadata
+> would be called only for memory cleaning purposes.
 
-Accumulating early avoids the individual cost of calling __call_rcu
+That makes sense, but I still think we need a better indication of
+how much writeback we need to do than just "writeback this chunk of
+pages". That "writeback a chunk" interface is necessary to share
+writeback bandwidth across numerous data inodes so that we don't
+starve any one inode of writeback bandwidth. That's unnecessary for
+metadata writeback on a superblock - we don't need to share that
+bandwidth around hundreds or thousands of inodes. What we actually
+need to know is how much writeback we need to do as a total of all
+the dirty metadata on the superblock.
 
-Perhaps I do not understand your point.
+Sure, that's not ideal for btrfs and mayext4, but we can write a
+simple generic helper that converts "flush X percent of dirty
+metadata" to a page/byte chunk as the current code does. DOing it
+this way allows filesystems to completely internalise the accounting
+that needs to be done, rather than trying to hack around a
+writeback accounting interface with large impedance mismatches to
+how the filesystem accounts for dirty metadata and/or tracks
+writeback progress.
 
-Shoaib
->
-> The real advantage of kfree_bulk() comes from amortizing the per kfree
-> (behind-the-scenes) sync cost.  There is an additional benefit, because
-> objects comes from RCU and will hit a slower path in SLUB.   The SLUB
-> allocator is very fast for objects that gets recycled quickly (short
-> lifetime), non-locked (cpu-local) double-cmpxchg.  But slower for
-> longer-lived/more-outstanding objects, as this hits a slower code-path,
-> fully locked (cross-cpu) double-cmpxchg.
->
->> +
->> +	rbfc = rbf->rbf_container;
->> +
->> +	if (rbfc == NULL) {
->> +		if (rbf->rbf_cached_container == NULL) {
->> +			rbf->rbf_container =
->> +			    kmalloc(sizeof(struct rcu_bulk_free_container),
->> +			    GFP_ATOMIC);
->> +			rbf->rbf_container->rbfc_rbf = rbf;
->> +		} else {
->> +			rbf->rbf_container = rbf->rbf_cached_container;
->> +			rbf->rbf_container->rbfc_rbf = rbf;
->> +			cmpxchg(&rbf->rbf_cached_container,
->> +			    rbf->rbf_cached_container, NULL);
->> +		}
->> +
->> +		if (unlikely(rbf->rbf_container == NULL)) {
->> +
->> +			/* Memory allocation failed maintain a list */
->> +
->> +			head->func = (void *)func;
->> +			head->next = rbf->rbf_list_head;
->> +			rbf->rbf_list_head = head;
->> +			rbf->rbf_list_size++;
->> +			if (rbf->rbf_list_size == RCU_MAX_ACCUMULATE_SIZE)
->> +				__rcu_bulk_schedule_list(rbf);
->> +
->> +			goto done;
->> +		}
->> +
->> +		rbfc = rbf->rbf_container;
->> +		rbfc->rbfc_entries = 0;
->> +
->> +		if (rbf->rbf_list_head != NULL)
->> +			__rcu_bulk_schedule_list(rbf);
->> +	}
->> +
->> +	offset = (unsigned long)func;
->> +	ptr = (void *)head - offset;
->> +
->> +	rbfc->rbfc_data[rbfc->rbfc_entries++] = ptr;
->> +	if (rbfc->rbfc_entries == RCU_MAX_ACCUMULATE_SIZE) {
->> +
->> +		WRITE_ONCE(rbf->rbf_container, NULL);
->> +		spin_unlock_bh(&rbf->rbf_lock);
->> +		call_rcu(&rbfc->rbfc_rcu, __rcu_bulk_free_impl);
->> +		return;
->> +	}
->> +
->> +done:
->> +	if (!rbf->rbf_monitor) {
->> +
->> +		call_rcu(&rbf->rbf_rcu, __rcu_bulk_free_monitor);
->> +		rbf->rbf_monitor = true;
->> +	}
->> +
->> +	spin_unlock_bh(&rbf->rbf_lock);
->> +}
->
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
