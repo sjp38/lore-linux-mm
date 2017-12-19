@@ -1,85 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DAA96B027A
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:35:11 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id f8so12576331pgs.9
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:35:11 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id v8si9119558plg.831.2017.12.19.04.35.10
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9BB356B0282
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:38:32 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id l99so5638639wrc.18
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:38:32 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t80si11445221wrc.307.2017.12.19.04.38.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 04:35:10 -0800 (PST)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v20 7/7] virtio-balloon: don't report free pages when page poisoning is enabled
-Date: Tue, 19 Dec 2017 20:17:59 +0800
-Message-Id: <1513685879-21823-8-git-send-email-wei.w.wang@intel.com>
-In-Reply-To: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
-References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Dec 2017 04:38:31 -0800 (PST)
+Date: Tue, 19 Dec 2017 13:38:29 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 2/5] mm: Extends local cpu counter vm_diff_nodestat
+ from s8 to s16
+Message-ID: <20171219123829.GN2787@dhcp22.suse.cz>
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-3-git-send-email-kemi.wang@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1513665566-4465-3-git-send-email-kemi.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Kemi Wang <kemi.wang@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-The guest free pages should not be discarded by the live migration thread
-when page poisoning is enabled with PAGE_POISONING_NO_SANITY=n, because
-skipping the transfer of such poisoned free pages will trigger false
-positive when new pages are allocated and checked on the destination.
-This patch adds a config field, poison_val. Guest writes to the config
-field to tell the host about the poisoning value. The value will be 0 in
-the following cases:
-1) PAGE_POISONING_NO_SANITY is enabled;
-2) page poisoning is disabled; or
-3) PAGE_POISONING_ZERO is enabled.
+On Tue 19-12-17 14:39:23, Kemi Wang wrote:
+> The type s8 used for vm_diff_nodestat[] as local cpu counters has the
+> limitation of global counters update frequency, especially for those
+> monotone increasing type of counters like NUMA counters with more and more
+> cpus/nodes. This patch extends the type of vm_diff_nodestat from s8 to s16
+> without any functionality change.
+> 
+>                                  before     after
+> sizeof(struct per_cpu_nodestat)    28         68
 
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Michal Hocko <mhocko@suse.com>
----
- drivers/virtio/virtio_balloon.c     | 8 ++++++++
- include/uapi/linux/virtio_balloon.h | 2 ++
- 2 files changed, 10 insertions(+)
+So it is 40B * num_cpus * num_nodes. Nothing really catastrophic IMHO
+but the changelog is a bit silent about any numbers. This is a
+performance optimization so it should better give us some.
+ 
+> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+> ---
+>  include/linux/mmzone.h |  4 ++--
+>  mm/vmstat.c            | 16 ++++++++--------
+>  2 files changed, 10 insertions(+), 10 deletions(-)
+> 
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index c06d880..2da6b6f 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -289,8 +289,8 @@ struct per_cpu_pageset {
+>  };
+>  
+>  struct per_cpu_nodestat {
+> -	s8 stat_threshold;
+> -	s8 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];
+> +	s16 stat_threshold;
+> +	s16 vm_node_stat_diff[NR_VM_NODE_STAT_ITEMS];
+>  };
+>  
+>  #endif /* !__GENERATING_BOUNDS.H */
+> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> index 1dd12ae..9c681cc 100644
+> --- a/mm/vmstat.c
+> +++ b/mm/vmstat.c
+> @@ -332,7 +332,7 @@ void __mod_node_page_state(struct pglist_data *pgdat, enum node_stat_item item,
+>  				long delta)
+>  {
+>  	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
+> -	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+> +	s16 __percpu *p = pcp->vm_node_stat_diff + item;
+>  	long x;
+>  	long t;
+>  
+> @@ -390,13 +390,13 @@ void __inc_zone_state(struct zone *zone, enum zone_stat_item item)
+>  void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+>  {
+>  	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
+> -	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+> -	s8 v, t;
+> +	s16 __percpu *p = pcp->vm_node_stat_diff + item;
+> +	s16 v, t;
+>  
+>  	v = __this_cpu_inc_return(*p);
+>  	t = __this_cpu_read(pcp->stat_threshold);
+>  	if (unlikely(v > t)) {
+> -		s8 overstep = t >> 1;
+> +		s16 overstep = t >> 1;
+>  
+>  		node_page_state_add(v + overstep, pgdat, item);
+>  		__this_cpu_write(*p, -overstep);
+> @@ -434,13 +434,13 @@ void __dec_zone_state(struct zone *zone, enum zone_stat_item item)
+>  void __dec_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+>  {
+>  	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
+> -	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+> -	s8 v, t;
+> +	s16 __percpu *p = pcp->vm_node_stat_diff + item;
+> +	s16 v, t;
+>  
+>  	v = __this_cpu_dec_return(*p);
+>  	t = __this_cpu_read(pcp->stat_threshold);
+>  	if (unlikely(v < - t)) {
+> -		s8 overstep = t >> 1;
+> +		s16 overstep = t >> 1;
+>  
+>  		node_page_state_add(v - overstep, pgdat, item);
+>  		__this_cpu_write(*p, overstep);
+> @@ -533,7 +533,7 @@ static inline void mod_node_state(struct pglist_data *pgdat,
+>         enum node_stat_item item, int delta, int overstep_mode)
+>  {
+>  	struct per_cpu_nodestat __percpu *pcp = pgdat->per_cpu_nodestats;
+> -	s8 __percpu *p = pcp->vm_node_stat_diff + item;
+> +	s16 __percpu *p = pcp->vm_node_stat_diff + item;
+>  	long o, n, t, z;
+>  
+>  	do {
+> -- 
+> 2.7.4
+> 
 
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index eae65c1..1fa8598 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -860,6 +860,7 @@ static struct file_system_type balloon_fs = {
- static int virtballoon_probe(struct virtio_device *vdev)
- {
- 	struct virtio_balloon *vb;
-+	__u32 poison_val;
- 	int err;
- 
- 	if (!vdev->config->get) {
-@@ -897,6 +898,13 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 					WQ_FREEZABLE | WQ_CPU_INTENSIVE, 0);
- 		INIT_WORK(&vb->report_free_page_work, report_free_page);
- 		vb->stop_cmd_id = VIRTIO_BALLOON_FREE_PAGE_REPORT_STOP_ID;
-+		if (IS_ENABLED(CONFIG_PAGE_POISONING_NO_SANITY) ||
-+		    !page_poisoning_enabled())
-+			poison_val = 0;
-+		else
-+			poison_val = PAGE_POISON;
-+		virtio_cwrite(vb->vdev, struct virtio_balloon_config,
-+			      poison_val, &poison_val);
- 	}
- 
- 	vb->nb.notifier_call = virtballoon_oom_notify;
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 58f1274..f270e9e 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -48,6 +48,8 @@ struct virtio_balloon_config {
- 	__u32 actual;
- 	/* Free page report command id, readonly by guest */
- 	__u32 free_page_report_cmd_id;
-+	/* Stores PAGE_POISON if page poisoning with sanity check is in use */
-+	__u32 poison_val;
- };
- 
- #define VIRTIO_BALLOON_S_SWAP_IN  0   /* Amount of memory swapped in */
 -- 
-2.7.4
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
