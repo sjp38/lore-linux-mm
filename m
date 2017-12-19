@@ -1,66 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A26916B0069
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:02:16 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id k1so12756371pgq.2
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:02:16 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y5si11267477pfl.33.2017.12.19.07.02.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 811816B0253
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 10:02:44 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id o16so1321459wmf.4
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:02:44 -0800 (PST)
+Received: from newverein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id h197si1482185wma.256.2017.12.19.07.02.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Dec 2017 07:02:14 -0800 (PST)
-Date: Tue, 19 Dec 2017 07:02:12 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] Provide useful debugging information for VM_BUG
-Message-ID: <20171219150212.GB30842@bombadil.infradead.org>
-References: <20171219133236.GE13680@bombadil.infradead.org>
- <20171219144211.GY2787@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 07:02:43 -0800 (PST)
+Date: Tue, 19 Dec 2017 16:02:42 +0100
+From: Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH 06/17] mm: pass the vmem_altmap to arch_remove_memory
+	and __remove_pages
+Message-ID: <20171219150242.GA13124@lst.de>
+References: <20171215140947.26075-1-hch@lst.de> <20171215140947.26075-7-hch@lst.de> <CAPcyv4iNDonroVQy7YFsM-uC_0GMsjQgSBj=ZfdOB-XUK5tsKw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171219144211.GY2787@dhcp22.suse.cz>
+In-Reply-To: <CAPcyv4iNDonroVQy7YFsM-uC_0GMsjQgSBj=ZfdOB-XUK5tsKw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, "Tobin C. Harding" <me@tobin.cc>, kernel-hardening@lists.openwall.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Tue, Dec 19, 2017 at 03:42:11PM +0100, Michal Hocko wrote:
-> On Tue 19-12-17 05:32:36, Matthew Wilcox wrote:
-> > 
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > With the recent addition of hashed kernel pointers, places which need
-> > to produce useful debug output have to specify %px, not %p.  This patch
-> > fixes all the VM debug to use %px.  This is appropriate because it's
-> > debug output that the user should never be able to trigger, and kernel
-> > developers need to see the actual pointers.
+On Fri, Dec 15, 2017 at 06:04:37PM -0800, Dan Williams wrote:
+> On Fri, Dec 15, 2017 at 6:09 AM, Christoph Hellwig <hch@lst.de> wrote:
+> > We can just pass this on instead of having to do a radix tree lookup
+> > without proper locking 2 levels into the callchain.
+> >
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>wip
 > 
-> Agreed. This is essentially a BUG_ON so we shouldn't hide information.
-> I am just wondering why %px rather than %lx (like __show_regs e.g.)?
+> I assume that "wip" is a typo?
 
-commit 7b1924a1d930eb27fc79c4e4e2a6c1c970623e68
-Author: Tobin C. Harding <me@tobin.cc>
-Date:   Thu Nov 23 10:59:45 2017 +1100
-
-    vsprintf: add printk specifier %px
-    
-    printk specifier %p now hashes all addresses before printing. Sometimes
-    we need to see the actual unmodified address. This can be achieved using
-    %lx but then we face the risk that if in future we want to change the
-    way the Kernel handles printing of pointers we will have to grep through
-    the already existent 50 000 %lx call sites. Let's add specifier %px as a
-    clear, opt-in, way to print a pointer and maintain some level of
-    isolation from all the other hex integer output within the Kernel.
-    
-    Add printk specifier %px to print the actual unmodified address.
-    
-    Signed-off-by: Tobin C. Harding <me@tobin.cc>
-
-> > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> 
-> Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks.  Andrew, will you take this, or does it go through the hardening tree?
+It was the description of the patch this got folded into in my
+local tree.  So basically equivalent to a typo :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
