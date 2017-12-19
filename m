@@ -1,73 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 574606B0033
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 09:12:27 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z25so12608051pgu.18
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 06:12:27 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g6sor5063454plo.93.2017.12.19.06.12.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 536A36B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 09:27:33 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n6so14665481pfg.19
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 06:27:33 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id u19si5121108pgn.488.2017.12.19.06.27.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Dec 2017 06:12:26 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <201712192308.HJJ05711.SHQFVFLOMFOOJt@I-love.SAKURA.ne.jp>
-References: <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros> <20171219132246.GD13680@bombadil.infradead.org>
- <CACT4Y+YMLL=3SBgbMep-E3FDOn7vwYOgQ_fqG+k8NL78+Fhcjw@mail.gmail.com> <201712192308.HJJ05711.SHQFVFLOMFOOJt@I-love.SAKURA.ne.jp>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 19 Dec 2017 15:12:05 +0100
-Message-ID: <CACT4Y+YC51waTR6DQE1QQMrSrdYoYnPOGvmbhGZcOieC=ccvXg@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in memdup_user
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Dec 2017 06:27:32 -0800 (PST)
+Subject: Re: BUG: workqueue lockup (2)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <94eb2c03c9bc75aff2055f70734c@google.com>
+	<001a113f711a528a3f0560b08e76@google.com>
+In-Reply-To: <001a113f711a528a3f0560b08e76@google.com>
+Message-Id: <201712192327.FIJ64026.tMQFOOVFFLHOSJ@I-love.SAKURA.ne.jp>
+Date: Tue, 19 Dec 2017 23:27:24 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
-Cc: Matthew Wilcox <willy@infradead.org>, "Tobin C. Harding" <me@tobin.cc>, Kees Cook <keescook@chromium.org>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
+To: bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com, syzkaller-bugs@googlegroups.com
+Cc: dvyukov@google.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, tglx@linutronix.de
 
-On Tue, Dec 19, 2017 at 3:08 PM, Tetsuo Handa
-<penguin-kernel@i-love.sakura.ne.jp> wrote:
-> Dmitry Vyukov wrote:
->> On Tue, Dec 19, 2017 at 2:22 PM, Matthew Wilcox <willy@infradead.org> wrote:
->> >> > >> This BUG is reporting
->> >> > >>
->> >> > >> [   26.089789] usercopy: kernel memory overwrite attempt detected to 0000000022a5b430 (kmalloc-1024) (1024 bytes)
->> >> > >>
->> >> > >> line. But isn't 0000000022a5b430 strange for kmalloc(1024, GFP_KERNEL)ed kernel address?
->> >> > >
->> >> > > The address is hashed (see the %p threads for 4.15).
->> >> >
->> >> >
->> >> > +Tobin, is there a way to disable hashing entirely? The only
->> >> > designation of syzbot is providing crash reports to kernel developers
->> >> > with as much info as possible. It's fine for it to leak whatever.
->> >>
->> >> We have new specifier %px to print addresses in hex if leaking info is
->> >> not a worry.
->> >
->> > Could we have a way to know that the printed address is hashed and not just
->> > a pointer getting completely scrogged?  Perhaps prefix it with ... a hash!
->> > So this line would look like:
->> >
->> > [   26.089789] usercopy: kernel memory overwrite attempt detected to #0000000022a5b430 (kmalloc-1024) (1024 bytes)
->> >
->> > Or does that miss the point of hashing the address, so the attacker
->> > thinks its a real address?
->>
->> If we do something with this, I would suggest that we just disable
->> hashing. Any of the concerns that lead to hashed pointers are not
->> applicable in this context, moreover they are harmful, cause confusion
->> and make it harder to debug these bugs. That perfectly can be an
->> opt-in CONFIG_DEBUG_INSECURE_BLA_BLA_BLA.
->>
-> Why not a kernel command line option? Hashing by default.
+syzbot wrote:
+> 
+> syzkaller has found reproducer for the following crash on  
+> f3b5ad89de16f5d42e8ad36fbdf85f705c1ae051
 
+"BUG: workqueue lockup" is not a crash.
 
-Would work for continuous testing systems too.
-I just thought that since it has security implications, a config would
-be more reliable. Say if a particular distribution builds kernel
-without this config, then there is no way to enable it on the fly,
-intentionally or not.
+> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
+> compiler: gcc (GCC) 7.1.1 20170620
+> .config is attached
+> Raw console output is attached.
+> C reproducer is attached
+> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> for information about syzkaller reproducers
+> 
+> 
+> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 37s!
+> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=-20 stuck for 32s!
+> Showing busy workqueues and worker pools:
+> workqueue events: flags=0x0
+>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+>      pending: cache_reap
+> workqueue events_power_efficient: flags=0x80
+>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+>      pending: neigh_periodic_work, do_cache_clean
+> workqueue mm_percpu_wq: flags=0x8
+>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+>      pending: vmstat_update
+> workqueue kblockd: flags=0x18
+>    pwq 3: cpus=1 node=0 flags=0x0 nice=-20 active=1/256
+>      pending: blk_timeout_work
+
+You gave up too early. There is no hint for understanding what was going on.
+While we can observe "BUG: workqueue lockup" under memory pressure, there is
+no hint like SysRq-t and SysRq-m. Thus, I can't tell something is wrong.
+
+At least you need to confirm that lockup lasts for a few minutes. Otherwise,
+this might be just overstressing. (According to repro.c , 12 threads are
+created and soon SEGV follows? According to above message, only 2 CPUs?
+Triggering SEGV suggests memory was low due to saving coredump?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
