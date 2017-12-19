@@ -1,158 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 62A136B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 11:35:58 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id r88so14738919pfi.23
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:35:58 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id s9sor4399059pfa.49.2017.12.19.08.35.57
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 178326B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 11:38:11 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id z1so14840057pfl.9
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 08:38:11 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id be8sor5569765plb.89.2017.12.19.08.38.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 08:35:57 -0800 (PST)
+        Tue, 19 Dec 2017 08:38:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <CAGXu5jKPnRAqwEfJUK4A=jpHE8XAN_wQ2iu4YvX1F0SSPO=nhA@mail.gmail.com>
-References: <001a1141c43a5f5178056084703f@google.com> <CAGXu5jLAvE9GaF=VdzR=wrUpquDSJkUXCidZMU-qb02+FDZW6g@mail.gmail.com>
- <CACT4Y+a75BJjWqsKhdHsJ5-h0YMdjD6_uXMLfdL5FxYp-3eFNw@mail.gmail.com> <CAGXu5jKPnRAqwEfJUK4A=jpHE8XAN_wQ2iu4YvX1F0SSPO=nhA@mail.gmail.com>
+In-Reply-To: <CACT4Y+ZbE5=yeb=3hL8KDpPLarHJgihsTb6xX2+4fnoLFuBTow@mail.gmail.com>
+References: <94eb2c03c9bc75aff2055f70734c@google.com> <001a113f711a528a3f0560b08e76@google.com>
+ <201712192327.FIJ64026.tMQFOOVFFLHOSJ@I-love.SAKURA.ne.jp> <CACT4Y+ZbE5=yeb=3hL8KDpPLarHJgihsTb6xX2+4fnoLFuBTow@mail.gmail.com>
 From: Dmitry Vyukov <dvyukov@google.com>
-Date: Tue, 19 Dec 2017 17:35:35 +0100
-Message-ID: <CACT4Y+aWw45x0oEonKqNVXPTQ1tKE6mpZObNJTy3ftZNPgZigA@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in old_dev_ioctl
+Date: Tue, 19 Dec 2017 17:37:48 +0100
+Message-ID: <CACT4Y+YZ6yuZqrjAxHEadW56TVS=x=WQqrfRrvMQ=LHU3+Kd8A@mail.gmail.com>
+Subject: Re: BUG: workqueue lockup (2)
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: syzbot <bot+5e56fb40e0f2bc3f20402f782f0b3913cb959acc@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, James Morse <james.morse@arm.com>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: syzbot <bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com>, syzkaller-bugs@googlegroups.com, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kate Stewart <kstewart@linuxfoundation.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Philippe Ombredanne <pombredanne@nexb.com>, Thomas Gleixner <tglx@linutronix.de>
 
-On Tue, Dec 19, 2017 at 4:57 PM, Kees Cook <keescook@chromium.org> wrote:
->>> <bot+5e56fb40e0f2bc3f20402f782f0b3913cb959acc@syzkaller.appspotmail.com>
->>> wrote:
->>>> Hello,
->>>>
->>>> syzkaller hit the following crash on
->>>> 6084b576dca2e898f5c101baef151f7bfdbb606d
->>>> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
->>>> compiler: gcc (GCC) 7.1.1 20170620
->>>> .config is attached
->>>> Raw console output is attached.
->>>>
->>>> Unfortunately, I don't have any reproducer for this bug yet.
->>>>
->>>>
->>>> device gre0 entered promiscuous mode
->>>> usercopy: kernel memory exposure attempt detected from 00000000a6830059
->>>> (kmalloc-1024) (1024 bytes)
->>>> ------------[ cut here ]------------
->>>> kernel BUG at mm/usercopy.c:84!
->>>> invalid opcode: 0000 [#1] SMP
->>>> Dumping ftrace buffer:
->>>>    (ftrace buffer empty)
->>>> Modules linked in:
->>>> CPU: 1 PID: 28799 Comm: syz-executor4 Not tainted 4.15.0-rc3-next-20171214+
->>>> #67
->>>> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
->>>> Google 01/01/2011
->>>> RIP: 0010:report_usercopy mm/usercopy.c:76 [inline]
->>>> RIP: 0010:__check_object_size+0x1e2/0x250 mm/usercopy.c:276
->>>> RSP: 0018:ffffc9000116fc50 EFLAGS: 00010286
->>>> RAX: 0000000000000063 RBX: ffffffff82e6518f RCX: ffffffff8123dede
->>>> RDX: 0000000000004c58 RSI: ffffc900050ed000 RDI: ffff88021fd136f8
->>>> RBP: ffffc9000116fc88 R08: 0000000000000000 R09: 0000000000000000
->>>> R10: 0000000000000000 R11: 0000000000000000 R12: ffff880216bb6050
->>>> R13: 0000000000000400 R14: 0000000000000001 R15: ffffffff82eda864
->>>> FS:  00007f61a06bc700(0000) GS:ffff88021fd00000(0000) knlGS:0000000000000000
->>>> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
->>>> CR2: 0000000020a5afd8 CR3: 000000020f8a9000 CR4: 00000000001406e0
->>>> Call Trace:
->>>>  check_object_size include/linux/thread_info.h:112 [inline]
->>>>  check_copy_size include/linux/thread_info.h:143 [inline]
->>>>  copy_to_user include/linux/uaccess.h:154 [inline]
->>>>  old_dev_ioctl.isra.1+0x21d/0x9a0 net/bridge/br_ioctl.c:178
+On Tue, Dec 19, 2017 at 3:40 PM, Dmitry Vyukov <dvyukov@google.com> wrote:
+> On Tue, Dec 19, 2017 at 3:27 PM, Tetsuo Handa
+> <penguin-kernel@i-love.sakura.ne.jp> wrote:
+>> syzbot wrote:
 >>>
->>> Uhh, this doesn't make sense, much like the other report...
->>>
->>>                 indices = kcalloc(num, sizeof(int), GFP_KERNEL);
->>>                 if (indices == NULL)
->>>                         return -ENOMEM;
->>>
->>>                 get_port_ifindices(br, indices, num);
->>>                 if (copy_to_user((void __user *)args[1], indices,
->>> num*sizeof(int)))
->>>
->>> offset is 0. size overlaps. usercopy checks in -next must be broken. I
->>> will double-check.
+>>> syzkaller has found reproducer for the following crash on
+>>> f3b5ad89de16f5d42e8ad36fbdf85f705c1ae051
 >>
+>> "BUG: workqueue lockup" is not a crash.
+>
+> Hi Tetsuo,
+>
+> What is the proper name for all of these collectively?
+>
+>
+>>> git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/master
+>>> compiler: gcc (GCC) 7.1.1 20170620
+>>> .config is attached
+>>> Raw console output is attached.
+>>> C reproducer is attached
+>>> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+>>> for information about syzkaller reproducers
+>>>
+>>>
+>>> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=0 stuck for 37s!
+>>> BUG: workqueue lockup - pool cpus=1 node=0 flags=0x0 nice=-20 stuck for 32s!
+>>> Showing busy workqueues and worker pools:
+>>> workqueue events: flags=0x0
+>>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+>>>      pending: cache_reap
+>>> workqueue events_power_efficient: flags=0x80
+>>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=2/256
+>>>      pending: neigh_periodic_work, do_cache_clean
+>>> workqueue mm_percpu_wq: flags=0x8
+>>>    pwq 2: cpus=1 node=0 flags=0x0 nice=0 active=1/256
+>>>      pending: vmstat_update
+>>> workqueue kblockd: flags=0x18
+>>>    pwq 3: cpus=1 node=0 flags=0x0 nice=-20 active=1/256
+>>>      pending: blk_timeout_work
 >>
->> Start of heap object ending at 0x59 looks bogus, right?
+>> You gave up too early. There is no hint for understanding what was going on.
+>> While we can observe "BUG: workqueue lockup" under memory pressure, there is
+>> no hint like SysRq-t and SysRq-m. Thus, I can't tell something is wrong.
 >
-> No, that's a hashed address. %p doesn't report real addresses any more.
+> Do you know how to send them programmatically? I tried to find a way
+> several times, but failed. Articles that I've found talk about
+> pressing some keys that don't translate directly to us-ascii.
 
-Ah, for some reason I thought that 64-bit hashing just strips upper
-part (because what would be a reason to strip it from a hash? and
-showing lower bytes is useful and does not reveal too much).
+On second though, some oopses automatically dump locks/tasks. Should
+we do the same for this oops?
 
->>>>  br_dev_ioctl+0x3f/0xa0 net/bridge/br_ioctl.c:392
->>>>  dev_ifsioc+0x175/0x520 net/core/dev_ioctl.c:354
->>>>  dev_ioctl+0x548/0x7a0 net/core/dev_ioctl.c:589
->>>>  sock_ioctl+0x150/0x320 net/socket.c:998
->>>>  vfs_ioctl fs/ioctl.c:46 [inline]
->>>>  do_vfs_ioctl+0xaf/0x840 fs/ioctl.c:686
->>>>  SYSC_ioctl fs/ioctl.c:701 [inline]
->>>>  SyS_ioctl+0x8f/0xc0 fs/ioctl.c:692
->>>>  entry_SYSCALL_64_fastpath+0x1f/0x96
->>>> RIP: 0033:0x452a39
->>>> RSP: 002b:00007f61a06bbc58 EFLAGS: 00000212 ORIG_RAX: 0000000000000010
->>>> RAX: ffffffffffffffda RBX: 00007f61a06bc700 RCX: 0000000000452a39
->>>> RDX: 0000000020a59fd8 RSI: 00000000000089f0 RDI: 0000000000000014
->>>> RBP: 0000000000000000 R08: 0000000000000000 R09: 0000000000000000
->>>> R10: 0000000000000000 R11: 0000000000000212 R12: 0000000000000000
->>>> R13: 0000000000a6f7ff R14: 00007f61a06bc9c0 R15: 0000000000000000
->>>> Code: 7b e5 82 48 0f 44 da e8 8d 82 eb ff 48 8b 45 d0 4d 89 e9 4c 89 e1 4c
->>>> 89 fa 48 89 de 48 c7 c7 a8 51 e6 82 49 89 c0 e8 76 b7 e3 ff <0f> 0b 48 c7 c0
->>>> 43 51 e6 82 eb a1 48 c7 c0 53 51 e6 82 eb 98 48
->>>> RIP: report_usercopy mm/usercopy.c:76 [inline] RSP: ffffc9000116fc50
->>>> RIP: __check_object_size+0x1e2/0x250 mm/usercopy.c:276 RSP: ffffc9000116fc50
->>>> ---[ end trace 5fadb883cda020dc ]---
->>>> Kernel panic - not syncing: Fatal exception
->>>> Dumping ftrace buffer:
->>>>    (ftrace buffer empty)
->>>> Kernel Offset: disabled
->>>> Rebooting in 86400 seconds..
->>>>
->>>>
->>>> ---
->>>> This bug is generated by a dumb bot. It may contain errors.
->>>> See https://goo.gl/tpsmEJ for details.
->>>> Direct all questions to syzkaller@googlegroups.com.
->>>> Please credit me with: Reported-by: syzbot <syzkaller@googlegroups.com>
->>>>
->>>> syzbot will keep track of this bug report.
->>>> Once a fix for this bug is merged into any tree, reply to this email with:
->>>> #syz fix: exact-commit-title
->>>> To mark this as a duplicate of another syzbot report, please reply with:
->>>> #syz dup: exact-subject-of-another-report
->>>> If it's a one-off invalid bug report, please reply with:
->>>> #syz invalid
->>>> Note: if the crash happens again, it will cause creation of a new bug
->>>> report.
->>>> Note: all commands must start from beginning of the line in the email body.
->>>
->>>
->>>
->>> --
->>> Kees Cook
->>> Pixel Security
->>>
->>> --
->>> You received this message because you are subscribed to the Google Groups "syzkaller-bugs" group.
->>> To unsubscribe from this group and stop receiving emails from it, send an email to syzkaller-bugs+unsubscribe@googlegroups.com.
->>> To view this discussion on the web visit https://groups.google.com/d/msgid/syzkaller-bugs/CAGXu5jLAvE9GaF%3DVdzR%3DwrUpquDSJkUXCidZMU-qb02%2BFDZW6g%40mail.gmail.com.
->>> For more options, visit https://groups.google.com/d/optout.
+> But you can also run the reproducer. No report can possible provide
+> all possible useful information, sometimes debugging boils down to
+> manually adding printfs. That's why syzbot aims at providing a
+> reproducer as the ultimate source of details. Also since a developer
+> needs to test a proposed fix, it's easier to start with the reproducer
+> right away.
 >
 >
+>> At least you need to confirm that lockup lasts for a few minutes. Otherwise,
 >
-> --
-> Kees Cook
-> Pixel Security
+> Is it possible to increase the timeout? How? We could bump it up to 2 minutes.
+>
+>
+>> this might be just overstressing. (According to repro.c , 12 threads are
+>> created and soon SEGV follows? According to above message, only 2 CPUs?
+>> Triggering SEGV suggests memory was low due to saving coredump?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
