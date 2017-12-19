@@ -1,61 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EE7306B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:05:46 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id a3so2566317itg.7
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 09:05:46 -0800 (PST)
-Received: from smtprelay.hostedemail.com (smtprelay0102.hostedemail.com. [216.40.44.102])
-        by mx.google.com with ESMTPS id f32si2951110ioi.249.2017.12.19.09.05.45
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 246F46B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 12:13:08 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id u16so14885042pfh.7
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 09:13:08 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id z9si9486867pll.69.2017.12.19.09.13.07
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 09:05:46 -0800 (PST)
-Message-ID: <1513703142.1234.53.camel@perches.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 19 Dec 2017 09:13:07 -0800 (PST)
+Date: Tue, 19 Dec 2017 09:12:54 -0800
+From: Matthew Wilcox <willy@infradead.org>
 Subject: Re: [PATCH 1/2] mm: Make follow_pte_pmd an inline
-From: Joe Perches <joe@perches.com>
-Date: Tue, 19 Dec 2017 09:05:42 -0800
-In-Reply-To: <20171219165823.24243-1-willy@infradead.org>
+Message-ID: <20171219171254.GD30842@bombadil.infradead.org>
 References: <20171219165823.24243-1-willy@infradead.org>
-Content-Type: text/plain; charset="ISO-8859-1"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+ <1513703142.1234.53.camel@perches.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1513703142.1234.53.camel@perches.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Josh Triplett <josh@joshtriplett.org>
-Cc: Matthew Wilcox <mawilcox@microsoft.com>
+To: Joe Perches <joe@perches.com>
+Cc: linux-kernel@vger.kernel.org, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Josh Triplett <josh@joshtriplett.org>, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Tue, 2017-12-19 at 08:58 -0800, Matthew Wilcox wrote:
-> From: Matthew Wilcox <mawilcox@microsoft.com>
+On Tue, Dec 19, 2017 at 09:05:42AM -0800, Joe Perches wrote:
+> On Tue, 2017-12-19 at 08:58 -0800, Matthew Wilcox wrote:
+> > +	/* (void) is needed to make gcc happy */
+> > +	(void) __cond_lock(*ptlp,
+> > +			   !(res = __follow_pte_pmd(mm, address, start, end,
+> > +						    ptepp, pmdpp, ptlp)));
 > 
-> The one user of follow_pte_pmd (dax) emits a sparse warning because
-> it doesn't know that follow_pte_pmd conditionally returns with the
-> pte/pmd locked.  The required annotation is already there; it's just
-> in the wrong file.
-[]
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-[]
-> @@ -1324,6 +1324,19 @@ int follow_phys(struct vm_area_struct *vma, unsigned long address,
->  int generic_access_phys(struct vm_area_struct *vma, unsigned long addr,
->  			void *buf, int len, int write);
->  
-> +static inline int follow_pte_pmd(struct mm_struct *mm, unsigned long address,
-> +			     unsigned long *start, unsigned long *end,
-> +			     pte_t **ptepp, pmd_t **pmdpp, spinlock_t **ptlp)
-> +{
-> +	int res;
-> +
-> +	/* (void) is needed to make gcc happy */
-> +	(void) __cond_lock(*ptlp,
-> +			   !(res = __follow_pte_pmd(mm, address, start, end,
-> +						    ptepp, pmdpp, ptlp)));
+> This seems obscure and difficult to read.  Perhaps:
+> 
+> 	res = __follow_pte_pmd(mm, address, start, end, ptepp, pmdpp, ptlp);
+> 	(void)__cond_lock(*ptlp, !res);
 
-This seems obscure and difficult to read.  Perhaps:
-
-	res = __follow_pte_pmd(mm, address, start, end, ptepp, pmdpp, ptlp);
-	(void)__cond_lock(*ptlp, !res);
-
-> +	return res;
-> +}
-
+Patch 1 moves the code.  Patch 2 cleans it up ;-)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
