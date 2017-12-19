@@ -1,237 +1,413 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E570E6B0271
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:34:42 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id d3so7366717plj.22
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:34:42 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1A4C86B0272
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 07:34:46 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id f64so14526750pfd.6
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 04:34:46 -0800 (PST)
 Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id v8si9119558plg.831.2017.12.19.04.34.40
+        by mx.google.com with ESMTPS id v8si9119558plg.831.2017.12.19.04.34.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 04:34:41 -0800 (PST)
+        Tue, 19 Dec 2017 04:34:44 -0800 (PST)
 From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v20 0/7] Virtio-balloon Enhancement
-Date: Tue, 19 Dec 2017 20:17:52 +0800
-Message-Id: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
+Subject: [PATCH v20 1/7] xbitmap: Introduce xbitmap
+Date: Tue, 19 Dec 2017 20:17:53 +0800
+Message-Id: <1513685879-21823-2-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
+References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
 Cc: david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-This patch series enhances the existing virtio-balloon with the following
-new features:
-1) fast ballooning: transfer ballooned pages between the guest and host in
-chunks using sgs, instead of one array each time; and
-2) free page block reporting: a new virtqueue to report guest free pages
-to the host.
+From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The second feature can be used to accelerate live migration of VMs. Here
-are some details:
+The eXtensible Bitmap is a sparse bitmap representation which is
+efficient for set bits which tend to cluster.  It supports up to
+'unsigned long' worth of bits, and this commit adds the bare bones --
+xb_set_bit(), xb_clear_bit() and xb_test_bit().
 
-Live migration needs to transfer the VM's memory from the source machine
-to the destination round by round. For the 1st round, all the VM's memory
-is transferred. From the 2nd round, only the pieces of memory that were
-written by the guest (after the 1st round) are transferred. One method
-that is popularly used by the hypervisor to track which part of memory is
-written is to write-protect all the guest memory.
-
-The second feature enables the optimization of the 1st round memory
-transfer - the hypervisor can skip the transfer of guest free pages in the
-1st round. It is not concerned that the memory pages are used after they
-are given to the hypervisor as a hint of the free pages, because they will
-be tracked by the hypervisor and transferred in the next round if they are
-used and written.
-
-ChangeLog:
-v19->v20:
-1) patch 1: xbitmap
-	- add __rcu to "void **slot";
-	- remove the exceptional path.
-2) patch 3: xbitmap
-	- DeveloperNotes: add an item to comment that the current bit range
-	  related APIs operating on extremely large ranges (e.g.
-          [0, ULONG_MAX)) will take too long time. This can be optimized in
-	  the future.
-	- remove the exceptional path;
-	- remove xb_preload_and_set();
-	- reimplement xb_clear_bit_range to make its usage close to
-	  bitmap_clear;
-	- rename xb_find_next_set_bit to xb_find_set, and re-implement it
-	  in a style close to find_next_bit;
-	- rename xb_find_next_zero_bit to xb_find_clear, and re-implement
-	  it in a stytle close to find_next_zero_bit;
-	- separate the implementation of xb_find_set and xb_find_clear for
-	  the convenience of future updates.
-3) patch 4: virtio-balloon
-	- xb_set_page: change the way to call xb_ related APIs
-
-v18->v19:
-1) patch 3:
-	- xb_clear_bit_range and xb_find_next_bit will deal with range [start,
-	  end), where end is changed to be exclusive of the range.
-	- add overflow checks at the end of xb_clear_bit_range and
-	  xb_find_next_bit 
-	- add overflow related test cases
-2) patch 4:
-	- change back to the previous add_one_sg methond, which is based on the
-	  scatterlist struct
-        - tell_host_sgs: use "uint64_t len" to avoid overflow
-	- batch_balloon_page_sg: a simpler function to implement the batching of
-	  sgs
-3) patch 6: batch_free_page_sg: batch sgs using the previous scatterlist struct
-4) patch 7: add a config field, poison_val, to tell the host about the poison
-	    value
-v17->v18:
-1) patch 1-2: new to solve some tools related compilation issues
-2) patch 3: revert to the original xbitmap implementation from Matthew
-Wilcox with some minor changes (e.g. comments added to the exported
-functions)
-3) patch 4: summarize the changes we want to make to patch 3
-4) patch 5: add the developer notes as a reminder for users to avoid
-concurrent accesses to the ida bitmap
-5) patch 6: a new vring API to allow users to directly pass in a physical
-address to a vring desc
-6) patch 7: ballooning time is reduced from ~490ms to ~440ms with the new
-implementation
-	- use the new API from patch 6 to send balloon pages
-	- xb_preload with "GFP_NOWAIT | __GFP_NOWARN" flag;
-	- handle the case when xb_set_page() fails to avoid memory leak;
-	- put xb_set_page() under the balloon lock
-7) patch 9: simper implementation
-	- start free page reporting by sending a new cmd id from the host
-	- guest acks the start or stop via adding a cmd id to the free page vq
-	- use vb->report_free_page, instead of vb->report_free_page_stop
-	- use WRITE_ONCE/READ_ONCE to access vb->report_free_page
-	- use the new API from patch 6 to send free pages to avoid the
-	  unnecessary use of kaddr.
-8) patch 10: new patch to solve the page posioning issue reported by
-Michael S. Tsirkin 
-
-v16->v17:
-1) patch 1: please check the commit log there;
-2) patch 3: included Michael S. Tsirkin patch to fix the potential
-deadlock issue;
-3) patch 4: use BUG_ON if virtqueue_add_ returns error, which is
-expected never to happen;
-4) patch 4: add leak_balloon_sg_oom, which is used in the oom case when
-VIRTIO_BALLOON_F_SG is in use;
-5) patch 6: use config registers, instead of a vq, as the command channel
-between the host and guest;
-6) patch 6: add the command sequence id support.
-
-v15->v16:
-1) mm: stop reporting the free pfn range if the callback returns false;
-2) mm: move some implementaion of walk_free_mem_block into a function to
-make the code layout looks better;
-3) xbitmap: added some optimizations suggested by Matthew, please refer to
-the ChangLog in the xbitmap patch for details.
-4) xbitmap: added a test suite
-5) virtio-balloon: bail out with a warning when virtqueue_add_inbuf returns
-an error
-6) virtio-balloon: some small code re-arrangement, e.g. detachinf used buf
-from the vq before adding a new buf
-
-v14->v15:
-1) mm: make the report callback return a bool value - returning 1 to stop
-walking through the free page list.
-2) virtio-balloon: batching sgs of balloon pages till the vq is full
-3) virtio-balloon: create a new workqueue, rather than using the default
-system_wq, to queue the free page reporting work item.
-4) virtio-balloon: add a ctrl_vq to be a central control plane which will
-handle all the future control related commands between the host and guest.
-Add free page report as the first feature controlled under ctrl_vq, and
-the free_page_vq is a data plane vq dedicated to the transmission of free
-page blocks.
-
-v13->v14:
-1) xbitmap: move the code from lib/radix-tree.c to lib/xbitmap.c.
-2) xbitmap: consolidate the implementation of xb_bit_set/clear/test into
-one xb_bit_ops.
-3) xbitmap: add documents for the exported APIs.
-4) mm: rewrite the function to walk through free page blocks.
-5) virtio-balloon: when reporting a free page blcok to the device, if the
-vq is full (less likey to happen in practice), just skip reporting this
-block, instead of busywaiting till an entry gets released.
-6) virtio-balloon: fail the probe function if adding the signal buf in
-init_vqs fails.
-
-v12->v13:
-1) mm: use a callback function to handle the the free page blocks from the
-report function. This avoids exposing the zone internal to a kernel
-module.
-2) virtio-balloon: send balloon pages or a free page block using a single
-sg each time. This has the benefits of simpler implementation with no new
-APIs.
-3) virtio-balloon: the free_page_vq is used to report free pages only (no
-multiple usages interleaving)
-4) virtio-balloon: Balloon pages and free page blocks are sent via input
-sgs, and the completion signal to the host is sent via an output sg.
-
-v11->v12:
-1) xbitmap: use the xbitmap from Matthew Wilcox to record ballooned pages.
-2) virtio-ring: enable the driver to build up a desc chain using vring
-desc.
-3) virtio-ring: Add locking to the existing START_USE() and END_USE()
-macro to lock/unlock the vq when a vq operation starts/ends.
-4) virtio-ring: add virtqueue_kick_sync() and virtqueue_kick_async()
-5) virtio-balloon: describe chunks of ballooned pages and free pages
-blocks directly using one or more chains of desc from the vq.
-
-v10->v11:
-1) virtio_balloon: use vring_desc to describe a chunk;
-2) virtio_ring: support to add an indirect desc table to virtqueue;
-3)  virtio_balloon: use cmdq to report guest memory statistics.
-
-v9->v10:
-1) mm: put report_unused_page_block() under CONFIG_VIRTIO_BALLOON;
-2) virtio-balloon: add virtballoon_validate();
-3) virtio-balloon: msg format change;
-4) virtio-balloon: move miscq handling to a task on system_freezable_wq;
-5) virtio-balloon: code cleanup.
-
-v8->v9:
-1) Split the two new features, VIRTIO_BALLOON_F_BALLOON_CHUNKS and
-VIRTIO_BALLOON_F_MISC_VQ, which were mixed together in the previous
-implementation;
-2) Simpler function to get the free page block.
-
-v7->v8:
-1) Use only one chunk format, instead of two.
-2) re-write the virtio-balloon implementation patch.
-3) commit changes
-4) patch re-org
-
-Matthew Wilcox (1):
-  xbitmap: Introduce xbitmap
-
-Wei Wang (6):
-  xbitmap: potential improvement
-  xbitmap: add more operations
-  virtio-balloon: VIRTIO_BALLOON_F_SG
-  mm: support reporting free page blocks
-  virtio-balloon: VIRTIO_BALLOON_F_FREE_PAGE_VQ
-  virtio-balloon: don't report free pages when page poisoning is enabled
-
- drivers/virtio/virtio_balloon.c          | 444 +++++++++++++++++++++++++++----
- include/linux/mm.h                       |   6 +
+Signed-off-by: Wei Wang <wei.w.wang@intel.com>
+Cc: Matthew Wilcox <mawilcox@microsoft.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+---
  include/linux/radix-tree.h               |   2 +
- include/linux/xbitmap.h                  |  55 ++++
- include/uapi/linux/virtio_balloon.h      |   7 +
+ include/linux/xbitmap.h                  |  49 ++++++++++++
  lib/Makefile                             |   2 +-
- lib/radix-tree.c                         |  40 ++-
- lib/xbitmap.c                            | 330 +++++++++++++++++++++++
- mm/page_alloc.c                          |  91 +++++++
- tools/include/linux/bitmap.h             |  34 +++
- tools/include/linux/kernel.h             |   2 +
- tools/testing/radix-tree/Makefile        |  12 +-
+ lib/radix-tree.c                         |  25 +++++-
+ lib/xbitmap.c                            | 130 +++++++++++++++++++++++++++++++
+ tools/testing/radix-tree/Makefile        |  12 ++-
  tools/testing/radix-tree/linux/xbitmap.h |   1 +
  tools/testing/radix-tree/main.c          |   4 +
  tools/testing/radix-tree/test.h          |   1 +
- 15 files changed, 976 insertions(+), 55 deletions(-)
+ 9 files changed, 221 insertions(+), 5 deletions(-)
  create mode 100644 include/linux/xbitmap.h
  create mode 100644 lib/xbitmap.c
  create mode 100644 tools/testing/radix-tree/linux/xbitmap.h
 
+diff --git a/include/linux/radix-tree.h b/include/linux/radix-tree.h
+index 23a9c89..5c16179a 100644
+--- a/include/linux/radix-tree.h
++++ b/include/linux/radix-tree.h
+@@ -315,6 +315,8 @@ void radix_tree_iter_delete(struct radix_tree_root *,
+ 			struct radix_tree_iter *iter, void __rcu **slot);
+ void *radix_tree_delete_item(struct radix_tree_root *, unsigned long, void *);
+ void *radix_tree_delete(struct radix_tree_root *, unsigned long);
++bool __radix_tree_delete(struct radix_tree_root *r, struct radix_tree_node *n,
++				void __rcu **slot);
+ void radix_tree_clear_tags(struct radix_tree_root *, struct radix_tree_node *,
+ 			   void __rcu **slot);
+ unsigned int radix_tree_gang_lookup(const struct radix_tree_root *,
+diff --git a/include/linux/xbitmap.h b/include/linux/xbitmap.h
+new file mode 100644
+index 0000000..4ac2b8d
+--- /dev/null
++++ b/include/linux/xbitmap.h
+@@ -0,0 +1,49 @@
++/*
++ * eXtensible Bitmaps
++ * Copyright (c) 2017 Microsoft Corporation <mawilcox@microsoft.com>
++ *
++ * This program is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU General Public License as
++ * published by the Free Software Foundation; either version 2 of the
++ * License, or (at your option) any later version.
++ *
++ * This program is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * eXtensible Bitmaps provide an unlimited-size sparse bitmap facility.
++ * All bits are initially zero.
++ */
++
++#include <linux/idr.h>
++
++struct xb {
++	struct radix_tree_root xbrt;
++};
++
++#define XB_INIT {							\
++	.xbrt = RADIX_TREE_INIT(IDR_RT_MARKER | GFP_NOWAIT),		\
++}
++#define DEFINE_XB(name)		struct xb name = XB_INIT
++
++static inline void xb_init(struct xb *xb)
++{
++	INIT_RADIX_TREE(&xb->xbrt, IDR_RT_MARKER | GFP_NOWAIT);
++}
++
++int xb_set_bit(struct xb *xb, unsigned long bit);
++bool xb_test_bit(const struct xb *xb, unsigned long bit);
++void xb_clear_bit(struct xb *xb, unsigned long bit);
++
++static inline bool xb_empty(const struct xb *xb)
++{
++	return radix_tree_empty(&xb->xbrt);
++}
++
++void xb_preload(gfp_t);
++
++static inline void xb_preload_end(void)
++{
++	preempt_enable();
++}
+diff --git a/lib/Makefile b/lib/Makefile
+index d11c48e..08a8183 100644
+--- a/lib/Makefile
++++ b/lib/Makefile
+@@ -19,7 +19,7 @@ KCOV_INSTRUMENT_dynamic_debug.o := n
+ 
+ lib-y := ctype.o string.o vsprintf.o cmdline.o \
+ 	 rbtree.o radix-tree.o dump_stack.o timerqueue.o\
+-	 idr.o int_sqrt.o extable.o \
++	 idr.o xbitmap.o int_sqrt.o extable.o \
+ 	 sha1.o chacha20.o irq_regs.o argv_split.o \
+ 	 flex_proportions.o ratelimit.o show_mem.o \
+ 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
+diff --git a/lib/radix-tree.c b/lib/radix-tree.c
+index c8d5556..2650e9e 100644
+--- a/lib/radix-tree.c
++++ b/lib/radix-tree.c
+@@ -37,7 +37,7 @@
+ #include <linux/rcupdate.h>
+ #include <linux/slab.h>
+ #include <linux/string.h>
+-
++#include <linux/xbitmap.h>
+ 
+ /* Number of nodes in fully populated tree of given height */
+ static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
+@@ -77,6 +77,11 @@ static struct kmem_cache *radix_tree_node_cachep;
+ 						RADIX_TREE_MAP_SHIFT))
+ #define IDA_PRELOAD_SIZE	(IDA_MAX_PATH * 2 - 1)
+ 
++#define XB_INDEX_BITS		(BITS_PER_LONG - ilog2(IDA_BITMAP_BITS))
++#define XB_MAX_PATH		(DIV_ROUND_UP(XB_INDEX_BITS, \
++						RADIX_TREE_MAP_SHIFT))
++#define XB_PRELOAD_SIZE		(XB_MAX_PATH * 2 - 1)
++
+ /*
+  * Per-cpu pool of preloaded nodes
+  */
+@@ -839,6 +844,8 @@ int __radix_tree_create(struct radix_tree_root *root, unsigned long index,
+ 							offset, 0, 0);
+ 			if (!child)
+ 				return -ENOMEM;
++			if (is_idr(root))
++				all_tag_set(child, IDR_FREE);
+ 			rcu_assign_pointer(*slot, node_to_entry(child));
+ 			if (node)
+ 				node->count++;
+@@ -1982,7 +1989,7 @@ void __radix_tree_delete_node(struct radix_tree_root *root,
+ 	delete_node(root, node, update_node);
+ }
+ 
+-static bool __radix_tree_delete(struct radix_tree_root *root,
++bool __radix_tree_delete(struct radix_tree_root *root,
+ 				struct radix_tree_node *node, void __rcu **slot)
+ {
+ 	void *old = rcu_dereference_raw(*slot);
+@@ -2135,6 +2142,20 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
+ }
+ EXPORT_SYMBOL(ida_pre_get);
+ 
++void xb_preload(gfp_t gfp)
++{
++	__radix_tree_preload(gfp, XB_PRELOAD_SIZE);
++	if (!this_cpu_read(ida_bitmap)) {
++		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
++
++		if (!bitmap)
++			return;
++		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
++		kfree(bitmap);
++	}
++}
++EXPORT_SYMBOL(xb_preload);
++
+ void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
+ 			      struct radix_tree_iter *iter, gfp_t gfp,
+ 			      unsigned long max)
+diff --git a/lib/xbitmap.c b/lib/xbitmap.c
+new file mode 100644
+index 0000000..236afa9
+--- /dev/null
++++ b/lib/xbitmap.c
+@@ -0,0 +1,130 @@
++#include <linux/export.h>
++#include <linux/xbitmap.h>
++#include <linux/bitmap.h>
++#include <linux/slab.h>
++
++/**
++ *  xb_set_bit - set a bit in the xbitmap
++ *  @xb: the xbitmap tree used to record the bit
++ *  @bit: index of the bit to set
++ *
++ * This function is used to set a bit in the xbitmap. If the bitmap that @bit
++ * resides in is not there, the per-cpu ida_bitmap will be taken.
++ *
++ * Returns: 0 on success. -EAGAIN or -ENOMEM indicates that @bit is not set.
++ */
++int xb_set_bit(struct xb *xb, unsigned long bit)
++{
++	int err;
++	unsigned long index = bit / IDA_BITMAP_BITS;
++	struct radix_tree_root *root = &xb->xbrt;
++	struct radix_tree_node *node;
++	void __rcu **slot;
++	struct ida_bitmap *bitmap;
++
++	bit %= IDA_BITMAP_BITS;
++	err = __radix_tree_create(root, index, 0, &node, &slot);
++	if (err)
++		return err;
++	bitmap = rcu_dereference_raw(*slot);
++	if (!bitmap) {
++		bitmap = this_cpu_xchg(ida_bitmap, NULL);
++		if (!bitmap)
++			return -EAGAIN;
++		memset(bitmap, 0, sizeof(*bitmap));
++		__radix_tree_replace(root, node, slot, bitmap, NULL);
++	}
++
++	__set_bit(bit, bitmap->bitmap);
++	return 0;
++}
++EXPORT_SYMBOL(xb_set_bit);
++
++/**
++ * xb_clear_bit - clear a bit in the xbitmap
++ * @xb: the xbitmap tree used to record the bit
++ * @bit: index of the bit to clear
++ *
++ * This function is used to clear a bit in the xbitmap. If all the bits of the
++ * bitmap are 0, the bitmap will be freed.
++ */
++void xb_clear_bit(struct xb *xb, unsigned long bit)
++{
++	unsigned long index = bit / IDA_BITMAP_BITS;
++	struct radix_tree_root *root = &xb->xbrt;
++	struct radix_tree_node *node;
++	void __rcu **slot;
++	struct ida_bitmap *bitmap;
++
++	bit %= IDA_BITMAP_BITS;
++	bitmap = __radix_tree_lookup(root, index, &node, &slot);
++	if (!bitmap)
++		return;
++
++	__clear_bit(bit, bitmap->bitmap);
++	if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
++		kfree(bitmap);
++		__radix_tree_delete(root, node, slot);
++	}
++}
++EXPORT_SYMBOL(xb_clear_bit);
++
++/**
++ * xb_test_bit - test a bit in the xbitmap
++ * @xb: the xbitmap tree used to record the bit
++ * @bit: index of the bit to test
++ *
++ * This function is used to test a bit in the xbitmap.
++ *
++ * Returns: true if the bit is set, or false otherwise.
++ */
++bool xb_test_bit(const struct xb *xb, unsigned long bit)
++{
++	unsigned long index = bit / IDA_BITMAP_BITS;
++	const struct radix_tree_root *root = &xb->xbrt;
++	struct ida_bitmap *bitmap = radix_tree_lookup(root, index);
++
++	bit %= IDA_BITMAP_BITS;
++
++	if (!bitmap)
++		return false;
++	return test_bit(bit, bitmap->bitmap);
++}
++EXPORT_SYMBOL(xb_test_bit);
++
++#ifndef __KERNEL__
++
++static DEFINE_XB(xb1);
++
++void xbitmap_check_bit(unsigned long bit)
++{
++	xb_preload(GFP_KERNEL);
++	assert(!xb_test_bit(&xb1, bit));
++	assert(xb_set_bit(&xb1, bit) == 0);
++	assert(xb_test_bit(&xb1, bit));
++	assert(xb_clear_bit(&xb1, bit) == 0);
++	assert(xb_empty(&xb1));
++	assert(xb_clear_bit(&xb1, bit) == 0);
++	assert(xb_empty(&xb1));
++	xb_preload_end();
++}
++
++void xbitmap_checks(void)
++{
++	xb_init(&xb1);
++	xbitmap_check_bit(0);
++	xbitmap_check_bit(30);
++	xbitmap_check_bit(31);
++	xbitmap_check_bit(1023);
++	xbitmap_check_bit(1024);
++	xbitmap_check_bit(1025);
++	xbitmap_check_bit((1UL << 63) | (1UL << 24));
++	xbitmap_check_bit((1UL << 63) | (1UL << 24) | 70);
++}
++
++int __weak main(void)
++{
++	radix_tree_init();
++	xbitmap_checks();
++}
++#endif
+diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
+index fa7ee36..34ece78 100644
+--- a/tools/testing/radix-tree/Makefile
++++ b/tools/testing/radix-tree/Makefile
+@@ -6,7 +6,8 @@ LDLIBS+= -lpthread -lurcu
+ TARGETS = main idr-test multiorder
+ CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
+ OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
+-	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
++	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o \
++	 xbitmap.o
+ 
+ ifndef SHIFT
+ 	SHIFT=3
+@@ -25,8 +26,11 @@ idr-test: idr-test.o $(CORE_OFILES)
+ 
+ multiorder: multiorder.o $(CORE_OFILES)
+ 
++xbitmap: xbitmap.o $(CORE_OFILES)
++	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o xbitmap
++
+ clean:
+-	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
++	$(RM) $(TARGETS) *.o radix-tree.c idr.c xbitmap.c generated/map-shift.h
+ 
+ vpath %.c ../../lib
+ 
+@@ -34,6 +38,7 @@ $(OFILES): Makefile *.h */*.h generated/map-shift.h \
+ 	../../include/linux/*.h \
+ 	../../include/asm/*.h \
+ 	../../../include/linux/radix-tree.h \
++	../../../include/linux/xbitmap.h \
+ 	../../../include/linux/idr.h
+ 
+ radix-tree.c: ../../../lib/radix-tree.c
+@@ -42,6 +47,9 @@ radix-tree.c: ../../../lib/radix-tree.c
+ idr.c: ../../../lib/idr.c
+ 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
+ 
++xbitmap.c: ../../../lib/xbitmap.c
++	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
++
+ .PHONY: mapshift
+ 
+ mapshift:
+diff --git a/tools/testing/radix-tree/linux/xbitmap.h b/tools/testing/radix-tree/linux/xbitmap.h
+new file mode 100644
+index 0000000..61de214
+--- /dev/null
++++ b/tools/testing/radix-tree/linux/xbitmap.h
+@@ -0,0 +1 @@
++#include "../../../../include/linux/xbitmap.h"
+diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
+index 257f3f8..d112363 100644
+--- a/tools/testing/radix-tree/main.c
++++ b/tools/testing/radix-tree/main.c
+@@ -326,6 +326,10 @@ static void single_thread_tests(bool long_run)
+ 	rcu_barrier();
+ 	printv(2, "after idr_checks: %d allocated, preempt %d\n",
+ 		nr_allocated, preempt_count);
++	xbitmap_checks();
++	rcu_barrier();
++	printv(2, "after xbitmap_checks: %d allocated, preempt %d\n",
++			nr_allocated, preempt_count);
+ 	big_gang_check(long_run);
+ 	rcu_barrier();
+ 	printv(2, "after big_gang_check: %d allocated, preempt %d\n",
+diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
+index d9c031d..8175d6b 100644
+--- a/tools/testing/radix-tree/test.h
++++ b/tools/testing/radix-tree/test.h
+@@ -38,6 +38,7 @@ void benchmark(void);
+ void idr_checks(void);
+ void ida_checks(void);
+ void ida_thread_tests(void);
++void xbitmap_checks(void);
+ 
+ struct item *
+ item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
 -- 
 2.7.4
 
