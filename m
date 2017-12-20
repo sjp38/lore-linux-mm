@@ -1,91 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 305D66B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:31:29 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id 74so3069550oty.15
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 23:31:29 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id u189si4894518oif.464.2017.12.19.23.31.28
+Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D6FBE6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 03:29:33 -0500 (EST)
+Received: by mail-lf0-f70.google.com with SMTP id z130so4970151lff.18
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:29:33 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t75sor2264893lfe.64.2017.12.20.00.29.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 23:31:28 -0800 (PST)
-Date: Wed, 20 Dec 2017 08:31:21 +0100
-From: Jesper Dangaard Brouer <brouer@redhat.com>
-Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
- for freeing rcu structures
-Message-ID: <20171220083121.4aaa8a2a@redhat.com>
-In-Reply-To: <75f514a6-8121-7d5f-4b6a-7e68d8f226a8@oracle.com>
-References: <rao.shoaib@oracle.com>
-	<1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
-	<20171219214158.353032f0@redhat.com>
-	<75f514a6-8121-7d5f-4b6a-7e68d8f226a8@oracle.com>
+        (Google Transport Security);
+        Wed, 20 Dec 2017 00:29:32 -0800 (PST)
+Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
+References: <20171219102213.GA435@jagdpanzerIV>
+ <1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
+ <20171219151341.GC15210@dhcp22.suse.cz>
+ <20171219152536.GA591@tigerII.localdomain>
+ <20171219155815.GC2787@dhcp22.suse.cz> <20171220071500.GA11774@jagdpanzerIV>
+From: A K <akaraliou.dev@gmail.com>
+Message-ID: <04faff62-0944-3c7d-15b0-9dc60054a830@gmail.com>
+Date: Wed, 20 Dec 2017 11:29:29 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+In-Reply-To: <20171220071500.GA11774@jagdpanzerIV>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Rao Shoaib <rao.shoaib@oracle.com>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, brouer@redhat.com
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, minchan@kernel.org, ngupta@vflare.org, linux-mm@kvack.org
 
+On 12/20/2017 10:15 AM, Sergey Senozhatsky wrote:
 
-On Tue, 19 Dec 2017 13:20:43 -0800 Rao Shoaib <rao.shoaib@oracle.com> wrote:
-
-> On 12/19/2017 12:41 PM, Jesper Dangaard Brouer wrote:
-> > On Tue, 19 Dec 2017 09:52:27 -0800 rao.shoaib@oracle.com wrote:
-> >  
-> >> +/* Main RCU function that is called to free RCU structures */
-> >> +static void
-> >> +__rcu_bulk_free(struct rcu_head *head, rcu_callback_t func, int cpu, bool lazy)
-> >> +{
-> >> +	unsigned long offset;
-> >> +	void *ptr;
-> >> +	struct rcu_bulk_free *rbf;
-> >> +	struct rcu_bulk_free_container *rbfc = NULL;
-> >> +
-> >> +	rbf = this_cpu_ptr(&cpu_rbf);
-> >> +
-> >> +	if (unlikely(!rbf->rbf_init)) {
-> >> +		spin_lock_init(&rbf->rbf_lock);
-> >> +		rbf->rbf_cpu = smp_processor_id();
-> >> +		rbf->rbf_init = true;
-> >> +	}
-> >> +
-> >> +	/* hold lock to protect against other cpu's */
-> >> +	spin_lock_bh(&rbf->rbf_lock);  
+>
+> On (12/19/17 15:27), Andrew Morton wrote:
+> > I did this:
 > >
-> > I'm not sure this will be faster.  Having to take a cross CPU lock here
-> > (+ BH-disable) could cause scaling issues.   Hopefully this lock will
-> > not be used intensively by other CPUs, right?
+> > From: Andrew Morton <akpm@linux-foundation.org>
+> > Subject: mm-zsmalloc-simplify-shrinker-init-destroy-fix
 > >
-[...]
-> 
-> As Paul has pointed out the lock is a per-cpu lock, the only reason for 
-> another CPU to access this lock is if the rcu callbacks run on a 
-> different CPU and there is nothing the code can do to avoid that but 
-> that should be rare anyways.
+> > update comment (Aliaksei), make zs_register_shrinker() return void
+> >
+> > Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Minchan Kim <minchan@kernel.org>
+> > Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+> > Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>
+> looks good. thanks!
+>
+> 	-ss
+Thanks for updating the code, Andrew, but removing return from
+zs_register_shrinker() leads to triggering of 'warn_unused_result'
+from 'sparse' on the line where register_shrinker() is called
+(which was recently marker as __must_check).
 
-(loop in Paul's comment)
-On Tue, 19 Dec 2017 12:56:29 -0800
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+May we leave previous variant to avoid that ? Or it is not critical ?
 
-> Isn't this lock in a per-CPU object?  It -might- go cross-CPU in response
-> to CPU-hotplug operations, but that should be rare.
-
-Point taken.  If this lock is very unlikely to be taken on another CPU
-then I withdraw my performance concerns (the cacheline can hopefully
-stay in Modified(M) state on this CPU, and all other CPUs will have in
-in Invalid(I) state based on MESI cache coherence protocol view[1]).
-
-The lock's atomic operation does have some overhead, and _later_ if we
-could get fancy and use seqlock (include/linux/seqlock.h) to remove
-that.
-
-[1] https://en.wikipedia.org/wiki/MESI_protocol
--- 
 Best regards,
-  Jesper Dangaard Brouer
-  MSc.CS, Principal Kernel Engineer at Red Hat
-  LinkedIn: http://www.linkedin.com/in/brouer
+    Aliaksei.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
