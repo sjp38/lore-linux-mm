@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8297C6B025F
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E7B896B0260
 	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 10:53:01 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id w22so14480760pge.10
+Received: by mail-pl0-f70.google.com with SMTP id q12so9691150plk.16
         for <linux-mm@kvack.org>; Wed, 20 Dec 2017 07:53:01 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id e1si13180300pld.824.2017.12.20.07.53.00
+        by mx.google.com with ESMTPS id v10si11937456pgs.819.2017.12.20.07.53.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 20 Dec 2017 07:53:00 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH 3/8] mm: Remove misleading alignment claims
-Date: Wed, 20 Dec 2017 07:52:51 -0800
-Message-Id: <20171220155256.9841-4-willy@infradead.org>
+Subject: [PATCH 4/8] mm: Improve comment on page->mapping
+Date: Wed, 20 Dec 2017 07:52:52 -0800
+Message-Id: <20171220155256.9841-5-willy@infradead.org>
 In-Reply-To: <20171220155256.9841-1-willy@infradead.org>
 References: <20171220155256.9841-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,62 +22,39 @@ Cc: akpm@linuxfoundation.org, Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The "third double word block" isn't on 32-bit systems.  The layout
-looks like this:
-
-	unsigned long flags;
-	struct address_space *mapping
-	pgoff_t index;
-	atomic_t _mapcount;
-	atomic_t _refcount;
-
-which is 32 bytes on 64-bit, but 20 bytes on 32-bit.  Nobody is trying
-to use the fact that it's double-word aligned today, so just remove the
-misleading claims.
+The comment on page->mapping is terse, and out of date (it does not
+mention the possibility of PAGE_MAPPING_MOVABLE).  Instead, point
+the interested reader to page-flags.h where there is a much better
+comment.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 ---
- include/linux/mm_types.h | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ include/linux/mm_types.h | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 27973166af28..c2294e6204e8 100644
+index c2294e6204e8..8c3b8cea22ee 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -33,11 +33,11 @@ struct hmm;
-  * a page, though if it is a pagecache page, rmap structures can tell us
-  * who is mapping it.
-  *
-- * The objects in struct page are organized in double word blocks in
-- * order to allows us to use atomic double word operations on portions
-- * of struct page. That is currently only used by slub but the arrangement
-- * allows the use of atomic double word operations on the flags/mapping
-- * and lru list pointers also.
-+ * SLUB uses cmpxchg_double() to atomically update its freelist and
-+ * counters.  That requires that freelist & counters be adjacent and
-+ * double-word aligned.  We align all struct pages to double-word
-+ * boundaries, and ensure that 'freelist' is aligned within the
-+ * struct.
-  */
- #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
- #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-@@ -113,8 +113,6 @@ struct page {
- 	};
- 
- 	/*
--	 * Third double word block
--	 *
- 	 * WARNING: bit 0 of the first word encode PageTail(). That means
- 	 * the rest users of the storage space MUST NOT use the bit to
- 	 * avoid collision and false-positive PageTail().
-@@ -175,7 +173,6 @@ struct page {
- #endif
- 	};
- 
--	/* Remainder is not double word aligned */
+@@ -50,15 +50,9 @@ struct page {
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
  	union {
- 		unsigned long private;		/* Mapping-private opaque data:
- 					 	 * usually used for buffer_heads
+-		struct address_space *mapping;	/* If low bit clear, points to
+-						 * inode address_space, or NULL.
+-						 * If page mapped as anonymous
+-						 * memory, low bit is set, and
+-						 * it points to anon_vma object
+-						 * or KSM private structure. See
+-						 * PAGE_MAPPING_ANON and
+-						 * PAGE_MAPPING_KSM.
+-						 */
++		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
++		struct address_space *mapping;
++
+ 		void *s_mem;			/* slab first object */
+ 		atomic_t compound_mapcount;	/* first tail page */
+ 		/* page_deferred_list().next	 -- second tail page */
 -- 
 2.15.1
 
