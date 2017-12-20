@@ -1,25 +1,26 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E4126B0253
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:23:44 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id 31so9276086plk.20
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:23:44 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id q7si12888526plk.225.2017.12.20.02.23.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 601776B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:26:28 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id e26so16251953pfi.15
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:26:28 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id x21si6223388pgc.295.2017.12.20.02.26.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 02:23:43 -0800 (PST)
-Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+        Wed, 20 Dec 2017 02:26:27 -0800 (PST)
+Subject: Re: [PATCH v2 4/5] mm: use node_page_state_snapshot to avoid
+ deviation
 References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
- <20171219124045.GO2787@dhcp22.suse.cz>
- <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
- <20171220101229.GJ4831@dhcp22.suse.cz>
+ <1513665566-4465-5-git-send-email-kemi.wang@intel.com>
+ <20171219124317.GP2787@dhcp22.suse.cz>
+ <94187fd5-ad70-eba7-2724-0fe5bed750d6@intel.com>
+ <20171220100650.GI4831@dhcp22.suse.cz>
 From: kemi <kemi.wang@intel.com>
-Message-ID: <3a1f6441-30d9-6f45-af4b-efd53b01ee95@intel.com>
-Date: Wed, 20 Dec 2017 18:21:40 +0800
+Message-ID: <1f3a6d05-2756-93fd-a380-df808c94ece8@intel.com>
+Date: Wed, 20 Dec 2017 18:24:24 +0800
 MIME-Version: 1.0
-In-Reply-To: <20171220101229.GJ4831@dhcp22.suse.cz>
+In-Reply-To: <20171220100650.GI4831@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
@@ -30,38 +31,110 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-f
 
 
 
-On 2017a1'12ae??20ae?JPY 18:12, Michal Hocko wrote:
-> On Wed 20-12-17 13:52:14, kemi wrote:
+On 2017a1'12ae??20ae?JPY 18:06, Michal Hocko wrote:
+> On Wed 20-12-17 14:07:35, kemi wrote:
 >>
 >>
->> On 2017a1'12ae??19ae?JPY 20:40, Michal Hocko wrote:
->>> On Tue 19-12-17 14:39:24, Kemi Wang wrote:
->>>> We have seen significant overhead in cache bouncing caused by NUMA counters
->>>> update in multi-threaded page allocation. See 'commit 1d90ca897cb0 ("mm:
->>>> update NUMA counter threshold size")' for more details.
+>> On 2017a1'12ae??19ae?JPY 20:43, Michal Hocko wrote:
+>>> On Tue 19-12-17 14:39:25, Kemi Wang wrote:
+>>>> To avoid deviation, this patch uses node_page_state_snapshot instead of
+>>>> node_page_state for node page stats query.
+>>>> e.g. cat /proc/zoneinfo
+>>>>      cat /sys/devices/system/node/node*/vmstat
+>>>>      cat /sys/devices/system/node/node*/numastat
 >>>>
->>>> This patch updates NUMA counters to a fixed size of (MAX_S16 - 2) and deals
->>>> with global counter update using different threshold size for node page
->>>> stats.
+>>>> As it is a slow path and would not be read frequently, I would worry about
+>>>> it.
 >>>
->>> Again, no numbers.
+>>> The changelog doesn't explain why these counters needs any special
+>>> treatment. _snapshot variants where used only for internal handling
+>>> where the precision really mattered. We do not have any in-tree user and
+>>> Jack has removed this by http://lkml.kernel.org/r/20171122094416.26019-1-jack@suse.cz
+>>> which is already sitting in the mmotm tree. We can re-add it but that
+>>> would really require a _very good_ reason.
+>>>
 >>
->> Compare to vanilla kernel, I don't think it has performance improvement, so
->> I didn't post performance data here.
->> But, if you would like to see performance gain from enlarging threshold size
->> for NUMA stats (compare to the first patch), I will do that later. 
+>> Assume we have *nr* cpus, and threshold size is *t*. Thus, the maximum deviation is nr*t.
+>> Currently, Skylake platform has hundreds of CPUs numbers and the number is still 
+>> increasing. Also, even the threshold size is kept to 125 at maximum (32765 
+>> for NUMA counters now), the deviation is just a little too big as I have mentioned in 
+>> the log. I tend to sum the number in local cpus up when query the global stats.
 > 
-> Please do. I would also like to hear _why_ all counters cannot simply
-> behave same. In other words why we cannot simply increase
-> stat_threshold? Maybe calculate_normal_threshold needs a better scaling
-> for larger machines.
+> This is a general problem of pcp accounting. So if it needs to be
+> addressed then do it the same way for all stats.
+> 
+>> Also, node_page_state_snapshot is only called in slow path and I don't think that
+>> would be a big problem. 
+>>
+>> Anyway, it is a matter of taste. I just think it's better to have.
+> 
+> You are making numastats special and I yet haven't heard any sounds
+> arguments for that. But that should be discussed in the respective
+> patch.
 > 
 
-Agree. We may consider that.
-But, unlike NUMA counters which do not effect system decision.
-We need consider very carefully when increase stat_threshold for all the counters
-for larger machines. BTW, this is another topic that we may discuss it in different
-thread.
+That is because we have much larger threshold size for NUMA counters, that means larger 
+deviation. So, the number in local cpus may not be simply ignored.
+
+>>>> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+>>>> ---
+>>>>  drivers/base/node.c | 17 ++++++++++-------
+>>>>  mm/vmstat.c         |  2 +-
+>>>>  2 files changed, 11 insertions(+), 8 deletions(-)
+>>>>
+>>>> diff --git a/drivers/base/node.c b/drivers/base/node.c
+>>>> index a045ea1..cf303f8 100644
+>>>> --- a/drivers/base/node.c
+>>>> +++ b/drivers/base/node.c
+>>>> @@ -169,12 +169,15 @@ static ssize_t node_read_numastat(struct device *dev,
+>>>>  		       "interleave_hit %lu\n"
+>>>>  		       "local_node %lu\n"
+>>>>  		       "other_node %lu\n",
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_HIT),
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_MISS),
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_FOREIGN),
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_INTERLEAVE_HIT),
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_LOCAL),
+>>>> -		       node_page_state(NODE_DATA(dev->id), NUMA_OTHER));
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_HIT),
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_MISS),
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+>>>> +			       NUMA_FOREIGN),
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+>>>> +			       NUMA_INTERLEAVE_HIT),
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_LOCAL),
+>>>> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+>>>> +			       NUMA_OTHER));
+>>>>  }
+>>>>  
+>>>>  static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+>>>> @@ -194,7 +197,7 @@ static ssize_t node_read_vmstat(struct device *dev,
+>>>>  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+>>>>  		n += sprintf(buf+n, "%s %lu\n",
+>>>>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+>>>> -			     node_page_state(pgdat, i));
+>>>> +			     node_page_state_snapshot(pgdat, i));
+>>>>  
+>>>>  	return n;
+>>>>  }
+>>>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>>>> index 64e08ae..d65f28d 100644
+>>>> --- a/mm/vmstat.c
+>>>> +++ b/mm/vmstat.c
+>>>> @@ -1466,7 +1466,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+>>>>  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+>>>>  			seq_printf(m, "\n      %-12s %lu",
+>>>>  				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+>>>> -				node_page_state(pgdat, i));
+>>>> +				node_page_state_snapshot(pgdat, i));
+>>>>  		}
+>>>>  	}
+>>>>  	seq_printf(m,
+>>>> -- 
+>>>> 2.7.4
+>>>>
+>>>
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
