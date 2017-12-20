@@ -1,112 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 73B8C6B025F
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:22:05 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id h69so784309lfb.8
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:22:05 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l7sor3209160ljb.67.2017.12.20.02.22.03
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E4126B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:23:44 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 31so9276086plk.20
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:23:44 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id q7si12888526plk.225.2017.12.20.02.23.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Dec 2017 02:22:03 -0800 (PST)
-From: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-Subject: [PATCH v3] mm/zsmalloc: simplify shrinker init/destroy
-Date: Wed, 20 Dec 2017 13:21:49 +0300
-Message-Id: <1513765309-19500-1-git-send-email-akaraliou.dev@gmail.com>
-In-Reply-To: <06247d4c-82a7-ccf1-ad42-4ef751081011@gmail.com>
-References: <06247d4c-82a7-ccf1-ad42-4ef751081011@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Dec 2017 02:23:43 -0800 (PST)
+Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
+ <20171219124045.GO2787@dhcp22.suse.cz>
+ <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
+ <20171220101229.GJ4831@dhcp22.suse.cz>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <3a1f6441-30d9-6f45-af4b-efd53b01ee95@intel.com>
+Date: Wed, 20 Dec 2017 18:21:40 +0800
+MIME-Version: 1.0
+In-Reply-To: <20171220101229.GJ4831@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, akpm@linux-foundation.org
-Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>, linux-mm@kvack.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Structure zs_pool has special flag to indicate success of shrinker
-initialization. unregister_shrinker() has improved and can detect
-by itself whether actual deinitialization should be performed or not,
-so extra flag becomes redundant.
 
-Signed-off-by: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
----
- mm/zsmalloc.c | 30 +++++++++++++-----------------
- 1 file changed, 13 insertions(+), 17 deletions(-)
 
-v2: Added include <linux/shrinker.h> as suggested by Sergey Senozhatsky.
-v3: Improved comment regarding shrinker registration failure.
-    Added patch from Andrew Morton to make zs_register_shrinker() void.
+On 2017a1'12ae??20ae?JPY 18:12, Michal Hocko wrote:
+> On Wed 20-12-17 13:52:14, kemi wrote:
+>>
+>>
+>> On 2017a1'12ae??19ae?JPY 20:40, Michal Hocko wrote:
+>>> On Tue 19-12-17 14:39:24, Kemi Wang wrote:
+>>>> We have seen significant overhead in cache bouncing caused by NUMA counters
+>>>> update in multi-threaded page allocation. See 'commit 1d90ca897cb0 ("mm:
+>>>> update NUMA counter threshold size")' for more details.
+>>>>
+>>>> This patch updates NUMA counters to a fixed size of (MAX_S16 - 2) and deals
+>>>> with global counter update using different threshold size for node page
+>>>> stats.
+>>>
+>>> Again, no numbers.
+>>
+>> Compare to vanilla kernel, I don't think it has performance improvement, so
+>> I didn't post performance data here.
+>> But, if you would like to see performance gain from enlarging threshold size
+>> for NUMA stats (compare to the first patch), I will do that later. 
+> 
+> Please do. I would also like to hear _why_ all counters cannot simply
+> behave same. In other words why we cannot simply increase
+> stat_threshold? Maybe calculate_normal_threshold needs a better scaling
+> for larger machines.
+> 
 
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 685049a..bed387b 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -53,6 +53,7 @@
- #include <linux/mount.h>
- #include <linux/migrate.h>
- #include <linux/pagemap.h>
-+#include <linux/shrinker.h>
- 
- #define ZSPAGE_MAGIC	0x58
- 
-@@ -256,11 +257,7 @@ struct zs_pool {
- 
- 	/* Compact classes */
- 	struct shrinker shrinker;
--	/*
--	 * To signify that register_shrinker() was successful
--	 * and unregister_shrinker() will not Oops.
--	 */
--	bool shrinker_enabled;
-+
- #ifdef CONFIG_ZSMALLOC_STAT
- 	struct dentry *stat_dentry;
- #endif
-@@ -2323,20 +2320,23 @@ static unsigned long zs_shrinker_count(struct shrinker *shrinker,
- 
- static void zs_unregister_shrinker(struct zs_pool *pool)
- {
--	if (pool->shrinker_enabled) {
--		unregister_shrinker(&pool->shrinker);
--		pool->shrinker_enabled = false;
--	}
-+	unregister_shrinker(&pool->shrinker);
- }
- 
--static int zs_register_shrinker(struct zs_pool *pool)
-+static void zs_register_shrinker(struct zs_pool *pool)
- {
- 	pool->shrinker.scan_objects = zs_shrinker_scan;
- 	pool->shrinker.count_objects = zs_shrinker_count;
- 	pool->shrinker.batch = 0;
- 	pool->shrinker.seeks = DEFAULT_SEEKS;
- 
--	return register_shrinker(&pool->shrinker);
-+	/*
-+	 * Not critical since shrinker is only used to trigger internal
-+	 * defragmentation of the pool which is pretty optional thing.  If
-+	 * registration fails we still can use the pool normally and user can
-+	 * trigger compaction manually. Thus, ignore return code.
-+	 */
-+	register_shrinker(&pool->shrinker);
- }
- 
- /**
-@@ -2424,12 +2424,8 @@ struct zs_pool *zs_create_pool(const char *name)
- 	if (zs_register_migration(pool))
- 		goto err;
- 
--	/*
--	 * Not critical, we still can use the pool
--	 * and user can trigger compaction manually.
--	 */
--	if (zs_register_shrinker(pool) == 0)
--		pool->shrinker_enabled = true;
-+	zs_register_shrinker(pool);
-+
- 	return pool;
- 
- err:
--- 
-2.1.4
+Agree. We may consider that.
+But, unlike NUMA counters which do not effect system decision.
+We need consider very carefully when increase stat_threshold for all the counters
+for larger machines. BTW, this is another topic that we may discuss it in different
+thread.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
