@@ -1,48 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E8BE86B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 20:53:43 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id a5so12087016pgu.1
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 17:53:43 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q7si12217734plk.225.2017.12.19.17.53.42
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA5C76B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 21:33:43 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id z1so12905050iob.17
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 18:33:43 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id p71si2340861itc.117.2017.12.19.18.33.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 19 Dec 2017 17:53:42 -0800 (PST)
-Date: Tue, 19 Dec 2017 17:53:36 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
- for freeing rcu structures
-Message-ID: <20171220015336.GA7748@bombadil.infradead.org>
-References: <rao.shoaib@oracle.com>
- <1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
- <20171219214158.353032f0@redhat.com>
- <20171219221206.GA22696@bombadil.infradead.org>
- <20171220002051.GJ7829@linux.vnet.ibm.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 19 Dec 2017 18:33:42 -0800 (PST)
+Message-Id: <201712200233.vBK2X7oX028845@www262.sakura.ne.jp>
+Subject: Re: [PATCH v20 0/7] Virtio-balloon Enhancement
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171220002051.GJ7829@linux.vnet.ibm.com>
+Date: Wed, 20 Dec 2017 11:33:07 +0900
+References: <201712192305.AAE21882.MtQHJOFFSFVOLO@I-love.SAKURA.ne.jp> <20171219144020.GA30842@bombadil.infradead.org>
+In-Reply-To: <20171219144020.GA30842@bombadil.infradead.org>
+Content-Type: text/plain; charset="ISO-2022-JP"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Jesper Dangaard Brouer <brouer@redhat.com>, rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Tue, Dec 19, 2017 at 04:20:51PM -0800, Paul E. McKenney wrote:
-> If we are going to make this sort of change, we should do so in a way
-> that allows the slab code to actually do the optimizations that might
-> make this sort of thing worthwhile.  After all, if the main goal was small
-> code size, the best approach is to drop kfree_bulk() and get on with life
-> in the usual fashion.
+Matthew Wilcox wrote:
+> > I think xb_find_set() has a bug in !node path.
 > 
-> I would prefer to believe that something like kfree_bulk() can help,
-> and if that is the case, we should give it a chance to do things like
-> group kfree_rcu() requests by destination slab and soforth, allowing
-> batching optimizations that might provide more significant increases
-> in performance.  Furthermore, having this in slab opens the door to
-> slab taking emergency action when memory is low.
+> Don't think.  Write a test-case.  Please.  If it shows a bug, then great,
 
-kfree_bulk does sort by destination slab; look at build_detached_freelist.
++unsigned long xb_find_set(struct xb *xb, unsigned long size,
++			  unsigned long offset)
++{
++	struct radix_tree_root *root = &xb->xbrt;
++	struct radix_tree_node *node;
++	void __rcu **slot;
++	struct ida_bitmap *bitmap;
++	unsigned long index = offset / IDA_BITMAP_BITS;
++	unsigned long index_end = size / IDA_BITMAP_BITS;
++	unsigned long bit = offset % IDA_BITMAP_BITS;
++
++	if (unlikely(offset >= size))
++		return size;
++
++	while (index <= index_end) {
++		unsigned long ret;
++		unsigned int nbits = size - index * IDA_BITMAP_BITS;
++
++		bitmap = __radix_tree_lookup(root, index, &node, &slot);
++		if (!node) {
++			index = (index | RADIX_TREE_MAP_MASK) + 1;
+
+Why we don't need to reset "bit" to 0 here?
+We will continue with wrong offset if "bit != 0", won't we?
+
++			continue;
++		}
++
++		if (bitmap) {
++			if (nbits > IDA_BITMAP_BITS)
++				nbits = IDA_BITMAP_BITS;
++
++			ret = find_next_bit(bitmap->bitmap, nbits, bit);
++			if (ret != nbits)
++				return ret + index * IDA_BITMAP_BITS;
++		}
++		bit = 0;
++		index++;
++	}
++
++	return size;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
