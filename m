@@ -1,49 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 866DB6B0272
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:45 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id 55so13739510wrx.21
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:45 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D85786B0277
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:59:28 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id 194so3172405wmv.9
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:59:28 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id 30si7960577wrh.432.2017.12.20.13.58.44
+        by mx.google.com with ESMTPS id g21si3673210wmd.275.2017.12.20.13.59.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 13:58:44 -0800 (PST)
-Message-Id: <20171220215442.173669099@linutronix.de>
-Date: Wed, 20 Dec 2017 22:35:22 +0100
+        Wed, 20 Dec 2017 13:59:27 -0800 (PST)
+Message-Id: <20171220215444.549366673@linutronix.de>
+Date: Wed, 20 Dec 2017 22:35:51 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V181 19/54] x86/mm: Put MMU to hardware ASID translation in
- one place
+Subject: [patch V181 48/54] x86/mm: Clarify the whole ASID/kernel PCID/user
+ PCID naming
 References: <20171220213503.672610178@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0049-x86-mm-Put-MMU-to-hardware-ASID-translation-in-one-p.patch
+ filename=0068-x86-mm-Clarify-the-whole-ASID-kernel-PCID-user-PCID-.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, Dave Hansen <dave.hansen@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
-From: Dave Hansen <dave.hansen@linux.intel.com>
+From: Peter Zijlstra <peterz@infradead.org>
 
-There are effectively two ASID types:
+Ideally we'd also use sparse to enforce this separation so it becomes much
+more difficult to mess up.
 
- 1. The one stored in the mmu_context that goes from 0..5
- 2. The one programmed into the hardware that goes from 1..6
-
-This consolidates the locations where converting between the two (by doing
-a +1) to a single place which gives us a nice place to comment.
-PAGE_TABLE_ISOLATION will also need to, given an ASID, know which hardware
-ASID to flush for the userspace mapping.
-
-Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
 Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
 Cc: Eduardo Valentin <eduval@amazon.com>
@@ -52,7 +45,6 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
@@ -60,58 +52,101 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/tlbflush.h |   29 ++++++++++++++++++-----------
- 1 file changed, 18 insertions(+), 11 deletions(-)
+ arch/x86/include/asm/tlbflush.h |   55 +++++++++++++++++++++++++++++++---------
+ 1 file changed, 43 insertions(+), 12 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -85,20 +85,26 @@ static inline u64 inc_mm_tlb_gen(struct
-  */
- #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
+@@ -13,16 +13,33 @@
+ #include <asm/pti.h>
+ #include <asm/processor-flags.h>
  
--/*
-- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
-- * This serves two purposes.  It prevents a nasty situation in which
-- * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
-- * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
-- * ASID was nonzero.  It also means that any bugs involving loading a
-- * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
-- */
-+static inline u16 kern_pcid(u16 asid)
-+{
-+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
-+	/*
-+	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
-+	 * PCID bits.  This serves two purposes.  It prevents a nasty
-+	 * situation in which PCID-unaware code saves CR3, loads some other
-+	 * value (with PCID == 0), and then restores CR3, thus corrupting
-+	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
-+	 * that any bugs involving loading a PCID-enabled CR3 with
-+	 * CR4.PCIDE off will trigger deterministically.
-+	 */
-+	return asid + 1;
-+}
-+
- struct pgd_t;
- static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
- {
- 	if (static_cpu_has(X86_FEATURE_PCID)) {
--		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
--		return __sme_pa(pgd) | (asid + 1);
-+		return __sme_pa(pgd) | kern_pcid(asid);
- 	} else {
- 		VM_WARN_ON_ONCE(asid != 0);
- 		return __sme_pa(pgd);
-@@ -108,7 +114,8 @@ static inline unsigned long build_cr3(pg
- static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
+-static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+-{
+-	/*
+-	 * Bump the generation count.  This also serves as a full barrier
+-	 * that synchronizes with switch_mm(): callers are required to order
+-	 * their read of mm_cpumask after their writes to the paging
+-	 * structures.
+-	 */
+-	return atomic64_inc_return(&mm->context.tlb_gen);
+-}
++/*
++ * The x86 feature is called PCID (Process Context IDentifier). It is similar
++ * to what is traditionally called ASID on the RISC processors.
++ *
++ * We don't use the traditional ASID implementation, where each process/mm gets
++ * its own ASID and flush/restart when we run out of ASID space.
++ *
++ * Instead we have a small per-cpu array of ASIDs and cache the last few mm's
++ * that came by on this CPU, allowing cheaper switch_mm between processes on
++ * this CPU.
++ *
++ * We end up with different spaces for different things. To avoid confusion we
++ * use different names for each of them:
++ *
++ * ASID  - [0, TLB_NR_DYN_ASIDS-1]
++ *         the canonical identifier for an mm
++ *
++ * kPCID - [1, TLB_NR_DYN_ASIDS]
++ *         the value we write into the PCID part of CR3; corresponds to the
++ *         ASID+1, because PCID 0 is special.
++ *
++ * uPCID - [2048 + 1, 2048 + TLB_NR_DYN_ASIDS]
++ *         for KPTI each mm has two address spaces and thus needs two
++ *         PCID values, but we can still do with a single ASID denomination
++ *         for each mm. Corresponds to kPCID + 2048.
++ *
++ */
+ 
+ /* There are 12 bits of space for ASIDS in CR3 */
+ #define CR3_HW_ASID_BITS		12
+@@ -41,7 +58,7 @@ static inline u64 inc_mm_tlb_gen(struct
+ 
+ /*
+  * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
+- * for them being zero-based.  Another -1 is because ASID 0 is reserved for
++ * for them being zero-based.  Another -1 is because PCID 0 is reserved for
+  * use by non-PCID-aware users.
+  */
+ #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_PCID_BITS) - 2)
+@@ -52,6 +69,9 @@ static inline u64 inc_mm_tlb_gen(struct
+  */
+ #define TLB_NR_DYN_ASIDS	6
+ 
++/*
++ * Given @asid, compute kPCID
++ */
+ static inline u16 kern_pcid(u16 asid)
  {
  	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
--	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
-+	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
-+	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
+@@ -86,7 +106,7 @@ static inline u16 kern_pcid(u16 asid)
  }
  
- #ifdef CONFIG_PARAVIRT
+ /*
+- * The user PCID is just the kernel one, plus the "switch bit".
++ * Given @asid, compute uPCID
+  */
+ static inline u16 user_pcid(u16 asid)
+ {
+@@ -484,6 +504,17 @@ static inline void flush_tlb_page(struct
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 			     const struct flush_tlb_info *info);
+ 
++static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
++{
++	/*
++	 * Bump the generation count.  This also serves as a full barrier
++	 * that synchronizes with switch_mm(): callers are required to order
++	 * their read of mm_cpumask after their writes to the paging
++	 * structures.
++	 */
++	return atomic64_inc_return(&mm->context.tlb_gen);
++}
++
+ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
+ 					struct mm_struct *mm)
+ {
 
 
 --
