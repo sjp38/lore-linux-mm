@@ -1,97 +1,193 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D48886B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:47:56 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id d4so8896266plr.8
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 22:47:56 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id d13si12709873pfb.56.2017.12.19.22.47.55
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 664516B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:07:01 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id u126so9235236oif.23
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 23:07:01 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x79si4990849oia.52.2017.12.19.23.07.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 22:47:55 -0800 (PST)
-Subject: Re: [PATCH v2 2/5] mm: Extends local cpu counter vm_diff_nodestat
- from s8 to s16
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-3-git-send-email-kemi.wang@intel.com>
- <alpine.DEB.2.20.1712191004420.17324@nuc-kabylake>
- <20171219162029.GD2787@dhcp22.suse.cz>
- <alpine.DEB.2.20.1712191116370.18938@nuc-kabylake>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <cc5c715f-2525-38e6-054e-500a95b12dff@intel.com>
-Date: Wed, 20 Dec 2017 14:45:52 +0800
+        Tue, 19 Dec 2017 23:07:00 -0800 (PST)
+Date: Wed, 20 Dec 2017 08:06:53 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
+ for freeing rcu structures
+Message-ID: <20171220080653.6dc0a45e@redhat.com>
+In-Reply-To: <20171220002051.GJ7829@linux.vnet.ibm.com>
+References: <rao.shoaib@oracle.com>
+	<1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
+	<20171219214158.353032f0@redhat.com>
+	<20171219221206.GA22696@bombadil.infradead.org>
+	<20171220002051.GJ7829@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1712191116370.18938@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: Matthew Wilcox <willy@infradead.org>, rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, brouer@redhat.com
+
+On Tue, 19 Dec 2017 16:20:51 -0800
+"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> wrote:
+
+> On Tue, Dec 19, 2017 at 02:12:06PM -0800, Matthew Wilcox wrote:
+> > On Tue, Dec 19, 2017 at 09:41:58PM +0100, Jesper Dangaard Brouer wrote:  
+> > > If I had to implement this: I would choose to do the optimization in
+> > > __rcu_process_callbacks() create small on-call-stack ptr-array for
+> > > kfree_bulk().  I would only optimize the case that call kfree()
+> > > directly.  In the while(list) loop I would defer calling
+> > > __rcu_reclaim() for __is_kfree_rcu_offset(head->func), and instead add
+> > > them to the ptr-array (and flush if the array is full in loop, and
+> > > kfree_bulk flush after loop).
+> > > 
+> > > The real advantage of kfree_bulk() comes from amortizing the per kfree
+> > > (behind-the-scenes) sync cost.  There is an additional benefit, because
+> > > objects comes from RCU and will hit a slower path in SLUB.   The SLUB
+> > > allocator is very fast for objects that gets recycled quickly (short
+> > > lifetime), non-locked (cpu-local) double-cmpxchg.  But slower for
+> > > longer-lived/more-outstanding objects, as this hits a slower code-path,
+> > > fully locked (cross-cpu) double-cmpxchg.    
+> > 
+> > Something like this ...  (compile tested only)
+
+Yes, exactly.
+
+> > Considerably less code; Rao, what do you think?  
+> 
+> I am sorry, but I am not at all fan of this approach.
+> 
+> If we are going to make this sort of change, we should do so in a way
+> that allows the slab code to actually do the optimizations that might
+> make this sort of thing worthwhile.  After all, if the main goal was small
+> code size, the best approach is to drop kfree_bulk() and get on with life
+> in the usual fashion.
+> 
+> I would prefer to believe that something like kfree_bulk() can help,
+> and if that is the case, we should give it a chance to do things like
+> group kfree_rcu() requests by destination slab and soforth, allowing
+> batching optimizations that might provide more significant increases
+> in performance.  Furthermore, having this in slab opens the door to
+> slab taking emergency action when memory is low.
+
+I agree with your argument. Although in the (slub) code I do handle
+different destination slab's, but only do a limited look-ahead to find
+same dest-slab's which gives the speedup (see build_detached_freelist).
+
+We do have a larger and more consistent speedup potential, if adding
+infrastructure that allow us to pre-sort by destination slab, before
+invoking kfree_bulk().  In that respect, Rao's patch is a better
+approach.
+
+> But for the patch below, NAK.
+> 
+> 							Thanx, Paul
+> 
+> > diff --git a/kernel/rcu/rcu.h b/kernel/rcu/rcu.h
+> > index 59c471de342a..5ac4ed077233 100644
+> > --- a/kernel/rcu/rcu.h
+> > +++ b/kernel/rcu/rcu.h
+> > @@ -174,20 +174,19 @@ static inline void debug_rcu_head_unqueue(struct rcu_head *head)
+> >  }
+> >  #endif	/* #else !CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+> > 
+> > -void kfree(const void *);
+> > -
+> >  /*
+> >   * Reclaim the specified callback, either by invoking it (non-lazy case)
+> >   * or freeing it directly (lazy case).  Return true if lazy, false otherwise.
+> >   */
+> > -static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head)
+> > +static inline bool __rcu_reclaim(const char *rn, struct rcu_head *head, void **kfree,
+> > +				unsigned int *idx)
+> >  {
+> >  	unsigned long offset = (unsigned long)head->func;
+> > 
+> >  	rcu_lock_acquire(&rcu_callback_map);
+> >  	if (__is_kfree_rcu_offset(offset)) {
+> >  		RCU_TRACE(trace_rcu_invoke_kfree_callback(rn, head, offset);)
+> > -		kfree((void *)head - offset);
+> > +		kfree[*idx++] = (void *)head - offset;
+> >  		rcu_lock_release(&rcu_callback_map);
+> >  		return true;
+> >  	} else {
+> > diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+> > index f9c0ca2ccf0c..7e13979b4697 100644
+> > --- a/kernel/rcu/tree.c
+> > +++ b/kernel/rcu/tree.c
+> > @@ -2725,6 +2725,8 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
+> >  	struct rcu_head *rhp;
+> >  	struct rcu_cblist rcl = RCU_CBLIST_INITIALIZER(rcl);
+> >  	long bl, count;
+> > +	void *to_free[16];
+> > +	unsigned int to_free_idx = 0;
+> > 
+> >  	/* If no callbacks are ready, just return. */
+> >  	if (!rcu_segcblist_ready_cbs(&rdp->cblist)) {
+> > @@ -2755,8 +2757,10 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
+> >  	rhp = rcu_cblist_dequeue(&rcl);
+> >  	for (; rhp; rhp = rcu_cblist_dequeue(&rcl)) {
+> >  		debug_rcu_head_unqueue(rhp);
+> > -		if (__rcu_reclaim(rsp->name, rhp))
+> > +		if (__rcu_reclaim(rsp->name, rhp, to_free, &to_free_idx))
+> >  			rcu_cblist_dequeued_lazy(&rcl);
+> > +		if (to_free_idx == 16)
+> > +			kfree_bulk(16, to_free);
+> >  		/*
+> >  		 * Stop only if limit reached and CPU has something to do.
+> >  		 * Note: The rcl structure counts down from zero.
+> > @@ -2766,6 +2770,8 @@ static void rcu_do_batch(struct rcu_state *rsp, struct rcu_data *rdp)
+> >  		     (!is_idle_task(current) && !rcu_is_callbacks_kthread())))
+> >  			break;
+> >  	}
+> > +	if (to_free_idx)
+> > +		kfree_bulk(to_free_idx, to_free);
+> > 
+> >  	local_irq_save(flags);
+> >  	count = -rcl.len;
+> > diff --git a/kernel/rcu/tree_plugin.h b/kernel/rcu/tree_plugin.h
+> > index db85ca3975f1..4127be06759b 100644
+> > --- a/kernel/rcu/tree_plugin.h
+> > +++ b/kernel/rcu/tree_plugin.h
+> > @@ -2189,6 +2189,8 @@ static int rcu_nocb_kthread(void *arg)
+> >  	struct rcu_head *next;
+> >  	struct rcu_head **tail;
+> >  	struct rcu_data *rdp = arg;
+> > +	void *to_free[16];
+> > +	unsigned int to_free_idx = 0;
+> > 
+> >  	/* Each pass through this loop invokes one batch of callbacks */
+> >  	for (;;) {
+> > @@ -2226,13 +2228,18 @@ static int rcu_nocb_kthread(void *arg)
+> >  			}
+> >  			debug_rcu_head_unqueue(list);
+> >  			local_bh_disable();
+> > -			if (__rcu_reclaim(rdp->rsp->name, list))
+> > +			if (__rcu_reclaim(rdp->rsp->name, list, to_free,
+> > +								&to_free_idx))
+> >  				cl++;
+> >  			c++;
+> > +			if (to_free_idx == 16)
+> > +				kfree_bulk(16, to_free);
+> >  			local_bh_enable();
+> >  			cond_resched_rcu_qs();
+> >  			list = next;
+> >  		}
+> > +		if (to_free_idx)
+> > +			kfree_bulk(to_free_idx, to_free);
+> >  		trace_rcu_batch_end(rdp->rsp->name, c, !!list, 0, 0, 1);
+> >  		smp_mb__before_atomic();  /* _add after CB invocation. */
+> >  		atomic_long_add(-c, &rdp->nocb_q_count);
+> >   
+> 
 
 
 
-On 2017a1'12ae??20ae?JPY 01:21, Christopher Lameter wrote:
-> On Tue, 19 Dec 2017, Michal Hocko wrote:
-> 
->>> Well the reason for s8 was to keep the data structures small so that they
->>> fit in the higher level cpu caches. The large these structures become the
->>> more cachelines are used by the counters and the larger the performance
->>> influence on the code that should not be impacted by the overhead.
->>
->> I am not sure I understand. We usually do not access more counters in
->> the single code path (well, PGALLOC and NUMA counteres is more of an
->> exception). So it is rarely an advantage that the whole array is in the
->> same cache line. Besides that this is allocated by the percpu allocator
->> aligns to the type size rather than cache lines AFAICS.
-> 
-> I thought we are talking about NUMA counters here?
-> 
-> Regardless: A typical fault, system call or OS action will access multiple
-> zone and node counters when allocating or freeing memory. Enlarging the
-> fields will increase the number of cachelines touched.
-> 
-
-Yes, we add one more cache line footprint access theoretically.
-But I don't think it would be a problem.
-1) Not all the counters need to be accessed in fast path of page allocation,
-the counters covered in a single cache line usually is enough for that, we
-probably don't need to access one more cache line. I tend to agree Michal's
-argument.
-Besides, in some slow path in which code is protected by zone lock or lru lock,
-access one more cache line would be a big problem since many other cache lines 
-are also be accessed.
-
-2) Enlarging vm_node_stat_diff from s8 to s16 gives an opportunity to keep
-more number in local cpus that provides the possibility of reducing the global
-counter update frequency. Thus, we can gain the benefit by reducing expensive 
-cache bouncing.  
-
-Well, if you still have some concerns, I can post some data for will-it-scale.page_fault1.
-What the benchmark does is: it forks nr_cpu processes and then each
-process does the following:
-    1 mmap() 128M anonymous space;
-    2 writes to each page there to trigger actual page allocation;
-    3 munmap() it.
-in a loop.
-https://github.com/antonblanchard/will-it-scale/blob/master/tests/page_fault1.c
-
-Or you can provide some other benchmarks on which you want to see performance 
-impact.
-
->> Maybe it used to be all different back then when the code has been added
->> but arguing about cache lines seems to be a bit problematic here. Maybe
->> you have some specific workloads which can prove me wrong?
-> 
-> Run a workload that does some page faults? Heavy allocation and freeing of
-> memory?
-> 
-> Maybe that is no longer relevant since the number of the counters is
-> large that the accesses are so sparse that each action pulls in a whole
-> cacheline. That would be something we tried to avoid when implementing
-> the differentials.
-> 
-> 
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
