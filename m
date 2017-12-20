@@ -1,73 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D99CE6B027F
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 11:13:22 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id w5so14544546pgt.4
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:13:22 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id u11si13004690pls.169.2017.12.20.08.13.21
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1621D6B0260
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 11:18:08 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id v184so5562012wmf.1
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:18:08 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t21sor9551171edd.40.2017.12.20.08.18.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 08:13:21 -0800 (PST)
-From: "Wang, Wei W" <wei.w.wang@intel.com>
-Subject: RE: [PATCH v20 0/7] Virtio-balloon Enhancement
-Date: Wed, 20 Dec 2017 16:13:16 +0000
-Message-ID: <286AC319A985734F985F78AFA26841F73938CC3E@shsmsx102.ccr.corp.intel.com>
-References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
- <201712192305.AAE21882.MtQHJOFFSFVOLO@I-love.SAKURA.ne.jp>
- <5A3A3CBC.4030202@intel.com> <20171220122547.GA1654@bombadil.infradead.org>
-In-Reply-To: <20171220122547.GA1654@bombadil.infradead.org>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Wed, 20 Dec 2017 08:18:06 -0800 (PST)
 MIME-Version: 1.0
+Reply-To: mtk.manpages@gmail.com
+In-Reply-To: <20171220092025.GD4831@dhcp22.suse.cz>
+References: <20171219094848.GE2787@dhcp22.suse.cz> <CAKgNAkjJrmCFY-h2oqKS3zM_D+Csx-17A27mh08WKahyOVzrgQ@mail.gmail.com>
+ <20171220092025.GD4831@dhcp22.suse.cz>
+From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Date: Wed, 20 Dec 2017 17:17:46 +0100
+Message-ID: <CAKgNAkisD7zDRoqJd6Gk1JMCZ8+Huj5QPV04nh2JXHMA+_R0-A@mail.gmail.com>
+Subject: Re: shmctl(SHM_STAT) vs. /proc/sysvipc/shm permissions discrepancies
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Linux API <linux-api@vger.kernel.org>, Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Waychison <mikew@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wednesday, December 20, 2017 8:26 PM, Matthew Wilcox wrote:
-> On Wed, Dec 20, 2017 at 06:34:36PM +0800, Wei Wang wrote:
-> > On 12/19/2017 10:05 PM, Tetsuo Handa wrote:
-> > > I think xb_find_set() has a bug in !node path.
-> >
-> > I think we can probably remove the "!node" path for now. It would be
-> > good to get the fundamental part in first, and leave optimization to
-> > come as separate patches with corresponding test cases in the future.
->=20
-> You can't remove the !node path.  You'll see !node when the highest set b=
-it
-> is less than 1024.  So do something like this:
->=20
-> 	unsigned long bit;
-> 	xb_preload(GFP_KERNEL);
-> 	xb_set_bit(xb, 700);
-> 	xb_preload_end();
-> 	bit =3D xb_find_set(xb, ULONG_MAX, 0);
-> 	assert(bit =3D=3D 700);
+Hello Michal,
 
-This above test will result in "!node with bitmap !=3DNULL", and it goes to=
- the regular "if (bitmap)" path, which finds 700.
+On 20 December 2017 at 10:20, Michal Hocko <mhocko@kernel.org> wrote:
+> On Tue 19-12-17 17:45:40, Michael Kerrisk wrote:
+>> But, is
+>> there a pressing reason to make the change? (Okay, I guess iterating
+>> using *_STAT is nicer than parsing /proc/sysvipc/*.)
+>
+> The reporter of this issue claims that "Reading /proc/sysvipc/shm is way
+> slower than executing the system call." I haven't checked that but I can
+> imagine that /proc/sysvipc/shm can take quite some time when there are
+> _many_ segments registered.
 
-A better test would be
-...
-xb_set_bit(xb, 700);
-assert(xb_find_set(xb, ULONG_MAX, 800) =3D=3D ULONG_MAX);
-...
+Yes, that makes sense.
 
-The first try with the "if (bitmap)" path doesn't find a set bit, and the r=
-emaining tries will always result in "!node && !bitmap", which implies no s=
-et bit anymore and no need to try in this case.
+> So they would like to use the syscall but
+> the interacting parties do not have compatible permissions.
 
-So, I think we can change it to
+So, I don't think there is any security issue, since the same info is
+available in /proc/sysvipc/*. The only question would be whether
+change in the *_STAT behavior might surprise some applications into
+behaving differently. I presume the chances of that are low, but if it
+was a concert, one could add new shmctl/msgctl/semctl *_STAT_ALL (or
+some such) operations that have the desired behavior.
 
-If (!node && !bitmap)
-	return size;
+Cheers,
+
+Michael
 
 
-Best,
-Wei
-
+-- 
+Michael Kerrisk
+Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
+Linux/UNIX System Programming Training: http://man7.org/training/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
