@@ -1,75 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E19D6B0253
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:32:31 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id w22so14152895pge.10
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:32:31 -0800 (PST)
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id bj7si12641142plb.557.2017.12.20.02.32.30
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7D4C96B025E
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:33:39 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id b82so2348511wmd.5
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:33:39 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m19si5167010wrg.282.2017.12.20.02.33.38
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 02:32:30 -0800 (PST)
-Message-ID: <5A3A3CBC.4030202@intel.com>
-Date: Wed, 20 Dec 2017 18:34:36 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 02:33:38 -0800 (PST)
+Date: Wed, 20 Dec 2017 11:33:37 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/2] mm/memcg: try harder to decrease
+ [memory,memsw].limit_in_bytes
+Message-ID: <20171220103337.GL4831@dhcp22.suse.cz>
+References: <20171220102429.31601-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
-Subject: Re: [PATCH v20 0/7] Virtio-balloon Enhancement
-References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com> <201712192305.AAE21882.MtQHJOFFSFVOLO@I-love.SAKURA.ne.jp>
-In-Reply-To: <201712192305.AAE21882.MtQHJOFFSFVOLO@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220102429.31601-1-aryabinin@virtuozzo.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 12/19/2017 10:05 PM, Tetsuo Handa wrote:
-> Wei Wang wrote:
->> ChangeLog:
->> v19->v20:
->> 1) patch 1: xbitmap
->> 	- add __rcu to "void **slot";
->> 	- remove the exceptional path.
->> 2) patch 3: xbitmap
->> 	- DeveloperNotes: add an item to comment that the current bit range
->> 	  related APIs operating on extremely large ranges (e.g.
->>            [0, ULONG_MAX)) will take too long time. This can be optimized in
->> 	  the future.
->> 	- remove the exceptional path;
->> 	- remove xb_preload_and_set();
->> 	- reimplement xb_clear_bit_range to make its usage close to
->> 	  bitmap_clear;
->> 	- rename xb_find_next_set_bit to xb_find_set, and re-implement it
->> 	  in a style close to find_next_bit;
->> 	- rename xb_find_next_zero_bit to xb_find_clear, and re-implement
->> 	  it in a stytle close to find_next_zero_bit;
->> 	- separate the implementation of xb_find_set and xb_find_clear for
->> 	  the convenience of future updates.
-> Removing exceptional path made this patch easier to read.
-> But what I meant is
->
->    Can you eliminate exception path and fold all xbitmap patches into one, and
->    post only one xbitmap patch without virtio-balloon changes?
->
-> .
->
-> I still think we don't need xb_preload()/xb_preload_end().
+On Wed 20-12-17 13:24:28, Andrey Ryabinin wrote:
+> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
+> pages on each iteration. This makes practically impossible to decrease
+> limit of memory cgroup. Tasks could easily allocate back 32 pages,
+> so we can't reduce memory usage, and once retry_count reaches zero we return
+> -EBUSY.
+> 
+> It's easy to reproduce the problem by running the following commands:
+> 
+>   mkdir /sys/fs/cgroup/memory/test
+>   echo $$ >> /sys/fs/cgroup/memory/test/tasks
+>   cat big_file > /dev/null &
+>   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+>   -bash: echo: write error: Device or resource busy
+> 
+> Instead of trying to free small amount of pages, it's much more
+> reasonable to free 'usage - limit' pages.
 
-Why would you think preload is not needed?
+But that only makes the issue less probable. It doesn't fix it because 
+		if (curusage >= oldusage)
+			retry_count--;
+can still be true because allocator might be faster than the reclaimer.
+Wouldn't it be more reasonable to simply remove the retry count and keep
+trying until interrupted or we manage to update the limit. Another
+option would be to commit the new limit and allow temporal overcommit
+of the hard limit. New allocations and the limit update paths would
+reclaim to the hard limit.
 
-The bitmap is allocated via preload "bitmap = 
-this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);", this allocated bitmap 
-would be used in xb_set_bit().
+> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
+> ---
+>  mm/memcontrol.c | 10 ++++++----
+>  1 file changed, 6 insertions(+), 4 deletions(-)
+> 
+> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> index f40b5ad3f959..09ee052cf684 100644
+> --- a/mm/memcontrol.c
+> +++ b/mm/memcontrol.c
+> @@ -2476,7 +2476,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+>  		      mem_cgroup_count_children(memcg);
+>  
+> -	oldusage = page_counter_read(&memcg->memory);
+> +	curusage = oldusage = page_counter_read(&memcg->memory);
+>  
+>  	do {
+>  		if (signal_pending(current)) {
+> @@ -2498,7 +2498,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+>  		if (!ret)
+>  			break;
+>  
+> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
+> +		try_to_free_mem_cgroup_pages(memcg, curusage - limit,
+> +					GFP_KERNEL, true);
+>  
+>  		curusage = page_counter_read(&memcg->memory);
+>  		/* Usage is reduced ? */
+> @@ -2527,7 +2528,7 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+>  		      mem_cgroup_count_children(memcg);
+>  
+> -	oldusage = page_counter_read(&memcg->memsw);
+> +	curusage = oldusage = page_counter_read(&memcg->memsw);
+>  
+>  	do {
+>  		if (signal_pending(current)) {
+> @@ -2549,7 +2550,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+>  		if (!ret)
+>  			break;
+>  
+> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
+> +		try_to_free_mem_cgroup_pages(memcg, curusage - limit,
+> +					GFP_KERNEL, false);
+>  
+>  		curusage = page_counter_read(&memcg->memsw);
+>  		/* Usage is reduced ? */
+> -- 
+> 2.13.6
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
-
-> I think xb_find_set() has a bug in !node path.
-
-I think we can probably remove the "!node" path for now. It would be 
-good to get the fundamental part in first, and leave optimization to 
-come as separate patches with corresponding test cases in the future.
-
-Best,
-Wei
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
