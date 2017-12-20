@@ -1,114 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 35EA66B0069
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:35:18 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id 184so9291853oii.1
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 21:35:18 -0800 (PST)
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id t194si4972808oih.344.2017.12.19.21.35.16
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 539216B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:54:18 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id a13so13827479pgt.0
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 21:54:18 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id g12si12365669pla.602.2017.12.19.21.54.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 19 Dec 2017 21:35:17 -0800 (PST)
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Subject: Re: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration
- improvements
-Date: Wed, 20 Dec 2017 05:33:36 +0000
-Message-ID: <95ba8db3-f8aa-528a-db4b-80f9d2ba9d2b@ah.jp.nec.com>
-References: <20171204140117.7191-1-mhocko@kernel.org>
- <20171215093309.GU16951@dhcp22.suse.cz>
-In-Reply-To: <20171215093309.GU16951@dhcp22.suse.cz>
-Content-Language: ja-JP
-Content-Type: text/plain; charset="iso-2022-jp"
-Content-ID: <DD1D303CCF6243499F3A2F72B69DC94D@gisp.nec.co.jp>
-Content-Transfer-Encoding: quoted-printable
+        Tue, 19 Dec 2017 21:54:17 -0800 (PST)
+Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
+ <20171219124045.GO2787@dhcp22.suse.cz>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
+Date: Wed, 20 Dec 2017 13:52:14 +0800
 MIME-Version: 1.0
+In-Reply-To: <20171219124045.GO2787@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Michal Hocko <mhocko@kernel.org>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
 
-On 12/15/2017 06:33 PM, Michal Hocko wrote:
-> Naoya,
-> this has passed Mike's review (thanks for that!), you have mentioned
-> that you can pass this through your testing machinery earlier. While
-> I've done some testing already I would really appreciate if you could
-> do that as well. Review would be highly appreciated as well.
 
-Sorry for my slow response. I reviewed/tested this patchset and looks
-good to me overall.
-
-I have one comment on the code path from mbind(2).
-The callback passed to migrate_pages() in do_mbind() (i.e. new_page())
-calls alloc_huge_page_noerr() which currently doesn't call SetPageHugeTempo=
-rary(),
-so hugetlb migration fails when h->surplus_huge_page >=3D h->nr_overcommit_=
-huge_pages.
-
-I don't think this is a bug, but it would be better if mbind(2) works
-more similarly with other migration callers like move_pages(2)/migrate_page=
-s(2).
-
-Thanks,
-Naoya Horiguchi
-
-
->=20
-> Thanks!
->=20
-> On Mon 04-12-17 15:01:12, Michal Hocko wrote:
->> Hi,
->> this is a follow up for [1] for the allocation API and [2] for the
->> hugetlb migration. It wasn't really easy to split those into two
->> separate patch series as they share some code.
+On 2017a1'12ae??19ae?JPY 20:40, Michal Hocko wrote:
+> On Tue 19-12-17 14:39:24, Kemi Wang wrote:
+>> We have seen significant overhead in cache bouncing caused by NUMA counters
+>> update in multi-threaded page allocation. See 'commit 1d90ca897cb0 ("mm:
+>> update NUMA counter threshold size")' for more details.
 >>
->> My primary motivation to touch this code is to make the gigantic pages
->> migration working. The giga pages allocation code is just too fragile
->> and hacked into the hugetlb code now. This series tries to move giga
->> pages closer to the first class citizen. We are not there yet but having
->> 5 patches is quite a lot already and it will already make the code much
->> easier to follow. I will come with other changes on top after this sees
->> some review.
+>> This patch updates NUMA counters to a fixed size of (MAX_S16 - 2) and deals
+>> with global counter update using different threshold size for node page
+>> stats.
+> 
+> Again, no numbers.
+
+Compare to vanilla kernel, I don't think it has performance improvement, so
+I didn't post performance data here.
+But, if you would like to see performance gain from enlarging threshold size
+for NUMA stats (compare to the first patch), I will do that later. 
+
+> To be honest I do not really like the special casing
+> here. Why are numa counters any different from PGALLOC which is
+> incremented for _every_ single page allocation?
+> 
+
+I guess you meant to PGALLOC event.
+The number of this event is kept in local cpu and sum up (for_each_online_cpu)
+when need. It uses the similar way to what I used before for NUMA stats in V1 
+patch series. Good enough.
+
+>> ---
+>>  mm/vmstat.c | 13 +++++++++++--
+>>  1 file changed, 11 insertions(+), 2 deletions(-)
 >>
->> The first two patches should be trivial to review. The third patch
->> changes the way how we migrate huge pages. Newly allocated pages are a
->> subject of the overcommit check and they participate surplus accounting
->> which is quite unfortunate as the changelog explains. This patch doesn't
->> change anything wrt. giga pages.
->> Patch #4 removes the surplus accounting hack from
->> __alloc_surplus_huge_page.  I hope I didn't miss anything there and a
->> deeper review is really due there.
->> Patch #5 finally unifies allocation paths and giga pages shouldn't be
->> any special anymore. There is also some renaming going on as well.
+>> diff --git a/mm/vmstat.c b/mm/vmstat.c
+>> index 9c681cc..64e08ae 100644
+>> --- a/mm/vmstat.c
+>> +++ b/mm/vmstat.c
+>> @@ -30,6 +30,8 @@
+>>  
+>>  #include "internal.h"
+>>  
+>> +#define VM_NUMA_STAT_THRESHOLD (S16_MAX - 2)
+>> +
+>>  #ifdef CONFIG_NUMA
+>>  int sysctl_vm_numa_stat = ENABLE_NUMA_STAT;
+>>  
+>> @@ -394,7 +396,11 @@ void __inc_node_state(struct pglist_data *pgdat, enum node_stat_item item)
+>>  	s16 v, t;
+>>  
+>>  	v = __this_cpu_inc_return(*p);
+>> -	t = __this_cpu_read(pcp->stat_threshold);
+>> +	if (item >= NR_VM_NUMA_STAT_ITEMS)
+>> +		t = __this_cpu_read(pcp->stat_threshold);
+>> +	else
+>> +		t = VM_NUMA_STAT_THRESHOLD;
+>> +
+>>  	if (unlikely(v > t)) {
+>>  		s16 overstep = t >> 1;
+>>  
+>> @@ -549,7 +555,10 @@ static inline void mod_node_state(struct pglist_data *pgdat,
+>>  		 * Most of the time the thresholds are the same anyways
+>>  		 * for all cpus in a node.
+>>  		 */
+>> -		t = this_cpu_read(pcp->stat_threshold);
+>> +		if (item >= NR_VM_NUMA_STAT_ITEMS)
+>> +			t = this_cpu_read(pcp->stat_threshold);
+>> +		else
+>> +			t = VM_NUMA_STAT_THRESHOLD;
+>>  
+>>  		o = this_cpu_read(*p);
+>>  		n = delta + o;
+>> -- 
+>> 2.7.4
 >>
->> Shortlog
->> Michal Hocko (5):
->>       mm, hugetlb: unify core page allocation accounting and initializat=
-ion
->>       mm, hugetlb: integrate giga hugetlb more naturally to the allocati=
-on path
->>       mm, hugetlb: do not rely on overcommit limit during migration
->>       mm, hugetlb: get rid of surplus page accounting tricks
->>       mm, hugetlb: further simplify hugetlb allocation API
->>
->> Diffstat:
->>  include/linux/hugetlb.h |   3 +
->>  mm/hugetlb.c            | 305 +++++++++++++++++++++++++++--------------=
--------
->>  mm/migrate.c            |   3 +-
->>  3 files changed, 175 insertions(+), 136 deletions(-)
->>
->>
->> [1] http://lkml.kernel.org/r/20170622193034.28972-1-mhocko@kernel.org
->> [2] http://lkml.kernel.org/r/20171122152832.iayefrlxbugphorp@dhcp22.suse=
-.cz
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-> =
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
