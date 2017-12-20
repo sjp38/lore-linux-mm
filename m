@@ -1,73 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 37F276B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:24:11 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a74so17074553pfg.20
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:24:11 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id v3si13624342plb.385.2017.12.20.13.24.10
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D89D06B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:57:38 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id z109so8029429wrb.19
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:57:38 -0800 (PST)
+Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
+        by mx.google.com with ESMTPS id d68si3656603wmh.29.2017.12.20.13.57.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 13:24:10 -0800 (PST)
-Date: Wed, 20 Dec 2017 14:24:08 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-Message-ID: <20171220212408.GA8308@linux.intel.com>
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
- <20171214130032.GK16951@dhcp22.suse.cz>
- <20171218203547.GA2366@linux.intel.com>
- <20171220181937.GB12236@bombadil.infradead.org>
- <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
- <20171220211649.GA32200@bombadil.infradead.org>
+        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 13:57:37 -0800 (PST)
+Message-Id: <20171220215441.261547384@linutronix.de>
+Date: Wed, 20 Dec 2017 22:35:11 +0100
+From: Thomas Gleixner <tglx@linutronix.de>
+Subject: [patch V181 08/54] x86/ldt: Prevent ldt inheritance on exec
+References: <20171220213503.672610178@linutronix.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171220211649.GA32200@bombadil.infradead.org>
+Content-Type: text/plain; charset=ISO-8859-15
+Content-Disposition: inline;
+ filename=x86-ldt--Prevent_ldt_inheritance_on_exec.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
+To: LKML <linux-kernel@vger.kernel.org>
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, linux-mm@kvack.org, dan.j.williams@intel.com, kirill.shutemov@linux.intel.com
 
-On Wed, Dec 20, 2017 at 01:16:49PM -0800, Matthew Wilcox wrote:
-> On Wed, Dec 20, 2017 at 12:22:21PM -0800, Dave Hansen wrote:
-> > On 12/20/2017 10:19 AM, Matthew Wilcox wrote:
-> > > I don't know what the right interface is, but my laptop has a set of
-> > > /sys/devices/system/memory/memoryN/ directories.  Perhaps this is the
-> > > right place to expose write_bw (etc).
-> > 
-> > Those directories are already too redundant and wasteful.  I think we'd
-> > really rather not add to them.  In addition, it's technically possible
-> > to have a memory section span NUMA nodes and have different performance
-> > properties, which make it impossible to represent there.
-> > 
-> > In any case, ACPI PXM's (Proximity Domains) are guaranteed to have
-> > uniform performance properties in the HMAT, and we just so happen to
-> > always create one NUMA node per PXM.  So, NUMA nodes really are a good fit.
-> 
-> I think you're missing my larger point which is that I don't think this
-> should be exposed to userspace as an ACPI feature.  Because if you do,
-> then it'll also be exposed to userspace as an openfirmware feature.
-> And sooner or later a devicetree feature.  And then writing a portable
-> program becomes an exercise in suffering.
-> 
-> So, what's the right place in sysfs that isn't tied to ACPI?  A new
-> directory or set of directories under /sys/devices/system/memory/ ?
+From: Thomas Gleixner <tglx@linutronix.de>
 
-Oh, the current location isn't at all tied to acpi except that it happens to
-be named 'hmat'.  When it was all named 'hmem' it was just:
+The LDT is inheritet independent of fork or exec, but that makes no sense
+at all because exec is supposed to start the process clean.
 
-/sys/devices/system/hmem
+The reason why this happens is that init_new_context_ldt() is called from
+init_new_context() which obviously needs to be called for both fork() and
+exec().
 
-Which has no ACPI-isms at all.  I'm happy to move it under
-/sys/devices/system/memory/hmat if that's helpful, but I think we still have
-the issue that the data represented therein is still pulled right from the
-HMAT, and I don't know how to abstract it into something more platform
-agnostic until I know what data is provided by those other platforms.
+It would be surprising if anything relies on that behaviour, so it seems to
+be safe to remove that misfeature.
 
-For example, the HMAT provides latency information and bandwidth information
-for both reads and writes.  Will the devicetree/openfirmware/etc version have
-this same info, or will it be just different enough that it won't translate
-into whatever I choose to stick in sysfs?
+Split the context initialization into two parts. Clear the ldt pointer and
+initialize the mutex from the general context init and move the LDT
+duplication to arch_dup_mmap() which is only called on fork().
+
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: aliguori@amazon.com
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: linux-mm@kvack.org
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: hughd@google.com
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Andy Lutomirsky <luto@kernel.org>
+Cc: keescook@google.com
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bpetkov@suse.de>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: dan.j.williams@intel.com
+Cc: kirill.shutemov@linux.intel.com
+
+---
+ arch/x86/include/asm/mmu_context.h    |   21 ++++++++++++++-------
+ arch/x86/kernel/ldt.c                 |   18 +++++-------------
+ tools/testing/selftests/x86/ldt_gdt.c |    9 +++------
+ 3 files changed, 22 insertions(+), 26 deletions(-)
+
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -57,11 +57,17 @@ struct ldt_struct {
+ /*
+  * Used for LDT copy/destruction.
+  */
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
++static inline void init_new_context_ldt(struct mm_struct *mm)
++{
++	mm->context.ldt = NULL;
++	init_rwsem(&mm->context.ldt_usr_sem);
++}
++int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
+ void destroy_context_ldt(struct mm_struct *mm);
+ #else	/* CONFIG_MODIFY_LDT_SYSCALL */
+-static inline int init_new_context_ldt(struct task_struct *tsk,
+-				       struct mm_struct *mm)
++static inline void init_new_context_ldt(struct mm_struct *mm) { }
++static inline int ldt_dup_context(struct mm_struct *oldmm,
++				  struct mm_struct *mm)
+ {
+ 	return 0;
+ }
+@@ -137,15 +143,16 @@ static inline int init_new_context(struc
+ 	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
+ 	atomic64_set(&mm->context.tlb_gen, 0);
+ 
+-	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+ 		/* pkey 0 is the default and always allocated */
+ 		mm->context.pkey_allocation_map = 0x1;
+ 		/* -1 means unallocated or invalid */
+ 		mm->context.execute_only_pkey = -1;
+ 	}
+-	#endif
+-	return init_new_context_ldt(tsk, mm);
++#endif
++	init_new_context_ldt(mm);
++	return 0;
+ }
+ static inline void destroy_context(struct mm_struct *mm)
+ {
+@@ -181,7 +188,7 @@ do {						\
+ static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+ {
+ 	paravirt_arch_dup_mmap(oldmm, mm);
+-	return 0;
++	return ldt_dup_context(oldmm, mm);
+ }
+ 
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/arch/x86/kernel/ldt.c
++++ b/arch/x86/kernel/ldt.c
+@@ -131,28 +131,20 @@ static void free_ldt_struct(struct ldt_s
+ }
+ 
+ /*
+- * we do not have to muck with descriptors here, that is
+- * done in switch_mm() as needed.
++ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
++ * the new task is not running, so nothing can be installed.
+  */
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
++int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
+ {
+ 	struct ldt_struct *new_ldt;
+-	struct mm_struct *old_mm;
+ 	int retval = 0;
+ 
+-	init_rwsem(&mm->context.ldt_usr_sem);
+-
+-	old_mm = current->mm;
+-	if (!old_mm) {
+-		mm->context.ldt = NULL;
++	if (!old_mm)
+ 		return 0;
+-	}
+ 
+ 	mutex_lock(&old_mm->context.lock);
+-	if (!old_mm->context.ldt) {
+-		mm->context.ldt = NULL;
++	if (!old_mm->context.ldt)
+ 		goto out_unlock;
+-	}
+ 
+ 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
+ 	if (!new_ldt) {
+--- a/tools/testing/selftests/x86/ldt_gdt.c
++++ b/tools/testing/selftests/x86/ldt_gdt.c
+@@ -627,13 +627,10 @@ static void do_multicpu_tests(void)
+ static int finish_exec_test(void)
+ {
+ 	/*
+-	 * In a sensible world, this would be check_invalid_segment(0, 1);
+-	 * For better or for worse, though, the LDT is inherited across exec.
+-	 * We can probably change this safely, but for now we test it.
++	 * Older kernel versions did inherit the LDT on exec() which is
++	 * wrong because exec() starts from a clean state.
+ 	 */
+-	check_valid_segment(0, 1,
+-			    AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB,
+-			    42, true);
++	check_invalid_segment(0, 1);
+ 
+ 	return nerrs ? 1 : 0;
+ }
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
