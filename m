@@ -1,146 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D44436B027B
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:59:33 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id o32so6885725wrf.20
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:59:33 -0800 (PST)
-Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id y91si14911139wrc.371.2017.12.20.13.59.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 13:59:32 -0800 (PST)
-Message-Id: <20171220215444.887819284@linutronix.de>
-Date: Wed, 20 Dec 2017 22:35:55 +0100
-From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V181 52/54] x86/mm/dump_pagetables: Check user space page
- table for WX pages
-References: <20171220213503.672610178@linutronix.de>
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0903D6B025E
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 17:15:07 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id a13so14935349pgt.0
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 14:15:07 -0800 (PST)
+Received: from ipmail07.adl2.internode.on.net (ipmail07.adl2.internode.on.net. [150.101.137.131])
+        by mx.google.com with ESMTP id c3si12564736pgv.245.2017.12.20.14.15.05
+        for <linux-mm@kvack.org>;
+        Wed, 20 Dec 2017 14:15:06 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:14:47 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH 14/15] dax: associate mappings with inodes, and warn if
+ dma collides with truncate
+Message-ID: <20171220221447.GG4094@dastard>
+References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171110090818.GE4895@lst.de>
+ <CAPcyv4irj_+pJdX1SO6MjsxURcKm8--i_QvyudgHTZE2w4w-sA@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline;
- filename=0058-x86-mm-dump_pagetables-Check-user-space-page-table-f.patch
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4irj_+pJdX1SO6MjsxURcKm8--i_QvyudgHTZE2w4w-sA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-From: Thomas Gleixner <tglx@linutronix.de>
+On Tue, Dec 19, 2017 at 05:11:38PM -0800, Dan Williams wrote:
+> On Fri, Nov 10, 2017 at 1:08 AM, Christoph Hellwig <hch@lst.de> wrote:
+> >> +             struct {
+> >> +                     /*
+> >> +                      * ZONE_DEVICE pages are never on an lru or handled by
+> >> +                      * a slab allocator, this points to the hosting device
+> >> +                      * page map.
+> >> +                      */
+> >> +                     struct dev_pagemap *pgmap;
+> >> +                     /*
+> >> +                      * inode association for MEMORY_DEVICE_FS_DAX page-idle
+> >> +                      * callbacks. Note that we don't use ->mapping since
+> >> +                      * that has hard coded page-cache assumptions in
+> >> +                      * several paths.
+> >> +                      */
+> >
+> > What assumptions?  I'd much rather fix those up than having two fields
+> > that have the same functionality.
+> 
+> [ Reviving this old thread where you asked why I introduce page->inode
+> instead of reusing page->mapping ]
+> 
+> For example, xfs_vm_set_page_dirty() assumes that page->mapping being
+> non-NULL indicates a typical page cache page, this is a false
+> assumption for DAX.
 
-ptdump_walk_pgd_level_checkwx() checks the kernel page table for WX pages,
-but does not check the PAGE_TABLE_ISOLATION user space page table.
+That means every single filesystem has an incorrect assumption for
+DAX pages. xfs_vm_set_page_dirty() is derived directly from
+__set_page_dirty_buffers(), which is the default function that
+set_page_dirty() calls to do it's work. Indeed, ext4 also calls
+__set_page_dirty_buffers(), so whatever problem XFS has here with
+DAX and racing truncates is going to manifest in ext4 as well.
 
-Restructure the code so that dmesg output is selected by an explicit
-argument and not implicit via checking the pgd argument for !NULL.
+> My guess at a fix for this is to add
+> pagecache_page() checks to locations like this, but I worry about how
+> to find them all. Where pagecache_page() is:
+> 
+> bool pagecache_page(struct page *page)
+> {
+>         if (!page->mapping)
+>                 return false;
+>         if (!IS_DAX(page->mapping->host))
+>                 return false;
+>         return true;
+> }
 
-Add the check for the user space page table.
+This is likely to be a problem in lots more places if we have to
+treat "has page been truncated away" race checks on dax mappings
+differently to page cache mappings. This smells of a whack-a-mole
+style bandaid to me....
 
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Josh Poimboeuf <jpoimboe@redhat.com>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: linux-mm@kvack.org
----
- arch/x86/include/asm/pgtable.h |    1 +
- arch/x86/mm/debug_pagetables.c |    2 +-
- arch/x86/mm/dump_pagetables.c  |   30 +++++++++++++++++++++++++-----
- 3 files changed, 27 insertions(+), 6 deletions(-)
+Cheers,
 
---- a/arch/x86/include/asm/pgtable.h
-+++ b/arch/x86/include/asm/pgtable.h
-@@ -28,6 +28,7 @@ extern pgd_t early_top_pgt[PTRS_PER_PGD]
- int __init __early_make_pgtable(unsigned long address, pmdval_t pmd);
- 
- void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd);
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd);
- void ptdump_walk_pgd_level_checkwx(void);
- 
- #ifdef CONFIG_DEBUG_WX
---- a/arch/x86/mm/debug_pagetables.c
-+++ b/arch/x86/mm/debug_pagetables.c
-@@ -5,7 +5,7 @@
- 
- static int ptdump_show(struct seq_file *m, void *v)
- {
--	ptdump_walk_pgd_level(m, NULL);
-+	ptdump_walk_pgd_level_debugfs(m, NULL);
- 	return 0;
- }
- 
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -476,7 +476,7 @@ static inline bool is_hypervisor_range(i
- }
- 
- static void ptdump_walk_pgd_level_core(struct seq_file *m, pgd_t *pgd,
--				       bool checkwx)
-+				       bool checkwx, bool dmesg)
- {
- #ifdef CONFIG_X86_64
- 	pgd_t *start = (pgd_t *) &init_top_pgt;
-@@ -489,7 +489,7 @@ static void ptdump_walk_pgd_level_core(s
- 
- 	if (pgd) {
- 		start = pgd;
--		st.to_dmesg = true;
-+		st.to_dmesg = dmesg;
- 	}
- 
- 	st.check_wx = checkwx;
-@@ -527,13 +527,33 @@ static void ptdump_walk_pgd_level_core(s
- 
- void ptdump_walk_pgd_level(struct seq_file *m, pgd_t *pgd)
- {
--	ptdump_walk_pgd_level_core(m, pgd, false);
-+	ptdump_walk_pgd_level_core(m, pgd, false, true);
-+}
-+
-+void ptdump_walk_pgd_level_debugfs(struct seq_file *m, pgd_t *pgd)
-+{
-+	ptdump_walk_pgd_level_core(m, pgd, false, false);
-+}
-+EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level_debugfs);
-+
-+static void ptdump_walk_user_pgd_level_checkwx(void)
-+{
-+#ifdef CONFIG_PAGE_TABLE_ISOLATION
-+	pgd_t *pgd = (pgd_t *) &init_top_pgt;
-+
-+	if (!static_cpu_has(X86_FEATURE_PTI))
-+		return;
-+
-+	pr_info("x86/mm: Checking user space page tables\n");
-+	pgd = kernel_to_user_pgdp(pgd);
-+	ptdump_walk_pgd_level_core(NULL, pgd, true, false);
-+#endif
- }
--EXPORT_SYMBOL_GPL(ptdump_walk_pgd_level);
- 
- void ptdump_walk_pgd_level_checkwx(void)
- {
--	ptdump_walk_pgd_level_core(NULL, NULL, true);
-+	ptdump_walk_pgd_level_core(NULL, NULL, true, false);
-+	ptdump_walk_user_pgd_level_checkwx();
- }
- 
- static int __init pt_dump_init(void)
-
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
