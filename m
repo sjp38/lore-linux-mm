@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A885B6B026D
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D3A246B0261
 	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 10:56:02 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id a74so16653034pfg.20
+Received: by mail-pl0-f69.google.com with SMTP id 3so8170292plv.17
         for <linux-mm@kvack.org>; Wed, 20 Dec 2017 07:56:02 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id s22si4679527pgo.363.2017.12.20.07.56.01
+        by mx.google.com with ESMTPS id 70si13406605pfr.84.2017.12.20.07.56.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Wed, 20 Dec 2017 07:56:01 -0800 (PST)
 From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 3/8] mm: Remove misleading alignment claims
-Date: Wed, 20 Dec 2017 07:55:47 -0800
-Message-Id: <20171220155552.15884-4-willy@infradead.org>
+Subject: [PATCH v2 4/8] mm: Improve comment on page->mapping
+Date: Wed, 20 Dec 2017 07:55:48 -0800
+Message-Id: <20171220155552.15884-5-willy@infradead.org>
 In-Reply-To: <20171220155552.15884-1-willy@infradead.org>
 References: <20171220155552.15884-1-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,64 +22,42 @@ Cc: akpm@linuxfoundation.org, Matthew Wilcox <mawilcox@microsoft.com>
 
 From: Matthew Wilcox <mawilcox@microsoft.com>
 
-The "third double word block" isn't on 32-bit systems.  The layout
-looks like this:
-
-	unsigned long flags;
-	struct address_space *mapping
-	pgoff_t index;
-	atomic_t _mapcount;
-	atomic_t _refcount;
-
-which is 32 bytes on 64-bit, but 20 bytes on 32-bit.  Nobody is trying
-to use the fact that it's double-word aligned today, so just remove the
-misleading claims.
+The comment on page->mapping is terse, and out of date (it does not
+mention the possibility of PAGE_MAPPING_MOVABLE).  Instead, point
+the interested reader to page-flags.h where there is a much better
+comment.
 
 Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
 Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
 Acked-by: Christoph Lameter <cl@linux.com>
 ---
- include/linux/mm_types.h | 13 +++++--------
- 1 file changed, 5 insertions(+), 8 deletions(-)
+ include/linux/mm_types.h | 12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
 
 diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 27973166af28..c2294e6204e8 100644
+index c2294e6204e8..8c3b8cea22ee 100644
 --- a/include/linux/mm_types.h
 +++ b/include/linux/mm_types.h
-@@ -33,11 +33,11 @@ struct hmm;
-  * a page, though if it is a pagecache page, rmap structures can tell us
-  * who is mapping it.
-  *
-- * The objects in struct page are organized in double word blocks in
-- * order to allows us to use atomic double word operations on portions
-- * of struct page. That is currently only used by slub but the arrangement
-- * allows the use of atomic double word operations on the flags/mapping
-- * and lru list pointers also.
-+ * SLUB uses cmpxchg_double() to atomically update its freelist and
-+ * counters.  That requires that freelist & counters be adjacent and
-+ * double-word aligned.  We align all struct pages to double-word
-+ * boundaries, and ensure that 'freelist' is aligned within the
-+ * struct.
-  */
- #ifdef CONFIG_HAVE_ALIGNED_STRUCT_PAGE
- #define _struct_page_alignment	__aligned(2 * sizeof(unsigned long))
-@@ -113,8 +113,6 @@ struct page {
- 	};
- 
- 	/*
--	 * Third double word block
--	 *
- 	 * WARNING: bit 0 of the first word encode PageTail(). That means
- 	 * the rest users of the storage space MUST NOT use the bit to
- 	 * avoid collision and false-positive PageTail().
-@@ -175,7 +173,6 @@ struct page {
- #endif
- 	};
- 
--	/* Remainder is not double word aligned */
+@@ -50,15 +50,9 @@ struct page {
+ 	unsigned long flags;		/* Atomic flags, some possibly
+ 					 * updated asynchronously */
  	union {
- 		unsigned long private;		/* Mapping-private opaque data:
- 					 	 * usually used for buffer_heads
+-		struct address_space *mapping;	/* If low bit clear, points to
+-						 * inode address_space, or NULL.
+-						 * If page mapped as anonymous
+-						 * memory, low bit is set, and
+-						 * it points to anon_vma object
+-						 * or KSM private structure. See
+-						 * PAGE_MAPPING_ANON and
+-						 * PAGE_MAPPING_KSM.
+-						 */
++		/* See page-flags.h for the definition of PAGE_MAPPING_FLAGS */
++		struct address_space *mapping;
++
+ 		void *s_mem;			/* slab first object */
+ 		atomic_t compound_mapcount;	/* first tail page */
+ 		/* page_deferred_list().next	 -- second tail page */
 -- 
 2.15.1
 
