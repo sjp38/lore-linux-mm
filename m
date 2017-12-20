@@ -1,188 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E4E216B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:53:31 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id c3so13220198wrd.0
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:53:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id l43si2185966wrl.470.2017.12.20.05.53.30
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E0B966B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 09:15:52 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id t92so13239122wrc.13
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 06:15:52 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m75sor1364396wmi.50.2017.12.20.06.15.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 05:53:30 -0800 (PST)
-Date: Wed, 20 Dec 2017 14:53:29 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 1/2] mm/memcg: try harder to decrease
- [memory,memsw].limit_in_bytes
-Message-ID: <20171220135329.GS4831@dhcp22.suse.cz>
-References: <20171220102429.31601-1-aryabinin@virtuozzo.com>
- <20171220132114.6883-1-aryabinin@virtuozzo.com>
+        (Google Transport Security);
+        Wed, 20 Dec 2017 06:15:51 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171220132114.6883-1-aryabinin@virtuozzo.com>
+In-Reply-To: <aca9951c-7b8a-7884-5b31-c505e4e35d8a@oracle.com>
+References: <20171107122800.25517-1-marcandre.lureau@redhat.com> <aca9951c-7b8a-7884-5b31-c505e4e35d8a@oracle.com>
+From: =?UTF-8?B?TWFyYy1BbmRyw6kgTHVyZWF1?= <marcandre.lureau@gmail.com>
+Date: Wed, 20 Dec 2017 15:15:50 +0100
+Message-ID: <CAJ+F1CJCbmUHSMfKou_LP3eMq+p-b7S9vbe1Vv=JsGMFr7bk_w@mail.gmail.com>
+Subject: Re: [PATCH v3 0/9] memfd: add sealing to hugetlb-backed memory
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, nyc@holomorphy.com, Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, David Herrmann <dh.herrmann@gmail.com>
 
-On Wed 20-12-17 16:21:13, Andrey Ryabinin wrote:
-> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
-> pages on each iteration. This makes practically impossible to decrease
-> limit of memory cgroup. Tasks could easily allocate back 32 pages,
-> so we can't reduce memory usage, and once retry_count reaches zero we return
-> -EBUSY.
-> 
-> Easy to reproduce the problem by running the following commands:
-> 
->   mkdir /sys/fs/cgroup/memory/test
->   echo $$ >> /sys/fs/cgroup/memory/test/tasks
->   cat big_file > /dev/null &
->   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
->   -bash: echo: write error: Device or resource busy
-> 
-> Instead of relying on retry_count, keep trying to free required amount of pages
-> until reclaimer makes any progress.
+Hi
 
-The wording of the changelog has some room for improvements. The last
-sentence should read something like "Instead of relying on retry_count,
-keep retrying the reclaim until the desired limit is reached or fail
-if the reclaim doesn't make any progress or a signal is pending."
+On Wed, Nov 15, 2017 at 4:13 AM, Mike Kravetz <mike.kravetz@oracle.com> wro=
+te:
+> +Cc: Andrew, Michal, David
+>
+> Are there any other comments on this patch series from Marc-Andr=C3=A9?  =
+Is anything
+> else needed to move forward?
+>
+> I have reviewed the patches in the series.  David Herrmann (the original
+> memfd_create/file sealing author) has also taken a look at the patches.
+>
+> One outstanding issue is sorting out the config option dependencies.  Alt=
+hough,
+> IMO this is not a strict requirement for this series.  I have addressed t=
+his
+> issue in a follow on series:
+> http://lkml.kernel.org/r/20171109014109.21077-1-mike.kravetz@oracle.com
 
-I am bussy as hell today so I will look closer tomorrow or on Friday.
-But from a very quick glance the patch seems reasonable.
- 
-> Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> ---
->  mm/memcontrol.c | 70 +++++++++++++--------------------------------------------
->  1 file changed, 16 insertions(+), 54 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f40b5ad3f959..0d26db9a665d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1176,20 +1176,6 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  }
->  
->  /*
-> - * This function returns the number of memcg under hierarchy tree. Returns
-> - * 1(self count) if no children.
-> - */
-> -static int mem_cgroup_count_children(struct mem_cgroup *memcg)
-> -{
-> -	int num = 0;
-> -	struct mem_cgroup *iter;
-> -
-> -	for_each_mem_cgroup_tree(iter, memcg)
-> -		num++;
-> -	return num;
-> -}
-> -
-> -/*
->   * Return the memory (and swap, if configured) limit for a memcg.
->   */
->  unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> @@ -2462,22 +2448,10 @@ static DEFINE_MUTEX(memcg_limit_mutex);
->  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  				   unsigned long limit)
->  {
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
-> +	unsigned long usage;
->  	bool enlarge = false;
-> -	int retry_count;
->  	int ret;
->  
-> -	/*
-> -	 * For keeping hierarchical_reclaim simple, how long we should retry
-> -	 * is depends on callers. We set our retry-count to be function
-> -	 * of # of children which we should visit in this loop.
-> -	 */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(&memcg->memory);
-> -
->  	do {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
-> @@ -2498,15 +2472,13 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
-> -
-> -		curusage = page_counter_read(&memcg->memory);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> +		usage = page_counter_read(&memcg->memory);
-> +		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-> +					GFP_KERNEL, true)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
-> +	} while (true);
->  
->  	if (!ret && enlarge)
->  		memcg_oom_recover(memcg);
-> @@ -2517,18 +2489,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  					 unsigned long limit)
->  {
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
-> +	unsigned long usage;
->  	bool enlarge = false;
-> -	int retry_count;
->  	int ret;
->  
-> -	/* see mem_cgroup_resize_res_limit */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(&memcg->memsw);
-> -
->  	do {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
-> @@ -2549,15 +2513,13 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-> -
-> -		curusage = page_counter_read(&memcg->memsw);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> +		usage = page_counter_read(&memcg->memsw);
-> +		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-> +					GFP_KERNEL, false)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
-> +	} while (true);
->  
->  	if (!ret && enlarge)
->  		memcg_oom_recover(memcg);
-> -- 
-> 2.13.6
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Are we good for the next merge window? Is Hugh Dickins the maintainer
+with the final word, and doing the pull request? (sorry, I am not very
+familiar with kernel development)
 
--- 
-Michal Hocko
-SUSE Labs
+thanks!
+
+>> Hi,
+>>
+>> Recently, Mike Kravetz added hugetlbfs support to memfd. However, he
+>> didn't add sealing support. One of the reasons to use memfd is to have
+>> shared memory sealing when doing IPC or sharing memory with another
+>> process with some extra safety. qemu uses shared memory & hugetables
+>> with vhost-user (used by dpdk), so it is reasonable to use memfd
+>> now instead for convenience and security reasons.
+>>
+>> Thanks!
+>>
+>> v3:
+>> - do remaining MFD_DEF_SIZE/mfd_def_size substitutions
+>> - fix missing unistd.h include in common.c
+>> - tweaked a bit commit message prefixes
+>> - added reviewed-by tags
+>>
+>> v2:
+>> - add "memfd-hugetlb:" prefix in memfd-test
+>> - run fuse test on hugetlb backend memory
+>> - rename function memfd_file_get_seals() -> memfd_file_seals_ptr()
+>> - update commit messages
+>> - added reviewed-by tags
+>>
+>> RFC->v1:
+>> - split rfc patch, after early review feedback
+>> - added patch for memfd-test changes
+>> - fix build with hugetlbfs disabled
+>> - small code and commit messages improvements
+>>
+>> Marc-Andr=C3=A9 Lureau (9):
+>>   shmem: unexport shmem_add_seals()/shmem_get_seals()
+>>   shmem: rename functions that are memfd-related
+>>   hugetlb: expose hugetlbfs_inode_info in header
+>>   hugetlb: implement memfd sealing
+>>   shmem: add sealing support to hugetlb-backed memfd
+>>   memfd-test: test hugetlbfs sealing
+>>   memfd-test: add 'memfd-hugetlb:' prefix when testing hugetlbfs
+>>   memfd-test: move common code to a shared unit
+>>   memfd-test: run fuse test on hugetlb backend memory
+>>
+>>  fs/fcntl.c                                     |   2 +-
+>>  fs/hugetlbfs/inode.c                           |  39 +++--
+>>  include/linux/hugetlb.h                        |  11 ++
+>>  include/linux/shmem_fs.h                       |   6 +-
+>>  mm/shmem.c                                     |  59 ++++---
+>>  tools/testing/selftests/memfd/Makefile         |   5 +
+>>  tools/testing/selftests/memfd/common.c         |  46 ++++++
+>>  tools/testing/selftests/memfd/common.h         |   9 ++
+>>  tools/testing/selftests/memfd/fuse_test.c      |  44 +++--
+>>  tools/testing/selftests/memfd/memfd_test.c     | 212 ++++--------------=
+-------
+>>  tools/testing/selftests/memfd/run_fuse_test.sh |   2 +-
+>>  tools/testing/selftests/memfd/run_tests.sh     |   1 +
+>>  12 files changed, 200 insertions(+), 236 deletions(-)
+>>  create mode 100644 tools/testing/selftests/memfd/common.c
+>>  create mode 100644 tools/testing/selftests/memfd/common.h
+>>
+
+
+
+--=20
+Marc-Andr=C3=A9 Lureau
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
