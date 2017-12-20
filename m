@@ -1,24 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1F6276B0038
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39B6D6B026D
 	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:43 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id a45so13838555wra.14
+Received: by mail-wm0-f70.google.com with SMTP id 194so3171806wmv.9
         for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:43 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id c15si14472391wrd.527.2017.12.20.13.58.42
+        by mx.google.com with ESMTPS id v5si3602837wmg.198.2017.12.20.13.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
         Wed, 20 Dec 2017 13:58:42 -0800 (PST)
-Message-Id: <20171220215441.932050383@linutronix.de>
-Date: Wed, 20 Dec 2017 22:35:19 +0100
+Message-Id: <20171220215441.852602011@linutronix.de>
+Date: Wed, 20 Dec 2017 22:35:18 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V181 16/54] x86/mm: Clarify which functions are supposed to
- flush what
+Subject: [patch V181 15/54] x86/mm: Remove superfluous barriers
 References: <20171220213503.672610178@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0067-x86-mm-Clarify-which-functions-are-supposed-to-flush.patch
+ filename=0061-x86-mm-Remove-superfluous-barriers.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -26,7 +25,7 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-Per popular request..
+atomic64_inc_return() already implies smp_mb() before and after.
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
@@ -51,71 +50,32 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/tlbflush.h |   23 +++++++++++++++++++++--
- 1 file changed, 21 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/tlbflush.h |    8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -228,6 +228,9 @@ static inline void cr4_set_bits_and_upda
+@@ -60,19 +60,13 @@ static inline void invpcid_flush_all_non
  
- extern void initialize_tlbstate_and_flush(void);
- 
-+/*
-+ * flush the entire current user mapping
-+ */
- static inline void __native_flush_tlb(void)
+ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
  {
+-	u64 new_tlb_gen;
+-
  	/*
-@@ -240,6 +243,9 @@ static inline void __native_flush_tlb(vo
- 	preempt_enable();
- }
- 
-+/*
-+ * flush everything
-+ */
- static inline void __native_flush_tlb_global(void)
- {
- 	unsigned long cr4, flags;
-@@ -269,17 +275,27 @@ static inline void __native_flush_tlb_gl
- 	raw_local_irq_restore(flags);
- }
- 
-+/*
-+ * flush one page in the user mapping
-+ */
- static inline void __native_flush_tlb_single(unsigned long addr)
- {
- 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
- }
- 
-+/*
-+ * flush everything
-+ */
- static inline void __flush_tlb_all(void)
- {
--	if (boot_cpu_has(X86_FEATURE_PGE))
-+	if (boot_cpu_has(X86_FEATURE_PGE)) {
- 		__flush_tlb_global();
--	else
-+	} else {
-+		/*
-+		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
-+		 */
- 		__flush_tlb();
-+	}
- 
- 	/*
- 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
-@@ -290,6 +306,9 @@ static inline void __flush_tlb_all(void)
+ 	 * Bump the generation count.  This also serves as a full barrier
+ 	 * that synchronizes with switch_mm(): callers are required to order
+ 	 * their read of mm_cpumask after their writes to the paging
+ 	 * structures.
  	 */
+-	smp_mb__before_atomic();
+-	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
+-	smp_mb__after_atomic();
+-
+-	return new_tlb_gen;
++	return atomic64_inc_return(&mm->context.tlb_gen);
  }
  
-+/*
-+ * flush one page in the kernel mapping
-+ */
- static inline void __flush_tlb_one(unsigned long addr)
- {
- 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
+ #ifdef CONFIG_PARAVIRT
 
 
 --
