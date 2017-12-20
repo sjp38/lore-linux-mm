@@ -1,35 +1,32 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0190E6B026D
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:40 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id o2so3046495wmf.2
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:39 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F6276B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:43 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id a45so13838555wra.14
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:43 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id d18si1597244wrc.469.2017.12.20.13.58.38
+        by mx.google.com with ESMTPS id c15si14472391wrd.527.2017.12.20.13.58.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 13:58:39 -0800 (PST)
-Message-Id: <20171220215441.674358478@linutronix.de>
-Date: Wed, 20 Dec 2017 22:35:16 +0100
+        Wed, 20 Dec 2017 13:58:42 -0800 (PST)
+Message-Id: <20171220215441.932050383@linutronix.de>
+Date: Wed, 20 Dec 2017 22:35:19 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V181 13/54] x86/microcode: Dont abuse the tlbflush interface
+Subject: [patch V181 16/54] x86/mm: Clarify which functions are supposed to
+ flush what
 References: <20171220213503.672610178@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
 Content-Disposition: inline;
- filename=0066-x86-microcode-Dont-abuse-the-tlbflush-interface.patch
+ filename=0067-x86-mm-Clarify-which-functions-are-supposed-to-flush.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
-Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, fenghua.yu@intel.com, linux-mm@kvack.org
+Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirsky <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Borislav Petkov <bpetkov@suse.de>, Greg KH <gregkh@linuxfoundation.org>, keescook@google.com, hughd@google.com, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Denys Vlasenko <dvlasenk@redhat.com>, Rik van Riel <riel@redhat.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Juergen Gross <jgross@suse.com>, David Laight <David.Laight@aculab.com>, Eduardo Valentin <eduval@amazon.com>, aliguori@amazon.com, Will Deacon <will.deacon@arm.com>, Vlastimil Babka <vbabka@suse.cz>, daniel.gruss@iaik.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, "H. Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-Commit: ec400ddeff20 ("x86/microcode_intel_early.c: Early update ucode on
-Intel's CPU") grubbed into tlbflush internals without coherent explanation.
-
-Since it says its precaution and the SDM doesn't mention anything like
-this, take it out back.
+Per popular request..
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
@@ -47,85 +44,78 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: daniel.gruss@iaik.tugraz.at
-Cc: fenghua.yu@intel.com
 Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/tlbflush.h       |   19 ++++++-------------
- arch/x86/kernel/cpu/microcode/intel.c |   13 -------------
- 2 files changed, 6 insertions(+), 26 deletions(-)
+ arch/x86/include/asm/tlbflush.h |   23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -246,20 +246,9 @@ static inline void __native_flush_tlb(vo
+@@ -228,6 +228,9 @@ static inline void cr4_set_bits_and_upda
+ 
+ extern void initialize_tlbstate_and_flush(void);
+ 
++/*
++ * flush the entire current user mapping
++ */
+ static inline void __native_flush_tlb(void)
+ {
+ 	/*
+@@ -240,6 +243,9 @@ static inline void __native_flush_tlb(vo
  	preempt_enable();
  }
  
--static inline void __native_flush_tlb_global_irq_disabled(void)
--{
--	unsigned long cr4;
--
--	cr4 = this_cpu_read(cpu_tlbstate.cr4);
--	/* clear PGE */
--	native_write_cr4(cr4 & ~X86_CR4_PGE);
--	/* write old PGE again and flush TLBs */
--	native_write_cr4(cr4);
--}
--
++/*
++ * flush everything
++ */
  static inline void __native_flush_tlb_global(void)
  {
--	unsigned long flags;
-+	unsigned long cr4, flags;
- 
- 	if (static_cpu_has(X86_FEATURE_INVPCID)) {
- 		/*
-@@ -277,7 +266,11 @@ static inline void __native_flush_tlb_gl
- 	 */
- 	raw_local_irq_save(flags);
- 
--	__native_flush_tlb_global_irq_disabled();
-+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-+	/* toggle PGE */
-+	native_write_cr4(cr4 ^ X86_CR4_PGE);
-+	/* write old PGE again and flush TLBs */
-+	native_write_cr4(cr4);
- 
+ 	unsigned long cr4, flags;
+@@ -269,17 +275,27 @@ static inline void __native_flush_tlb_gl
  	raw_local_irq_restore(flags);
  }
---- a/arch/x86/kernel/cpu/microcode/intel.c
-+++ b/arch/x86/kernel/cpu/microcode/intel.c
-@@ -565,15 +565,6 @@ static void print_ucode(struct ucode_cpu
- }
- #else
  
--/*
-- * Flush global tlb. We only do this in x86_64 where paging has been enabled
-- * already and PGE should be enabled as well.
-- */
--static inline void flush_tlb_early(void)
--{
--	__native_flush_tlb_global_irq_disabled();
--}
--
- static inline void print_ucode(struct ucode_cpu_info *uci)
++/*
++ * flush one page in the user mapping
++ */
+ static inline void __native_flush_tlb_single(unsigned long addr)
  {
- 	struct microcode_intel *mc;
-@@ -602,10 +593,6 @@ static int apply_microcode_early(struct
- 	if (rev != mc->hdr.rev)
- 		return -1;
+ 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+ }
  
--#ifdef CONFIG_X86_64
--	/* Flush global tlb. This is precaution. */
--	flush_tlb_early();
--#endif
- 	uci->cpu_sig.rev = rev;
++/*
++ * flush everything
++ */
+ static inline void __flush_tlb_all(void)
+ {
+-	if (boot_cpu_has(X86_FEATURE_PGE))
++	if (boot_cpu_has(X86_FEATURE_PGE)) {
+ 		__flush_tlb_global();
+-	else
++	} else {
++		/*
++		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
++		 */
+ 		__flush_tlb();
++	}
  
- 	if (early)
+ 	/*
+ 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
+@@ -290,6 +306,9 @@ static inline void __flush_tlb_all(void)
+ 	 */
+ }
+ 
++/*
++ * flush one page in the kernel mapping
++ */
+ static inline void __flush_tlb_one(unsigned long addr)
+ {
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
 
 
 --
