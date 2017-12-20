@@ -1,64 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B8D686B0273
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 10:56:04 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id v190so14492323pgv.11
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 07:56:04 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a20si13364114pfg.38.2017.12.20.07.56.03
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D04E6B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 11:01:03 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id y127so667852vkg.17
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:01:03 -0800 (PST)
+Received: from resqmta-ch2-01v.sys.comcast.net (resqmta-ch2-01v.sys.comcast.net. [2001:558:fe21:29:69:252:207:33])
+        by mx.google.com with ESMTPS id o1si961614vkd.309.2017.12.20.08.01.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Dec 2017 07:56:03 -0800 (PST)
-From: Matthew Wilcox <willy@infradead.org>
-Subject: [PATCH v2 8/8] mm: Remove reference to PG_buddy
-Date: Wed, 20 Dec 2017 07:55:52 -0800
-Message-Id: <20171220155552.15884-9-willy@infradead.org>
-In-Reply-To: <20171220155552.15884-1-willy@infradead.org>
-References: <20171220155552.15884-1-willy@infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Dec 2017 08:01:02 -0800 (PST)
+Date: Wed, 20 Dec 2017 09:58:30 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 4/5] mm: use node_page_state_snapshot to avoid
+ deviation
+In-Reply-To: <1f3a6d05-2756-93fd-a380-df808c94ece8@intel.com>
+Message-ID: <alpine.DEB.2.20.1712200956080.7506@nuc-kabylake>
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com> <1513665566-4465-5-git-send-email-kemi.wang@intel.com> <20171219124317.GP2787@dhcp22.suse.cz> <94187fd5-ad70-eba7-2724-0fe5bed750d6@intel.com> <20171220100650.GI4831@dhcp22.suse.cz>
+ <1f3a6d05-2756-93fd-a380-df808c94ece8@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: akpm@linuxfoundation.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: kemi <kemi.wang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
+On Wed, 20 Dec 2017, kemi wrote:
 
-PG_buddy doesn't exist any more.  It's called PageBuddy now.
+> > You are making numastats special and I yet haven't heard any sounds
+> > arguments for that. But that should be discussed in the respective
+> > patch.
+> >
+>
+> That is because we have much larger threshold size for NUMA counters, that means larger
+> deviation. So, the number in local cpus may not be simply ignored.
 
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
-Acked-by: Christoph Lameter <cl@linux.com>
----
- include/linux/mm_types.h | 14 +++++++-------
- 1 file changed, 7 insertions(+), 7 deletions(-)
+Some numbers showing the effect of these changes would be helpful. You can
+probably create some in kernel synthetic tests to start with which would
+allow you to see any significant effects of those changes.
 
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index ef35ea524c26..9b154b4e912e 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -174,13 +174,13 @@ struct page {
- 	};
- 
- 	union {
--		unsigned long private;		/* Mapping-private opaque data:
--					 	 * usually used for buffer_heads
--						 * if PagePrivate set; used for
--						 * swp_entry_t if PageSwapCache;
--						 * indicates order in the buddy
--						 * system if PG_buddy is set.
--						 */
-+		/*
-+		 * Mapping-private opaque data:
-+		 * Usually used for buffer_heads if PagePrivate
-+		 * Used for swp_entry_t if PageSwapCache
-+		 * Indicates order in the buddy system if PageBuddy
-+		 */
-+		unsigned long private;
- #if USE_SPLIT_PTE_PTLOCKS
- #if ALLOC_SPLIT_PTLOCKS
- 		spinlock_t *ptl;
--- 
-2.15.1
+Then run the larger testsuites (f.e. those that Mel has published) and
+benchmarks to figure out how behavior of real apps *may* change?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
