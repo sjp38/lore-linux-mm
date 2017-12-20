@@ -1,67 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 223306B0038
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 23:36:37 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id q3so3042585ioh.19
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 20:36:37 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a16sor1548256itc.124.2017.12.19.20.36.35
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 72DAE6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:19:11 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id q16so2433156qkq.6
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 21:19:11 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m24si5643855qta.98.2017.12.19.21.19.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 19 Dec 2017 20:36:35 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 19 Dec 2017 21:19:10 -0800 (PST)
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBK5DfbE016251
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:19:10 -0500
+Received: from e19.ny.us.ibm.com (e19.ny.us.ibm.com [129.33.205.209])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2eygu31hr6-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 00:19:09 -0500
+Received: from localhost
+	by e19.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Wed, 20 Dec 2017 00:19:09 -0500
+Date: Tue, 19 Dec 2017 21:19:18 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
+ for freeing rcu structures
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <rao.shoaib@oracle.com>
+ <1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
+ <20171219214158.353032f0@redhat.com>
+ <20171219221206.GA22696@bombadil.infradead.org>
+ <20171220002051.GJ7829@linux.vnet.ibm.com>
+ <20171220015336.GA7748@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CA+55aFw++4iFkodaEXSPpdvcSTvsggnJWpg-wVyFW54ay_ts8g@mail.gmail.com>
-References: <001a113e9ca8a3affd05609d7ccf@google.com> <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
- <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros> <20171219132246.GD13680@bombadil.infradead.org>
- <CA+55aFwvMMg0Kt8z+tkgPREbX--Of0R5nr_wS4B64kFxiVVKmw@mail.gmail.com>
- <20171219214849.GU21978@ZenIV.linux.org.uk> <20171220035043.GA14980@bombadil.infradead.org>
- <CA+55aFw++4iFkodaEXSPpdvcSTvsggnJWpg-wVyFW54ay_ts8g@mail.gmail.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Tue, 19 Dec 2017 20:36:34 -0800
-Message-ID: <CA+55aFypUZ0AwgzNoJy2xSG0m1vppMMC=mvGtUTAWVm_soZh_Q@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in memdup_user
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220015336.GA7748@bombadil.infradead.org>
+Message-Id: <20171220051918.GK7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, "Tobin C. Harding" <me@tobin.cc>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, keun-o.park@darkmatter.ae, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo Molnar <mingo@kernel.org>, syzkaller-bugs@googlegroups.com, Will Deacon <will.deacon@arm.com>
+Cc: Jesper Dangaard Brouer <brouer@redhat.com>, rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Tue, Dec 19, 2017 at 8:05 PM, Linus Torvalds
-<torvalds@linux-foundation.org> wrote:
->
-> And yes, we had a few cases where the hashing actually did hide the
-> values, and I've been applying patches to turn those from %p to %px.
+On Tue, Dec 19, 2017 at 05:53:36PM -0800, Matthew Wilcox wrote:
+> On Tue, Dec 19, 2017 at 04:20:51PM -0800, Paul E. McKenney wrote:
+> > If we are going to make this sort of change, we should do so in a way
+> > that allows the slab code to actually do the optimizations that might
+> > make this sort of thing worthwhile.  After all, if the main goal was small
+> > code size, the best approach is to drop kfree_bulk() and get on with life
+> > in the usual fashion.
+> > 
+> > I would prefer to believe that something like kfree_bulk() can help,
+> > and if that is the case, we should give it a chance to do things like
+> > group kfree_rcu() requests by destination slab and soforth, allowing
+> > batching optimizations that might provide more significant increases
+> > in performance.  Furthermore, having this in slab opens the door to
+> > slab taking emergency action when memory is low.
+> 
+> kfree_bulk does sort by destination slab; look at build_detached_freelist.
 
-So far at least:
+Understood, but beside the point.  I suspect that giving it larger
+scope makes it more efficient, similar to disk drives in the old days.
+Grouping on the stack when processing RCU callbacks limits what can
+reasonably be done.  Furthermore, using the vector approach going into the
+grace period is much more cache-efficient than the linked-list approach,
+given that the blocks have a reasonable chance of going cache-cold during
+the grace period.
 
-  10a7e9d84915 Do not hash userspace addresses in fault handlers
-  85c3e4a5a185 mm/slab.c: do not hash pointers when debugging slab
-  d81041820873 powerpc/xmon: Don't print hashed pointers in xmon
-  328b4ed93b69 x86: don't hash faulting address in oops printout
-  b7ad7ef742a9 remove task and stack pointer printout from oops dump
-  6424f6bb4327 kasan: use %px to print addresses instead of %p
+And the slab-related operations should really be in the slab code in any
+case rather than within RCU.
 
-although that next-to-last case is a "remove %p" case rather than
-"convert to %px".
-
-And we'll probably hit a few more, I'm not at all claiming that we're
-somehow "done". There's bound to be other cases people haven't noticed
-yet (or haven't patched yet, like the usercopy case that Kees is
-signed up to fix up).
-
-But considering that we had something like 12k of those %p users, I
-think a handful now (and maybe a few tens eventually) is worth the
-pain and confusion.
-
-I just want to make sure that the ones we _do_ convert we actually
-spend the mental effort really looking at, and really asking "does it
-make sense to convert this?"
-
-Not just knee-jerking "oh, it's hashed, let's just unhash it".
-
-               Linus
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
