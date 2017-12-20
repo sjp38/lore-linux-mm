@@ -1,73 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 83ED66B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:00:32 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id l3so1913982wrf.4
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:00:32 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B9CEA6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 05:06:56 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id f8so14138509pgs.9
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 02:06:56 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j32si5761949wra.191.2017.12.20.02.00.31
+        by mx.google.com with ESMTPS id x8si12383013plv.781.2017.12.20.02.06.55
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 02:00:31 -0800 (PST)
-Date: Wed, 20 Dec 2017 11:00:29 +0100
+        Wed, 20 Dec 2017 02:06:55 -0800 (PST)
+Date: Wed, 20 Dec 2017 11:06:50 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in
- __list_del_entry_valid
-Message-ID: <20171220100029.GH4831@dhcp22.suse.cz>
-References: <001a11452568f5857c0560b0dc0e@google.com>
- <20171219130337.GU2787@dhcp22.suse.cz>
- <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
- <20171219132209.GV2787@dhcp22.suse.cz>
- <CACT4Y+aqFuVToOQH8RnfahhonaQ=qvq5JTvL-9aAKBQAa7UOug@mail.gmail.com>
- <20171219134235.GW2787@dhcp22.suse.cz>
- <CACT4Y+YqwhSyxRAGVQNQBqKPVe4WKa=5ZyKfW78qY9CDOs1r3w@mail.gmail.com>
- <20171220092046.GE4831@dhcp22.suse.cz>
- <CACT4Y+achWa2fCT9LWeHas6gOLtMwk28XZLkkfFF++D1X=9mVw@mail.gmail.com>
+Subject: Re: [PATCH v2 4/5] mm: use node_page_state_snapshot to avoid
+ deviation
+Message-ID: <20171220100650.GI4831@dhcp22.suse.cz>
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-5-git-send-email-kemi.wang@intel.com>
+ <20171219124317.GP2787@dhcp22.suse.cz>
+ <94187fd5-ad70-eba7-2724-0fe5bed750d6@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CACT4Y+achWa2fCT9LWeHas6gOLtMwk28XZLkkfFF++D1X=9mVw@mail.gmail.com>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <94187fd5-ad70-eba7-2724-0fe5bed750d6@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: syzbot <bot+83f46cd25e266359cd056c91f6ecd20b04eddf42@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Shakeel Butt <shakeelb@google.com>, syzkaller-bugs@googlegroups.com, ying.huang@intel.com, syzkaller <syzkaller@googlegroups.com>
+To: kemi <kemi.wang@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Wed 20-12-17 10:24:51, Dmitry Vyukov wrote:
-> On Wed, Dec 20, 2017 at 10:20 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> > On Tue 19-12-17 17:40:19, Dmitry Vyukov wrote:
-> >> On Tue, Dec 19, 2017 at 2:42 PM, Michal Hocko <mhocko@kernel.org> wrote:
-> >> >> >> > Can we silence this duplicates [1] please?
-> >> >> >> >
-> >> >> >> > [1] http://lkml.kernel.org/r/001a1140f57806ebef05608b25a5@google.com
-> >> >> >>
-> >> >> >> Hi Michal,
-> >> >> >>
-> >> >> >> What exactly do you mean?
-> >> >> >>
-> >> >> >> These 2 are the same email with the same Message-ID just on different
-> >> >> >> mailing lists. I don't see anything wrong here.
-> >> >> >
-> >> >> > Hmm the other one has Message-id: 001a1140f57806ebef05608b25a5@google.com
-> >> >> > while this one has 001a11452568f5857c0560b0dc0e@google.com
-> >> >>
-> >> >> Ah, I see.
-> >> >> These are reported separately because the crashes are titled
-> >> >> differently. Kernel titled one as "general protection fault" and
-> >> >> another as "BUG: unable to handle kernel NULL pointer dereference".
-> >> >
-> >> > Ahh, OK, so I've missed that part ;) I just thought it was duplicate
-> >> > because the report seemed very familiar.
-> >>
-> >>
-> >> So are these duplicates? If yes, we need to tell this syzbot:
-> >
-> > It seems so.
+On Wed 20-12-17 14:07:35, kemi wrote:
 > 
-> Please tell this directly to syzbot next time.
 > 
-> #syz dup: general protection fault in __list_del_entry_valid (2)
+> On 2017a1'12ae??19ae?JPY 20:43, Michal Hocko wrote:
+> > On Tue 19-12-17 14:39:25, Kemi Wang wrote:
+> >> To avoid deviation, this patch uses node_page_state_snapshot instead of
+> >> node_page_state for node page stats query.
+> >> e.g. cat /proc/zoneinfo
+> >>      cat /sys/devices/system/node/node*/vmstat
+> >>      cat /sys/devices/system/node/node*/numastat
+> >>
+> >> As it is a slow path and would not be read frequently, I would worry about
+> >> it.
+> > 
+> > The changelog doesn't explain why these counters needs any special
+> > treatment. _snapshot variants where used only for internal handling
+> > where the precision really mattered. We do not have any in-tree user and
+> > Jack has removed this by http://lkml.kernel.org/r/20171122094416.26019-1-jack@suse.cz
+> > which is already sitting in the mmotm tree. We can re-add it but that
+> > would really require a _very good_ reason.
+> > 
+> 
+> Assume we have *nr* cpus, and threshold size is *t*. Thus, the maximum deviation is nr*t.
+> Currently, Skylake platform has hundreds of CPUs numbers and the number is still 
+> increasing. Also, even the threshold size is kept to 125 at maximum (32765 
+> for NUMA counters now), the deviation is just a little too big as I have mentioned in 
+> the log. I tend to sum the number in local cpus up when query the global stats.
 
-OK.
+This is a general problem of pcp accounting. So if it needs to be
+addressed then do it the same way for all stats.
+
+> Also, node_page_state_snapshot is only called in slow path and I don't think that
+> would be a big problem. 
+> 
+> Anyway, it is a matter of taste. I just think it's better to have.
+
+You are making numastats special and I yet haven't heard any sounds
+arguments for that. But that should be discussed in the respective
+patch.
+
+> >> Signed-off-by: Kemi Wang <kemi.wang@intel.com>
+> >> ---
+> >>  drivers/base/node.c | 17 ++++++++++-------
+> >>  mm/vmstat.c         |  2 +-
+> >>  2 files changed, 11 insertions(+), 8 deletions(-)
+> >>
+> >> diff --git a/drivers/base/node.c b/drivers/base/node.c
+> >> index a045ea1..cf303f8 100644
+> >> --- a/drivers/base/node.c
+> >> +++ b/drivers/base/node.c
+> >> @@ -169,12 +169,15 @@ static ssize_t node_read_numastat(struct device *dev,
+> >>  		       "interleave_hit %lu\n"
+> >>  		       "local_node %lu\n"
+> >>  		       "other_node %lu\n",
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_HIT),
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_MISS),
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_FOREIGN),
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_INTERLEAVE_HIT),
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_LOCAL),
+> >> -		       node_page_state(NODE_DATA(dev->id), NUMA_OTHER));
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_HIT),
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_MISS),
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+> >> +			       NUMA_FOREIGN),
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+> >> +			       NUMA_INTERLEAVE_HIT),
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id), NUMA_LOCAL),
+> >> +		       node_page_state_snapshot(NODE_DATA(dev->id),
+> >> +			       NUMA_OTHER));
+> >>  }
+> >>  
+> >>  static DEVICE_ATTR(numastat, S_IRUGO, node_read_numastat, NULL);
+> >> @@ -194,7 +197,7 @@ static ssize_t node_read_vmstat(struct device *dev,
+> >>  	for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++)
+> >>  		n += sprintf(buf+n, "%s %lu\n",
+> >>  			     vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+> >> -			     node_page_state(pgdat, i));
+> >> +			     node_page_state_snapshot(pgdat, i));
+> >>  
+> >>  	return n;
+> >>  }
+> >> diff --git a/mm/vmstat.c b/mm/vmstat.c
+> >> index 64e08ae..d65f28d 100644
+> >> --- a/mm/vmstat.c
+> >> +++ b/mm/vmstat.c
+> >> @@ -1466,7 +1466,7 @@ static void zoneinfo_show_print(struct seq_file *m, pg_data_t *pgdat,
+> >>  		for (i = 0; i < NR_VM_NODE_STAT_ITEMS; i++) {
+> >>  			seq_printf(m, "\n      %-12s %lu",
+> >>  				vmstat_text[i + NR_VM_ZONE_STAT_ITEMS],
+> >> -				node_page_state(pgdat, i));
+> >> +				node_page_state_snapshot(pgdat, i));
+> >>  		}
+> >>  	}
+> >>  	seq_printf(m,
+> >> -- 
+> >> 2.7.4
+> >>
+> > 
 
 -- 
 Michal Hocko
