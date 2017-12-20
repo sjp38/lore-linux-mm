@@ -1,88 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C02D6B0260
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 11:19:26 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id i7so9749638plt.3
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:19:26 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id h9si12071120pgp.365.2017.12.20.08.19.25
+	by kanga.kvack.org (Postfix) with ESMTP id AEFE66B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 11:41:11 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id w15so9778407plp.14
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 08:41:11 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id c1si13342409pld.12.2017.12.20.08.41.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Dec 2017 08:19:25 -0800 (PST)
-Date: Wed, 20 Dec 2017 08:19:23 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 5/8] mm: Introduce _slub_counter_t
-Message-ID: <20171220161923.GB1840@bombadil.infradead.org>
-References: <20171216164425.8703-1-willy@infradead.org>
- <20171216164425.8703-6-willy@infradead.org>
- <20171219080731.GB2787@dhcp22.suse.cz>
- <20171219124605.GA13680@bombadil.infradead.org>
- <20171219130159.GT2787@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Dec 2017 08:41:10 -0800 (PST)
+Date: Wed, 20 Dec 2017 09:41:07 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171220164107.GA29103@linux.intel.com>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171219130159.GT2787@dhcp22.suse.cz>
+In-Reply-To: <20171218203547.GA2366@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Christoph Lameter <cl@linux.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org
 
-On Tue, Dec 19, 2017 at 02:01:59PM +0100, Michal Hocko wrote:
-> On Tue 19-12-17 04:46:05, Matthew Wilcox wrote:
-> > On Tue, Dec 19, 2017 at 09:07:31AM +0100, Michal Hocko wrote:
-> > > On Sat 16-12-17 08:44:22, Matthew Wilcox wrote:
-> > > > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > > > 
-> > > > Instead of putting the ifdef in the middle of the definition of struct
-> > > > page, pull it forward to the rest of the ifdeffery around the SLUB
-> > > > cmpxchg_double optimisation.
-> > > > 
-> > > > Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-> > > 
-> > > The definition of struct page looks better now. I think that slub.c
-> > > needs some love as well. I haven't checked too deeply but it seems that
-> > > it assumes counters to be unsigned long in some places. Maybe I've
-> > > missed some ifdef-ery but using the native type would be much better
-> > 
-> > I may have missed something, but I checked its use of 'counters' while
-> > I was working on this patch, and I didn't *see* a problem.
+On Mon, Dec 18, 2017 at 01:35:47PM -0700, Ross Zwisler wrote:
+> On Thu, Dec 14, 2017 at 02:00:32PM +0100, Michal Hocko wrote:
+<>
+> > What is the testing procedure? How can I setup qemu to simlate such HW?
 > 
-> I didn't check too closely but I can see code like this in slub.c
-> static inline void set_page_slub_counters(struct page *page, unsigned long counters_new)
-> resp.
-> static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
-> 		void *freelist_old, unsigned long counters_old,
-> 		void *freelist_new, unsigned long counters_new,
-> 		const char *n)
+> Well, the QEMU table simulation is gross, so I'd rather not get everyone
+> testing with that.  Injecting custom HMAT and SRAT tables via initrd/initramfs
+> is a much better way:
 > 
-> which always uses unsigned long for the value rather than unsigned int.
-> But maybe those paths are never dealing with an out-of-scope value.
-> Using your new type there would cleanup that thing a bit.
+> https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
+> 
+> Dan recently posted a patch that lets this happen for the HMAT:
+> 
+> https://lists.01.org/pipermail/linux-nvdimm/2017-December/013545.html
+> 
+> I'm working right now on getting an easier way to generate HMAT tables - I'll
+> let you know when I have something working.
 
-OK, here's how I read the code in slub.  Christoph, please let me know
-if I misunderstand.
+I've posted details on how to set up test configurations using injected HMAT
+and SRAT tables here:
 
-slub wants to atomically update both freelist and its counters, so it has
-96 bits of information to update atomically (on 64 bit), or 64 bits on
-32-bit machines.  We don't have a 96-bit atomic-cmpxchg, but we do have
-a 128-bit atomic-cmpxchg on some architectures.  So _if_ we're going
-to use cmpxchg_double(), then we need counters to be an unsigned long.
-If we're not then counters needs to be an unsigned int so it doesn't
-overlap with _refcount, which is not going to be protected by slab_lock.
+https://github.com/rzwisler/hmat_examples
 
-Now I look at it some more though, I wonder if it would hurt for counters
-to always be unsigned long.  There is no problem on 32-bit as long and int
-are the same size.  So on 64-bit, the cmpxchg_double path stays as it is.
-There would then be the extra miniscule risk that __cmpxchg_double_slab()
-fails due to a spurious _refcount modification due to an RCU-protected
-pagecache lookup.  And there are a few places that would be a 64-bit
-load rather than a 32-bit load.
+So far I've got two different sample configs, and we can add more as they are
+useful.  Having the sample configs in github is also nice because if someone
+finds a config that causes a kernel issue it can be reported then added to
+this list of example configs for future testing.
 
-I think if I were doing slub, I'd put in 'unsigned int counters_32'
-and 'unsigned long counters_64'.  set_page_slub_counters() would then
-become simply:
-
-	page->counters_32 = counters_new;
+Please let me know if you have trouble getting this working.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
