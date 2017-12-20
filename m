@@ -1,99 +1,125 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 710D16B0069
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 15:27:25 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id u60so1237439wrb.10
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 12:27:25 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n11sor8406624wre.0.2017.12.20.12.27.24
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E332D6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:13:54 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id x1so10168202plb.2
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:13:54 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id h5si12483353pgv.48.2017.12.20.13.13.53
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Dec 2017 12:27:24 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Dec 2017 13:13:53 -0800 (PST)
+Date: Wed, 20 Dec 2017 14:13:50 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171220211350.GA2688@linux.intel.com>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod7Z1Yh+ZhU8qxzSiN0Pph2R7O4Mki5E23FbJFAzhyCH8g@mail.gmail.com>
-References: <20171219000131.149170-1-shakeelb@google.com> <20171219124908.GS2787@dhcp22.suse.cz>
- <CALvZod5jU9vPoJaf44TVT0_HQpEESiELJU5MD_DDRbcOkPNQbg@mail.gmail.com>
- <20171219152444.GP3919388@devbig577.frc2.facebook.com> <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
- <20171219173354.GQ3919388@devbig577.frc2.facebook.com> <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
- <20171219214107.GR3919388@devbig577.frc2.facebook.com> <CALvZod5XRhXc3XrQw50Jw_OpRQB2iCCbgG-NMDCa8xRmGNdLrw@mail.gmail.com>
- <20171220193741.GD3413940@devbig577.frc2.facebook.com> <CALvZod7Z1Yh+ZhU8qxzSiN0Pph2R7O4Mki5E23FbJFAzhyCH8g@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Wed, 20 Dec 2017 12:27:22 -0800
-Message-ID: <CALvZod5ehycMTpSSaHwSchL_b9E6Ja6uwZB-cPT2KWg2kb=8sQ@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220181937.GB12236@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
-On Wed, Dec 20, 2017 at 12:15 PM, Shakeel Butt <shakeelb@google.com> wrote:
-> On Wed, Dec 20, 2017 at 11:37 AM, Tejun Heo <tj@kernel.org> wrote:
->> Hello, Shakeel.
->>
->> On Tue, Dec 19, 2017 at 02:39:19PM -0800, Shakeel Butt wrote:
->>> Suppose a user wants to run multiple instances of a specific job on
->>> different datacenters and s/he has budget of 100MiB for each instance.
->>> The instances are schduled on the requested datacenters and the
->>> scheduler has set the memory limit of those instances to 100MiB. Now,
->>> some datacenters have swap deployed, so, there, let's say, the swap
->>> limit of those instances are set according to swap medium
->>> availability. In this setting the user will see inconsistent memcg OOM
->>> behavior. Some of the instances see OOMs at 100MiB usage (suppose only
->>> anon memory) while some will see OOMs way above 100MiB due to swap.
->>> So, the user is required to know the internal knowledge of datacenters
->>> (like which has swap or not and swap type) and has to set the limits
->>> accordingly and thus increase the chance of config bugs.
->>
->> I don't understand how this invariant is useful across different
->> backing swap devices and availability.  e.g. Our OOM decisions are
->> currently not great in that the kernel can easily thrash for a very
->> long time without making actual progresses.  If you combine that with
->> widely varying types and availability of swaps,
->
-> The kernel never swaps out on hitting memsw limit. So, the varying
-> types and availability of swaps becomes invariant to the memcg OOM
-> behavior of the job.
->
->> whether something is
->> OOMing or not doesn't really tell you much.  The workload could be
->> running completely fine or have been thrashing without making any
->> meaningful forward progress for the past 15 mins.
->>
->> Given that whether or not swap exists, how much is avialable and how
->> fast the backing swap device is all highly influential parameters in
->> how the workload behaves, I don't see what having sum of memory + swap
->> as an invariant actually buys.  And, even that essentially meaningless
->> invariant doesn't really exist - the performance of the swap device
->> absolutely affects when the OOM killer would kick in.
->>
->
-> No, as I previously explained, the swap types and availability will be
-> transparent to the memcg OOM killer and memcg memory reclaim behavior.
->
->> So, I don't see how the sum of memory+swap makes it possible to ignore
->> the swap type and availability.  Can you please explain that further?
->>
->>> Also different types and sizes of swap mediums in data center will
->>> further complicates the configuration. One datacenter might have SSD
->>> as a swap, another might be doing swap on zram and third might be
->>> doing swap on nvdimm. Each can have different size and can be assigned
->>> to jobs differently. So, it is possible that the instances of the same
->>> job might be assigned different swap limit on different datacenters.
->>
->> Sure, but what does memswap achieve?
->>
->
-> 1. memswap provides consistent memcg OOM killer and memcg memory
-> reclaim behavior independent to swap.
-> 2. With memswap, the job owners do not have to think or worry about swaps.
+On Wed, Dec 20, 2017 at 10:19:37AM -0800, Matthew Wilcox wrote:
+> On Mon, Dec 18, 2017 at 01:35:47PM -0700, Ross Zwisler wrote:
+> > What I'm hoping to do with this series is to just provide a sysfs
+> > representation of the HMAT so that applications can know which NUMA nodes to
+> > select with existing utilities like numactl.  This series does not currently
+> > alter any kernel behavior, it only provides a sysfs interface.
+> > 
+> > Say for example you had a system with some high bandwidth memory (HBM), and
+> > you wanted to use it for a specific application.  You could use the sysfs
+> > representation of the HMAT to figure out which memory target held your HBM.
+> > You could do this by looking at the local bandwidth values for the various
+> > memory targets, so:
+> > 
+> > 	# grep . /sys/devices/system/hmat/mem_tgt*/local_init/write_bw_MBps
+> > 	/sys/devices/system/hmat/mem_tgt2/local_init/write_bw_MBps:81920
+> > 	/sys/devices/system/hmat/mem_tgt3/local_init/write_bw_MBps:40960
+> > 	/sys/devices/system/hmat/mem_tgt4/local_init/write_bw_MBps:40960
+> > 	/sys/devices/system/hmat/mem_tgt5/local_init/write_bw_MBps:40960
+> > 
+> > and look for the one that corresponds to your HBM speed. (These numbers are
+> > made up, but you get the idea.)
+> 
+> Presumably ACPI-based platforms will not be the only ones who have the
+> ability to expose different bandwidth memories in the future.  I think
+> we need a platform-agnostic way ... right, PowerPC people?
 
-When I say OOM and memory reclaim behavior, I specifically mean memcg
-oom-kill and memcg memory reclaim behavior. These are different from
-global oom-killer and global memory reclaim behaviors. The global
-behaviors will be affected by the types and availability of swaps and
-the jobs can suffer differently based on swap types and availability
-on hitting global OOM scenario.
+Hey Matthew,
+
+Yep, this is where I started as well.  My plan with my initial implementation
+was to try and make the sysfs representation as platform agnostic as possible,
+and just have the ACPI HMAT as one of the many places to gather the data
+needed to populate sysfs.
+
+However, as I began coding the implementation became very specific to the
+HMAT, probably because I don't know of way that this type of info is
+represented on another platform.  John Hubbard noticed the same thing and
+asked me to s/HMEM/HMAT/ everywhere and just make it HMAT specific, and to
+prevent it from being confused with the HMM work:
+
+https://lkml.org/lkml/2017/7/7/33
+https://lkml.org/lkml/2017/7/7/442
+
+I'm open to making it more platform agnostic if I can get my hands on a
+parallel effort in another platform and tease out the commonality, but trying
+to do that without a second example hasn't worked out.  If we don't have a
+good second example right now I think maybe we should put this in and then
+merge it with the second example when it comes along.
+
+> I don't know what the right interface is, but my laptop has a set of
+> /sys/devices/system/memory/memoryN/ directories.  Perhaps this is the
+> right place to expose write_bw (etc).
+> 
+> > Once you know the NUMA node of your HBM, you can figure out the NUMA node of
+> > it's local initiator:
+> > 
+> > 	# ls -d /sys/devices/system/hmat/mem_tgt2/local_init/mem_init*
+> > 	/sys/devices/system/hmat/mem_tgt2/local_init/mem_init0
+> > 
+> > So, in our made-up example our HBM is located in numa node 2, and the local
+> > CPU for that HBM is at numa node 0.
+> 
+> initiator is a CPU?  I'd have expected you to expose a memory controller
+> abstraction rather than re-use storage terminology.
+
+Yea, I agree that at first blush it seems weird.  It turns out that looking at
+it in sort of a storage initiator/target way is beneficial, though, because it
+allows us to cut down on the number of data values we need to represent.
+
+For example the SLIT, which doesn't differentiate between initiator and target
+proximity domains (and thus nodes) always represents a system with N proximity
+domains using a NxN distance table.  This makes sense if every node contains
+both CPUs and memory.
+
+With the introduction of the HMAT, though, we can have memory-only initiator
+nodes and we can explicitly associate them with their local CPU.  This is
+necessary so that we can separate memory with different performance
+characteristics (HBM vs normal memory vs persistent memory, for example) that
+are all attached to the same CPU.
+
+So, say we now have a system with 4 CPUs, and each of those CPUs has 3
+different types of memory attached to it.  We now have 16 total proximity
+domains, 4 CPU and 12 memory.
+
+If we represent this with the SLIT we end up with a 16 X 16 distance table
+(256 entries), most of which don't matter because they are memory-to-memory
+distances which don't make sense.
+
+In the HMAT, though, we separate out the initiators and the targets and put
+them into separate lists.  (See 5.2.27.4 System Locality Latency and Bandwidth
+Information Structure in ACPI 6.2 for details.)  So, this same config in the
+HMAT only has 4*12=48 performance values of each type, all of which convey
+meaningful information.
+
+The HMAT indeed even uses the storage "initiator" and "target" terminology. :)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
