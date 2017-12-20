@@ -1,51 +1,89 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E8FE6B0069
-	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 20:01:04 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id m39so6888258plg.19
-        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 17:01:04 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id DFFE26B0038
+	for <linux-mm@kvack.org>; Tue, 19 Dec 2017 20:11:40 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id z32so332615ota.5
+        for <linux-mm@kvack.org>; Tue, 19 Dec 2017 17:11:40 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id a8sor5942913ple.14.2017.12.19.17.01.03
+        by mx.google.com with SMTPS id a6sor6700578ote.271.2017.12.19.17.11.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 19 Dec 2017 17:01:03 -0800 (PST)
-Date: Wed, 20 Dec 2017 10:00:58 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
-Message-ID: <20171220010058.GB21976@jagdpanzerIV>
-References: <20171219102213.GA435@jagdpanzerIV>
- <1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
- <20171219151341.GC15210@dhcp22.suse.cz>
- <20171219152536.GA591@tigerII.localdomain>
- <20171219155815.GC2787@dhcp22.suse.cz>
- <15c19718-c08e-e7f6-8af9-9651db1b11cc@gmail.com>
- <20171219152736.55d064945a68d2d2ffc64b15@linux-foundation.org>
+        Tue, 19 Dec 2017 17:11:39 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171219152736.55d064945a68d2d2ffc64b15@linux-foundation.org>
+In-Reply-To: <20171110090818.GE4895@lst.de>
+References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171110090818.GE4895@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Tue, 19 Dec 2017 17:11:38 -0800
+Message-ID: <CAPcyv4irj_+pJdX1SO6MjsxURcKm8--i_QvyudgHTZE2w4w-sA@mail.gmail.com>
+Subject: Re: [PATCH 14/15] dax: associate mappings with inodes, and warn if
+ dma collides with truncate
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, minchan@kernel.org, ngupta@vflare.org, sergey.senozhatsky.work@gmail.com, linux-mm@kvack.org
+To: Christoph Hellwig <hch@lst.de>
+Cc: "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Jan Kara <jack@suse.cz>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-On (12/19/17 15:27), Andrew Morton wrote:
-> I did this:
-> 
-> From: Andrew Morton <akpm@linux-foundation.org>
-> Subject: mm-zsmalloc-simplify-shrinker-init-destroy-fix
-> 
-> update comment (Aliaksei), make zs_register_shrinker() return void
-> 
-> Cc: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Minchan Kim <minchan@kernel.org>
-> Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+On Fri, Nov 10, 2017 at 1:08 AM, Christoph Hellwig <hch@lst.de> wrote:
+>> +             struct {
+>> +                     /*
+>> +                      * ZONE_DEVICE pages are never on an lru or handled by
+>> +                      * a slab allocator, this points to the hosting device
+>> +                      * page map.
+>> +                      */
+>> +                     struct dev_pagemap *pgmap;
+>> +                     /*
+>> +                      * inode association for MEMORY_DEVICE_FS_DAX page-idle
+>> +                      * callbacks. Note that we don't use ->mapping since
+>> +                      * that has hard coded page-cache assumptions in
+>> +                      * several paths.
+>> +                      */
+>
+> What assumptions?  I'd much rather fix those up than having two fields
+> that have the same functionality.
 
-looks good. thanks!
+[ Reviving this old thread where you asked why I introduce page->inode
+instead of reusing page->mapping ]
 
-	-ss
+For example, xfs_vm_set_page_dirty() assumes that page->mapping being
+non-NULL indicates a typical page cache page, this is a false
+assumption for DAX. My guess at a fix for this is to add
+pagecache_page() checks to locations like this, but I worry about how
+to find them all. Where pagecache_page() is:
+
+bool pagecache_page(struct page *page)
+{
+        if (!page->mapping)
+                return false;
+        if (!IS_DAX(page->mapping->host))
+                return false;
+        return true;
+}
+
+Otherwise we go off the rails:
+
+ WARNING: CPU: 27 PID: 1783 at fs/xfs/xfs_aops.c:1468
+xfs_vm_set_page_dirty+0xf3/0x1b0 [xfs]
+ [..]
+ CPU: 27 PID: 1783 Comm: dma-collision Tainted: G           O
+4.15.0-rc2+ #984
+ [..]
+ Call Trace:
+  set_page_dirty_lock+0x40/0x60
+  bio_set_pages_dirty+0x37/0x50
+  iomap_dio_actor+0x2b7/0x3b0
+  ? iomap_dio_zero+0x110/0x110
+  iomap_apply+0xa4/0x110
+  iomap_dio_rw+0x29e/0x3b0
+  ? iomap_dio_zero+0x110/0x110
+  ? xfs_file_dio_aio_read+0x7c/0x1a0 [xfs]
+  xfs_file_dio_aio_read+0x7c/0x1a0 [xfs]
+  xfs_file_read_iter+0xa0/0xc0 [xfs]
+  __vfs_read+0xf9/0x170
+  vfs_read+0xa6/0x150
+  SyS_pread64+0x93/0xb0
+  entry_SYSCALL_64_fastpath+0x1f/0x96
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
