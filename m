@@ -1,67 +1,158 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A951E6B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:43:53 -0500 (EST)
-Received: by mail-lf0-f69.google.com with SMTP id m134so5018465lfg.12
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:43:53 -0800 (PST)
-Received: from smtp-out4.electric.net (smtp-out4.electric.net. [192.162.216.183])
-        by mx.google.com with ESMTPS id n1si158498lfn.48.2017.12.20.01.43.50
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1C9176B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:53:33 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id z1so16217924pfl.9
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:53:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 8si12923797pfj.82.2017.12.20.01.53.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 01:43:51 -0800 (PST)
-From: David Laight <David.Laight@ACULAB.COM>
-Subject: RE: BUG: bad usercopy in memdup_user
-Date: Wed, 20 Dec 2017 09:44:00 +0000
-Message-ID: <d6c8c26ba44847299c4db9136d60957d@AcuMS.aculab.com>
-References: <001a113e9ca8a3affd05609d7ccf@google.com>
- <6a50d160-56d0-29f9-cfed-6c9202140b43@I-love.SAKURA.ne.jp>
- <CAGXu5jKLBuQ8Ne6BjjPH+1SVw-Fj4ko5H04GHn-dxXYwoMEZtw@mail.gmail.com>
- <CACT4Y+a3h0hmGpfVaePX53QUQwBhN9BUyERp-5HySn74ee_Vxw@mail.gmail.com>
- <20171219083746.GR19604@eros> <20171219132246.GD13680@bombadil.infradead.org>
- <CA+55aFwvMMg0Kt8z+tkgPREbX--Of0R5nr_wS4B64kFxiVVKmw@mail.gmail.com>
- <20171219214849.GU21978@ZenIV.linux.org.uk>
-In-Reply-To: <20171219214849.GU21978@ZenIV.linux.org.uk>
-Content-Language: en-US
-Content-Type: text/plain; charset="us-ascii"
-Content-Transfer-Encoding: quoted-printable
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 01:53:31 -0800 (PST)
+Date: Wed, 20 Dec 2017 10:53:28 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration
+ improvements
+Message-ID: <20171220095328.GG4831@dhcp22.suse.cz>
+References: <20171204140117.7191-1-mhocko@kernel.org>
+ <20171215093309.GU16951@dhcp22.suse.cz>
+ <95ba8db3-f8aa-528a-db4b-80f9d2ba9d2b@ah.jp.nec.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <95ba8db3-f8aa-528a-db4b-80f9d2ba9d2b@ah.jp.nec.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: 'Al Viro' <viro@ZenIV.linux.org.uk>, Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Matthew Wilcox <willy@infradead.org>, "Tobin C. Harding" <me@tobin.cc>, Dmitry Vyukov <dvyukov@google.com>, Kees Cook <keescook@chromium.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Linux-MM <linux-mm@kvack.org>, syzbot <bot+719398b443fd30155f92f2a888e749026c62b427@syzkaller.appspotmail.com>, David Windsor <dave@nullcore.net>, "keun-o.park@darkmatter.ae" <keun-o.park@darkmatter.ae>, Laura Abbott <labbott@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Mark Rutland <mark.rutland@arm.com>, Ingo
- Molnar <mingo@kernel.org>, "syzkaller-bugs@googlegroups.com" <syzkaller-bugs@googlegroups.com>, Will Deacon <will.deacon@arm.com>
+To: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-From: Al Viro
-> Sent: 19 December 2017 21:49
-> > I suspect that an "offset and size within the kernel object" value
-> > might make sense.  But what does the _pointer_ tell you?
->=20
-> Well, for example seeing a 0xfffffffffffffff4 where a pointer to object
-> must have been is a pretty strong hint to start looking for a way for
-> that ERR_PTR(-ENOMEM) having ended up there...  Something like
-> 0x6e69622f7273752f is almost certainly a misplaced "/usr/bin", i.e. a
-> pathname overwriting whatever it ends up in, etc.  And yes, I have run
-> into both of those in real life.
->=20
-> Debugging the situation when crap value has ended up in place of a
-> pointer is certainly a case where you do want to see what exactly has
-> ended up in there...
+On Wed 20-12-17 05:33:36, Naoya Horiguchi wrote:
+> 
+> On 12/15/2017 06:33 PM, Michal Hocko wrote:
+> > Naoya,
+> > this has passed Mike's review (thanks for that!), you have mentioned
+> > that you can pass this through your testing machinery earlier. While
+> > I've done some testing already I would really appreciate if you could
+> > do that as well. Review would be highly appreciated as well.
+> 
+> Sorry for my slow response. I reviewed/tested this patchset and looks
+> good to me overall.
 
-I've certainly seen a lot of ascii in pointers (usually because the
-previous item has overrun).
-Although I suspect they'd appear in the fault frame - which hopefully
-carries real addresses.
+No need to feel sorry. This doesn't have an urgent priority. Thanks for
+the review and testing. Can I assume your {Reviewed,Acked}-by or
+Tested-by?
 
-A compromise would be to hash the 'page' part of the address.
-On 64bit systems this is probably about 32 bits.
-It would still show whether pointers are user, kernel, vmalloc (etc)
-but without giving away the actual value.
-The page offset (12 bits) would show the alignment (etc).
+> I have one comment on the code path from mbind(2).
+> The callback passed to migrate_pages() in do_mbind() (i.e. new_page())
+> calls alloc_huge_page_noerr() which currently doesn't call SetPageHugeTemporary(),
+> so hugetlb migration fails when h->surplus_huge_page >= h->nr_overcommit_huge_pages.
 
-Including a per-boot random number would make it harder to generate
-'rainbow tables' to reverse the hash.
+Yes, I am aware of that. I should have been more explicit in the
+changelog. Sorry about that and thanks for pointing it out explicitly.
+To be honest I wasn't really sure what to do about this. The code path
+is really complex and it made my head spin. I fail to see why we have to
+call alloc_huge_page and mess with reservations at all.
 
-	David
+> I don't think this is a bug, but it would be better if mbind(2) works
+> more similarly with other migration callers like move_pages(2)/migrate_pages(2).
+
+If the fix is as easy as the following I will add it to the pile.
+Otherwise I would prefer to do this separately after I find some more
+time to understand the callpath.
+---
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index e035002d3fb6..08a4af411e25 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -345,10 +345,9 @@ struct huge_bootmem_page {
+ struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 				unsigned long addr, int avoid_reserve);
+ struct page *alloc_huge_page_node(struct hstate *h, int nid);
+-struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+-				unsigned long addr, int avoid_reserve);
+ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 				nodemask_t *nmask);
++struct page *alloc_huge_page_vma(struct vm_area_struct *vma, unsigned long address);
+ int huge_add_to_page_cache(struct page *page, struct address_space *mapping,
+ 			pgoff_t idx);
+ 
+@@ -526,7 +525,7 @@ struct hstate {};
+ #define alloc_huge_page(v, a, r) NULL
+ #define alloc_huge_page_node(h, nid) NULL
+ #define alloc_huge_page_nodemask(h, preferred_nid, nmask) NULL
+-#define alloc_huge_page_noerr(v, a, r) NULL
++#define alloc_huge_page_vma(vma, address) NULL
+ #define alloc_bootmem_huge_page(h) NULL
+ #define hstate_file(f) NULL
+ #define hstate_sizelog(s) NULL
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index 4426c5b23a20..e00deabe6d17 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1672,6 +1672,25 @@ struct page *alloc_huge_page_nodemask(struct hstate *h, int preferred_nid,
+ 	return alloc_migrate_huge_page(h, gfp_mask, preferred_nid, nmask);
+ }
+ 
++/* mempolicy aware migration callback */
++struct page *alloc_huge_page_vma(struct vm_area_struct *vma, unsigned long address)
++{
++	struct mempolicy *mpol;
++	nodemask_t *nodemask;
++	struct page *page;
++	struct hstate *h;
++	gfp_t gfp_mask;
++	int node;
++
++	h = hstate_vma(vma);
++	gfp_mask = htlb_alloc_mask(h);
++	node = huge_node(vma, address, gfp_mask, &mpol, &nodemask);
++	page = alloc_huge_page_nodemask(h, node, nodemask);
++	mpol_cond_put(mpol);
++
++	return page;
++}
++
+ /*
+  * Increase the hugetlb pool such that it can accommodate a reservation
+  * of size 'delta'.
+@@ -2077,20 +2096,6 @@ struct page *alloc_huge_page(struct vm_area_struct *vma,
+ 	return ERR_PTR(-ENOSPC);
+ }
+ 
+-/*
+- * alloc_huge_page()'s wrapper which simply returns the page if allocation
+- * succeeds, otherwise NULL. This function is called from new_vma_page(),
+- * where no ERR_VALUE is expected to be returned.
+- */
+-struct page *alloc_huge_page_noerr(struct vm_area_struct *vma,
+-				unsigned long addr, int avoid_reserve)
+-{
+-	struct page *page = alloc_huge_page(vma, addr, avoid_reserve);
+-	if (IS_ERR(page))
+-		page = NULL;
+-	return page;
+-}
+-
+ int alloc_bootmem_huge_page(struct hstate *h)
+ 	__attribute__ ((weak, alias("__alloc_bootmem_huge_page")));
+ int __alloc_bootmem_huge_page(struct hstate *h)
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f604b22ebb65..96823fa07f38 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1121,8 +1121,7 @@ static struct page *new_page(struct page *page, unsigned long start, int **x)
+ 	}
+ 
+ 	if (PageHuge(page)) {
+-		BUG_ON(!vma);
+-		return alloc_huge_page_noerr(vma, address, 1);
++		return alloc_huge_page_vma(vma, address);
+ 	} else if (thp_migration_supported() && PageTransHuge(page)) {
+ 		struct page *thp;
+ 
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
