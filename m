@@ -1,94 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5120F6B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 12:51:02 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id c190so16013262qkb.12
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 09:51:02 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id r194si5517051qke.77.2017.12.20.09.51.00
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 96BAE6B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:14:17 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id o43so7626748otd.12
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 10:14:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i9si5362640oia.89.2017.12.20.10.14.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 09:51:01 -0800 (PST)
-Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBKHn2eM018398
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 12:51:00 -0500
-Received: from e34.co.us.ibm.com (e34.co.us.ibm.com [32.97.110.152])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2eyuy8j36q-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 12:50:59 -0500
-Received: from localhost
-	by e34.co.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <linuxram@us.ibm.com>;
-	Wed, 20 Dec 2017 10:50:33 -0700
-Date: Wed, 20 Dec 2017 09:50:22 -0800
-From: Ram Pai <linuxram@us.ibm.com>
-Subject: Re: [PATCH v9 29/51] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys:
- Add sysfs interface
-Reply-To: Ram Pai <linuxram@us.ibm.com>
-References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
- <1509958663-18737-30-git-send-email-linuxram@us.ibm.com>
- <bbc5593e-31ec-183a-01a5-1a253dc0c275@intel.com>
- <20171218221850.GD5461@ram.oc3035372033.ibm.com>
- <e7971d03-6ad1-40d5-9b79-f01242db5293@intel.com>
- <1513719296.2743.12.camel@kernel.crashing.org>
+        Wed, 20 Dec 2017 10:14:16 -0800 (PST)
+Date: Wed, 20 Dec 2017 19:14:09 +0100
+From: Jesper Dangaard Brouer <brouer@redhat.com>
+Subject: Re: [PATCH] kfree_rcu() should use the new kfree_bulk() interface
+ for freeing rcu structures
+Message-ID: <20171220191409.77a8d006@redhat.com>
+In-Reply-To: <alpine.DEB.2.20.1712191855060.24885@nuc-kabylake>
+References: <rao.shoaib@oracle.com>
+	<1513705948-31072-1-git-send-email-rao.shoaib@oracle.com>
+	<alpine.DEB.2.20.1712191332090.7876@nuc-kabylake>
+	<b38f36d7-be4f-8cc4-208e-f0778077a063@oracle.com>
+	<alpine.DEB.2.20.1712191855060.24885@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1513719296.2743.12.camel@kernel.crashing.org>
-Message-Id: <20171220175022.GB5619@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Benjamin Herrenschmidt <benh@kernel.crashing.org>
-Cc: Dave Hansen <dave.hansen@intel.com>, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
+To: Christopher Lameter <cl@linux.com>
+Cc: Rao Shoaib <rao.shoaib@oracle.com>, linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, linux-mm@kvack.org, brouer@redhat.com
 
-On Wed, Dec 20, 2017 at 08:34:56AM +1100, Benjamin Herrenschmidt wrote:
-> On Mon, 2017-12-18 at 14:28 -0800, Dave Hansen wrote:
-> > > We do not have generic support for something like that on ppc.
-> > > The kernel looks at the device tree to determine what hardware features
-> > > are available. But does not have mechanism to tell the hardware to track
-> > > which of its features are currently enabled/used by the kernel; atleast
-> > > not for the memory-key feature.
-> > 
-> > Bummer.  You're missing out.
-> > 
-> > But, you could still do this with a syscall.  "Hey, kernel, do you
-> > support this feature?"
+On Tue, 19 Dec 2017 18:56:51 -0600 (CST)
+Christopher Lameter <cl@linux.com> wrote:
+
+> On Tue, 19 Dec 2017, Rao Shoaib wrote:
 > 
-> I'm not sure I understand Ram's original (quoted) point, but informing
-> userspace of CPU features is what AT_HWCAP's are about.
+> > > > mm/slab_common.c  
+> > > It would be great to have separate patches so that we can review it
+> > > properly:
+> > >
+> > > 1. Move the code into slab_common.c
+> > > 2. The actual code changes to the kfree rcu mechanism
+> > > 3. The whitespace changes  
+> 
+> > I can certainly break down the patch and submit smaller patches as you have
+> > suggested.
+> >
+> > BTW -- This is my first ever patch to Linux, so I am still learning the
+> > etiquette.  
+> 
+> You are doing great. Keep at improving the patches and we will get your
+> changes into the kernel source. If you want to sent your first patchset
+> then a tool like "quilt" or "git" might be helpful.
 
-Ben, my original point was -- we developed this patch to satisfy a concern
-you raised back on July 11th;  cut-n-pasted below.
+When working with patchsets (multiple separate patches, as requested
+here), I personally prefer using the tool called Stacked Git[1] (StGit)
+command line 'stg', as it allows me to easily adjust patches in the
+middle of the patchset "stack".  It is similar to quilt, just git based
+itself.
 
--------------------------------------------------------------------
-That leads to the question... How do you tell userspace.
+I guess most people on this list use 'git rebase --interactive' when
+updating their patchsets (?)
 
-(apologies if I missed that in an existing patch in the series)
-
-How do we inform userspace of the key capabilities ? There are
-at least two things userspace may want to know already:
-
-	 - What protection bits are supported for a key
-
-	 - How many keys exist
-
-	 - Which keys are available for use by userspace. On PowerPC,
-	 the kernel can reserve some keys for itself, so can the
-	 hypervisor. In fact, they do.
---------------------------------------------------------------------
-
-
-The argument against this patch is --  it should not be baked into
-the ABI as yet, since we do not have clarity on what applications need.
-
-As it stands today the only way to figure out the information from
-userspace is by probing the kernel through calls to sys_pkey_alloc().
-
-AT_HWCAP can be used, but that will certainly not be capable of
-providing all the information that userspace might expect.
-
-Your thoughts?
-RP
+[1] http://procode.org/stgit/doc/tutorial.html
+-- 
+Best regards,
+  Jesper Dangaard Brouer
+  MSc.CS, Principal Kernel Engineer at Red Hat
+  LinkedIn: http://www.linkedin.com/in/brouer
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
