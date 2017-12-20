@@ -1,98 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f70.google.com (mail-lf0-f70.google.com [209.85.215.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2072D6B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:20:49 -0500 (EST)
-Received: by mail-lf0-f70.google.com with SMTP id n199so5459610lfb.21
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:20:49 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c4sor3236452ljd.63.2017.12.20.13.20.47
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 37F276B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:24:11 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a74so17074553pfg.20
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:24:11 -0800 (PST)
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id v3si13624342plb.385.2017.12.20.13.24.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Dec 2017 13:20:47 -0800 (PST)
-Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
-References: <20171219152536.GA591@tigerII.localdomain>
- <20171219155815.GC2787@dhcp22.suse.cz> <20171220071500.GA11774@jagdpanzerIV>
- <04faff62-0944-3c7d-15b0-9dc60054a830@gmail.com>
- <20171220083403.GC11774@jagdpanzerIV> <20171220090828.GB4831@dhcp22.suse.cz>
- <20171220091653.GE11774@jagdpanzerIV> <20171220092513.GF4831@dhcp22.suse.cz>
- <ad885766-69b8-940a-c69a-4c23779eb228@I-love.SAKURA.ne.jp>
- <20171220113835.GO4831@dhcp22.suse.cz> <20171220115751.GP4831@dhcp22.suse.cz>
-From: Aliaksei Karaliou <akaraliou.dev@gmail.com>
-Message-ID: <ece75ffc-7960-5551-aa10-4dced24bc0b2@gmail.com>
-Date: Thu, 21 Dec 2017 00:20:44 +0300
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 20 Dec 2017 13:24:10 -0800 (PST)
+Date: Wed, 20 Dec 2017 14:24:08 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171220212408.GA8308@linux.intel.com>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org>
+ <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
+ <20171220211649.GA32200@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171220115751.GP4831@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220211649.GA32200@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, minchan@kernel.org, ngupta@vflare.org, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org, linuxppc-dev@lists.ozlabs.org
 
+On Wed, Dec 20, 2017 at 01:16:49PM -0800, Matthew Wilcox wrote:
+> On Wed, Dec 20, 2017 at 12:22:21PM -0800, Dave Hansen wrote:
+> > On 12/20/2017 10:19 AM, Matthew Wilcox wrote:
+> > > I don't know what the right interface is, but my laptop has a set of
+> > > /sys/devices/system/memory/memoryN/ directories.  Perhaps this is the
+> > > right place to expose write_bw (etc).
+> > 
+> > Those directories are already too redundant and wasteful.  I think we'd
+> > really rather not add to them.  In addition, it's technically possible
+> > to have a memory section span NUMA nodes and have different performance
+> > properties, which make it impossible to represent there.
+> > 
+> > In any case, ACPI PXM's (Proximity Domains) are guaranteed to have
+> > uniform performance properties in the HMAT, and we just so happen to
+> > always create one NUMA node per PXM.  So, NUMA nodes really are a good fit.
+> 
+> I think you're missing my larger point which is that I don't think this
+> should be exposed to userspace as an ACPI feature.  Because if you do,
+> then it'll also be exposed to userspace as an openfirmware feature.
+> And sooner or later a devicetree feature.  And then writing a portable
+> program becomes an exercise in suffering.
+> 
+> So, what's the right place in sysfs that isn't tied to ACPI?  A new
+> directory or set of directories under /sys/devices/system/memory/ ?
 
+Oh, the current location isn't at all tied to acpi except that it happens to
+be named 'hmat'.  When it was all named 'hmem' it was just:
 
-On 12/20/2017 02:57 PM, Michal Hocko wrote:
-> On Wed 20-12-17 12:38:35, Michal Hocko wrote:
->> On Wed 20-12-17 20:05:35, Tetsuo Handa wrote:
->>> On 2017/12/20 18:25, Michal Hocko wrote:
->>>> On Wed 20-12-17 18:16:53, Sergey Senozhatsky wrote:
->>>>> On (12/20/17 10:08), Michal Hocko wrote:
->>>>> [..]
->>>>>>> let's keep void zs_register_shrinker() and just suppress the
->>>>>>> register_shrinker() must_check warning.
->>>>>> I would just hope we simply drop the must_check nonsense.
->>>>> agreed. given that unregister_shrinker() does not oops anymore,
->>>>> enforcing that check does not make that much sense.
->>>> Well, the registration failure is a failure like any others. Ignoring
->>>> the failure can have bad influence on the overal system behavior but
->>>> that is no different from thousands of other functions. must_check is an
->>>> overreaction here IMHO.
->>>>
->>> I don't think that must_check is an overreaction.
->>> As of linux-next-20171218, no patch is available for 10 locations.
->>>
->>> drivers/staging/android/ion/ion_heap.c:306:     register_shrinker(&heap->shrinker);
->>> drivers/staging/android/ashmem.c:857:   register_shrinker(&ashmem_shrinker);
->>> drivers/gpu/drm/ttm/ttm_page_alloc_dma.c:1185:  register_shrinker(&manager->mm_shrink);
->>> drivers/gpu/drm/ttm/ttm_page_alloc.c:484:       register_shrinker(&manager->mm_shrink);
->>> drivers/gpu/drm/i915/i915_gem_shrinker.c:508:   WARN_ON(register_shrinker(&i915->mm.shrinker));
->>> drivers/gpu/drm/msm/msm_gem_shrinker.c:154:     WARN_ON(register_shrinker(&priv->shrinker));
->>> drivers/md/dm-bufio.c:1756:     register_shrinker(&c->shrinker);
->>> drivers/android/binder_alloc.c:1012:    register_shrinker(&binder_shrinker);
->>> arch/x86/kvm/mmu.c:5485:        register_shrinker(&mmu_shrinker);
->>> fs/xfs/xfs_qm.c:698:    register_shrinker(&qinf->qi_shrinker);
->> And how exactly has the must_check helped for those? Come on, start
->> being serious finally. This is a matter of fixing those. You have done
->> a good deal of work for some, it just takes to finish the rest. The
->> warning doesn't help on its own, it just makes people ignore it after
->> some time or make it silent in some way.
-> Also have a look at how WARN_ON simply papers over the wrong code and
-> must_check will not help you the slightest.
+/sys/devices/system/hmem
 
-Regarding the other locations where return code is ignored, I think I will
-try to fix them as I did in Lustre code recently.
-However, it might be not straightforward and zsmalloc is good example -
-we understand that failure is not critical and we can live without shrinker.
+Which has no ACPI-isms at all.  I'm happy to move it under
+/sys/devices/system/memory/hmat if that's helpful, but I think we still have
+the issue that the data represented therein is still pulled right from the
+HMAT, and I don't know how to abstract it into something more platform
+agnostic until I know what data is provided by those other platforms.
 
-Locations specified by Michal are also different, for example:
-
-drivers/gpu/drm/i915/i915_gem_shrinker.c:508:   WARN_ON(register_shrinker(&i915->mm.shrinker));
-- this change is intentional.
-arch/x86/kvm/mmu.c:5485:        register_shrinker(&mmu_shrinker);
-- was made before register_shrinker() became non-void.
-
-and so on. The question is what to do in each particular case ?
-Some people may consider wrapping it with WARN_ON to be rather good option too
-while the others will prefer to consider it as a critical failure or at least
-do their own logging, with still looks similar with WARN_ON for me imho.
-
-For me, must_check looks like thing that works mostly for new code only,
-but in this case it works like a trigger that forces people to act and fix
-previously written code, but yes, all depends on attitude as Michal noticed.
-
-Best regards,
-	Aliaksei.
-
+For example, the HMAT provides latency information and bandwidth information
+for both reads and writes.  Will the devicetree/openfirmware/etc version have
+this same info, or will it be just different enough that it won't translate
+into whatever I choose to stick in sysfs?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
