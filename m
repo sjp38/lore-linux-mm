@@ -1,58 +1,109 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id ADE116B0253
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:17:35 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id q12so9169932plk.16
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:17:35 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 88sor3168998pla.70.2017.12.20.01.17.34
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E57776B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:20:27 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n13so2371491wmc.3
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:20:27 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 184si2664876wmo.215.2017.12.20.01.20.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Dec 2017 01:17:34 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 01:20:26 -0800 (PST)
+Date: Wed, 20 Dec 2017 10:20:25 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: shmctl(SHM_STAT) vs. /proc/sysvipc/shm permissions discrepancies
+Message-ID: <20171220092025.GD4831@dhcp22.suse.cz>
+References: <20171219094848.GE2787@dhcp22.suse.cz>
+ <CAKgNAkjJrmCFY-h2oqKS3zM_D+Csx-17A27mh08WKahyOVzrgQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171219155323.7ed0dcfbc89c76eb87aca592@linux-foundation.org>
-References: <CACT4Y+a0NvG-qpufVcvObd_hWKF9xmTjmjCvV3_13LSgcFXL+Q@mail.gmail.com>
- <20171219090319.GD2787@dhcp22.suse.cz> <7cec6594-94c7-a238-4046-0061a9adc20d@infradead.org>
- <20171219155323.7ed0dcfbc89c76eb87aca592@linux-foundation.org>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 20 Dec 2017 10:17:13 +0100
-Message-ID: <CACT4Y+ba1EiGmWkDQbrnGG64qds0KzQhgij2qch6uV2zcjcC_w@mail.gmail.com>
-Subject: Re: mmots build error: version control conflict marker in file
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgNAkjJrmCFY-h2oqKS3zM_D+Csx-17A27mh08WKahyOVzrgQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Randy Dunlap <rdunlap@infradead.org>, Michal Hocko <mhocko@kernel.org>, Linux-MM <linux-mm@kvack.org>, Johannes Weiner <hannes@cmpxchg.org>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Linux API <linux-api@vger.kernel.org>, Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Waychison <mikew@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-On Wed, Dec 20, 2017 at 12:53 AM, Andrew Morton
-<akpm@linux-foundation.org> wrote:
-> On Tue, 19 Dec 2017 12:00:12 -0800 Randy Dunlap <rdunlap@infradead.org> wrote:
->
->>
->> Wow. arch/x86/include/asm/processor.h around line 340++ looks like this:
->>
->> <<<<<<< HEAD
->> struct SYSENTER_stack {
->>       unsigned long           words[64];
->> };
->>
->> struct SYSENTER_stack_page {
->>       struct SYSENTER_stack stack;
->> =======
->> struct entry_stack {
->>       unsigned long           words[64];
->> };
->>
->> struct entry_stack_page {
->>       struct entry_stack stack;
->> >>>>>>> linux-next/akpm-base
->> } __aligned(PAGE_SIZE);
->
-> Yeah, sorry.  Normally I fix those my hand in
-> linux-next-git-rejects.patch but there were sooooooo many yesterday
-> that I said screwit.  That all got resolved in today's pull.
+On Tue 19-12-17 17:45:40, Michael Kerrisk wrote:
+> Hello Michal,
+> 
+> On 19 December 2017 at 10:48, Michal Hocko <mhocko@kernel.org> wrote:
+> > Hi,
+> > we have been contacted by our partner about the following permission
+> > discrepancy
+> >
+> > 1. Create a shared memory segment with permissions 600 with user A using
+> >    shmget(key, 1024, 0600 | IPC_CREAT)
+> > 2. ipcs -m should return an output as follows:
+> >
+> > ------ Shared Memory Segments --------
+> > key        shmid      owner      perms      bytes      nattch     status
+> > 0x58b74326 759562241  A          600        1024       0
+> >
+> > 3. Try to read the metadata with shmctl(0, SHM_STAT,...) as user B.
+> > 4. shmctl will return -EACCES
+> >
+> > The supper set information provided by shmctl can be retrieved by
+> > reading /proc/sysvipc/shm which does not require read permissions
+> > because it is 444.
+> >
+> > It seems that the discrepancy is there since ae7817745eef ("[PATCH] ipc:
+> > add generic struct ipc_ids seq_file iteration") when the proc interface
+> > has been introduced. The changelog is really modest on information or
+> > intention but I suspect this just got overlooked during review. SHM_STAT
+> > has always been about read permission and it is explicitly documented
+> > that way.
+> 
+> Yes, this was always a weirdness on Linux. Back before we got
+> /proc/sysvipc, it meant that ipcs(1) on Linux did not did not display
+> all IPC objects (unlike most other implementations, where ipcs(1)
+> showed everyone's objects, regardless of permissions). I remember
+> having an email conversation with Andries Brouwer about this, around
+> 15 years ago. Eventually, an October 2012 series of util-linux patches
+> by Sami Kerola switched ipcs(1) to use /proc/sysvipc so that ipcs(1)
+> does now show all System V IPC objects.
 
-Thanks. I see that syzbot was able to successfully build mmots today.
+Thanks for the clarification.
+
+> > I am not a security expert to judge whether this leak can have some
+> > interesting consequences but I am really interested whether this is
+> > something we want to keep that way.  Do we want to filter and dump only
+> > shmids the caller has access to?
+> 
+> Do you mean change /proc/sysvipc/* output? I don't think that should
+> be changed. Modern ipcs(1) relies on it to do The Right Thing.
+
+OK, I somehow suspected somebody will rely on this.
+
+> > This would break the delegation AFAICS.
+> > Do we want to make the file root only? That would probably break an
+> > existing userspace as well.
+> >
+> > Or should we simply allow SHM_STAT for processes without a read permission
+> > because the same information can be read by other means already?
+> >
+> > Any other ideas?
+> 
+> The situation is certainly odd. The only risk that I see is that
+> modifying *_STAT behavior could lead to behavior changes in (strange?)
+> programs that expect SHM_STAT / MSG_STAT / SEM_STAT to return only
+> information about objects for which they have read permission.
+
+Hmm, do you mean those would iterate shmid space to find their own? That
+would be certainly odd.
+
+> But, is
+> there a pressing reason to make the change? (Okay, I guess iterating
+> using *_STAT is nicer than parsing /proc/sysvipc/*.)
+
+The reporter of this issue claims that "Reading /proc/sysvipc/shm is way
+slower than executing the system call." I haven't checked that but I can
+imagine that /proc/sysvipc/shm can take quite some time when there are
+_many_ segments registered. So they would like to use the syscall but
+the interacting parties do not have compatible permissions.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
