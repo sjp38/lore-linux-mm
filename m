@@ -1,22 +1,23 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 051406B0261
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id t15so3048032wmh.3
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:06 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DD2486B0266
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:58:08 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id w74so3054056wmf.0
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 13:58:08 -0800 (PST)
 Received: from Galois.linutronix.de (Galois.linutronix.de. [2a01:7a0:2:106d:700::1])
-        by mx.google.com with ESMTPS id c6si14323313wrf.479.2017.12.20.13.58.05
+        by mx.google.com with ESMTPS id d9si3561978wma.72.2017.12.20.13.58.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=AES128-SHA bits=128/128);
-        Wed, 20 Dec 2017 13:58:06 -0800 (PST)
-Message-Id: <20171220215442.258537565@linutronix.de>
-Date: Wed, 20 Dec 2017 22:35:23 +0100
+        Wed, 20 Dec 2017 13:58:07 -0800 (PST)
+Message-Id: <20171220215441.428054381@linutronix.de>
+Date: Wed, 20 Dec 2017 22:35:13 +0100
 From: Thomas Gleixner <tglx@linutronix.de>
-Subject: [patch V181 20/54] x86/mm: Create asm/invpcid.h
+Subject: [patch V181 10/54] x86/doc: Remove obvious weirdness
 References: <20171220213503.672610178@linutronix.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=ISO-8859-15
-Content-Disposition: inline; filename=0062-x86-mm-Create-asm-invpcid.h.patch
+Content-Disposition: inline;
+ filename=0069-x86-doc-Remove-obvious-weirdness.patch
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: LKML <linux-kernel@vger.kernel.org>
@@ -24,10 +25,9 @@ Cc: x86@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomir
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-Unclutter tlbflush.h a little.
-
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
@@ -48,124 +48,46 @@ Cc: hughd@google.com
 Cc: keescook@google.com
 Cc: linux-mm@kvack.org
 ---
- arch/x86/include/asm/invpcid.h  |   53 ++++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/tlbflush.h |   49 ------------------------------------
- 2 files changed, 54 insertions(+), 48 deletions(-)
+ Documentation/x86/x86_64/mm.txt |   12 +++---------
+ 1 file changed, 3 insertions(+), 9 deletions(-)
 
---- /dev/null
-+++ b/arch/x86/include/asm/invpcid.h
-@@ -0,0 +1,53 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _ASM_X86_INVPCID
-+#define _ASM_X86_INVPCID
-+
-+static inline void __invpcid(unsigned long pcid, unsigned long addr,
-+			     unsigned long type)
-+{
-+	struct { u64 d[2]; } desc = { { pcid, addr } };
-+
-+	/*
-+	 * The memory clobber is because the whole point is to invalidate
-+	 * stale TLB entries and, especially if we're flushing global
-+	 * mappings, we don't want the compiler to reorder any subsequent
-+	 * memory accesses before the TLB flush.
-+	 *
-+	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
-+	 * invpcid (%rcx), %rax in long mode.
-+	 */
-+	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
-+		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
-+}
-+
-+#define INVPCID_TYPE_INDIV_ADDR		0
-+#define INVPCID_TYPE_SINGLE_CTXT	1
-+#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
-+#define INVPCID_TYPE_ALL_NON_GLOBAL	3
-+
-+/* Flush all mappings for a given pcid and addr, not including globals. */
-+static inline void invpcid_flush_one(unsigned long pcid,
-+				     unsigned long addr)
-+{
-+	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
-+}
-+
-+/* Flush all mappings for a given PCID, not including globals. */
-+static inline void invpcid_flush_single_context(unsigned long pcid)
-+{
-+	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
-+}
-+
-+/* Flush all mappings, including globals, for all PCIDs. */
-+static inline void invpcid_flush_all(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
-+}
-+
-+/* Flush all mappings for all PCIDs except globals. */
-+static inline void invpcid_flush_all_nonglobals(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
-+}
-+
-+#endif /* _ASM_X86_INVPCID */
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -9,54 +9,7 @@
- #include <asm/cpufeature.h>
- #include <asm/special_insns.h>
- #include <asm/smp.h>
--
--static inline void __invpcid(unsigned long pcid, unsigned long addr,
--			     unsigned long type)
--{
--	struct { u64 d[2]; } desc = { { pcid, addr } };
--
--	/*
--	 * The memory clobber is because the whole point is to invalidate
--	 * stale TLB entries and, especially if we're flushing global
--	 * mappings, we don't want the compiler to reorder any subsequent
--	 * memory accesses before the TLB flush.
--	 *
--	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
--	 * invpcid (%rcx), %rax in long mode.
--	 */
--	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
--		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
--}
--
--#define INVPCID_TYPE_INDIV_ADDR		0
--#define INVPCID_TYPE_SINGLE_CTXT	1
--#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
--#define INVPCID_TYPE_ALL_NON_GLOBAL	3
--
--/* Flush all mappings for a given pcid and addr, not including globals. */
--static inline void invpcid_flush_one(unsigned long pcid,
--				     unsigned long addr)
--{
--	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
--}
--
--/* Flush all mappings for a given PCID, not including globals. */
--static inline void invpcid_flush_single_context(unsigned long pcid)
--{
--	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
--}
--
--/* Flush all mappings, including globals, for all PCIDs. */
--static inline void invpcid_flush_all(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
--}
--
--/* Flush all mappings for all PCIDs except globals. */
--static inline void invpcid_flush_all_nonglobals(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
--}
-+#include <asm/invpcid.h>
+--- a/Documentation/x86/x86_64/mm.txt
++++ b/Documentation/x86/x86_64/mm.txt
+@@ -1,6 +1,4 @@
  
- static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
- {
+-<previous description obsolete, deleted>
+-
+ Virtual memory map with 4 level page tables:
+ 
+ 0000000000000000 - 00007fffffffffff (=47 bits) user space, different per mm
+@@ -49,8 +47,9 @@ ffffffffffe00000 - ffffffffffffffff (=2
+ 
+ Architecture defines a 64-bit virtual address. Implementations can support
+ less. Currently supported are 48- and 57-bit virtual addresses. Bits 63
+-through to the most-significant implemented bit are set to either all ones
+-or all zero. This causes hole between user space and kernel addresses.
++through to the most-significant implemented bit are sign extended.
++This causes hole between user space and kernel addresses if you interpret them
++as unsigned.
+ 
+ The direct mapping covers all memory in the system up to the highest
+ memory address (this means in some cases it can also include PCI memory
+@@ -60,9 +59,6 @@ vmalloc space is lazily synchronized int
+ the processes using the page fault handler, with init_top_pgt as
+ reference.
+ 
+-Current X86-64 implementations support up to 46 bits of address space (64 TB),
+-which is our current limit. This expands into MBZ space in the page tables.
+-
+ We map EFI runtime services in the 'efi_pgd' PGD in a 64Gb large virtual
+ memory window (this size is arbitrary, it can be raised later if needed).
+ The mappings are not part of any other kernel PGD and are only available
+@@ -74,5 +70,3 @@ following fixmap section.
+ Note that if CONFIG_RANDOMIZE_MEMORY is enabled, the direct mapping of all
+ physical memory, vmalloc/ioremap space and virtual memory map are randomized.
+ Their order is preserved but their base will be offset early at boot time.
+-
+--Andi Kleen, Jul 2004
 
 
 --
