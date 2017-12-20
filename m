@@ -1,119 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C5506B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 19:01:47 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f64so17270853pfd.6
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:01:47 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id a64si13949456pfc.349.2017.12.20.16.01.45
+Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EE6C6B0038
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 19:12:37 -0500 (EST)
+Received: by mail-qt0-f197.google.com with SMTP id b26so14385381qtb.18
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 16:12:37 -0800 (PST)
+Received: from gate.crashing.org (gate.crashing.org. [63.228.1.57])
+        by mx.google.com with ESMTPS id n67si8626433qkn.262.2017.12.20.16.12.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 20 Dec 2017 16:01:45 -0800 (PST)
-Date: Wed, 20 Dec 2017 16:01:44 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 6/8] mm: Store compound_dtor / compound_order as bytes
-Message-ID: <20171221000144.GB2980@bombadil.infradead.org>
-References: <20171220155552.15884-1-willy@infradead.org>
- <20171220155552.15884-7-willy@infradead.org>
- <20171220153907.7f3994967cba32c6f654982c@linux-foundation.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171220153907.7f3994967cba32c6f654982c@linux-foundation.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 16:12:36 -0800 (PST)
+Message-ID: <1513810153.2743.25.camel@kernel.crashing.org>
+Subject: Re: [PATCH v9 29/51] mm/mprotect, powerpc/mm/pkeys, x86/mm/pkeys:
+ Add sysfs interface
+From: Benjamin Herrenschmidt <benh@kernel.crashing.org>
+Date: Thu, 21 Dec 2017 09:49:13 +1100
+In-Reply-To: <20171220175022.GB5619@ram.oc3035372033.ibm.com>
+References: <1509958663-18737-1-git-send-email-linuxram@us.ibm.com>
+	 <1509958663-18737-30-git-send-email-linuxram@us.ibm.com>
+	 <bbc5593e-31ec-183a-01a5-1a253dc0c275@intel.com>
+	 <20171218221850.GD5461@ram.oc3035372033.ibm.com>
+	 <e7971d03-6ad1-40d5-9b79-f01242db5293@intel.com>
+	 <1513719296.2743.12.camel@kernel.crashing.org>
+	 <20171220175022.GB5619@ram.oc3035372033.ibm.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: Ram Pai <linuxram@us.ibm.com>
+Cc: Dave Hansen <dave.hansen@intel.com>, mpe@ellerman.id.au, mingo@redhat.com, akpm@linux-foundation.org, corbet@lwn.net, arnd@arndb.de, linuxppc-dev@lists.ozlabs.org, linux-mm@kvack.org, x86@kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org, paulus@samba.org, khandual@linux.vnet.ibm.com, aneesh.kumar@linux.vnet.ibm.com, bsingharora@gmail.com, hbabu@us.ibm.com, mhocko@kernel.org, bauerman@linux.vnet.ibm.com, ebiederm@xmission.com
 
-On Wed, Dec 20, 2017 at 03:39:07PM -0800, Andrew Morton wrote:
-> On Wed, 20 Dec 2017 07:55:50 -0800 Matthew Wilcox <willy@infradead.org> wrote:
+On Wed, 2017-12-20 at 09:50 -0800, Ram Pai wrote:
+> The argument against this patch is --  it should not be baked into
+> the ABI as yet, since we do not have clarity on what applications need.
 > 
-> > From: Matthew Wilcox <mawilcox@microsoft.com>
-> > 
-> > Neither of these values get even close to 256; compound_dtor is
-> > currently at a maximum of 3, and compound_order can't be over 64.
-> > No machine has inefficient access to bytes since EV5, and while
-> > those are still supported, we don't optimise for them any more.
+> As it stands today the only way to figure out the information from
+> userspace is by probing the kernel through calls to sys_pkey_alloc().
 > 
-> So we couild fit compound_dtor and compound_order into a single byte if
-> desperate?
-
-Yes ... unless we find another kind of destructor we need for compound pages.
-
-> > This does not shrink struct page, but it removes an ifdef and
-> > frees up 2-6 bytes for future use.
+> AT_HWCAP can be used, but that will certainly not be capable of
+> providing all the information that userspace might expect.
 > 
-> Can we add a little comment telling readers "hey there's a gap here!"?
+> Your thoughts?
 
-I think they should have to work to find it!
+Well, there's one well known application wanting that whole keys
+business, so why not ask them what works for them ?
 
-Here's a replacement patch:
+In the meantime, that shouldn't block the rest of the patches.
 
-From: Matthew Wilcox <mawilcox@microsoft.com>
-Date: Fri, 15 Dec 2017 23:29:11 -0500
-Subject: [PATCH] mm: Store compound_dtor / compound_order as bytes
-
-Neither of these values get even close to 256; compound_dtor is
-currently at a maximum of 3, and compound_order can't be over 64.
-No machine has inefficient access to bytes since EV5, and while
-those are still supported, we don't optimise for them any more.
-This does not shrink struct page, but it removes an ifdef and
-frees up 2-6 bytes for future use.
-
-diff of pahole output:
-
-@@ -34,8 +34,8 @@
- 		struct callback_head callback_head;      /*    32    16 */
- 		struct {
- 			long unsigned int compound_head; /*    32     8 */
--			unsigned int compound_dtor;      /*    40     4 */
--			unsigned int compound_order;     /*    44     4 */
-+			unsigned char compound_dtor;     /*    40     1 */
-+			unsigned char compound_order;    /*    41     1 */
- 		};                                       /*    32    16 */
- 	};                                               /*    32    16 */
- 	union {
-
-Signed-off-by: Matthew Wilcox <mawilcox@microsoft.com>
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Acked-by: Michal Hocko <mhocko@suse.com>
----
- include/linux/mm_types.h | 16 +++-------------
- 1 file changed, 3 insertions(+), 13 deletions(-)
-
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 5521c9799c50..3e7e99784656 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -136,19 +136,9 @@ struct page {
- 			unsigned long compound_head; /* If bit zero is set */
- 
- 			/* First tail page only */
--#ifdef CONFIG_64BIT
--			/*
--			 * On 64 bit system we have enough space in struct page
--			 * to encode compound_dtor and compound_order with
--			 * unsigned int. It can help compiler generate better or
--			 * smaller code on some archtectures.
--			 */
--			unsigned int compound_dtor;
--			unsigned int compound_order;
--#else
--			unsigned short int compound_dtor;
--			unsigned short int compound_order;
--#endif
-+			unsigned char compound_dtor;
-+			unsigned char compound_order;
-+			/* two/six bytes available here */
- 		};
- 
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && USE_SPLIT_PMD_PTLOCKS
--- 
-2.15.1
-
-Seriously, this is only available in the first tail page of a compound
-page, so they'll have to go through Kirill to have it assigned to them
-... I don't want to pretend like it's available for general use.
+Cheers,
+Ben.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
