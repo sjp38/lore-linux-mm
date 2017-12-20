@@ -1,64 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA6E46B0038
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:25:13 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id z3so9182183pln.6
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:25:13 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id g16sor2362244pgn.209.2017.12.20.01.25.12
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D2BF36B0253
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 04:25:50 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id u60so332573wrb.10
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 01:25:50 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id h50si4397049wrf.158.2017.12.20.01.25.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 20 Dec 2017 01:25:12 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 20 Dec 2017 01:25:49 -0800 (PST)
+Date: Wed, 20 Dec 2017 10:25:48 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2] mm/zsmalloc: simplify shrinker init/destroy
+Message-ID: <20171220092513.GF4831@dhcp22.suse.cz>
+References: <20171219102213.GA435@jagdpanzerIV>
+ <1513680552-9798-1-git-send-email-akaraliou.dev@gmail.com>
+ <20171219151341.GC15210@dhcp22.suse.cz>
+ <20171219152536.GA591@tigerII.localdomain>
+ <20171219155815.GC2787@dhcp22.suse.cz>
+ <20171220071500.GA11774@jagdpanzerIV>
+ <04faff62-0944-3c7d-15b0-9dc60054a830@gmail.com>
+ <20171220083403.GC11774@jagdpanzerIV>
+ <20171220090828.GB4831@dhcp22.suse.cz>
+ <20171220091653.GE11774@jagdpanzerIV>
 MIME-Version: 1.0
-In-Reply-To: <20171220092046.GE4831@dhcp22.suse.cz>
-References: <001a11452568f5857c0560b0dc0e@google.com> <20171219130337.GU2787@dhcp22.suse.cz>
- <CACT4Y+Ye=gdP4tv1T4mGuTsDB0uDGkYncg5LC0X10ab6=xXm9A@mail.gmail.com>
- <20171219132209.GV2787@dhcp22.suse.cz> <CACT4Y+aqFuVToOQH8RnfahhonaQ=qvq5JTvL-9aAKBQAa7UOug@mail.gmail.com>
- <20171219134235.GW2787@dhcp22.suse.cz> <CACT4Y+YqwhSyxRAGVQNQBqKPVe4WKa=5ZyKfW78qY9CDOs1r3w@mail.gmail.com>
- <20171220092046.GE4831@dhcp22.suse.cz>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Wed, 20 Dec 2017 10:24:51 +0100
-Message-ID: <CACT4Y+achWa2fCT9LWeHas6gOLtMwk28XZLkkfFF++D1X=9mVw@mail.gmail.com>
-Subject: Re: BUG: unable to handle kernel NULL pointer dereference in __list_del_entry_valid
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220091653.GE11774@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: syzbot <bot+83f46cd25e266359cd056c91f6ecd20b04eddf42@syzkaller.appspotmail.com>, Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, Mel Gorman <mgorman@techsingularity.net>, Minchan Kim <minchan@kernel.org>, Shakeel Butt <shakeelb@google.com>, syzkaller-bugs@googlegroups.com, ying.huang@intel.com, syzkaller <syzkaller@googlegroups.com>
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: A K <akaraliou.dev@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, minchan@kernel.org, ngupta@vflare.org, linux-mm@kvack.org
 
-On Wed, Dec 20, 2017 at 10:20 AM, Michal Hocko <mhocko@kernel.org> wrote:
-> On Tue 19-12-17 17:40:19, Dmitry Vyukov wrote:
->> On Tue, Dec 19, 2017 at 2:42 PM, Michal Hocko <mhocko@kernel.org> wrote:
->> >> >> > Can we silence this duplicates [1] please?
->> >> >> >
->> >> >> > [1] http://lkml.kernel.org/r/001a1140f57806ebef05608b25a5@google.com
->> >> >>
->> >> >> Hi Michal,
->> >> >>
->> >> >> What exactly do you mean?
->> >> >>
->> >> >> These 2 are the same email with the same Message-ID just on different
->> >> >> mailing lists. I don't see anything wrong here.
->> >> >
->> >> > Hmm the other one has Message-id: 001a1140f57806ebef05608b25a5@google.com
->> >> > while this one has 001a11452568f5857c0560b0dc0e@google.com
->> >>
->> >> Ah, I see.
->> >> These are reported separately because the crashes are titled
->> >> differently. Kernel titled one as "general protection fault" and
->> >> another as "BUG: unable to handle kernel NULL pointer dereference".
->> >
->> > Ahh, OK, so I've missed that part ;) I just thought it was duplicate
->> > because the report seemed very familiar.
->>
->>
->> So are these duplicates? If yes, we need to tell this syzbot:
->
-> It seems so.
+On Wed 20-12-17 18:16:53, Sergey Senozhatsky wrote:
+> On (12/20/17 10:08), Michal Hocko wrote:
+> [..]
+> > > let's keep void zs_register_shrinker() and just suppress the
+> > > register_shrinker() must_check warning.
+> > 
+> > I would just hope we simply drop the must_check nonsense.
+> 
+> agreed. given that unregister_shrinker() does not oops anymore,
+> enforcing that check does not make that much sense.
 
-Please tell this directly to syzbot next time.
-
-#syz dup: general protection fault in __list_del_entry_valid (2)
+Well, the registration failure is a failure like any others. Ignoring
+the failure can have bad influence on the overal system behavior but
+that is no different from thousands of other functions. must_check is an
+overreaction here IMHO.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
