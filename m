@@ -1,63 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0661D6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:03:14 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id a3so8313551itg.7
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:03:14 -0800 (PST)
-Received: from resqmta-ch2-04v.sys.comcast.net (resqmta-ch2-04v.sys.comcast.net. [2001:558:fe21:29:69:252:207:36])
-        by mx.google.com with ESMTPS id i190si5419346itg.13.2017.12.21.09.03.06
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D2DB66B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:06:34 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id p1so18636309pfp.13
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:06:34 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id t80si15315045pfa.29.2017.12.21.09.06.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 09:03:06 -0800 (PST)
-Date: Thu, 21 Dec 2017 11:03:05 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 5/8] mm: Introduce _slub_counter_t
-In-Reply-To: <20171220161923.GB1840@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1712211057310.22093@nuc-kabylake>
-References: <20171216164425.8703-1-willy@infradead.org> <20171216164425.8703-6-willy@infradead.org> <20171219080731.GB2787@dhcp22.suse.cz> <20171219124605.GA13680@bombadil.infradead.org> <20171219130159.GT2787@dhcp22.suse.cz>
- <20171220161923.GB1840@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 21 Dec 2017 09:06:33 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:06:28 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
+Message-ID: <20171221170628.GA25009@bombadil.infradead.org>
+References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
+ <20171221155434.GT7829@linux.vnet.ibm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171221155434.GT7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Matthew Wilcox <mawilcox@microsoft.com>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
 
-On Wed, 20 Dec 2017, Matthew Wilcox wrote:
+On Thu, Dec 21, 2017 at 07:54:34AM -0800, Paul E. McKenney wrote:
+> > +/* Queue an RCU callback for lazy invocation after a grace period.
+> > + * Currently there is no way of tagging the lazy RCU callbacks in the
+> > + * list of pending callbacks. Until then, this function may only be
+> > + * called from kfree_call_rcu().
+> 
+> But now we might have a way.
+> 
+> If the value in ->func is too small to be a valid function, RCU invokes
+> a fixed function name.  This function can then look at ->func and do
+> whatever it wants, for example, maintaining an array indexed by the
+> ->func value that says what function to call and what else to pass it,
+> including for example the slab pointer and offset.
+> 
+> Thoughts?
 
-> slub wants to atomically update both freelist and its counters, so it has
-> 96 bits of information to update atomically (on 64 bit), or 64 bits on
-> 32-bit machines.  We don't have a 96-bit atomic-cmpxchg, but we do have
-> a 128-bit atomic-cmpxchg on some architectures.  So _if_ we're going
-> to use cmpxchg_double(), then we need counters to be an unsigned long.
-> If we're not then counters needs to be an unsigned int so it doesn't
-> overlap with _refcount, which is not going to be protected by slab_lock.
+Thought 1 is that we can force functions to be quad-byte aligned on all
+architectures (gcc option -falign-functions=...), so we can have more
+than the 4096 different values we currently use.  We can get 63.5 bits of
+information into that ->func argument if we align functions to at least
+4 bytes, or 63 if we only force alignment to a 2-byte boundary.  I'm not
+sure if we support any architecture other than x86 with byte-aligned
+instructions.  (I'm assuming that function descriptors as used on POWER
+and ia64 will also be sensibly aligned).
 
-Almost correct. slab_lock is not used when double word cmpxchg is
-available on the architecture.
+Thought 2 is that the slab is quite capable of getting the slab pointer
+from the address of the object -- virt_to_head_page(p)->slab_cache
+So sorting objects by address is as good as storing their slab caches
+and offsets.
 
-> Now I look at it some more though, I wonder if it would hurt for counters
-> to always be unsigned long.  There is no problem on 32-bit as long and int
-> are the same size.  So on 64-bit, the cmpxchg_double path stays as it is.
-> There would then be the extra miniscule risk that __cmpxchg_double_slab()
-> fails due to a spurious _refcount modification due to an RCU-protected
-> pagecache lookup.  And there are a few places that would be a 64-bit
-> load rather than a 32-bit load.
-
-Sounds good to me.
-
-> I think if I were doing slub, I'd put in 'unsigned int counters_32'
-> and 'unsigned long counters_64'.  set_page_slub_counters() would then
-> become simply:
->
-> 	page->counters_32 = counters_new;
-
-If counters is always the native word size then we would not need the 32
-and 64 bit variants.
-
-Counters could always be unsigned long
-
-
+Thought 3 is that we probably don't want to overengineer this.
+Just allocating a 14-entry buffer (along with an RCU head) is probably
+enough to give us at least 90% of the wins that a more complex solution
+would give.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
