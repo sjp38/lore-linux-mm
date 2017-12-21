@@ -1,112 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 690C26B0033
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 13:42:06 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id g69so8519306ita.9
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:42:06 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g4sor10912479ioc.194.2017.12.21.10.42.05
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 073C26B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 15:31:48 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id n13so4485149wmc.3
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:31:47 -0800 (PST)
+Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
+        by mx.google.com with ESMTPS id d15si3207506wra.13.2017.12.21.12.31.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 10:42:05 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 12:31:46 -0800 (PST)
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org>
+ <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
+ <20171220211649.GA32200@bombadil.infradead.org>
+ <20171220212408.GA8308@linux.intel.com>
+ <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
+ <20171220224105.GA27258@linux.intel.com>
+From: Brice Goglin <brice.goglin@gmail.com>
+Message-ID: <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
+Date: Thu, 21 Dec 2017 21:31:42 +0100
 MIME-Version: 1.0
-In-Reply-To: <001a113ef748cc1ee50560c7b718@google.com>
-References: <001a113ef748cc1ee50560c7b718@google.com>
-From: Linus Torvalds <torvalds@linux-foundation.org>
-Date: Thu, 21 Dec 2017 10:42:04 -0800
-Message-ID: <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
-Subject: Re: general protection fault in finish_task_switch
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171220224105.GA27258@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, tcharding <me@tobin.cc>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs@googlegroups.com, Matthew Wilcox <willy@infradead.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Dan Williams <dan.j.williams@intel.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Wed, Dec 20, 2017 at 8:03 AM, syzbot
-<bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>
-wrote:
-> Hello,
+Le 20/12/2017 A  23:41, Ross Zwisler a A(C)critA :
+> On Wed, Dec 20, 2017 at 02:29:56PM -0800, Dan Williams wrote:
+>> On Wed, Dec 20, 2017 at 1:24 PM, Ross Zwisler
+>> <ross.zwisler@linux.intel.com> wrote:
+>>> On Wed, Dec 20, 2017 at 01:16:49PM -0800, Matthew Wilcox wrote:
+>>>> On Wed, Dec 20, 2017 at 12:22:21PM -0800, Dave Hansen wrote:
+>>>>> On 12/20/2017 10:19 AM, Matthew Wilcox wrote:
+>>>>>> I don't know what the right interface is, but my laptop has a set of
+>>>>>> /sys/devices/system/memory/memoryN/ directories.  Perhaps this is the
+>>>>>> right place to expose write_bw (etc).
+>>>>> Those directories are already too redundant and wasteful.  I think we'd
+>>>>> really rather not add to them.  In addition, it's technically possible
+>>>>> to have a memory section span NUMA nodes and have different performance
+>>>>> properties, which make it impossible to represent there.
+>>>>>
+>>>>> In any case, ACPI PXM's (Proximity Domains) are guaranteed to have
+>>>>> uniform performance properties in the HMAT, and we just so happen to
+>>>>> always create one NUMA node per PXM.  So, NUMA nodes really are a good fit.
+>>>> I think you're missing my larger point which is that I don't think this
+>>>> should be exposed to userspace as an ACPI feature.  Because if you do,
+>>>> then it'll also be exposed to userspace as an openfirmware feature.
+>>>> And sooner or later a devicetree feature.  And then writing a portable
+>>>> program becomes an exercise in suffering.
+>>>>
+>>>> So, what's the right place in sysfs that isn't tied to ACPI?  A new
+>>>> directory or set of directories under /sys/devices/system/memory/ ?
+>>> Oh, the current location isn't at all tied to acpi except that it happens to
+>>> be named 'hmat'.  When it was all named 'hmem' it was just:
+>>>
+>>> /sys/devices/system/hmem
+>>>
+>>> Which has no ACPI-isms at all.  I'm happy to move it under
+>>> /sys/devices/system/memory/hmat if that's helpful, but I think we still have
+>>> the issue that the data represented therein is still pulled right from the
+>>> HMAT, and I don't know how to abstract it into something more platform
+>>> agnostic until I know what data is provided by those other platforms.
+>>>
+>>> For example, the HMAT provides latency information and bandwidth information
+>>> for both reads and writes.  Will the devicetree/openfirmware/etc version have
+>>> this same info, or will it be just different enough that it won't translate
+>>> into whatever I choose to stick in sysfs?
+>> For the initial implementation do we need to have a representation of
+>> all the performance data? Given that
+>> /sys/devices/system/node/nodeX/distance is the only generic
+>> performance attribute published by the kernel today it is already the
+>> case that applications that need to target specific memories need to
+>> go parse information that is not provided by the kernel by default.
+>> The question is can those specialized applications stay special and go
+>> parse the platform specific data sources, like raw HMAT, directly, or
+>> do we expect general purpose applications to make use of this data? I
+>> think a firmware-id to numa-node translation facility
+>> (/sys/devices/system/node/nodeX/fwid) is a simple start that we can
+>> build on with more information as specific use cases arise.
+> We don't represent all the performance data, we only represent the data for
+> local initiator/target pairs.  I do think that this is useful to have in sysfs
+> because it provides a way to easily answer the most commonly asked questions
+> (or at least what I'm guessing will be the most commmonly asked queststions),
+> i.e. "given a CPU, what are the speeds of the various types of memory attached
+> to it", and "given a chunk of memory, how fast is it and to which CPU is it
+> local"?  By providing this base level of information I'm hoping to prevent
+> most applications from having to parse the HMAT directly.
 >
-> syzkaller hit the following crash on
-> 7dc9f647127d6955ffacaf51cb6a627b31dceec2
-> git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> The question of whether or not to include this local performance information
+> was one of the main questions of the initial RFC patch series, and I did get
+> feedback (albiet off-list) that the local performance information was
+> valuable to at least some users.  I did intentionally structure my (now very
+> short) set so that the performance information was added as a separate patch,
+> so we can get to the place you're talking about where we only provide firmware
+> id <=> proximity domain mappings by just leaving off the last patch in the
+> series.
 >
-> kasan: CONFIG_KASAN_INLINE enabled
-> kasan: GPF could be caused by NULL-ptr deref or user memory access
-> general protection fault: 0000 [#1] SMP KASAN
-> Dumping ftrace buffer:
->    (ftrace buffer empty)
-> Modules linked in:
-> CPU: 0 PID: 4227 Comm: syzkaller244813 Not tainted 4.15.0-rc4-next-20171220+
-> #77
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: __fire_sched_in_preempt_notifiers kernel/sched/core.c:2534 [inline]
 
-That line 2534 is the call inside the hlist_for_each_entry() loop:
+Hello
 
-        hlist_for_each_entry(notifier, &curr->preempt_notifiers, link)
-                notifier->ops->sched_in(notifier, raw_smp_processor_id());
+I can confirm that HPC runtimes are going to use these patches (at least
+all runtimes that use hwloc for topology discovery, but that's the vast
+majority of HPC anyway).
 
-and the Code: line disassembly is
+We really didn't like KNL exposing a hacky SLIT table [1]. We had to
+explicitly detect that specific crazy table to find out which NUMA nodes
+were local to which cores, and to find out which NUMA nodes were
+HBM/MCDRAM or DDR. And then we had to hide the SLIT values to the
+application because the reported latencies didn't match reality. Quite
+annoying.
 
-   0: ff 11                callq  *(%rcx)
-   2: 4c 89 f9              mov    %r15,%rcx
-   5: 48 c1 e9 03          shr    $0x3,%rcx
-   9: 42 80 3c 31 00        cmpb   $0x0,(%rcx,%r14,1)
-   e: 0f 85 1b 02 00 00    jne    0x22f
-  14: 4d 8b 3f              mov    (%r15),%r15
-  17: 4d 85 ff              test   %r15,%r15
-  1a: 0f 84 c0 fd ff ff    je     0xfffffffffffffde0
-  20: 49 8d 7f 10          lea    0x10(%r15),%rdi
-  24: 48 89 f9              mov    %rdi,%rcx
-  27: 48 c1 e9 03          shr    $0x3,%rcx
-  2b:* 42 80 3c 31 00        cmpb   $0x0,(%rcx,%r14,1) <-- trapping instruction
-  30: 74 ae                je     0xffffffffffffffe0
-  32: e8 a7 cc 5b 00        callq  0x5bccde
-  37: eb a7                jmp    0xffffffffffffffe0
-  39: 4c 89 fe              mov    %r15,%rsi
-  3c: 4c 89 e7              mov    %r12,%rdi
+With Ross' patches, we can easily get what we need:
+* which NUMA nodes are local to which CPUs? /sys/devices/system/node/
+can only report a single local node per CPU (doesn't work for KNL and
+upcoming architectures with HBM+DDR+...)
+* which NUMA nodes are slow/fast (for both bandwidth and latency)
+And we can still look at SLIT under /sys/devices/system/node if really
+needed.
 
-and while the "callq *(%rcx)" might be just the end part of some
-previous instruction, I think it may be right (there is indeed an
-indirect call in that function - that very "->sched_in()" call).
+And of course having this in sysfs is much better than parsing ACPI
+tables that are only accessible to root :)
 
-So I think the oops happens after the indirect call returns.
+Regards
+Brice
 
-I think the second "callq" is
-
-    call    __asan_report_load8_noabort
-
-and the actual trapping instruction is loading the KASAN byte state.
-
-As far as I can tell, the kasan check is trying to check this part of
-hlist_for_each_entry():
-
-    movq    (%r15), %r15    # notifier_110->link.next,
-
-and %r15 is dead000000000100, which is LIST_POISON1.
-
-End result: KASAN actually makes these things harder to debug, because
-it's trying to "validate" the list poison values before they are used,
-and takes a much more complex and indirect fault in the process,
-instead of just getting a page-fault on the LIST_POISON1 that would
-have made it more obvious.
-
-Oh well.
-
-There is nothing in this that indicates that it's actually related to
-KASAN, and it _should_ oops even without KASAN enabled.
-
-But the reproducer does nothing for me. Of course, I didn't actually
-run it on linux-next at all, so it is quite possibly related to
-scheduler work (or the TLB/pagetable work) that just hasn't hit
-mainstream yet.
-
-None of the scheduler people seem to have been on the report, though.
-Adding some in.
-
-                Linus
+[1] local DDR = 10, remote DDR = 20, local HBM = 31, remote HBM = 41
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
