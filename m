@@ -1,50 +1,78 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DE0C16B0033
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:18:27 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id q25so2563111ioh.4
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 15:18:27 -0800 (PST)
-Received: from wolff.to (wolff.to. [98.103.208.27])
-        by mx.google.com with SMTP id d4si10900910ioc.34.2017.12.21.15.18.26
-        for <linux-mm@kvack.org>;
-        Thu, 21 Dec 2017 15:18:26 -0800 (PST)
-Date: Thu, 21 Dec 2017 17:16:03 -0600
-From: Bruno Wolff III <bruno@wolff.to>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
- bdi_debug_register")
-Message-ID: <20171221231603.GA15702@wolff.to>
-References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
- <20171221130057.GA26743@wolff.to>
- <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
- <20171221151843.GA453@wolff.to>
- <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
- <20171221153631.GA2300@wolff.to>
- <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
- <20171221164221.GA23680@wolff.to>
- <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
- <20171221181531.GA21050@wolff.to>
+Received: from mail-vk0-f72.google.com (mail-vk0-f72.google.com [209.85.213.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E97E6B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:35:38 -0500 (EST)
+Received: by mail-vk0-f72.google.com with SMTP id d206so5492830vka.22
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 15:35:38 -0800 (PST)
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id t19si287485vkb.65.2017.12.21.15.35.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 15:35:36 -0800 (PST)
+Subject: Re: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration
+ improvements
+References: <20171204140117.7191-1-mhocko@kernel.org>
+ <20171215093309.GU16951@dhcp22.suse.cz>
+ <95ba8db3-f8aa-528a-db4b-80f9d2ba9d2b@ah.jp.nec.com>
+ <20171220095328.GG4831@dhcp22.suse.cz>
+ <233096d8-ecbc-353a-023a-4f6fa72ebb2f@oracle.com>
+ <20171221072802.GY4831@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <659e21c7-ebed-8b64-053a-f01a31ef6e25@oracle.com>
+Date: Thu, 21 Dec 2017 15:35:28 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <20171221181531.GA21050@wolff.to>
+In-Reply-To: <20171221072802.GY4831@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: weiping zhang <zwp10758@gmail.com>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 21, 2017 at 12:15:31 -0600,
-  Bruno Wolff III <bruno@wolff.to> wrote:
->
->One important thing I have just found is that it looks like the 
->problem only happens when booting in enforcing mode. If I boot in 
->permissive mode it does not happen. My home machines are currently set 
->to boot in permissive mode and I'll test this evening to see if I can 
->reproduce the problem if I change them to enforcing mode. If so I'll 
->be able to do lots of testing during my vacation.
+On 12/20/2017 11:28 PM, Michal Hocko wrote:
+> On Wed 20-12-17 14:43:03, Mike Kravetz wrote:
+>> On 12/20/2017 01:53 AM, Michal Hocko wrote:
+>>> On Wed 20-12-17 05:33:36, Naoya Horiguchi wrote:
+>>>> I have one comment on the code path from mbind(2).
+>>>> The callback passed to migrate_pages() in do_mbind() (i.e. new_page())
+>>>> calls alloc_huge_page_noerr() which currently doesn't call SetPageHugeTemporary(),
+>>>> so hugetlb migration fails when h->surplus_huge_page >= h->nr_overcommit_huge_pages.
+>>>
+>>> Yes, I am aware of that. I should have been more explicit in the
+>>> changelog. Sorry about that and thanks for pointing it out explicitly.
+>>> To be honest I wasn't really sure what to do about this. The code path
+>>> is really complex and it made my head spin. I fail to see why we have to
+>>> call alloc_huge_page and mess with reservations at all.
+>>
+>> Oops!  I missed that in my review.
+>>
+>> Since alloc_huge_page was called with avoid_reserve == 1, it should not
+>> do anything with reserve counts.  One potential issue with the existing
+>> code is cgroup accounting done by alloc_huge_page.  When the new target
+>> page is allocated, it is charged against the cgroup even though the original
+>> page is still accounted for.  If we are 'at the cgroup limit', the migration
+>> may fail because of this.
+> 
+> Yeah, the existing code seems just broken. I strongly suspect that the
+> allocation API for hugetlb was so complicated that this was just a
+> natural result of a confusion with some follow up changes on top.
+> 
+>> I like your new code below as it explicitly takes reserve and cgroup
+>> accounting out of the picture for migration.  Let me think about it
+>> for another day before providing a Reviewed-by.
+> 
+> Thanks a lot!
 
-Enforcing mode alone isn't enough as I tested that one one machine at 
-home and it didn't trigger the problem. I'll try another machine late 
-tonight.
+You can add,
+
+Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+
+I had some concerns about transferring huge page state during migration
+not specific to this patch, so I did a bunch of testing.
+
+-- 
+Mike Kravetz
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
