@@ -1,67 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FE096B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:50:47 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id m9so18324071pff.0
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:50:47 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id n34si14590369pld.787.2017.12.21.04.50.45
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BE566B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:57:38 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 3so5485298ioz.9
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:57:38 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id h5si13549453ioe.20.2017.12.21.04.57.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Dec 2017 04:50:46 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-In-Reply-To: <20171220181937.GB12236@bombadil.infradead.org>
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com> <20171214130032.GK16951@dhcp22.suse.cz> <20171218203547.GA2366@linux.intel.com> <20171220181937.GB12236@bombadil.infradead.org>
-Date: Thu, 21 Dec 2017 23:50:40 +1100
-Message-ID: <87mv2cfdnj.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Dec 2017 04:57:37 -0800 (PST)
+Subject: Re: [PATCH v20 0/7] Virtio-balloon Enhancement
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <5A3A3CBC.4030202@intel.com>
+	<20171220122547.GA1654@bombadil.infradead.org>
+	<286AC319A985734F985F78AFA26841F73938CC3E@shsmsx102.ccr.corp.intel.com>
+	<20171220171019.GA12236@bombadil.infradead.org>
+	<5A3B2148.8050306@intel.com>
+In-Reply-To: <5A3B2148.8050306@intel.com>
+Message-Id: <201712212156.AGC09823.OVFtFMJHOSFOLQ@I-love.SAKURA.ne.jp>
+Date: Thu, 21 Dec 2017 21:56:55 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: Michal Hocko <mhocko@kernel.org>, "Box, David E" <david.e.box@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, linux-nvdimm@lists.01.org, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Anaczkowski,
- Lukasz" <lukasz.anaczkowski@intel.com>, "Moore,
- Robert" <robert.moore@intel.com>, linux-acpi@vger.kernel.org, "Odzioba,
- Lukasz" <lukasz.odzioba@intel.com>, "Schmauss, Erik" <erik.schmauss@intel.com>, Len Brown <lenb@kernel.org>, John Hubbard <jhubbard@nvidia.com>, linuxppc-dev@lists.ozlabs.org, Jerome Glisse <jglisse@redhat.com>, Dan Williams <dan.j.williams@intel.com>, devel@acpica.org, "Kogut,
- Jaroslaw" <Jaroslaw.Kogut@intel.com>, linux-mm@kvack.org, "Koss,
- Marcin" <marcin.koss@intel.com>, linux-api@vger.kernel.org, Brice Goglin <brice.goglin@gmail.com>, "Nachimuthu,
- Murugasamy" <murugasamy.nachimuthu@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, linux-kernel@vger.kernel.org, "Koziej,
- Artur" <artur.koziej@intel.com>, "Lahtinen,
- Joonas" <joonas.lahtinen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tim Chen <tim.c.chen@linux.intel.com>
+To: wei.w.wang@intel.com, willy@infradead.org
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Matthew Wilcox <willy@infradead.org> writes:
+Wei Wang wrote:
+> Thanks for the effort. That's actually caused by the previous "!node" 
+> path, which incorrectly changed "index = (index | RADIX_TREE_MAP_MASK) + 
+> 1". With the change below, it will run pretty well with the test cases.
+> 
+> if (!node && !bitmap)
+>      return size;
+> 
+> Would you mind to have a try with the v20 RESEND patch that was just 
+> shared?
 
-> On Mon, Dec 18, 2017 at 01:35:47PM -0700, Ross Zwisler wrote:
->> What I'm hoping to do with this series is to just provide a sysfs
->> representation of the HMAT so that applications can know which NUMA nodes to
->> select with existing utilities like numactl.  This series does not currently
->> alter any kernel behavior, it only provides a sysfs interface.
->> 
->> Say for example you had a system with some high bandwidth memory (HBM), and
->> you wanted to use it for a specific application.  You could use the sysfs
->> representation of the HMAT to figure out which memory target held your HBM.
->> You could do this by looking at the local bandwidth values for the various
->> memory targets, so:
->> 
->> 	# grep . /sys/devices/system/hmat/mem_tgt*/local_init/write_bw_MBps
->> 	/sys/devices/system/hmat/mem_tgt2/local_init/write_bw_MBps:81920
->> 	/sys/devices/system/hmat/mem_tgt3/local_init/write_bw_MBps:40960
->> 	/sys/devices/system/hmat/mem_tgt4/local_init/write_bw_MBps:40960
->> 	/sys/devices/system/hmat/mem_tgt5/local_init/write_bw_MBps:40960
->> 
->> and look for the one that corresponds to your HBM speed. (These numbers are
->> made up, but you get the idea.)
->
-> Presumably ACPI-based platforms will not be the only ones who have the
-> ability to expose different bandwidth memories in the future.  I think
-> we need a platform-agnostic way ... right, PowerPC people?
+No. Please explain what "!node" situation indicates. Why did you try
+"index = (index | RADIX_TREE_MAP_MASK) + 1; continue;" in the previous patch?
 
-Yes!
-
-I don't have any detail at hand but will try and rustle something up.
-
-cheers
++unsigned long xb_find_set(struct xb *xb, unsigned long size,
++			  unsigned long offset)
++{
++	struct radix_tree_root *root = &xb->xbrt;
++	struct radix_tree_node *node;
++	void __rcu **slot;
++	struct ida_bitmap *bitmap;
++	unsigned long index = offset / IDA_BITMAP_BITS;
++	unsigned long index_end = size / IDA_BITMAP_BITS;
++	unsigned long bit = offset % IDA_BITMAP_BITS;
++
++	if (unlikely(offset >= size))
++		return size;
++
++	while (index <= index_end) {
++		unsigned long ret;
++		unsigned int nbits = size - index * IDA_BITMAP_BITS;
++
++		bitmap = __radix_tree_lookup(root, index, &node, &slot);
++
++		if (!node && !bitmap)
++			return size;
++
++		if (bitmap) {
++			if (nbits > IDA_BITMAP_BITS)
++				nbits = IDA_BITMAP_BITS;
++
++			ret = find_next_bit(bitmap->bitmap, nbits, bit);
++			if (ret != nbits)
++				return ret + index * IDA_BITMAP_BITS;
++		}
++		bit = 0;
++		index++;
++	}
++
++	return size;
++}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
