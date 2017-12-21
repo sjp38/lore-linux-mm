@@ -1,79 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id EE6F16B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:06:49 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id k186so7620989ith.1
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:06:49 -0800 (PST)
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id p203si4848657itg.131.2017.12.21.04.06.35
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 55B276B0253
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:14:20 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id p1so18271164pfp.13
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:14:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w8si4383157pgc.409.2017.12.21.04.14.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 04:06:36 -0800 (PST)
-From: Knut Omang <knut.omang@oracle.com>
-Subject: Re: [PATCH v4 72/73] xfs: Convert mru cache to XArray
-References: <fd7130d7-9066-524e-1053-a61eeb27cb36@lge.com>
-	<Pine.LNX.4.44L0.1712081228430.1371-100000@iolanthe.rowland.org>
-	<20171208223654.GP5858@dastard> <1512838818.26342.7.camel@perches.com>
-	<20171211214300.GT5858@dastard> <1513030348.3036.5.camel@perches.com>
-Date: Thu, 21 Dec 2017 13:05:56 +0100
-In-Reply-To: <1513030348.3036.5.camel@perches.com> (Joe Perches's message of
-	"Mon, 11 Dec 2017 14:12:28 -0800")
-Message-ID: <m337449tgb.fsf@oracle.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Dec 2017 04:14:19 -0800 (PST)
+Date: Thu, 21 Dec 2017 13:14:14 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH 14/15] dax: associate mappings with inodes, and warn if
+ dma collides with truncate
+Message-ID: <20171221121414.GI31584@quack2.suse.cz>
+References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
+ <20171110090818.GE4895@lst.de>
+ <CAPcyv4irj_+pJdX1SO6MjsxURcKm8--i_QvyudgHTZE2w4w-sA@mail.gmail.com>
+ <20171220143822.GB31584@quack2.suse.cz>
+ <CAPcyv4jfvkSSMvruQSFqa5N2zmPmnkDbxCzwvgQAqMQOkT8Xgg@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4jfvkSSMvruQSFqa5N2zmPmnkDbxCzwvgQAqMQOkT8Xgg@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joe Perches <joe@perches.com>
-Cc: Dave Chinner <david@fromorbit.com>, Alan Stern <stern@rowland.harvard.edu>, Byungchul Park <byungchul.park@lge.com>, Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-kernel@vger.kernel.org, kernel-team@lge.com
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Joe Perches <joe@perches.com> writes:
+On Wed 20-12-17 14:41:14, Dan Williams wrote:
+> On Wed, Dec 20, 2017 at 6:38 AM, Jan Kara <jack@suse.cz> wrote:
+> > On Tue 19-12-17 17:11:38, Dan Williams wrote:
+> >> On Fri, Nov 10, 2017 at 1:08 AM, Christoph Hellwig <hch@lst.de> wrote:
+> >> >> +             struct {
+> >> >> +                     /*
+> >> >> +                      * ZONE_DEVICE pages are never on an lru or handled by
+> >> >> +                      * a slab allocator, this points to the hosting device
+> >> >> +                      * page map.
+> >> >> +                      */
+> >> >> +                     struct dev_pagemap *pgmap;
+> >> >> +                     /*
+> >> >> +                      * inode association for MEMORY_DEVICE_FS_DAX page-idle
+> >> >> +                      * callbacks. Note that we don't use ->mapping since
+> >> >> +                      * that has hard coded page-cache assumptions in
+> >> >> +                      * several paths.
+> >> >> +                      */
+> >> >
+> >> > What assumptions?  I'd much rather fix those up than having two fields
+> >> > that have the same functionality.
+> >>
+> >> [ Reviving this old thread where you asked why I introduce page->inode
+> >> instead of reusing page->mapping ]
+> >>
+> >> For example, xfs_vm_set_page_dirty() assumes that page->mapping being
+> >> non-NULL indicates a typical page cache page, this is a false
+> >> assumption for DAX. My guess at a fix for this is to add
+> >> pagecache_page() checks to locations like this, but I worry about how
+> >> to find them all. Where pagecache_page() is:
+> >>
+> >> bool pagecache_page(struct page *page)
+> >> {
+> >>         if (!page->mapping)
+> >>                 return false;
+> >>         if (!IS_DAX(page->mapping->host))
+> >>                 return false;
+> >>         return true;
+> >> }
+> >>
+> >> Otherwise we go off the rails:
+> >>
+> >>  WARNING: CPU: 27 PID: 1783 at fs/xfs/xfs_aops.c:1468
+> >> xfs_vm_set_page_dirty+0xf3/0x1b0 [xfs]
+> >
+> > But this just shows that mapping->a_ops are wrong for this mapping, doesn't
+> > it? ->set_page_dirty handler for DAX mapping should just properly handle
+> > DAX pages... (and only those)
+> 
+> Ah, yes. Now that I change ->mapping to be non-NULL for DAX pages I
+> enable all the address_space_operations to start firing. However,
+> instead of adding DAX specific address_space_operations it appears
+> ->mapping should never be set for DAX pages, because DAX pages are
+> disconnected from the page-writeback machinery.
 
-> On Tue, 2017-12-12 at 08:43 +1100, Dave Chinner wrote:
->> On Sat, Dec 09, 2017 at 09:00:18AM -0800, Joe Perches wrote:
->> > On Sat, 2017-12-09 at 09:36 +1100, Dave Chinner wrote:
->> > > 	1. Using lockdep_set_novalidate_class() for anything other
->> > > 	than device->mutex will throw checkpatch warnings. Nice. (*)
->> > []
->> > > (*) checkpatch.pl is considered mostly harmful round here, too,
->> > > but that's another rant....
->> > 
->> > How so?
->> 
->> Short story is that it barfs all over the slightly non-standard
->> coding style used in XFS.
-> []
->> This sort of stuff is just lowest-common-denominator noise - great
->> for new code and/or inexperienced developers, but not for working
->> with large bodies of existing code with slightly non-standard
->> conventions.
->
-> Completely reasonable.  Thanks.
->
-> Do you get many checkpatch submitters for fs/xfs?
->
-> If so, could probably do something about adding
-> a checkpatch file flag to the directory or equivalent.
->
-> Maybe add something like:
->
-> fs/xfs/.checkpatch
->
-> where the contents turn off most everything
+page->mapping is not only about page-writeback machinery. It is generally
+about page <-> inode relation and that still exists for DAX pages. We even
+reuse the mapping->page_tree to store DAX pages. Also requiring proper
+address_space_operations for DAX inodes is IMO not a bad thing as such.
 
-I propose a more fine grained and configurable form of this in
+That being said I'm not 100% convinced we should really set page->mapping
+for DAX pages. After all they are not page cache pages but rather a
+physical storage for the data, don't ever get to LRU, etc. But if you need
+page->inode relation somewhere, that is a good indication to me that it
+might be just easier to set page->mapping and provide aops that do the
+right thing (i.e. usually not much) for them.
 
-   https://lkml.org/lkml/2017/12/16/343
+BTW: the ->set_page_dirty() in particular actually *does* need to do
+something for DAX pages - corresponding radix tree entries should be
+marked dirty so that caches can get flushed when needed.
 
-that also handles sparse and other checkers in a similar way.
+> In other words never
+> setting ->mapping bypasses all the possible broken assumptions and
+> code paths that take page-cache specific actions before calling an
+> address_space_operation.
 
-Thanks,
-Knut
+If there are any assumptions left after aops are set properly, then we can
+reconsider this but for now setting ->mapping and proper aops looks cleaner
+to me...
 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
