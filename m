@@ -1,61 +1,104 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 394AB6B0069
-	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 20:41:06 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id y36so10548418plh.10
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 17:41:06 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id o32si13792934pld.552.2017.12.20.17.41.04
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 079896B025F
+	for <linux-mm@kvack.org>; Wed, 20 Dec 2017 20:41:22 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id n6so17422179pfg.19
+        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 17:41:22 -0800 (PST)
+Received: from g2t2352.austin.hpe.com (g2t2352.austin.hpe.com. [15.233.44.25])
+        by mx.google.com with ESMTPS id e4si14066463pln.445.2017.12.20.17.41.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 17:41:05 -0800 (PST)
-Subject: Re: [PATCH v2 4/5] mm: use node_page_state_snapshot to avoid
- deviation
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-5-git-send-email-kemi.wang@intel.com>
- <20171219124317.GP2787@dhcp22.suse.cz>
- <94187fd5-ad70-eba7-2724-0fe5bed750d6@intel.com>
- <20171220100650.GI4831@dhcp22.suse.cz>
- <1f3a6d05-2756-93fd-a380-df808c94ece8@intel.com>
- <alpine.DEB.2.20.1712200956080.7506@nuc-kabylake>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <1f0d8933-60a3-e2e0-f7a3-36e98ade48bb@intel.com>
-Date: Thu, 21 Dec 2017 09:39:01 +0800
-MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1712200956080.7506@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8
+        Wed, 20 Dec 2017 17:41:21 -0800 (PST)
+From: "Elliott, Robert (Persistent Memory)" <elliott@hpe.com>
+Subject: RE: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Date: Thu, 21 Dec 2017 01:41:15 +0000
+Message-ID: <AT5PR8401MB0387011EAD8858CC99548ED2AB0D0@AT5PR8401MB0387.NAMPRD84.PROD.OUTLOOK.COM>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org>
+ <20171220211350.GA2688@linux.intel.com>
+In-Reply-To: <20171220211350.GA2688@linux.intel.com>
 Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset="us-ascii"
+Content-Transfer-Encoding: quoted-printable
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@infradead.org>
+Cc: Michal Hocko <mhocko@kernel.org>, "Box, David E" <david.e.box@intel.com>, Dave Hansen <dave.hansen@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Schmauss, Erik" <erik.schmauss@intel.com>, Len
+ Brown <lenb@kernel.org>, John Hubbard <jhubbard@nvidia.com>, "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>, Jerome
+ Glisse <jglisse@redhat.com>, "devel@acpica.org" <devel@acpica.org>, "Kogut,
+ Jaroslaw" <Jaroslaw.Kogut@intel.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "Koss, Marcin" <marcin.koss@intel.com>, "linux-api@vger.kernel.org" <linux-api@vger.kernel.org>, Brice Goglin <brice.goglin@gmail.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Koziej,
+ Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Tim
+ Chen <tim.c.chen@linux.intel.com>
 
 
 
-On 2017a1'12ae??20ae?JPY 23:58, Christopher Lameter wrote:
-> On Wed, 20 Dec 2017, kemi wrote:
-> 
->>> You are making numastats special and I yet haven't heard any sounds
->>> arguments for that. But that should be discussed in the respective
->>> patch.
->>>
->>
->> That is because we have much larger threshold size for NUMA counters, that means larger
->> deviation. So, the number in local cpus may not be simply ignored.
-> 
-> Some numbers showing the effect of these changes would be helpful. You can
-> probably create some in kernel synthetic tests to start with which would
-> allow you to see any significant effects of those changes.
-> 
-> Then run the larger testsuites (f.e. those that Mel has published) and
-> benchmarks to figure out how behavior of real apps *may* change?
-> 
+> -----Original Message-----
+> From: Linux-nvdimm [mailto:linux-nvdimm-bounces@lists.01.org] On Behalf O=
+f
+> Ross Zwisler
+...
+>=20
+> On Wed, Dec 20, 2017 at 10:19:37AM -0800, Matthew Wilcox wrote:
+...
+> > initiator is a CPU?  I'd have expected you to expose a memory controlle=
+r
+> > abstraction rather than re-use storage terminology.
+>=20
+> Yea, I agree that at first blush it seems weird.  It turns out that
+> looking at it in sort of a storage initiator/target way is beneficial,
+> though, because it allows us to cut down on the number of data values
+> we need to represent.
+>=20
+> For example the SLIT, which doesn't differentiate between initiator and
+> target proximity domains (and thus nodes) always represents a system
+> with N proximity domains using a NxN distance table.  This makes sense
+> if every node contains both CPUs and memory.
+>=20
+> With the introduction of the HMAT, though, we can have memory-only
+> initiator nodes and we can explicitly associate them with their local=20
+> CPU.  This is necessary so that we can separate memory with different
+> performance characteristics (HBM vs normal memory vs persistent memory,
+> for example) that are all attached to the same CPU.
+>=20
+> So, say we now have a system with 4 CPUs, and each of those CPUs has 3
+> different types of memory attached to it.  We now have 16 total proximity
+> domains, 4 CPU and 12 memory.
 
-OK.
-I will do that when available.
-Let's just drop this patch in this series and consider this issue
-in another patch. 
+The CPU cores that make up a node can have performance restrictions of
+their own; for example, they might max out at 10 GB/s even though the
+memory controller supports 120 GB/s (meaning you need to use 12 cores
+on the node to fully exercise memory).  It'd be helpful to report this,
+so software can decide how many cores to use for bandwidth-intensive work.
+
+> If we represent this with the SLIT we end up with a 16 X 16 distance tabl=
+e
+> (256 entries), most of which don't matter because they are memory-to-
+> memory distances which don't make sense.
+>=20
+> In the HMAT, though, we separate out the initiators and the targets and
+> put them into separate lists.  (See 5.2.27.4 System Locality Latency and
+> Bandwidth Information Structure in ACPI 6.2 for details.)  So, this same
+> config in the HMAT only has 4*12=3D48 performance values of each type, al=
+l
+> of which convey meaningful information.
+>=20
+> The HMAT indeed even uses the storage "initiator" and "target"
+> terminology. :)
+
+Centralized DMA engines (e.g., as used by the "DMA based blk-mq pmem
+driver") have performance differences too.  A CPU might include
+CPU cores that reach 10 GB/s, DMA engines that reach 60 GB/s, and
+memory controllers that reach 120 GB/s.  I guess these would be
+represented as extra initiators on the node?
+
+
+---
+Robert Elliott, HPE Persistent Memory
+
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
