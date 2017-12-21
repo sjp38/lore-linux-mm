@@ -1,78 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 902826B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:08:45 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id e128so4002176wmg.1
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:08:45 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j10si4948274wmi.182.2017.12.21.07.08.44
-        for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Dec 2017 07:08:44 -0800 (PST)
-Date: Thu, 21 Dec 2017 16:08:40 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: known bad patch in -mm tree was Re: [PATCH 2/2] mmap.2:
- MAP_FIXED updated documentation
-Message-ID: <20171221150840.GF4831@dhcp22.suse.cz>
-References: <20171213130458.GI25185@dhcp22.suse.cz>
- <20171213130900.GA19932@amd>
- <20171213131640.GJ25185@dhcp22.suse.cz>
- <20171213132105.GA20517@amd>
- <20171213144050.GG11493@rei>
- <CAGXu5jLqE6cUxk-Girx6PG7upEzz8jmu1OH_3LVC26iJc2vTxQ@mail.gmail.com>
- <c7c7a30e-a122-1bbf-88a2-3349d755c62d@gmail.com>
- <CAGXu5jJ289R9koVoHmxcvUWr6XHSZR2p0qq3WtpNyN-iNSvrNQ@mail.gmail.com>
- <87po78fe7m.fsf@concordia.ellerman.id.au>
- <20171221145907.GA7604@amd>
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 975E76B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:21:04 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id u4so8093824iti.2
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:21:04 -0800 (PST)
+Received: from wolff.to (wolff.to. [98.103.208.27])
+        by mx.google.com with SMTP id m133si3551251ioe.186.2017.12.21.07.21.03
+        for <linux-mm@kvack.org>;
+        Thu, 21 Dec 2017 07:21:03 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:18:43 -0600
+From: Bruno Wolff III <bruno@wolff.to>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171221151843.GA453@wolff.to>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171221130057.GA26743@wolff.to>
+ <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20171221145907.GA7604@amd>
+In-Reply-To: <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Pavel Machek <pavel@ucw.cz>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, vojtech@suse.cz, jikos@suse.cz, Kees Cook <keescook@chromium.org>, "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Cyril Hrubis <chrubis@suse.cz>, Linux API <linux-api@vger.kernel.org>, Khalid Aziz <khalid.aziz@oracle.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Linux-MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Florian Weimer <fweimer@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Matthew Wilcox <willy@infradead.org>, Jann Horn <jannh@google.com>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: weiping zhang <zwp10758@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
 
-On Thu 21-12-17 15:59:07, Pavel Machek wrote:
-> Hi!
-> 
-> > >>> And if Michal doesn't want to touch this patch any more, I'm happy to
-> > >>> do the search/replace/resend. :P
-> > >>
-> > >> Something with the prefix MAP_FIXED_ seems to me obviously desirable,
-> > >> both to suggest that the function is similar, and also for easy
-> > >> grepping of the source code to look for instances of both.
-> > >> MAP_FIXED_SAFE didn't really bother me as a name, but
-> > >> MAP_FIXED_NOREPLACE (or MAP_FIXED_NOCLOBBER) seem slightly more
-> > >> descriptive of what the flag actually does, so a little better.
-> > >
-> > > Great, thanks!
-> > >
-> > > Andrew, can you s/MAP_FIXED_SAFE/MAP_FIXED_NOREPLACE/g in the series?
-> > 
-> > This seems to have not happened. Presumably Andrew just missed the mail
-> > in the flood. And will probably miss this one too ... :)
-> 
-> Nice way to mess up kernel development, Michal. Thank you! :-(.
+On Thu, Dec 21, 2017 at 22:01:33 +0800,
+  weiping zhang <zwp10758@gmail.com> wrote:
+>Hi,
+>how do you do bisect ?build all kernel commit one by one ?
+>as you did before:
+>https://bugzilla.redhat.com/show_bug.cgi?id=1520982
 
-Thank you for your valuable feedback! Maybe you have noticed that I
-haven't enforced the patch and led others to decide the final name
-(either by resubmitting patches or a simple replace in mmotm tree). Or
-maybe you haven't because you are so busy bikesheding that you can
-hardly see anything else.
- 
-> Andrew, everyone and their dog agrees MAP_FIXED_SAFE is stupid name,
-> but Michal decided to just go ahead, ignoring feedback...
->
-> Can you either s/MAP_FIXED_SAFE/MAP_FIXED_NOREPLACE/g or drop the patches?
+I just did the one bisect using Linus' tree. After each build, I would do 
+a test boot and see if the boot was normal or if I got errors and an 
+eventual hang before boot.
 
-You have surely saved the world today and I hardly find words to thank
-you (and your dog of course).
+Since then I have used git revert to revert just the problem commit from 
+later kernels (such as v4.15-rc4) and when I do the system boots normally. 
+And when I don't do the revert or just use stock Fedora kernels the problem 
+occurs every time.
 
-Thanks!
--- 
-Michal Hocko
-SUSE Labs
+I also did a couple of tests with Josh Boyer's Fedora kernel tree that 
+has Fedora patches on top of the development kernel.
+
+>what kernel source code do you use that occur warning at device_add_disk?
+>from fedora or any official release ? if so ,could you provide web link?
+
+That was from an offical Fedora kernel. I believe I got it from the 
+nodebug repo, but that kernel should be the same as the one that was 
+normally used for rawhide. It is at 
+https://koji.fedoraproject.org/koji/buildinfo?buildID=1007500 
+but I don't know how much longer the binaries will stay available in koji. 
+
+>if you use same kernel source code and same .config, why your own build
+>Cann't trigger that warning ?
+
+I don't know. The install script may build the initramfs differently. As 
+far as I can tell, if the WARN_ON was triggered, I should have gotten 
+output. 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
