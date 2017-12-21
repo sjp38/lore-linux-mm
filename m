@@ -1,48 +1,287 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B8ABB6B026A
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:48:21 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id o16so4206722wmf.4
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:48:21 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id k2sor10906242edc.21.2017.12.21.07.48.20
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B2B886B026D
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:54:34 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id r51so19424025qtj.17
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:54:34 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id m68si4965767qkb.134.2017.12.21.07.54.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 07:48:20 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 07:54:33 -0800 (PST)
+Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBLFsOfm006444
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:54:31 -0500
+Received: from e18.ny.us.ibm.com (e18.ny.us.ibm.com [129.33.205.208])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2f0fmjrwa3-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:54:26 -0500
+Received: from localhost
+	by e18.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 21 Dec 2017 10:54:24 -0500
+Date: Thu, 21 Dec 2017 07:54:34 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <20171221153631.GA2300@wolff.to>
-References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
- <20171221130057.GA26743@wolff.to> <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
- <20171221151843.GA453@wolff.to> <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
- <20171221153631.GA2300@wolff.to>
-From: weiping zhang <zwp10758@gmail.com>
-Date: Thu, 21 Dec 2017 23:48:19 +0800
-Message-ID: <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
+Message-Id: <20171221155434.GT7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno Wolff III <bruno@wolff.to>
-Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
+To: rao.shoaib@oracle.com
+Cc: linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
 
-2017-12-21 23:36 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
-> On Thu, Dec 21, 2017 at 23:31:40 +0800,
->  weiping zhang <zwp10758@gmail.com> wrote:
->>
->> does every time boot fail can trigger WANRING in device_add_disk ?
->
->
-> Not that I see. But the message could scroll off the screen. The boot gets
-> far enough that systemd copies over dmesg output to permanent storage that I
-> can see on my next successful boot. That's where I looked for the warning
-> output you want. I never saw it for any kernels I compiled myself. Only when
-> I test kernels built by Fedora do I see it.
-see it every boot ?
+On Thu, Dec 21, 2017 at 12:19:47AM -0800, rao.shoaib@oracle.com wrote:
+> From: Rao Shoaib <rao.shoaib@oracle.com>
+> 
+> This patch moves kfree_call_rcu() and related macros out of rcu code.
 
-> I just tried booting to single user and the boot still hangs.
->
-> When I build the kernels, the compiler options are probably a bit different
-> than when Fedora does. That might affect what happens during boot.
+I do very much like this idea!
+
+>                                                                       A new
+> function __call_rcu_lazy() is created for calling __call_rcu() with the lazy
+> flag. Also moving macros generated following checkpatch noise. I do not know
+> how to silence checkpatch as there is nothing wrong.
+> 
+> CHECK: Macro argument reuse 'offset' - possible side-effects?
+> #91: FILE: include/linux/slab.h:348:
+> +#define __kfree_rcu(head, offset) \
+> +	do { \
+> +		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+> +		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+> +	} while (0)
+> 
+> CHECK: Macro argument reuse 'ptr' - possible side-effects?
+> #123: FILE: include/linux/slab.h:380:
+> +#define kfree_rcu(ptr, rcu_head)	\
+> +	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+> 
+> CHECK: Macro argument reuse 'rcu_head' - possible side-effects?
+> #123: FILE: include/linux/slab.h:380:
+> +#define kfree_rcu(ptr, rcu_head)	\
+> +	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+
+Matthew Wilcox already covered these.
+
+Please see below.
+
+> total: 0 errors, 0 warnings, 3 checks, 156 lines checked
+> 
+> 
+> Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
+> ---
+>  include/linux/rcupdate.h | 41 ++---------------------------------------
+>  include/linux/rcutree.h  |  2 --
+>  include/linux/slab.h     | 37 +++++++++++++++++++++++++++++++++++++
+>  kernel/rcu/tree.c        | 24 ++++++++++--------------
+>  mm/slab_common.c         | 10 ++++++++++
+>  5 files changed, 59 insertions(+), 55 deletions(-)
+> 
+> diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
+> index a6ddc42..d2c25d8 100644
+> --- a/include/linux/rcupdate.h
+> +++ b/include/linux/rcupdate.h
+> @@ -55,6 +55,8 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
+>  #define	call_rcu	call_rcu_sched
+>  #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+> 
+> +void __call_rcu_lazy(struct rcu_head *head, rcu_callback_t func);
+
+We don't really need the "__" prefix here.
+
+>  void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
+>  void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
+>  void synchronize_sched(void);
+> @@ -838,45 +840,6 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
+>  #define __is_kfree_rcu_offset(offset) ((offset) < 4096)
+> 
+>  /*
+> - * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
+> - */
+> -#define __kfree_rcu(head, offset) \
+> -	do { \
+> -		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+> -		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+> -	} while (0)
+> -
+> -/**
+> - * kfree_rcu() - kfree an object after a grace period.
+> - * @ptr:	pointer to kfree
+> - * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
+> - *
+> - * Many rcu callbacks functions just call kfree() on the base structure.
+> - * These functions are trivial, but their size adds up, and furthermore
+> - * when they are used in a kernel module, that module must invoke the
+> - * high-latency rcu_barrier() function at module-unload time.
+> - *
+> - * The kfree_rcu() function handles this issue.  Rather than encoding a
+> - * function address in the embedded rcu_head structure, kfree_rcu() instead
+> - * encodes the offset of the rcu_head structure within the base structure.
+> - * Because the functions are not allowed in the low-order 4096 bytes of
+> - * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
+> - * If the offset is larger than 4095 bytes, a compile-time error will
+> - * be generated in __kfree_rcu().  If this error is triggered, you can
+> - * either fall back to use of call_rcu() or rearrange the structure to
+> - * position the rcu_head structure into the first 4096 bytes.
+> - *
+> - * Note that the allowable offset might decrease in the future, for example,
+> - * to allow something like kmem_cache_free_rcu().
+> - *
+> - * The BUILD_BUG_ON check must not involve any function calls, hence the
+> - * checks are done in macros here.
+> - */
+> -#define kfree_rcu(ptr, rcu_head)					\
+> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+> -
+> -
+> -/*
+>   * Place this after a lock-acquisition primitive to guarantee that
+>   * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
+>   * if the UNLOCK and LOCK are executed by the same CPU or if the
+> diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
+> index 37d6fd3..7746b19 100644
+> --- a/include/linux/rcutree.h
+> +++ b/include/linux/rcutree.h
+> @@ -48,8 +48,6 @@ void synchronize_rcu_bh(void);
+>  void synchronize_sched_expedited(void);
+>  void synchronize_rcu_expedited(void);
+> 
+> -void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
+> -
+>  /**
+>   * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
+>   *
+> diff --git a/include/linux/slab.h b/include/linux/slab.h
+> index 50697a1..36d6431 100644
+> --- a/include/linux/slab.h
+> +++ b/include/linux/slab.h
+> @@ -342,6 +342,43 @@ void *__kmalloc(size_t size, gfp_t flags) __assume_kmalloc_alignment __malloc;
+>  void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_slab_alignment __malloc;
+>  void kmem_cache_free(struct kmem_cache *, void *);
+> 
+> +void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
+> +
+> +/* Helper macro for kfree_rcu() to prevent argument-expansion eyestrain. */
+> +#define __kfree_rcu(head, offset) \
+> +	do { \
+> +		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+> +		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+> +	} while (0)
+> +
+> +/**
+> + * kfree_rcu() - kfree an object after a grace period.
+> + * @ptr:	pointer to kfree
+> + * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
+> + *
+> + * Many rcu callbacks functions just call kfree() on the base structure.
+> + * These functions are trivial, but their size adds up, and furthermore
+> + * when they are used in a kernel module, that module must invoke the
+> + * high-latency rcu_barrier() function at module-unload time.
+> + *
+> + * The kfree_rcu() function handles this issue.  Rather than encoding a
+> + * function address in the embedded rcu_head structure, kfree_rcu() instead
+> + * encodes the offset of the rcu_head structure within the base structure.
+> + * Because the functions are not allowed in the low-order 4096 bytes of
+> + * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
+> + * If the offset is larger than 4095 bytes, a compile-time error will
+> + * be generated in __kfree_rcu().  If this error is triggered, you can
+> + * either fall back to use of call_rcu() or rearrange the structure to
+> + * position the rcu_head structure into the first 4096 bytes.
+> + *
+> + * Note that the allowable offset might decrease in the future, for example,
+> + * to allow something like kmem_cache_free_rcu().
+> + *
+> + * The BUILD_BUG_ON check must not involve any function calls, hence the
+> + * checks are done in macros here.
+> + */
+> +#define kfree_rcu(ptr, rcu_head)	\
+> +	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+>  /*
+>   * Bulk allocation and freeing operations. These are accelerated in an
+>   * allocator specific way to avoid taking locks repeatedly or building
+> diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+> index f9c0ca2..943137d 100644
+> --- a/kernel/rcu/tree.c
+> +++ b/kernel/rcu/tree.c
+> @@ -3180,6 +3180,16 @@ void call_rcu_sched(struct rcu_head *head, rcu_callback_t func)
+>  }
+>  EXPORT_SYMBOL_GPL(call_rcu_sched);
+> 
+> +/* Queue an RCU callback for lazy invocation after a grace period.
+> + * Currently there is no way of tagging the lazy RCU callbacks in the
+> + * list of pending callbacks. Until then, this function may only be
+> + * called from kfree_call_rcu().
+
+But now we might have a way.
+
+If the value in ->func is too small to be a valid function, RCU invokes
+a fixed function name.  This function can then look at ->func and do
+whatever it wants, for example, maintaining an array indexed by the
+->func value that says what function to call and what else to pass it,
+including for example the slab pointer and offset.
+
+Thoughts?
+
+							Thanx, Paul
+
+> + */
+> +void __call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
+> +{
+> +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
+> +}
+> +
+>  /**
+>   * call_rcu_bh() - Queue an RCU for invocation after a quicker grace period.
+>   * @head: structure to be used for queueing the RCU updates.
+> @@ -3209,20 +3219,6 @@ void call_rcu_bh(struct rcu_head *head, rcu_callback_t func)
+>  EXPORT_SYMBOL_GPL(call_rcu_bh);
+> 
+>  /*
+> - * Queue an RCU callback for lazy invocation after a grace period.
+> - * This will likely be later named something like "call_rcu_lazy()",
+> - * but this change will require some way of tagging the lazy RCU
+> - * callbacks in the list of pending callbacks. Until then, this
+> - * function may only be called from __kfree_rcu().
+> - */
+> -void kfree_call_rcu(struct rcu_head *head,
+> -		    rcu_callback_t func)
+> -{
+> -	__call_rcu(head, func, rcu_state_p, -1, 1);
+> -}
+> -EXPORT_SYMBOL_GPL(kfree_call_rcu);
+> -
+> -/*
+>   * Because a context switch is a grace period for RCU-sched and RCU-bh,
+>   * any blocking grace-period wait automatically implies a grace period
+>   * if there is only one CPU online at any point time during execution
+> diff --git a/mm/slab_common.c b/mm/slab_common.c
+> index c8cb367..0bb8a75 100644
+> --- a/mm/slab_common.c
+> +++ b/mm/slab_common.c
+> @@ -1483,6 +1483,16 @@ void kzfree(const void *p)
+>  }
+>  EXPORT_SYMBOL(kzfree);
+> 
+> +/*
+> + * Queue Memory to be freed by RCU after a grace period.
+> + */
+> +void kfree_call_rcu(struct rcu_head *head,
+> +		    rcu_callback_t func)
+> +{
+> +	__call_rcu_lazy(head, func);
+> +}
+> +EXPORT_SYMBOL_GPL(kfree_call_rcu);
+> +
+>  /* Tracepoints definitions. */
+>  EXPORT_TRACEPOINT_SYMBOL(kmalloc);
+>  EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
+> -- 
+> 2.7.4
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
