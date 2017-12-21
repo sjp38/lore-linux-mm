@@ -1,126 +1,80 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 48BCE6B0253
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 02:49:19 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id i12so11093454plk.5
-        for <linux-mm@kvack.org>; Wed, 20 Dec 2017 23:49:19 -0800 (PST)
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id bf4si14565235plb.142.2017.12.20.23.49.17
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C67126B025F
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 03:02:07 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id c3so14525730wrd.0
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 00:02:07 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 28si15416980wrw.317.2017.12.21.00.02.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 20 Dec 2017 23:49:18 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171220012632.26840-1-ying.huang@intel.com>
-	<20171221021619.GA27475@bbox>
-Date: Thu, 21 Dec 2017 15:48:56 +0800
-In-Reply-To: <20171221021619.GA27475@bbox> (Minchan Kim's message of "Thu, 21
-	Dec 2017 11:16:19 +0900")
-Message-ID: <871sjopllj.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Dec 2017 00:02:06 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:02:03 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: shmctl(SHM_STAT) vs. /proc/sysvipc/shm permissions discrepancies
+Message-ID: <20171221080203.GZ4831@dhcp22.suse.cz>
+References: <20171219094848.GE2787@dhcp22.suse.cz>
+ <CAKgNAkjJrmCFY-h2oqKS3zM_D+Csx-17A27mh08WKahyOVzrgQ@mail.gmail.com>
+ <20171220092025.GD4831@dhcp22.suse.cz>
+ <CAKgNAkisD7zDRoqJd6Gk1JMCZ8+Huj5QPV04nh2JXHMA+_R0-A@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgNAkisD7zDRoqJd6Gk1JMCZ8+Huj5QPV04nh2JXHMA+_R0-A@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, Jerome Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
+Cc: Linux API <linux-api@vger.kernel.org>, Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Waychison <mikew@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
 
-Minchan Kim <minchan@kernel.org> writes:
+On Wed 20-12-17 17:17:46, Michael Kerrisk wrote:
+> Hello Michal,
+> 
+> On 20 December 2017 at 10:20, Michal Hocko <mhocko@kernel.org> wrote:
+> > On Tue 19-12-17 17:45:40, Michael Kerrisk wrote:
+> >> But, is
+> >> there a pressing reason to make the change? (Okay, I guess iterating
+> >> using *_STAT is nicer than parsing /proc/sysvipc/*.)
+> >
+> > The reporter of this issue claims that "Reading /proc/sysvipc/shm is way
+> > slower than executing the system call." I haven't checked that but I can
+> > imagine that /proc/sysvipc/shm can take quite some time when there are
+> > _many_ segments registered.
+> 
+> Yes, that makes sense.
+> 
+> > So they would like to use the syscall but
+> > the interacting parties do not have compatible permissions.
+> 
+> So, I don't think there is any security issue, since the same info is
+> available in /proc/sysvipc/*.
 
-> On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
->> From: Huang Ying <ying.huang@intel.com>
->> 
->> When the swapin is performed, after getting the swap entry information
->> from the page table, system will swap in the swap entry, without any
->> lock held to prevent the swap device from being swapoff.  This may
->> cause the race like below,
->> 
->> CPU 1				CPU 2
->> -----				-----
->> 				do_swap_page
->> 				  swapin_readahead
->> 				    __read_swap_cache_async
->> swapoff				      swapcache_prepare
->>   p->swap_map = NULL		        __swap_duplicate
->> 					  p->swap_map[?] /* !!! NULL pointer access */
->> 
->> Because swapoff is usually done when system shutdown only, the race
->> may not hit many people in practice.  But it is still a race need to
->> be fixed.
->> 
->> To fix the race, get_swap_device() is added to check whether the
->> specified swap entry is valid in its swap device.  If so, it will keep
->> the swap entry valid via preventing the swap device from being
->> swapoff, until put_swap_device() is called.
->> 
->> Because swapoff() is very race code path, to make the normal path runs
->> as fast as possible, RCU instead of reference count is used to
->> implement get/put_swap_device().  From get_swap_device() to
->> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
->> swapoff() will wait until put_swap_device() is called.
->> 
->> In addition to swap_map, cluster_info, etc. data structure in the
->> struct swap_info_struct, the swap cache radix tree will be freed after
->> swapoff, so this patch fixes the race between swap cache looking up
->> and swapoff too.
->> 
->> Cc: Hugh Dickins <hughd@google.com>
->> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
->> Cc: Minchan Kim <minchan@kernel.org>
->> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> Cc: Tim Chen <tim.c.chen@linux.intel.com>
->> Cc: Shaohua Li <shli@fb.com>
->> Cc: Mel Gorman <mgorman@techsingularity.net>
->> Cc: "Jrme Glisse" <jglisse@redhat.com>
->> Cc: Michal Hocko <mhocko@suse.com>
->> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> Cc: David Rientjes <rientjes@google.com>
->> Cc: Rik van Riel <riel@redhat.com>
->> Cc: Jan Kara <jack@suse.cz>
->> Cc: Dave Jiang <dave.jiang@intel.com>
->> Cc: Aaron Lu <aaron.lu@intel.com>
->> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> 
->> Changelog:
->> 
->> v4:
->> 
->> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
->>   normal paths further.
->
-> Hi Huang,
+Well, I am not sure this is a valid argument (maybe I just misread your
+statement). Our security model _might_ be broken because of the sysipc
+proc interface existance already. I am not saying it is broken because
+I cannot see an attack vector based solely on the metadata information
+knowledge. An attacker still cannot see/modify the real data. But maybe
+there are some bugs lurking there and knowing the metadata might help to
+exploit them. I dunno.
 
-Hi, Minchan,
+You are certainly right that modifying/adding STAT flag to comply with
+the proc interface permission model will not make the system any more
+vulnerable, though.
 
-> This version is much better than old. To me, it's due to not rcu,
-> srcu, refcount thing but it adds swap device dependency(i.e., get/put)
-> into every swap related functions so users who don't interested on swap
-> don't need to care of it. Good.
->
-> The problem is caused by freeing by swap related-data structure
-> *dynamically* while old swap logic was based on static data
-> structure(i.e., never freed and the verify it's stale).
-> So, I reviewed some places where use PageSwapCache and swp_entry_t
-> which could make access of swap related data structures.
->
-> A example is __isolate_lru_page
->
-> It calls page_mapping to get a address_space.
-> What happens if the page is on SwapCache and raced with swapoff?
-> The mapping got could be disappeared by the race. Right?
+> The only question would be whether
+> change in the *_STAT behavior might surprise some applications into
+> behaving differently. I presume the chances of that are low, but if it
+> was a concert, one could add new shmctl/msgctl/semctl *_STAT_ALL (or
+> some such) operations that have the desired behavior.
 
-Yes.  We should think about that.  Considering the file cache pages, the
-address_space backing the file cache pages may be freed dynamically too.
-So to use page_mapping() return value for the file cache pages, some
-kind of locking is needed to guarantee the address_space isn't freed
-under us.  Page may be locked, or under writeback, or some other locks
-need to be held, for example, page table lock, or lru_lock, etc.  For
-__isolate_lru_page(), lru_lock will be held when it is called.  And we
-will call synchronize_rcu() between clear PageSwapCache and free swap
-cache, so the usage of swap cache in __isolate_lru_page() should be
-safe.  Do you think my analysis makes sense?
+I would lean towards _STAT_ALL because this is Linux specific behavior
+(I have looked at what BSD does here and they are checking permissions
+for STAT as well). It would also be simpler to revert if we ever find
+that this is a leak with security consequences.
 
-Best Regards,
-Huang, Ying
+What do other people think? I can prepare a patch.
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
