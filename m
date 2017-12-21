@@ -1,760 +1,587 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 243B36B0033
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 16:03:35 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id k1so16432375pgq.2
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 13:03:35 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id q63si15551627pfk.189.2017.12.21.13.03.32
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 326B06B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 16:22:38 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id f185so8810729itc.2
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 13:22:38 -0800 (PST)
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id 76si6584370ios.40.2017.12.21.13.22.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Dec 2017 13:03:32 -0800 (PST)
-Date: Thu, 21 Dec 2017 13:03:27 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v20 3/7 RESEND] xbitmap: add more operations
-Message-ID: <20171221210327.GB25009@bombadil.infradead.org>
-References: <1513823406-43632-1-git-send-email-wei.w.wang@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 13:22:36 -0800 (PST)
+Subject: Re: [RFC PATCH v4 02/18] add memory map/unmap support for VM
+ introspection on the guest side
+References: <20171218190642.7790-1-alazar@bitdefender.com>
+ <20171218190642.7790-3-alazar@bitdefender.com>
+From: Patrick Colp <patrick.colp@oracle.com>
+Message-ID: <61ea8939-3826-8d8b-0ba0-5f0cbc434543@oracle.com>
+Date: Thu, 21 Dec 2017 16:17:26 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1513823406-43632-1-git-send-email-wei.w.wang@intel.com>
+In-Reply-To: <20171218190642.7790-3-alazar@bitdefender.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, penguin-kernel@I-love.SAKURA.ne.jp
+To: =?UTF-8?Q?Adalber_Laz=c4=83r?= <alazar@bitdefender.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>, =?UTF-8?Q?Mircea_C=c3=aerjaliu?= <mcirjaliu@bitdefender.com>
+
+On 2017-12-18 02:06 PM, Adalber LazA?r wrote:
+> From: Adalbert Lazar <alazar@bitdefender.com>
+> 
+> An introspection tool running in a dedicated VM can use the new device
+> (/dev/kvmmem) to map memory from other introspected VM-s.
+> 
+> Two ioctl operations are supported:
+>    - KVM_INTRO_MEM_MAP/struct kvmi_mem_map
+>    - KVM_INTRO_MEM_UNMAP/unsigned long
+> 
+> In order to map an introspected gpa to the local gva, the process using
+> this device needs to obtain a token from the host KVMI subsystem (see
+> Documentation/virtual/kvm/kvmi.rst - KVMI_GET_MAP_TOKEN).
+> 
+> Both operations use hypercalls (KVM_HC_MEM_MAP, KVM_INTRO_MEM_UNMAP)
+> to pass the requests to the host kernel/KVMi (see hypercalls.txt).
+> 
+> Signed-off-by: Mircea CA(R)rjaliu <mcirjaliu@bitdefender.com>
+> ---
+>   arch/x86/Kconfig                  |   9 +
+>   arch/x86/include/asm/kvmi_guest.h |  10 +
+>   arch/x86/kernel/Makefile          |   1 +
+>   arch/x86/kernel/kvmi_mem_guest.c  |  26 +++
+>   virt/kvm/kvmi_mem_guest.c         | 379 ++++++++++++++++++++++++++++++++++++++
+>   5 files changed, 425 insertions(+)
+>   create mode 100644 arch/x86/include/asm/kvmi_guest.h
+>   create mode 100644 arch/x86/kernel/kvmi_mem_guest.c
+>   create mode 100644 virt/kvm/kvmi_mem_guest.c
+> 
+> diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
+> index 8eed3f94bfc7..6e2548f4d44c 100644
+> --- a/arch/x86/Kconfig
+> +++ b/arch/x86/Kconfig
+> @@ -782,6 +782,15 @@ config KVM_DEBUG_FS
+>   	  Statistics are displayed in debugfs filesystem. Enabling this option
+>   	  may incur significant overhead.
+>   
+> +config KVMI_MEM_GUEST
+> +	bool "KVM Memory Introspection support on Guest"
+> +	depends on KVM_GUEST
+> +	default n
+> +	---help---
+> +	  This option enables functions and hypercalls for security applications
+> +	  running in a separate VM to control the execution of other VM-s, query
+> +	  the state of the vCPU-s (GPR-s, MSR-s etc.).
+> +
+>   config PARAVIRT_TIME_ACCOUNTING
+>   	bool "Paravirtual steal time accounting"
+>   	depends on PARAVIRT
+> diff --git a/arch/x86/include/asm/kvmi_guest.h b/arch/x86/include/asm/kvmi_guest.h
+> new file mode 100644
+> index 000000000000..c7ed53a938e0
+> --- /dev/null
+> +++ b/arch/x86/include/asm/kvmi_guest.h
+> @@ -0,0 +1,10 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __KVMI_GUEST_H__
+> +#define __KVMI_GUEST_H__
+> +
+> +long kvmi_arch_map_hc(struct kvmi_map_mem_token *tknp,
+> +	gpa_t req_gpa, gpa_t map_gpa);
+> +long kvmi_arch_unmap_hc(gpa_t map_gpa);
+> +
+> +
+> +#endif
+> diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+> index 81bb565f4497..fdb54b65e46e 100644
+> --- a/arch/x86/kernel/Makefile
+> +++ b/arch/x86/kernel/Makefile
+> @@ -111,6 +111,7 @@ obj-$(CONFIG_PARAVIRT)		+= paravirt.o paravirt_patch_$(BITS).o
+>   obj-$(CONFIG_PARAVIRT_SPINLOCKS)+= paravirt-spinlocks.o
+>   obj-$(CONFIG_PARAVIRT_CLOCK)	+= pvclock.o
+>   obj-$(CONFIG_X86_PMEM_LEGACY_DEVICE) += pmem.o
+> +obj-$(CONFIG_KVMI_MEM_GUEST)	+= kvmi_mem_guest.o ../../../virt/kvm/kvmi_mem_guest.o
+>   
+>   obj-$(CONFIG_EISA)		+= eisa.o
+>   obj-$(CONFIG_PCSPKR_PLATFORM)	+= pcspeaker.o
+> diff --git a/arch/x86/kernel/kvmi_mem_guest.c b/arch/x86/kernel/kvmi_mem_guest.c
+> new file mode 100644
+> index 000000000000..c4e2613f90f3
+> --- /dev/null
+> +++ b/arch/x86/kernel/kvmi_mem_guest.c
+> @@ -0,0 +1,26 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection guest implementation
+> + *
+> + * Copyright (C) 2017 Bitdefender S.R.L.
+> + *
+> + * Author:
+> + *   Mircea Cirjaliu <mcirjaliu@bitdefender.com>
+> + */
+> +
+> +#include <uapi/linux/kvmi.h>
+> +#include <uapi/linux/kvm_para.h>
+> +#include <linux/kvm_types.h>
+> +#include <asm/kvm_para.h>
+> +
+> +long kvmi_arch_map_hc(struct kvmi_map_mem_token *tknp,
+> +		       gpa_t req_gpa, gpa_t map_gpa)
+> +{
+> +	return kvm_hypercall3(KVM_HC_MEM_MAP, (unsigned long)tknp,
+> +			      req_gpa, map_gpa);
+> +}
+> +
+> +long kvmi_arch_unmap_hc(gpa_t map_gpa)
+> +{
+> +	return kvm_hypercall1(KVM_HC_MEM_UNMAP, map_gpa);
+> +}
+> diff --git a/virt/kvm/kvmi_mem_guest.c b/virt/kvm/kvmi_mem_guest.c
+> new file mode 100644
+> index 000000000000..118c22ca47c5
+> --- /dev/null
+> +++ b/virt/kvm/kvmi_mem_guest.c
+> @@ -0,0 +1,379 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection guest implementation
+> + *
+> + * Copyright (C) 2017 Bitdefender S.R.L.
+> + *
+> + * Author:
+> + *   Mircea Cirjaliu <mcirjaliu@bitdefender.com>
+> + */
+> +
+> +#include <linux/module.h>
+> +#include <linux/init.h>
+> +#include <linux/kernel.h>
+> +#include <linux/miscdevice.h>
+> +#include <linux/fs.h>
+> +#include <linux/mm.h>
+> +#include <linux/mman.h>
+> +#include <linux/types.h>
+> +#include <linux/kvm_host.h>
+> +#include <linux/kvm_para.h>
+> +#include <linux/uaccess.h>
+> +#include <linux/slab.h>
+> +#include <linux/rmap.h>
+> +#include <linux/sched.h>
+> +#include <linux/list.h>
+> +#include <linux/spinlock.h>
+> +#include <linux/mutex.h>
+> +#include <uapi/linux/kvmi.h>
+> +#include <asm/kvmi_guest.h>
+> +
+> +#define ASSERT(exp) BUG_ON(!(exp))
+> +
+> +
+> +static struct list_head file_list;
+> +static spinlock_t file_lock;
+> +
+> +struct file_map {
+> +	struct list_head file_list;
+> +	struct file *file;
+> +	struct list_head map_list;
+> +	struct mutex lock;
+> +	int active;	/* for tearing down */
+> +};
+> +
+> +struct page_map {
+> +	struct list_head map_list;
+> +	__u64 gpa;
+> +	unsigned long vaddr;
+> +	unsigned long paddr;
+> +};
+> +
+> +
+> +static int kvm_dev_open(struct inode *inodep, struct file *filp)
+> +{
+> +	struct file_map *fmp;
+> +
+> +	pr_debug("kvmi: file %016lx opened by process %s\n",
+> +		 (unsigned long) filp, current->comm);
+> +
+> +	/* link the file 1:1 with such a structure */
+> +	fmp = kmalloc(sizeof(struct file_map), GFP_KERNEL);
+
+I think this is supposed to be "kmalloc(sizeof(*fmp), GFP_KERNEL)".
+
+> +	if (fmp == NULL)
+> +		return -ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&fmp->file_list);
+> +	fmp->file = filp;
+> +	filp->private_data = fmp;
+> +	INIT_LIST_HEAD(&fmp->map_list);
+> +	mutex_init(&fmp->lock);
+> +	fmp->active = 1;
+> +
+> +	/* add the entry to the global list */
+> +	spin_lock(&file_lock);
+> +	list_add_tail(&fmp->file_list, &file_list);
+> +	spin_unlock(&file_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +/* actually does the mapping of a page */
+> +static long _do_mapping(struct kvmi_mem_map *map_req, struct page_map *pmap)
+
+Here you have a "struct page_map" and call it pmap. However, in the rest 
+of the code, whenever there's a "struct page_map" it's called pmp. It 
+seems that it would be good to stay consistent with the naming, so 
+perhaps rename it here to pmp as well?
 
 
-OK, here's a rewrite of xbitmap.
+> +{
+> +	unsigned long paddr;
+> +	struct vm_area_struct *vma = NULL; > +	struct page *page;
 
-Compared to the version you sent:
- - xb_find_set() is the rewrite I sent out yesterday.
- - xb_find_clear() is a new implementation.  I use the IDR_FREE tag to find
-   clear bits.  This led to me finding a bug in radix_tree_for_each_tagged().
- - xb_zero() is also a new implementation (replacing xb_clear_bit_range).
-   It should also be more efficient in deep trees.
- - Did not accept your change to xb_set_bit(); I think it's important to
-   leave the radix tree node in place, so we're guaranteed to make progress
-   in low-memory situations.  We're expecting the caller to retry, so the
-   memory should not leak.
- - Redid a lot of the kernel-doc.  Thanks for adding it!  I removed mentions
-   of implementation details, leaving only information useful to those who
-   are using it.
+Out of curiosity, why do you set "*vma = NULL" but not "*page = NULL"?
 
-Compared to the version I put out back in February:
- - Accepted your change to xb_preload(); I think it's an improvement.
- - Rewrote xb_set_bit() to use the radix_tree_iter_ family of functions.
-   Should improve performance for deep trees.
- - Rewrote xb_clear_bit() for the same reason.
- - Left out the use of radix tree exceptional entries.  Thanks for taking
-   them out!  Keeps it clearer for now; if they prove useful, we can put
-   them back in.
- - Removed the use of __radix_tree_delete and __radix_tree_create, so drop
-   the changes to those functions.
+> +	long result;
+> +
+> +	pr_debug("kvmi: mapping remote GPA %016llx into %016llx\n",
+> +		 map_req->gpa, map_req->gva);
+> +
+> +	/* check access to memory location */
+> +	if (!access_ok(VERIFY_READ, map_req->gva, PAGE_SIZE)) {
+> +		pr_err("kvmi: invalid virtual address for mapping\n");
+> +		return -EINVAL;
+> +	}
+> +
+> +	down_read(&current->mm->mmap_sem);
+> +
+> +	/* find the page to be replaced */
+> +	vma = find_vma(current->mm, map_req->gva);
+> +	if (IS_ERR_OR_NULL(vma)) {
+> +		result = PTR_ERR(vma);
+> +		pr_err("kvmi: find_vma() failed with result %ld\n", result);
+> +		goto out;
+> +	}
+> +
+> +	page = follow_page(vma, map_req->gva, 0);
+> +	if (IS_ERR_OR_NULL(page)) {
+> +		result = PTR_ERR(page);
+> +		pr_err("kvmi: follow_page() failed with result %ld\n", result);
+> +		goto out;
+> +	}
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(page, "page to map_req into");
+> +
+> +	WARN(is_zero_pfn(page_to_pfn(page)), "zero-page still mapped");
+> +
+> +	/* get the physical address and store it in page_map */
+> +	paddr = page_to_phys(page);
+> +	pr_debug("kvmi: page phys addr %016lx\n", paddr);
+> +	pmap->paddr = paddr;
+> +
+> +	/* last thing to do is host mapping */
+> +	result = kvmi_arch_map_hc(&map_req->token, map_req->gpa, paddr);
+> +	if (IS_ERR_VALUE(result)) {
+> +		pr_err("kvmi: HC failed with result %ld\n", result);
+> +		goto out;
+> +	}
+> +
+> +out:
+> +	up_read(&current->mm->mmap_sem);
+> +
+> +	return result;
+> +}
+> +
+> +/* actually does the unmapping of a page */
+> +static long _do_unmapping(unsigned long paddr)
+> +{
+> +	long result;
+> +
+> +	pr_debug("kvmi: unmapping request for phys addr %016lx\n", paddr);
+> +
+> +	/* local GPA uniquely identifies the mapping on the host */
+> +	result = kvmi_arch_unmap_hc(paddr);
+> +	if (IS_ERR_VALUE(result))
+> +		pr_warn("kvmi: HC failed with result %ld\n", result);
+> +
+> +	return result;
+> +}
+> +
+> +static long kvm_dev_ioctl_map(struct file_map *fmp, struct kvmi_mem_map *map)
+> +{
+> +	struct page_map *pmp;
+> +	long result = 0;
 
-Other miscellaneous notes
- - I left xb_fill() in the header file, even though there's no implementation
-   yet.  Wouldn't be hard to add once we have a user.
- - Used SPDX tags instead of a license notice.
+Out of curiosity again, why do you set "result = 0" here when it's 
+always set before used (and, for e.g., _do_unmapping() doesn't do 
+"result = 0")?
 
-I think we need more test cases ... in reviewing this to send out,
-I found a bug in xb_zero(), which I've only fixed because I don't have
-time to write a test case for it.
+> +
+> +	if (!access_ok(VERIFY_READ, map->gva, PAGE_SIZE))
+> +		return -EINVAL;
+> +	if (!access_ok(VERIFY_WRITE, map->gva, PAGE_SIZE))
+> +		return -EINVAL;
+> +
+> +	/* prepare list entry */
+> +	pmp = kmalloc(sizeof(struct page_map), GFP_KERNEL);
 
-diff --git a/include/linux/xbitmap.h b/include/linux/xbitmap.h
-new file mode 100644
-index 000000000000..c008309a9494
---- /dev/null
-+++ b/include/linux/xbitmap.h
-@@ -0,0 +1,48 @@
-+/* SPDX-License-Identifier: GPL-2.0+ */
-+/*
-+ * eXtensible Bitmaps
-+ * Copyright (c) 2017 Microsoft Corporation
-+ * Author: Matthew Wilcox <mawilcox@microsoft.com>
-+ *
-+ * eXtensible Bitmaps provide an unlimited-size sparse bitmap facility.
-+ * All bits are initially zero.
-+ *
-+ * Locking is to be provided by the user.  No xb_ function is safe to
-+ * call concurrently with any other xb_ function.
-+ */
-+
-+#include <linux/idr.h>
-+
-+struct xb {
-+	struct radix_tree_root xbrt;
-+};
-+
-+#define XB_INIT {							\
-+	.xbrt = RADIX_TREE_INIT(IDR_RT_MARKER | GFP_NOWAIT),		\
-+}
-+#define DEFINE_XB(name)		struct xb name = XB_INIT
-+
-+static inline void xb_init(struct xb *xb)
-+{
-+	INIT_RADIX_TREE(&xb->xbrt, IDR_RT_MARKER | GFP_NOWAIT);
-+}
-+
-+int xb_set_bit(struct xb *xb, unsigned long bit);
-+bool xb_test_bit(const struct xb *xb, unsigned long bit);
-+void xb_clear_bit(struct xb *xb, unsigned long bit);
-+void xb_zero(struct xb *xb, unsigned long min, unsigned long max);
-+void xb_fill(struct xb *xb, unsigned long min, unsigned long max);
-+bool xb_find_set(const struct xb *xb, unsigned long max, unsigned long *bit);
-+bool xb_find_zero(const struct xb *xb, unsigned long max, unsigned long *bit);
-+
-+static inline bool xb_empty(const struct xb *xb)
-+{
-+	return radix_tree_empty(&xb->xbrt);
-+}
-+
-+int __must_check xb_preload(gfp_t);
-+
-+static inline void xb_preload_end(void)
-+{
-+	preempt_enable();
-+}
-diff --git a/lib/Makefile b/lib/Makefile
-index d11c48ec8ffd..08a8183c390b 100644
---- a/lib/Makefile
-+++ b/lib/Makefile
-@@ -19,7 +19,7 @@ KCOV_INSTRUMENT_dynamic_debug.o := n
- 
- lib-y := ctype.o string.o vsprintf.o cmdline.o \
- 	 rbtree.o radix-tree.o dump_stack.o timerqueue.o\
--	 idr.o int_sqrt.o extable.o \
-+	 idr.o xbitmap.o int_sqrt.o extable.o \
- 	 sha1.o chacha20.o irq_regs.o argv_split.o \
- 	 flex_proportions.o ratelimit.o show_mem.o \
- 	 is_single_threaded.o plist.o decompress.o kobject_uevent.o \
-diff --git a/lib/radix-tree.c b/lib/radix-tree.c
-index c8d55565fafa..d2bd8feb7b85 100644
---- a/lib/radix-tree.c
-+++ b/lib/radix-tree.c
-@@ -37,7 +37,7 @@
- #include <linux/rcupdate.h>
- #include <linux/slab.h>
- #include <linux/string.h>
--
-+#include <linux/xbitmap.h>
- 
- /* Number of nodes in fully populated tree of given height */
- static unsigned long height_to_maxnodes[RADIX_TREE_MAX_PATH + 1] __read_mostly;
-@@ -77,6 +77,11 @@ static struct kmem_cache *radix_tree_node_cachep;
- 						RADIX_TREE_MAP_SHIFT))
- #define IDA_PRELOAD_SIZE	(IDA_MAX_PATH * 2 - 1)
- 
-+#define XB_INDEX_BITS		(BITS_PER_LONG - ilog2(IDA_BITMAP_BITS))
-+#define XB_MAX_PATH		(DIV_ROUND_UP(XB_INDEX_BITS, \
-+						RADIX_TREE_MAP_SHIFT))
-+#define XB_PRELOAD_SIZE		(XB_MAX_PATH * 2 - 1)
-+
- /*
-  * Per-cpu pool of preloaded nodes
-  */
-@@ -1781,7 +1786,7 @@ void __rcu **radix_tree_next_chunk(const struct radix_tree_root *root,
- 			child = rcu_dereference_raw(node->slots[offset]);
- 		}
- 
--		if (!child)
-+		if (!child && !is_idr(root))
- 			goto restart;
- 		if (child == RADIX_TREE_RETRY)
- 			break;
-@@ -2135,6 +2140,35 @@ int ida_pre_get(struct ida *ida, gfp_t gfp)
- }
- EXPORT_SYMBOL(ida_pre_get);
- 
-+/**
-+ *  xb_preload - preload for xb_set_bit()
-+ *  @gfp_mask: allocation mask to use for preloading
-+ *
-+ * Preallocate memory to use for the next call to xb_set_bit(). On success,
-+ * return zero, with preemption disabled. On error, return -ENOMEM with
-+ * preemption not disabled.
-+ */
-+int xb_preload(gfp_t gfp)
-+{
-+	if (!this_cpu_read(ida_bitmap)) {
-+		struct ida_bitmap *bitmap = kmalloc(sizeof(*bitmap), gfp);
-+
-+		if (!bitmap)
-+			return -ENOMEM;
-+		/*
-+		 * The per-CPU variable is updated with preemption enabled.
-+		 * If the calling task is unlucky to be scheduled to another
-+		 * CPU which has no ida_bitmap allocation, it will be detected
-+		 * when setting a bit (i.e. xb_set_bit()).
-+		 */
-+		bitmap = this_cpu_cmpxchg(ida_bitmap, NULL, bitmap);
-+		kfree(bitmap);
-+	}
-+
-+	return __radix_tree_preload(gfp, XB_PRELOAD_SIZE);
-+}
-+EXPORT_SYMBOL(xb_preload);
-+
- void __rcu **idr_get_free_cmn(struct radix_tree_root *root,
- 			      struct radix_tree_iter *iter, gfp_t gfp,
- 			      unsigned long max)
-diff --git a/lib/xbitmap.c b/lib/xbitmap.c
-new file mode 100644
-index 000000000000..d596ba247b45
---- /dev/null
-+++ b/lib/xbitmap.c
-@@ -0,0 +1,396 @@
-+/* SPDX-License-Identifier: GPL-2.0+ */
-+/*
-+ * XBitmap implementation
-+ * Copyright (c) 2017 Microsoft Corporation
-+ * Author: Matthew Wilcox <mawilcox@microsoft.com>
-+ */
-+
-+#include <linux/bitmap.h>
-+#include <linux/export.h>
-+#include <linux/slab.h>
-+#include <linux/xbitmap.h>
-+
-+/**
-+ * xb_set_bit() - Set a bit in the XBitmap.
-+ * @xb: The XBitmap.
-+ * @bit: Index of the bit to set.
-+ *
-+ * This function is used to set a bit in the xbitmap.
-+ *
-+ * Return: 0 on success. -ENOMEM if memory could not be allocated.
-+ */
-+int xb_set_bit(struct xb *xb, unsigned long bit)
-+{
-+	unsigned long index = bit / IDA_BITMAP_BITS;
-+	struct radix_tree_root *root = &xb->xbrt;
-+	struct radix_tree_iter iter;
-+	void __rcu **slot;
-+	struct ida_bitmap *bitmap;
-+
-+	bit %= IDA_BITMAP_BITS;
-+	radix_tree_iter_init(&iter, index);
-+	slot = idr_get_free_cmn(root, &iter, GFP_NOWAIT | __GFP_NOWARN, index);
-+	if (IS_ERR(slot)) {
-+		if (slot == ERR_PTR(-ENOSPC))
-+			return 0;	/* Already set */
-+		return -ENOMEM;
-+	}
-+	bitmap = rcu_dereference_raw(*slot);
-+	if (!bitmap) {
-+		bitmap = this_cpu_xchg(ida_bitmap, NULL);
-+		if (!bitmap)
-+			return -ENOMEM;
-+		memset(bitmap, 0, sizeof(*bitmap));
-+		radix_tree_iter_replace(root, &iter, slot, bitmap);
-+	}
-+
-+	__set_bit(bit, bitmap->bitmap);
-+	if (bitmap_full(bitmap->bitmap, IDA_BITMAP_BITS))
-+		radix_tree_iter_tag_clear(root, &iter, IDR_FREE);
-+	return 0;
-+}
-+EXPORT_SYMBOL(xb_set_bit);
-+
-+/**
-+ * xb_clear_bit() - Clear a bit in the XBitmap.
-+ * @xb: The XBitmap.
-+ * @bit: Index of the bit to clear.
-+ *
-+ * This function is used to clear a bit in the xbitmap.
-+ */
-+void xb_clear_bit(struct xb *xb, unsigned long bit)
-+{
-+	unsigned long index = bit / IDA_BITMAP_BITS;
-+	struct radix_tree_root *root = &xb->xbrt;
-+	struct radix_tree_iter iter;
-+	void __rcu **slot;
-+	struct ida_bitmap *bitmap;
-+
-+	bit %= IDA_BITMAP_BITS;
-+	slot = radix_tree_iter_lookup(root, &iter, index);
-+	if (!slot)
-+		return;
-+	bitmap = radix_tree_deref_slot(slot);
-+	if (!bitmap)
-+		return;
-+
-+	radix_tree_iter_tag_set(root, &iter, IDR_FREE);
-+	__clear_bit(bit, bitmap->bitmap);
-+	if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS)) {
-+		kfree(bitmap);
-+		radix_tree_iter_delete(root, &iter, slot);
-+	}
-+}
-+EXPORT_SYMBOL(xb_clear_bit);
-+
-+/**
-+ * xb_zero() - Clear a range of bits in the XBitmap.
-+ * @xb: The XBitmap.
-+ * @min: The first bit to clear.
-+ * @max: The last bit to clear.
-+ *
-+ * This function is used to clear a range of bits in the xbitmap.
-+ */
-+void xb_zero(struct xb *xb, unsigned long min, unsigned long max)
-+{
-+	struct radix_tree_root *root = &xb->xbrt;
-+	struct radix_tree_iter iter;
-+	void __rcu **slot;
-+	struct ida_bitmap *bitmap;
-+	unsigned long index = min / IDA_BITMAP_BITS;
-+	unsigned long first = min % IDA_BITMAP_BITS;
-+	unsigned long maxindex = max / IDA_BITMAP_BITS;
-+
-+	radix_tree_for_each_slot(slot, root, &iter, index) {
-+		unsigned long nbits = IDA_BITMAP_BITS;
-+		if (index > maxindex)
-+			break;
-+		bitmap = radix_tree_deref_slot(slot);
-+		if (!bitmap)
-+			continue;
-+		radix_tree_iter_tag_set(root, &iter, IDR_FREE);
-+
-+		if (!first && iter.index < maxindex)
-+			goto delete;
-+		if (iter.index == maxindex)
-+			nbits = max % IDA_BITMAP_BITS + 1;
-+		bitmap_clear(bitmap->bitmap, first, nbits);
-+		first = 0;
-+		if (bitmap_empty(bitmap->bitmap, IDA_BITMAP_BITS))
-+			goto delete;
-+		continue;
-+delete:
-+		kfree(bitmap);
-+		radix_tree_iter_delete(root, &iter, slot);
-+	}
-+}
-+EXPORT_SYMBOL(xb_zero);
-+
-+/**
-+ * xb_test_bit() - Test a bit in the xbitmap.
-+ * @xb: The XBitmap.
-+ * @bit: Index of the bit to test.
-+ *
-+ * This function is used to test a bit in the xbitmap.
-+ *
-+ * Return: %true if the bit is set.
-+ */
-+bool xb_test_bit(const struct xb *xb, unsigned long bit)
-+{
-+	unsigned long index = bit / IDA_BITMAP_BITS;
-+	struct ida_bitmap *bitmap = radix_tree_lookup(&xb->xbrt, index);
-+
-+	bit %= IDA_BITMAP_BITS;
-+
-+	if (!bitmap)
-+		return false;
-+	return test_bit(bit, bitmap->bitmap);
-+}
-+EXPORT_SYMBOL(xb_test_bit);
-+
-+/**
-+ * xb_find_set() - Find the next set bit in a range of bits.
-+ * @xb: The XBitmap.
-+ * @max: The maximum position to search.
-+ * @bit: The first bit to examine, and on exit, the found bit.
-+ *
-+ * On entry, @bit points to the index of the first bit to search.  On exit,
-+ * if this function returns %true, @bit will be updated to the index of the
-+ * first found bit.  It will not be updated if this function returns %false.
-+ *
-+ * Return: %true if a set bit was found.
-+ */
-+bool xb_find_set(const struct xb *xb, unsigned long max, unsigned long *bit)
-+{
-+	struct radix_tree_iter iter;
-+	void __rcu **slot;
-+	struct ida_bitmap *bitmap;
-+	unsigned long index = *bit / IDA_BITMAP_BITS;
-+	unsigned int first = *bit % IDA_BITMAP_BITS;
-+	unsigned long maxindex = max / IDA_BITMAP_BITS;
-+
-+	radix_tree_for_each_slot(slot, &xb->xbrt, &iter, index) {
-+		if (iter.index > maxindex)
-+			break;
-+		bitmap = radix_tree_deref_slot(slot);
-+		if (bitmap) {
-+			unsigned int nbits = IDA_BITMAP_BITS;
-+			if (iter.index == maxindex)
-+				nbits = max % IDA_BITMAP_BITS + 1;
-+			first = find_next_bit(bitmap->bitmap, nbits, first);
-+			if (first != nbits) {
-+				*bit = first + iter.index * IDA_BITMAP_BITS;
-+				return true;
-+			}
-+		}
-+		first = 0;
-+	}
-+
-+	return false;
-+}
-+EXPORT_SYMBOL(xb_find_set);
-+
-+/**
-+ * xb_find_zero() - Find the next zero bit in a range of bits
-+ * @xb: The XBitmap.
-+ * @max: The maximum index to search.
-+ * @bit: Pointer to an index.
-+ *
-+ * On entry, @bit points to the index of the first bit to search.  On exit,
-+ * if this function returns %true, @bit will be updated to the index of the
-+ * first found bit.  It will not be updated if this function returns %false.
-+ *
-+ * Return: %true if a clear bit was found.
-+ */
-+bool xb_find_zero(const struct xb *xb, unsigned long max, unsigned long *bit)
-+{
-+	void __rcu **slot;
-+	struct radix_tree_iter iter;
-+	struct ida_bitmap *bitmap;
-+	unsigned long index = *bit / IDA_BITMAP_BITS;
-+	unsigned long first = *bit % IDA_BITMAP_BITS;
-+	unsigned long maxindex = max / IDA_BITMAP_BITS;
-+
-+	radix_tree_for_each_tagged(slot, &xb->xbrt, &iter, index, IDR_FREE) {
-+		unsigned int nbits = IDA_BITMAP_BITS;
-+		if (iter.index > maxindex)
-+			return false;
-+		bitmap = radix_tree_deref_slot(slot);
-+		if (!bitmap)
-+			break;
-+		if (iter.index == maxindex)
-+			nbits = max % IDA_BITMAP_BITS + 1;
-+		first = find_next_zero_bit(bitmap->bitmap, nbits, first);
-+		if (first != nbits)
-+			break;
-+		first = 0;
-+	}
-+
-+	*bit = first + iter.index * IDA_BITMAP_BITS;
-+	return true;
-+}
-+EXPORT_SYMBOL(xb_find_zero);
-+
-+#ifndef __KERNEL__
-+
-+static DEFINE_XB(xb1);
-+
-+static void xbitmap_check_bit(unsigned long bit)
-+{
-+	unsigned long nbit = 0;
-+
-+	xb_preload(GFP_KERNEL);
-+	assert(!xb_test_bit(&xb1, bit));
-+	assert(xb_set_bit(&xb1, bit) == 0);
-+	assert(xb_test_bit(&xb1, bit));
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
-+	assert(nbit == bit);
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
-+	assert(nbit == bit);
-+	nbit++;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
-+	assert(nbit == bit + 1);
-+	xb_clear_bit(&xb1, bit);
-+	assert(xb_empty(&xb1));
-+	xb_clear_bit(&xb1, bit);
-+	assert(xb_empty(&xb1));
-+	nbit = 0;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
-+	assert(nbit == 0);
-+	xb_preload_end();
-+}
-+
-+static void xbitmap_check_bit_range(void)
-+{
-+	unsigned long nbit = 0;
-+
-+	/* Regular test1: node = NULL */
-+	xb_preload(GFP_KERNEL);
-+	xb_set_bit(&xb1, 700);
-+	xb_preload_end();
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
-+	assert(nbit == 700);
-+	nbit++;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
-+	assert(nbit == 701);
-+	xb_zero(&xb1, 0, 1023);
-+
-+	/*
-+	 * Regular test 2
-+	 * set bit 2000, 2001, 2040
-+	 * Next 1 in [0, 2048)		--> 2000
-+	 * Next 1 in [2000, 2002)	--> 2000
-+	 * Next 1 in [2002, 2041)	--> 2040
-+	 * Next 1 in [2002, 2040)	--> none
-+	 * Next 0 in [2000, 2048)	--> 2002
-+	 * Next 0 in [2048, 2060)	--> 2048
-+	 */
-+	xb_preload(GFP_KERNEL);
-+	assert(!xb_set_bit(&xb1, 2000));
-+	assert(!xb_set_bit(&xb1, 2001));
-+	assert(!xb_set_bit(&xb1, 2040));
-+	nbit = 0;
-+	assert(xb_find_set(&xb1, 2048, &nbit) == true);
-+	assert(nbit == 2000);
-+	assert(xb_find_set(&xb1, 2002, &nbit) == true);
-+	assert(nbit == 2000);
-+	nbit = 2002;
-+	assert(xb_find_set(&xb1, 2041, &nbit) == true);
-+	assert(nbit == 2040);
-+	nbit = 2002;
-+	assert(xb_find_set(&xb1, 2040, &nbit) == true);
-+	assert(nbit == 2040);
-+	nbit = 2000;
-+	assert(xb_find_zero(&xb1, 2048, &nbit) == true);
-+	assert(nbit == 2002);
-+	nbit = 2048;
-+	assert(xb_find_zero(&xb1, 2060, &nbit) == true);
-+	assert(nbit == 2048);
-+	xb_zero(&xb1, 0, 2047);
-+	nbit = 0;
-+	assert(xb_find_set(&xb1, 2048, &nbit) == false);
-+	assert(nbit == 0);
-+	xb_preload_end();
-+
-+	/*
-+	 * Overflow tests:
-+	 * Set bit 1 and ULONG_MAX - 4
-+	 * Next 1 in [ULONG_MAX - 4, ULONG_MAX)		--> ULONG_MAX - 4
-+	 * Next 1 [ULONG_MAX - 3, ULONG_MAX + 4)	--> none
-+	 * Next 0 [ULONG_MAX - 4, ULONG_MAX + 4)	--> none
-+	 */
-+	xb_preload(GFP_KERNEL);
-+	assert(!xb_set_bit(&xb1, 1));
-+	xb_preload_end();
-+	xb_preload(GFP_KERNEL);
-+	assert(!xb_set_bit(&xb1, ULONG_MAX - 4));
-+	nbit = ULONG_MAX - 4;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
-+	assert(nbit == ULONG_MAX - 4);
-+	nbit++;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
-+	assert(nbit == ULONG_MAX - 3);
-+	nbit--;
-+	assert(xb_find_zero(&xb1, ULONG_MAX, &nbit) == true);
-+	assert(nbit == ULONG_MAX - 3);
-+	xb_zero(&xb1, ULONG_MAX - 4, ULONG_MAX);
-+	nbit = ULONG_MAX - 10;
-+	assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
-+	assert(nbit == ULONG_MAX - 10);
-+	xb_zero(&xb1, 0, 1);
-+	nbit = 0;
-+	assert(xb_find_set(&xb1, 2, &nbit) == false);
-+	assert(nbit == 0);
-+	xb_preload_end();
-+}
-+
-+/* Check that setting an already-full bitmap works */
-+static void xbitmap_check_set(unsigned long base)
-+{
-+	unsigned long i;
-+
-+	assert(xb_empty(&xb1));
-+
-+	for (i = 0; i < 64 * 1024; i++) {
-+		xb_preload(GFP_KERNEL);
-+		assert(xb_set_bit(&xb1, base + i) == 0);
-+		xb_preload_end();
-+	}
-+	for (i = 0; i < 64 * 1024; i++)
-+		assert(xb_set_bit(&xb1, base + i) == 0);
-+
-+	for (i = 0; i < 64 * 1024; i++)
-+		xb_clear_bit(&xb1, base + i);
-+
-+	assert(xb_empty(&xb1));
-+}
-+
-+static void xbitmap_checks(void)
-+{
-+	xb_init(&xb1);
-+	xbitmap_check_bit(0);
-+	xbitmap_check_bit(30);
-+	xbitmap_check_bit(31);
-+	xbitmap_check_bit(62);
-+	xbitmap_check_bit(63);
-+	xbitmap_check_bit(64);
-+	xbitmap_check_bit(700);
-+	xbitmap_check_bit(1023);
-+	xbitmap_check_bit(1024);
-+	xbitmap_check_bit(1025);
-+	xbitmap_check_bit((1UL << 63) | (1UL << 24));
-+	xbitmap_check_bit((1UL << 63) | (1UL << 24) | 70);
-+
-+	xbitmap_check_bit_range();
-+
-+	xbitmap_check_set(0);
-+	xbitmap_check_set(1024);
-+	xbitmap_check_set(1024 * 64);
-+}
-+
-+int __weak main(void)
-+{
-+	radix_tree_init();
-+	xbitmap_checks();
-+}
-+#endif
-diff --git a/tools/include/linux/bitmap.h b/tools/include/linux/bitmap.h
-index ca160270fdfa..6b559ee25def 100644
---- a/tools/include/linux/bitmap.h
-+++ b/tools/include/linux/bitmap.h
-@@ -37,6 +37,40 @@ static inline void bitmap_zero(unsigned long *dst, int nbits)
- 	}
- }
- 
-+static inline void __bitmap_clear(unsigned long *map, unsigned int start,
-+				  int len)
-+{
-+	unsigned long *p = map + BIT_WORD(start);
-+	const unsigned int size = start + len;
-+	int bits_to_clear = BITS_PER_LONG - (start % BITS_PER_LONG);
-+	unsigned long mask_to_clear = BITMAP_FIRST_WORD_MASK(start);
-+
-+	while (len - bits_to_clear >= 0) {
-+		*p &= ~mask_to_clear;
-+		len -= bits_to_clear;
-+		bits_to_clear = BITS_PER_LONG;
-+		mask_to_clear = ~0UL;
-+		p++;
-+	}
-+	if (len) {
-+		mask_to_clear &= BITMAP_LAST_WORD_MASK(size);
-+		*p &= ~mask_to_clear;
-+	}
-+}
-+
-+static inline __always_inline void bitmap_clear(unsigned long *map,
-+						unsigned int start,
-+						unsigned int nbits)
-+{
-+	if (__builtin_constant_p(nbits) && nbits == 1)
-+		__clear_bit(start, map);
-+	else if (__builtin_constant_p(start) && IS_ALIGNED(start, 8) &&
-+		 __builtin_constant_p(nbits) && IS_ALIGNED(nbits, 8))
-+		memset((char *)map + start / 8, 0, nbits / 8);
-+	else
-+		__bitmap_clear(map, start, nbits);
-+}
-+
- static inline void bitmap_fill(unsigned long *dst, unsigned int nbits)
- {
- 	unsigned int nlongs = BITS_TO_LONGS(nbits);
-diff --git a/tools/include/linux/kernel.h b/tools/include/linux/kernel.h
-index 0ad884452c5c..3c992ae15440 100644
---- a/tools/include/linux/kernel.h
-+++ b/tools/include/linux/kernel.h
-@@ -13,6 +13,8 @@
- #define UINT_MAX	(~0U)
- #endif
- 
-+#define IS_ALIGNED(x, a)	(((x) & ((typeof(x))(a) - 1)) == 0)
-+
- #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
- 
- #define PERF_ALIGN(x, a)	__PERF_ALIGN_MASK(x, (typeof(x))(a)-1)
-diff --git a/tools/testing/radix-tree/Makefile b/tools/testing/radix-tree/Makefile
-index fa7ee369b3c9..adf36e34dd77 100644
---- a/tools/testing/radix-tree/Makefile
-+++ b/tools/testing/radix-tree/Makefile
-@@ -1,12 +1,13 @@
- # SPDX-License-Identifier: GPL-2.0
- 
- CFLAGS += -I. -I../../include -g -O2 -Wall -D_LGPL_SOURCE -fsanitize=address
--LDFLAGS += -fsanitize=address
--LDLIBS+= -lpthread -lurcu
--TARGETS = main idr-test multiorder
-+LDFLAGS += -fsanitize=address $(LDLIBS)
-+LDLIBS := -lpthread -lurcu
-+TARGETS = main idr-test multiorder xbitmap
- CORE_OFILES := radix-tree.o idr.o linux.o test.o find_bit.o
- OFILES = main.o $(CORE_OFILES) regression1.o regression2.o regression3.o \
--	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o
-+	 tag_check.o multiorder.o idr-test.o iteration_check.o benchmark.o \
-+	 xbitmap.o
- 
- ifndef SHIFT
- 	SHIFT=3
-@@ -25,8 +26,11 @@ idr-test: idr-test.o $(CORE_OFILES)
- 
- multiorder: multiorder.o $(CORE_OFILES)
- 
-+xbitmap: xbitmap.o $(CORE_OFILES)
-+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o xbitmap
-+
- clean:
--	$(RM) $(TARGETS) *.o radix-tree.c idr.c generated/map-shift.h
-+	$(RM) $(TARGETS) *.o radix-tree.c idr.c xbitmap.c generated/map-shift.h
- 
- vpath %.c ../../lib
- 
-@@ -34,6 +38,7 @@ $(OFILES): Makefile *.h */*.h generated/map-shift.h \
- 	../../include/linux/*.h \
- 	../../include/asm/*.h \
- 	../../../include/linux/radix-tree.h \
-+	../../../include/linux/xbitmap.h \
- 	../../../include/linux/idr.h
- 
- radix-tree.c: ../../../lib/radix-tree.c
-@@ -42,6 +47,9 @@ radix-tree.c: ../../../lib/radix-tree.c
- idr.c: ../../../lib/idr.c
- 	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
- 
-+xbitmap.c: ../../../lib/xbitmap.c
-+	sed -e 's/^static //' -e 's/__always_inline //' -e 's/inline //' < $< > $@
-+
- .PHONY: mapshift
- 
- mapshift:
-diff --git a/tools/testing/radix-tree/linux/kernel.h b/tools/testing/radix-tree/linux/kernel.h
-index c3bc3f364f68..426f32f28547 100644
---- a/tools/testing/radix-tree/linux/kernel.h
-+++ b/tools/testing/radix-tree/linux/kernel.h
-@@ -17,6 +17,4 @@
- #define pr_debug printk
- #define pr_cont printk
- 
--#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
--
- #endif /* _KERNEL_H */
-diff --git a/tools/testing/radix-tree/linux/xbitmap.h b/tools/testing/radix-tree/linux/xbitmap.h
-new file mode 100644
-index 000000000000..61de214542e7
---- /dev/null
-+++ b/tools/testing/radix-tree/linux/xbitmap.h
-@@ -0,0 +1 @@
-+#include "../../../../include/linux/xbitmap.h"
-diff --git a/tools/testing/radix-tree/main.c b/tools/testing/radix-tree/main.c
-index 257f3f8aacaa..d112363262ae 100644
---- a/tools/testing/radix-tree/main.c
-+++ b/tools/testing/radix-tree/main.c
-@@ -326,6 +326,10 @@ static void single_thread_tests(bool long_run)
- 	rcu_barrier();
- 	printv(2, "after idr_checks: %d allocated, preempt %d\n",
- 		nr_allocated, preempt_count);
-+	xbitmap_checks();
-+	rcu_barrier();
-+	printv(2, "after xbitmap_checks: %d allocated, preempt %d\n",
-+			nr_allocated, preempt_count);
- 	big_gang_check(long_run);
- 	rcu_barrier();
- 	printv(2, "after big_gang_check: %d allocated, preempt %d\n",
-diff --git a/tools/testing/radix-tree/test.h b/tools/testing/radix-tree/test.h
-index d9c031dbeb1a..8175d6b23b32 100644
---- a/tools/testing/radix-tree/test.h
-+++ b/tools/testing/radix-tree/test.h
-@@ -38,6 +38,7 @@ void benchmark(void);
- void idr_checks(void);
- void ida_checks(void);
- void ida_thread_tests(void);
-+void xbitmap_checks(void);
- 
- struct item *
- item_tag_set(struct radix_tree_root *root, unsigned long index, int tag);
+This should also probably be "kmalloc(sizeof(*pmp), GFP_KERNEL)".
+
+> +	if (pmp == NULL)
+> +		return -ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&pmp->map_list);
+> +	pmp->gpa = map->gpa;
+> +	pmp->vaddr = map->gva;
+> +
+> +	/* acquire the file mapping */
+> +	mutex_lock(&fmp->lock);
+> +
+> +	/* check if other thread is closing the file */
+> +	if (!fmp->active) {
+> +		result = -ENODEV;
+> +		pr_warn("kvmi: unable to map, file is being closed\n");
+> +		goto out_err;
+> +	}
+> +
+> +	/* do the actual mapping */
+> +	result = _do_mapping(map, pmp);
+> +	if (IS_ERR_VALUE(result))
+> +		goto out_err;
+> +
+> +	/* link to list */
+> +	list_add_tail(&pmp->map_list, &fmp->map_list);
+> +
+> +	/* all fine */
+> +	result = 0;
+> +	goto out_finalize;
+> +
+> +out_err:
+> +	kfree(pmp);
+> +
+> +out_finalize:
+> +	mutex_unlock(&fmp->lock);
+> +
+> +	return result;
+> +}
+> +
+> +static long kvm_dev_ioctl_unmap(struct file_map *fmp, unsigned long vaddr)
+> +{
+> +	struct list_head *cur;
+> +	struct page_map *pmp;
+> +	bool found = false;
+> +
+> +	/* acquire the file */
+> +	mutex_lock(&fmp->lock);
+> +
+> +	/* check if other thread is closing the file */
+> +	if (!fmp->active) {
+> +		mutex_unlock(&fmp->lock);
+
+Wouldn't this be better replaced with a "goto out_err" like in 
+kvm_dev_ioctl_map()?
+
+> +		pr_warn("kvmi: unable to unmap, file is being closed\n");
+> +		return -ENODEV;
+> +	}
+> +
+> +	/* check that this address belongs to us */
+> +	list_for_each(cur, &fmp->map_list) {
+> +		pmp = list_entry(cur, struct page_map, map_list);
+> +
+> +		/* found */
+> +		if (pmp->vaddr == vaddr) {
+> +			found = true;
+> +			break;
+> +		}
+> +	}
+> +
+> +	/* not found ? */
+> +	if (!found) {
+> +		mutex_unlock(&fmp->lock);
+
+Here too: "goto out_err".
+
+> +		pr_err("kvmi: address %016lx not mapped\n", vaddr);
+> +		return -ENOENT;
+> +	}
+> +
+> +	/* decouple guest mapping */
+> +	list_del(&pmp->map_list);
+> +	mutex_unlock(&fmp->lock);
+
+In kvm_dev_ioctl_map(), the fmp mutex is held across the _do_mapping() 
+call. Is there any particular reason why here the mutex doesn't need to 
+be held across the _do_unmapping() call? Or was that more an artifact of 
+having a common "out_err" exit in kvm_dev_ioctl_map()?
+
+> +
+> +	/* unmap & ignore result */
+> +	_do_unmapping(pmp->paddr);
+> +
+> +	/* free guest mapping */
+> +	kfree(pmp);
+> +
+> +	return 0;
+> +}
+> +
+> +static long kvm_dev_ioctl(struct file *filp,
+> +			  unsigned int ioctl, unsigned long arg)
+> +{
+> +	void __user *argp = (void __user *) arg;
+> +	struct file_map *fmp;
+> +	long result;
+> +
+> +	/* minor check */
+> +	fmp = filp->private_data;
+> +	ASSERT(fmp->file == filp);
+> +
+> +	switch (ioctl) {
+> +	case KVM_INTRO_MEM_MAP: {
+> +		struct kvmi_mem_map map;
+> +
+> +		result = -EFAULT;
+> +		if (copy_from_user(&map, argp, sizeof(map)))
+> +			break;
+> +
+> +		result = kvm_dev_ioctl_map(fmp, &map);
+> +		if (IS_ERR_VALUE(result))
+> +			break;
+> +
+> +		result = 0;
+> +		break;
+> +	}
+
+Since kvm_dev_ioctl_map() either returns an error or 0, couldn't this 
+just be reduced to:
+		result = kvm_dev_ioctl_map(fmap, &map);
+		break;
+	}
+
+> +	case KVM_INTRO_MEM_UNMAP: {
+> +		unsigned long vaddr = (unsigned long) arg;
+> +
+> +		result = kvm_dev_ioctl_unmap(fmp, vaddr);
+> +		if (IS_ERR_VALUE(result))
+> +			break;
+> +
+> +		result = 0;
+> +		break;
+> +	}
+
+Ditto here.
+
+> +	default:
+> +		pr_err("kvmi: ioctl %d not implemented\n", ioctl);
+> +		result = -ENOTTY;
+> +	}
+> +
+> +	return result;
+> +}
+> +
+> +static int kvm_dev_release(struct inode *inodep, struct file *filp)
+> +{
+> +	int result = 0;
+
+You set "result = 0" here, but result isn't used until the end, and just 
+to return it.
+
+> +	struct file_map *fmp;
+> +	struct list_head *cur, *next;
+> +	struct page_map *pmp;
+> +
+> +	pr_debug("kvmi: file %016lx closed by process %s\n",
+> +		 (unsigned long) filp, current->comm);
+> +
+> +	/* acquire the file */
+> +	fmp = filp->private_data;
+> +	mutex_lock(&fmp->lock);
+> +
+> +	/* mark for teardown */
+> +	fmp->active = 0;
+> +
+> +	/* release mappings taken on this instance of the file */
+> +	list_for_each_safe(cur, next, &fmp->map_list) {
+> +		pmp = list_entry(cur, struct page_map, map_list);
+> +
+> +		/* unmap address */
+> +		_do_unmapping(pmp->paddr);
+> +
+> +		/* decouple & free guest mapping */
+> +		list_del(&pmp->map_list);
+> +		kfree(pmp);
+> +	}
+> +
+> +	/* done processing this file mapping */
+> +	mutex_unlock(&fmp->lock);
+> +
+> +	/* decouple file mapping */
+> +	spin_lock(&file_lock);
+> +	list_del(&fmp->file_list);
+> +	spin_unlock(&file_lock);
+> +
+> +	/* free it */
+> +	kfree(fmp);
+> +
+> +	return result;
+
+This is the first time result is used. Couldn't this just be replaced 
+with "return 0"?
+
+> +}
+> +
+> +
+> +static const struct file_operations kvmmem_ops = {
+> +	.open		= kvm_dev_open,
+> +	.unlocked_ioctl = kvm_dev_ioctl,
+> +	.compat_ioctl   = kvm_dev_ioctl,
+> +	.release	= kvm_dev_release,
+> +};
+
+Here you have all the rvals aligned...
+
+> +
+> +static struct miscdevice kvm_mem_dev = {
+> +	.minor = MISC_DYNAMIC_MINOR,
+> +	.name = "kvmmem",
+> +	.fops = &kvmmem_ops,
+> +};
+
+...but here you don't. I'm not sure what the "proper" style is, but I 
+think it should at least just be consistent.
+
+> +
+> +int __init kvm_intro_guest_init(void)
+> +{
+> +	int result;
+> +
+> +	if (!kvm_para_available()) {
+> +		pr_err("kvmi: paravirt not available\n");
+> +		return -EPERM;
+> +	}
+> +
+> +	result = misc_register(&kvm_mem_dev);
+> +	if (result) {
+> +		pr_err("kvmi: misc device register failed: %d\n", result);
+> +		return result;
+> +	}
+> +
+> +	INIT_LIST_HEAD(&file_list);
+> +	spin_lock_init(&file_lock);
+> +
+> +	pr_info("kvmi: guest introspection device created\n");
+> +
+> +	return 0;
+> +}
+> +
+> +void kvm_intro_guest_exit(void)
+> +{
+> +	misc_deregister(&kvm_mem_dev);
+> +}
+> +
+> +module_init(kvm_intro_guest_init)
+> +module_exit(kvm_intro_guest_exit)
+> 
+
+
+Patrick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
