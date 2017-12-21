@@ -1,48 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 751AD6B0260
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:31:42 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id k126so4190617wmd.5
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:31:42 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CCC336B0268
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:33:06 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id f132so4021504wmf.6
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:33:06 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id q6sor10913755edb.27.2017.12.21.07.31.41
+        by mx.google.com with SMTPS id r192sor1883140wme.51.2017.12.21.07.33.05
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Dec 2017 07:31:41 -0800 (PST)
+        Thu, 21 Dec 2017 07:33:05 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171221151843.GA453@wolff.to>
-References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
- <20171221130057.GA26743@wolff.to> <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
- <20171221151843.GA453@wolff.to>
-From: weiping zhang <zwp10758@gmail.com>
-Date: Thu, 21 Dec 2017 23:31:40 +0800
-Message-ID: <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
+In-Reply-To: <CALvZod432hzxPZgAypjPsZ33Z==0MxmMdPM3bEBZMea-7GFAVw@mail.gmail.com>
+References: <20171219152444.GP3919388@devbig577.frc2.facebook.com>
+ <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
+ <20171219173354.GQ3919388@devbig577.frc2.facebook.com> <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
+ <20171219214107.GR3919388@devbig577.frc2.facebook.com> <CALvZod5XRhXc3XrQw50Jw_OpRQB2iCCbgG-NMDCa8xRmGNdLrw@mail.gmail.com>
+ <20171220193741.GD3413940@devbig577.frc2.facebook.com> <CALvZod7Z1Yh+ZhU8qxzSiN0Pph2R7O4Mki5E23FbJFAzhyCH8g@mail.gmail.com>
+ <20171220233658.GB1084507@devbig577.frc2.facebook.com> <CALvZod7eQWrD6LgbUrOvuhf5A1KKxBaK5t-U61gdFqvMeWXuzQ@mail.gmail.com>
+ <20171221133726.GD1084507@devbig577.frc2.facebook.com> <CALvZod432hzxPZgAypjPsZ33Z==0MxmMdPM3bEBZMea-7GFAVw@mail.gmail.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Thu, 21 Dec 2017 07:33:03 -0800
+Message-ID: <CALvZod59K7ZoM3jAGQih7HjVNJQBAgrTwZAxsSHqX1kHT6RYOA@mail.gmail.com>
+Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno Wolff III <bruno@wolff.to>
-Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
+To: Tejun Heo <tj@kernel.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
 
-2017-12-21 23:18 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
-> On Thu, Dec 21, 2017 at 22:01:33 +0800,
->  weiping zhang <zwp10758@gmail.com> wrote:
->>
->> Hi,
->> how do you do bisect ?build all kernel commit one by one ?
->> as you did before:
->> https://bugzilla.redhat.com/show_bug.cgi?id=1520982
->
->
-> I just did the one bisect using Linus' tree. After each build, I would do a
-> test boot and see if the boot was normal or if I got errors and an eventual
-> hang before boot.
->
-> Since then I have used git revert to revert just the problem commit from
-> later kernels (such as v4.15-rc4) and when I do the system boots normally.
-> And when I don't do the revert or just use stock Fedora kernels the problem
-> occurs every time.
-does every time boot fail can trigger WANRING in device_add_disk ?
+> The swap (and its performance) is and should be transparent
+> to the job owners.
+
+Please ignore this statement, I didn't mean to claim on the
+independence of job performance and underlying swap performance, sorry
+about that.
+
+I meant to say that the amount of anon memory a job can allocate
+should be independent to the underlying swap.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
