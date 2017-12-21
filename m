@@ -1,63 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id D2DB66B0033
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:06:34 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id p1so18636309pfp.13
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:06:34 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id t80si15315045pfa.29.2017.12.21.09.06.33
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4398F6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:11:05 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id g81so17605049ioa.14
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:11:05 -0800 (PST)
+Received: from resqmta-po-06v.sys.comcast.net (resqmta-po-06v.sys.comcast.net. [96.114.154.165])
+        by mx.google.com with ESMTPS id d15si3272805iod.223.2017.12.21.09.11.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Dec 2017 09:06:33 -0800 (PST)
-Date: Thu, 21 Dec 2017 09:06:28 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
-Message-ID: <20171221170628.GA25009@bombadil.infradead.org>
-References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
- <20171221155434.GT7829@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 09:11:04 -0800 (PST)
+Date: Thu, 21 Dec 2017 11:10:00 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+In-Reply-To: <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
+Message-ID: <alpine.DEB.2.20.1712211107430.22093@nuc-kabylake>
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com> <1513665566-4465-4-git-send-email-kemi.wang@intel.com> <20171219124045.GO2787@dhcp22.suse.cz> <439918f7-e8a3-c007-496c-99535cbc4582@intel.com> <20171220101229.GJ4831@dhcp22.suse.cz>
+ <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171221155434.GT7829@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
+To: kemi <kemi.wang@intel.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Thu, Dec 21, 2017 at 07:54:34AM -0800, Paul E. McKenney wrote:
-> > +/* Queue an RCU callback for lazy invocation after a grace period.
-> > + * Currently there is no way of tagging the lazy RCU callbacks in the
-> > + * list of pending callbacks. Until then, this function may only be
-> > + * called from kfree_call_rcu().
-> 
-> But now we might have a way.
-> 
-> If the value in ->func is too small to be a valid function, RCU invokes
-> a fixed function name.  This function can then look at ->func and do
-> whatever it wants, for example, maintaining an array indexed by the
-> ->func value that says what function to call and what else to pass it,
-> including for example the slab pointer and offset.
-> 
-> Thoughts?
+On Thu, 21 Dec 2017, kemi wrote:
 
-Thought 1 is that we can force functions to be quad-byte aligned on all
-architectures (gcc option -falign-functions=...), so we can have more
-than the 4096 different values we currently use.  We can get 63.5 bits of
-information into that ->func argument if we align functions to at least
-4 bytes, or 63 if we only force alignment to a 2-byte boundary.  I'm not
-sure if we support any architecture other than x86 with byte-aligned
-instructions.  (I'm assuming that function descriptors as used on POWER
-and ia64 will also be sensibly aligned).
+> Some thinking about that:
+> a) the overhead due to cache bouncing caused by NUMA counter update in fast path
+> severely increase with more and more CPUs cores
+> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can
+> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
 
-Thought 2 is that the slab is quite capable of getting the slab pointer
-from the address of the object -- virt_to_head_page(p)->slab_cache
-So sorting objects by address is as good as storing their slab caches
-and offsets.
+I think you are fighting a lost battle there. As evident from the timing
+constraints on packet processing in a 10/40G you will have a hard time to
+process data if the packets are of regular ethernet size. And we alrady
+have 100G NICs in operation here.
 
-Thought 3 is that we probably don't want to overengineer this.
-Just allocating a 14-entry buffer (along with an RCU head) is probably
-enough to give us at least 90% of the wins that a more complex solution
-would give.
+We can try to get the performance as high as possible but full rate high
+speed networking invariable must use offload mechanisms and thus the
+statistics would only be available from the hardware devices that can do
+wire speed processing.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
