@@ -1,119 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E2A946B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:31:51 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id t18so11407121oie.5
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:31:51 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 30BC66B0033
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 12:46:03 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id n21so8164735wrb.11
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 09:46:03 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id n1sor2403454ote.113.2017.12.21.09.31.50
+        by mx.google.com with SMTPS id g44sor10999531eda.28.2017.12.21.09.46.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 21 Dec 2017 09:31:51 -0800 (PST)
+        Thu, 21 Dec 2017 09:46:01 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20171221121414.GI31584@quack2.suse.cz>
-References: <150949209290.24061.6283157778959640151.stgit@dwillia2-desk3.amr.corp.intel.com>
- <150949217152.24061.9869502311102659784.stgit@dwillia2-desk3.amr.corp.intel.com>
- <20171110090818.GE4895@lst.de> <CAPcyv4irj_+pJdX1SO6MjsxURcKm8--i_QvyudgHTZE2w4w-sA@mail.gmail.com>
- <20171220143822.GB31584@quack2.suse.cz> <CAPcyv4jfvkSSMvruQSFqa5N2zmPmnkDbxCzwvgQAqMQOkT8Xgg@mail.gmail.com>
- <20171221121414.GI31584@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Thu, 21 Dec 2017 09:31:50 -0800
-Message-ID: <CAPcyv4ifiiD3iOR6nFV=JyQ+tb8B=mWF=Vzm497WYnpypjgn7A@mail.gmail.com>
-Subject: Re: [PATCH 14/15] dax: associate mappings with inodes, and warn if
- dma collides with truncate
+In-Reply-To: <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171221130057.GA26743@wolff.to> <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
+ <20171221151843.GA453@wolff.to> <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
+ <20171221153631.GA2300@wolff.to> <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
+ <20171221164221.GA23680@wolff.to> <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+From: weiping zhang <zwp10758@gmail.com>
+Date: Fri, 22 Dec 2017 01:46:00 +0800
+Message-ID: <CAA70yB7mCzRmULHQ44EDr2x2YzFBJaSfhcGhSHWfDPrPuevg4w@mail.gmail.com>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Matthew Wilcox <mawilcox@microsoft.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Jeff Moyer <jmoyer@redhat.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Andrew Morton <akpm@linux-foundation.org>
+To: Jens Axboe <axboe@kernel.dk>
+Cc: Bruno Wolff III <bruno@wolff.to>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
 
-On Thu, Dec 21, 2017 at 4:14 AM, Jan Kara <jack@suse.cz> wrote:
-> On Wed 20-12-17 14:41:14, Dan Williams wrote:
->> On Wed, Dec 20, 2017 at 6:38 AM, Jan Kara <jack@suse.cz> wrote:
->> > On Tue 19-12-17 17:11:38, Dan Williams wrote:
->> >> On Fri, Nov 10, 2017 at 1:08 AM, Christoph Hellwig <hch@lst.de> wrote:
->> >> >> +             struct {
->> >> >> +                     /*
->> >> >> +                      * ZONE_DEVICE pages are never on an lru or handled by
->> >> >> +                      * a slab allocator, this points to the hosting device
->> >> >> +                      * page map.
->> >> >> +                      */
->> >> >> +                     struct dev_pagemap *pgmap;
->> >> >> +                     /*
->> >> >> +                      * inode association for MEMORY_DEVICE_FS_DAX page-idle
->> >> >> +                      * callbacks. Note that we don't use ->mapping since
->> >> >> +                      * that has hard coded page-cache assumptions in
->> >> >> +                      * several paths.
->> >> >> +                      */
->> >> >
->> >> > What assumptions?  I'd much rather fix those up than having two fields
->> >> > that have the same functionality.
->> >>
->> >> [ Reviving this old thread where you asked why I introduce page->inode
->> >> instead of reusing page->mapping ]
->> >>
->> >> For example, xfs_vm_set_page_dirty() assumes that page->mapping being
->> >> non-NULL indicates a typical page cache page, this is a false
->> >> assumption for DAX. My guess at a fix for this is to add
->> >> pagecache_page() checks to locations like this, but I worry about how
->> >> to find them all. Where pagecache_page() is:
->> >>
->> >> bool pagecache_page(struct page *page)
->> >> {
->> >>         if (!page->mapping)
->> >>                 return false;
->> >>         if (!IS_DAX(page->mapping->host))
->> >>                 return false;
->> >>         return true;
->> >> }
->> >>
->> >> Otherwise we go off the rails:
->> >>
->> >>  WARNING: CPU: 27 PID: 1783 at fs/xfs/xfs_aops.c:1468
->> >> xfs_vm_set_page_dirty+0xf3/0x1b0 [xfs]
->> >
->> > But this just shows that mapping->a_ops are wrong for this mapping, doesn't
->> > it? ->set_page_dirty handler for DAX mapping should just properly handle
->> > DAX pages... (and only those)
+2017-12-22 1:02 GMT+08:00 Jens Axboe <axboe@kernel.dk>:
+> On 12/21/17 9:42 AM, Bruno Wolff III wrote:
+>> On Thu, Dec 21, 2017 at 23:48:19 +0800,
+>>   weiping zhang <zwp10758@gmail.com> wrote:
+>>>> output you want. I never saw it for any kernels I compiled myself. Only when
+>>>> I test kernels built by Fedora do I see it.
+>>> see it every boot ?
 >>
->> Ah, yes. Now that I change ->mapping to be non-NULL for DAX pages I
->> enable all the address_space_operations to start firing. However,
->> instead of adding DAX specific address_space_operations it appears
->> ->mapping should never be set for DAX pages, because DAX pages are
->> disconnected from the page-writeback machinery.
+>> I don't look every boot. The warning gets scrolled of the screen. Once I see
+>> the CPU hang warnings I know the boot is failing. I don't always look
+>> at journalctl later to see what's there.
 >
-> page->mapping is not only about page-writeback machinery. It is generally
-> about page <-> inode relation and that still exists for DAX pages. We even
-> reuse the mapping->page_tree to store DAX pages. Also requiring proper
-> address_space_operations for DAX inodes is IMO not a bad thing as such.
+> I'm going to revert a0747a859ef6 for now, since we're now 8 days into this
+> and no progress has been made on fixing it.
 >
-> That being said I'm not 100% convinced we should really set page->mapping
-> for DAX pages. After all they are not page cache pages but rather a
-> physical storage for the data, don't ever get to LRU, etc. But if you need
-> page->inode relation somewhere, that is a good indication to me that it
-> might be just easier to set page->mapping and provide aops that do the
-> right thing (i.e. usually not much) for them.
+OK, you can revert it first.
+it seems MD produce a duplicated major:minor pair, which lead to create
+debugfs dir failed, but it's under debugging...
 >
-> BTW: the ->set_page_dirty() in particular actually *does* need to do
-> something for DAX pages - corresponding radix tree entries should be
-> marked dirty so that caches can get flushed when needed.
-
-For this specific concern, the get_user_pages() path will have
-triggered mkwrite, so the dax dirty tracking in the radix will have
-already happened by the time we call ->set_page_dirty(). So, it's not
-yet clear to me that we need that particular op.
-
->> In other words never
->> setting ->mapping bypasses all the possible broken assumptions and
->> code paths that take page-cache specific actions before calling an
->> address_space_operation.
->
-> If there are any assumptions left after aops are set properly, then we can
-> reconsider this but for now setting ->mapping and proper aops looks cleaner
-> to me...
-
-I'll try an address_space_operation with a nop ->set_page_dirty() and
-see if anything else falls out.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
