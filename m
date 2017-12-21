@@ -1,109 +1,36 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id CDBB36B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 03:25:26 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id n187so17965218pfn.10
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 00:25:26 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id z88si15213133plh.687.2017.12.21.00.25.25
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D8AEB6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 03:55:33 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id f62so13861950otf.6
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 00:55:33 -0800 (PST)
+Received: from huawei.com ([45.249.212.32])
+        by mx.google.com with ESMTPS id r24si924821otc.526.2017.12.21.00.55.32
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 00:25:25 -0800 (PST)
-Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
- <20171219124045.GO2787@dhcp22.suse.cz>
- <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
- <20171220101229.GJ4831@dhcp22.suse.cz>
- <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
- <20171221081706.GA4831@dhcp22.suse.cz>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <1fb66dfd-b64c-f705-ea27-a9f2e11729a4@intel.com>
-Date: Thu, 21 Dec 2017 16:23:23 +0800
+        Thu, 21 Dec 2017 00:55:33 -0800 (PST)
+Message-ID: <5A3B76EE.8020001@huawei.com>
+Date: Thu, 21 Dec 2017 16:55:10 +0800
+From: Xishi Qiu <qiuxishi@huawei.com>
 MIME-Version: 1.0
-In-Reply-To: <20171221081706.GA4831@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Subject: [RFC] does ioremap() cause memory leak?
+Content-Type: text/plain; charset="ISO-8859-1"
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Toshi Kani <toshi.kani@hp.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
+ Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>
+Cc: LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Xishi Qiu <qiuxishi@huawei.com>
 
+When we use iounmap() to free the mapping, it calls unmap_vmap_area() to clear page table,
+but do not free the memory of page table, right?
 
+So when use ioremap() to mapping another area(incluce the area before), it may use
+large mapping(e.g. ioremap_pmd_enabled()), so the original page table memory(e.g. pte memory)
+will be lost, it cause memory leak, right?
 
-On 2017a1'12ae??21ae?JPY 16:17, Michal Hocko wrote:
-> On Thu 21-12-17 16:06:50, kemi wrote:
->>
->>
->> On 2017a1'12ae??20ae?JPY 18:12, Michal Hocko wrote:
->>> On Wed 20-12-17 13:52:14, kemi wrote:
->>>>
->>>>
->>>> On 2017a1'12ae??19ae?JPY 20:40, Michal Hocko wrote:
->>>>> On Tue 19-12-17 14:39:24, Kemi Wang wrote:
->>>>>> We have seen significant overhead in cache bouncing caused by NUMA counters
->>>>>> update in multi-threaded page allocation. See 'commit 1d90ca897cb0 ("mm:
->>>>>> update NUMA counter threshold size")' for more details.
->>>>>>
->>>>>> This patch updates NUMA counters to a fixed size of (MAX_S16 - 2) and deals
->>>>>> with global counter update using different threshold size for node page
->>>>>> stats.
->>>>>
->>>>> Again, no numbers.
->>>>
->>>> Compare to vanilla kernel, I don't think it has performance improvement, so
->>>> I didn't post performance data here.
->>>> But, if you would like to see performance gain from enlarging threshold size
->>>> for NUMA stats (compare to the first patch), I will do that later. 
->>>
->>> Please do. I would also like to hear _why_ all counters cannot simply
->>> behave same. In other words why we cannot simply increase
->>> stat_threshold? Maybe calculate_normal_threshold needs a better scaling
->>> for larger machines.
->>>
->>
->> I will add this performance data to changelog in V3 patch series.
->>
->> Test machine: 2-sockets skylake platform (112 CPUs, 62G RAM)
->> Benchmark: page_bench03
->> Description: 112 threads do single page allocation/deallocation in parallel.
->>                before                           after
->>                                        (enlarge threshold size)       
->> CPU cycles     722                              379(-47.5%)
-> 
-> Please describe the numbers some more. Is this an average?
-
-Yes
-
-> What is the std? 
-
-I increase the loop times to 10m, so the std is quite slow (repeat 3 times)
-
-> Can you see any difference with a more generic workload?
-> 
-
-I didn't see obvious improvement for will-it-scale.page_fault1
-Two reasons for that:
-1) too long code path
-2) server zone lock and lru lock contention (access to buddy system frequently) 
-
->> Some thinking about that:
->> a) the overhead due to cache bouncing caused by NUMA counter update in fast path 
->> severely increase with more and more CPUs cores
-> 
-> What is an effect on a smaller system with fewer CPUs?
-> 
-
-Several CPU cycles can be saved using single thread for that.
-
->> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can 
->> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
-> 
-> I would expect those would disable the numa accounting altogether.
-> 
-
-Yes, but it is still worthy to do some optimization, isn't?
+Thanks,
+Xishi Qiu
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
