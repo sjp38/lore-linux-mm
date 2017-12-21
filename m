@@ -1,263 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DA9366B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 08:07:49 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id f8so15924248pgs.9
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 05:07:49 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id f89si14751393plb.636.2017.12.21.05.07.47
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AA3EB6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 08:18:08 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id g12so10975430wra.2
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 05:18:08 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z128si4352987wmc.158.2017.12.21.05.18.07
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 21 Dec 2017 05:07:48 -0800 (PST)
-Subject: Re: BUG: workqueue lockup (2)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <201712192327.FIJ64026.tMQFOOVFFLHOSJ@I-love.SAKURA.ne.jp>
-	<CACT4Y+ZbE5=yeb=3hL8KDpPLarHJgihsTb6xX2+4fnoLFuBTow@mail.gmail.com>
-	<CACT4Y+YZ6yuZqrjAxHEadW56TVS=x=WQqrfRrvMQ=LHU3+Kd8A@mail.gmail.com>
-	<201712201955.BHB30282.tMSFVFFJLQHOOO@I-love.SAKURA.ne.jp>
-	<CACT4Y+apEKifyUB4_vNTybetaAkXpxCaSUECrQPSWCMJgQWE0w@mail.gmail.com>
-In-Reply-To: <CACT4Y+apEKifyUB4_vNTybetaAkXpxCaSUECrQPSWCMJgQWE0w@mail.gmail.com>
-Message-Id: <201712212207.GHD30218.MtFFVSOOQLHFJO@I-love.SAKURA.ne.jp>
-Date: Thu, 21 Dec 2017 22:07:43 +0900
-Mime-Version: 1.0
+        Thu, 21 Dec 2017 05:18:07 -0800 (PST)
+Date: Thu, 21 Dec 2017 14:18:05 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171221131805.GE4831@dhcp22.suse.cz>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz>
+ <20171218203547.GA2366@linux.intel.com>
+ <20171220164107.GA29103@linux.intel.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171220164107.GA29103@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: dvyukov@google.com
-Cc: bot+e38be687a2450270a3b593bacb6b5795a7a74edb@syzkaller.appspotmail.com, syzkaller-bugs@googlegroups.com, gregkh@linuxfoundation.org, kstewart@linuxfoundation.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, pombredanne@nexb.com, tglx@linutronix.de
+To: Ross Zwisler <ross.zwisler@linux.intel.com>
+Cc: linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org, linux-api@vger.kernel.org
 
-Dmitry Vyukov wrote:
-> On Wed, Dec 20, 2017 at 11:55 AM, Tetsuo Handa
-> <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> > Dmitry Vyukov wrote:
-> >> On Tue, Dec 19, 2017 at 3:27 PM, Tetsuo Handa
-> >> <penguin-kernel@i-love.sakura.ne.jp> wrote:
-> >> > syzbot wrote:
-> >> >>
-> >> >> syzkaller has found reproducer for the following crash on
-> >> >> f3b5ad89de16f5d42e8ad36fbdf85f705c1ae051
-> >> >
-> >> > "BUG: workqueue lockup" is not a crash.
-> >>
-> >> Hi Tetsuo,
-> >>
-> >> What is the proper name for all of these collectively?
-> >
-> > I think that things which lead to kernel panic when /proc/sys/kernel/panic_on_oops
-> > was set to 1 are called an "oops" (or a "kerneloops").
-> >
-> > Speak of "BUG: workqueue lockup", this is not an "oops". This message was
-> > added by 82607adcf9cdf40f ("workqueue: implement lockup detector"), and
-> > this message does not always indicate a fatal problem. This message can be
-> > printed when the system is really out of CPU and memory. As far as I tested,
-> > I think that workqueue was not able to run on specific CPU due to a soft
-> > lockup bug.
+On Wed 20-12-17 09:41:07, Ross Zwisler wrote:
+> On Mon, Dec 18, 2017 at 01:35:47PM -0700, Ross Zwisler wrote:
+> > On Thu, Dec 14, 2017 at 02:00:32PM +0100, Michal Hocko wrote:
+> <>
+> > > What is the testing procedure? How can I setup qemu to simlate such HW?
+> > 
+> > Well, the QEMU table simulation is gross, so I'd rather not get everyone
+> > testing with that.  Injecting custom HMAT and SRAT tables via initrd/initramfs
+> > is a much better way:
+> > 
+> > https://www.kernel.org/doc/Documentation/acpi/initrd_table_override.txt
+> > 
+> > Dan recently posted a patch that lets this happen for the HMAT:
+> > 
+> > https://lists.01.org/pipermail/linux-nvdimm/2017-December/013545.html
+> > 
+> > I'm working right now on getting an easier way to generate HMAT tables - I'll
+> > let you know when I have something working.
 > 
-> There are also warnings which don't panic normally, unless
-> panic_on_warn is set. There are also cases when we suddenly lost a
-> machine and have no idea what happened with it. And also cases when we
-> are kind-a connected, and nothing bad is printed on console, but it's
-> still un-operable.
-
-Configuring netconsole might be helpful, for I use udplogger at
-https://osdn.net/projects/akari/scm/svn/tree/head/branches/udplogger/
-in order to collect all messages (not only kernel messages but also
-any text messages which can be sent as UDP packets) with timestamp added.
-
-An example of timestamp added to each line is
-http://I-love.SAKURA.ne.jp/tmp/20171018-deflate.log.xz .
-
-You can combine kernel messages from netconsole and output from shell
-session using bash's
-
-  $ (command1; command2; command3) > /dev/udp/$remote_ip/$remote_port
-
-syntax.
-
-> The only collective name I can think of is bug. We could change it to
-> bug. Otherwise since there are multiple names, I don't think it's
-> worth spending more time on this.
-
-What I care is whether the report is useful.
-
+> I've posted details on how to set up test configurations using injected HMAT
+> and SRAT tables here:
 > 
-> >> >
-> >> > You gave up too early. There is no hint for understanding what was going on.
-> >> > While we can observe "BUG: workqueue lockup" under memory pressure, there is
-> >> > no hint like SysRq-t and SysRq-m. Thus, I can't tell something is wrong.
-> >>
-> >> Do you know how to send them programmatically? I tried to find a way
-> >> several times, but failed. Articles that I've found talk about
-> >> pressing some keys that don't translate directly to us-ascii.
-> >
-> > # echo t > /proc/sysrq-trigger
-> > # echo m > /proc/sysrq-trigger
+> https://github.com/rzwisler/hmat_examples
 > 
+> So far I've got two different sample configs, and we can add more as they are
+> useful.  Having the sample configs in github is also nice because if someone
+> finds a config that causes a kernel issue it can be reported then added to
+> this list of example configs for future testing.
 > 
-> This requires working ssh connection, but we routinely deal with
-> half-dead kernels. I think that sysrq over console is as reliable as
-> we can get in this context. But I don't know how to send them.
+> Please let me know if you have trouble getting this working.
 
-I can't understand your question. If the machine is running in a
-virtualized environment, doesn't hypervisor provide a mean to send
-SysRq commands to a guest remotely (e.g. "virsh send-keys sysrq") ?
+Thanks a lot Ross, I will try this but things are getting pretty busy
+here before the holiday so I won't be able to get to it and your other
+email before new year. Sorry about that.
 
-If no means available, running
-
-----------
-#/bin/sh
-
-while :
-do
-echo t > /proc/sysrq-trigger
-echo m > /proc/sysrq-trigger
-sleep 60
-done
-----------
-
-in the background might be used.
-
-
-> 
-> But thinking more about this, I am leaning towards the direction that
-> kernel just need to do the right thing and print that info.
-> In lots of cases we get a panic and as far as I understand kernel
-> won't react on sysrq in that state. Console is still unreliable too.
-> If a message is not useful, the right direction is to make it useful.
-> 
-
-Then, configure kdump and analyze the vmcore. Kernel panic message
-alone is not so helpful. You can feed commands to crash utility from
-stdin and save stdout to a file. Then, the result file will provide
-more information than SysRq-t + SysRq-m (apart from lack of ability to
-understand whether situation has changed over time).
-
-> >>
-> >> But you can also run the reproducer. No report can possible provide
-> >> all possible useful information, sometimes debugging boils down to
-> >> manually adding printfs. That's why syzbot aims at providing a
-> >> reproducer as the ultimate source of details. Also since a developer
-> >> needs to test a proposed fix, it's easier to start with the reproducer
-> >> right away.
-> >
-> > I don't have information about how to run the reproducer (e.g. how many
-> > CPUs, how much memory, what network configuration is needed).
-> 
-> Usually all of that is irrelevant and these reproduce well on any machine.
-> FWIW, there were 2 CPUs and 2 GBs of memory. Network -- whatever GCE
-> provides as default network.
-
-The reproducer contained network addresses.
-If the bug depends on network, how to configure network is important.
-
-> 
-> 
-> > Also, please explain how to interpret raw.log file. The raw.log in
-> > 94eb2c03c9bc75aff2055f70734c@google.com had a lot of code output and kernel
-> > messages but did not contain "BUG: workqueue lockup" message. On the other
-> > hand, the raw.log in 001a113f711a528a3f0560b08e76@google.com has only kernel
-> > messages and contains "BUG: workqueue lockup" message. Why they are
-> > significantly different?
-> 
-> 
-> The first raw.log does contain "BUG: workqueue lockup", I see it right there:
-> 
-> [  120.799119] BUG: workqueue lockup - pool cpus=0 node=0 flags=0x0
-> nice=0 stuck for 48s!
-> [  120.807313] BUG: workqueue lockup - pool cpus=0-1 flags=0x4 nice=0
-> stuck for 47s!
-> [  120.815024] Showing busy workqueues and worker pools:
-> [  120.820369] workqueue events: flags=0x0
-> [  120.824536]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=4/256
-> [  120.830803]     pending: perf_sched_delayed, vmstat_shepherd,
-> jump_label_update_timeout, cache_reap
-> [  120.840149] workqueue events_power_efficient: flags=0x80
-> [  120.845651]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=4/256
-> [  120.851822]     pending: neigh_periodic_work, neigh_periodic_work,
-> do_cache_clean, reg_check_chans_work
-> [  120.861447] workqueue mm_percpu_wq: flags=0x8
-> [  120.865947]   pwq 0: cpus=0 node=0 flags=0x0 nice=0 active=1/256
-> [  120.872082]     pending: vmstat_update
-> [  120.875994] workqueue writeback: flags=0x4e
-> [  120.880416]   pwq 4: cpus=0-1 flags=0x4 nice=0 active=1/256
-> [  120.886164]     in-flight: 3401:wb_workfn
-> [  120.890358] workqueue kblockd: flags=0x18
-
-Where?
-
-I'm talking about https://marc.info/?l=linux-mm&m=151231146619948&q=p4
-at http://lkml.kernel.org/r/94eb2c03c9bc75aff2055f70734c@google.com .
-
-> 
-> The difference is cause by the fact that the first one was obtained
-> from fuzzing session when fuzzer executed lots of random programs,
-> while the second one was an attempt to localize a reproducer, so the
-> system run programs one-by-one on freshly booted machines.
-> 
-
-I see. But context is too limited to know that.
-
-> 
-> 
-> > Also, can you add timestamp to all messages?
-> > When each message was printed is a clue for understanding relationship.
-> 
-> There are timestamps. each program is prefixed with timestamps:
-> 
-> 2017/12/03 08:51:30 executing program 6:
-> 
-> these things allow to tie kernel and real time:
-> 
-> [   71.240837] QAT: Invalid ioctl
-> 2017/12/03 08:51:30 executing program 3:
-> 
-
-What I want is something like
-
-  timestamp kernel message 1
-  timestamp kernel message 2
-  timestamp kernel message 3
-  timestamp shell session message 1
-  timestamp kernel message 4
-  timestamp kernel message 5
-  timestamp shell session message 2
-  timestamp shell session message 3
-  timestamp kernel message 6
-  timestamp kernel message 7
-
-which can be done using udplogger above.
-
-> 
-> 
-> >> > At least you need to confirm that lockup lasts for a few minutes. Otherwise,
-> >>
-> >> Is it possible to increase the timeout? How? We could bump it up to 2 minutes.
-> >
-> > # echo 120 > /sys/module/workqueue/parameters/watchdog_thresh
-> >
-> > But generally, reporting multiple times rather than only once gives me
-> > better clue, for the former would tell me whether situation was changing.
-> >
-> > Can you try not to give up as soon as "BUG: workqueue lockup" was printed
-> > for the first time?
-> 
-> 
-> I've bumped timeout to 120 seconds with workqueue.watchdog_thresh=120
-> command line arg. Let's see if it still leaves any false positives, I
-> think 2 minutes should be enough, a CPU stalled for 2+ minutes
-> suggests something to fix anyway(even if just slowness somewhere). And
-> in the end this wasn't a false positive either, right?
-
-Regarding this bug, the report should include soft lockups rather than
-workqueue lockups, for workqueue was not able to run for long due to
-soft lockup in progress.
-
-> Not giving up after an oops message will be hard and problematic for
-> several reasons.
-> 
-
-But reports which cannot understand what was happening is not actionable.
-Again, "BUG: workqueue lockup" is not an "oops".
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
