@@ -1,42 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CCC336B0268
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:33:06 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id f132so4021504wmf.6
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:33:06 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id r192sor1883140wme.51.2017.12.21.07.33.05
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 07:33:05 -0800 (PST)
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3453B6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 10:38:52 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id h134so13552011iof.11
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:38:52 -0800 (PST)
+Received: from wolff.to (wolff.to. [98.103.208.27])
+        by mx.google.com with SMTP id g194si5272961ita.117.2017.12.21.07.38.51
+        for <linux-mm@kvack.org>;
+        Thu, 21 Dec 2017 07:38:51 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:36:31 -0600
+From: Bruno Wolff III <bruno@wolff.to>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171221153631.GA2300@wolff.to>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171221130057.GA26743@wolff.to>
+ <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
+ <20171221151843.GA453@wolff.to>
+ <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CALvZod432hzxPZgAypjPsZ33Z==0MxmMdPM3bEBZMea-7GFAVw@mail.gmail.com>
-References: <20171219152444.GP3919388@devbig577.frc2.facebook.com>
- <CALvZod5sWWBX69QovOeLBSx9vij7=5cmoSocdTUvh2Uq8=noyQ@mail.gmail.com>
- <20171219173354.GQ3919388@devbig577.frc2.facebook.com> <CALvZod7pbp0fFUPRnC68qdzkCEUg2YTavq6C6OLxqooCU5VeyQ@mail.gmail.com>
- <20171219214107.GR3919388@devbig577.frc2.facebook.com> <CALvZod5XRhXc3XrQw50Jw_OpRQB2iCCbgG-NMDCa8xRmGNdLrw@mail.gmail.com>
- <20171220193741.GD3413940@devbig577.frc2.facebook.com> <CALvZod7Z1Yh+ZhU8qxzSiN0Pph2R7O4Mki5E23FbJFAzhyCH8g@mail.gmail.com>
- <20171220233658.GB1084507@devbig577.frc2.facebook.com> <CALvZod7eQWrD6LgbUrOvuhf5A1KKxBaK5t-U61gdFqvMeWXuzQ@mail.gmail.com>
- <20171221133726.GD1084507@devbig577.frc2.facebook.com> <CALvZod432hzxPZgAypjPsZ33Z==0MxmMdPM3bEBZMea-7GFAVw@mail.gmail.com>
-From: Shakeel Butt <shakeelb@google.com>
-Date: Thu, 21 Dec 2017 07:33:03 -0800
-Message-ID: <CALvZod59K7ZoM3jAGQih7HjVNJQBAgrTwZAxsSHqX1kHT6RYOA@mail.gmail.com>
-Subject: Re: [RFC PATCH] mm: memcontrol: memory+swap accounting for cgroup-v2
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Li Zefan <lizefan@huawei.com>, Roman Gushchin <guro@fb.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Greg Thelen <gthelen@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Hugh Dickins <hughd@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>, Cgroups <cgroups@vger.kernel.org>, linux-doc@vger.kernel.org
+To: weiping zhang <zwp10758@gmail.com>
+Cc: Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
 
-> The swap (and its performance) is and should be transparent
-> to the job owners.
+On Thu, Dec 21, 2017 at 23:31:40 +0800,
+  weiping zhang <zwp10758@gmail.com> wrote:
+>does every time boot fail can trigger WANRING in device_add_disk ?
 
-Please ignore this statement, I didn't mean to claim on the
-independence of job performance and underlying swap performance, sorry
-about that.
+Not that I see. But the message could scroll off the screen. The boot gets 
+far enough that systemd copies over dmesg output to permanent storage that 
+I can see on my next successful boot. That's where I looked for the warning 
+output you want. I never saw it for any kernels I compiled myself. Only 
+when I test kernels built by Fedora do I see it.
 
-I meant to say that the amount of anon memory a job can allocate
-should be independent to the underlying swap.
+I just tried booting to single user and the boot still hangs.
+
+When I build the kernels, the compiler options are probably a bit different 
+than when Fedora does. That might affect what happens during boot.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
