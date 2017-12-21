@@ -1,45 +1,74 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id F07856B025E
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:14:45 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 33so11483595pll.9
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:14:45 -0800 (PST)
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 638CF6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 07:36:35 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id z3so11492727pln.6
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 04:36:35 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x2si13361178pgr.500.2017.12.21.04.14.44
+        by mx.google.com with ESMTPS id k193si5948397pgc.506.2017.12.21.04.36.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 21 Dec 2017 04:14:44 -0800 (PST)
-Date: Thu, 21 Dec 2017 04:14:37 -0800
+        Thu, 21 Dec 2017 04:36:34 -0800 (PST)
+Date: Thu, 21 Dec 2017 04:36:30 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v20 0/7] Virtio-balloon Enhancement
-Message-ID: <20171221121437.GA22405@bombadil.infradead.org>
-References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
- <201712192305.AAE21882.MtQHJOFFSFVOLO@I-love.SAKURA.ne.jp>
- <5A3A3CBC.4030202@intel.com>
- <20171220122547.GA1654@bombadil.infradead.org>
- <286AC319A985734F985F78AFA26841F73938CC3E@shsmsx102.ccr.corp.intel.com>
- <20171220171019.GA12236@bombadil.infradead.org>
- <5A3B2148.8050306@intel.com>
+Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
+Message-ID: <20171221123630.GB22405@bombadil.infradead.org>
+References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <5A3B2148.8050306@intel.com>
+In-Reply-To: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Wei Wang <wei.w.wang@intel.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, "virtio-dev@lists.oasis-open.org" <virtio-dev@lists.oasis-open.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "qemu-devel@nongnu.org" <qemu-devel@nongnu.org>, "virtualization@lists.linux-foundation.org" <virtualization@lists.linux-foundation.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mst@redhat.com" <mst@redhat.com>, "mhocko@kernel.org" <mhocko@kernel.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mawilcox@microsoft.com" <mawilcox@microsoft.com>, "david@redhat.com" <david@redhat.com>, "cornelia.huck@de.ibm.com" <cornelia.huck@de.ibm.com>, "mgorman@techsingularity.net" <mgorman@techsingularity.net>, "aarcange@redhat.com" <aarcange@redhat.com>, "amit.shah@redhat.com" <amit.shah@redhat.com>, "pbonzini@redhat.com" <pbonzini@redhat.com>, "liliang.opensource@gmail.com" <liliang.opensource@gmail.com>, "yang.zhang.wz@gmail.com" <yang.zhang.wz@gmail.com>, "quan.xu0@gmail.com" <quan.xu0@gmail.com>, "nilal@redhat.com" <nilal@redhat.com>, "riel@redhat.com" <riel@redhat.com>
+To: rao.shoaib@oracle.com
+Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
 
-On Thu, Dec 21, 2017 at 10:49:44AM +0800, Wei Wang wrote:
-> On 12/21/2017 01:10 AM, Matthew Wilcox wrote:
-> One more question is about the return value, why would it be ambiguous? I
-> think it is the same as find_next_bit() which returns the found bit or size
-> if not found.
+On Thu, Dec 21, 2017 at 12:19:47AM -0800, rao.shoaib@oracle.com wrote:
+> This patch moves kfree_call_rcu() and related macros out of rcu code. A new
+> function __call_rcu_lazy() is created for calling __call_rcu() with the lazy
+> flag.
 
-Because find_next_bit doesn't reasonably support a bitmap which is
-ULONG_MAX in size.  The point of XBitmap is to support a bitmap which
-is ULONG_MAX in size, so every possible return value is a legitimate
-"we found a bit here".  There's no value which can possibly be used for
-"no bit was found".
+Something you probably didn't know ... there are two RCU implementations
+in the kernel; Tree and Tiny.  It looks like you've only added
+__call_rcu_lazy() to Tree and you'll also need to add it to Tiny.
+
+> Also moving macros generated following checkpatch noise. I do not know
+> how to silence checkpatch as there is nothing wrong.
+> 
+> CHECK: Macro argument reuse 'offset' - possible side-effects?
+> #91: FILE: include/linux/slab.h:348:
+> +#define __kfree_rcu(head, offset) \
+> +	do { \
+> +		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+> +		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+> +	} while (0)
+
+What checkpatch is warning you about here is that somebody might call
+
+__kfree_rcu(p, a++);
+
+and this would expand into
+
+	do { \
+		BUILD_BUG_ON(!__is_kfree_rcu_offset(a++)); \
+		kfree_call_rcu(p, (rcu_callback_t)(unsigned long)(a++)); \
+	} while (0)
+
+which would increment 'a' twice, and cause pain and suffering.
+
+That's pretty unlikely usage of __kfree_rcu(), but I suppose it's not
+impossible.  We have various hacks to get around this kind of thing;
+for example I might do this as::
+
+#define __kfree_rcu(head, offset) \
+	do { \
+		unsigned long __o = offset;
+		BUILD_BUG_ON(!__is_kfree_rcu_offset(__o)); \
+		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(__o)); \
+	} while (0)
+
+Now offset is only evaluated once per invocation of the macro.  The other
+two warnings are the same problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
