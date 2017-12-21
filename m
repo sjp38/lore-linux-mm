@@ -1,103 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1F8D6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 03:56:38 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id r63so3581945wmb.9
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 00:56:38 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u17sor10381169edf.7.2017.12.21.00.56.37
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8EA9A6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 03:59:55 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id a2so4778040pgw.15
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 00:59:55 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z191si5432240pgd.240.2017.12.21.00.59.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 00:56:37 -0800 (PST)
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 21 Dec 2017 00:59:54 -0800 (PST)
+Date: Thu, 21 Dec 2017 09:59:52 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+Message-ID: <20171221085952.GB4831@dhcp22.suse.cz>
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
+ <20171219124045.GO2787@dhcp22.suse.cz>
+ <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
+ <20171220101229.GJ4831@dhcp22.suse.cz>
+ <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
+ <20171221081706.GA4831@dhcp22.suse.cz>
+ <1fb66dfd-b64c-f705-ea27-a9f2e11729a4@intel.com>
 MIME-Version: 1.0
-Reply-To: mtk.manpages@gmail.com
-In-Reply-To: <20171221080203.GZ4831@dhcp22.suse.cz>
-References: <20171219094848.GE2787@dhcp22.suse.cz> <CAKgNAkjJrmCFY-h2oqKS3zM_D+Csx-17A27mh08WKahyOVzrgQ@mail.gmail.com>
- <20171220092025.GD4831@dhcp22.suse.cz> <CAKgNAkisD7zDRoqJd6Gk1JMCZ8+Huj5QPV04nh2JXHMA+_R0-A@mail.gmail.com>
- <20171221080203.GZ4831@dhcp22.suse.cz>
-From: "Michael Kerrisk (man-pages)" <mtk.manpages@gmail.com>
-Date: Thu, 21 Dec 2017 09:56:16 +0100
-Message-ID: <CAKgNAkjSF9fXhKCxPMp92zftA4Qtq91WBt8L5UR50oQO8HgRxw@mail.gmail.com>
-Subject: Re: shmctl(SHM_STAT) vs. /proc/sysvipc/shm permissions discrepancies
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1fb66dfd-b64c-f705-ea27-a9f2e11729a4@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Linux API <linux-api@vger.kernel.org>, Manfred Spraul <manfred@colorfullife.com>, Andrew Morton <akpm@linux-foundation.org>, Al Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Waychison <mikew@google.com>, LKML <linux-kernel@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
+To: kemi <kemi.wang@intel.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-Hi Michal,
+On Thu 21-12-17 16:23:23, kemi wrote:
+> 
+> 
+> On 2017a1'12ae??21ae?JPY 16:17, Michal Hocko wrote:
+[...]
+> > Can you see any difference with a more generic workload?
+> > 
+> 
+> I didn't see obvious improvement for will-it-scale.page_fault1
+> Two reasons for that:
+> 1) too long code path
+> 2) server zone lock and lru lock contention (access to buddy system frequently) 
 
-On 21 December 2017 at 09:02, Michal Hocko <mhocko@kernel.org> wrote:
-> On Wed 20-12-17 17:17:46, Michael Kerrisk wrote:
->> Hello Michal,
->>
->> On 20 December 2017 at 10:20, Michal Hocko <mhocko@kernel.org> wrote:
->> > On Tue 19-12-17 17:45:40, Michael Kerrisk wrote:
->> >> But, is
->> >> there a pressing reason to make the change? (Okay, I guess iterating
->> >> using *_STAT is nicer than parsing /proc/sysvipc/*.)
->> >
->> > The reporter of this issue claims that "Reading /proc/sysvipc/shm is way
->> > slower than executing the system call." I haven't checked that but I can
->> > imagine that /proc/sysvipc/shm can take quite some time when there are
->> > _many_ segments registered.
->>
->> Yes, that makes sense.
->>
->> > So they would like to use the syscall but
->> > the interacting parties do not have compatible permissions.
->>
->> So, I don't think there is any security issue, since the same info is
->> available in /proc/sysvipc/*.
->
-> Well, I am not sure this is a valid argument (maybe I just misread your
-> statement).
+OK. So does the patch helps for anything other than a microbenchmark?
 
-(Or perhaps I was not clear enough; see below)
+> >> Some thinking about that:
+> >> a) the overhead due to cache bouncing caused by NUMA counter update in fast path 
+> >> severely increase with more and more CPUs cores
+> > 
+> > What is an effect on a smaller system with fewer CPUs?
+> > 
+> 
+> Several CPU cycles can be saved using single thread for that.
+> 
+> >> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can 
+> >> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
+> > 
+> > I would expect those would disable the numa accounting altogether.
+> > 
+> 
+> Yes, but it is still worthy to do some optimization, isn't?
 
-> Our security model _might_ be broken because of the sysipc
-> proc interface existance already. I am not saying it is broken because
-> I cannot see an attack vector based solely on the metadata information
-> knowledge. An attacker still cannot see/modify the real data. But maybe
-> there are some bugs lurking there and knowing the metadata might help to
-> exploit them. I dunno.
->
-> You are certainly right that modifying/adding STAT flag to comply with
-> the proc interface permission model will not make the system any more
-> vulnerable, though.
+Ohh, I am not opposing optimizations but you should make sure that they
+are worth the additional code and special casing. As I've said I am not
+convinced special casing numa counters is good. You can play with the
+threshold scaling for larger CPU count but let's make sure that the
+benefit is really measurable for normal workloads. Special ones will
+disable the numa accounting anyway.
 
-Yep, that was my point. Modifying _STAT behavior won't decrease security.
-
-That said, /proc/sysvipc/* has been around for a long time now, and
-nothing bad seems to have happened so far, AFAIK.
-
->> The only question would be whether
->> change in the *_STAT behavior might surprise some applications into
->> behaving differently. I presume the chances of that are low, but if it
->> was a concert, one could add new shmctl/msgctl/semctl *_STAT_ALL (or
->> some such) operations that have the desired behavior.
->
-> I would lean towards _STAT_ALL because this is Linux specific behavior
-> (I have looked at what BSD does here and they are checking permissions
-> for STAT as well). It would also be simpler to revert if we ever find
-> that this is a leak with security consequences.
-
-Oh -- I was unaware of this BSD behavior. At least on the various UNIX
-systems that I ever used SYSVIPC (including one or two ancient
-commercial BSD derivatives), ipcs(1) showed all IPC objects. (On
-FeeBSD, at least, it looks like ipcs(1) doesn't use the *_STAT
-interfaces.)
-
-Cheers,
-
-Michael
-
-
-
+Thanks!
 -- 
-Michael Kerrisk
-Linux man-pages maintainer; http://www.kernel.org/doc/man-pages/
-Linux/UNIX System Programming Training: http://man7.org/training/
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
