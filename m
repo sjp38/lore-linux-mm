@@ -1,105 +1,87 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 424246B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 07:31:07 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id v184so8072621wmf.1
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:31:07 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id r134si2839269wmd.183.2017.12.22.04.31.05
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE05D6B0253
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 07:31:27 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id f64so20163582pfd.6
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:31:27 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id v3si15202762pgq.731.2017.12.22.04.31.26
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Dec 2017 04:31:05 -0800 (PST)
-Date: Fri, 22 Dec 2017 13:31:03 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
-Message-ID: <20171222123103.GP4831@dhcp22.suse.cz>
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
- <20171219124045.GO2787@dhcp22.suse.cz>
- <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
- <20171220101229.GJ4831@dhcp22.suse.cz>
- <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
- <20171221081706.GA4831@dhcp22.suse.cz>
- <1fb66dfd-b64c-f705-ea27-a9f2e11729a4@intel.com>
- <20171221085952.GB4831@dhcp22.suse.cz>
- <10bf5ed1-77f0-281b-dde5-282879e87c39@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Dec 2017 04:31:26 -0800 (PST)
+Date: Fri, 22 Dec 2017 04:31:12 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
+Message-ID: <20171222123112.GA6401@bombadil.infradead.org>
+References: <20171219165823.24243-1-willy@infradead.org>
+ <20171219165823.24243-2-willy@infradead.org>
+ <20171221214810.GC9087@linux.intel.com>
+ <20171222011000.GB23624@bombadil.infradead.org>
+ <20171222042120.GA18036@localhost>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <10bf5ed1-77f0-281b-dde5-282879e87c39@intel.com>
+In-Reply-To: <20171222042120.GA18036@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kemi <kemi.wang@intel.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, Christopher Lameter <cl@linux.com>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Thu 21-12-17 18:31:19, kemi wrote:
+On Thu, Dec 21, 2017 at 08:21:20PM -0800, Josh Triplett wrote:
+> On Thu, Dec 21, 2017 at 05:10:00PM -0800, Matthew Wilcox wrote:
+> > Yes, but this define is only #if __CHECKER__, so it doesn't matter what we
+> > return as this code will never run.
 > 
+> It does matter slightly, as Sparse does some (very limited) value-based
+> analyses. Let's future-proof it.
 > 
-> On 2017a1'12ae??21ae?JPY 16:59, Michal Hocko wrote:
-> > On Thu 21-12-17 16:23:23, kemi wrote:
-> >>
-> >>
-> >> On 2017a1'12ae??21ae?JPY 16:17, Michal Hocko wrote:
-> > [...]
-> >>> Can you see any difference with a more generic workload?
-> >>>
-> >>
-> >> I didn't see obvious improvement for will-it-scale.page_fault1
-> >> Two reasons for that:
-> >> 1) too long code path
-> >> 2) server zone lock and lru lock contention (access to buddy system frequently) 
-> > 
-> > OK. So does the patch helps for anything other than a microbenchmark?
-> > 
-> >>>> Some thinking about that:
-> >>>> a) the overhead due to cache bouncing caused by NUMA counter update in fast path 
-> >>>> severely increase with more and more CPUs cores
-> >>>
-> >>> What is an effect on a smaller system with fewer CPUs?
-> >>>
-> >>
-> >> Several CPU cycles can be saved using single thread for that.
-> >>
-> >>>> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can 
-> >>>> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
-> >>>
-> >>> I would expect those would disable the numa accounting altogether.
-> >>>
-> >>
-> >> Yes, but it is still worthy to do some optimization, isn't?
-> > 
-> > Ohh, I am not opposing optimizations but you should make sure that they
-> > are worth the additional code and special casing. As I've said I am not
-> > convinced special casing numa counters is good. You can play with the
-> > threshold scaling for larger CPU count but let's make sure that the
-> > benefit is really measurable for normal workloads. Special ones will
-> > disable the numa accounting anyway.
-> > 
+> > That said, if sparse supports the GNU syntax of ?: then I have no
+> > objection to doing that.
 > 
-> I understood. Could you give me some suggestion for those normal workloads, Thanks.
-> I will have a try and post the data ASAP. 
+> Sparse does support that syntax.
 
-Well, to be honest, I am really confused what is your objective for
-these optimizations then. I hope we have agreed that workloads which
-really need to squeeze every single CPU cycle in the allocation path
-will simply disable the whole numa stat thing. I haven't yet heard about
-any use case which would really required numa stats and suffer from the
-numa stats overhead.
+Great, I'll fix that and resubmit.
 
-I can see some arguments for a better threshold scaling but that
-requires to check wider range of tests to show there are no unintended
-changes. I am not really confident you understand that when you are
-asking for "those normal workloads".
+While I've got you, I've been looking at some other sparse warnings from
+this file.  There are several caused by sparse being unable to handle
+the following construct:
 
-So please, try to step back, rethink who you are optimizing for and act
-accordingly. If I were you I would repost the first patch which only
-integrates numa stats because that removes a lot of pointless code and
-that is a win of its own.
+	if (foo)
+		x = NULL;
+	else {
+		x = bar;
+		__acquire(bar);
+	}
+	if (!x)
+		return -ENOMEM;
 
--- 
-Michal Hocko
-SUSE Labs
+Writing it as:
+
+	if (foo)
+		return -ENOMEM;
+	else {
+		x = bar;
+		__acquire(bar);
+	}
+
+works just fine.  ie this removes the warning:
+
+@@ -1070,9 +1070,9 @@ static int copy_pte_range(struct mm_struct *dst_mm, struct
+ mm_struct *src_mm,
+ again:
+        init_rss_vec(rss);
+ 
+-       dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
+-       if (!dst_pte)
++       if (pte_alloc(dst_mm, dst_pmd, addr))
+                return -ENOMEM;
++       dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
+        src_pte = pte_offset_map(src_pmd, addr);
+        src_ptl = pte_lockptr(src_mm, src_pmd);
+        spin_lock_nested(src_ptl, SINGLE_DEPTH_NESTING);
+
+Is there any chance sparse's dataflow analysis will be improved in the
+near future?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
