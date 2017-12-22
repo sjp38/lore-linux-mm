@@ -1,311 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 109316B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:14:51 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id c82so4704457wme.8
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 17:14:51 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e12sor11429958edj.11.2017.12.21.17.14.49
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1396D6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:33 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id e135so3031898qka.10
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 17:27:33 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id s6si4789858qke.396.2017.12.21.17.27.31
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 17:14:49 -0800 (PST)
-Date: Fri, 22 Dec 2017 09:17:04 +0800
-From: Boqun Feng <boqun.feng@gmail.com>
-Subject: Re: [PATCH v2 1/1] Move kfree_call_rcu() to slab_common.c
-Message-ID: <20171222011704.GD1044@tardis>
-References: <1513895570-28640-1-git-send-email-rao.shoaib@oracle.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 17:27:32 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBM1PlPE098704
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:30 -0500
+Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2f0mr88mwc-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:30 -0500
+Received: from localhost
+	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Thu, 21 Dec 2017 20:27:29 -0500
+Date: Thu, 21 Dec 2017 17:27:41 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
+ <20171221155434.GT7829@linux.vnet.ibm.com>
+ <20171221170628.GA25009@bombadil.infradead.org>
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="DBIVS5p969aUjpLe"
-Content-Disposition: inline
-In-Reply-To: <1513895570-28640-1-git-send-email-rao.shoaib@oracle.com>
-Sender: owner-linux-mm@kvack.org
-List-ID: <linux-mm.kvack.org>
-To: rao.shoaib@oracle.com
-Cc: paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
-
-
---DBIVS5p969aUjpLe
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20171221170628.GA25009@bombadil.infradead.org>
+Message-Id: <20171222012741.GZ7829@linux.vnet.ibm.com>
+Sender: owner-linux-mm@kvack.org
+List-ID: <linux-mm.kvack.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
 
-Hi Shoaib,
+On Thu, Dec 21, 2017 at 09:06:28AM -0800, Matthew Wilcox wrote:
+> On Thu, Dec 21, 2017 at 07:54:34AM -0800, Paul E. McKenney wrote:
+> > > +/* Queue an RCU callback for lazy invocation after a grace period.
+> > > + * Currently there is no way of tagging the lazy RCU callbacks in the
+> > > + * list of pending callbacks. Until then, this function may only be
+> > > + * called from kfree_call_rcu().
+> > 
+> > But now we might have a way.
+> > 
+> > If the value in ->func is too small to be a valid function, RCU invokes
+> > a fixed function name.  This function can then look at ->func and do
+> > whatever it wants, for example, maintaining an array indexed by the
+> > ->func value that says what function to call and what else to pass it,
+> > including for example the slab pointer and offset.
+> > 
+> > Thoughts?
+> 
+> Thought 1 is that we can force functions to be quad-byte aligned on all
+> architectures (gcc option -falign-functions=...), so we can have more
+> than the 4096 different values we currently use.  We can get 63.5 bits of
+> information into that ->func argument if we align functions to at least
+> 4 bytes, or 63 if we only force alignment to a 2-byte boundary.  I'm not
+> sure if we support any architecture other than x86 with byte-aligned
+> instructions.  (I'm assuming that function descriptors as used on POWER
+> and ia64 will also be sensibly aligned).
 
-On Thu, Dec 21, 2017 at 02:32:50PM -0800, rao.shoaib@oracle.com wrote:
-> From: Rao Shoaib <rao.shoaib@oracle.com>
->=20
-> This patch moves kfree_call_rcu() and related macros out of rcu code.
-> A new function call_rcu_lazy() is created for calling __call_rcu() with
-> the lazy flag. kfree_call_rcu() in the tiny implementation remains unchan=
-ged.
->=20
+I do like this approach, especially should some additional subsystems
+need this sort of special handling from RCU.  It is also much faster
+to demultiplex than alternative schemes based on address ranges and
+the like.
 
-Mind to explain why you want to do this in the commit log?
+How many bits are required by slab?  Would ~56 bits (less the bottom
+bit pattern reserved for function pointers) suffice on 64-bit systems
+and ~24 bits on 32-bit systems?  That would allow up to 256 specially
+handled situations, which should be enough.  (Famous last words!)
 
-> V2: Addresses the noise generated by checkpatch
->=20
-> Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
-> ---
->  include/linux/rcupdate.h | 43 +++----------------------------------------
->  include/linux/rcutree.h  |  2 --
->  include/linux/slab.h     | 44 ++++++++++++++++++++++++++++++++++++++++++=
-++
->  kernel/rcu/tree.c        | 24 ++++++++++--------------
->  mm/slab_common.c         | 10 ++++++++++
->  5 files changed, 67 insertions(+), 56 deletions(-)
->=20
-> diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
-> index a6ddc42..23ed728 100644
-> --- a/include/linux/rcupdate.h
-> +++ b/include/linux/rcupdate.h
-> @@ -55,6 +55,9 @@ void call_rcu(struct rcu_head *head, rcu_callback_t fun=
-c);
->  #define	call_rcu	call_rcu_sched
->  #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
-> =20
-> +/* only for use by kfree_call_rcu() */
-> +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func);
-> +
->  void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
->  void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
->  void synchronize_sched(void);
-> @@ -838,45 +841,6 @@ static inline notrace void rcu_read_unlock_sched_not=
-race(void)
->  #define __is_kfree_rcu_offset(offset) ((offset) < 4096)
-> =20
->  /*
-> - * Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.
-> - */
-> -#define __kfree_rcu(head, offset) \
-> -	do { \
-> -		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
-> -		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
-> -	} while (0)
-> -
-> -/**
-> - * kfree_rcu() - kfree an object after a grace period.
-> - * @ptr:	pointer to kfree
-> - * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
-> - *
-> - * Many rcu callbacks functions just call kfree() on the base structure.
-> - * These functions are trivial, but their size adds up, and furthermore
-> - * when they are used in a kernel module, that module must invoke the
-> - * high-latency rcu_barrier() function at module-unload time.
-> - *
-> - * The kfree_rcu() function handles this issue.  Rather than encoding a
-> - * function address in the embedded rcu_head structure, kfree_rcu() inst=
-ead
-> - * encodes the offset of the rcu_head structure within the base structur=
-e.
-> - * Because the functions are not allowed in the low-order 4096 bytes of
-> - * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
-> - * If the offset is larger than 4095 bytes, a compile-time error will
-> - * be generated in __kfree_rcu().  If this error is triggered, you can
-> - * either fall back to use of call_rcu() or rearrange the structure to
-> - * position the rcu_head structure into the first 4096 bytes.
-> - *
-> - * Note that the allowable offset might decrease in the future, for exam=
-ple,
-> - * to allow something like kmem_cache_free_rcu().
-> - *
-> - * The BUILD_BUG_ON check must not involve any function calls, hence the
-> - * checks are done in macros here.
-> - */
-> -#define kfree_rcu(ptr, rcu_head)					\
-> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
-> -
-> -
-> -/*
->   * Place this after a lock-acquisition primitive to guarantee that
->   * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee applies
->   * if the UNLOCK and LOCK are executed by the same CPU or if the
-> @@ -888,5 +852,4 @@ static inline notrace void rcu_read_unlock_sched_notr=
-ace(void)
->  #define smp_mb__after_unlock_lock()	do { } while (0)
->  #endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
-> =20
-> -
->  #endif /* __LINUX_RCUPDATE_H */
-> diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
-> index 37d6fd3..7746b19 100644
-> --- a/include/linux/rcutree.h
-> +++ b/include/linux/rcutree.h
-> @@ -48,8 +48,6 @@ void synchronize_rcu_bh(void);
->  void synchronize_sched_expedited(void);
->  void synchronize_rcu_expedited(void);
-> =20
-> -void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
-> -
->  /**
->   * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
->   *
-> diff --git a/include/linux/slab.h b/include/linux/slab.h
-> index 50697a1..a71f6a78 100644
-> --- a/include/linux/slab.h
-> +++ b/include/linux/slab.h
-> @@ -342,6 +342,50 @@ void *__kmalloc(size_t size, gfp_t flags) __assume_k=
-malloc_alignment __malloc;
->  void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_slab_a=
-lignment __malloc;
->  void kmem_cache_free(struct kmem_cache *, void *);
-> =20
-> +void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
-> +
-> +/* Helper macro for kfree_rcu() to prevent argument-expansion eyestrain.=
- */
-> +#define __kfree_rcu(head, offset) \
-> +	do { \
-> +		unsigned long __o =3D (unsigned long)offset; \
-> +		BUILD_BUG_ON(!__is_kfree_rcu_offset(__o)); \
-> +		kfree_call_rcu(head, (rcu_callback_t)(__o)); \
-> +	} while (0)
-> +
-> +/**
-> + * kfree_rcu() - kfree an object after a grace period.
-> + * @ptr:	pointer to kfree
-> + * @rcu_head:	the name of the struct rcu_head within the type of @ptr.
+> Thought 2 is that the slab is quite capable of getting the slab pointer
+> from the address of the object -- virt_to_head_page(p)->slab_cache
+> So sorting objects by address is as good as storing their slab caches
+> and offsets.
 
-So you already rename this parameter to 'rcu_head_name', and...
+Different slabs can in some cases interleave their slabs of objects,
+right?  It might well be that grouping together different slabs from
+the same slab cache doesn't help, but seems worth my asking the question.
 
-> + *
-> + * Many rcu callbacks functions just call kfree() on the base structure.
-> + * These functions are trivial, but their size adds up, and furthermore
-> + * when they are used in a kernel module, that module must invoke the
-> + * high-latency rcu_barrier() function at module-unload time.
-> + *
-> + * The kfree_rcu() function handles this issue.  Rather than encoding a
-> + * function address in the embedded rcu_head structure, kfree_rcu() inst=
-ead
-> + * encodes the offset of the rcu_head structure within the base structur=
-e.
-> + * Because the functions are not allowed in the low-order 4096 bytes of
-> + * kernel virtual memory, offsets up to 4095 bytes can be accommodated.
-> + * If the offset is larger than 4095 bytes, a compile-time error will
-> + * be generated in __kfree_rcu().  If this error is triggered, you can
-> + * either fall back to use of call_rcu() or rearrange the structure to
-> + * position the rcu_head structure into the first 4096 bytes.
-> + *
-> + * Note that the allowable offset might decrease in the future, for exam=
-ple,
-> + * to allow something like kmem_cache_free_rcu().
-> + *
-> + * The BUILD_BUG_ON check must not involve any function calls, hence the
-> + * checks are done in macros here.
-> + */
-> +#define kfree_rcu(ptr, rcu_head_name)	\
-> +	do { \
-> +		typeof(ptr) __ptr =3D ptr;	\
-> +		unsigned long __off =3D offsetof(typeof(*(__ptr)), \
-> +						      rcu_head_name); \
-> +		struct rcu_head *__rptr =3D (void *)__ptr + __off; \
-> +		__kfree_rcu(__rptr, __off); \
-> +	} while (0)
+> Thought 3 is that we probably don't want to overengineer this.
+> Just allocating a 14-entry buffer (along with an RCU head) is probably
+> enough to give us at least 90% of the wins that a more complex solution
+> would give.
 
-why do you want to open code this?
+Can we benchmark this?  After all, memory allocation can sometimes
+counter one's intuition.
 
->  /*
->   * Bulk allocation and freeing operations. These are accelerated in an
->   * allocator specific way to avoid taking locks repeatedly or building
-> diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
-> index f9c0ca2..7d2830f 100644
-> --- a/kernel/rcu/tree.c
-> +++ b/kernel/rcu/tree.c
-> @@ -3180,6 +3180,16 @@ void call_rcu_sched(struct rcu_head *head, rcu_cal=
-lback_t func)
->  }
->  EXPORT_SYMBOL_GPL(call_rcu_sched);
-> =20
-> +/* Queue an RCU callback for lazy invocation after a grace period.
-> + * Currently there is no way of tagging the lazy RCU callbacks in the
-> + * list of pending callbacks. Until then, this function may only be
-> + * called from kfree_call_rcu().
-> + */
-> +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
-> +{
-> +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
+One alternative approach would be to allocate such a buffer per
+slab cache, and run each slab caches through RCU independently.
+Seems like this should allow some savings.  Might not be worthwhile,
+but again seemed worth asking the question.
 
-Why do you switch this from rcu_state_p to rcu_sched_state? Have you
-checked your changes don't break PREEMPT=3Dy kernel? Did I miss something
-subtle?
-
-Regards,
-Boqun
-
-> +}
-> +
->  /**
->   * call_rcu_bh() - Queue an RCU for invocation after a quicker grace per=
-iod.
->   * @head: structure to be used for queueing the RCU updates.
-> @@ -3209,20 +3219,6 @@ void call_rcu_bh(struct rcu_head *head, rcu_callba=
-ck_t func)
->  EXPORT_SYMBOL_GPL(call_rcu_bh);
-> =20
->  /*
-> - * Queue an RCU callback for lazy invocation after a grace period.
-> - * This will likely be later named something like "call_rcu_lazy()",
-> - * but this change will require some way of tagging the lazy RCU
-> - * callbacks in the list of pending callbacks. Until then, this
-> - * function may only be called from __kfree_rcu().
-> - */
-> -void kfree_call_rcu(struct rcu_head *head,
-> -		    rcu_callback_t func)
-> -{
-> -	__call_rcu(head, func, rcu_state_p, -1, 1);
-> -}
-> -EXPORT_SYMBOL_GPL(kfree_call_rcu);
-> -
-> -/*
->   * Because a context switch is a grace period for RCU-sched and RCU-bh,
->   * any blocking grace-period wait automatically implies a grace period
->   * if there is only one CPU online at any point time during execution
-> diff --git a/mm/slab_common.c b/mm/slab_common.c
-> index c8cb367..0d8a63b 100644
-> --- a/mm/slab_common.c
-> +++ b/mm/slab_common.c
-> @@ -1483,6 +1483,16 @@ void kzfree(const void *p)
->  }
->  EXPORT_SYMBOL(kzfree);
-> =20
-> +/*
-> + * Queue Memory to be freed by RCU after a grace period.
-> + */
-> +void kfree_call_rcu(struct rcu_head *head,
-> +		    rcu_callback_t func)
-> +{
-> +	call_rcu_lazy(head, func);
-> +}
-> +EXPORT_SYMBOL_GPL(kfree_call_rcu);
-> +
->  /* Tracepoints definitions. */
->  EXPORT_TRACEPOINT_SYMBOL(kmalloc);
->  EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
-> --=20
-> 2.7.4
->=20
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
-
---DBIVS5p969aUjpLe
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlo8XQwACgkQSXnow7UH
-+rjq4wf/UkF/WcCze+ra9lWHx4wT0Udw6lnFjJ3WmFS6r70uXV2iknggBuqPRgAI
-5IHlCGB15fODuSOAtlQ6Mx3v42MV1X+8+oMml0inuShxGpnOi7Fqup+Kkf9d9c24
-hTELvbISPrbRrGetYaPljUZoXC0c2f60ow6B+rZtSfRdJjesj4We7rZft5L1mo01
-iskIFr8saaYdVoKRB1pb9OdJ3KjxVEneJh/jaeQ/77/3j9xUCN/t5vArwWMkpnVl
-Eow0Pyp+b8d2u3QgWvm81IC7KnlK5QmEdrQa7V3HuffArpTXSoUBdcCz92WuaGOI
-vRer6innYntnNc/dikW5K3ym8d0J1w==
-=DMBj
------END PGP SIGNATURE-----
-
---DBIVS5p969aUjpLe--
+							Thanx, Paul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
