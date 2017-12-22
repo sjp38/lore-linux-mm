@@ -1,73 +1,373 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 501396B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 21:08:46 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id q3so16722482pgv.16
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:08:46 -0800 (PST)
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id b12si14408067pgq.139.2017.12.21.18.08.44
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 749BC6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 21:36:32 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 55so15763515wrx.21
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:36:32 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p55sor12406498edc.47.2017.12.21.18.36.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 18:08:44 -0800 (PST)
-Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
-References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
- <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
- <20171219124045.GO2787@dhcp22.suse.cz>
- <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
- <20171220101229.GJ4831@dhcp22.suse.cz>
- <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
- <alpine.DEB.2.20.1712211107430.22093@nuc-kabylake>
-From: kemi <kemi.wang@intel.com>
-Message-ID: <9fb9af97-167c-6a0b-ded1-2790113ece9a@intel.com>
-Date: Fri, 22 Dec 2017 10:06:42 +0800
+        (Google Transport Security);
+        Thu, 21 Dec 2017 18:36:30 -0800 (PST)
+Date: Fri, 22 Dec 2017 10:38:46 +0800
+From: Boqun Feng <boqun.feng@gmail.com>
+Subject: Re: [PATCH v2 1/1] Move kfree_call_rcu() to slab_common.c
+Message-ID: <20171222023846.GE9516@tardis>
+References: <1513895570-28640-1-git-send-email-rao.shoaib@oracle.com>
+ <20171222011704.GD1044@tardis>
+ <20171222014212.GB7829@linux.vnet.ibm.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1712211107430.22093@nuc-kabylake>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="GxcwvYAGnODwn7V8"
+Content-Disposition: inline
+In-Reply-To: <20171222014212.GB7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
+To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Cc: rao.shoaib@oracle.com, brouer@redhat.com, linux-mm@kvack.org
 
 
+--GxcwvYAGnODwn7V8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
-On 2017a1'12ae??22ae?JPY 01:10, Christopher Lameter wrote:
-> On Thu, 21 Dec 2017, kemi wrote:
-> 
->> Some thinking about that:
->> a) the overhead due to cache bouncing caused by NUMA counter update in fast path
->> severely increase with more and more CPUs cores
->> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can
->> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
-> 
-> I think you are fighting a lost battle there. As evident from the timing
-> constraints on packet processing in a 10/40G you will have a hard time to
-> process data if the packets are of regular ethernet size. And we alrady
-> have 100G NICs in operation here.
-> 
+On Thu, Dec 21, 2017 at 05:42:12PM -0800, Paul E. McKenney wrote:
+> On Fri, Dec 22, 2017 at 09:17:04AM +0800, Boqun Feng wrote:
+> > Hi Shoaib,
+> >=20
+> > On Thu, Dec 21, 2017 at 02:32:50PM -0800, rao.shoaib@oracle.com wrote:
+> > > From: Rao Shoaib <rao.shoaib@oracle.com>
+> > >=20
+> > > This patch moves kfree_call_rcu() and related macros out of rcu code.
+> > > A new function call_rcu_lazy() is created for calling __call_rcu() wi=
+th
+> > > the lazy flag. kfree_call_rcu() in the tiny implementation remains un=
+changed.
+> > >=20
+> >=20
+> > Mind to explain why you want to do this in the commit log?
+>=20
+> I am too close to this one, so I need you guys to hash this out.  ;-)
+>=20
 
-Not really.
-For 10/40G NIC or even 100G, I admit DPDK is widely used in data center network 
-rather than kernel driver in production environment.
-That's due to the slow page allocator and long pipeline processing in network 
-protocol stack.
-That's not easy to change this state in short time, but if we can do something
-here to change it a little, why not.
+I think simply improving the modularity is OK, but it's better to have
+some words in the commit log ;-)
 
-> We can try to get the performance as high as possible but full rate high
-> speed networking invariable must use offload mechanisms and thus the
-> statistics would only be available from the hardware devices that can do
-> wire speed processing.
-> 
+> > > V2: Addresses the noise generated by checkpatch
+> > >=20
+> > > Signed-off-by: Rao Shoaib <rao.shoaib@oracle.com>
+> > > ---
+> > >  include/linux/rcupdate.h | 43 +++-----------------------------------=
+-----
+> > >  include/linux/rcutree.h  |  2 --
+> > >  include/linux/slab.h     | 44 ++++++++++++++++++++++++++++++++++++++=
+++++++
+> > >  kernel/rcu/tree.c        | 24 ++++++++++--------------
+> > >  mm/slab_common.c         | 10 ++++++++++
+> > >  5 files changed, 67 insertions(+), 56 deletions(-)
+> > >=20
+> > > diff --git a/include/linux/rcupdate.h b/include/linux/rcupdate.h
+> > > index a6ddc42..23ed728 100644
+> > > --- a/include/linux/rcupdate.h
+> > > +++ b/include/linux/rcupdate.h
+> > > @@ -55,6 +55,9 @@ void call_rcu(struct rcu_head *head, rcu_callback_t=
+ func);
+> > >  #define	call_rcu	call_rcu_sched
+> > >  #endif /* #else #ifdef CONFIG_PREEMPT_RCU */
+> > > =20
+> > > +/* only for use by kfree_call_rcu() */
+> > > +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func);
+> > > +
+> > >  void call_rcu_bh(struct rcu_head *head, rcu_callback_t func);
+> > >  void call_rcu_sched(struct rcu_head *head, rcu_callback_t func);
+> > >  void synchronize_sched(void);
+> > > @@ -838,45 +841,6 @@ static inline notrace void rcu_read_unlock_sched=
+_notrace(void)
+> > >  #define __is_kfree_rcu_offset(offset) ((offset) < 4096)
+> > > =20
+> > >  /*
+> > > - * Helper macro for kfree_rcu() to prevent argument-expansion eyestr=
+ain.
+> > > - */
+> > > -#define __kfree_rcu(head, offset) \
+> > > -	do { \
+> > > -		BUILD_BUG_ON(!__is_kfree_rcu_offset(offset)); \
+> > > -		kfree_call_rcu(head, (rcu_callback_t)(unsigned long)(offset)); \
+> > > -	} while (0)
+> > > -
+> > > -/**
+> > > - * kfree_rcu() - kfree an object after a grace period.
+> > > - * @ptr:	pointer to kfree
+> > > - * @rcu_head:	the name of the struct rcu_head within the type of @pt=
+r.
+> > > - *
+> > > - * Many rcu callbacks functions just call kfree() on the base struct=
+ure.
+> > > - * These functions are trivial, but their size adds up, and furtherm=
+ore
+> > > - * when they are used in a kernel module, that module must invoke the
+> > > - * high-latency rcu_barrier() function at module-unload time.
+> > > - *
+> > > - * The kfree_rcu() function handles this issue.  Rather than encodin=
+g a
+> > > - * function address in the embedded rcu_head structure, kfree_rcu() =
+instead
+> > > - * encodes the offset of the rcu_head structure within the base stru=
+cture.
+> > > - * Because the functions are not allowed in the low-order 4096 bytes=
+ of
+> > > - * kernel virtual memory, offsets up to 4095 bytes can be accommodat=
+ed.
+> > > - * If the offset is larger than 4095 bytes, a compile-time error will
+> > > - * be generated in __kfree_rcu().  If this error is triggered, you c=
+an
+> > > - * either fall back to use of call_rcu() or rearrange the structure =
+to
+> > > - * position the rcu_head structure into the first 4096 bytes.
+> > > - *
+> > > - * Note that the allowable offset might decrease in the future, for =
+example,
+> > > - * to allow something like kmem_cache_free_rcu().
+> > > - *
+> > > - * The BUILD_BUG_ON check must not involve any function calls, hence=
+ the
+> > > - * checks are done in macros here.
+> > > - */
+> > > -#define kfree_rcu(ptr, rcu_head)					\
+> > > -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+> > > -
+> > > -
+> > > -/*
+> > >   * Place this after a lock-acquisition primitive to guarantee that
+> > >   * an UNLOCK+LOCK pair acts as a full barrier.  This guarantee appli=
+es
+> > >   * if the UNLOCK and LOCK are executed by the same CPU or if the
+> > > @@ -888,5 +852,4 @@ static inline notrace void rcu_read_unlock_sched_=
+notrace(void)
+> > >  #define smp_mb__after_unlock_lock()	do { } while (0)
+> > >  #endif /* #else #ifdef CONFIG_ARCH_WEAK_RELEASE_ACQUIRE */
+> > > =20
+> > > -
+> > >  #endif /* __LINUX_RCUPDATE_H */
+> > > diff --git a/include/linux/rcutree.h b/include/linux/rcutree.h
+> > > index 37d6fd3..7746b19 100644
+> > > --- a/include/linux/rcutree.h
+> > > +++ b/include/linux/rcutree.h
+> > > @@ -48,8 +48,6 @@ void synchronize_rcu_bh(void);
+> > >  void synchronize_sched_expedited(void);
+> > >  void synchronize_rcu_expedited(void);
+> > > =20
+> > > -void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
+> > > -
+> > >  /**
+> > >   * synchronize_rcu_bh_expedited - Brute-force RCU-bh grace period
+> > >   *
+> > > diff --git a/include/linux/slab.h b/include/linux/slab.h
+> > > index 50697a1..a71f6a78 100644
+> > > --- a/include/linux/slab.h
+> > > +++ b/include/linux/slab.h
+> > > @@ -342,6 +342,50 @@ void *__kmalloc(size_t size, gfp_t flags) __assu=
+me_kmalloc_alignment __malloc;
+> > >  void *kmem_cache_alloc(struct kmem_cache *, gfp_t flags) __assume_sl=
+ab_alignment __malloc;
+> > >  void kmem_cache_free(struct kmem_cache *, void *);
+> > > =20
+> > > +void kfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
+> > > +
+> > > +/* Helper macro for kfree_rcu() to prevent argument-expansion eyestr=
+ain. */
+> > > +#define __kfree_rcu(head, offset) \
+> > > +	do { \
+> > > +		unsigned long __o =3D (unsigned long)offset; \
+> > > +		BUILD_BUG_ON(!__is_kfree_rcu_offset(__o)); \
+> > > +		kfree_call_rcu(head, (rcu_callback_t)(__o)); \
+> > > +	} while (0)
+> > > +
+> > > +/**
+> > > + * kfree_rcu() - kfree an object after a grace period.
+> > > + * @ptr:	pointer to kfree
+> > > + * @rcu_head:	the name of the struct rcu_head within the type of @pt=
+r.
+> >=20
+> > So you already rename this parameter to 'rcu_head_name', and...
+> >=20
+> > > + *
+> > > + * Many rcu callbacks functions just call kfree() on the base struct=
+ure.
+> > > + * These functions are trivial, but their size adds up, and furtherm=
+ore
+> > > + * when they are used in a kernel module, that module must invoke the
+> > > + * high-latency rcu_barrier() function at module-unload time.
+> > > + *
+> > > + * The kfree_rcu() function handles this issue.  Rather than encodin=
+g a
+> > > + * function address in the embedded rcu_head structure, kfree_rcu() =
+instead
+> > > + * encodes the offset of the rcu_head structure within the base stru=
+cture.
+> > > + * Because the functions are not allowed in the low-order 4096 bytes=
+ of
+> > > + * kernel virtual memory, offsets up to 4095 bytes can be accommodat=
+ed.
+> > > + * If the offset is larger than 4095 bytes, a compile-time error will
+> > > + * be generated in __kfree_rcu().  If this error is triggered, you c=
+an
+> > > + * either fall back to use of call_rcu() or rearrange the structure =
+to
+> > > + * position the rcu_head structure into the first 4096 bytes.
+> > > + *
+> > > + * Note that the allowable offset might decrease in the future, for =
+example,
+> > > + * to allow something like kmem_cache_free_rcu().
+> > > + *
+> > > + * The BUILD_BUG_ON check must not involve any function calls, hence=
+ the
+> > > + * checks are done in macros here.
+> > > + */
+> > > +#define kfree_rcu(ptr, rcu_head_name)	\
+> > > +	do { \
+> > > +		typeof(ptr) __ptr =3D ptr;	\
+> > > +		unsigned long __off =3D offsetof(typeof(*(__ptr)), \
+> > > +						      rcu_head_name); \
+> > > +		struct rcu_head *__rptr =3D (void *)__ptr + __off; \
+> > > +		__kfree_rcu(__rptr, __off); \
+> > > +	} while (0)
+> >=20
+> > why do you want to open code this?
+>=20
+> He needs it to be a macro so that offsetof() will work properly.
+>=20
 
-I think you may be talking something about SmartNIC (e.g. OpenVswitch offload + 
-VF pass through). That's usually used in virtualization environment to eliminate 
-the overhead from device emulation and packet processing in software virtual 
-switch(OVS or linux bridge). 
+You lost me on this one, but it may be me who used the wrong phrase
+"open code"..
 
-What I have done in this patch series is to improve page allocator performance,
-that's also helpful in offload environment (guest kernel at least), IMHO.
+So the kfree_rcu() used to be implemented as:
+
+	#define kfree_rcu(ptr, rcu_head)					\
+		__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+
+and Shoaib expanded as above, so I thought he must have a reason to do
+this, maybe simply for the readability?
+
+Regards,
+Boqun
+
+> > >  /*
+> > >   * Bulk allocation and freeing operations. These are accelerated in =
+an
+> > >   * allocator specific way to avoid taking locks repeatedly or buildi=
+ng
+> > > diff --git a/kernel/rcu/tree.c b/kernel/rcu/tree.c
+> > > index f9c0ca2..7d2830f 100644
+> > > --- a/kernel/rcu/tree.c
+> > > +++ b/kernel/rcu/tree.c
+> > > @@ -3180,6 +3180,16 @@ void call_rcu_sched(struct rcu_head *head, rcu=
+_callback_t func)
+> > >  }
+> > >  EXPORT_SYMBOL_GPL(call_rcu_sched);
+> > > =20
+> > > +/* Queue an RCU callback for lazy invocation after a grace period.
+> > > + * Currently there is no way of tagging the lazy RCU callbacks in the
+> > > + * list of pending callbacks. Until then, this function may only be
+> > > + * called from kfree_call_rcu().
+> > > + */
+> > > +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
+> > > +{
+> > > +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
+> >=20
+> > Why do you switch this from rcu_state_p to rcu_sched_state? Have you
+> > checked your changes don't break PREEMPT=3Dy kernel? Did I miss somethi=
+ng
+> > subtle?
+>=20
+> Good catch, this would be a problem on PREEMPT=3Dy kernels.  I agree with
+> Boqun's implicit suggestion of using rcu_state_p.
+>=20
+> 							Thanx, Paul
+>=20
+> > Regards,
+> > Boqun
+> >=20
+> > > +}
+> > > +
+> > >  /**
+> > >   * call_rcu_bh() - Queue an RCU for invocation after a quicker grace=
+ period.
+> > >   * @head: structure to be used for queueing the RCU updates.
+> > > @@ -3209,20 +3219,6 @@ void call_rcu_bh(struct rcu_head *head, rcu_ca=
+llback_t func)
+> > >  EXPORT_SYMBOL_GPL(call_rcu_bh);
+> > > =20
+> > >  /*
+> > > - * Queue an RCU callback for lazy invocation after a grace period.
+> > > - * This will likely be later named something like "call_rcu_lazy()",
+> > > - * but this change will require some way of tagging the lazy RCU
+> > > - * callbacks in the list of pending callbacks. Until then, this
+> > > - * function may only be called from __kfree_rcu().
+> > > - */
+> > > -void kfree_call_rcu(struct rcu_head *head,
+> > > -		    rcu_callback_t func)
+> > > -{
+> > > -	__call_rcu(head, func, rcu_state_p, -1, 1);
+> > > -}
+> > > -EXPORT_SYMBOL_GPL(kfree_call_rcu);
+> > > -
+> > > -/*
+> > >   * Because a context switch is a grace period for RCU-sched and RCU-=
+bh,
+> > >   * any blocking grace-period wait automatically implies a grace peri=
+od
+> > >   * if there is only one CPU online at any point time during execution
+> > > diff --git a/mm/slab_common.c b/mm/slab_common.c
+> > > index c8cb367..0d8a63b 100644
+> > > --- a/mm/slab_common.c
+> > > +++ b/mm/slab_common.c
+> > > @@ -1483,6 +1483,16 @@ void kzfree(const void *p)
+> > >  }
+> > >  EXPORT_SYMBOL(kzfree);
+> > > =20
+> > > +/*
+> > > + * Queue Memory to be freed by RCU after a grace period.
+> > > + */
+> > > +void kfree_call_rcu(struct rcu_head *head,
+> > > +		    rcu_callback_t func)
+> > > +{
+> > > +	call_rcu_lazy(head, func);
+> > > +}
+> > > +EXPORT_SYMBOL_GPL(kfree_call_rcu);
+> > > +
+> > >  /* Tracepoints definitions. */
+> > >  EXPORT_TRACEPOINT_SYMBOL(kmalloc);
+> > >  EXPORT_TRACEPOINT_SYMBOL(kmem_cache_alloc);
+> > > --=20
+> > > 2.7.4
+> > >=20
+> > > --
+> > > To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> > > the body to majordomo@kvack.org.  For more info on Linux MM,
+> > > see: http://www.linux-mm.org/ .
+> > > Don't email: <a href=3Dmailto:"dont@kvack.org"> email@kvack.org </a>
+>=20
+> >=20
+>=20
+
+--GxcwvYAGnODwn7V8
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlo8cDAACgkQSXnow7UH
++riX1gf/cMhv3IrJOBLHAIZPnE/OcdNq427a7AJJP3Gf4kDPbHwvEM7S/AHUofbz
+o8R+v2hUp2t2gOWyy8ajTNOv9iB6Qz0y2AIqJgz43QTVo/mJY0djnkprfgbsx38F
+cx6++l0HoctaKGIcjH4PxrQ0ViyvHcaoJrW+4sJe7ajLb1jxVDbZFFul9bsLnGD0
+EDzhXMFuKusEdoeC7mC+88XCkMVFWGSC18eXx7GIVOO+MDOQ7b00W7taY/vK1qud
+rJowWeTab+IbbDn1OFNXDFOm7LuiewEKd4T3U0adq1AS0FeIR0kT8bXzpTJwKCoj
+nwPhP3nZ/G6LMocqRiaA669WDZT1Zw==
+=LsdE
+-----END PGP SIGNATURE-----
+
+--GxcwvYAGnODwn7V8--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
