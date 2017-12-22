@@ -1,92 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 866176B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:31:58 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id x1so14321897plb.2
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 14:31:58 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id f129si3309239pgc.402.2017.12.22.14.31.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 091976B0253
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:53:45 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id 184so13164875oii.1
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 14:53:45 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z34sor1480535otb.59.2017.12.22.14.53.43
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 14:31:57 -0800 (PST)
-Date: Fri, 22 Dec 2017 15:31:54 -0700
-From: Ross Zwisler <ross.zwisler@linux.intel.com>
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-Message-ID: <20171222223154.GC25711@linux.intel.com>
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
- <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
+        (Google Transport Security);
+        Fri, 22 Dec 2017 14:53:44 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
+In-Reply-To: <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <20171214130032.GK16951@dhcp22.suse.cz> <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org> <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
+ <20171220211649.GA32200@bombadil.infradead.org> <20171220212408.GA8308@linux.intel.com>
+ <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
+ <20171220224105.GA27258@linux.intel.com> <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 22 Dec 2017 14:53:42 -0800
+Message-ID: <CAPcyv4j9shdJFrvADa=qW4L-jPJJ4S_TJc_c=aRoW3EmSCCChQ@mail.gmail.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Brice Goglin <brice.goglin@gmail.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Fri, Dec 22, 2017 at 08:39:41AM +0530, Anshuman Khandual wrote:
-> On 12/14/2017 07:40 AM, Ross Zwisler wrote:
-<>
-> > We solve this issue by providing userspace with performance information on
-> > individual memory ranges.  This performance information is exposed via
-> > sysfs:
-> > 
-> >   # grep . mem_tgt2/* mem_tgt2/local_init/* 2>/dev/null
-> >   mem_tgt2/firmware_id:1
-> >   mem_tgt2/is_cached:0
-> >   mem_tgt2/local_init/read_bw_MBps:40960
-> >   mem_tgt2/local_init/read_lat_nsec:50
-> >   mem_tgt2/local_init/write_bw_MBps:40960
-> >   mem_tgt2/local_init/write_lat_nsec:50
-<>
-> We will enlist properties for all possible "source --> target" on the system?
+On Thu, Dec 21, 2017 at 12:31 PM, Brice Goglin <brice.goglin@gmail.com> wro=
+te:
+> Le 20/12/2017 =C3=A0 23:41, Ross Zwisler a =C3=A9crit :
+[..]
+> Hello
+>
+> I can confirm that HPC runtimes are going to use these patches (at least
+> all runtimes that use hwloc for topology discovery, but that's the vast
+> majority of HPC anyway).
+>
+> We really didn't like KNL exposing a hacky SLIT table [1]. We had to
+> explicitly detect that specific crazy table to find out which NUMA nodes
+> were local to which cores, and to find out which NUMA nodes were
+> HBM/MCDRAM or DDR. And then we had to hide the SLIT values to the
+> application because the reported latencies didn't match reality. Quite
+> annoying.
+>
+> With Ross' patches, we can easily get what we need:
+> * which NUMA nodes are local to which CPUs? /sys/devices/system/node/
+> can only report a single local node per CPU (doesn't work for KNL and
+> upcoming architectures with HBM+DDR+...)
+> * which NUMA nodes are slow/fast (for both bandwidth and latency)
+> And we can still look at SLIT under /sys/devices/system/node if really
+> needed.
+>
+> And of course having this in sysfs is much better than parsing ACPI
+> tables that are only accessible to root :)
 
-Nope, just 'local' initiator/target pairs.  I talk about the reasoning for
-this in the cover letter for patch 3:
+On this point, it's not clear to me that we should allow these sysfs
+entries to be world readable. Given /proc/iomem now hides physical
+address information from non-root we at least need to be careful not
+to undo that with new sysfs HMAT attributes. Once you need to be root
+for this info, is parsing binary HMAT vs sysfs a blocker for the HPC
+use case?
 
-https://lists.01.org/pipermail/linux-nvdimm/2017-December/013574.html
-
-> Right now it shows only bandwidth and latency properties, can it accommodate
-> other properties as well in future ?
-
-We also have an 'is_cached' attribute for the memory targets if they are
-involved in a caching hierarchy, but right now those are all the things we
-expose.  We can potentially expose whatever we want that is present in the
-HMAT, but those seemed like a good start.
-
-I noticed that in your presentation you had some other examples of attributes
-you cared about:
-
- * reliability
- * power consumption
- * density
-
-The HMAT doesn't provide this sort of information at present, but we
-could/would add them to sysfs if the HMAT ever grew support for them.
-
-> > This allows applications to easily find the memory that they want to use.
-> > We expect that the existing NUMA APIs will be enhanced to use this new
-> > information so that applications can continue to use them to select their
-> > desired memory.
-> 
-> I had presented a proposal for NUMA redesign in the Plumbers Conference this
-> year where various memory devices with different kind of memory attributes
-> can be represented in the kernel and be used explicitly from the user space.
-> Here is the link to the proposal if you feel interested. The proposal is
-> very intrusive and also I dont have a RFC for it yet for discussion here.
-> 
-> https://linuxplumbersconf.org/2017/ocw//system/presentations/4656/original/Hierarchical_NUMA_Design_Plumbers_2017.pdf
-> 
-> Problem is, designing the sysfs interface for memory attribute detection
-> from user space without first thinking about redesigning the NUMA for
-> heterogeneous memory may not be a good idea. Will look into this further.
-
-I took another look at your presentation, and overall I think that if/when a
-NUMA redesign like this takes place ACPI systems with HMAT tables will be able
-to participate.  But I think we are probably a ways away from that, and like I
-said in my previous mail ACPI systems with memory-only NUMA nodes are going to
-exist and need to be supported with the current NUMA scheme.  Hence I don't
-think that this patch series conflicts with your proposal.
+Perhaps we can enlist /proc/iomem or a similar enumeration interface
+to tell userspace the NUMA node and whether the kernel thinks it has
+better or worse performance characteristics relative to base
+system-RAM, i.e. new IORES_DESC_* values. I'm worried that if we start
+publishing absolute numbers in sysfs userspace will default to looking
+for specific magic numbers in sysfs vs asking the kernel for memory
+that has performance characteristics relative to base "System RAM". In
+other words the absolute performance information that the HMAT
+publishes is useful to the kernel, but it's not clear that userspace
+needs that vs a relative indicator for making NUMA node preference
+decisions.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
