@@ -1,117 +1,211 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EC1786B0069
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 06:04:51 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id f132so5051070wmf.6
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:04:51 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 188D26B0069
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 06:51:01 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id c3so16504591wrd.0
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:51:01 -0800 (PST)
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id r16si6367346wmd.165.2017.12.22.03.04.50
+        by mx.google.com with ESMTPS id a123si6038326wma.58.2017.12.22.03.50.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 03:04:50 -0800 (PST)
-Received: from smtp02.buh.bitdefender.net (smtp.bitdefender.biz [10.17.80.76])
-	by mx-sr.buh.bitdefender.com (Postfix) with ESMTP id CC70A7FC7B
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:29:12 +0200 (EET)
-From: alazar@bitdefender.com
-Subject: Re: [RFC PATCH v4 05/18] kvm: x86: add kvm_arch_vcpu_set_regs()
-In-Reply-To: <2cb184ba-f0ea-b7fa-3c50-e3b0903b95e9@oracle.com>
+        Fri, 22 Dec 2017 03:50:59 -0800 (PST)
+Received: from smtp01.buh.bitdefender.com (smtp.bitdefender.biz [10.17.80.75])
+	by mx-sr.buh.bitdefender.com (Postfix) with ESMTP id 547C87FBD1
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 13:50:58 +0200 (EET)
+Message-ID: <1513943457.17767.5.camel@bitdefender.com>
+Subject: Re: [RFC PATCH v4 04/18] kvm: x86: add
+ kvm_mmu_nested_guest_page_fault() and kvmi_mmu_fault_gla()
+From: Mihai =?UTF-8?Q?Don=C8=9Bu?= <mdontu@bitdefender.com>
+Date: Fri, 22 Dec 2017 13:50:57 +0200
+In-Reply-To: <d8c86eea-fca2-b13c-bdea-e09522843317@oracle.com>
 References: <20171218190642.7790-1-alazar@bitdefender.com>
-	<20171218190642.7790-6-alazar@bitdefender.com>
-	<2cb184ba-f0ea-b7fa-3c50-e3b0903b95e9@oracle.com>
-Date: Fri, 22 Dec 2017 11:29:18 +0200
-Message-ID: <1513934958.Af5f.18170@host>
-Content-Type: text/plain; charset="utf-8"
+	 <20171218190642.7790-5-alazar@bitdefender.com>
+	 <d8c86eea-fca2-b13c-bdea-e09522843317@oracle.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
-MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Patrick Colp <patrick.colp@oracle.com>, kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?iso-8859-2?b?S3LobeH4?= <rkrcmar@redhat.com>, Xiao Guangrong <xiaoguangrong.eric@gmail.com>, Mihai =?UTF-8?b?RG9uyJt1?= <mdontu@bitdefender.com>
+To: Patrick Colp <patrick.colp@oracle.com>, Adalber =?UTF-8?Q?Laz=C4=83r?= <alazar@bitdefender.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>
 
-On Thu, 21 Dec 2017 16:39:02 -0500, Patrick Colp <patrick.colp@oracle.com> wrote:
+Hi Patrick,
+
+On Thu, 2017-12-21 at 16:29 -0500, Patrick Colp wrote:
 > On 2017-12-18 02:06 PM, Adalber LazA?r wrote:
 > > From: Adalbert Lazar <alazar@bitdefender.com>
 > > 
-> > This is a version of kvm_arch_vcpu_ioctl_set_regs() which does not touch
-> > the exceptions vector.
+> > These are helper functions used by the VM introspection subsytem on the
+> > PF call path.
 > > 
 > > Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
 > > ---
-> >   arch/x86/kvm/x86.c       | 34 ++++++++++++++++++++++++++++++++++
-> >   include/linux/kvm_host.h |  1 +
-> >   2 files changed, 35 insertions(+)
+> >   arch/x86/include/asm/kvm_host.h |  7 +++++++
+> >   arch/x86/include/asm/vmx.h      |  2 ++
+> >   arch/x86/kvm/mmu.c              | 10 ++++++++++
+> >   arch/x86/kvm/svm.c              |  8 ++++++++
+> >   arch/x86/kvm/vmx.c              |  9 +++++++++
+> >   5 files changed, 36 insertions(+)
 > > 
-> > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-> > index e1a3c2c6ec08..4b0c3692386d 100644
-> > --- a/arch/x86/kvm/x86.c
-> > +++ b/arch/x86/kvm/x86.c
-> > @@ -7389,6 +7389,40 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
-> >   	return 0;
-> >   }
+> > diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> > index 8842d8e1e4ee..239eb628f8fb 100644
+> > --- a/arch/x86/include/asm/kvm_host.h
+> > +++ b/arch/x86/include/asm/kvm_host.h
+> > @@ -692,6 +692,9 @@ struct kvm_vcpu_arch {
+> >   	/* set at EPT violation at this point */
+> >   	unsigned long exit_qualification;
 > >   
-> > +/*
-> > + * Similar to kvm_arch_vcpu_ioctl_set_regs() but it does not reset
-> > + * the exceptions
-> > + */
-> > +void kvm_arch_vcpu_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
+> > +	/* #PF translated error code from EPT/NPT exit reason */
+> > +	u64 error_code;
+> > +
+> >   	/* pv related host specific info */
+> >   	struct {
+> >   		bool pv_unhalted;
+> > @@ -1081,6 +1084,7 @@ struct kvm_x86_ops {
+> >   	int (*enable_smi_window)(struct kvm_vcpu *vcpu);
+> >   
+> >   	void (*msr_intercept)(struct kvm_vcpu *vcpu, unsigned int msr, bool enable);
+> > +	u64 (*fault_gla)(struct kvm_vcpu *vcpu);
+> >   };
+> >   
+> >   struct kvm_arch_async_pf {
+> > @@ -1455,4 +1459,7 @@ void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
+> >   
+> >   void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
+> >   				bool enable);
+> > +u64 kvm_mmu_fault_gla(struct kvm_vcpu *vcpu);
+> > +bool kvm_mmu_nested_guest_page_fault(struct kvm_vcpu *vcpu);
+> > +
+> >   #endif /* _ASM_X86_KVM_HOST_H */
+> > diff --git a/arch/x86/include/asm/vmx.h b/arch/x86/include/asm/vmx.h
+> > index 8b6780751132..7036125349dd 100644
+> > --- a/arch/x86/include/asm/vmx.h
+> > +++ b/arch/x86/include/asm/vmx.h
+> > @@ -530,6 +530,7 @@ struct vmx_msr_entry {
+> >   #define EPT_VIOLATION_READABLE_BIT	3
+> >   #define EPT_VIOLATION_WRITABLE_BIT	4
+> >   #define EPT_VIOLATION_EXECUTABLE_BIT	5
+> > +#define EPT_VIOLATION_GLA_VALID_BIT	7
+> >   #define EPT_VIOLATION_GVA_TRANSLATED_BIT 8
+> >   #define EPT_VIOLATION_ACC_READ		(1 << EPT_VIOLATION_ACC_READ_BIT)
+> >   #define EPT_VIOLATION_ACC_WRITE		(1 << EPT_VIOLATION_ACC_WRITE_BIT)
+> > @@ -537,6 +538,7 @@ struct vmx_msr_entry {
+> >   #define EPT_VIOLATION_READABLE		(1 << EPT_VIOLATION_READABLE_BIT)
+> >   #define EPT_VIOLATION_WRITABLE		(1 << EPT_VIOLATION_WRITABLE_BIT)
+> >   #define EPT_VIOLATION_EXECUTABLE	(1 << EPT_VIOLATION_EXECUTABLE_BIT)
+> > +#define EPT_VIOLATION_GLA_VALID		(1 << EPT_VIOLATION_GLA_VALID_BIT)
+> >   #define EPT_VIOLATION_GVA_TRANSLATED	(1 << EPT_VIOLATION_GVA_TRANSLATED_BIT)
+> >   
+> >   /*
+> > diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> > index c4deb1f34faa..55fcb0292724 100644
+> > --- a/arch/x86/kvm/mmu.c
+> > +++ b/arch/x86/kvm/mmu.c
+> > @@ -5530,3 +5530,13 @@ void kvm_mmu_module_exit(void)
+> >   	unregister_shrinker(&mmu_shrinker);
+> >   	mmu_audit_disable();
+> >   }
+> > +
+> > +u64 kvm_mmu_fault_gla(struct kvm_vcpu *vcpu)
 > > +{
-> > +	vcpu->arch.emulate_regs_need_sync_from_vcpu = true;
-> > +	vcpu->arch.emulate_regs_need_sync_to_vcpu = false;
-> > +
-> > +	kvm_register_write(vcpu, VCPU_REGS_RAX, regs->rax);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RBX, regs->rbx);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RCX, regs->rcx);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RDX, regs->rdx);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RSI, regs->rsi);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RDI, regs->rdi);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RSP, regs->rsp);
-> > +	kvm_register_write(vcpu, VCPU_REGS_RBP, regs->rbp);
-> > +#ifdef CONFIG_X86_64
-> > +	kvm_register_write(vcpu, VCPU_REGS_R8, regs->r8);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R9, regs->r9);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R10, regs->r10);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R11, regs->r11);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R12, regs->r12);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R13, regs->r13);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R14, regs->r14);
-> > +	kvm_register_write(vcpu, VCPU_REGS_R15, regs->r15);
-> > +#endif
-> > +
-> > +	kvm_rip_write(vcpu, regs->rip);
-> > +	kvm_set_rflags(vcpu, regs->rflags);
-> > +
-> > +	kvm_make_request(KVM_REQ_EVENT, vcpu);
+> > +	return kvm_x86_ops->fault_gla(vcpu);
 > > +}
 > > +
-> 
-> kvm_arch_vcpu_ioctl_set_regs() returns an int (so that, for e.g., in ARM 
-> it can return an error to indicate that the function is not 
-> supported/implemented). Is there a reason this function shouldn't do the 
-> same (is it only ever going to be implemented for x86)?
-> 
-> > diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-> > index 6bdd4b9f6611..68e4d756f5c9 100644
-> > --- a/include/linux/kvm_host.h
-> > +++ b/include/linux/kvm_host.h
-> > @@ -767,6 +767,7 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
+> > +bool kvm_mmu_nested_guest_page_fault(struct kvm_vcpu *vcpu)
+> > +{
+> > +	return !!(vcpu->arch.error_code & PFERR_GUEST_PAGE_MASK);
+> > +}
+> > diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
+> > index 5f7482851223..f41e4d7008d7 100644
+> > --- a/arch/x86/kvm/svm.c
+> > +++ b/arch/x86/kvm/svm.c
+> > @@ -2145,6 +2145,8 @@ static int pf_interception(struct vcpu_svm *svm)
+> >   	u64 fault_address = svm->vmcb->control.exit_info_2;
+> >   	u64 error_code = svm->vmcb->control.exit_info_1;
 > >   
-> >   int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
-> >   int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
-> > +void kvm_arch_vcpu_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
-> >   int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
-> >   				  struct kvm_sregs *sregs);
+> > +	svm->vcpu.arch.error_code = error_code;
+> > +
+> >   	return kvm_handle_page_fault(&svm->vcpu, error_code, fault_address,
+> >   			svm->vmcb->control.insn_bytes,
+> >   			svm->vmcb->control.insn_len);
+> > @@ -5514,6 +5516,11 @@ static void svm_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
+> >   	set_msr_interception(msrpm, msr, enable, enable);
+> >   }
+> >   
+> > +static u64 svm_fault_gla(struct kvm_vcpu *vcpu)
+> > +{
+> > +	return ~0ull;
+> > +}
+> > +
+> >   static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+> >   	.cpu_has_kvm_support = has_svm,
+> >   	.disabled_by_bios = is_disabled,
+> > @@ -5631,6 +5638,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+> >   	.enable_smi_window = enable_smi_window,
+> >   
+> >   	.msr_intercept = svm_msr_intercept,
+> > +	.fault_gla = svm_fault_gla
 > 
+> Minor nit, it seems like this line should probably end with a "," so 
+> that future additions don't need to modify this line.
+
+Will do.
+
 > 
-> Patrick
+> >   };
+> >   
+> >   static int __init svm_init(void)
+> > diff --git a/arch/x86/kvm/vmx.c b/arch/x86/kvm/vmx.c
+> > index 9c984bbe263e..5487e0242030 100644
+> > --- a/arch/x86/kvm/vmx.c
+> > +++ b/arch/x86/kvm/vmx.c
+> > @@ -6541,6 +6541,7 @@ static int handle_ept_violation(struct kvm_vcpu *vcpu)
+> >   	       PFERR_GUEST_FINAL_MASK : PFERR_GUEST_PAGE_MASK;
+> >   
+> >   	vcpu->arch.exit_qualification = exit_qualification;
+> > +	vcpu->arch.error_code = error_code;
+> >   	return kvm_mmu_page_fault(vcpu, gpa, error_code, NULL, 0);
+> >   }
+> >   
+> > @@ -12120,6 +12121,13 @@ static void vmx_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
+> >   	}
+> >   }
+> >   
+> > +static u64 vmx_fault_gla(struct kvm_vcpu *vcpu)
+> > +{
+> > +	if (vcpu->arch.exit_qualification & EPT_VIOLATION_GLA_VALID)
+> > +		return vmcs_readl(GUEST_LINEAR_ADDRESS);
+> > +	return ~0ul;
+> 
+> Should this not be "return ~0ull" (like in svm_fault_gla())?
 
-Hi Patrick,
+Yes, it should.
 
-Thank you for taking the time to review these patches.
+> > +}
+> > +
+> >   static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+> >   	.cpu_has_kvm_support = cpu_has_kvm_support,
+> >   	.disabled_by_bios = vmx_disabled_by_bios,
+> > @@ -12252,6 +12260,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+> >   	.enable_smi_window = enable_smi_window,
+> >   
+> >   	.msr_intercept = vmx_msr_intercept,
+> > +	.fault_gla = vmx_fault_gla
+> 
+> Same deal here with the trailing ","
 
-You're right. This function should return an error code, regardless on
-the time when ARM will be supported.
+Will do.
 
-Adalbert
+> 
+> >   };
+> >   
+> >   static int __init vmx_init(void)
+> > 
+
+Thank you for the review!
+
+-- 
+Mihai DonE?u
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
