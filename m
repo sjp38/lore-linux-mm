@@ -1,67 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C99E6B0253
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:08:23 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u16so19900184pfh.7
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 01:08:23 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c8sor8730210plo.64.2017.12.22.01.08.21
+Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 72DCF6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:30:58 -0500 (EST)
+Received: by mail-it0-f70.google.com with SMTP id a3so10174430itg.7
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 01:30:58 -0800 (PST)
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id a85si6643237itb.127.2017.12.22.01.30.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Dec 2017 01:08:21 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171222085730.c4kkiohz3fkwsqnr@hirez.programming.kicks-ass.net>
-References: <001a113ef748cc1ee50560c7b718@google.com> <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Dec 2017 01:30:57 -0800 (PST)
+Date: Fri, 22 Dec 2017 10:30:45 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: general protection fault in finish_task_switch
+Message-ID: <20171222093045.cblxhzev5drgtj4s@hirez.programming.kicks-ass.net>
+References: <001a113ef748cc1ee50560c7b718@google.com>
+ <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
  <20171222081756.ur5uuh5wjri2ymyk@hirez.programming.kicks-ass.net>
  <CACT4Y+Z7__4qeMP-jG07-M+ugL3PxkQ_z83=TB8O9e4=jjV4ug@mail.gmail.com>
  <20171222083615.dr7jpzjjc6ye3eut@hirez.programming.kicks-ass.net>
- <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com> <20171222085730.c4kkiohz3fkwsqnr@hirez.programming.kicks-ass.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Fri, 22 Dec 2017 10:08:00 +0100
-Message-ID: <CACT4Y+YQZa+E5KbioAtadpUDLNSPtTJh7NAsmM-BvBUA1BUgmw@mail.gmail.com>
-Subject: Re: general protection fault in finish_task_switch
-Content-Type: text/plain; charset="UTF-8"
+ <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com>
+ <20171222085730.c4kkiohz3fkwsqnr@hirez.programming.kicks-ass.net>
+ <CACT4Y+YQZa+E5KbioAtadpUDLNSPtTJh7NAsmM-BvBUA1BUgmw@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CACT4Y+YQZa+E5KbioAtadpUDLNSPtTJh7NAsmM-BvBUA1BUgmw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Peter Zijlstra <peterz@infradead.org>
+To: Dmitry Vyukov <dvyukov@google.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>, syzbot <bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, tcharding <me@tobin.cc>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs@googlegroups.com, Matthew Wilcox <willy@infradead.org>, Eric Biggers <ebiggers3@gmail.com>
 
-On Fri, Dec 22, 2017 at 9:57 AM, Peter Zijlstra <peterz@infradead.org> wrote:
->> >> I think this is another manifestation of "KASAN: use-after-free Read
->> >> in __schedule":
->> >> https://groups.google.com/forum/#!msg/syzkaller-bugs/-8JZhr4W8AY/FpPFh8EqAQAJ
->> >> +Eric already mailed a fix for it (indeed new bug in kvm code).
->> >
->> > FWIW, these google links keep translating everything to my local
->> > language, is there any way to tell google to not do stupid stuff like
->> > that and give me English like computers ought to speak?
->>
->>
->> The group has "Group's primary language: English" in settings. I guess
->> that's either your Google account settings (if you are signed in), or
->> browser settings.
->> For chrome there is an option in setting for preferred languages,
->> browsers are supposed to send that in requests. For google account
->> check https://myaccount.google.com/intro there is "Languages" section.
->
-> I do not use (nor want to) a google account to sign in. Chromium has
-> English set as the preferred language (I typically don't install weird
-> localisation things and language packs in any case; 7bit ASCII FTW).
->
-> I have also done the google.com/ncr thing, which got rid of google.com
-> defaulting to google.nl, but groups.google.com keeps insisting on
-> translating the 'app' to Dutch. Seeing both Dutch and English (the
-> actual messages) at the same time completely screws my brain.
->
-> I'd file a bug against groups.google.com for not respecting the /ncr
-> thing, but I suspect you'd require a google account for that :-(
+On Fri, Dec 22, 2017 at 10:08:00AM +0100, Dmitry Vyukov wrote:
 
+> You mean the messages themselves are translated?
 
-You mean the messages themselves are translated? That's weird. Seems
-that Google Translate somehow kicks in. There is a "Offer to translate
-pages that aren't in a language you read" setting in chromium, but I
-guess if you have only English in languages it should not matter... I
-am out of ideas. Just in case, all syzbot reports are on LKML as well.
+No, just the webapp thing, which is bad enough. The actual messages are
+untouched.
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
