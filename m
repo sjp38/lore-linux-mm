@@ -1,64 +1,154 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 648166B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:57:42 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id n187so19873890pfn.10
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:57:42 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id n128si14866371pga.72.2017.12.22.00.57.41
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id B25926B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:59:06 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 194so5091403wmv.9
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:59:06 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x66si5879171wmg.82.2017.12.22.00.59.05
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 22 Dec 2017 00:57:41 -0800 (PST)
-Date: Fri, 22 Dec 2017 09:57:30 +0100
-From: Peter Zijlstra <peterz@infradead.org>
-Subject: Re: general protection fault in finish_task_switch
-Message-ID: <20171222085730.c4kkiohz3fkwsqnr@hirez.programming.kicks-ass.net>
-References: <001a113ef748cc1ee50560c7b718@google.com>
- <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
- <20171222081756.ur5uuh5wjri2ymyk@hirez.programming.kicks-ass.net>
- <CACT4Y+Z7__4qeMP-jG07-M+ugL3PxkQ_z83=TB8O9e4=jjV4ug@mail.gmail.com>
- <20171222083615.dr7jpzjjc6ye3eut@hirez.programming.kicks-ass.net>
- <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Dec 2017 00:59:05 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
+Date: Fri, 22 Dec 2017 09:45:08 +0100
+Message-Id: <20171222084625.007160464@linuxfoundation.org>
+In-Reply-To: <20171222084623.668990192@linuxfoundation.org>
+References: <20171222084623.668990192@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dmitry Vyukov <dvyukov@google.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>, syzbot <bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, tcharding <me@tobin.cc>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs@googlegroups.com, Matthew Wilcox <willy@infradead.org>, Eric Biggers <ebiggers3@gmail.com>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Fri, Dec 22, 2017 at 09:44:11AM +0100, Dmitry Vyukov wrote:
-> On Fri, Dec 22, 2017 at 9:36 AM, Peter Zijlstra <peterz@infradead.org> wrote:
-> > On Fri, Dec 22, 2017 at 09:26:28AM +0100, Dmitry Vyukov wrote:
-> >> I think this is another manifestation of "KASAN: use-after-free Read
-> >> in __schedule":
-> >> https://groups.google.com/forum/#!msg/syzkaller-bugs/-8JZhr4W8AY/FpPFh8EqAQAJ
-> >> +Eric already mailed a fix for it (indeed new bug in kvm code).
-> >
-> > FWIW, these google links keep translating everything to my local
-> > language, is there any way to tell google to not do stupid stuff like
-> > that and give me English like computers ought to speak?
-> 
-> 
-> The group has "Group's primary language: English" in settings. I guess
-> that's either your Google account settings (if you are signed in), or
-> browser settings.
-> For chrome there is an option in setting for preferred languages,
-> browsers are supposed to send that in requests. For google account
-> check https://myaccount.google.com/intro there is "Languages" section.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
-I do not use (nor want to) a google account to sign in. Chromium has
-English set as the preferred language (I typically don't install weird
-localisation things and language packs in any case; 7bit ASCII FTW).
+------------------
 
-I have also done the google.com/ncr thing, which got rid of google.com
-defaulting to google.nl, but groups.google.com keeps insisting on
-translating the 'app' to Dutch. Seeing both Dutch and English (the
-actual messages) at the same time completely screws my brain.
+From: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
-I'd file a bug against groups.google.com for not respecting the /ncr
-thing, but I suspect you'd require a google account for that :-(
+commit 83e3c48729d9ebb7af5a31a504f3fd6aff0348c4 upstream.
+
+Size of the mem_section[] array depends on the size of the physical address space.
+
+In preparation for boot-time switching between paging modes on x86-64
+we need to make the allocation of mem_section[] dynamic, because otherwise
+we waste a lot of RAM: with CONFIG_NODE_SHIFT=10, mem_section[] size is 32kB
+for 4-level paging and 2MB for 5-level paging mode.
+
+The patch allocates the array on the first call to sparse_memory_present_with_active_regions().
+
+Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Borislav Petkov <bp@suse.de>
+Cc: Cyrill Gorcunov <gorcunov@openvz.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/20170929140821.37654-2-kirill.shutemov@linux.intel.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ include/linux/mmzone.h |    6 +++++-
+ mm/page_alloc.c        |   10 ++++++++++
+ mm/sparse.c            |   17 +++++++++++------
+ 3 files changed, 26 insertions(+), 7 deletions(-)
+
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -1152,13 +1152,17 @@ struct mem_section {
+ #define SECTION_ROOT_MASK	(SECTIONS_PER_ROOT - 1)
+ 
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+-extern struct mem_section *mem_section[NR_SECTION_ROOTS];
++extern struct mem_section **mem_section;
+ #else
+ extern struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT];
+ #endif
+ 
+ static inline struct mem_section *__nr_to_section(unsigned long nr)
+ {
++#ifdef CONFIG_SPARSEMEM_EXTREME
++	if (!mem_section)
++		return NULL;
++#endif
+ 	if (!mem_section[SECTION_NR_TO_ROOT(nr)])
+ 		return NULL;
+ 	return &mem_section[SECTION_NR_TO_ROOT(nr)][nr & SECTION_ROOT_MASK];
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5651,6 +5651,16 @@ void __init sparse_memory_present_with_a
+ 	unsigned long start_pfn, end_pfn;
+ 	int i, this_nid;
+ 
++#ifdef CONFIG_SPARSEMEM_EXTREME
++	if (!mem_section) {
++		unsigned long size, align;
++
++		size = sizeof(struct mem_section) * NR_SECTION_ROOTS;
++		align = 1 << (INTERNODE_CACHE_SHIFT);
++		mem_section = memblock_virt_alloc(size, align);
++	}
++#endif
++
+ 	for_each_mem_pfn_range(i, nid, &start_pfn, &end_pfn, &this_nid)
+ 		memory_present(this_nid, start_pfn, end_pfn);
+ }
+--- a/mm/sparse.c
++++ b/mm/sparse.c
+@@ -23,8 +23,7 @@
+  * 1) mem_section	- memory sections, mem_map's for valid memory
+  */
+ #ifdef CONFIG_SPARSEMEM_EXTREME
+-struct mem_section *mem_section[NR_SECTION_ROOTS]
+-	____cacheline_internodealigned_in_smp;
++struct mem_section **mem_section;
+ #else
+ struct mem_section mem_section[NR_SECTION_ROOTS][SECTIONS_PER_ROOT]
+ 	____cacheline_internodealigned_in_smp;
+@@ -101,7 +100,7 @@ static inline int sparse_index_init(unsi
+ int __section_nr(struct mem_section* ms)
+ {
+ 	unsigned long root_nr;
+-	struct mem_section* root;
++	struct mem_section *root = NULL;
+ 
+ 	for (root_nr = 0; root_nr < NR_SECTION_ROOTS; root_nr++) {
+ 		root = __nr_to_section(root_nr * SECTIONS_PER_ROOT);
+@@ -112,7 +111,7 @@ int __section_nr(struct mem_section* ms)
+ 		     break;
+ 	}
+ 
+-	VM_BUG_ON(root_nr == NR_SECTION_ROOTS);
++	VM_BUG_ON(!root);
+ 
+ 	return (root_nr * SECTIONS_PER_ROOT) + (ms - root);
+ }
+@@ -330,11 +329,17 @@ again:
+ static void __init check_usemap_section_nr(int nid, unsigned long *usemap)
+ {
+ 	unsigned long usemap_snr, pgdat_snr;
+-	static unsigned long old_usemap_snr = NR_MEM_SECTIONS;
+-	static unsigned long old_pgdat_snr = NR_MEM_SECTIONS;
++	static unsigned long old_usemap_snr;
++	static unsigned long old_pgdat_snr;
+ 	struct pglist_data *pgdat = NODE_DATA(nid);
+ 	int usemap_nid;
+ 
++	/* First call */
++	if (!old_usemap_snr) {
++		old_usemap_snr = NR_MEM_SECTIONS;
++		old_pgdat_snr = NR_MEM_SECTIONS;
++	}
++
+ 	usemap_snr = pfn_to_section_nr(__pa(usemap) >> PAGE_SHIFT);
+ 	pgdat_snr = pfn_to_section_nr(__pa(pgdat) >> PAGE_SHIFT);
+ 	if (usemap_snr == pgdat_snr)
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
