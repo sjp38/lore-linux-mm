@@ -1,148 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3108E6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 05:31:13 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id m9so20031020pff.0
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 02:31:13 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y77si16595649pfk.376.2017.12.22.02.31.11
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 417B56B0069
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 05:31:35 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q186so17196375pga.23
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 02:31:35 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 3si16219906plr.336.2017.12.22.02.31.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 02:31:11 -0800 (PST)
-From: "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>
-Subject: RE: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-Date: Fri, 22 Dec 2017 10:31:05 +0000
-Message-ID: <34EF90DF7C7F0647A403B771519912C7F5382CF3@irsmsx111.ger.corp.intel.com>
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
- <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
-In-Reply-To: <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 22 Dec 2017 02:31:34 -0800 (PST)
+Date: Fri, 22 Dec 2017 11:31:31 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
+ balance console writes
+Message-ID: <20171222102927.eiunret5ykx55bvq@pathway.suse.cz>
+References: <20171108102723.602216b1@gandalf.local.home>
 MIME-Version: 1.0
-Content-Transfer-Encoding: base64
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171108102723.602216b1@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>
-Cc: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej,
- Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Wysocki, Rafael J" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, "Williams, Dan J" <dan.j.williams@intel.com>, "Hansen, Dave" <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, "devel@acpica.org" <devel@acpica.org>, "linux-acpi@vger.kernel.org" <linux-acpi@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org
 
-PiAuLi4gZmlyc3QgdGhpbmtpbmcgYWJvdXQgcmVkZXNpZ25pbmcgdGhlIE5VTUEgZm9yDQo+IGhl
-dGVyb2dlbmVvdXMgbWVtb3J5IG1heSBub3QgYmUgYSBnb29kIGlkZWEuIFdpbGwgbG9vayBpbnRv
-IHRoaXMgZnVydGhlci4NCg0KSSBhZ3JlZSB3aXRoIGNvbW1lbnQgdGhhdCBmaXJzdCBhIGRpcmVj
-dGlvbiBzaG91bGQgYmUgZGVmaW5lZCBob3cgdG8gaGFuZGxlIGhldGVyb2dlbmVvdXMgbWVtb3J5
-IHN5c3RlbS4NCg0KPiBodHRwczovL2xpbnV4cGx1bWJlcnNjb25mLm9yZy8yMDE3L29jdy8vc3lz
-dGVtL3ByZXNlbnRhdGlvbnMvNDY1Ni9vcmlnaW5hbC8NCj4gSGllcmFyY2hpY2FsX05VTUFfRGVz
-aWduX1BsdW1iZXJzXzIwMTcucGRmDQoNCkkgbWlzcyBpbiB0aGUgcHJlc2VudGF0aW9uIGEgdXNl
-ciBwZXJzcGVjdGl2ZSBvZiB0aGUgbmV3IGFwcHJvYWNoLCBlLmcuDQotIEhvdyBkb2VzIGFwcGxp
-Y2F0aW9uIGRldmVsb3BlciBzZWUvdW5kZXJzdGFuZCB0aGUgaGV0ZXJvZ2VuZW91cyBtZW1vcnkg
-c3lzdGVtPw0KLSBIb3cgZG9lcyBhcHAgZGV2ZWxvcGVyIHVzZSB0aGUgaGV0ZXJvZ2VuZW91cyBt
-ZW1vcnkgc3lzdGVtPyANCi0gV2hhdCBhcmUgbW9kaWZpY2F0aW9uIGluIEFQSS9zeXMgaW50ZXJm
-YWNlcz8NCg0KSW4gb3RoZXIgaGFuZCwgaWYgd2UgYXNzdW1lIHRoYXQgc2VwYXJhdGUgbWVtb3J5
-IE5VTUEgbm9kZSBoYXMgZGlmZmVyZW50IG1lbW9yeSBjYXBhYmlsaXRpZXMvYXR0cmlidXRlcyBm
-cm9tIHN0YW5kIHBvaW50IG9mIHBhcnRpY3VsYXIgQ1BVLCBpdCBpcyBlYXN5IHRvIGV4cGxhaW4g
-Zm9yIHVzZXIgaG93IHRvIGRlc2NyaWJlL2hhbmRsZSBoZXRlcm9nZW5lb3VzIG1lbW9yeS4gDQoN
-Ck9mIGNvdXJzZSwgY3VycmVudCBudW1hIGRlc2lnbiBpcyBub3Qgc3VmZmljaWVudCBpbiBrZXJu
-ZWwgaW4gZm9sbG93aW5nIGFyZWFzIHRvZGF5Og0KLSBFeHBvc2luZyBtZW1vcnkgYXR0cmlidXRl
-cyB0aGF0IGRlc2NyaWJlIGhldGVyb2dlbmVvdXMgbWVtb3J5IHN5c3RlbQ0KLSBJbnRlcmZhY2Vz
-IHRvIHVzZSB0aGUgaGV0ZXJvZ2VuZW91cyBtZW1vcnkgc3lzdGVtLCBlLmcuIG1vcmUgc29waGlz
-dGljYXRlZCBwb2xpY2llcw0KLSBJbnRlcm5hbCBtZWNoYW5pc20gaW4gbWVtb3J5IG1hbmFnZW1l
-bnQsIGUuZy4gYXV0b21pZ3JhdGlvbiwgbWF5YmUgc29tZXRoaW5nIGVsc2UuDQoNCj4gLS0tLS1P
-cmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogQW5zaHVtYW4gS2hhbmR1YWwgW21haWx0bzpr
-aGFuZHVhbEBsaW51eC52bmV0LmlibS5jb21dDQo+IFNlbnQ6IEZyaWRheSwgRGVjZW1iZXIgMjIs
-IDIwMTcgNDoxMCBBTQ0KPiBUbzogUm9zcyBad2lzbGVyIDxyb3NzLnp3aXNsZXJAbGludXguaW50
-ZWwuY29tPjsgbGludXgta2VybmVsQHZnZXIua2VybmVsLm9yZw0KPiBDYzogQW5hY3prb3dza2ks
-IEx1a2FzeiA8bHVrYXN6LmFuYWN6a293c2tpQGludGVsLmNvbT47IEJveCwgRGF2aWQgRQ0KPiA8
-ZGF2aWQuZS5ib3hAaW50ZWwuY29tPjsgS29ndXQsIEphcm9zbGF3IDxKYXJvc2xhdy5Lb2d1dEBp
-bnRlbC5jb20+OyBLb3NzLA0KPiBNYXJjaW4gPG1hcmNpbi5rb3NzQGludGVsLmNvbT47IEtvemll
-aiwgQXJ0dXIgPGFydHVyLmtvemllakBpbnRlbC5jb20+Ow0KPiBMYWh0aW5lbiwgSm9vbmFzIDxq
-b29uYXMubGFodGluZW5AaW50ZWwuY29tPjsgTW9vcmUsIFJvYmVydA0KPiA8cm9iZXJ0Lm1vb3Jl
-QGludGVsLmNvbT47IE5hY2hpbXV0aHUsIE11cnVnYXNhbXkNCj4gPG11cnVnYXNhbXkubmFjaGlt
-dXRodUBpbnRlbC5jb20+OyBPZHppb2JhLCBMdWthc3oNCj4gPGx1a2Fzei5vZHppb2JhQGludGVs
-LmNvbT47IFd5c29ja2ksIFJhZmFlbCBKIDxyYWZhZWwuai53eXNvY2tpQGludGVsLmNvbT47DQo+
-IFJhZmFlbCBKLiBXeXNvY2tpIDxyandAcmp3eXNvY2tpLm5ldD47IFNjaG1hdXNzLCBFcmlrDQo+
-IDxlcmlrLnNjaG1hdXNzQGludGVsLmNvbT47IFZlcm1hLCBWaXNoYWwgTCA8dmlzaGFsLmwudmVy
-bWFAaW50ZWwuY29tPjsNCj4gWmhlbmcsIEx2IDxsdi56aGVuZ0BpbnRlbC5jb20+OyBBbmRyZXcg
-TW9ydG9uIDxha3BtQGxpbnV4LQ0KPiBmb3VuZGF0aW9uLm9yZz47IEJhbGJpciBTaW5naCA8YnNp
-bmdoYXJvcmFAZ21haWwuY29tPjsgQnJpY2UgR29nbGluDQo+IDxicmljZS5nb2dsaW5AZ21haWwu
-Y29tPjsgV2lsbGlhbXMsIERhbiBKIDxkYW4uai53aWxsaWFtc0BpbnRlbC5jb20+Ow0KPiBIYW5z
-ZW4sIERhdmUgPGRhdmUuaGFuc2VuQGludGVsLmNvbT47IEplcm9tZSBHbGlzc2UgPGpnbGlzc2VA
-cmVkaGF0LmNvbT47DQo+IEpvaG4gSHViYmFyZCA8amh1YmJhcmRAbnZpZGlhLmNvbT47IExlbiBC
-cm93biA8bGVuYkBrZXJuZWwub3JnPjsgVGltDQo+IENoZW4gPHRpbS5jLmNoZW5AbGludXguaW50
-ZWwuY29tPjsgZGV2ZWxAYWNwaWNhLm9yZzsgbGludXgtDQo+IGFjcGlAdmdlci5rZXJuZWwub3Jn
-OyBsaW51eC1tbUBrdmFjay5vcmc7IGxpbnV4LW52ZGltbUBsaXN0cy4wMS5vcmcNCj4gU3ViamVj
-dDogUmU6IFtQQVRDSCB2MyAwLzNdIGNyZWF0ZSBzeXNmcyByZXByZXNlbnRhdGlvbiBvZiBBQ1BJ
-IEhNQVQNCj4gDQo+IE9uIDEyLzE0LzIwMTcgMDc6NDAgQU0sIFJvc3MgWndpc2xlciB3cm90ZToN
-Cj4gPiA9PT09IFF1aWNrIFN1bW1hcnkgPT09PQ0KPiA+DQo+ID4gUGxhdGZvcm1zIGV4aXN0IHRv
-ZGF5IHdoaWNoIGhhdmUgbXVsdGlwbGUgdHlwZXMgb2YgbWVtb3J5IGF0dGFjaGVkIHRvDQo+ID4g
-YSBzaW5nbGUgQ1BVLiAgVGhlc2UgZGlzcGFyYXRlIG1lbW9yeSByYW5nZXMgaGF2ZSBzb21lIGNo
-YXJhY3RlcmlzdGljcw0KPiA+IGluIGNvbW1vbiwgc3VjaCBhcyBDUFUgY2FjaGUgY29oZXJlbmNl
-LCBidXQgdGhleSBjYW4gaGF2ZSB3aWRlIHJhbmdlcw0KPiA+IG9mIHBlcmZvcm1hbmNlIGJvdGgg
-aW4gdGVybXMgb2YgbGF0ZW5jeSBhbmQgYmFuZHdpZHRoLg0KPiANCj4gUmlnaHQuDQo+IA0KPiA+
-DQo+ID4gRm9yIGV4YW1wbGUsIGNvbnNpZGVyIGEgc3lzdGVtIHRoYXQgY29udGFpbnMgcGVyc2lz
-dGVudCBtZW1vcnksDQo+ID4gc3RhbmRhcmQgRERSIG1lbW9yeSBhbmQgSGlnaCBCYW5kd2lkdGgg
-TWVtb3J5IChIQk0pLCBhbGwgYXR0YWNoZWQgdG8NCj4gdGhlIHNhbWUgQ1BVLg0KPiA+IFRoZXJl
-IGNvdWxkIHBvdGVudGlhbGx5IGJlIGFuIG9yZGVyIG9mIG1hZ25pdHVkZSBvciBtb3JlIGRpZmZl
-cmVuY2UgaW4NCj4gPiBwZXJmb3JtYW5jZSBiZXR3ZWVuIHRoZSBzbG93ZXN0IGFuZCBmYXN0ZXN0
-IG1lbW9yeSBhdHRhY2hlZCB0byB0aGF0IENQVS4NCj4gDQo+IFJpZ2h0Lg0KPiANCj4gPg0KPiA+
-IFdpdGggdGhlIGN1cnJlbnQgTGludXggY29kZSBOVU1BIG5vZGVzIGFyZSBDUFUtY2VudHJpYywg
-c28gYWxsIHRoZQ0KPiA+IG1lbW9yeSBhdHRhY2hlZCB0byBhIGdpdmVuIENQVSB3aWxsIGJlIGx1
-bXBlZCBpbnRvIHRoZSBzYW1lIE5VTUEgbm9kZS4NCj4gPiBUaGlzIG1ha2VzIGl0IHZlcnkgZGlm
-ZmljdWx0IGZvciB1c2Vyc3BhY2UgYXBwbGljYXRpb25zIHRvIHVuZGVyc3RhbmQNCj4gPiB0aGUg
-cGVyZm9ybWFuY2Ugb2YgZGlmZmVyZW50IG1lbW9yeSByYW5nZXMgb24gYSBnaXZlbiBDUFUuDQo+
-IA0KPiBSaWdodCBidXQgdGhhdCBtaWdodCByZXF1aXJlIGZ1bmRhbWVudGFsIGNoYW5nZXMgdG8g
-dGhlIE5VTUENCj4gcmVwcmVzZW50YXRpb24uDQo+IFBsdWdnaW5nIHRob3NlIG1lbW9yeSBhcyBz
-ZXBhcmF0ZSBOVU1BIG5vZGVzLCBpZGVudGlmeSB0aGVtIHRocm91Z2ggc3lzZnMNCj4gYW5kIHRy
-eSBhbGxvY2F0aW5nIGZyb20gaXQgdGhyb3VnaCBtYmluZCgpIHNlZW1zIGxpa2UgYSBzaG9ydCB0
-ZXJtIHNvbHV0aW9uLg0KPiANCj4gVGhvdWdoIGlmIHdlIGRlY2lkZSB0byBnbyBpbiB0aGlzIGRp
-cmVjdGlvbiwgc3lzZnMgaW50ZXJmYWNlIG9yIHNvbWV0aGluZyBzaW1pbGFyDQo+IGlzIHJlcXVp
-cmVkIHRvIGVudW1lcmF0ZSBtZW1vcnkgcHJvcGVydGllcy4NCj4gDQo+ID4NCj4gPiBXZSBzb2x2
-ZSB0aGlzIGlzc3VlIGJ5IHByb3ZpZGluZyB1c2Vyc3BhY2Ugd2l0aCBwZXJmb3JtYW5jZQ0KPiA+
-IGluZm9ybWF0aW9uIG9uIGluZGl2aWR1YWwgbWVtb3J5IHJhbmdlcy4gIFRoaXMgcGVyZm9ybWFu
-Y2UgaW5mb3JtYXRpb24NCj4gPiBpcyBleHBvc2VkIHZpYQ0KPiA+IHN5c2ZzOg0KPiA+DQo+ID4g
-ICAjIGdyZXAgLiBtZW1fdGd0Mi8qIG1lbV90Z3QyL2xvY2FsX2luaXQvKiAyPi9kZXYvbnVsbA0K
-PiA+ICAgbWVtX3RndDIvZmlybXdhcmVfaWQ6MQ0KPiA+ICAgbWVtX3RndDIvaXNfY2FjaGVkOjAN
-Cj4gPiAgIG1lbV90Z3QyL2xvY2FsX2luaXQvcmVhZF9id19NQnBzOjQwOTYwDQo+ID4gICBtZW1f
-dGd0Mi9sb2NhbF9pbml0L3JlYWRfbGF0X25zZWM6NTANCj4gPiAgIG1lbV90Z3QyL2xvY2FsX2lu
-aXQvd3JpdGVfYndfTUJwczo0MDk2MA0KPiA+ICAgbWVtX3RndDIvbG9jYWxfaW5pdC93cml0ZV9s
-YXRfbnNlYzo1MA0KPiANCj4gSSBtaWdodCBoYXZlIG1pc3NlZCBkaXNjdXNzaW9ucyBmcm9tIGVh
-cmxpZXIgdmVyc2lvbnMsIHdoeSB3ZSBoYXZlIHRoaXMga2luZCBvZg0KPiBhICJzb3VyY2UgLS0+
-IHRhcmdldCIgbW9kZWwgPyBXZSB3aWxsIGVubGlzdCBwcm9wZXJ0aWVzIGZvciBhbGwgcG9zc2li
-bGUgInNvdXJjZSAtLQ0KPiA+IHRhcmdldCIgb24gdGhlIHN5c3RlbSA/IFJpZ2h0IG5vdyBpdCBz
-aG93cyBvbmx5IGJhbmR3aWR0aCBhbmQgbGF0ZW5jeQ0KPiBwcm9wZXJ0aWVzLCBjYW4gaXQgYWNj
-b21tb2RhdGUgb3RoZXIgcHJvcGVydGllcyBhcyB3ZWxsIGluIGZ1dHVyZSA/DQo+IA0KPiA+DQo+
-ID4gVGhpcyBhbGxvd3MgYXBwbGljYXRpb25zIHRvIGVhc2lseSBmaW5kIHRoZSBtZW1vcnkgdGhh
-dCB0aGV5IHdhbnQgdG8gdXNlLg0KPiA+IFdlIGV4cGVjdCB0aGF0IHRoZSBleGlzdGluZyBOVU1B
-IEFQSXMgd2lsbCBiZSBlbmhhbmNlZCB0byB1c2UgdGhpcyBuZXcNCj4gPiBpbmZvcm1hdGlvbiBz
-byB0aGF0IGFwcGxpY2F0aW9ucyBjYW4gY29udGludWUgdG8gdXNlIHRoZW0gdG8gc2VsZWN0DQo+
-ID4gdGhlaXIgZGVzaXJlZCBtZW1vcnkuDQo+IA0KPiBJIGhhZCBwcmVzZW50ZWQgYSBwcm9wb3Nh
-bCBmb3IgTlVNQSByZWRlc2lnbiBpbiB0aGUgUGx1bWJlcnMgQ29uZmVyZW5jZSB0aGlzDQo+IHll
-YXIgd2hlcmUgdmFyaW91cyBtZW1vcnkgZGV2aWNlcyB3aXRoIGRpZmZlcmVudCBraW5kIG9mIG1l
-bW9yeSBhdHRyaWJ1dGVzDQo+IGNhbiBiZSByZXByZXNlbnRlZCBpbiB0aGUga2VybmVsIGFuZCBi
-ZSB1c2VkIGV4cGxpY2l0bHkgZnJvbSB0aGUgdXNlciBzcGFjZS4NCj4gSGVyZSBpcyB0aGUgbGlu
-ayB0byB0aGUgcHJvcG9zYWwgaWYgeW91IGZlZWwgaW50ZXJlc3RlZC4gVGhlIHByb3Bvc2FsIGlz
-IHZlcnkNCj4gaW50cnVzaXZlIGFuZCBhbHNvIEkgZG9udCBoYXZlIGEgUkZDIGZvciBpdCB5ZXQg
-Zm9yIGRpc2N1c3Npb24gaGVyZS4NCj4gDQo+IGh0dHBzOi8vbGludXhwbHVtYmVyc2NvbmYub3Jn
-LzIwMTcvb2N3Ly9zeXN0ZW0vcHJlc2VudGF0aW9ucy80NjU2L29yaWdpbmFsLw0KPiBIaWVyYXJj
-aGljYWxfTlVNQV9EZXNpZ25fUGx1bWJlcnNfMjAxNy5wZGYNCj4gDQo+IFByb2JsZW0gaXMsIGRl
-c2lnbmluZyB0aGUgc3lzZnMgaW50ZXJmYWNlIGZvciBtZW1vcnkgYXR0cmlidXRlIGRldGVjdGlv
-biBmcm9tDQo+IHVzZXIgc3BhY2Ugd2l0aG91dCBmaXJzdCB0aGlua2luZyBhYm91dCByZWRlc2ln
-bmluZyB0aGUgTlVNQSBmb3INCj4gaGV0ZXJvZ2VuZW91cyBtZW1vcnkgbWF5IG5vdCBiZSBhIGdv
-b2QgaWRlYS4gV2lsbCBsb29rIGludG8gdGhpcyBmdXJ0aGVyLg0KDQotLS0tLS0tLS0tLS0tLS0t
-LS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLQoKSW50
-ZWwgVGVjaG5vbG9neSBQb2xhbmQgc3AuIHogby5vLgp1bC4gU2xvd2Fja2llZ28gMTczIHwgODAt
-Mjk4IEdkYW5zayB8IFNhZCBSZWpvbm93eSBHZGFuc2sgUG9sbm9jIHwgVklJIFd5ZHppYWwgR29z
-cG9kYXJjenkgS3Jham93ZWdvIFJlamVzdHJ1IFNhZG93ZWdvIC0gS1JTIDEwMTg4MiB8IE5JUCA5
-NTctMDctNTItMzE2IHwgS2FwaXRhbCB6YWtsYWRvd3kgMjAwLjAwMCBQTE4uCgpUYSB3aWFkb21v
-c2Mgd3JheiB6IHphbGFjem5pa2FtaSBqZXN0IHByemV6bmFjem9uYSBkbGEgb2tyZXNsb25lZ28g
-YWRyZXNhdGEgaSBtb3plIHphd2llcmFjIGluZm9ybWFjamUgcG91Zm5lLiBXIHJhemllIHByenlw
-YWRrb3dlZ28gb3RyenltYW5pYSB0ZWogd2lhZG9tb3NjaSwgcHJvc2lteSBvIHBvd2lhZG9taWVu
-aWUgbmFkYXdjeSBvcmF6IHRyd2FsZSBqZWogdXN1bmllY2llOyBqYWtpZWtvbHdpZWsKcHJ6ZWds
-YWRhbmllIGx1YiByb3pwb3dzemVjaG5pYW5pZSBqZXN0IHphYnJvbmlvbmUuClRoaXMgZS1tYWls
-IGFuZCBhbnkgYXR0YWNobWVudHMgbWF5IGNvbnRhaW4gY29uZmlkZW50aWFsIG1hdGVyaWFsIGZv
-ciB0aGUgc29sZSB1c2Ugb2YgdGhlIGludGVuZGVkIHJlY2lwaWVudChzKS4gSWYgeW91IGFyZSBu
-b3QgdGhlIGludGVuZGVkIHJlY2lwaWVudCwgcGxlYXNlIGNvbnRhY3QgdGhlIHNlbmRlciBhbmQg
-ZGVsZXRlIGFsbCBjb3BpZXM7IGFueSByZXZpZXcgb3IgZGlzdHJpYnV0aW9uIGJ5Cm90aGVycyBp
-cyBzdHJpY3RseSBwcm9oaWJpdGVkLgo=
+On Wed 2017-11-08 10:27:23, Steven Rostedt wrote:
+> [ claws-mail is really pissing me off. It did it again, after I
+>   manually fixed all the addresses. This time, I'm going to do things
+>   slightly different. Sorry for all the spam :-( ]
+> 
+> From: Steven Rostedt (VMware) <rostedt@goodmis.org>
+> 
+> This patch implements what I discussed in Kernel Summit. I added
+> lockdep annotation (hopefully correctly), and it hasn't had any splats
+> (since I fixed some bugs in the first iterations). It did catch
+> problems when I had the owner covering too much. But now that the owner
+> is only set when actively calling the consoles, lockdep has stayed
+> quiet.
+
+> Index: linux-trace.git/kernel/printk/printk.c
+> ===================================================================
+> --- linux-trace.git.orig/kernel/printk/printk.c
+> +++ linux-trace.git/kernel/printk/printk.c
+> @@ -2141,6 +2196,7 @@ void console_unlock(void)
+>  	static u64 seen_seq;
+>  	unsigned long flags;
+>  	bool wake_klogd = false;
+> +	bool waiter = false;
+>  	bool do_cond_resched, retry;
+>  
+>  	if (console_suspended) {
+> @@ -2229,14 +2285,64 @@ skip:
+>  		console_seq++;
+>  		raw_spin_unlock(&logbuf_lock);
+>  
+> +		/*
+> +		 * While actively printing out messages, if another printk()
+> +		 * were to occur on another CPU, it may wait for this one to
+> +		 * finish. This task can not be preempted if there is a
+> +		 * waiter waiting to take over.
+> +		 */
+> +		raw_spin_lock(&console_owner_lock);
+> +		console_owner = current;
+> +		raw_spin_unlock(&console_owner_lock);
+
+One idea. We could do the above only when "do_cond_resched" is false.
+I mean that we could allow stealing the console duty only from
+atomic context.
+
+If I get it correctly, this variable is always true in schedulable
+context.
+
+> +
+> +		/* The waiter may spin on us after setting console_owner */
+> +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
+> +
+>  		stop_critical_timings();	/* don't trace print latency */
+>  		call_console_drivers(ext_text, ext_len, text, len);
+>  		start_critical_timings();
+> +
+> +		raw_spin_lock(&console_owner_lock);
+> +		waiter = READ_ONCE(console_waiter);
+> +		console_owner = NULL;
+> +		raw_spin_unlock(&console_owner_lock);
+> +
+> +		/*
+> +		 * If there is a waiter waiting for us, then pass the
+> +		 * rest of the work load over to that waiter.
+> +		 */
+> +		if (waiter)
+> +			break;
+> +
+> +		/* There was no waiter, and nothing will spin on us here */
+> +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
+> +
+>  		printk_safe_exit_irqrestore(flags);
+>  
+>  		if (do_cond_resched)
+>  			cond_resched();
+
+On the contrary, we could allow steeling the console semaphore
+when sleeping here. It would allow to get the messages out
+faster. It might help to move the duty to someone who is
+actually producing many messages or even the panic() caller.
+
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
