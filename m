@@ -1,112 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 829196B0253
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 07:44:31 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id t65so20153456pfe.22
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:44:31 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t10si16646074plh.762.2017.12.22.04.44.30
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 6D0786B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:20:13 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id n13so5376493wmc.3
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 05:20:13 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c36sor12193564edf.49.2017.12.22.05.20.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 04:44:30 -0800 (PST)
-Date: Fri, 22 Dec 2017 07:44:26 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v4] printk: Add console owner and waiter logic to load
- balance console writes
-Message-ID: <20171222074426.5df24526@gandalf.local.home>
-In-Reply-To: <20171222102927.eiunret5ykx55bvq@pathway.suse.cz>
-References: <20171108102723.602216b1@gandalf.local.home>
-	<20171222102927.eiunret5ykx55bvq@pathway.suse.cz>
+        (Google Transport Security);
+        Fri, 22 Dec 2017 05:20:11 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171222045318.GA4505@wolff.to>
+References: <20171221130057.GA26743@wolff.to> <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
+ <20171221151843.GA453@wolff.to> <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
+ <20171221153631.GA2300@wolff.to> <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
+ <20171221164221.GA23680@wolff.to> <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+ <20171221181531.GA21050@wolff.to> <20171221231603.GA15702@wolff.to> <20171222045318.GA4505@wolff.to>
+From: weiping zhang <zwp10758@gmail.com>
+Date: Fri, 22 Dec 2017 21:20:10 +0800
+Message-ID: <CAA70yB5y1uLvtvEFLsE2C_ALLvSqEZ6XKA=zoPeSaH_eSAVL4w@mail.gmail.com>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org
+To: Bruno Wolff III <bruno@wolff.to>
+Cc: Jens Axboe <axboe@kernel.dk>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
 
-On Fri, 22 Dec 2017 11:31:31 +0100
-Petr Mladek <pmladek@suse.com> wrote:
-
-> > Index: linux-trace.git/kernel/printk/printk.c
-> > ===================================================================
-> > --- linux-trace.git.orig/kernel/printk/printk.c
-> > +++ linux-trace.git/kernel/printk/printk.c
-> > @@ -2141,6 +2196,7 @@ void console_unlock(void)
-> >  	static u64 seen_seq;
-> >  	unsigned long flags;
-> >  	bool wake_klogd = false;
-> > +	bool waiter = false;
-> >  	bool do_cond_resched, retry;
-> >  
-> >  	if (console_suspended) {
-> > @@ -2229,14 +2285,64 @@ skip:
-> >  		console_seq++;
-> >  		raw_spin_unlock(&logbuf_lock);
-> >  
-> > +		/*
-> > +		 * While actively printing out messages, if another printk()
-> > +		 * were to occur on another CPU, it may wait for this one to
-> > +		 * finish. This task can not be preempted if there is a
-> > +		 * waiter waiting to take over.
-> > +		 */
-> > +		raw_spin_lock(&console_owner_lock);
-> > +		console_owner = current;
-> > +		raw_spin_unlock(&console_owner_lock);  
-> 
-> One idea. We could do the above only when "do_cond_resched" is false.
-> I mean that we could allow stealing the console duty only from
-> atomic context.
-
-I'd like to hold off before making a change like that. I thought about
-it, but by saying "atomic" is more important than "non-atomic" can also
-lead to problems. Once you don't allow stealing, you just changed
-printk to be unbounded again. Maybe that's not an issue. But I'd rather
-add that as an enhancement in case. I could make this a patch series,
-and we can build cases like this up.
-
-> 
-> If I get it correctly, this variable is always true in schedulable
-> context.
-> 
-> > +
-> > +		/* The waiter may spin on us after setting console_owner */
-> > +		spin_acquire(&console_owner_dep_map, 0, 0, _THIS_IP_);
-> > +
-> >  		stop_critical_timings();	/* don't trace print latency */
-> >  		call_console_drivers(ext_text, ext_len, text, len);
-> >  		start_critical_timings();
-> > +
-> > +		raw_spin_lock(&console_owner_lock);
-> > +		waiter = READ_ONCE(console_waiter);
-> > +		console_owner = NULL;
-> > +		raw_spin_unlock(&console_owner_lock);
-> > +
-> > +		/*
-> > +		 * If there is a waiter waiting for us, then pass the
-> > +		 * rest of the work load over to that waiter.
-> > +		 */
-> > +		if (waiter)
-> > +			break;
-> > +
-> > +		/* There was no waiter, and nothing will spin on us here */
-> > +		spin_release(&console_owner_dep_map, 1, _THIS_IP_);
-> > +
-> >  		printk_safe_exit_irqrestore(flags);
-> >  
-> >  		if (do_cond_resched)
-> >  			cond_resched();  
-> 
-> On the contrary, we could allow steeling the console semaphore
-> when sleeping here. It would allow to get the messages out
-> faster. It might help to move the duty to someone who is
-> actually producing many messages or even the panic() caller.
-
-Good point. I'll add a patch that adds that feature too.
-
-Thanks!
-
--- Steve
+2017-12-22 12:53 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
+> On Thu, Dec 21, 2017 at 17:16:03 -0600,
+>  Bruno Wolff III <bruno@wolff.to> wrote:
+>>
+>>
+>> Enforcing mode alone isn't enough as I tested that one one machine at home
+>> and it didn't trigger the problem. I'll try another machine late tonight.
+>
+>
+> I got the problem to occur on my i686 machine when booting in enforcing
+> mode. This machine uses raid 1 vua mdraid which may or may not be a factor
+> in this problem. The boot log has a trace at the end and might be helpful,
+> so I'm attaching it here.
+Hi Bruno,
+I can reproduce this issue in my QEMU test VM easily, just add an soft
+RAID1, always trigger
+that warning, I'll debug it later.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
