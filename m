@@ -1,110 +1,92 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E9F666B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:25:46 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id g202so11666376ita.4
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 14:25:46 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 123sor5722821itw.107.2017.12.22.14.25.46
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 866176B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:31:58 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id x1so14321897plb.2
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 14:31:58 -0800 (PST)
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id f129si3309239pgc.402.2017.12.22.14.31.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 22 Dec 2017 14:25:46 -0800 (PST)
-Date: Fri, 22 Dec 2017 16:25:43 -0600
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: Re: KASAN: use-after-free Read in __pagevec_lru_add_fn
-Message-ID: <20171222222543.GC28786@zzz.localdomain>
-References: <001a113f711afab80a0560f49df1@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Dec 2017 14:31:57 -0800 (PST)
+Date: Fri, 22 Dec 2017 15:31:54 -0700
+From: Ross Zwisler <ross.zwisler@linux.intel.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171222223154.GC25711@linux.intel.com>
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <001a113f711afab80a0560f49df1@google.com>
+In-Reply-To: <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: syzbot <bot+39ea44e86d4b505fce2a77c845b7979cffd9bc07@syzkaller.appspotmail.com>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com, jack@suse.cz, jglisse@redhat.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, mgorman@techsingularity.net, mhocko@suse.com, shli@fb.com, syzkaller-bugs@googlegroups.com, vbabka@suse.cz, ying.huang@intel.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-On Fri, Dec 22, 2017 at 01:37:02PM -0800, syzbot wrote:
-> Hello,
-> 
-> syzkaller hit the following crash on
-> e7655085973bd33ee47bb12de663d31c81717404
-> git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git/master
-> compiler: gcc (GCC) 7.1.1 20170620
-> .config is attached
-> Raw console output is attached.
-> C reproducer is attached
-> syzkaller reproducer is attached. See https://goo.gl/kgGztJ
-> for information about syzkaller reproducers
-> 
-> 
-> ==================================================================
-> BUG: KASAN: use-after-free in list_add include/linux/list.h:79 [inline]
-> BUG: KASAN: use-after-free in add_page_to_lru_list
-> include/linux/mm_inline.h:51 [inline]
-> BUG: KASAN: use-after-free in __pagevec_lru_add_fn+0xe49/0xf40 mm/swap.c:896
-> Read of size 8 at addr ffff8801da2c36d0 by task modprobe/9844
-> 
-> CPU: 1 PID: 9844 Comm: modprobe Not tainted 4.15.0-rc3+ #157
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> Call Trace:
->  __dump_stack lib/dump_stack.c:17 [inline]
->  dump_stack+0x194/0x257 lib/dump_stack.c:53
->  print_address_description+0x73/0x250 mm/kasan/report.c:252
->  kasan_report_error mm/kasan/report.c:351 [inline]
->  kasan_report+0x25b/0x340 mm/kasan/report.c:409
->  __asan_report_load8_noabort+0x14/0x20 mm/kasan/report.c:430
->  list_add include/linux/list.h:79 [inline]
->  add_page_to_lru_list include/linux/mm_inline.h:51 [inline]
->  __pagevec_lru_add_fn+0xe49/0xf40 mm/swap.c:896
->  pagevec_lru_move_fn+0x13b/0x230 mm/swap.c:209
->  __pagevec_lru_add mm/swap.c:907 [inline]
->  lru_add_drain_cpu+0x283/0x460 mm/swap.c:609
->  lru_add_drain+0x1c/0x30 mm/swap.c:680
->  shift_arg_pages+0x1c3/0x460 fs/exec.c:651
->  setup_arg_pages+0x637/0x8e0 fs/exec.c:759
->  load_elf_binary+0xaa6/0x4b50 fs/binfmt_elf.c:882
->  search_binary_handler+0x142/0x6b0 fs/exec.c:1638
->  exec_binprm fs/exec.c:1680 [inline]
->  do_execveat_common.isra.30+0x1754/0x23c0 fs/exec.c:1802
->  do_execve+0x31/0x40 fs/exec.c:1847
->  call_usermodehelper_exec_async+0x457/0x8f0 kernel/umh.c:100
->  ret_from_fork+0x24/0x30 arch/x86/entry/entry_64.S:441
-> 
-> Allocated by task 0:
->  save_stack+0x43/0xd0 mm/kasan/kasan.c:447
->  set_track mm/kasan/kasan.c:459 [inline]
->  kasan_kmalloc+0xad/0xe0 mm/kasan/kasan.c:551
->  kmem_cache_alloc_node_trace+0x150/0x750 mm/slab.c:3653
->  kmalloc_node include/linux/slab.h:537 [inline]
->  kzalloc_node include/linux/slab.h:699 [inline]
->  alloc_mem_cgroup_per_node_info mm/memcontrol.c:4167 [inline]
->  mem_cgroup_alloc+0x33e/0x9d0 mm/memcontrol.c:4234
->  mem_cgroup_css_alloc+0x8ee/0xfe0 mm/memcontrol.c:4271
->  cgroup_init_subsys+0x224/0x529 kernel/cgroup/cgroup.c:5152
->  cgroup_init+0x3f3/0xb1b kernel/cgroup/cgroup.c:5278
->  start_kernel+0x6da/0x754 init/main.c:700
->  x86_64_start_reservations+0x2a/0x2c arch/x86/kernel/head64.c:378
->  x86_64_start_kernel+0x77/0x7a arch/x86/kernel/head64.c:359
->  secondary_startup_64+0xa5/0xb0 arch/x86/kernel/head_64.S:237
-> 
-> Freed by task 0:
-> (stack is not available)
-> 
+On Fri, Dec 22, 2017 at 08:39:41AM +0530, Anshuman Khandual wrote:
+> On 12/14/2017 07:40 AM, Ross Zwisler wrote:
+<>
+> > We solve this issue by providing userspace with performance information on
+> > individual memory ranges.  This performance information is exposed via
+> > sysfs:
+> > 
+> >   # grep . mem_tgt2/* mem_tgt2/local_init/* 2>/dev/null
+> >   mem_tgt2/firmware_id:1
+> >   mem_tgt2/is_cached:0
+> >   mem_tgt2/local_init/read_bw_MBps:40960
+> >   mem_tgt2/local_init/read_lat_nsec:50
+> >   mem_tgt2/local_init/write_bw_MBps:40960
+> >   mem_tgt2/local_init/write_lat_nsec:50
+<>
+> We will enlist properties for all possible "source --> target" on the system?
 
-This is yet another one where the reproducer is using AF_ALG and binding to the
-"pcrypt(gcm_base(ctr(aes-aesni),ghash-generic))" algorithm, so it's running into
-the pcrypt_free() bug which is causing slab cache corruption:
+Nope, just 'local' initiator/target pairs.  I talk about the reasoning for
+this in the cover letter for patch 3:
 
-https://groups.google.com/forum/#!topic/syzkaller-bugs/NKn_ivoPOpk
+https://lists.01.org/pipermail/linux-nvdimm/2017-December/013574.html
 
-https://patchwork.kernel.org/patch/10126761/
+> Right now it shows only bandwidth and latency properties, can it accommodate
+> other properties as well in future ?
 
-So let's mark it as a duplicate:
+We also have an 'is_cached' attribute for the memory targets if they are
+involved in a caching hierarchy, but right now those are all the things we
+expose.  We can potentially expose whatever we want that is present in the
+HMAT, but those seemed like a good start.
 
-#syz dup: KASAN: use-after-free Read in __list_del_entry_valid (2)
+I noticed that in your presentation you had some other examples of attributes
+you cared about:
 
-Eric
+ * reliability
+ * power consumption
+ * density
+
+The HMAT doesn't provide this sort of information at present, but we
+could/would add them to sysfs if the HMAT ever grew support for them.
+
+> > This allows applications to easily find the memory that they want to use.
+> > We expect that the existing NUMA APIs will be enhanced to use this new
+> > information so that applications can continue to use them to select their
+> > desired memory.
+> 
+> I had presented a proposal for NUMA redesign in the Plumbers Conference this
+> year where various memory devices with different kind of memory attributes
+> can be represented in the kernel and be used explicitly from the user space.
+> Here is the link to the proposal if you feel interested. The proposal is
+> very intrusive and also I dont have a RFC for it yet for discussion here.
+> 
+> https://linuxplumbersconf.org/2017/ocw//system/presentations/4656/original/Hierarchical_NUMA_Design_Plumbers_2017.pdf
+> 
+> Problem is, designing the sysfs interface for memory attribute detection
+> from user space without first thinking about redesigning the NUMA for
+> heterogeneous memory may not be a good idea. Will look into this further.
+
+I took another look at your presentation, and overall I think that if/when a
+NUMA redesign like this takes place ACPI systems with HMAT tables will be able
+to participate.  But I think we are probably a ways away from that, and like I
+said in my previous mail ACPI systems with memory-only NUMA nodes are going to
+exist and need to be supported with the current NUMA scheme.  Hence I don't
+think that this patch series conflicts with your proposal.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
