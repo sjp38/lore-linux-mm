@@ -1,75 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 476C86B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 19:11:04 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id e26so19130391pfi.15
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 16:11:04 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 691496B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 19:20:58 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e9so1466780pgv.17
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 16:20:58 -0800 (PST)
 Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id f11si14269012pgs.451.2017.12.21.16.11.02
+        by mx.google.com with ESMTP id t25si6747328pge.369.2017.12.21.16.20.56
         for <linux-mm@kvack.org>;
-        Thu, 21 Dec 2017 16:11:03 -0800 (PST)
-Date: Fri, 22 Dec 2017 09:11:14 +0900
+        Thu, 21 Dec 2017 16:20:57 -0800 (PST)
+Date: Fri, 22 Dec 2017 09:21:09 +0900
 From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH v2 0/3] mm/cma: manage the memory of the CMA area by
- using the ZONE_MOVABLE
-Message-ID: <20171222001113.GA1729@js1304-P5Q-DELUXE>
-References: <1512114786-5085-1-git-send-email-iamjoonsoo.kim@lge.com>
- <20171208143719.901b742d5238b829edac3b14@linux-foundation.org>
+Subject: Re: ACPI issues on cold power on [bisected]
+Message-ID: <20171222002108.GB1729@js1304-P5Q-DELUXE>
+References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171208143719.901b742d5238b829edac3b14@linux-foundation.org>
+In-Reply-To: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>, Johannes Weiner <hannes@cmpxchg.org>, Laura Abbott <lauraa@codeaurora.org>, Minchan Kim <minchan@kernel.org>, Marek Szyprowski <m.szyprowski@samsung.com>, Michal Nazarewicz <mina86@mina86.com>, "Aneesh Kumar K . V" <aneesh.kumar@linux.vnet.ibm.com>, Vlastimil Babka <vbabka@suse.cz>, Russell King <linux@armlinux.org.uk>, Will Deacon <will.deacon@arm.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, kernel-team@lge.com, Tony Lindgren <tony@atomide.com>, Michal Hocko <mhocko@kernel.org>
+To: Jonathan McDowell <noodles@earth.li>
+Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Fri, Dec 08, 2017 at 02:37:19PM -0800, Andrew Morton wrote:
-> On Fri,  1 Dec 2017 16:53:03 +0900 js1304@gmail.com wrote:
+On Fri, Dec 08, 2017 at 03:11:59PM +0000, Jonathan McDowell wrote:
+> I've been sitting on this for a while and should have spent time to
+> investigate sooner, but it's been an odd failure mode that wasn't quite
+> obvious.
 > 
-> > From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > 
-> > v2
-> > o previous failure in linux-next turned out that it's not the problem of
-> > this patchset. It was caused by the wrong assumption by specific
-> > architecture.
-> > 
-> > lkml.kernel.org/r/20171114173719.GA28152@atomide.com
-> > 
-> > o add missing cache flush to the patch "ARM: CMA: avoid double mapping
-> > to the CMA area if CONFIG_HIGHMEM = y"
-> > 
-> > 
-> > This patchset is the follow-up of the discussion about the
-> > "Introduce ZONE_CMA (v7)" [1]. Please reference it if more information
-> > is needed.
-> > 
-> > In this patchset, the memory of the CMA area is managed by using
-> > the ZONE_MOVABLE. Since there is another type of the memory in this zone,
-> > we need to maintain a migratetype for the CMA memory to account
-> > the number of the CMA memory. So, unlike previous patchset, there is
-> > less deletion of the code.
-> > 
-> > Otherwise, there is no big change.
-> > 
-> > Motivation of this patchset is described in the commit description of
-> > the patch "mm/cma: manage the memory of the CMA area by using
-> > the ZONE_MOVABLE". Please refer it for more information.
-> > 
-> > This patchset is based on linux-next-20170822 plus
-> > "mm/page_alloc: don't reserve ZONE_HIGHMEM for ZONE_MOVABLE".
+> In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
+> don't see anything after grub says its booting. In 4.10 onwards the
+> laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
+> (no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
+> taken from 4.12 as that's the most recent error dmesg I have saved but
+> also seen back in 4.10. It's always address 0x30 for the dereference.
 > 
-> mhocko had issues with that patch which weren't addressed?
-> http://lkml.kernel.org/r/20170914132452.d5klyizce72rhjaa@dhcp22.suse.cz
+> Rebooting the laptop does not lead to these problems; it's *only* from a
+> complete cold boot that they arise (which didn't help me in terms of
+> being able to reliably bisect). Once I realised that I was able to
+> bisect, but it leads me to an odd commit:
+> 
+> 86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
+> (mm/slab: fix kmemcg cache creation delayed issue)
+> 
+> If I revert this then I can cold boot without problems.
+> 
+> Also I don't see the problem with a stock Debian kernel, I think because
+> the ACPI support is modularised.
 
-Hello, Andrew.
+Hello,
 
 Sorry for late response. I was on a long vacation.
 
-I don't do anything on that patch yet. In fact, that patch isn't really
-necessary to this patchset so I didn't include it into this patchset.
+I have tried to solve the problem however I don't find any clue yet.
 
-I will re-submit that patch after fixing the issue.
+>From my analysis, oops report shows that 'struct sock *ssk' passed to
+netlink_broadcast_filtered() is NULL. It means that some of
+netlink_kernel_create() returns NULL. Maybe, it is due to slab
+allocation failure. Could you check it by inserting some log on that
+part? The issue cannot be reproducible in my side so I need your help.
 
 Thanks.
 
