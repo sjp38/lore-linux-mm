@@ -1,291 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C427F6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 09:11:21 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id l99so10822131wrc.18
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 06:11:21 -0800 (PST)
-Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id l11si18115257wrh.161.2017.12.22.06.11.19
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AE9E6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 09:14:49 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id q12so13595958pli.12
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 06:14:49 -0800 (PST)
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id s17si15363793pge.556.2017.12.22.06.14.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 06:11:20 -0800 (PST)
-Received: from smtp02.buh.bitdefender.net (smtp.bitdefender.biz [10.17.80.76])
-	by mx-sr.buh.bitdefender.com (Postfix) with ESMTP id 107C37FC7A
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 16:11:19 +0200 (EET)
-From: Adalbert LazA?r <alazar@bitdefender.com>
-Subject: Re: [RFC PATCH v4 08/18] kvm: add the VM introspection subsystem
-In-Reply-To: <3b9dd83a-5e13-97b5-3d87-14de288e88d8@oracle.com>
-References: <20171218190642.7790-1-alazar@bitdefender.com>
-	<20171218190642.7790-9-alazar@bitdefender.com>
-	<3b9dd83a-5e13-97b5-3d87-14de288e88d8@oracle.com>
-Date: Fri, 22 Dec 2017 16:11:40 +0200
-Message-ID: <1513951900.E02F46f7.12019@host>
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 8bit
+        Fri, 22 Dec 2017 06:14:48 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
+References: <20171220012632.26840-1-ying.huang@intel.com>
+	<20171221021619.GA27475@bbox> <871sjopllj.fsf@yhuang-dev.intel.com>
+	<20171221235813.GA29033@bbox>
+Date: Fri, 22 Dec 2017 22:14:43 +0800
+In-Reply-To: <20171221235813.GA29033@bbox> (Minchan Kim's message of "Fri, 22
+	Dec 2017 08:58:13 +0900")
+Message-ID: <87r2rmj1d8.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Patrick Colp <patrick.colp@oracle.com>, kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?iso-8859-2?b?S3LobeH4?= <rkrcmar@redhat.com>, Mihai =?UTF-8?b?RG9uyJt1?= <mdontu@bitdefender.com>, =?UTF-8?b?TmljdciZb3IgQ8OuyJt1?= <ncitu@bitdefender.com>, Mircea =?iso-8859-1?q?C=EErjaliu?= <mcirjaliu@bitdefender.com>, Marian Rotariu <mrotariu@bitdefender.com>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul
+ E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Sg==?= =?utf-8?B?77+9cu+/vW1l?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-We've made changes in all the places pointed by you, but read below.
-Thanks again,
-Adalbert
+Minchan Kim <minchan@kernel.org> writes:
 
-On Fri, 22 Dec 2017 02:34:45 -0500, Patrick Colp <patrick.colp@oracle.com> wrote:
-> On 2017-12-18 02:06 PM, Adalber LazA?r wrote:
-> > From: Adalbert Lazar <alazar@bitdefender.com>
-> > 
-> > This subsystem is split into three source files:
-> >   - kvmi_msg.c - ABI and socket related functions
-> >   - kvmi_mem.c - handle map/unmap requests from the introspector
-> >   - kvmi.c - all the other
-> > 
-> > The new data used by this subsystem is attached to the 'kvm' and
-> > 'kvm_vcpu' structures as opaque pointers (to 'kvmi' and 'kvmi_vcpu'
-> > structures).
-> > 
-> > Besides the KVMI system, this patch exports the
-> > kvm_vcpu_ioctl_x86_get_xsave() and the mm_find_pmd() functions,
-> > adds a new vCPU request (KVM_REQ_INTROSPECTION) and a new VM ioctl
-> > (KVM_INTROSPECTION) used to pass the connection file handle from QEMU.
-> > 
-> > Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
-> > Signed-off-by: Adalbert LazA?r <alazar@bitdefender.com>
-> > Signed-off-by: NicuE?or CA(R)E?u <ncitu@bitdefender.com>
-> > Signed-off-by: Mircea CA(R)rjaliu <mcirjaliu@bitdefender.com>
-> > Signed-off-by: Marian Rotariu <mrotariu@bitdefender.com>
-> > ---
-> >   arch/x86/include/asm/kvm_host.h |    1 +
-> >   arch/x86/kvm/Makefile           |    1 +
-> >   arch/x86/kvm/x86.c              |    4 +-
-> >   include/linux/kvm_host.h        |    4 +
-> >   include/linux/kvmi.h            |   32 +
-> >   include/linux/mm.h              |    3 +
-> >   include/trace/events/kvmi.h     |  174 +++++
-> >   include/uapi/linux/kvm.h        |    8 +
-> >   mm/internal.h                   |    5 -
-> >   virt/kvm/kvmi.c                 | 1410 +++++++++++++++++++++++++++++++++++++++
-> >   virt/kvm/kvmi_int.h             |  121 ++++
-> >   virt/kvm/kvmi_mem.c             |  730 ++++++++++++++++++++
-> >   virt/kvm/kvmi_msg.c             | 1134 +++++++++++++++++++++++++++++++
-> >   13 files changed, 3620 insertions(+), 7 deletions(-)
-> >   create mode 100644 include/linux/kvmi.h
-> >   create mode 100644 include/trace/events/kvmi.h
-> >   create mode 100644 virt/kvm/kvmi.c
-> >   create mode 100644 virt/kvm/kvmi_int.h
-> >   create mode 100644 virt/kvm/kvmi_mem.c
-> >   create mode 100644 virt/kvm/kvmi_msg.c
-> > 
-> > +int kvmi_set_mem_access(struct kvm *kvm, u64 gpa, u8 access)
-> > +{
-> > +	struct kvmi_mem_access *m;
-> > +	struct kvmi_mem_access *__m;
-> > +	struct kvmi *ikvm = IKVM(kvm);
-> > +	gfn_t gfn = gpa_to_gfn(gpa);
-> > +
-> > +	if (kvm_is_error_hva(gfn_to_hva_safe(kvm, gfn)))
-> > +		kvm_err("Invalid gpa %llx (or memslot not available yet)", gpa);
-> 
-> If there's an error, should this not return or something instead of 
-> continuing as if nothing is wrong?
-
-It was a debug message masqueraded as an error message to be logged in dmesg.
-The page will be tracked when the memslot becomes available.
-
-> > +static bool alloc_kvmi(struct kvm *kvm)
-> > +{
-> > +	bool done;
-> > +
-> > +	mutex_lock(&kvm->lock);
-> > +	done = (
-> > +		maybe_delayed_init() == 0    &&
-> > +		IKVM(kvm)            == NULL &&
-> > +		__alloc_kvmi(kvm)    == true
-> > +	);
-> > +	mutex_unlock(&kvm->lock);
-> > +
-> > +	return done;
-> > +}
-> > +
-> > +static void alloc_all_kvmi_vcpu(struct kvm *kvm)
-> > +{
-> > +	struct kvm_vcpu *vcpu;
-> > +	int i;
-> > +
-> > +	mutex_lock(&kvm->lock);
-> > +	kvm_for_each_vcpu(i, vcpu, kvm)
-> > +		if (!IKVM(vcpu))
-> > +			__alloc_vcpu_kvmi(vcpu);
-> > +	mutex_unlock(&kvm->lock);
-> > +}
-> > +
-> > +static bool setup_socket(struct kvm *kvm, struct kvm_introspection *qemu)
-> > +{
-> > +	struct kvmi *ikvm = IKVM(kvm);
-> > +
-> > +	if (is_introspected(ikvm)) {
-> > +		kvm_err("Guest already introspected\n");
-> > +		return false;
-> > +	}
-> > +
-> > +	if (!kvmi_msg_init(ikvm, qemu->fd))
-> > +		return false;
-> 
-> kvmi_msg_init assumes that ikvm is not NULL -- it makes no check and 
-> then does "WRITE_ONCE(ikvm->sock, sock)". is_introspected() does check 
-> if ikvm is NULL, but if it is, it returns false, which would still end 
-> up here. There should be a check that ikvm is not NULL before this if 
-> statement.
-
-setup_socket() is called only when 'ikvm' is not NULL.
-
-is_introspected() checks 'ikvm' because it is called from other contexts.
-The real check is ikvm->sock (to see if the 'command channel' is 'active').
-
-> > +
-> > +	ikvm->cmd_allow_mask = -1; /* TODO: qemu->commands; */
-> > +	ikvm->event_allow_mask = -1; /* TODO: qemu->events; */
-> > +
-> > +	alloc_all_kvmi_vcpu(kvm);
-> > +	queue_work(wq, &ikvm->work);
-> > +
-> > +	return true;
-> > +}
-> > +
-> > +/*
-> > + * When called from outside a page fault handler, this call should
-> > + * return ~0ull
-> > + */
-> > +static u64 kvmi_mmu_fault_gla(struct kvm_vcpu *vcpu, gpa_t gpa)
-> > +{
-> > +	u64 gla;
-> > +	u64 gla_val;
-> > +	u64 v;
-> > +
-> > +	if (!vcpu->arch.gpa_available)
-> > +		return ~0ull;
-> > +
-> > +	gla = kvm_mmu_fault_gla(vcpu);
-> > +	if (gla == ~0ull)
-> > +		return gla;
-> > +	gla_val = gla;
-> > +
-> > +	/* Handle the potential overflow by returning ~0ull */
-> > +	if (vcpu->arch.gpa_val > gpa) {
-> > +		v = vcpu->arch.gpa_val - gpa;
-> > +		if (v > gla)
-> > +			gla = ~0ull;
-> > +		else
-> > +			gla -= v;
-> > +	} else {
-> > +		v = gpa - vcpu->arch.gpa_val;
-> > +		if (v > (U64_MAX - gla))
-> > +			gla = ~0ull;
-> > +		else
-> > +			gla += v;
-> > +	}
-> > +
-> > +	return gla;
-> > +}
-> > +
-> > +static bool kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa,
-> > +			       u8 *new,
-> > +			       int bytes,
-> > +			       struct kvm_page_track_notifier_node *node,
-> > +			       bool *data_ready)
-> > +{
-> > +	u64 gla;
-> > +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-> > +	bool ret = true;
-> > +
-> > +	if (kvm_mmu_nested_guest_page_fault(vcpu))
-> > +		return ret;
-> > +	gla = kvmi_mmu_fault_gla(vcpu, gpa);
-> > +	ret = kvmi_page_fault_event(vcpu, gpa, gla, KVMI_PAGE_ACCESS_R);
-> 
-> Should you not check the value of ret here before proceeding?
-> 
-
-Indeed. These 'track' functions are new additions and aren't integrated
-well with kvmi_page_fault_event(). We'll change this. The code is ugly
-but 'safe' (ctx_size will be non-zero only with ret == true).
-
-> > +	if (ivcpu && ivcpu->ctx_size > 0) {
-> > +		int s = min_t(int, bytes, ivcpu->ctx_size);
-> > +
-> > +		memcpy(new, ivcpu->ctx_data, s);
-> > +		ivcpu->ctx_size = 0;
-> > +
-> > +		if (*data_ready)
-> > +			kvm_err("Override custom data");
-> > +
-> > +		*data_ready = true;
-> > +	}
-> > +
-> > +	return ret;
-> > +}
-> > +
-> > +bool kvmi_hook(struct kvm *kvm, struct kvm_introspection *qemu)
-> > +{
-> > +	kvm_info("Hooking vm with fd: %d\n", qemu->fd);
-> > +
-> > +	kvm_page_track_register_notifier(kvm, &kptn_node);
-> > +
-> > +	return (alloc_kvmi(kvm) && setup_socket(kvm, qemu));
-> 
-> Is this safe? It could return false if the alloc fails (in which case 
-> the caller has to do nothing) or if setting up the socket fails (in 
-> which case the caller needs to free the allocated kvmi).
+> On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
+>> Minchan Kim <minchan@kernel.org> writes:
+>> 
+>> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
+>> >> From: Huang Ying <ying.huang@intel.com>
+>> >> 
+>> >> When the swapin is performed, after getting the swap entry information
+>> >> from the page table, system will swap in the swap entry, without any
+>> >> lock held to prevent the swap device from being swapoff.  This may
+>> >> cause the race like below,
+>> >> 
+>> >> CPU 1				CPU 2
+>> >> -----				-----
+>> >> 				do_swap_page
+>> >> 				  swapin_readahead
+>> >> 				    __read_swap_cache_async
+>> >> swapoff				      swapcache_prepare
+>> >>   p->swap_map = NULL		        __swap_duplicate
+>> >> 					  p->swap_map[?] /* !!! NULL pointer access */
+>> >> 
+>> >> Because swapoff is usually done when system shutdown only, the race
+>> >> may not hit many people in practice.  But it is still a race need to
+>> >> be fixed.
+>> >> 
+>> >> To fix the race, get_swap_device() is added to check whether the
+>> >> specified swap entry is valid in its swap device.  If so, it will keep
+>> >> the swap entry valid via preventing the swap device from being
+>> >> swapoff, until put_swap_device() is called.
+>> >> 
+>> >> Because swapoff() is very race code path, to make the normal path runs
+>> >> as fast as possible, RCU instead of reference count is used to
+>> >> implement get/put_swap_device().  From get_swap_device() to
+>> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
+>> >> swapoff() will wait until put_swap_device() is called.
+>> >> 
+>> >> In addition to swap_map, cluster_info, etc. data structure in the
+>> >> struct swap_info_struct, the swap cache radix tree will be freed after
+>> >> swapoff, so this patch fixes the race between swap cache looking up
+>> >> and swapoff too.
+>> >> 
+>> >> Cc: Hugh Dickins <hughd@google.com>
+>> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+>> >> Cc: Minchan Kim <minchan@kernel.org>
+>> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
+>> >> Cc: Shaohua Li <shli@fb.com>
+>> >> Cc: Mel Gorman <mgorman@techsingularity.net>
+>> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
+>> >> Cc: Michal Hocko <mhocko@suse.com>
+>> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
+>> >> Cc: David Rientjes <rientjes@google.com>
+>> >> Cc: Rik van Riel <riel@redhat.com>
+>> >> Cc: Jan Kara <jack@suse.cz>
+>> >> Cc: Dave Jiang <dave.jiang@intel.com>
+>> >> Cc: Aaron Lu <aaron.lu@intel.com>
+>> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+>> >> 
+>> >> Changelog:
+>> >> 
+>> >> v4:
+>> >> 
+>> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
+>> >>   normal paths further.
+>> >
+>> > Hi Huang,
+>> 
+>> Hi, Minchan,
+>> 
+>> > This version is much better than old. To me, it's due to not rcu,
+>> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
+>> > into every swap related functions so users who don't interested on swap
+>> > don't need to care of it. Good.
+>> >
+>> > The problem is caused by freeing by swap related-data structure
+>> > *dynamically* while old swap logic was based on static data
+>> > structure(i.e., never freed and the verify it's stale).
+>> > So, I reviewed some places where use PageSwapCache and swp_entry_t
+>> > which could make access of swap related data structures.
+>> >
+>> > A example is __isolate_lru_page
+>> >
+>> > It calls page_mapping to get a address_space.
+>> > What happens if the page is on SwapCache and raced with swapoff?
+>> > The mapping got could be disappeared by the race. Right?
+>> 
+>> Yes.  We should think about that.  Considering the file cache pages, the
+>> address_space backing the file cache pages may be freed dynamically too.
+>> So to use page_mapping() return value for the file cache pages, some
+>> kind of locking is needed to guarantee the address_space isn't freed
+>> under us.  Page may be locked, or under writeback, or some other locks
 >
+> I didn't look at the code in detail but I guess every file page should
+> be freed before the address space destruction and page_lock/lru_lock makes
+> the work safe, I guess. So, it wouldn't be a problem.
+>
+> However, in case of swapoff, it doesn't remove pages from LRU list
+> so there is no lock to prevent the race at this moment. :(
 
-If the socket fails for any reason (eg. the introspection tool is
-stopped == socket closed) 'the plan' is to signal QEMU to reconnect
-(and call kvmi_hook() again) or else let the introspected VM continue (and
-try to reconnect asynchronously).
+Take a look at file cache pages and file cache address_space freeing
+code path.  It appears that similar situation is possible for them too.
 
-I see that kvm_page_track_register_notifier() should not be called more
-than once.
+The file cache pages will be delete from file cache address_space before
+address_space (embedded in inode) is freed.  But they will be deleted
+from LRU list only when its refcount dropped to zero, please take a look
+at put_page() and release_pages().  While address_space will be freed
+after putting reference to all file cache pages.  If someone holds a
+reference to a file cache page for quite long time, it is possible for a
+file cache page to be in LRU list after the inode/address_space is
+freed.
 
-Maybe we should rename this to kvmi_rehook() or kvmi_reconnect().
+And I found inode/address_space is freed witch call_rcu().  I don't know
+whether this is related to page_mapping().
 
-> > +bool kvmi_breakpoint_event(struct kvm_vcpu *vcpu, u64 gva)
-> > +{
-> > +	u32 action;
-> > +	u64 gpa;
-> > +
-> > +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_BREAKPOINT))
-> > +		/* qemu will automatically reinject the breakpoint */
-> > +		return false;
-> > +
-> > +	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
-> > +
-> > +	if (gpa == UNMAPPED_GVA)
-> > +		kvm_err("%s: invalid gva: %llx", __func__, gva);
-> 
-> If the gpa is unmapped, shouldn't it return false rather than proceeding?
-> 
+This is just my understanding.
 
-This was just a debug message. I'm not sure if is possible for 'gpa'
-to be unmapped. Even so, the introspection tool should still be notified.
+>> need to be held, for example, page table lock, or lru_lock, etc.  For
+>> __isolate_lru_page(), lru_lock will be held when it is called.  And we
+>> will call synchronize_rcu() between clear PageSwapCache and free swap
+>> cache, so the usage of swap cache in __isolate_lru_page() should be
+>> safe.  Do you think my analysis makes sense?
+>
+> I don't understand how synchronize_rcu closes the race with spin_lock.
+> Paul might help it.
 
-> > +
-> > +	action = kvmi_msg_send_bp(vcpu, gpa);
-> > +
-> > +	switch (action) {
-> > +	case KVMI_EVENT_ACTION_CONTINUE:
-> > +		break;
-> > +	case KVMI_EVENT_ACTION_RETRY:
-> > +		/* rip was most likely adjusted past the INT 3 instruction */
-> > +		return true;
-> > +	default:
-> > +		handle_common_event_actions(vcpu, action);
-> > +	}
-> > +
-> > +	/* qemu will automatically reinject the breakpoint */
-> > +	return false;
-> > +}
-> > +EXPORT_SYMBOL(kvmi_breakpoint_event);
+Per my understanding, spin_lock() will preempt_disable(), so
+synchronize_rcu() will wait until spin_unlock() is called.
+
+> Even if we solve it, there is a other problem I spot.
+> When I see migrate_vma_pages, it pass mapping to migrate_page which
+> accesses mapping->tree_lock unconditionally even though the address_space
+> is already gone.
+
+Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
+where pages are locked.  So it is safe.
+
+> Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
+> but gut feeling is it would be not simple.
+
+Yes.  We should check all sites.  Thanks for your help!
+
+Best Regards,
+Huang, Ying
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
