@@ -1,165 +1,62 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9385E6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 22:18:26 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id 207so9543652iti.5
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 19:18:26 -0800 (PST)
-Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
-        by mx.google.com with ESMTPS id e2si6010120itf.115.2017.12.21.19.18.25
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 895AE6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 23:21:29 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n13so4858609wmc.3
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:21:29 -0800 (PST)
+Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [217.70.183.196])
+        by mx.google.com with ESMTPS id n61si8384349wrb.189.2017.12.21.20.21.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 19:18:25 -0800 (PST)
-Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
-References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
- <20171221123630.GB22405@bombadil.infradead.org>
- <44044955-1ef9-1d1e-5311-d8edc006b812@oracle.com>
- <20171222013937.GA7829@linux.vnet.ibm.com>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <106f9cdb-bb0b-539d-547e-18c509ca1163@oracle.com>
-Date: Thu, 21 Dec 2017 19:17:35 -0800
+        Thu, 21 Dec 2017 20:21:28 -0800 (PST)
+Date: Thu, 21 Dec 2017 20:21:20 -0800
+From: Josh Triplett <josh@joshtriplett.org>
+Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
+Message-ID: <20171222042120.GA18036@localhost>
+References: <20171219165823.24243-1-willy@infradead.org>
+ <20171219165823.24243-2-willy@infradead.org>
+ <20171221214810.GC9087@linux.intel.com>
+ <20171222011000.GB23624@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171222013937.GA7829@linux.vnet.ibm.com>
-Content-Type: multipart/alternative;
- boundary="------------59C28A6D52A0CCD0686C9CAF"
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171222011000.GB23624@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: paulmck@linux.vnet.ibm.com
-Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
 
-This is a multi-part message in MIME format.
---------------59C28A6D52A0CCD0686C9CAF
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
+On Thu, Dec 21, 2017 at 05:10:00PM -0800, Matthew Wilcox wrote:
+> On Thu, Dec 21, 2017 at 02:48:10PM -0700, Ross Zwisler wrote:
+> > > +++ b/include/linux/compiler_types.h
+> > > @@ -16,6 +16,7 @@
+> > >  # define __acquire(x)	__context__(x,1)
+> > >  # define __release(x)	__context__(x,-1)
+> > >  # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
+> > > +# define __cond_lock_err(x,c)	((c) ? 1 : ({ __acquire(x); 0; }))
+> > 					       ^
+> > I think we actually want this to return c here ^
+> > 
+> > The old code saved off the actual return value from __follow_pte_pmd() (say,
+> > -EINVAL) in 'res', and that was what was returned on error from both
+> > follow_pte_pmd() and follow_pte().  The value of 1 returned by __cond_lock()
+> > was just discarded (after we cast it to void for some reason).
+> > 
+> > With this new code we actually return the value from __cond_lock_err(), which
+> > means that instead of returning -EINVAL, we'll return 1 on error.
+> 
+> Yes, but this define is only #if __CHECKER__, so it doesn't matter what we
+> return as this code will never run.
 
+It does matter slightly, as Sparse does some (very limited) value-based
+analyses. Let's future-proof it.
 
+> That said, if sparse supports the GNU syntax of ?: then I have no
+> objection to doing that.
 
-On 12/21/2017 05:39 PM, Paul E. McKenney wrote:
->> I left it out on purpose because the call in tiny is a little different
->>
->> rcutiny.h:
->>
->> static inline void kfree_call_rcu(struct rcu_head *head,
->>  A A A  A A A  A A A  A A A  A  void (*func)(struct rcu_head *rcu))
->> {
->>  A A A  call_rcu(head, func);
->> }
->>
->> tree.c:
->>
->> void kfree_call_rcu(struct rcu_head *head,
->>  A A A  A A A  A A A  void (*func)(struct rcu_head *rcu))
->> {
->>  A A A  __call_rcu(head, func, rcu_state_p, -1, 1);
->> }
->> EXPORT_SYMBOL_GPL(kfree_call_rcu);
->>
->> If we want the code to be exactly same I can create a lazy version
->> for tiny as well. However,A  I don not know where to move
->> kfree_call_rcu() from it's current home in rcutiny.h though. Any
->> thoughts ?
-> I might be missing something subtle here, but in case I am not, my
-> suggestion is to simply rename rcutiny.h's kfree_call_rcu() and otherwise
-> leave it as is.  If you want to update the type of the second argument,
-> which got missed back in the day, there is always this:
->
-> static inline void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
-> {
-> 	call_rcu(head, func);
-> }
->
-> The reason that Tiny RCU doesn't handle laziness specially is because
-> Tree RCU's handling of laziness is a big no-op on the single CPU systems
-> on which Tiny RCU runs.  So Tiny RCU need do nothing special to support
-> laziness.
->
-> 							Thanx, Paul
->
-Hi Paul,
+Sparse does support that syntax.
 
-I can not just change the name as __kfree_call_rcu macro calls 
-kfree_call_rcu(). I have made tiny version of kfree_call_rcu() call 
-rcu_call_lazy() which calls call_rcu(). As far as the type is concerned, 
-my bad, I cut and posted from an older release. Latest code is already 
-using the typedef.
-
-Shoaib
-
---------------59C28A6D52A0CCD0686C9CAF
-Content-Type: text/html; charset=utf-8
-Content-Transfer-Encoding: 8bit
-
-<html>
-  <head>
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  </head>
-  <body text="#000000" bgcolor="#FFFFFF">
-    <p><br>
-    </p>
-    <br>
-    <div class="moz-cite-prefix">On 12/21/2017 05:39 PM, Paul E.
-      McKenney wrote:<br>
-    </div>
-    <blockquote type="cite"
-      cite="mid:20171222013937.GA7829@linux.vnet.ibm.com">
-      <blockquote type="cite" style="color: #000000;">
-        <pre wrap="">I left it out on purpose because the call in tiny is a little different
-
-rcutiny.h:
-
-static inline void kfree_call_rcu(struct rcu_head *head,
-A A A  A A A  A A A  A A A  A  void (*func)(struct rcu_head *rcu))
-{
-A A A  call_rcu(head, func);
-}
-
-tree.c:
-
-void kfree_call_rcu(struct rcu_head *head,
-A A A  A A A  A A A  void (*func)(struct rcu_head *rcu))
-{
-A A A  __call_rcu(head, func, rcu_state_p, -1, 1);
-}
-EXPORT_SYMBOL_GPL(kfree_call_rcu);
-
-If we want the code to be exactly same I can create a lazy version
-for tiny as well. However,A  I don not know where to move
-kfree_call_rcu() from it's current home in rcutiny.h though. Any
-thoughts ?
-</pre>
-      </blockquote>
-      <pre wrap="">I might be missing something subtle here, but in case I am not, my
-suggestion is to simply rename rcutiny.h's kfree_call_rcu() and otherwise
-leave it as is.  If you want to update the type of the second argument,
-which got missed back in the day, there is always this:
-
-static inline void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
-{
-	call_rcu(head, func);
-}
-
-The reason that Tiny RCU doesn't handle laziness specially is because
-Tree RCU's handling of laziness is a big no-op on the single CPU systems
-on which Tiny RCU runs.  So Tiny RCU need do nothing special to support
-laziness.
-
-							Thanx, Paul
-
-</pre>
-    </blockquote>
-    Hi Paul,<br>
-    <br>
-    I can not just change the name as __kfree_call_rcu macro calls
-    kfree_call_rcu(). I have made tiny version of kfree_call_rcu() call
-    rcu_call_lazy() which calls call_rcu(). As far as the type is
-    concerned, my bad, I cut and posted from an older release. Latest
-    code is already using the typedef.<br>
-    <br>
-    Shoaib<br>
-  </body>
-</html>
-
---------------59C28A6D52A0CCD0686C9CAF--
+- Josh Triplett
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
