@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A83046B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:36:41 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id y62so20262861pfd.3
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 05:36:41 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id x4si16296541plw.539.2017.12.22.05.36.39
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 22 Dec 2017 05:36:39 -0800 (PST)
-Date: Fri, 22 Dec 2017 05:36:34 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
-Message-ID: <20171222133634.GE6401@bombadil.infradead.org>
-References: <20171219165823.24243-1-willy@infradead.org>
- <20171219165823.24243-2-willy@infradead.org>
- <20171221214810.GC9087@linux.intel.com>
- <20171222011000.GB23624@bombadil.infradead.org>
- <20171222042120.GA18036@localhost>
- <20171222123112.GA6401@bombadil.infradead.org>
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C98AB6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 09:06:46 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id q15so1028581ioi.4
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 06:06:46 -0800 (PST)
+Received: from wolff.to (wolff.to. [98.103.208.27])
+        by mx.google.com with SMTP id w12si16255470iow.35.2017.12.22.06.06.45
+        for <linux-mm@kvack.org>;
+        Fri, 22 Dec 2017 06:06:45 -0800 (PST)
+Date: Fri, 22 Dec 2017 08:04:23 -0600
+From: Bruno Wolff III <bruno@wolff.to>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171222140423.GA23107@wolff.to>
+References: <20171221151843.GA453@wolff.to>
+ <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
+ <20171221153631.GA2300@wolff.to>
+ <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
+ <20171221164221.GA23680@wolff.to>
+ <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+ <20171221181531.GA21050@wolff.to>
+ <20171221231603.GA15702@wolff.to>
+ <20171222045318.GA4505@wolff.to>
+ <CAA70yB5y1uLvtvEFLsE2C_ALLvSqEZ6XKA=zoPeSaH_eSAVL4w@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=us-ascii; format=flowed
 Content-Disposition: inline
-In-Reply-To: <20171222123112.GA6401@bombadil.infradead.org>
+In-Reply-To: <CAA70yB5y1uLvtvEFLsE2C_ALLvSqEZ6XKA=zoPeSaH_eSAVL4w@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Josh Triplett <josh@joshtriplett.org>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
+To: weiping zhang <zwp10758@gmail.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
 
-On Fri, Dec 22, 2017 at 04:31:12AM -0800, Matthew Wilcox wrote:
-> On Thu, Dec 21, 2017 at 08:21:20PM -0800, Josh Triplett wrote:
-> > On Thu, Dec 21, 2017 at 05:10:00PM -0800, Matthew Wilcox wrote:
-> > > Yes, but this define is only #if __CHECKER__, so it doesn't matter what we
-> > > return as this code will never run.
-> > 
-> > It does matter slightly, as Sparse does some (very limited) value-based
-> > analyses. Let's future-proof it.
-> > 
-> > > That said, if sparse supports the GNU syntax of ?: then I have no
-> > > objection to doing that.
-> > 
-> > Sparse does support that syntax.
-> 
-> Great, I'll fix that and resubmit.
+On Fri, Dec 22, 2017 at 21:20:10 +0800,
+  weiping zhang <zwp10758@gmail.com> wrote:
+>2017-12-22 12:53 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
+>> On Thu, Dec 21, 2017 at 17:16:03 -0600,
+>>  Bruno Wolff III <bruno@wolff.to> wrote:
+>>>
+>>>
+>>> Enforcing mode alone isn't enough as I tested that one one machine at home
+>>> and it didn't trigger the problem. I'll try another machine late tonight.
+>>
+>>
+>> I got the problem to occur on my i686 machine when booting in enforcing
+>> mode. This machine uses raid 1 vua mdraid which may or may not be a factor
+>> in this problem. The boot log has a trace at the end and might be helpful,
+>> so I'm attaching it here.
+>Hi Bruno,
+>I can reproduce this issue in my QEMU test VM easily, just add an soft
+>RAID1, always trigger
+>that warning, I'll debug it later.
 
-Except the context imbalance warning comes back if I do.  This is sparse
-0.5.1 (Debian's 0.5.1-2 package).
+Great. When you have a fix, I can test it.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
