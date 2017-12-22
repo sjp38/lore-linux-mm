@@ -1,918 +1,3957 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7545F6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 23:55:38 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id f26so606608iob.13
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:55:38 -0800 (PST)
-Received: from wolff.to (wolff.to. [98.103.208.27])
-        by mx.google.com with SMTP id m87si3394946ioi.304.2017.12.21.20.55.36
-        for <linux-mm@kvack.org>;
-        Thu, 21 Dec 2017 20:55:37 -0800 (PST)
-Date: Thu, 21 Dec 2017 22:53:18 -0600
-From: Bruno Wolff III <bruno@wolff.to>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
- bdi_debug_register")
-Message-ID: <20171222045318.GA4505@wolff.to>
-References: <20171221130057.GA26743@wolff.to>
- <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
- <20171221151843.GA453@wolff.to>
- <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
- <20171221153631.GA2300@wolff.to>
- <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
- <20171221164221.GA23680@wolff.to>
- <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
- <20171221181531.GA21050@wolff.to>
- <20171221231603.GA15702@wolff.to>
+	by kanga.kvack.org (Postfix) with ESMTP id 1E68C6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 02:45:18 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id 79so3441331iou.19
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 23:45:18 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id s86si3354441ioi.135.2017.12.21.23.45.13
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 23:45:13 -0800 (PST)
+Subject: Re: [RFC PATCH v4 08/18] kvm: add the VM introspection subsystem
+References: <20171218190642.7790-1-alazar@bitdefender.com>
+ <20171218190642.7790-9-alazar@bitdefender.com>
+From: Patrick Colp <patrick.colp@oracle.com>
+Message-ID: <3b9dd83a-5e13-97b5-3d87-14de288e88d8@oracle.com>
+Date: Fri, 22 Dec 2017 02:34:45 -0500
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="BOKacYhQ+x31HxR3"
-Content-Disposition: inline
-In-Reply-To: <20171221231603.GA15702@wolff.to>
+In-Reply-To: <20171218190642.7790-9-alazar@bitdefender.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: weiping zhang <zwp10758@gmail.com>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, weiping zhang <zhangweiping@didichuxing.com>, linux-block@vger.kernel.org
+To: =?UTF-8?Q?Adalber_Laz=c4=83r?= <alazar@bitdefender.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>, =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>, =?UTF-8?B?TmljdciZb3IgQ8OuyJt1?= <ncitu@bitdefender.com>, =?UTF-8?Q?Mircea_C=c3=aerjaliu?= <mcirjaliu@bitdefender.com>, Marian Rotariu <mrotariu@bitdefender.com>
+
+On 2017-12-18 02:06 PM, Adalber LazA?r wrote:
+> From: Adalbert Lazar <alazar@bitdefender.com>
+> 
+> This subsystem is split into three source files:
+>   - kvmi_msg.c - ABI and socket related functions
+>   - kvmi_mem.c - handle map/unmap requests from the introspector
+>   - kvmi.c - all the other
+> 
+> The new data used by this subsystem is attached to the 'kvm' and
+> 'kvm_vcpu' structures as opaque pointers (to 'kvmi' and 'kvmi_vcpu'
+> structures).
+> 
+> Besides the KVMI system, this patch exports the
+> kvm_vcpu_ioctl_x86_get_xsave() and the mm_find_pmd() functions,
+> adds a new vCPU request (KVM_REQ_INTROSPECTION) and a new VM ioctl
+> (KVM_INTROSPECTION) used to pass the connection file handle from QEMU.
+> 
+> Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
+> Signed-off-by: Adalbert LazA?r <alazar@bitdefender.com>
+> Signed-off-by: NicuE?or CA(R)E?u <ncitu@bitdefender.com>
+> Signed-off-by: Mircea CA(R)rjaliu <mcirjaliu@bitdefender.com>
+> Signed-off-by: Marian Rotariu <mrotariu@bitdefender.com>
+> ---
+>   arch/x86/include/asm/kvm_host.h |    1 +
+>   arch/x86/kvm/Makefile           |    1 +
+>   arch/x86/kvm/x86.c              |    4 +-
+>   include/linux/kvm_host.h        |    4 +
+>   include/linux/kvmi.h            |   32 +
+>   include/linux/mm.h              |    3 +
+>   include/trace/events/kvmi.h     |  174 +++++
+>   include/uapi/linux/kvm.h        |    8 +
+>   mm/internal.h                   |    5 -
+>   virt/kvm/kvmi.c                 | 1410 +++++++++++++++++++++++++++++++++++++++
+>   virt/kvm/kvmi_int.h             |  121 ++++
+>   virt/kvm/kvmi_mem.c             |  730 ++++++++++++++++++++
+>   virt/kvm/kvmi_msg.c             | 1134 +++++++++++++++++++++++++++++++
+>   13 files changed, 3620 insertions(+), 7 deletions(-)
+>   create mode 100644 include/linux/kvmi.h
+>   create mode 100644 include/trace/events/kvmi.h
+>   create mode 100644 virt/kvm/kvmi.c
+>   create mode 100644 virt/kvm/kvmi_int.h
+>   create mode 100644 virt/kvm/kvmi_mem.c
+>   create mode 100644 virt/kvm/kvmi_msg.c
+> 
+> diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+> index 2cf03ed181e6..1e9e49eaee3b 100644
+> --- a/arch/x86/include/asm/kvm_host.h
+> +++ b/arch/x86/include/asm/kvm_host.h
+> @@ -73,6 +73,7 @@
+>   #define KVM_REQ_HV_RESET		KVM_ARCH_REQ(20)
+>   #define KVM_REQ_HV_EXIT			KVM_ARCH_REQ(21)
+>   #define KVM_REQ_HV_STIMER		KVM_ARCH_REQ(22)
+> +#define KVM_REQ_INTROSPECTION           KVM_ARCH_REQ(23)
+>   
+>   #define CR0_RESERVED_BITS                                               \
+>   	(~(unsigned long)(X86_CR0_PE | X86_CR0_MP | X86_CR0_EM | X86_CR0_TS \
+> diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
+> index dc4f2fdf5e57..ab6225563526 100644
+> --- a/arch/x86/kvm/Makefile
+> +++ b/arch/x86/kvm/Makefile
+> @@ -9,6 +9,7 @@ CFLAGS_vmx.o := -I.
+>   KVM := ../../../virt/kvm
+>   
+>   kvm-y			+= $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
+> +				$(KVM)/kvmi.o $(KVM)/kvmi_msg.o $(KVM)/kvmi_mem.o \
+>   				$(KVM)/eventfd.o $(KVM)/irqchip.o $(KVM)/vfio.o
+>   kvm-$(CONFIG_KVM_ASYNC_PF)	+= $(KVM)/async_pf.o
+>   
+> diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> index 74839859c0fd..cdfc7200a018 100644
+> --- a/arch/x86/kvm/x86.c
+> +++ b/arch/x86/kvm/x86.c
+> @@ -3346,8 +3346,8 @@ static void load_xsave(struct kvm_vcpu *vcpu, u8 *src)
+>   	}
+>   }
+>   
+> -static void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
+> -					 struct kvm_xsave *guest_xsave)
+> +void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
+> +				  struct kvm_xsave *guest_xsave)
+>   {
+>   	if (boot_cpu_has(X86_FEATURE_XSAVE)) {
+>   		memset(guest_xsave, 0, sizeof(struct kvm_xsave));
+> diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+> index 68e4d756f5c9..eae0598e18a5 100644
+> --- a/include/linux/kvm_host.h
+> +++ b/include/linux/kvm_host.h
+> @@ -274,6 +274,7 @@ struct kvm_vcpu {
+>   	bool preempted;
+>   	struct kvm_vcpu_arch arch;
+>   	struct dentry *debugfs_dentry;
+> +	void *kvmi;
+>   };
+>   
+>   static inline int kvm_vcpu_exiting_guest_mode(struct kvm_vcpu *vcpu)
+> @@ -446,6 +447,7 @@ struct kvm {
+>   	struct srcu_struct srcu;
+>   	struct srcu_struct irq_srcu;
+>   	pid_t userspace_pid;
+> +	void *kvmi;
+>   };
+>   
+>   #define kvm_err(fmt, ...) \
+> @@ -779,6 +781,8 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
+>   int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+>   					struct kvm_guest_debug *dbg);
+>   int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
+> +void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
+> +				  struct kvm_xsave *guest_xsave);
+>   
+>   int kvm_arch_init(void *opaque);
+>   void kvm_arch_exit(void);
+> diff --git a/include/linux/kvmi.h b/include/linux/kvmi.h
+> new file mode 100644
+> index 000000000000..7fac1d23f67c
+> --- /dev/null
+> +++ b/include/linux/kvmi.h
+> @@ -0,0 +1,32 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __KVMI_H__
+> +#define __KVMI_H__
+> +
+> +#define kvmi_is_present() 1
+> +
+> +int kvmi_init(void);
+> +void kvmi_uninit(void);
+> +void kvmi_destroy_vm(struct kvm *kvm);
+> +bool kvmi_hook(struct kvm *kvm, struct kvm_introspection *qemu);
+> +void kvmi_vcpu_init(struct kvm_vcpu *vcpu);
+> +void kvmi_vcpu_uninit(struct kvm_vcpu *vcpu);
+> +bool kvmi_cr_event(struct kvm_vcpu *vcpu, unsigned int cr,
+> +		   unsigned long old_value, unsigned long *new_value);
+> +bool kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr);
+> +void kvmi_xsetbv_event(struct kvm_vcpu *vcpu);
+> +bool kvmi_breakpoint_event(struct kvm_vcpu *vcpu, u64 gva);
+> +bool kvmi_is_agent_hypercall(struct kvm_vcpu *vcpu);
+> +void kvmi_hypercall_event(struct kvm_vcpu *vcpu);
+> +bool kvmi_lost_exception(struct kvm_vcpu *vcpu);
+> +void kvmi_trap_event(struct kvm_vcpu *vcpu);
+> +bool kvmi_descriptor_event(struct kvm_vcpu *vcpu, u32 info,
+> +			   unsigned long exit_qualification,
+> +			   unsigned char descriptor, unsigned char write);
+> +void kvmi_flush_mem_access(struct kvm *kvm);
+> +void kvmi_handle_request(struct kvm_vcpu *vcpu);
+> +int kvmi_host_mem_map(struct kvm_vcpu *vcpu, gva_t tkn_gva,
+> +			     gpa_t req_gpa, gpa_t map_gpa);
+> +int kvmi_host_mem_unmap(struct kvm_vcpu *vcpu, gpa_t map_gpa);
+> +
+> +
+> +#endif
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index ea818ff739cd..b659c7436789 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1115,6 +1115,9 @@ void page_address_init(void);
+>   #define page_address_init()  do { } while(0)
+>   #endif
+>   
+> +/* rmap.c */
+> +extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+> +
+>   extern void *page_rmapping(struct page *page);
+>   extern struct anon_vma *page_anon_vma(struct page *page);
+>   extern struct address_space *page_mapping(struct page *page);
+> diff --git a/include/trace/events/kvmi.h b/include/trace/events/kvmi.h
+> new file mode 100644
+> index 000000000000..dc36fd3b30dc
+> --- /dev/null
+> +++ b/include/trace/events/kvmi.h
+> @@ -0,0 +1,174 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#undef TRACE_SYSTEM
+> +#define TRACE_SYSTEM kvmi
+> +
+> +#if !defined(_TRACE_KVMI_H) || defined(TRACE_HEADER_MULTI_READ)
+> +#define _TRACE_KVMI_H
+> +
+> +#include <linux/tracepoint.h>
+> +
+> +#ifndef __TRACE_KVMI_STRUCTURES
+> +#define __TRACE_KVMI_STRUCTURES
+> +
+> +#undef EN
+> +#define EN(x) { x, #x }
+> +
+> +static const struct trace_print_flags kvmi_msg_id_symbol[] = {
+> +	EN(KVMI_GET_VERSION),
+> +	EN(KVMI_PAUSE_VCPU),
+> +	EN(KVMI_GET_GUEST_INFO),
+> +	EN(KVMI_GET_REGISTERS),
+> +	EN(KVMI_SET_REGISTERS),
+> +	EN(KVMI_GET_PAGE_ACCESS),
+> +	EN(KVMI_SET_PAGE_ACCESS),
+> +	EN(KVMI_INJECT_EXCEPTION),
+> +	EN(KVMI_READ_PHYSICAL),
+> +	EN(KVMI_WRITE_PHYSICAL),
+> +	EN(KVMI_GET_MAP_TOKEN),
+> +	EN(KVMI_CONTROL_EVENTS),
+> +	EN(KVMI_CONTROL_CR),
+> +	EN(KVMI_CONTROL_MSR),
+> +	EN(KVMI_EVENT),
+> +	EN(KVMI_EVENT_REPLY),
+> +	EN(KVMI_GET_CPUID),
+> +	EN(KVMI_GET_XSAVE),
+> +	{-1, NULL}
+> +};
+> +
+> +static const struct trace_print_flags kvmi_event_id_symbol[] = {
+> +	EN(KVMI_EVENT_CR),
+> +	EN(KVMI_EVENT_MSR),
+> +	EN(KVMI_EVENT_XSETBV),
+> +	EN(KVMI_EVENT_BREAKPOINT),
+> +	EN(KVMI_EVENT_HYPERCALL),
+> +	EN(KVMI_EVENT_PAGE_FAULT),
+> +	EN(KVMI_EVENT_TRAP),
+> +	EN(KVMI_EVENT_DESCRIPTOR),
+> +	EN(KVMI_EVENT_CREATE_VCPU),
+> +	EN(KVMI_EVENT_PAUSE_VCPU),
+> +	{-1, NULL}
+> +};
+> +
+> +static const struct trace_print_flags kvmi_action_symbol[] = {
+> +	{KVMI_EVENT_ACTION_CONTINUE, "continue"},
+> +	{KVMI_EVENT_ACTION_RETRY, "retry"},
+> +	{KVMI_EVENT_ACTION_CRASH, "crash"},
+> +	{-1, NULL}
+> +};
+> +
+> +#endif /* __TRACE_KVMI_STRUCTURES */
+> +
+> +TRACE_EVENT(
+> +	kvmi_msg_dispatch,
+> +	TP_PROTO(__u16 id, __u16 size),
+> +	TP_ARGS(id, size),
+> +	TP_STRUCT__entry(
+> +		__field(__u16, id)
+> +		__field(__u16, size)
+> +	),
+> +	TP_fast_assign(
+> +		__entry->id = id;
+> +		__entry->size = size;
+> +	),
+> +	TP_printk("%s size %u",
+> +		  trace_print_symbols_seq(p, __entry->id, kvmi_msg_id_symbol),
+> +		  __entry->size)
+> +);
+> +
+> +TRACE_EVENT(
+> +	kvmi_send_event,
+> +	TP_PROTO(__u32 id),
+> +	TP_ARGS(id),
+> +	TP_STRUCT__entry(
+> +		__field(__u32, id)
+> +	),
+> +	TP_fast_assign(
+> +		__entry->id = id;
+> +	),
+> +	TP_printk("%s",
+> +		trace_print_symbols_seq(p, __entry->id, kvmi_event_id_symbol))
+> +);
+> +
+> +#define KVMI_ACCESS_PRINTK() ({                                         \
+> +	const char *saved_ptr = trace_seq_buffer_ptr(p);		\
+> +	static const char * const access_str[] = {			\
+> +		"---", "r--", "-w-", "rw-", "--x", "r-x", "-wx", "rwx"  \
+> +	};							        \
+> +	trace_seq_printf(p, "%s", access_str[__entry->access & 7]);	\
+> +	saved_ptr;							\
+> +})
+> +
+> +TRACE_EVENT(
+> +	kvmi_set_mem_access,
+> +	TP_PROTO(__u64 gfn, __u8 access, int err),
+> +	TP_ARGS(gfn, access, err),
+> +	TP_STRUCT__entry(
+> +		__field(__u64, gfn)
+> +		__field(__u8, access)
+> +		__field(int, err)
+> +	),
+> +	TP_fast_assign(
+> +		__entry->gfn = gfn;
+> +		__entry->access = access;
+> +		__entry->err = err;
+> +	),
+> +	TP_printk("gfn %llx %s %s %d",
+> +		  __entry->gfn, KVMI_ACCESS_PRINTK(),
+> +		  __entry->err ? "failed" : "succeeded", __entry->err)
+> +);
+> +
+> +TRACE_EVENT(
+> +	kvmi_apply_mem_access,
+> +	TP_PROTO(__u64 gfn, __u8 access, int err),
+> +	TP_ARGS(gfn, access, err),
+> +	TP_STRUCT__entry(
+> +		__field(__u64, gfn)
+> +		__field(__u8, access)
+> +		__field(int, err)
+> +	),
+> +	TP_fast_assign(
+> +		__entry->gfn = gfn;
+> +		__entry->access = access;
+> +		__entry->err = err;
+> +	),
+> +	TP_printk("gfn %llx %s flush %s %d",
+> +		  __entry->gfn, KVMI_ACCESS_PRINTK(),
+> +		  __entry->err ? "failed" : "succeeded", __entry->err)
+> +);
+> +
+> +TRACE_EVENT(
+> +	kvmi_event_page_fault,
+> +	TP_PROTO(__u64 gpa, __u64 gva, __u8 access, __u64 old_rip,
+> +		 __u32 action, __u64 new_rip, __u32 ctx_size),
+> +	TP_ARGS(gpa, gva, access, old_rip, action, new_rip, ctx_size),
+> +	TP_STRUCT__entry(
+> +		__field(__u64, gpa)
+> +		__field(__u64, gva)
+> +		__field(__u8, access)
+> +		__field(__u64, old_rip)
+> +		__field(__u32, action)
+> +		__field(__u64, new_rip)
+> +		__field(__u32, ctx_size)
+> +	),
+> +	TP_fast_assign(
+> +		__entry->gpa = gpa;
+> +		__entry->gva = gva;
+> +		__entry->access = access;
+> +		__entry->old_rip = old_rip;
+> +		__entry->action = action;
+> +		__entry->new_rip = new_rip;
+> +		__entry->ctx_size = ctx_size;
+> +	),
+> +	TP_printk("gpa %llx %s gva %llx rip %llx -> %s rip %llx ctx %u",
+> +		  __entry->gpa,
+> +		  KVMI_ACCESS_PRINTK(),
+> +		  __entry->gva,
+> +		  __entry->old_rip,
+> +		  trace_print_symbols_seq(p, __entry->action,
+> +					  kvmi_action_symbol),
+> +		  __entry->new_rip, __entry->ctx_size)
+> +);
+> +
+> +#endif /* _TRACE_KVMI_H */
+> +
+> +#include <trace/define_trace.h>
+> diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
+> index 496e59a2738b..6b7c4469b808 100644
+> --- a/include/uapi/linux/kvm.h
+> +++ b/include/uapi/linux/kvm.h
+> @@ -1359,6 +1359,14 @@ struct kvm_s390_ucas_mapping {
+>   #define KVM_S390_GET_CMMA_BITS      _IOWR(KVMIO, 0xb8, struct kvm_s390_cmma_log)
+>   #define KVM_S390_SET_CMMA_BITS      _IOW(KVMIO, 0xb9, struct kvm_s390_cmma_log)
+>   
+> +struct kvm_introspection {
+> +	int fd;
+> +	__u32 padding;
+> +	__u32 commands;
+> +	__u32 events;
+> +};
+> +#define KVM_INTROSPECTION      _IOW(KVMIO, 0xff, struct kvm_introspection)
+> +
+>   #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+>   #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
+>   #define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
+> diff --git a/mm/internal.h b/mm/internal.h
+> index e6bd35182dae..9d363c802305 100644
+> --- a/mm/internal.h
+> +++ b/mm/internal.h
+> @@ -92,11 +92,6 @@ extern unsigned long highest_memmap_pfn;
+>   extern int isolate_lru_page(struct page *page);
+>   extern void putback_lru_page(struct page *page);
+>   
+> -/*
+> - * in mm/rmap.c:
+> - */
+> -extern pmd_t *mm_find_pmd(struct mm_struct *mm, unsigned long address);
+> -
+>   /*
+>    * in mm/page_alloc.c
+>    */
+> diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+> new file mode 100644
+> index 000000000000..c4cdaeddac45
+> --- /dev/null
+> +++ b/virt/kvm/kvmi.c
+> @@ -0,0 +1,1410 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection
+> + *
+> + * Copyright (C) 2017 Bitdefender S.R.L.
+> + *
+> + */
+> +#include <linux/mmu_context.h>
+> +#include <linux/random.h>
+> +#include <uapi/linux/kvmi.h>
+> +#include <uapi/asm/kvmi.h>
+> +#include "../../arch/x86/kvm/x86.h"
+> +#include "../../arch/x86/kvm/mmu.h"
+> +#include <asm/vmx.h>
+> +#include "cpuid.h"
+> +#include "kvmi_int.h"
+> +#include <asm/kvm_page_track.h>
+> +
+> +#define CREATE_TRACE_POINTS
+> +#include <trace/events/kvmi.h>
+> +
+> +struct kvmi_mem_access {
+> +	struct list_head link;
+> +	gfn_t gfn;
+> +	u8 access;
+> +	bool active[KVM_PAGE_TRACK_MAX];
+> +	struct kvm_memory_slot *slot;
+> +};
+> +
+> +static void wakeup_events(struct kvm *kvm);
+> +static bool kvmi_page_fault_event(struct kvm_vcpu *vcpu, unsigned long gpa,
+> +			   unsigned long gva, u8 access);
+> +
+> +static struct workqueue_struct *wq;
+> +
+> +static const u8 full_access = KVMI_PAGE_ACCESS_R |
+> +			      KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X;
+> +
+> +static const struct {
+> +	unsigned int allow_bit;
+> +	enum kvm_page_track_mode track_mode;
+> +} track_modes[] = {
+> +	{ KVMI_PAGE_ACCESS_R, KVM_PAGE_TRACK_PREREAD },
+> +	{ KVMI_PAGE_ACCESS_W, KVM_PAGE_TRACK_PREWRITE },
+> +	{ KVMI_PAGE_ACCESS_X, KVM_PAGE_TRACK_PREEXEC },
+> +};
+> +
+> +void kvmi_make_request(struct kvmi_vcpu *ivcpu, int req)
+> +{
+> +	set_bit(req, &ivcpu->requests);
+> +	/* Make sure the bit is set when the worker wakes up */
+> +	smp_wmb();
+> +	up(&ivcpu->sem_requests);
+> +}
+> +
+> +void kvmi_clear_request(struct kvmi_vcpu *ivcpu, int req)
+> +{
+> +	clear_bit(req, &ivcpu->requests);
+> +}
+> +
+> +int kvmi_cmd_pause_vcpu(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +
+> +	/*
+> +	 * This vcpu is already stopped, executing this command
+> +	 * as a result of the REQ_CMD bit being set
+> +	 * (see kvmi_handle_request).
+> +	 */
+> +	if (ivcpu->pause)
+> +		return -KVM_EBUSY;
+> +
+> +	ivcpu->pause = true;
+> +
+> +	return 0;
+> +}
+> +
+> +static void kvmi_apply_mem_access(struct kvm *kvm,
+> +				  struct kvm_memory_slot *slot,
+> +				  struct kvmi_mem_access *m)
+> +{
+> +	int idx, k;
+
+This should probably be i instead of k. I'm guessing you chose k to 
+avoid confusion of i with idx. However, there's precedent already set 
+for using i as a loop counter even in this case (e.g., look at 
+kvm_scan_ioapic_routes() in arch/x86/kvm/irq_comm.c and 
+init_rmode_identity_map() in arch/x86/kvm/vmx.c)
+
+> +
+> +	if (!slot) {
+> +		slot = gfn_to_memslot(kvm, m->gfn);
+> +		if (!slot)
+> +			return;
+> +	}
+> +
+> +	idx = srcu_read_lock(&kvm->srcu);
+> +
+> +	spin_lock(&kvm->mmu_lock);
+> +
+> +	for (k = 0; k < ARRAY_SIZE(track_modes); k++) {
+> +		unsigned int allow_bit = track_modes[k].allow_bit;
+> +		enum kvm_page_track_mode mode = track_modes[k].track_mode;
+> +
+> +		if (m->access & allow_bit) {
+> +			if (m->active[mode] && m->slot == slot) {
+> +				kvm_slot_page_track_remove_page(kvm, slot,
+> +								m->gfn, mode);
+> +				m->active[mode] = false;
+> +				m->slot = NULL;
+> +			}
+> +		} else if (!m->active[mode] || m->slot != slot) {
+> +			kvm_slot_page_track_add_page(kvm, slot, m->gfn, mode);
+> +			m->active[mode] = true;
+> +			m->slot = slot;
+> +		}
+> +	}
+> +
+> +	spin_unlock(&kvm->mmu_lock);
+> +
+> +	srcu_read_unlock(&kvm->srcu, idx);
+> +}
+> +
+> +int kvmi_set_mem_access(struct kvm *kvm, u64 gpa, u8 access)
+> +{
+> +	struct kvmi_mem_access *m;
+> +	struct kvmi_mem_access *__m;
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +	gfn_t gfn = gpa_to_gfn(gpa);
+> +
+> +	if (kvm_is_error_hva(gfn_to_hva_safe(kvm, gfn)))
+> +		kvm_err("Invalid gpa %llx (or memslot not available yet)", gpa);
+
+If there's an error, should this not return or something instead of 
+continuing as if nothing is wrong?
+
+> +
+> +	m = kzalloc(sizeof(struct kvmi_mem_access), GFP_KERNEL);
+
+This should be "m = kzalloc(sizeof(*m), GFP_KERNEL);".
+
+> +	if (!m)
+> +		return -KVM_ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&m->link);
+> +	m->gfn = gfn;
+> +	m->access = access;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +	__m = radix_tree_lookup(&ikvm->access_tree, m->gfn);
+> +	if (__m) {
+> +		__m->access = m->access;
+> +		if (list_empty(&__m->link))
+> +			list_add_tail(&__m->link, &ikvm->access_list);
+> +	} else {
+> +		radix_tree_insert(&ikvm->access_tree, m->gfn, m);
+> +		list_add_tail(&m->link, &ikvm->access_list);
+> +		m = NULL;
+> +	}
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +
+> +	kfree(m);
+> +
+> +	return 0;
+> +}
+> +
+> +static bool kvmi_test_mem_access(struct kvm *kvm, unsigned long gpa,
+> +				 u8 access)
+> +{
+> +	struct kvmi_mem_access *m;
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	if (!ikvm)
+> +		return false;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +	m = radix_tree_lookup(&ikvm->access_tree, gpa_to_gfn(gpa));
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +
+> +	/*
+> +	 * We want to be notified only for violations involving access
+> +	 * bits that we've specifically cleared
+> +	 */
+> +	if (m && ((~m->access) & access))
+> +		return true;
+> +
+> +	return false;
+> +}
+> +
+> +static struct kvmi_mem_access *
+> +kvmi_get_mem_access_unlocked(struct kvm *kvm, const gfn_t gfn)
+> +{
+> +	return radix_tree_lookup(&IKVM(kvm)->access_tree, gfn);
+> +}
+> +
+> +static bool is_introspected(struct kvmi *ikvm)
+> +{
+> +	return (ikvm && ikvm->sock);
+> +}
+> +
+> +void kvmi_flush_mem_access(struct kvm *kvm)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	if (!ikvm)
+> +		return;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +	while (!list_empty(&ikvm->access_list)) {
+> +		struct kvmi_mem_access *m =
+> +			list_first_entry(&ikvm->access_list,
+> +					 struct kvmi_mem_access, link);
+> +
+> +		list_del_init(&m->link);
+> +
+> +		kvmi_apply_mem_access(kvm, NULL, m);
+> +
+> +		if (m->access == full_access) {
+> +			radix_tree_delete(&ikvm->access_tree, m->gfn);
+> +			kfree(m);
+> +		}
+> +	}
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +}
+> +
+> +static void kvmi_free_mem_access(struct kvm *kvm)
+> +{
+> +	void **slot;
+> +	struct radix_tree_iter iter;
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +	radix_tree_for_each_slot(slot, &ikvm->access_tree, &iter, 0) {
+> +		struct kvmi_mem_access *m = *slot;
+> +
+> +		m->access = full_access;
+> +		kvmi_apply_mem_access(kvm, NULL, m);
+> +
+> +		radix_tree_delete(&ikvm->access_tree, m->gfn);
+> +		kfree(*slot);
+> +	}
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +}
+> +
+> +static unsigned long *msr_mask(struct kvmi *ikvm, unsigned int *msr)
+> +{
+> +	switch (*msr) {
+> +	case 0 ... 0x1fff:
+> +		return ikvm->msr_mask.low;
+> +	case 0xc0000000 ... 0xc0001fff:
+> +		*msr &= 0x1fff;
+> +		return ikvm->msr_mask.high;
+> +	}
+> +	return NULL;
+> +}
+> +
+> +static bool test_msr_mask(struct kvmi *ikvm, unsigned int msr)
+> +{
+> +	unsigned long *mask = msr_mask(ikvm, &msr);
+> +
+> +	if (!mask)
+> +		return false;
+> +	if (!test_bit(msr, mask))
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +static int msr_control(struct kvmi *ikvm, unsigned int msr, bool enable)
+> +{
+> +	unsigned long *mask = msr_mask(ikvm, &msr);
+> +
+> +	if (!mask)
+> +		return -KVM_EINVAL;
+> +	if (enable)
+> +		set_bit(msr, mask);
+> +	else
+> +		clear_bit(msr, mask);
+> +	return 0;
+> +}
+> +
+> +unsigned int kvmi_vcpu_mode(const struct kvm_vcpu *vcpu,
+> +				   const struct kvm_sregs *sregs)
+> +{
+> +	unsigned int mode = 0;
+> +
+> +	if (is_long_mode((struct kvm_vcpu *) vcpu)) {
+> +		if (sregs->cs.l)
+> +			mode = 8;
+> +		else if (!sregs->cs.db)
+> +			mode = 2;
+> +		else
+> +			mode = 4;
+> +	} else if (sregs->cr0 & X86_CR0_PE) {
+> +		if (!sregs->cs.db)
+> +			mode = 2;
+> +		else
+> +			mode = 4;
+> +	} else if (!sregs->cs.db)
+> +		mode = 2;
+> +	else
+> +		mode = 4;
+
+If one branch of a conditional uses braces, then all branches should 
+(regardless of if they are only a single statements). The final "else 
+if" and "else" blocks here should both be wrapped in braces.
+
+> +
+> +	return mode;
+> +}
+> +
+> +static int maybe_delayed_init(void)
+> +{
+> +	if (wq)
+> +		return 0;
+> +
+> +	wq = alloc_workqueue("kvmi", WQ_CPU_INTENSIVE, 0);
+> +	if (!wq)
+> +		return -ENOMEM;
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmi_init(void)
+> +{
+> +	return 0;
+> +}
+> +
+> +static void work_cb(struct work_struct *work)
+> +{
+> +	struct kvmi *ikvm = container_of(work, struct kvmi, work);
+> +	struct kvm   *kvm = ikvm->kvm;
+
+None of your other initial variable assignments are aligned like this. 
+Any particular reason why this one is?
+
+> +
+> +	while (kvmi_msg_process(ikvm))
+> +		;
+
+Typically if you're going to have an empty while block, you stick the 
+semi-colon at the end of the while line. So this would be:
+	while (kvmi_msg_process(ikvm));
+
+> +
+> +	/* We are no longer interested in any kind of events */
+> +	atomic_set(&ikvm->event_mask, 0);
+> +
+> +	/* Clean-up for the next kvmi_hook() call */
+> +	ikvm->cr_mask = 0;
+> +	memset(&ikvm->msr_mask, 0, sizeof(ikvm->msr_mask));
+> +
+> +	wakeup_events(kvm);
+> +
+> +	/* Restore the spte access rights */
+> +	/* Shouldn't wait for reconnection? */
+> +	kvmi_free_mem_access(kvm);
+> +
+> +	complete_all(&ikvm->finished);
+> +}
+> +
+> +static void __alloc_vcpu_kvmi(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = kzalloc(sizeof(struct kvmi_vcpu), GFP_KERNEL);
+> +
+> +	if (ivcpu) {
+> +		sema_init(&ivcpu->sem_requests, 0);
+> +
+> +		/*
+> +		 * Make sure the ivcpu is initialized
+> +		 * before making it visible.
+> +		 */
+> +		smp_wmb();
+> +
+> +		vcpu->kvmi = ivcpu;
+> +
+> +		kvmi_make_request(ivcpu, REQ_INIT);
+> +		kvm_make_request(KVM_REQ_INTROSPECTION, vcpu);
+> +	}
+> +}
+> +
+> +void kvmi_vcpu_init(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi *ikvm = IKVM(vcpu->kvm);
+> +
+> +	if (is_introspected(ikvm)) {
+> +		mutex_lock(&vcpu->kvm->lock);
+> +		__alloc_vcpu_kvmi(vcpu);
+> +		mutex_unlock(&vcpu->kvm->lock);
+> +	}
+> +}
+> +
+> +void kvmi_vcpu_uninit(struct kvm_vcpu *vcpu)
+> +{
+> +	kfree(IVCPU(vcpu));
+> +}
+> +
+> +static bool __alloc_kvmi(struct kvm *kvm)
+> +{
+> +	struct kvmi *ikvm = kzalloc(sizeof(struct kvmi), GFP_KERNEL);
+> +
+> +	if (ikvm) {
+> +		INIT_LIST_HEAD(&ikvm->access_list);
+> +		mutex_init(&ikvm->access_tree_lock);
+> +		INIT_RADIX_TREE(&ikvm->access_tree, GFP_KERNEL);
+> +		rwlock_init(&ikvm->sock_lock);
+> +		init_completion(&ikvm->finished);
+> +		INIT_WORK(&ikvm->work, work_cb);
+> +
+> +		kvm->kvmi = ikvm;
+> +		ikvm->kvm = kvm; /* work_cb */
+> +	}
+> +
+> +	return (ikvm != NULL);
+> +}
+
+Would it maybe be better to just put a check for ikvm at the top and 
+return false, otherwise do all the in the if body then return true?
+
+Like this:
+
+static bool __alloc_kvmi(struct kvm *kvm)
+{
+	struct kvmi *ikvm = kzalloc(sizeof(struct kvmi), GFP_KERNEL);
+
+	if (!ikvm)
+		return false;
+
+	INIT_LIST_HEAD(&ikvm->access_list);
+	mutex_init(&ikvm->access_tree_lock);
+	INIT_RADIX_TREE(&ikvm->access_tree, GFP_KERNEL);
+	rwlock_init(&ikvm->sock_lock);
+	init_completion(&ikvm->finished);
+	INIT_WORK(&ikvm->work, work_cb);
+
+	kvm->kvmi = ikvm;
+	ikvm->kvm = kvm; /* work_cb */
+
+	return true;
+}
+
+> +
+> +static bool alloc_kvmi(struct kvm *kvm)
+> +{
+> +	bool done;
+> +
+> +	mutex_lock(&kvm->lock);
+> +	done = (
+> +		maybe_delayed_init() == 0    &&
+> +		IKVM(kvm)            == NULL &&
+> +		__alloc_kvmi(kvm)    == true
+> +	);
+> +	mutex_unlock(&kvm->lock);
+> +
+> +	return done;
+> +}
+> +
+> +static void alloc_all_kvmi_vcpu(struct kvm *kvm)
+> +{
+> +	struct kvm_vcpu *vcpu;
+> +	int i;
+> +
+> +	mutex_lock(&kvm->lock);
+> +	kvm_for_each_vcpu(i, vcpu, kvm)
+> +		if (!IKVM(vcpu))
+> +			__alloc_vcpu_kvmi(vcpu);
+> +	mutex_unlock(&kvm->lock);
+> +}
+> +
+> +static bool setup_socket(struct kvm *kvm, struct kvm_introspection *qemu)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	if (is_introspected(ikvm)) {
+> +		kvm_err("Guest already introspected\n");
+> +		return false;
+> +	}
+> +
+> +	if (!kvmi_msg_init(ikvm, qemu->fd))
+> +		return false;
+
+kvmi_msg_init assumes that ikvm is not NULL -- it makes no check and 
+then does "WRITE_ONCE(ikvm->sock, sock)". is_introspected() does check 
+if ikvm is NULL, but if it is, it returns false, which would still end 
+up here. There should be a check that ikvm is not NULL before this if 
+statement.
+
+> +
+> +	ikvm->cmd_allow_mask = -1; /* TODO: qemu->commands; */
+> +	ikvm->event_allow_mask = -1; /* TODO: qemu->events; */
+> +
+> +	alloc_all_kvmi_vcpu(kvm);
+> +	queue_work(wq, &ikvm->work);
+> +
+> +	return true;
+> +}
+> +
+> +/*
+> + * When called from outside a page fault handler, this call should
+> + * return ~0ull
+> + */
+> +static u64 kvmi_mmu_fault_gla(struct kvm_vcpu *vcpu, gpa_t gpa)
+> +{
+> +	u64 gla;
+> +	u64 gla_val;
+> +	u64 v;
+> +
+> +	if (!vcpu->arch.gpa_available)
+> +		return ~0ull;
+> +
+> +	gla = kvm_mmu_fault_gla(vcpu);
+> +	if (gla == ~0ull)
+> +		return gla;
+> +	gla_val = gla;
+> +
+> +	/* Handle the potential overflow by returning ~0ull */
+> +	if (vcpu->arch.gpa_val > gpa) {
+> +		v = vcpu->arch.gpa_val - gpa;
+> +		if (v > gla)
+> +			gla = ~0ull;
+> +		else
+> +			gla -= v;
+> +	} else {
+> +		v = gpa - vcpu->arch.gpa_val;
+> +		if (v > (U64_MAX - gla))
+> +			gla = ~0ull;
+> +		else
+> +			gla += v;
+> +	}
+> +
+> +	return gla;
+> +}
+> +
+> +static bool kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa,
+> +			       u8 *new,
+> +			       int bytes,
+> +			       struct kvm_page_track_notifier_node *node,
+> +			       bool *data_ready)
+> +{
+> +	u64 gla;
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +	bool ret = true;
+> +
+> +	if (kvm_mmu_nested_guest_page_fault(vcpu))
+> +		return ret;
+> +	gla = kvmi_mmu_fault_gla(vcpu, gpa);
+> +	ret = kvmi_page_fault_event(vcpu, gpa, gla, KVMI_PAGE_ACCESS_R);
+
+Should you not check the value of ret here before proceeding?
+
+> +	if (ivcpu && ivcpu->ctx_size > 0) {
+> +		int s = min_t(int, bytes, ivcpu->ctx_size);
+> +
+> +		memcpy(new, ivcpu->ctx_data, s);
+> +		ivcpu->ctx_size = 0;
+> +
+> +		if (*data_ready)
+> +			kvm_err("Override custom data");
+> +
+> +		*data_ready = true;
+> +	}
+> +
+> +	return ret;
+> +}
+> +
+> +static bool kvmi_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa,
+> +				const u8 *new,
+> +				int bytes,
+> +				struct kvm_page_track_notifier_node *node)
+> +{
+> +	u64 gla;
+> +
+> +	if (kvm_mmu_nested_guest_page_fault(vcpu))
+> +		return true;
+> +	gla = kvmi_mmu_fault_gla(vcpu, gpa);
+> +	return kvmi_page_fault_event(vcpu, gpa, gla, KVMI_PAGE_ACCESS_W);
+> +}
+> +
+> +static bool kvmi_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa,
+> +				struct kvm_page_track_notifier_node *node)
+> +{
+> +	u64 gla;
+> +
+> +	if (kvm_mmu_nested_guest_page_fault(vcpu))
+> +		return true;
+> +	gla = kvmi_mmu_fault_gla(vcpu, gpa);
+> +
+> +	return kvmi_page_fault_event(vcpu, gpa, gla, KVMI_PAGE_ACCESS_X);
+> +}
+> +
+> +static void kvmi_track_create_slot(struct kvm *kvm,
+> +				   struct kvm_memory_slot *slot,
+> +				   unsigned long npages,
+> +				   struct kvm_page_track_notifier_node *node)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +	gfn_t start = slot->base_gfn;
+> +	const gfn_t end = start + npages;
+> +
+> +	if (!ikvm)
+> +		return;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +
+> +	while (start < end) {
+> +		struct kvmi_mem_access *m;
+> +
+> +		m = kvmi_get_mem_access_unlocked(kvm, start);
+> +		if (m)
+> +			kvmi_apply_mem_access(kvm, slot, m);
+> +		start++;
+> +	}
+> +
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +}
+> +
+> +static void kvmi_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot,
+> +				  struct kvm_page_track_notifier_node *node)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +	gfn_t start = slot->base_gfn;
+> +	const gfn_t end = start + slot->npages;
+> +
+> +	if (!ikvm)
+> +		return;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +
+> +	while (start < end) {
+> +		struct kvmi_mem_access *m;
+> +
+> +		m = kvmi_get_mem_access_unlocked(kvm, start);
+> +		if (m) {
+> +			u8 prev_access = m->access;
+> +
+> +			m->access = full_access;
+> +			kvmi_apply_mem_access(kvm, slot, m);
+> +			m->access = prev_access;
+> +		}
+> +		start++;
+> +	}
+> +
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +}
+> +
+> +static struct kvm_page_track_notifier_node kptn_node = {
+> +	.track_preread = kvmi_track_preread,
+> +	.track_prewrite = kvmi_track_prewrite,
+> +	.track_preexec = kvmi_track_preexec,
+> +	.track_create_slot = kvmi_track_create_slot,
+> +	.track_flush_slot = kvmi_track_flush_slot
+> +};
+> +
+> +bool kvmi_hook(struct kvm *kvm, struct kvm_introspection *qemu)
+> +{
+> +	kvm_info("Hooking vm with fd: %d\n", qemu->fd);
+> +
+> +	kvm_page_track_register_notifier(kvm, &kptn_node);
+> +
+> +	return (alloc_kvmi(kvm) && setup_socket(kvm, qemu));
+
+Is this safe? It could return false if the alloc fails (in which case 
+the caller has to do nothing) or if setting up the socket fails (in 
+which case the caller needs to free the allocated kvmi).
+
+> +}
+> +
+> +void kvmi_destroy_vm(struct kvm *kvm)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	if (ikvm) {
+> +		kvmi_msg_uninit(ikvm);
+> +
+> +		mutex_destroy(&ikvm->access_tree_lock);
+> +		kfree(ikvm);
+> +	}
+> +
+> +	kvmi_mem_destroy_vm(kvm);
+> +}
+> +
+> +void kvmi_uninit(void)
+> +{
+> +	if (wq) {
+> +		destroy_workqueue(wq);
+> +		wq = NULL;
+> +	}
+> +}
+> +
+> +void kvmi_get_msrs(struct kvm_vcpu *vcpu, struct kvmi_event *event)
+> +{
+> +	struct msr_data msr;
+> +
+> +	msr.host_initiated = true;
+> +
+> +	msr.index = MSR_IA32_SYSENTER_CS;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.sysenter_cs = msr.data;
+> +
+> +	msr.index = MSR_IA32_SYSENTER_ESP;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.sysenter_esp = msr.data;
+> +
+> +	msr.index = MSR_IA32_SYSENTER_EIP;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.sysenter_eip = msr.data;
+> +
+> +	msr.index = MSR_EFER;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.efer = msr.data;
+> +
+> +	msr.index = MSR_STAR;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.star = msr.data;
+> +
+> +	msr.index = MSR_LSTAR;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.lstar = msr.data;
+> +
+> +	msr.index = MSR_CSTAR;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.cstar = msr.data;
+> +
+> +	msr.index = MSR_IA32_CR_PAT;
+> +	kvm_get_msr(vcpu, &msr);
+> +	event->msrs.pat = msr.data;
+> +}
+> +
+> +static bool is_event_enabled(struct kvm *kvm, int event_bit)
+> +{
+> +	struct kvmi *ikvm = IKVM(kvm);
+> +
+> +	return (ikvm && (atomic_read(&ikvm->event_mask) & event_bit));
+> +}
+> +
+> +static int kvmi_vcpu_kill(int sig, struct kvm_vcpu *vcpu)
+> +{
+> +	int err = -ESRCH;
+> +	struct pid *pid;
+> +	struct siginfo siginfo[1] = { };
+> +
+> +	rcu_read_lock();
+> +	pid = rcu_dereference(vcpu->pid);
+> +	if (pid)
+> +		err = kill_pid_info(sig, siginfo, pid);
+> +	rcu_read_unlock();
+> +
+> +	return err;
+> +}
+> +
+> +static void kvmi_vm_shutdown(struct kvm *kvm)
+> +{
+> +	int i;
+> +	struct kvm_vcpu *vcpu;
+> +
+> +	mutex_lock(&kvm->lock);
+> +	kvm_for_each_vcpu(i, vcpu, kvm) {
+> +		kvmi_vcpu_kill(SIGTERM, vcpu);
+> +	}
+> +	mutex_unlock(&kvm->lock);
+> +}
+> +
+> +/* TODO: Do we need a return code ? */
+> +static void handle_common_event_actions(struct kvm_vcpu *vcpu, u32 action)
+> +{
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CRASH:
+> +		kvmi_vm_shutdown(vcpu->kvm);
+> +		break;
+> +
+> +	default:
+> +		kvm_err("Unsupported event action: %d\n", action);
+> +	}
+> +}
+> +
+> +bool kvmi_cr_event(struct kvm_vcpu *vcpu, unsigned int cr,
+> +		   unsigned long old_value, unsigned long *new_value)
+> +{
+> +	struct kvm *kvm = vcpu->kvm;
+> +	u64 ret_value;
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(kvm, KVMI_EVENT_CR))
+> +		return true;
+> +	if (!test_bit(cr, &IKVM(kvm)->cr_mask))
+> +		return true;
+> +	if (old_value == *new_value)
+> +		return true;
+> +
+> +	action = kvmi_msg_send_cr(vcpu, cr, old_value, *new_value, &ret_value);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		*new_value = ret_value;
+> +		return true;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	return false;
+> +}
+> +
+> +bool kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr)
+> +{
+> +	struct kvm *kvm = vcpu->kvm;
+> +	u64 ret_value;
+> +	u32 action;
+> +	struct msr_data old_msr = { .host_initiated = true,
+> +				    .index = msr->index };
+> +
+> +	if (msr->host_initiated)
+> +		return true;
+> +	if (!is_event_enabled(kvm, KVMI_EVENT_MSR))
+> +		return true;
+> +	if (!test_msr_mask(IKVM(kvm), msr->index))
+> +		return true;
+> +	if (kvm_get_msr(vcpu, &old_msr))
+> +		return true;
+> +	if (old_msr.data == msr->data)
+> +		return true;
+> +
+> +	action = kvmi_msg_send_msr(vcpu, msr->index, old_msr.data, msr->data,
+> +				   &ret_value);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		msr->data = ret_value;
+> +		return true;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	return false;
+> +}
+> +
+> +void kvmi_xsetbv_event(struct kvm_vcpu *vcpu)
+> +{
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_XSETBV))
+> +		return;
+> +
+> +	action = kvmi_msg_send_xsetbv(vcpu);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +}
+> +
+> +bool kvmi_breakpoint_event(struct kvm_vcpu *vcpu, u64 gva)
+> +{
+> +	u32 action;
+> +	u64 gpa;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_BREAKPOINT))
+> +		/* qemu will automatically reinject the breakpoint */
+> +		return false;
+> +
+> +	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
+> +
+> +	if (gpa == UNMAPPED_GVA)
+> +		kvm_err("%s: invalid gva: %llx", __func__, gva);
+
+If the gpa is unmapped, shouldn't it return false rather than proceeding?
+
+> +
+> +	action = kvmi_msg_send_bp(vcpu, gpa);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	case KVMI_EVENT_ACTION_RETRY:
+> +		/* rip was most likely adjusted past the INT 3 instruction */
+> +		return true;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	/* qemu will automatically reinject the breakpoint */
+> +	return false;
+> +}
+> +EXPORT_SYMBOL(kvmi_breakpoint_event);
+> +
+> +#define KVM_HC_XEN_HVM_OP_GUEST_REQUEST_VM_EVENT 24
+> +bool kvmi_is_agent_hypercall(struct kvm_vcpu *vcpu)
+> +{
+> +	unsigned long subfunc1, subfunc2;
+> +	bool longmode = is_64_bit_mode(vcpu);
+> +	unsigned long nr = kvm_register_read(vcpu, VCPU_REGS_RAX);
+> +
+> +	if (longmode) {
+> +		subfunc1 = kvm_register_read(vcpu, VCPU_REGS_RDI);
+> +		subfunc2 = kvm_register_read(vcpu, VCPU_REGS_RSI);
+> +	} else {
+> +		nr &= 0xFFFFFFFF;
+> +		subfunc1 = kvm_register_read(vcpu, VCPU_REGS_RBX);
+> +		subfunc1 &= 0xFFFFFFFF;
+> +		subfunc2 = kvm_register_read(vcpu, VCPU_REGS_RCX);
+> +		subfunc2 &= 0xFFFFFFFF;
+> +	}
+> +
+> +	return (nr == KVM_HC_XEN_HVM_OP
+> +		&& subfunc1 == KVM_HC_XEN_HVM_OP_GUEST_REQUEST_VM_EVENT
+> +		&& subfunc2 == 0);
+> +}
+> +
+> +void kvmi_hypercall_event(struct kvm_vcpu *vcpu)
+> +{
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_HYPERCALL)
+> +			|| !kvmi_is_agent_hypercall(vcpu))
+> +		return;
+> +
+> +	action = kvmi_msg_send_hypercall(vcpu);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +}
+> +
+> +bool kvmi_page_fault_event(struct kvm_vcpu *vcpu, unsigned long gpa,
+> +			   unsigned long gva, u8 access)
+> +{
+> +	struct kvm *kvm = vcpu->kvm;
+> +	struct kvmi_vcpu *ivcpu;
+> +	bool trap_access, ret = true;
+> +	u32 ctx_size;
+> +	u64 old_rip;
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(kvm, KVMI_EVENT_PAGE_FAULT))
+> +		return true;
+> +
+> +	/* Have we shown interest in this page? */
+> +	if (!kvmi_test_mem_access(kvm, gpa, access))
+> +		return true;
+> +
+> +	ivcpu    = IVCPU(vcpu);
+> +	ctx_size = sizeof(ivcpu->ctx_data);
+> +	old_rip  = kvm_rip_read(vcpu);
+
+Why are these assignments aligned liket this?
+
+> +
+> +	if (!kvmi_msg_send_pf(vcpu, gpa, gva, access, &action,
+> +			      &trap_access,
+> +			      ivcpu->ctx_data, &ctx_size))
+> +		goto out;
+> +
+> +	ivcpu->ctx_size = 0;
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		ivcpu->ctx_size = ctx_size;
+> +		break;
+> +	case KVMI_EVENT_ACTION_RETRY:
+> +		ret = false;
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	/* TODO: trap_access -> don't REPeat the instruction */
+> +out:
+> +	trace_kvmi_event_page_fault(gpa, gva, access, old_rip, action,
+> +				    kvm_rip_read(vcpu), ctx_size);
+> +	return ret;
+> +}
+> +
+> +bool kvmi_lost_exception(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +
+> +	if (!ivcpu || !ivcpu->exception.injected)
+> +		return false;
+> +
+> +	ivcpu->exception.injected = 0;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_TRAP))
+> +		return false;
+> +
+> +	if ((vcpu->arch.exception.injected || vcpu->arch.exception.pending)
+> +		&& vcpu->arch.exception.nr == ivcpu->exception.nr
+> +		&& vcpu->arch.exception.error_code
+> +			== ivcpu->exception.error_code)
+> +		return false;
+> +
+> +	return true;
+> +}
+> +
+> +void kvmi_trap_event(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +	u32 vector, type, err;
+> +	u32 action;
+> +
+> +	if (vcpu->arch.exception.pending) {
+> +		vector = vcpu->arch.exception.nr;
+> +		err = vcpu->arch.exception.error_code;
+> +
+> +		if (kvm_exception_is_soft(vector))
+> +			type = INTR_TYPE_SOFT_EXCEPTION;
+> +		else
+> +			type = INTR_TYPE_HARD_EXCEPTION;
+> +	} else if (vcpu->arch.interrupt.pending) {
+> +		vector = vcpu->arch.interrupt.nr;
+> +		err = 0;
+> +
+> +		if (vcpu->arch.interrupt.soft)
+> +			type = INTR_TYPE_SOFT_INTR;
+> +		else
+> +			type = INTR_TYPE_EXT_INTR;
+> +	} else {
+> +		vector = 0;
+> +		type = 0;
+> +		err = 0;
+> +	}
+> +
+> +	kvm_err("New exception nr %d/%d err %x/%x addr %lx",
+> +		vector, ivcpu->exception.nr,
+> +		err, ivcpu->exception.error_code,
+> +		vcpu->arch.cr2);
+> +
+> +	action = kvmi_msg_send_trap(vcpu, vector, type, err, vcpu->arch.cr2);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +}
+> +
+> +bool kvmi_descriptor_event(struct kvm_vcpu *vcpu, u32 info,
+> +			   unsigned long exit_qualification,
+> +			   unsigned char descriptor, unsigned char write)
+> +{
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_DESCRIPTOR))
+> +		return true;
+
+How come it returns true here? The events below all return false from a 
+similar condition check.
+
+> +
+> +	action = kvmi_msg_send_descriptor(vcpu, info, exit_qualification,
+> +					  descriptor, write);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		return true;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	return false; /* TODO: double check this */
+> +}
+> +EXPORT_SYMBOL(kvmi_descriptor_event);
+> +
+> +static bool kvmi_create_vcpu_event(struct kvm_vcpu *vcpu)
+> +{
+> +	u32 action;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_CREATE_VCPU))
+> +		return false;
+> +
+> +	action = kvmi_msg_send_create_vcpu(vcpu);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	return true;
+> +}
+> +
+> +static bool kvmi_pause_vcpu_event(struct kvm_vcpu *vcpu)
+> +{
+> +	u32 action;
+> +
+> +	IVCPU(vcpu)->pause = false;
+> +
+> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_PAUSE_VCPU))
+> +		return false;
+> +
+> +	action = kvmi_msg_send_pause_vcpu(vcpu);
+> +
+> +	switch (action) {
+> +	case KVMI_EVENT_ACTION_CONTINUE:
+> +		break;
+> +	default:
+> +		handle_common_event_actions(vcpu, action);
+> +	}
+> +
+> +	return true;
+> +}
+> +
+> +/* TODO: refactor this function uto avoid recursive calls and the semaphore. */
+> +void kvmi_handle_request(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +
+> +	while (ivcpu->ev_rpl_waiting
+> +		|| READ_ONCE(ivcpu->requests)) {
+> +
+> +		down(&ivcpu->sem_requests);
+> +
+> +		if (test_bit(REQ_INIT, &ivcpu->requests)) {
+> +			/*
+> +			 * kvmi_create_vcpu_event() may call this function
+> +			 * again and won't return unless there is no more work
+> +			 * to be done. The while condition will be evaluated
+> +			 * to false, but we explicitly exit the loop to avoid
+> +			 * surprizing the reader more than we already did.
+> +			 */
+> +			kvmi_clear_request(ivcpu, REQ_INIT);
+> +			if (kvmi_create_vcpu_event(vcpu))
+> +				break;
+> +		} else if (test_bit(REQ_CMD, &ivcpu->requests)) {
+> +			kvmi_msg_handle_vcpu_cmd(vcpu);
+> +			/* it will clear the REQ_CMD bit */
+> +			if (ivcpu->pause && !ivcpu->ev_rpl_waiting) {
+> +				/* Same warnings as with REQ_INIT. */
+> +				if (kvmi_pause_vcpu_event(vcpu))
+> +					break;
+> +			}
+> +		} else if (test_bit(REQ_REPLY, &ivcpu->requests)) {
+> +			kvmi_clear_request(ivcpu, REQ_REPLY);
+> +			ivcpu->ev_rpl_waiting = false;
+> +			if (ivcpu->have_delayed_regs) {
+> +				kvm_arch_vcpu_set_regs(vcpu,
+> +							&ivcpu->delayed_regs);
+> +				ivcpu->have_delayed_regs = false;
+> +			}
+> +			if (ivcpu->pause) {
+> +				/* Same warnings as with REQ_INIT. */
+> +				if (kvmi_pause_vcpu_event(vcpu))
+> +					break;
+> +			}
+> +		} else if (test_bit(REQ_CLOSE, &ivcpu->requests)) {
+> +			kvmi_clear_request(ivcpu, REQ_CLOSE);
+> +			break;
+> +		} else {
+> +			kvm_err("Unexpected request");
+> +		}
+> +	}
+> +
+> +	kvmi_flush_mem_access(vcpu->kvm);
+> +	/* TODO: merge with kvmi_set_mem_access() */
+> +}
+> +
+> +int kvmi_cmd_get_cpuid(struct kvm_vcpu *vcpu, u32 function, u32 index,
+> +		       u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
+> +{
+> +	struct kvm_cpuid_entry2 *e;
+> +
+> +	e = kvm_find_cpuid_entry(vcpu, function, index);
+> +	if (!e)
+> +		return -KVM_ENOENT;
+> +
+> +	*eax = e->eax;
+> +	*ebx = e->ebx;
+> +	*ecx = e->ecx;
+> +	*edx = e->edx;
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmi_cmd_get_guest_info(struct kvm_vcpu *vcpu, u16 *vcpu_cnt, u64 *tsc)
+> +{
+> +	/*
+> +	 * Should we switch vcpu_cnt to unsigned int?
+> +	 * If not, we should limit this to max u16 - 1
+> +	 */
+> +	*vcpu_cnt = atomic_read(&vcpu->kvm->online_vcpus);
+> +	if (kvm_has_tsc_control)
+> +		*tsc = 1000ul * vcpu->arch.virtual_tsc_khz;
+> +	else
+> +		*tsc = 0;
+> +
+> +	return 0;
+> +}
+> +
+> +static int get_first_vcpu(struct kvm *kvm, struct kvm_vcpu **vcpu)
+> +{
+> +	struct kvm_vcpu *v;
+> +
+> +	if (!atomic_read(&kvm->online_vcpus))
+> +		return -KVM_EINVAL;
+> +
+> +	v = kvm_get_vcpu(kvm, 0);
+> +
+> +	if (!v)
+> +		return -KVM_EINVAL;
+> +
+> +	*vcpu = v;
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmi_cmd_get_registers(struct kvm_vcpu *vcpu, u32 *mode,
+> +			   struct kvm_regs *regs,
+> +			   struct kvm_sregs *sregs, struct kvm_msrs *msrs)
+> +{
+> +	struct kvm_msr_entry  *msr = msrs->entries;
+> +	unsigned int	       n   = msrs->nmsrs;
+
+Again with randomly aligning variables...
+
+> +
+> +	kvm_arch_vcpu_ioctl_get_regs(vcpu, regs);
+> +	kvm_arch_vcpu_ioctl_get_sregs(vcpu, sregs);
+> +	*mode = kvmi_vcpu_mode(vcpu, sregs);
+> +
+> +	for (; n--; msr++) {
+
+The conditional portion of this for loop appears to not be a 
+conditional? Either way, this is a pretty ugly way to write this.
+
+> +		struct msr_data m   = { .index = msr->index };
+> +		int		err = kvm_get_msr(vcpu, &m);
+
+And again with the alignment...
+
+> +
+> +		if (err)
+> +			return -KVM_EINVAL;
+> +
+> +		msr->data = m.data;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmi_cmd_set_registers(struct kvm_vcpu *vcpu, const struct kvm_regs *regs)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +
+> +	if (ivcpu->ev_rpl_waiting) {
+> +		memcpy(&ivcpu->delayed_regs, regs, sizeof(ivcpu->delayed_regs));
+> +		ivcpu->have_delayed_regs = true;
+> +	} else
+> +		kvm_err("Drop KVMI_SET_REGISTERS");
+
+Since the if has braces, the else should too.
+
+> +	return 0;
+> +}
+> +
+> +int kvmi_cmd_get_page_access(struct kvm_vcpu *vcpu, u64 gpa, u8 *access)
+> +{
+> +	struct kvmi *ikvm = IKVM(vcpu->kvm);
+> +	struct kvmi_mem_access *m;
+> +
+> +	mutex_lock(&ikvm->access_tree_lock);
+> +	m = kvmi_get_mem_access_unlocked(vcpu->kvm, gpa_to_gfn(gpa));
+> +	*access = m ? m->access : full_access;
+> +	mutex_unlock(&ikvm->access_tree_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static bool is_vector_valid(u8 vector)
+> +{
+> +	return true;
+> +}
+> +
+> +static bool is_gva_valid(struct kvm_vcpu *vcpu, u64 gva)
+> +{
+> +	return true;
+> +}
+> +
+> +int kvmi_cmd_inject_exception(struct kvm_vcpu *vcpu, u8 vector,
+> +			      bool error_code_valid, u16 error_code,
+> +			      u64 address)
+> +{
+> +	struct x86_exception e = {
+> +		.vector = vector,
+> +		.error_code_valid = error_code_valid,
+> +		.error_code = error_code,
+> +		.address = address,
+> +	};
+> +
+> +	if (!(is_vector_valid(vector) && is_gva_valid(vcpu, address)))
+> +		return -KVM_EINVAL;
+> +
+> +	if (e.vector == PF_VECTOR)
+> +		kvm_inject_page_fault(vcpu, &e);
+> +	else if (e.error_code_valid)
+> +		kvm_queue_exception_e(vcpu, e.vector, e.error_code);
+> +	else
+> +		kvm_queue_exception(vcpu, e.vector);
+> +
+> +	if (IVCPU(vcpu)->exception.injected)
+> +		kvm_err("Override exception");
+> +
+> +	IVCPU(vcpu)->exception.injected = 1;
+> +	IVCPU(vcpu)->exception.nr = e.vector;
+> +	IVCPU(vcpu)->exception.error_code = error_code_valid ? error_code : 0;
+> +
+> +	return 0;
+> +}
+> +
+> +unsigned long gfn_to_hva_safe(struct kvm *kvm, gfn_t gfn)
+> +{
+> +	unsigned long hva;
+> +
+> +	mutex_lock(&kvm->slots_lock);
+> +	hva = gfn_to_hva(kvm, gfn);
+> +	mutex_unlock(&kvm->slots_lock);
+> +
+> +	return hva;
+> +}
+> +
+> +static long get_user_pages_remote_unlocked(struct mm_struct *mm,
+> +					   unsigned long start,
+> +					   unsigned long nr_pages,
+> +					   unsigned int gup_flags,
+> +					   struct page **pages)
+> +{
+> +	long ret;
+> +	struct task_struct *tsk = NULL;
+> +	struct vm_area_struct **vmas = NULL;
+> +	int locked = 1;
+> +
+> +	down_read(&mm->mmap_sem);
+> +	ret =
+> +	    get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags, pages,
+> +				  vmas, &locked);
+
+Couldn't this line be "ret = get_user_pages_remote(..." and just break 
+it on a different variable?
+
+> +	if (locked)
+> +		up_read(&mm->mmap_sem);
+> +	return ret;
+> +}
+> +
+> +int kvmi_cmd_read_physical(struct kvm *kvm, u64 gpa, u64 size, int (*send)(
+> +				   struct kvmi *, const struct kvmi_msg_hdr *,
+> +				   int err, const void *buf, size_t),
+> +				   const struct kvmi_msg_hdr *ctx)
+> +{
+> +	int err, ec;
+> +	unsigned long hva;
+> +	struct page *page = NULL;
+> +	void *ptr_page = NULL, *ptr = NULL;
+> +	size_t ptr_size = 0;
+> +	struct kvm_vcpu *vcpu;
+> +
+> +	ec = get_first_vcpu(kvm, &vcpu);
+> +
+> +	if (ec)
+> +		goto out;
+> +
+> +	hva = gfn_to_hva_safe(kvm, gpa_to_gfn(gpa));
+> +
+> +	if (kvm_is_error_hva(hva)) {
+> +		ec = -KVM_EINVAL;
+> +		goto out;
+> +	}
+> +
+> +	if (get_user_pages_remote_unlocked(kvm->mm, hva, 1, 0, &page) != 1) {
+> +		ec = -KVM_EINVAL;
+> +		goto out;
+> +	}
+> +
+> +	ptr_page = kmap_atomic(page);
+> +
+> +	ptr = ptr_page + (gpa & ~PAGE_MASK);
+> +	ptr_size = size;
+> +
+> +out:
+> +	err = send(IKVM(kvm), ctx, ec, ptr, ptr_size);
+> +
+> +	if (ptr_page)
+> +		kunmap_atomic(ptr_page);
+> +	if (page)
+> +		put_page(page);
+> +	return err;
+> +}
+> +
+> +int kvmi_cmd_write_physical(struct kvm *kvm, u64 gpa, u64 size, const void *buf)
+> +{
+> +	int err;
+> +	unsigned long hva;
+> +	struct page *page;
+> +	void *ptr;
+> +	struct kvm_vcpu *vcpu;
+> +
+> +	err = get_first_vcpu(kvm, &vcpu);
+> +
+> +	if (err)
+> +		return err;
+> +
+> +	hva = gfn_to_hva_safe(kvm, gpa_to_gfn(gpa));
+> +
+> +	if (kvm_is_error_hva(hva))
+> +		return -KVM_EINVAL;
+> +
+> +	if (get_user_pages_remote_unlocked(kvm->mm, hva, 1, FOLL_WRITE,
+> +			&page) != 1)
+> +		return -KVM_EINVAL;
+> +
+> +	ptr = kmap_atomic(page);
+> +
+> +	memcpy(ptr + (gpa & ~PAGE_MASK), buf, size);
+> +
+> +	kunmap_atomic(ptr);
+> +	put_page(page);
+> +
+> +	return 0;
+> +}
+> +
+> +int kvmi_cmd_alloc_token(struct kvm *kvm, struct kvmi_map_mem_token *token)
+> +{
+> +	int err = 0;
+> +
+> +	/* create random token */
+> +	get_random_bytes(token, sizeof(struct kvmi_map_mem_token));
+> +
+> +	/* store token in HOST database */
+> +	if (kvmi_store_token(kvm, token))
+> +		err = -KVM_ENOMEM;
+> +
+> +	return err;
+> +}
+
+It seems like you could get rid of err altogether and just return 
+-KVM_ENOMEM directly from the if body and 0 at the end.
+
+> +
+> +int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, u32 events)
+> +{
+> +	int err = 0;
+> +
+> +	if (events & ~KVMI_KNOWN_EVENTS)
+> +		return -KVM_EINVAL;
+> +
+> +	if (events & KVMI_EVENT_BREAKPOINT) {
+> +		if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_BREAKPOINT)) {
+> +			struct kvm_guest_debug dbg = { };
+> +
+> +			dbg.control =
+> +			    KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
+> +
+> +			err = kvm_arch_vcpu_ioctl_set_guest_debug(vcpu, &dbg);
+> +		}
+> +	}
+> +
+> +	if (!err)
+> +		atomic_set(&IKVM(vcpu->kvm)->event_mask, events);
+> +
+> +	return err;
+> +}
+> +
+> +int kvmi_cmd_control_cr(struct kvmi *ikvm, bool enable, u32 cr)
+> +{
+> +	switch (cr) {
+> +	case 0:
+> +	case 3:
+> +	case 4:
+> +		if (enable)
+> +			set_bit(cr, &ikvm->cr_mask);
+> +		else
+> +			clear_bit(cr, &ikvm->cr_mask);
+> +		return 0;
+> +
+> +	default:
+> +		return -KVM_EINVAL;
+> +	}
+> +}
+> +
+> +int kvmi_cmd_control_msr(struct kvm *kvm, bool enable, u32 msr)
+> +{
+> +	struct kvm_vcpu *vcpu;
+> +	int err;
+> +
+> +	err = get_first_vcpu(kvm, &vcpu);
+> +	if (err)
+> +		return err;
+> +
+> +	err = msr_control(IKVM(kvm), msr, enable);
+> +
+> +	if (!err)
+> +		kvm_arch_msr_intercept(vcpu, msr, enable);
+> +
+> +	return err;
+> +}
+> +
+> +void wakeup_events(struct kvm *kvm)
+> +{
+> +	int i;
+> +	struct kvm_vcpu *vcpu;
+> +
+> +	mutex_lock(&kvm->lock);
+> +	kvm_for_each_vcpu(i, vcpu, kvm)
+> +		kvmi_make_request(IVCPU(vcpu), REQ_CLOSE);
+> +	mutex_unlock(&kvm->lock);
+> +}
+> diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+> new file mode 100644
+> index 000000000000..5976b98f11cb
+> --- /dev/null
+> +++ b/virt/kvm/kvmi_int.h
+> @@ -0,0 +1,121 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __KVMI_INT_H__
+> +#define __KVMI_INT_H__
+> +
+> +#include <linux/types.h>
+> +#include <linux/kvm_host.h>
+> +
+> +#include <uapi/linux/kvmi.h>
+> +
+> +#define IVCPU(vcpu) ((struct kvmi_vcpu *)((vcpu)->kvmi))
+> +
+> +struct kvmi_vcpu {
+> +	u8 ctx_data[256];
+> +	u32 ctx_size;
+> +	struct semaphore sem_requests;
+> +	unsigned long requests;
+> +	/* TODO: get this ~64KB buffer from a cache */
+> +	u8 msg_buf[KVMI_MAX_MSG_SIZE];
+> +	struct kvmi_event_reply ev_rpl;
+> +	void *ev_rpl_ptr;
+> +	size_t ev_rpl_size;
+> +	size_t ev_rpl_received;
+> +	u32 ev_seq;
+> +	bool ev_rpl_waiting;
+> +	struct {
+> +		u16 error_code;
+> +		u8 nr;
+> +		bool injected;
+> +	} exception;
+> +	struct kvm_regs delayed_regs;
+> +	bool have_delayed_regs;
+> +	bool pause;
+> +};
+> +
+> +#define IKVM(kvm) ((struct kvmi *)((kvm)->kvmi))
+> +
+> +struct kvmi {
+> +	atomic_t event_mask;
+> +	unsigned long cr_mask;
+> +	struct {
+> +		unsigned long low[BITS_TO_LONGS(8192)];
+> +		unsigned long high[BITS_TO_LONGS(8192)];
+> +	} msr_mask;
+> +	struct radix_tree_root access_tree;
+> +	struct mutex access_tree_lock;
+> +	struct list_head access_list;
+> +	struct work_struct work;
+> +	struct socket *sock;
+> +	rwlock_t sock_lock;
+> +	struct completion finished;
+> +	struct kvm *kvm;
+> +	/* TODO: get this ~64KB buffer from a cache */
+> +	u8 msg_buf[KVMI_MAX_MSG_SIZE];
+> +	u32 cmd_allow_mask;
+> +	u32 event_allow_mask;
+> +};
+> +
+> +#define REQ_INIT   0
+> +#define REQ_CMD    1
+> +#define REQ_REPLY  2
+> +#define REQ_CLOSE  3
+
+Would these be better off being an enum?
+
+> +
+> +/* kvmi_msg.c */
+> +bool kvmi_msg_init(struct kvmi *ikvm, int fd);
+> +bool kvmi_msg_process(struct kvmi *ikvm);
+> +void kvmi_msg_uninit(struct kvmi *ikvm);
+> +void kvmi_msg_handle_vcpu_cmd(struct kvm_vcpu *vcpu);
+> +u32 kvmi_msg_send_cr(struct kvm_vcpu *vcpu, u32 cr, u64 old_value,
+> +		     u64 new_value, u64 *ret_value);
+> +u32 kvmi_msg_send_msr(struct kvm_vcpu *vcpu, u32 msr, u64 old_value,
+> +		      u64 new_value, u64 *ret_value);
+> +u32 kvmi_msg_send_xsetbv(struct kvm_vcpu *vcpu);
+> +u32 kvmi_msg_send_bp(struct kvm_vcpu *vcpu, u64 gpa);
+> +u32 kvmi_msg_send_hypercall(struct kvm_vcpu *vcpu);
+> +bool kvmi_msg_send_pf(struct kvm_vcpu *vcpu, u64 gpa, u64 gva, u32 mode,
+> +		      u32 *action, bool *trap_access, u8 *ctx,
+> +		      u32 *ctx_size);
+> +u32 kvmi_msg_send_trap(struct kvm_vcpu *vcpu, u32 vector, u32 type,
+> +		       u32 error_code, u64 cr2);
+> +u32 kvmi_msg_send_descriptor(struct kvm_vcpu *vcpu, u32 info,
+> +			     u64 exit_qualification, u8 descriptor, u8 write);
+> +u32 kvmi_msg_send_create_vcpu(struct kvm_vcpu *vcpu);
+> +u32 kvmi_msg_send_pause_vcpu(struct kvm_vcpu *vcpu);
+> +
+> +/* kvmi.c */
+> +int kvmi_cmd_get_guest_info(struct kvm_vcpu *vcpu, u16 *vcpu_cnt, u64 *tsc);
+> +int kvmi_cmd_pause_vcpu(struct kvm_vcpu *vcpu);
+> +int kvmi_cmd_get_registers(struct kvm_vcpu *vcpu, u32 *mode,
+> +			   struct kvm_regs *regs, struct kvm_sregs *sregs,
+> +			   struct kvm_msrs *msrs);
+> +int kvmi_cmd_set_registers(struct kvm_vcpu *vcpu, const struct kvm_regs *regs);
+> +int kvmi_cmd_get_page_access(struct kvm_vcpu *vcpu, u64 gpa, u8 *access);
+> +int kvmi_cmd_inject_exception(struct kvm_vcpu *vcpu, u8 vector,
+> +			      bool error_code_valid, u16 error_code,
+> +			      u64 address);
+> +int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, u32 events);
+> +int kvmi_cmd_get_cpuid(struct kvm_vcpu *vcpu, u32 function, u32 index,
+> +		       u32 *eax, u32 *ebx, u32 *rcx, u32 *edx);
+> +int kvmi_cmd_read_physical(struct kvm *kvm, u64 gpa, u64 size,
+> +			   int (*send)(struct kvmi *,
+> +					const struct kvmi_msg_hdr*,
+> +					int err, const void *buf, size_t),
+> +			   const struct kvmi_msg_hdr *ctx);
+> +int kvmi_cmd_write_physical(struct kvm *kvm, u64 gpa, u64 size,
+> +			    const void *buf);
+> +int kvmi_cmd_alloc_token(struct kvm *kvm, struct kvmi_map_mem_token *token);
+> +int kvmi_cmd_control_cr(struct kvmi *ikvm, bool enable, u32 cr);
+> +int kvmi_cmd_control_msr(struct kvm *kvm, bool enable, u32 msr);
+> +int kvmi_set_mem_access(struct kvm *kvm, u64 gpa, u8 access);
+> +void kvmi_make_request(struct kvmi_vcpu *ivcpu, int req);
+> +void kvmi_clear_request(struct kvmi_vcpu *ivcpu, int req);
+> +unsigned int kvmi_vcpu_mode(const struct kvm_vcpu *vcpu,
+> +			    const struct kvm_sregs *sregs);
+> +void kvmi_get_msrs(struct kvm_vcpu *vcpu, struct kvmi_event *event);
+> +unsigned long gfn_to_hva_safe(struct kvm *kvm, gfn_t gfn);
+> +void kvmi_mem_destroy_vm(struct kvm *kvm);
+> +
+> +/* kvmi_mem.c */
+> +int kvmi_store_token(struct kvm *kvm, struct kvmi_map_mem_token *token);
+> +
+> +#endif
+> diff --git a/virt/kvm/kvmi_mem.c b/virt/kvm/kvmi_mem.c
+> new file mode 100644
+> index 000000000000..c766357678e6
+> --- /dev/null
+> +++ b/virt/kvm/kvmi_mem.c
+> @@ -0,0 +1,730 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection memory mapping implementation
+> + *
+> + * Copyright (C) 2017 Bitdefender S.R.L.
+> + *
+> + * Author:
+> + *   Mircea Cirjaliu <mcirjaliu@bitdefender.com>
+> + */
+> +
+> +#include <linux/module.h>
+> +#include <linux/init.h>
+> +#include <linux/kernel.h>
+> +#include <linux/kvm_host.h>
+> +#include <linux/rmap.h>
+> +#include <linux/list.h>
+> +#include <linux/slab.h>
+> +#include <linux/pagemap.h>
+> +#include <linux/swap.h>
+> +#include <linux/spinlock.h>
+> +#include <linux/printk.h>
+> +#include <linux/kvmi.h>
+> +#include <linux/huge_mm.h>
+> +
+> +#include <uapi/linux/kvmi.h>
+> +
+> +#include "kvmi_int.h"
+> +
+> +
+> +static struct list_head mapping_list;
+> +static spinlock_t mapping_lock;
+> +
+> +struct host_map {
+> +	struct list_head mapping_list;
+> +	gpa_t map_gpa;
+> +	struct kvm *machine;
+> +	gpa_t req_gpa;
+> +};
+> +
+> +
+> +static struct list_head token_list;
+> +static spinlock_t token_lock;
+> +
+> +struct token_entry {
+> +	struct list_head token_list;
+> +	struct kvmi_map_mem_token token;
+> +	struct kvm *kvm;
+> +};
+> +
+> +
+> +int kvmi_store_token(struct kvm *kvm, struct kvmi_map_mem_token *token)
+> +{
+> +	struct token_entry *tep;
+> +
+> +	print_hex_dump_debug("kvmi: new token ", DUMP_PREFIX_NONE,
+> +			     32, 1, token, sizeof(struct kvmi_map_mem_token),
+> +			     false);
+> +
+> +	tep = kmalloc(sizeof(struct token_entry), GFP_KERNEL);
+
+	tep = kmalloc(sizeof(*tep), GFP_KERNEL)
+
+> +	if (tep == NULL)
+> +		return -ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&tep->token_list);
+> +	memcpy(&tep->token, token, sizeof(struct kvmi_map_mem_token));
+
+Here too it might be better to do "sizeof(*token)"
+
+> +	tep->kvm = kvm;
+> +
+> +	spin_lock(&token_lock);
+> +	list_add_tail(&tep->token_list, &token_list);
+> +	spin_unlock(&token_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static struct kvm *find_machine_at(struct kvm_vcpu *vcpu, gva_t tkn_gva)
+> +{
+> +	long result;
+> +	gpa_t tkn_gpa;
+> +	struct kvmi_map_mem_token token;
+> +	struct list_head *cur;
+> +	struct token_entry *tep, *found = NULL;
+> +	struct kvm *target_kvm = NULL;
+> +
+> +	/* machine token is passed as pointer */
+> +	tkn_gpa = kvm_mmu_gva_to_gpa_system(vcpu, tkn_gva, NULL);
+> +	if (tkn_gpa == UNMAPPED_GVA)
+> +		return NULL;
+> +
+> +	/* copy token to local address space */
+> +	result = kvm_read_guest(vcpu->kvm, tkn_gpa, &token, sizeof(token));
+> +	if (IS_ERR_VALUE(result)) {
+> +		kvm_err("kvmi: failed copying token from user\n");
+> +		return ERR_PTR(result);
+> +	}
+> +
+> +	/* consume token & find the VM */
+> +	spin_lock(&token_lock);
+> +	list_for_each(cur, &token_list) {
+> +		tep = list_entry(cur, struct token_entry, token_list);
+> +
+> +		if (!memcmp(&token, &tep->token, sizeof(token))) {
+> +			list_del(&tep->token_list);
+> +			found = tep;
+> +			break;
+> +		}
+> +	}
+> +	spin_unlock(&token_lock);
+> +
+> +	if (found != NULL) {
+> +		target_kvm = found->kvm;
+> +		kfree(found);
+> +	}
+> +
+> +	return target_kvm;
+> +}
+> +
+> +static void remove_vm_token(struct kvm *kvm)
+> +{
+> +	struct list_head *cur, *next;
+> +	struct token_entry *tep;
+> +
+> +	spin_lock(&token_lock);
+> +	list_for_each_safe(cur, next, &token_list) {
+> +		tep = list_entry(cur, struct token_entry, token_list);
+> +
+> +		if (tep->kvm == kvm) {
+> +			list_del(&tep->token_list);
+> +			kfree(tep);
+> +		}
+> +	}
+> +	spin_unlock(&token_lock);
+> +
+> +}
+
+There's an extra blank line at the end of this function (before the brace).
+
+> +
+> +
+> +static int add_to_list(gpa_t map_gpa, struct kvm *machine, gpa_t req_gpa)
+> +{
+> +	struct host_map *map;
+> +
+> +	map = kmalloc(sizeof(struct host_map), GFP_KERNEL);
+
+	map = kmalloc(sizeof(*map), GFP_KERNEL);
+
+> +	if (map == NULL)
+> +		return -ENOMEM;
+> +
+> +	INIT_LIST_HEAD(&map->mapping_list);
+> +	map->map_gpa = map_gpa;
+> +	map->machine = machine;
+> +	map->req_gpa = req_gpa;
+> +
+> +	spin_lock(&mapping_lock);
+> +	list_add_tail(&map->mapping_list, &mapping_list);
+> +	spin_unlock(&mapping_lock);
+> +
+> +	return 0;
+> +}
+> +
+> +static struct host_map *extract_from_list(gpa_t map_gpa)
+> +{
+> +	struct list_head *cur;
+> +	struct host_map *map;
+> +
+> +	spin_lock(&mapping_lock);
+> +	list_for_each(cur, &mapping_list) {
+> +		map = list_entry(cur, struct host_map, mapping_list);
+> +
+> +		/* found - extract and return */
+> +		if (map->map_gpa == map_gpa) {
+> +			list_del(&map->mapping_list);
+> +			spin_unlock(&mapping_lock);
+> +
+> +			return map;
+> +		}
+> +	}
+> +	spin_unlock(&mapping_lock);
+> +
+> +	return NULL;
+> +}
+> +
+> +static void remove_vm_from_list(struct kvm *kvm)
+> +{
+> +	struct list_head *cur, *next;
+> +	struct host_map *map;
+> +
+> +	spin_lock(&mapping_lock);
+> +
+> +	list_for_each_safe(cur, next, &mapping_list) {
+> +		map = list_entry(cur, struct host_map, mapping_list);
+> +
+> +		if (map->machine == kvm) {
+> +			list_del(&map->mapping_list);
+> +			kfree(map);
+> +		}
+> +	}
+> +
+> +	spin_unlock(&mapping_lock);
+> +}
+> +
+> +static void remove_entry(struct host_map *map)
+> +{
+> +	kfree(map);
+> +}
+> +
+> +
+> +static struct vm_area_struct *isolate_page_vma(struct vm_area_struct *vma,
+> +					       unsigned long addr)
+> +{
+> +	int result;
+> +
+> +	/* corner case */
+> +	if (vma_pages(vma) == 1)
+> +		return vma;
+> +
+> +	if (addr != vma->vm_start) {
+> +		/* first split only if address in the middle */
+> +		result = split_vma(vma->vm_mm, vma, addr, false);
+> +		if (IS_ERR_VALUE((long)result))
+> +			return ERR_PTR((long)result);
+> +
+> +		vma = find_vma(vma->vm_mm, addr);
+> +		if (vma == NULL)
+> +			return ERR_PTR(-ENOENT);
+> +
+> +		/* corner case (again) */
+> +		if (vma_pages(vma) == 1)
+> +			return vma;
+> +	}
+> +
+> +	result = split_vma(vma->vm_mm, vma, addr + PAGE_SIZE, true);
+> +	if (IS_ERR_VALUE((long)result))
+> +		return ERR_PTR((long)result);
+> +
+> +	vma = find_vma(vma->vm_mm, addr);
+> +	if (vma == NULL)
+> +		return ERR_PTR(-ENOENT);
+> +
+> +	BUG_ON(vma_pages(vma) != 1);
+> +
+> +	return vma;
+> +}
+> +
+> +static int redirect_rmap(struct vm_area_struct *req_vma, struct page *req_page,
+> +			 struct vm_area_struct *map_vma)
+> +{
+> +	int result;
+> +
+> +	unlink_anon_vmas(map_vma);
+> +
+> +	result = anon_vma_fork(map_vma, req_vma);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out;
+
+Why not just return result here?
+
+> +
+> +	page_dup_rmap(req_page, false);
+> +
+> +out:
+> +	return result;
+> +}
+> +
+> +static int host_map_fix_ptes(struct vm_area_struct *map_vma, hva_t map_hva,
+> +			     struct page *req_page, struct page *map_page)
+> +{
+> +	struct mm_struct *map_mm = map_vma->vm_mm;
+> +
+> +	pmd_t *pmd;
+> +	pte_t *ptep;
+> +	spinlock_t *ptl;
+> +	pte_t newpte;
+> +
+> +	unsigned long mmun_start;
+> +	unsigned long mmun_end;
+> +
+> +	/* classic replace_page() code */
+> +	pmd = mm_find_pmd(map_mm, map_hva);
+> +	if (!pmd)
+> +		return -EFAULT;
+> +
+> +	mmun_start = map_hva;
+> +	mmun_end = map_hva + PAGE_SIZE;
+> +	mmu_notifier_invalidate_range_start(map_mm, mmun_start, mmun_end);
+> +
+> +	ptep = pte_offset_map_lock(map_mm, pmd, map_hva, &ptl);
+> +
+> +	/* create new PTE based on requested page */
+> +	newpte = mk_pte(req_page, map_vma->vm_page_prot);
+> +	newpte = pte_set_flags(newpte, pte_flags(*ptep));
+> +
+> +	flush_cache_page(map_vma, map_hva, pte_pfn(*ptep));
+> +	ptep_clear_flush_notify(map_vma, map_hva, ptep);
+> +	set_pte_at_notify(map_mm, map_hva, ptep, newpte);
+> +
+> +	pte_unmap_unlock(ptep, ptl);
+> +
+> +	mmu_notifier_invalidate_range_end(map_mm, mmun_start, mmun_end);
+> +
+> +	return 0;
+> +}
+> +
+> +static void discard_page(struct page *map_page)
+> +{
+> +	lock_page(map_page);
+> +	// TODO: put_anon_vma() ???? - should be here
+> +	page_remove_rmap(map_page, false);
+> +	if (!page_mapped(map_page))
+> +		try_to_free_swap(map_page);
+> +	unlock_page(map_page);
+> +	put_page(map_page);
+> +}
+> +
+> +static void kvmi_split_huge_pmd(struct vm_area_struct *req_vma,
+> +				hva_t req_hva, struct page *req_page)
+> +{
+> +	bool tail = false;
+> +
+> +	/* move reference count from compound head... */
+> +	if (PageTail(req_page)) {
+> +		tail = true;
+> +		put_page(req_page);
+> +	}
+> +
+> +	if (PageCompound(req_page))
+> +		split_huge_pmd_address(req_vma, req_hva, false, NULL);
+> +
+> +	/* ... to the actual page, after splitting */
+> +	if (tail)
+> +		get_page(req_page);
+> +}
+> +
+> +static int kvmi_map_action(struct mm_struct *req_mm, hva_t req_hva,
+> +			   struct mm_struct *map_mm, hva_t map_hva)
+> +{
+> +	struct vm_area_struct *req_vma;
+> +	struct page *req_page = NULL;
+> +
+> +	struct vm_area_struct *map_vma;
+> +	struct page *map_page;
+> +
+> +	long nrpages;
+> +	int result = 0;
+> +
+> +	/* VMAs will be modified */
+> +	down_write(&req_mm->mmap_sem);
+> +	down_write(&map_mm->mmap_sem);
+> +
+> +	/* get host page corresponding to requested address */
+> +	nrpages = get_user_pages_remote(NULL, req_mm,
+> +		req_hva, 1, 0,
+> +		&req_page, &req_vma, NULL);
+> +	if (nrpages == 0) {
+> +		kvm_err("kvmi: no page for req_hva %016lx\n", req_hva);
+> +		result = -ENOENT;
+> +		goto out_err;
+> +	} else if (IS_ERR_VALUE(nrpages)) {
+> +		result = nrpages;
+> +		kvm_err("kvmi: get_user_pages_remote() failed with result %d\n",
+> +			result);
+> +		goto out_err;
+> +	}
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(req_page, "req_page before remap");
+> +
+> +	/* find (not get) local page corresponding to target address */
+> +	map_vma = find_vma(map_mm, map_hva);
+> +	if (map_vma == NULL) {
+> +		kvm_err("kvmi: no local VMA found for remapping\n");
+> +		result = -ENOENT;
+> +		goto out_err;
+> +	}
+> +
+> +	map_page = follow_page(map_vma, map_hva, 0);
+> +	if (IS_ERR_VALUE(map_page)) {
+> +		result = PTR_ERR(map_page);
+> +		kvm_debug("kvmi: follow_page() failed with result %d\n",
+> +			result);
+> +		goto out_err;
+> +	} else if (map_page == NULL) {
+> +		result = -ENOENT;
+> +		kvm_debug("kvmi: follow_page() returned no page\n");
+> +		goto out_err;
+> +	}
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(map_page, "map_page before remap");
+> +
+> +	/* split local VMA for rmap redirecting */
+> +	map_vma = isolate_page_vma(map_vma, map_hva);
+> +	if (IS_ERR_VALUE(map_vma)) {
+> +		result = PTR_ERR(map_vma);
+> +		kvm_debug("kvmi: isolate_page_vma() failed with result %d\n",
+> +			result);
+> +		goto out_err;
+> +	}
+> +
+> +	/* split remote huge page */
+> +	kvmi_split_huge_pmd(req_vma, req_hva, req_page);
+> +
+> +	/* re-link VMAs */
+> +	result = redirect_rmap(req_vma, req_page, map_vma);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out_err;
+> +
+> +	/* also redirect page tables */
+> +	result = host_map_fix_ptes(map_vma, map_hva, req_page, map_page);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out_err;
+> +
+> +	/* the old page will be discarded */
+> +	discard_page(map_page);
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(map_page, "map_page after being discarded");
+> +
+> +	/* done */
+> +	goto out_finalize;
+> +
+> +out_err:
+> +	/* get_user_pages_remote() incremented page reference count */
+> +	if (req_page != NULL)
+> +		put_page(req_page);
+> +
+> +out_finalize:
+> +	/* release semaphores in reverse order */
+> +	up_write(&map_mm->mmap_sem);
+> +	up_write(&req_mm->mmap_sem);
+> +
+> +	return result;
+> +}
+> +
+> +int kvmi_host_mem_map(struct kvm_vcpu *vcpu, gva_t tkn_gva,
+> +	gpa_t req_gpa, gpa_t map_gpa)
+> +{
+> +	int result = 0;
+> +	struct kvm *target_kvm;
+> +
+> +	gfn_t req_gfn;
+> +	hva_t req_hva;
+> +	struct mm_struct *req_mm;
+> +
+> +	gfn_t map_gfn;
+> +	hva_t map_hva;
+> +	struct mm_struct *map_mm = vcpu->kvm->mm;
+> +
+> +	kvm_debug("kvmi: mapping request req_gpa %016llx, map_gpa %016llx\n",
+> +		  req_gpa, map_gpa);
+> +
+> +	/* get the struct kvm * corresponding to the token */
+> +	target_kvm = find_machine_at(vcpu, tkn_gva);
+> +	if (IS_ERR_VALUE(target_kvm))
+> +		return PTR_ERR(target_kvm);
+
+Since the else if block below has braces, this if block should have 
+braces too.
+
+> +	else if (target_kvm == NULL) {
+> +		kvm_err("kvmi: unable to find target machine\n");
+> +		return -ENOENT;
+> +	}
+> +	kvm_get_kvm(target_kvm);
+> +	req_mm = target_kvm->mm;
+> +
+> +	/* translate source addresses */
+> +	req_gfn = gpa_to_gfn(req_gpa);
+> +	req_hva = gfn_to_hva_safe(target_kvm, req_gfn);
+> +	if (kvm_is_error_hva(req_hva)) {
+> +		kvm_err("kvmi: invalid req HVA %016lx\n", req_hva);
+> +		result = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	kvm_debug("kvmi: req_gpa %016llx, req_gfn %016llx, req_hva %016lx\n",
+> +		  req_gpa, req_gfn, req_hva);
+> +
+> +	/* translate destination addresses */
+> +	map_gfn = gpa_to_gfn(map_gpa);
+> +	map_hva = gfn_to_hva_safe(vcpu->kvm, map_gfn);
+> +	if (kvm_is_error_hva(map_hva)) {
+> +		kvm_err("kvmi: invalid map HVA %016lx\n", map_hva);
+> +		result = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	kvm_debug("kvmi: map_gpa %016llx, map_gfn %016llx, map_hva %016lx\n",
+> +		map_gpa, map_gfn, map_hva);
+> +
+> +	/* go to step 2 */
+> +	result = kvmi_map_action(req_mm, req_hva, map_mm, map_hva);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out;
+> +
+> +	/* add mapping to list */
+> +	result = add_to_list(map_gpa, target_kvm, req_gpa);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out;
+> +
+> +	/* all fine */
+> +	kvm_debug("kvmi: mapping of req_gpa %016llx successful\n", req_gpa);
+> +
+> +out:
+> +	/* mandatory dec refernce count */
+> +	kvm_put_kvm(target_kvm);
+> +
+> +	return result;
+> +}
+> +
+> +
+> +static int restore_rmap(struct vm_area_struct *map_vma, hva_t map_hva,
+> +			struct page *req_page, struct page *new_page)
+> +{
+> +	int result;
+> +
+> +	/* decouple links to anon_vmas */
+> +	unlink_anon_vmas(map_vma);
+> +	map_vma->anon_vma = NULL;
+> +
+> +	/* allocate new anon_vma */
+> +	result = anon_vma_prepare(map_vma);
+> +	if (IS_ERR_VALUE((long)result))
+> +		return result;
+> +
+> +	lock_page(new_page);
+> +	page_add_new_anon_rmap(new_page, map_vma, map_hva, false);
+> +	unlock_page(new_page);
+> +
+> +	/* decrease req_page mapcount */
+> +	atomic_dec(&req_page->_mapcount);
+> +
+> +	return 0;
+> +}
+> +
+> +static int host_unmap_fix_ptes(struct vm_area_struct *map_vma, hva_t map_hva,
+> +			       struct page *new_page)
+> +{
+> +	struct mm_struct *map_mm = map_vma->vm_mm;
+> +	pmd_t *pmd;
+> +	pte_t *ptep;
+> +	spinlock_t *ptl;
+> +	pte_t newpte;
+> +
+> +	unsigned long mmun_start;
+> +	unsigned long mmun_end;
+> +
+> +	/* page replacing code */
+> +	pmd = mm_find_pmd(map_mm, map_hva);
+> +	if (!pmd)
+> +		return -EFAULT;
+> +
+> +	mmun_start = map_hva;
+> +	mmun_end = map_hva + PAGE_SIZE;
+> +	mmu_notifier_invalidate_range_start(map_mm, mmun_start, mmun_end);
+> +
+> +	ptep = pte_offset_map_lock(map_mm, pmd, map_hva, &ptl);
+> +
+> +	newpte = mk_pte(new_page, map_vma->vm_page_prot);
+> +	newpte = pte_set_flags(newpte, pte_flags(*ptep));
+> +
+> +	/* clear cache & MMU notifier entries */
+> +	flush_cache_page(map_vma, map_hva, pte_pfn(*ptep));
+> +	ptep_clear_flush_notify(map_vma, map_hva, ptep);
+> +	set_pte_at_notify(map_mm, map_hva, ptep, newpte);
+> +
+> +	pte_unmap_unlock(ptep, ptl);
+> +
+> +	mmu_notifier_invalidate_range_end(map_mm, mmun_start, mmun_end);
+> +
+> +	return 0;
+> +}
+> +
+> +static int kvmi_unmap_action(struct mm_struct *req_mm,
+> +			     struct mm_struct *map_mm, hva_t map_hva)
+> +{
+> +	struct vm_area_struct *map_vma;
+> +	struct page *req_page = NULL;
+> +	struct page *new_page = NULL;
+> +
+> +	int result;
+> +
+> +	/* VMAs will be modified */
+> +	down_write(&req_mm->mmap_sem);
+> +	down_write(&map_mm->mmap_sem);
+> +
+> +	/* find destination VMA for mapping */
+> +	map_vma = find_vma(map_mm, map_hva);
+> +	if (map_vma == NULL) {
+> +		result = -ENOENT;
+> +		kvm_err("kvmi: no local VMA found for unmapping\n");
+> +		goto out_err;
+> +	}
+> +
+> +	/* find (not get) page mapped to destination address */
+> +	req_page = follow_page(map_vma, map_hva, 0);
+> +	if (IS_ERR_VALUE(req_page)) {
+> +		result = PTR_ERR(req_page);
+> +		kvm_err("kvmi: follow_page() failed with result %d\n", result);
+> +		goto out_err;
+> +	} else if (req_page == NULL) {
+> +		result = -ENOENT;
+> +		kvm_err("kvmi: follow_page() returned no page\n");
+> +		goto out_err;
+> +	}
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(req_page, "req_page before decoupling");
+> +
+> +	/* Returns NULL when no page can be allocated. */
+> +	new_page = alloc_page_vma(GFP_HIGHUSER_MOVABLE, map_vma, map_hva);
+> +	if (new_page == NULL) {
+> +		result = -ENOMEM;
+> +		goto out_err;
+> +	}
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(new_page, "new_page after allocation");
+> +
+> +	/* should fix the rmap tree */
+> +	result = restore_rmap(map_vma, map_hva, req_page, new_page);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out_err;
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(req_page, "req_page after decoupling");
+> +
+> +	/* page table fixing here */
+> +	result = host_unmap_fix_ptes(map_vma, map_hva, new_page);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out_err;
+> +
+> +	if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +		dump_page(new_page, "new_page after unmapping");
+> +
+> +	goto out_finalize;
+> +
+> +out_err:
+> +	if (new_page != NULL)
+> +		put_page(new_page);
+> +
+> +out_finalize:
+> +	/* reference count was inc during get_user_pages_remote() */
+> +	if (req_page != NULL) {
+> +		put_page(req_page);
+> +
+> +		if (IS_ENABLED(CONFIG_DEBUG_VM))
+> +			dump_page(req_page, "req_page after release");
+> +	}
+> +
+> +	/* release semaphores in reverse order */
+> +	up_write(&map_mm->mmap_sem);
+> +	up_write(&req_mm->mmap_sem);
+> +
+> +	return result;
+> +}
+> +
+> +int kvmi_host_mem_unmap(struct kvm_vcpu *vcpu, gpa_t map_gpa)
+> +{
+> +	struct kvm *target_kvm;
+> +	struct mm_struct *req_mm;
+> +
+> +	struct host_map *map;
+> +	int result;
+> +
+> +	gfn_t map_gfn;
+> +	hva_t map_hva;
+> +	struct mm_struct *map_mm = vcpu->kvm->mm;
+> +
+> +	kvm_debug("kvmi: unmap request for map_gpa %016llx\n", map_gpa);
+> +
+> +	/* get the struct kvm * corresponding to map_gpa */
+> +	map = extract_from_list(map_gpa);
+> +	if (map == NULL) {
+> +		kvm_err("kvmi: map_gpa %016llx not mapped\n", map_gpa);
+> +		return -ENOENT;
+> +	}
+> +	target_kvm = map->machine;
+> +	kvm_get_kvm(target_kvm);
+> +	req_mm = target_kvm->mm;
+> +
+> +	kvm_debug("kvmi: req_gpa %016llx of machine %016lx mapped in map_gpa %016llx\n",
+> +		  map->req_gpa, (unsigned long) map->machine, map->map_gpa);
+> +
+> +	/* address where we did the remapping */
+> +	map_gfn = gpa_to_gfn(map_gpa);
+> +	map_hva = gfn_to_hva_safe(vcpu->kvm, map_gfn);
+> +	if (kvm_is_error_hva(map_hva)) {
+> +		result = -EFAULT;
+> +		kvm_err("kvmi: invalid HVA %016lx\n", map_hva);
+> +		goto out;
+> +	}
+> +
+> +	kvm_debug("kvmi: map_gpa %016llx, map_gfn %016llx, map_hva %016lx\n",
+> +		  map_gpa, map_gfn, map_hva);
+> +
+> +	/* go to step 2 */
+> +	result = kvmi_unmap_action(req_mm, map_mm, map_hva);
+> +	if (IS_ERR_VALUE((long)result))
+> +		goto out;
+> +
+> +	kvm_debug("kvmi: unmap of map_gpa %016llx successful\n", map_gpa);
+> +
+> +out:
+> +	kvm_put_kvm(target_kvm);
+> +
+> +	/* remove entry whatever happens above */
+> +	remove_entry(map);
+> +
+> +	return result;
+> +}
+> +
+> +void kvmi_mem_destroy_vm(struct kvm *kvm)
+> +{
+> +	kvm_debug("kvmi: machine %016lx was torn down\n",
+> +		(unsigned long) kvm);
+> +
+> +	remove_vm_from_list(kvm);
+> +	remove_vm_token(kvm);
+> +}
+> +
+> +
+> +int kvm_intro_host_init(void)
+> +{
+> +	/* token database */
+> +	INIT_LIST_HEAD(&token_list);
+> +	spin_lock_init(&token_lock);
+> +
+> +	/* mapping database */
+> +	INIT_LIST_HEAD(&mapping_list);
+> +	spin_lock_init(&mapping_lock);
+> +
+> +	kvm_info("kvmi: initialized host memory introspection\n");
+> +
+> +	return 0;
+> +}
+> +
+> +void kvm_intro_host_exit(void)
+> +{
+> +	// ...
+> +}
+> +
+> +module_init(kvm_intro_host_init)
+> +module_exit(kvm_intro_host_exit)
+> diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+> new file mode 100644
+> index 000000000000..b1b20eb6332d
+> --- /dev/null
+> +++ b/virt/kvm/kvmi_msg.c
+> @@ -0,0 +1,1134 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection
+> + *
+> + * Copyright (C) 2017 Bitdefender S.R.L.
+> + *
+> + */
+> +#include <linux/file.h>
+> +#include <linux/net.h>
+> +#include <linux/kvm_host.h>
+> +#include <linux/kvmi.h>
+> +#include <asm/virtext.h>
+> +
+> +#include <uapi/linux/kvmi.h>
+> +#include <uapi/asm/kvmi.h>
+> +
+> +#include "kvmi_int.h"
+> +
+> +#include <trace/events/kvmi.h>
+> +
+> +/*
+> + * TODO: break these call paths
+> + *   kvmi.c        work_cb
+> + *   kvmi_msg.c    kvmi_dispatch_message
+> + *   kvmi.c        kvmi_cmd_... / kvmi_make_request
+> + *   kvmi_msg.c    kvmi_msg_reply
+> + *
+> + *   kvmi.c        kvmi_X_event
+> + *   kvmi_msg.c    kvmi_send_event
+> + *   kvmi.c        kvmi_handle_request
+> + */
+> +
+> +/* TODO: move some of the code to arch/x86 */
+> +
+> +static atomic_t seq_ev = ATOMIC_INIT(0);
+> +
+> +static u32 new_seq(void)
+> +{
+> +	return atomic_inc_return(&seq_ev);
+> +}
+> +
+> +static const char *event_str(unsigned int e)
+> +{
+> +	switch (e) {
+> +	case KVMI_EVENT_CR:
+> +		return "CR";
+> +	case KVMI_EVENT_MSR:
+> +		return "MSR";
+> +	case KVMI_EVENT_XSETBV:
+> +		return "XSETBV";
+> +	case KVMI_EVENT_BREAKPOINT:
+> +		return "BREAKPOINT";
+> +	case KVMI_EVENT_HYPERCALL:
+> +		return "HYPERCALL";
+> +	case KVMI_EVENT_PAGE_FAULT:
+> +		return "PAGE_FAULT";
+> +	case KVMI_EVENT_TRAP:
+> +		return "TRAP";
+> +	case KVMI_EVENT_DESCRIPTOR:
+> +		return "DESCRIPTOR";
+> +	case KVMI_EVENT_CREATE_VCPU:
+> +		return "CREATE_VCPU";
+> +	case KVMI_EVENT_PAUSE_VCPU:
+> +		return "PAUSE_VCPU";
+> +	default:
+> +		return "EVENT?";
+> +	}
+> +}
+> +
+> +static const char * const msg_IDs[] = {
+> +	[KVMI_GET_VERSION]      = "KVMI_GET_VERSION",
+> +	[KVMI_GET_GUEST_INFO]   = "KVMI_GET_GUEST_INFO",
+> +	[KVMI_PAUSE_VCPU]       = "KVMI_PAUSE_VCPU",
+> +	[KVMI_GET_REGISTERS]    = "KVMI_GET_REGISTERS",
+> +	[KVMI_SET_REGISTERS]    = "KVMI_SET_REGISTERS",
+> +	[KVMI_GET_PAGE_ACCESS]  = "KVMI_GET_PAGE_ACCESS",
+> +	[KVMI_SET_PAGE_ACCESS]  = "KVMI_SET_PAGE_ACCESS",
+> +	[KVMI_INJECT_EXCEPTION] = "KVMI_INJECT_EXCEPTION",
+> +	[KVMI_READ_PHYSICAL]    = "KVMI_READ_PHYSICAL",
+> +	[KVMI_WRITE_PHYSICAL]   = "KVMI_WRITE_PHYSICAL",
+> +	[KVMI_GET_MAP_TOKEN]    = "KVMI_GET_MAP_TOKEN",
+> +	[KVMI_CONTROL_EVENTS]   = "KVMI_CONTROL_EVENTS",
+> +	[KVMI_CONTROL_CR]       = "KVMI_CONTROL_CR",
+> +	[KVMI_CONTROL_MSR]      = "KVMI_CONTROL_MSR",
+> +	[KVMI_EVENT]            = "KVMI_EVENT",
+> +	[KVMI_EVENT_REPLY]      = "KVMI_EVENT_REPLY",
+> +	[KVMI_GET_CPUID]        = "KVMI_GET_CPUID",
+> +	[KVMI_GET_XSAVE]        = "KVMI_GET_XSAVE",
+> +};
+> +
+> +static size_t sizeof_get_registers(const void *r)
+> +{
+> +	const struct kvmi_get_registers *req = r;
+> +
+> +	return sizeof(*req) + sizeof(req->msrs_idx[0]) * req->nmsrs;
+> +}
+> +
+> +static size_t sizeof_get_page_access(const void *r)
+> +{
+> +	const struct kvmi_get_page_access *req = r;
+> +
+> +	return sizeof(*req) + sizeof(req->gpa[0]) * req->count;
+> +}
+> +
+> +static size_t sizeof_set_page_access(const void *r)
+> +{
+> +	const struct kvmi_set_page_access *req = r;
+> +
+> +	return sizeof(*req) + sizeof(req->entries[0]) * req->count;
+> +}
+> +
+> +static size_t sizeof_write_physical(const void *r)
+> +{
+> +	const struct kvmi_write_physical *req = r;
+> +
+> +	return sizeof(*req) + req->size;
+> +}
+> +
+> +static const struct {
+> +	size_t size;
+> +	size_t (*cbk_full_size)(const void *msg);
+> +} msg_bytes[] = {
+> +	[KVMI_GET_VERSION]      = { 0, NULL },
+> +	[KVMI_GET_GUEST_INFO]   = { sizeof(struct kvmi_get_guest_info), NULL },
+> +	[KVMI_PAUSE_VCPU]       = { sizeof(struct kvmi_pause_vcpu), NULL },
+> +	[KVMI_GET_REGISTERS]    = { sizeof(struct kvmi_get_registers),
+> +						sizeof_get_registers },
+> +	[KVMI_SET_REGISTERS]    = { sizeof(struct kvmi_set_registers), NULL },
+> +	[KVMI_GET_PAGE_ACCESS]  = { sizeof(struct kvmi_get_page_access),
+> +						sizeof_get_page_access },
+> +	[KVMI_SET_PAGE_ACCESS]  = { sizeof(struct kvmi_set_page_access),
+> +						sizeof_set_page_access },
+> +	[KVMI_INJECT_EXCEPTION] = { sizeof(struct kvmi_inject_exception),
+> +					NULL },
+> +	[KVMI_READ_PHYSICAL]    = { sizeof(struct kvmi_read_physical), NULL },
+> +	[KVMI_WRITE_PHYSICAL]   = { sizeof(struct kvmi_write_physical),
+> +						sizeof_write_physical },
+> +	[KVMI_GET_MAP_TOKEN]    = { 0, NULL },
+> +	[KVMI_CONTROL_EVENTS]   = { sizeof(struct kvmi_control_events), NULL },
+> +	[KVMI_CONTROL_CR]       = { sizeof(struct kvmi_control_cr), NULL },
+> +	[KVMI_CONTROL_MSR]      = { sizeof(struct kvmi_control_msr), NULL },
+> +	[KVMI_GET_CPUID]        = { sizeof(struct kvmi_get_cpuid), NULL },
+> +	[KVMI_GET_XSAVE]        = { sizeof(struct kvmi_get_xsave), NULL },
+> +};
+> +
+> +static int kvmi_sock_read(struct kvmi *ikvm, void *buf, size_t size)
+> +{
+> +	struct kvec i = {
+> +		.iov_base = buf,
+> +		.iov_len = size,
+> +	};
+> +	struct msghdr m = { };
+> +	int rc;
+> +
+> +	read_lock(&ikvm->sock_lock);
+> +
+> +	if (likely(ikvm->sock))
+> +		rc = kernel_recvmsg(ikvm->sock, &m, &i, 1, size, MSG_WAITALL);
+> +	else
+> +		rc = -EPIPE;
+> +
+> +	if (rc > 0)
+> +		print_hex_dump_debug("read: ", DUMP_PREFIX_NONE, 32, 1,
+> +					buf, rc, false);
+> +
+> +	read_unlock(&ikvm->sock_lock);
+> +
+> +	if (unlikely(rc != size)) {
+> +		kvm_err("kernel_recvmsg: %d\n", rc);
+> +		if (rc >= 0)
+> +			rc = -EPIPE;
+> +		return rc;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static int kvmi_sock_write(struct kvmi *ikvm, struct kvec *i, size_t n,
+> +			   size_t size)
+> +{
+> +	struct msghdr m = { };
+> +	int rc, k;
+> +
+> +	read_lock(&ikvm->sock_lock);
+> +
+> +	if (likely(ikvm->sock))
+> +		rc = kernel_sendmsg(ikvm->sock, &m, i, n, size);
+> +	else
+> +		rc = -EPIPE;
+> +
+> +	for (k = 0; k < n; k++)
+> +		print_hex_dump_debug("write: ", DUMP_PREFIX_NONE, 32, 1,
+> +				     i[k].iov_base, i[k].iov_len, false);
+> +
+> +	read_unlock(&ikvm->sock_lock);
+> +
+> +	if (unlikely(rc != size)) {
+> +		kvm_err("kernel_sendmsg: %d\n", rc);
+> +		if (rc >= 0)
+> +			rc = -EPIPE;
+> +		return rc;
+> +	}
+> +
+> +	return 0;
+> +}
+> +
+> +static const char *id2str(int i)
+> +{
+> +	return (i < ARRAY_SIZE(msg_IDs) && msg_IDs[i] ? msg_IDs[i] : "unknown");
+> +}
+> +
+> +static struct kvmi_vcpu *kvmi_vcpu_waiting_for_reply(struct kvm *kvm, u32 seq)
+> +{
+> +	struct kvmi_vcpu *found = NULL;
+> +	struct kvm_vcpu *vcpu;
+> +	int i;
+> +
+> +	mutex_lock(&kvm->lock);
+> +
+> +	kvm_for_each_vcpu(i, vcpu, kvm) {
+> +		/* kvmi_send_event */
+> +		smp_rmb();
+> +		if (READ_ONCE(IVCPU(vcpu)->ev_rpl_waiting)
+> +		    && seq == IVCPU(vcpu)->ev_seq) {
+> +			found = IVCPU(vcpu);
+> +			break;
+> +		}
+> +	}
+> +
+> +	mutex_unlock(&kvm->lock);
+> +
+> +	return found;
+> +}
+> +
+> +static bool kvmi_msg_dispatch_reply(struct kvmi *ikvm,
+> +				    const struct kvmi_msg_hdr *msg)
+> +{
+> +	struct kvmi_vcpu *ivcpu;
+> +	int err;
+> +
+> +	ivcpu = kvmi_vcpu_waiting_for_reply(ikvm->kvm, msg->seq);
+> +	if (!ivcpu) {
+> +		kvm_err("%s: unexpected event reply (seq=%u)\n", __func__,
+> +			msg->seq);
+> +		return false;
+> +	}
+> +
+> +	if (msg->size == sizeof(ivcpu->ev_rpl) + ivcpu->ev_rpl_size) {
+> +		err = kvmi_sock_read(ikvm, &ivcpu->ev_rpl,
+> +					sizeof(ivcpu->ev_rpl));
+> +		if (!err && ivcpu->ev_rpl_size)
+> +			err = kvmi_sock_read(ikvm, ivcpu->ev_rpl_ptr,
+> +						ivcpu->ev_rpl_size);
+> +	} else {
+> +		kvm_err("%s: invalid event reply size (max=%zu, recv=%u, expected=%zu)\n",
+> +			__func__, ivcpu->ev_rpl_size, msg->size,
+> +			sizeof(ivcpu->ev_rpl) + ivcpu->ev_rpl_size);
+> +		err = -1;
+> +	}
+> +
+> +	ivcpu->ev_rpl_received = err ? -1 : ivcpu->ev_rpl_size;
+> +
+> +	kvmi_make_request(ivcpu, REQ_REPLY);
+> +
+> +	return (err == 0);
+> +}
+> +
+> +static bool consume_sock_bytes(struct kvmi *ikvm, size_t n)
+> +{
+> +	while (n) {
+> +		u8 buf[256];
+> +		size_t chunk = min(n, sizeof(buf));
+> +
+> +		if (kvmi_sock_read(ikvm, buf, chunk) != 0)
+> +			return false;
+> +
+> +		n -= chunk;
+> +	}
+> +
+> +	return true;
+> +}
+> +
+> +static int kvmi_msg_reply(struct kvmi *ikvm,
+> +			  const struct kvmi_msg_hdr *msg,
+> +			  int err, const void *rpl, size_t rpl_size)
+> +{
+> +	struct kvmi_error_code ec;
+> +	struct kvmi_msg_hdr h;
+> +	struct kvec vec[3] = {
+> +		{.iov_base = &h,           .iov_len = sizeof(h) },
+> +		{.iov_base = &ec,          .iov_len = sizeof(ec)},
+> +		{.iov_base = (void *) rpl, .iov_len = rpl_size  },
+> +	};
+> +	size_t size = sizeof(h) + sizeof(ec) + (err ? 0 : rpl_size);
+> +	size_t n = err ? ARRAY_SIZE(vec)-1 : ARRAY_SIZE(vec);
+> +
+> +	memset(&h, 0, sizeof(h));
+> +	h.id = msg->id;
+> +	h.seq = msg->seq;
+> +	h.size = size - sizeof(h);
+> +
+> +	memset(&ec, 0, sizeof(ec));
+> +	ec.err = err;
+> +
+> +	return kvmi_sock_write(ikvm, vec, n, size);
+> +}
+> +
+> +static int kvmi_msg_vcpu_reply(struct kvm_vcpu *vcpu,
+> +				const struct kvmi_msg_hdr *msg,
+> +				int err, const void *rpl, size_t size)
+> +{
+> +	/*
+> +	 * As soon as we reply to this vCPU command, we can get another one,
+> +	 * and we must signal that the incoming buffer (ivcpu->msg_buf)
+> +	 * is ready by clearing this bit/request.
+> +	 */
+> +	kvmi_clear_request(IVCPU(vcpu), REQ_CMD);
+> +
+> +	return kvmi_msg_reply(IKVM(vcpu->kvm), msg, err, rpl, size);
+> +}
+> +
+> +bool kvmi_msg_init(struct kvmi *ikvm, int fd)
+> +{
+> +	struct socket *sock;
+> +	int r;
+> +
+> +	sock = sockfd_lookup(fd, &r);
+> +
+> +	if (!sock) {
+> +		kvm_err("Invalid file handle: %d\n", fd);
+> +		return false;
+> +	}
+> +
+> +	WRITE_ONCE(ikvm->sock, sock);
+> +
+> +	return true;
+> +}
+> +
+> +void kvmi_msg_uninit(struct kvmi *ikvm)
+> +{
+> +	kvm_info("Wake up the receiving thread\n");
+> +
+> +	read_lock(&ikvm->sock_lock);
+> +
+> +	if (ikvm->sock)
+> +		kernel_sock_shutdown(ikvm->sock, SHUT_RDWR);
+> +
+> +	read_unlock(&ikvm->sock_lock);
+> +
+> +	kvm_info("Wait for the receiving thread to complete\n");
+> +	wait_for_completion(&ikvm->finished);
+> +}
+> +
+> +static int handle_get_version(struct kvmi *ikvm,
+> +			      const struct kvmi_msg_hdr *msg, const void *req)
+> +{
+> +	struct kvmi_get_version_reply rpl;
+> +
+> +	memset(&rpl, 0, sizeof(rpl));
+> +	rpl.version = KVMI_VERSION;
+> +
+> +	return kvmi_msg_reply(ikvm, msg, 0, &rpl, sizeof(rpl));
+> +}
+> +
+> +static struct kvm_vcpu *kvmi_get_vcpu(struct kvmi *ikvm, int vcpu_id)
+> +{
+> +	struct kvm *kvm = ikvm->kvm;
+> +
+> +	if (vcpu_id >= atomic_read(&kvm->online_vcpus))
+> +		return NULL;
+> +
+> +	return kvm_get_vcpu(kvm, vcpu_id);
+> +}
+> +
+> +static bool invalid_page_access(u64 gpa, u64 size)
+> +{
+> +	u64 off = gpa & ~PAGE_MASK;
+> +
+> +	return (size == 0 || size > PAGE_SIZE || off + size > PAGE_SIZE);
+> +}
+> +
+> +static int handle_read_physical(struct kvmi *ikvm,
+> +				const struct kvmi_msg_hdr *msg,
+> +				const void *_req)
+> +{
+> +	const struct kvmi_read_physical *req = _req;
+> +
+> +	if (invalid_page_access(req->gpa, req->size))
+> +		return -EINVAL;
+> +
+> +	return kvmi_cmd_read_physical(ikvm->kvm, req->gpa, req->size,
+> +				      kvmi_msg_reply, msg);
+> +}
+> +
+> +static int handle_write_physical(struct kvmi *ikvm,
+> +				 const struct kvmi_msg_hdr *msg,
+> +				 const void *_req)
+> +{
+> +	const struct kvmi_write_physical *req = _req;
+> +	int ec;
+> +
+> +	if (invalid_page_access(req->gpa, req->size))
+> +		return -EINVAL;
+> +
+> +	ec = kvmi_cmd_write_physical(ikvm->kvm, req->gpa, req->size, req->data);
+> +
+> +	return kvmi_msg_reply(ikvm, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_get_map_token(struct kvmi *ikvm,
+> +				const struct kvmi_msg_hdr *msg,
+> +				const void *_req)
+> +{
+> +	struct kvmi_get_map_token_reply rpl;
+> +	int ec;
+> +
+> +	ec = kvmi_cmd_alloc_token(ikvm->kvm, &rpl.token);
+> +
+> +	return kvmi_msg_reply(ikvm, msg, ec, &rpl, sizeof(rpl));
+> +}
+> +
+> +static int handle_control_cr(struct kvmi *ikvm,
+> +			     const struct kvmi_msg_hdr *msg, const void *_req)
+> +{
+> +	const struct kvmi_control_cr *req = _req;
+> +	int ec;
+> +
+> +	ec = kvmi_cmd_control_cr(ikvm, req->enable, req->cr);
+> +
+> +	return kvmi_msg_reply(ikvm, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_control_msr(struct kvmi *ikvm,
+> +			      const struct kvmi_msg_hdr *msg, const void *_req)
+> +{
+> +	const struct kvmi_control_msr *req = _req;
+> +	int ec;
+> +
+> +	ec = kvmi_cmd_control_msr(ikvm->kvm, req->enable, req->msr);
+> +
+> +	return kvmi_msg_reply(ikvm, msg, ec, NULL, 0);
+> +}
+> +
+> +/*
+> + * These commands are executed on the receiving thread/worker.
+> + */
+> +static int (*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
+> +			     const void *) = {
+> +	[KVMI_GET_VERSION]    = handle_get_version,
+> +	[KVMI_READ_PHYSICAL]  = handle_read_physical,
+> +	[KVMI_WRITE_PHYSICAL] = handle_write_physical,
+> +	[KVMI_GET_MAP_TOKEN]  = handle_get_map_token,
+> +	[KVMI_CONTROL_CR]     = handle_control_cr,
+> +	[KVMI_CONTROL_MSR]    = handle_control_msr,
+> +};
+> +
+> +static int handle_get_guest_info(struct kvm_vcpu *vcpu,
+> +				 const struct kvmi_msg_hdr *msg,
+> +				 const void *req)
+> +{
+> +	struct kvmi_get_guest_info_reply rpl;
+> +
+> +	memset(&rpl, 0, sizeof(rpl));
+> +	kvmi_cmd_get_guest_info(vcpu, &rpl.vcpu_count, &rpl.tsc_speed);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, 0, &rpl, sizeof(rpl));
+> +}
+> +
+> +static int handle_pause_vcpu(struct kvm_vcpu *vcpu,
+> +			     const struct kvmi_msg_hdr *msg,
+> +			     const void *req)
+> +{
+> +	int ec = kvmi_cmd_pause_vcpu(vcpu);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, NULL, 0);
+> +}
+> +
+> +static void *alloc_get_registers_reply(const struct kvmi_msg_hdr *msg,
+> +				       const struct kvmi_get_registers *req,
+> +				       size_t *rpl_size)
+> +{
+> +	struct kvmi_get_registers_reply *rpl;
+> +	u16 k, n = req->nmsrs;
+> +
+> +	*rpl_size = sizeof(*rpl) + sizeof(rpl->msrs.entries[0]) * n;
+> +
+> +	rpl = kzalloc(*rpl_size, GFP_KERNEL);
+> +
+> +	if (rpl) {
+> +		rpl->msrs.nmsrs = n;
+> +
+> +		for (k = 0; k < n; k++)
+> +			rpl->msrs.entries[k].index = req->msrs_idx[k];
+> +	}
+> +
+> +	return rpl;
+> +}
+> +
+> +static int handle_get_registers(struct kvm_vcpu *vcpu,
+> +				const struct kvmi_msg_hdr *msg, const void *req)
+> +{
+> +	struct kvmi_get_registers_reply *rpl;
+> +	size_t rpl_size = 0;
+> +	int err, ec;
+> +
+> +	rpl = alloc_get_registers_reply(msg, req, &rpl_size);
+> +
+> +	if (!rpl)
+> +		ec = -KVM_ENOMEM;
+> +	else
+> +		ec = kvmi_cmd_get_registers(vcpu, &rpl->mode,
+> +						&rpl->regs, &rpl->sregs,
+> +						&rpl->msrs);
+> +
+> +	err = kvmi_msg_vcpu_reply(vcpu, msg, ec, rpl, rpl_size);
+> +	kfree(rpl);
+> +	return err;
+> +}
+> +
+> +static int handle_set_registers(struct kvm_vcpu *vcpu,
+> +				const struct kvmi_msg_hdr *msg,
+> +				const void *_req)
+> +{
+> +	const struct kvmi_set_registers *req = _req;
+> +	int ec;
+> +
+> +	ec = kvmi_cmd_set_registers(vcpu, &req->regs);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_get_page_access(struct kvm_vcpu *vcpu,
+> +				  const struct kvmi_msg_hdr *msg,
+> +				  const void *_req)
+> +{
+> +	const struct kvmi_get_page_access *req = _req;
+> +	struct kvmi_get_page_access_reply *rpl = NULL;
+> +	size_t rpl_size = 0;
+> +	u16 k, n = req->count;
+> +	int err, ec = 0;
+> +
+> +	if (req->view != 0 && !kvm_eptp_switching_supported) {
+> +		ec = -KVM_ENOSYS;
+> +		goto out;
+> +	}
+> +
+> +	if (req->view != 0) { /* TODO */
+> +		ec = -KVM_EINVAL;
+> +		goto out;
+> +	}
+> +
+> +	rpl_size = sizeof(*rpl) + sizeof(rpl->access[0]) * n;
+> +	rpl = kzalloc(rpl_size, GFP_KERNEL);
+> +
+> +	if (!rpl) {
+> +		ec = -KVM_ENOMEM;
+> +		goto out;
+> +	}
+> +
+> +	for (k = 0; k < n && ec == 0; k++)
+> +		ec = kvmi_cmd_get_page_access(vcpu, req->gpa[k],
+> +						&rpl->access[k]);
+> +
+> +out:
+> +	err = kvmi_msg_vcpu_reply(vcpu, msg, ec, rpl, rpl_size);
+> +	kfree(rpl);
+> +	return err;
+> +}
+> +
+> +static int handle_set_page_access(struct kvm_vcpu *vcpu,
+> +				  const struct kvmi_msg_hdr *msg,
+> +				  const void *_req)
+> +{
+> +	const struct kvmi_set_page_access *req = _req;
+> +	struct kvm *kvm = vcpu->kvm;
+> +	u16 k, n = req->count;
+> +	int ec = 0;
+> +
+> +	if (req->view != 0) {
+> +		if (!kvm_eptp_switching_supported)
+> +			ec = -KVM_ENOSYS;
+> +		else
+> +			ec = -KVM_EINVAL; /* TODO */
+> +	} else {
+> +		for (k = 0; k < n; k++) {
+> +			u64 gpa   = req->entries[k].gpa;
+> +			u8 access = req->entries[k].access;
+> +			int ec0;
+> +
+> +			if (access &  ~(KVMI_PAGE_ACCESS_R |
+> +					KVMI_PAGE_ACCESS_W |
+> +					KVMI_PAGE_ACCESS_X))
+> +				ec0 = -KVM_EINVAL;
+> +			else
+> +				ec0 = kvmi_set_mem_access(kvm, gpa, access);
+> +
+> +			if (ec0 && !ec)
+> +				ec = ec0;
+> +
+> +			trace_kvmi_set_mem_access(gpa_to_gfn(gpa), access, ec0);
+> +		}
+> +	}
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_inject_exception(struct kvm_vcpu *vcpu,
+> +				   const struct kvmi_msg_hdr *msg,
+> +				   const void *_req)
+> +{
+> +	const struct kvmi_inject_exception *req = _req;
+> +	int ec;
+> +
+> +	ec = kvmi_cmd_inject_exception(vcpu, req->nr, req->has_error,
+> +				       req->error_code, req->address);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_control_events(struct kvm_vcpu *vcpu,
+> +				 const struct kvmi_msg_hdr *msg,
+> +				 const void *_req)
+> +{
+> +	const struct kvmi_control_events *req = _req;
+> +	u32 not_allowed = ~IKVM(vcpu->kvm)->event_allow_mask;
+> +	u32 unknown = ~KVMI_KNOWN_EVENTS;
+> +	int ec;
+> +
+> +	if (req->events & unknown)
+> +		ec = -KVM_EINVAL;
+> +	else if (req->events & not_allowed)
+> +		ec = -KVM_EPERM;
+> +	else
+> +		ec = kvmi_cmd_control_events(vcpu, req->events);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, NULL, 0);
+> +}
+> +
+> +static int handle_get_cpuid(struct kvm_vcpu *vcpu,
+> +			    const struct kvmi_msg_hdr *msg,
+> +			    const void *_req)
+> +{
+> +	const struct kvmi_get_cpuid *req = _req;
+> +	struct kvmi_get_cpuid_reply rpl;
+> +	int ec;
+> +
+> +	memset(&rpl, 0, sizeof(rpl));
+> +
+> +	ec = kvmi_cmd_get_cpuid(vcpu, req->function, req->index,
+> +					&rpl.eax, &rpl.ebx, &rpl.ecx,
+> +					&rpl.edx);
+> +
+> +	return kvmi_msg_vcpu_reply(vcpu, msg, ec, &rpl, sizeof(rpl));
+> +}
+> +
+> +static int handle_get_xsave(struct kvm_vcpu *vcpu,
+> +			    const struct kvmi_msg_hdr *msg, const void *req)
+> +{
+> +	struct kvmi_get_xsave_reply *rpl;
+> +	size_t rpl_size = sizeof(*rpl) + sizeof(struct kvm_xsave);
+> +	int ec = 0, err;
+> +
+> +	rpl = kzalloc(rpl_size, GFP_KERNEL);
+> +
+> +	if (!rpl)
+> +		ec = -KVM_ENOMEM;
+
+Again, because the else block has braces, the if should too.
+
+> +	else {
+> +		struct kvm_xsave *area;
+> +
+> +		area = (struct kvm_xsave *)&rpl->region[0];
+> +		kvm_vcpu_ioctl_x86_get_xsave(vcpu, area);
+> +	}
+> +
+> +	err = kvmi_msg_vcpu_reply(vcpu, msg, ec, rpl, rpl_size);
+> +	kfree(rpl);
+> +	return err;
+> +}
+> +
+> +/*
+> + * These commands are executed on the vCPU thread. The receiving thread
+> + * saves the command into kvmi_vcpu.msg_buf[] and signals the vCPU to handle
+> + * the command (including sending back the reply).
+> + */
+> +static int (*const msg_vcpu[])(struct kvm_vcpu *,
+> +			       const struct kvmi_msg_hdr *, const void *) = {
+> +	[KVMI_GET_GUEST_INFO]   = handle_get_guest_info,
+> +	[KVMI_PAUSE_VCPU]       = handle_pause_vcpu,
+> +	[KVMI_GET_REGISTERS]    = handle_get_registers,
+> +	[KVMI_SET_REGISTERS]    = handle_set_registers,
+> +	[KVMI_GET_PAGE_ACCESS]  = handle_get_page_access,
+> +	[KVMI_SET_PAGE_ACCESS]  = handle_set_page_access,
+> +	[KVMI_INJECT_EXCEPTION] = handle_inject_exception,
+> +	[KVMI_CONTROL_EVENTS]   = handle_control_events,
+> +	[KVMI_GET_CPUID]        = handle_get_cpuid,
+> +	[KVMI_GET_XSAVE]        = handle_get_xsave,
+> +};
+> +
+> +void kvmi_msg_handle_vcpu_cmd(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +	struct kvmi_msg_hdr *msg = (void *) ivcpu->msg_buf;
+> +	u8 *req = ivcpu->msg_buf + sizeof(*msg);
+> +	int err;
+> +
+> +	err = msg_vcpu[msg->id](vcpu, msg, req);
+> +
+> +	if (err)
+> +		kvm_err("%s: id:%u (%s) err:%d\n", __func__, msg->id,
+> +			id2str(msg->id), err);
+> +
+> +	/*
+> +	 * No error code is returned.
+> +	 *
+> +	 * The introspector gets its error code from the message handler
+> +	 * or the socket is closed (and QEMU should reconnect).
+> +	 */
+> +}
+> +
+> +static int kvmi_msg_recv_varlen(struct kvmi *ikvm, size_t(*cbk) (const void *),
+> +				size_t min_n, size_t msg_size)
+> +{
+> +	size_t extra_n;
+> +	u8 *extra_buf;
+> +	int err;
+> +
+> +	if (min_n > msg_size) {
+> +		kvm_err("%s: got %zu bytes instead of min %zu\n",
+> +			__func__, msg_size, min_n);
+> +		return -EINVAL;
+> +	}
+> +
+> +	if (!min_n)
+> +		return 0;
+> +
+> +	err = kvmi_sock_read(ikvm, ikvm->msg_buf, min_n);
+> +
+> +	extra_buf = ikvm->msg_buf + min_n;
+> +	extra_n = msg_size - min_n;
+> +
+> +	if (!err && extra_n) {
+> +		if (cbk(ikvm->msg_buf) == msg_size)
+> +			err = kvmi_sock_read(ikvm, extra_buf, extra_n);
+> +		else
+> +			err = -EINVAL;
+> +	}
+> +
+> +	return err;
+> +}
+> +
+> +static int kvmi_msg_recv_n(struct kvmi *ikvm, size_t n, size_t msg_size)
+> +{
+> +	if (n != msg_size) {
+> +		kvm_err("%s: got %zu bytes instead of %zu\n",
+> +			__func__, msg_size, n);
+> +		return -EINVAL;
+> +	}
+> +
+> +	if (!n)
+> +		return 0;
+> +
+> +	return kvmi_sock_read(ikvm, ikvm->msg_buf, n);
+> +}
+> +
+> +static int kvmi_msg_recv(struct kvmi *ikvm, const struct kvmi_msg_hdr *msg)
+> +{
+> +	size_t (*cbk)(const void *) = msg_bytes[msg->id].cbk_full_size;
+> +	size_t expected = msg_bytes[msg->id].size;
+> +
+> +	if (cbk)
+> +		return kvmi_msg_recv_varlen(ikvm, cbk, expected, msg->size);
+> +	else
+> +		return kvmi_msg_recv_n(ikvm, expected, msg->size);
+> +}
+> +
+> +struct vcpu_msg_hdr {
+> +	__u16 vcpu;
+> +	__u16 padding[3];
+> +};
+> +
+> +static int kvmi_msg_queue_to_vcpu(struct kvmi *ikvm,
+> +				  const struct kvmi_msg_hdr *msg)
+> +{
+> +	struct vcpu_msg_hdr *vcpu_hdr = (struct vcpu_msg_hdr *)ikvm->msg_buf;
+> +	struct kvmi_vcpu *ivcpu;
+> +	struct kvm_vcpu *vcpu;
+> +
+> +	if (msg->size < sizeof(*vcpu_hdr)) {
+> +		kvm_err("%s: invalid vcpu message: %d\n", __func__, msg->size);
+> +		return -EINVAL; /* ABI error */
+> +	}
+> +
+> +	vcpu = kvmi_get_vcpu(ikvm, vcpu_hdr->vcpu);
+> +
+> +	if (!vcpu) {
+> +		kvm_err("%s: invalid vcpu: %d\n", __func__, vcpu_hdr->vcpu);
+> +		return kvmi_msg_reply(ikvm, msg, -KVM_EINVAL, NULL, 0);
+> +	}
+> +
+> +	ivcpu = vcpu->kvmi;
+> +
+> +	if (!ivcpu) {
+> +		kvm_err("%s: not introspected vcpu: %d\n",
+> +			__func__, vcpu_hdr->vcpu);
+> +		return kvmi_msg_reply(ikvm, msg, -KVM_EAGAIN, NULL, 0);
+> +	}
+> +
+> +	if (test_bit(REQ_CMD, &ivcpu->requests)) {
+> +		kvm_err("%s: vcpu is busy: %d\n", __func__, vcpu_hdr->vcpu);
+> +		return kvmi_msg_reply(ikvm, msg, -KVM_EBUSY, NULL, 0);
+> +	}
+> +
+> +	memcpy(ivcpu->msg_buf, msg, sizeof(*msg));
+> +	memcpy(ivcpu->msg_buf + sizeof(*msg), ikvm->msg_buf, msg->size);
+> +
+> +	kvmi_make_request(ivcpu, REQ_CMD);
+> +	kvm_make_request(KVM_REQ_INTROSPECTION, vcpu);
+> +	kvm_vcpu_kick(vcpu);
+> +
+> +	return 0;
+> +}
+> +
+> +static bool kvmi_msg_dispatch_cmd(struct kvmi *ikvm,
+> +				  const struct kvmi_msg_hdr *msg)
+> +{
+> +	int err = kvmi_msg_recv(ikvm, msg);
+> +
+> +	if (err)
+> +		goto out;
+> +
+> +	if (!KVMI_ALLOWED_COMMAND(msg->id, ikvm->cmd_allow_mask)) {
+> +		err = kvmi_msg_reply(ikvm, msg, -KVM_EPERM, NULL, 0);
+> +		goto out;
+> +	}
+> +
+> +	if (msg_vcpu[msg->id])
+> +		err = kvmi_msg_queue_to_vcpu(ikvm, msg);
+> +	else
+> +		err = msg_vm[msg->id](ikvm, msg, ikvm->msg_buf);
+> +
+> +out:
+> +	if (err)
+> +		kvm_err("%s: id:%u (%s) err:%d\n", __func__, msg->id,
+> +			id2str(msg->id), err);
+> +
+> +	return (err == 0);
+> +}
+> +
+> +static bool handle_unsupported_msg(struct kvmi *ikvm,
+> +				   const struct kvmi_msg_hdr *msg)
+> +{
+> +	int err;
+> +
+> +	kvm_err("%s: %u\n", __func__, msg->id);
+> +
+> +	err = consume_sock_bytes(ikvm, msg->size);
+> +
+> +	if (!err)
+> +		err = kvmi_msg_reply(ikvm, msg, -KVM_ENOSYS, NULL, 0);
+> +
+> +	return (err == 0);
+> +}
+> +
+> +static bool kvmi_msg_dispatch(struct kvmi *ikvm)
+> +{
+> +	struct kvmi_msg_hdr msg;
+> +	int err;
+> +
+> +	err = kvmi_sock_read(ikvm, &msg, sizeof(msg));
+> +
+> +	if (err) {
+> +		kvm_err("%s: can't read\n", __func__);
+> +		return false;
+> +	}
+> +
+> +	trace_kvmi_msg_dispatch(msg.id, msg.size);
+> +
+> +	kvm_debug("%s: id:%u (%s) size:%u\n", __func__, msg.id,
+> +		  id2str(msg.id), msg.size);
+> +
+> +	if (msg.id == KVMI_EVENT_REPLY)
+> +		return kvmi_msg_dispatch_reply(ikvm, &msg);
+> +
+> +	if (msg.id >= ARRAY_SIZE(msg_bytes)
+> +	    || (!msg_vm[msg.id] && !msg_vcpu[msg.id]))
+> +		return handle_unsupported_msg(ikvm, &msg);
+> +
+> +	return kvmi_msg_dispatch_cmd(ikvm, &msg);
+> +}
+> +
+> +static void kvmi_sock_close(struct kvmi *ikvm)
+> +{
+> +	kvm_info("%s\n", __func__);
+> +
+> +	write_lock(&ikvm->sock_lock);
+> +
+> +	if (ikvm->sock) {
+> +		kvm_info("Release the socket\n");
+> +		sockfd_put(ikvm->sock);
+> +
+> +		ikvm->sock = NULL;
+> +	}
+> +
+> +	write_unlock(&ikvm->sock_lock);
+> +}
+> +
+> +bool kvmi_msg_process(struct kvmi *ikvm)
+> +{
+> +	if (!kvmi_msg_dispatch(ikvm)) {
+> +		kvmi_sock_close(ikvm);
+> +		return false;
+> +	}
+> +	return true;
+> +}
+> +
+> +static void kvmi_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev,
+> +			     u32 ev_id)
+> +{
+> +	memset(ev, 0, sizeof(*ev));
+> +	ev->vcpu = vcpu->vcpu_id;
+> +	ev->event = ev_id;
+> +	kvm_arch_vcpu_ioctl_get_regs(vcpu, &ev->regs);
+> +	kvm_arch_vcpu_ioctl_get_sregs(vcpu, &ev->sregs);
+> +	ev->mode = kvmi_vcpu_mode(vcpu, &ev->sregs);
+> +	kvmi_get_msrs(vcpu, ev);
+> +}
+> +
+> +static bool kvmi_send_event(struct kvm_vcpu *vcpu, u32 ev_id,
+> +			    void *ev,  size_t ev_size,
+> +			    void *rpl, size_t rpl_size)
+> +{
+> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+> +	struct kvmi_event common;
+> +	struct kvmi_msg_hdr h;
+> +	struct kvec vec[3] = {
+> +		{.iov_base = &h,      .iov_len = sizeof(h)     },
+> +		{.iov_base = &common, .iov_len = sizeof(common)},
+> +		{.iov_base = ev,      .iov_len = ev_size       },
+> +	};
+> +	size_t msg_size = sizeof(h) + sizeof(common) + ev_size;
+> +	size_t n = ev_size ? ARRAY_SIZE(vec) : ARRAY_SIZE(vec)-1;
+> +
+> +	memset(&h, 0, sizeof(h));
+> +	h.id = KVMI_EVENT;
+> +	h.seq = new_seq();
+> +	h.size = msg_size - sizeof(h);
+> +
+> +	kvmi_setup_event(vcpu, &common, ev_id);
+> +
+> +	ivcpu->ev_rpl_ptr = rpl;
+> +	ivcpu->ev_rpl_size = rpl_size;
+> +	ivcpu->ev_seq = h.seq;
+> +	ivcpu->ev_rpl_received = -1;
+> +	WRITE_ONCE(ivcpu->ev_rpl_waiting, true);
+> +	/* kvmi_vcpu_waiting_for_reply() */
+> +	smp_wmb();
+> +
+> +	trace_kvmi_send_event(ev_id);
+> +
+> +	kvm_debug("%s: %-11s(seq:%u) size:%lu vcpu:%d\n",
+> +		  __func__, event_str(ev_id), h.seq, ev_size, vcpu->vcpu_id);
+> +
+> +	if (kvmi_sock_write(IKVM(vcpu->kvm), vec, n, msg_size) == 0)
+> +		kvmi_handle_request(vcpu);
+> +
+> +	kvm_debug("%s: reply for %-11s(seq:%u) size:%lu vcpu:%d\n",
+> +		  __func__, event_str(ev_id), h.seq, rpl_size, vcpu->vcpu_id);
+> +
+> +	return (ivcpu->ev_rpl_received >= 0);
+> +}
+> +
+> +u32 kvmi_msg_send_cr(struct kvm_vcpu *vcpu, u32 cr, u64 old_value,
+> +		     u64 new_value, u64 *ret_value)
+> +{
+> +	struct kvmi_event_cr e;
+> +	struct kvmi_event_cr_reply r;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.cr = cr;
+> +	e.old_value = old_value;
+> +	e.new_value = new_value;
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_CR, &e, sizeof(e),
+> +				&r, sizeof(r))) {
+> +		*ret_value = new_value;
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +	}
+> +
+> +	*ret_value = r.new_val;
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_msr(struct kvm_vcpu *vcpu, u32 msr, u64 old_value,
+> +		      u64 new_value, u64 *ret_value)
+> +{
+> +	struct kvmi_event_msr e;
+> +	struct kvmi_event_msr_reply r;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.msr = msr;
+> +	e.old_value = old_value;
+> +	e.new_value = new_value;
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_MSR, &e, sizeof(e),
+> +				&r, sizeof(r))) {
+> +		*ret_value = new_value;
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +	}
+> +
+> +	*ret_value = r.new_val;
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_xsetbv(struct kvm_vcpu *vcpu)
+> +{
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_XSETBV, NULL, 0, NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_bp(struct kvm_vcpu *vcpu, u64 gpa)
+> +{
+> +	struct kvmi_event_breakpoint e;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.gpa = gpa;
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_BREAKPOINT,
+> +				&e, sizeof(e), NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_hypercall(struct kvm_vcpu *vcpu)
+> +{
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_HYPERCALL, NULL, 0, NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +bool kvmi_msg_send_pf(struct kvm_vcpu *vcpu, u64 gpa, u64 gva, u32 mode,
+> +		      u32 *action, bool *trap_access, u8 *ctx_data,
+> +		      u32 *ctx_size)
+> +{
+> +	u32 max_ctx_size = *ctx_size;
+> +	struct kvmi_event_page_fault e;
+> +	struct kvmi_event_page_fault_reply r;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.gpa = gpa;
+> +	e.gva = gva;
+> +	e.mode = mode;
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_PAGE_FAULT, &e, sizeof(e),
+> +				&r, sizeof(r)))
+> +		return false;
+> +
+> +	*action = IVCPU(vcpu)->ev_rpl.action;
+> +	*trap_access = r.trap_access;
+> +	*ctx_size = 0;
+> +
+> +	if (r.ctx_size <= max_ctx_size) {
+> +		*ctx_size = min_t(u32, r.ctx_size, sizeof(r.ctx_data));
+> +		if (*ctx_size)
+> +			memcpy(ctx_data, r.ctx_data, *ctx_size);
+> +	} else {
+> +		kvm_err("%s: ctx_size (recv:%u max:%u)\n", __func__,
+> +			r.ctx_size, *ctx_size);
+> +		/*
+> +		 * TODO: This is an ABI error.
+> +		 * We should shutdown the socket?
+> +		 */
+> +	}
+> +
+> +	return true;
+> +}
+> +
+> +u32 kvmi_msg_send_trap(struct kvm_vcpu *vcpu, u32 vector, u32 type,
+> +		       u32 error_code, u64 cr2)
+> +{
+> +	struct kvmi_event_trap e;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.vector = vector;
+> +	e.type = type;
+> +	e.error_code = error_code;
+> +	e.cr2 = cr2;
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_TRAP, &e, sizeof(e), NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_descriptor(struct kvm_vcpu *vcpu, u32 info,
+> +			     u64 exit_qualification, u8 descriptor, u8 write)
+> +{
+> +	struct kvmi_event_descriptor e;
+> +
+> +	memset(&e, 0, sizeof(e));
+> +	e.descriptor = descriptor;
+> +	e.write = write;
+> +
+> +	if (cpu_has_vmx()) {
+> +		e.arch.vmx.instr_info = info;
+> +		e.arch.vmx.exit_qualification = exit_qualification;
+> +	} else {
+> +		e.arch.svm.exit_info = info;
+> +	}
+> +
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_DESCRIPTOR,
+> +				&e, sizeof(e), NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_create_vcpu(struct kvm_vcpu *vcpu)
+> +{
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_CREATE_VCPU, NULL, 0, NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> +
+> +u32 kvmi_msg_send_pause_vcpu(struct kvm_vcpu *vcpu)
+> +{
+> +	if (!kvmi_send_event(vcpu, KVMI_EVENT_PAUSE_VCPU, NULL, 0, NULL, 0))
+> +		return KVMI_EVENT_ACTION_CONTINUE;
+> +
+> +	return IVCPU(vcpu)->ev_rpl.action;
+> +}
+> 
 
 
---BOKacYhQ+x31HxR3
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-
-On Thu, Dec 21, 2017 at 17:16:03 -0600,
-  Bruno Wolff III <bruno@wolff.to> wrote:
->
->Enforcing mode alone isn't enough as I tested that one one machine at 
->home and it didn't trigger the problem. I'll try another machine late 
->tonight.
-
-I got the problem to occur on my i686 machine when booting in enforcing 
-mode. This machine uses raid 1 vua mdraid which may or may not be a 
-factor in this problem. The boot log has a trace at the end and might be 
-helpful, so I'm attaching it here.
-
---BOKacYhQ+x31HxR3
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: attachment; filename="boot-i686.log"
-
--- Logs begin at Sun 2017-09-24 07:43:45 CDT, end at Thu 2017-12-21 22:46:47 CST. --
-Dec 21 21:36:32 wolff.to kernel: Linux version 4.15.0-0.rc4.git1.2.fc28.i686 (mockbuild@buildvm-15.phx2.fedoraproject.org) (gcc version 7.2.1 20170915 (Red Hat 7.2.1-4) (GCC)) #1 SMP Tue Dec 19 17:26:41 UTC 2017
-Dec 21 21:36:32 wolff.to kernel: x86/fpu: x87 FPU will use FXSAVE
-Dec 21 21:36:32 wolff.to kernel: e820: BIOS-provided physical RAM map:
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x0000000000000000-0x000000000009cbff] usable
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x000000000009cc00-0x000000000009ffff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000000e0000-0x00000000000fffff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x0000000000100000-0x00000000bfeeffff] usable
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000bfef0000-0x00000000bfefbfff] ACPI data
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000bfefc000-0x00000000bfefffff] ACPI NVS
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000bff00000-0x00000000bff7ffff] usable
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000bff80000-0x00000000bfffffff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000fec00000-0x00000000fec0ffff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000fee00000-0x00000000fee00fff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000ff800000-0x00000000ffbfffff] reserved
-Dec 21 21:36:32 wolff.to kernel: BIOS-e820: [mem 0x00000000fff00000-0x00000000ffffffff] reserved
-Dec 21 21:36:32 wolff.to kernel: Notice: NX (Execute Disable) protection missing in CPU!
-Dec 21 21:36:32 wolff.to kernel: random: fast init done
-Dec 21 21:36:32 wolff.to kernel: SMBIOS 2.32 present.
-Dec 21 21:36:32 wolff.to kernel: DMI: Hewlett-Packard hp workstation xw8000/0844, BIOS JQ.W1.19US      04/13/05
-Dec 21 21:36:32 wolff.to kernel: e820: update [mem 0x00000000-0x00000fff] usable ==> reserved
-Dec 21 21:36:32 wolff.to kernel: e820: remove [mem 0x000a0000-0x000fffff] usable
-Dec 21 21:36:32 wolff.to kernel: e820: last_pfn = 0xbff80 max_arch_pfn = 0x100000
-Dec 21 21:36:32 wolff.to kernel: MTRR default type: uncachable
-Dec 21 21:36:32 wolff.to kernel: MTRR fixed ranges enabled:
-Dec 21 21:36:32 wolff.to kernel:   00000-9FFFF write-back
-Dec 21 21:36:32 wolff.to kernel:   A0000-BFFFF uncachable
-Dec 21 21:36:32 wolff.to kernel:   C0000-FFFFF write-protect
-Dec 21 21:36:32 wolff.to kernel: MTRR variable ranges enabled:
-Dec 21 21:36:32 wolff.to kernel:   0 base 000000000 mask F80000000 write-back
-Dec 21 21:36:32 wolff.to kernel:   1 base 080000000 mask FC0000000 write-back
-Dec 21 21:36:32 wolff.to kernel:   2 disabled
-Dec 21 21:36:32 wolff.to kernel:   3 disabled
-Dec 21 21:36:32 wolff.to kernel:   4 disabled
-Dec 21 21:36:32 wolff.to kernel:   5 disabled
-Dec 21 21:36:32 wolff.to kernel:   6 disabled
-Dec 21 21:36:32 wolff.to kernel:   7 disabled
-Dec 21 21:36:32 wolff.to kernel: x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WC  UC- UC  
-Dec 21 21:36:32 wolff.to kernel: found SMP MP-table at [mem 0x000f63a0-0x000f63af] mapped at [(ptrval)]
-Dec 21 21:36:32 wolff.to kernel: initial memory mapped: [mem 0x00000000-0x0a7fffff]
-Dec 21 21:36:32 wolff.to kernel: Base memory trampoline at [(ptrval)] 98000 size 16384
-Dec 21 21:36:32 wolff.to kernel: BRK [0x0a53f000, 0x0a53ffff] PGTABLE
-Dec 21 21:36:32 wolff.to kernel: BRK [0x0a540000, 0x0a541fff] PGTABLE
-Dec 21 21:36:32 wolff.to kernel: BRK [0x0a542000, 0x0a542fff] PGTABLE
-Dec 21 21:36:32 wolff.to kernel: RAMDISK: [mem 0x36732000-0x37feffff]
-Dec 21 21:36:32 wolff.to kernel: Allocated new RAMDISK: [mem 0x34e74000-0x367318b1]
-Dec 21 21:36:32 wolff.to kernel: Move RAMDISK from [mem 0x36732000-0x37fef8b1] to [mem 0x34e74000-0x367318b1]
-Dec 21 21:36:32 wolff.to kernel: ACPI: Early table checksum verification disabled
-Dec 21 21:36:32 wolff.to kernel: ACPI: RSDP 0x00000000000F6370 000014 (v00 PTLTD )
-Dec 21 21:36:32 wolff.to kernel: ACPI: RSDT 0x00000000BFEF8D1D 000034 (v01 PTLTD    RSDT   06040000  LTP 00000000)
-Dec 21 21:36:32 wolff.to kernel: ACPI: FACP 0x00000000BFEFBDB5 000074 (v01 INTEL  PLACER   06040000 PTL  00000008)
-Dec 21 21:36:32 wolff.to kernel: ACPI: DSDT 0x00000000BFEF8D51 003064 (v01 hp     silvertn 06040000 MSFT 0100000E)
-Dec 21 21:36:32 wolff.to kernel: ACPI: FACS 0x00000000BFEFCFC0 000040
-Dec 21 21:36:32 wolff.to kernel: ACPI: _HP_ 0x00000000BFEFBE29 000113 (v01 HPINVT HPINVENT 06040000 ?    5F50485F)
-Dec 21 21:36:32 wolff.to kernel: ACPI: APIC 0x00000000BFEFBF3C 00009C (v01 PTLTD  ? APIC   06040000  LTP 00000000)
-Dec 21 21:36:32 wolff.to kernel: ACPI: BOOT 0x00000000BFEFBFD8 000028 (v01 PTLTD  $SBFTBL$ 06040000  LTP 00000001)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Local APIC address 0xfee00000
-Dec 21 21:36:32 wolff.to kernel: 2187MB HIGHMEM available.
-Dec 21 21:36:32 wolff.to kernel: 883MB LOWMEM available.
-Dec 21 21:36:32 wolff.to kernel:   mapped low ram: 0 - 373fe000
-Dec 21 21:36:32 wolff.to kernel:   low ram: 0 - 373fe000
-Dec 21 21:36:32 wolff.to kernel: tsc: Fast TSC calibration using PIT
-Dec 21 21:36:32 wolff.to kernel: Zone ranges:
-Dec 21 21:36:32 wolff.to kernel:   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
-Dec 21 21:36:32 wolff.to kernel:   Normal   [mem 0x0000000001000000-0x00000000373fdfff]
-Dec 21 21:36:32 wolff.to kernel:   HighMem  [mem 0x00000000373fe000-0x00000000bff7ffff]
-Dec 21 21:36:32 wolff.to kernel: Movable zone start for each node
-Dec 21 21:36:32 wolff.to kernel: Early memory node ranges
-Dec 21 21:36:32 wolff.to kernel:   node   0: [mem 0x0000000000001000-0x000000000009bfff]
-Dec 21 21:36:32 wolff.to kernel:   node   0: [mem 0x0000000000100000-0x00000000bfeeffff]
-Dec 21 21:36:32 wolff.to kernel:   node   0: [mem 0x00000000bff00000-0x00000000bff7ffff]
-Dec 21 21:36:32 wolff.to kernel: Initmem setup node 0 [mem 0x0000000000001000-0x00000000bff7ffff]
-Dec 21 21:36:32 wolff.to kernel: On node 0 totalpages: 786187
-Dec 21 21:36:32 wolff.to kernel:   DMA zone: 40 pages used for memmap
-Dec 21 21:36:32 wolff.to kernel:   DMA zone: 0 pages reserved
-Dec 21 21:36:32 wolff.to kernel:   DMA zone: 3995 pages, LIFO batch:0
-Dec 21 21:36:32 wolff.to kernel:   Normal zone: 2170 pages used for memmap
-Dec 21 21:36:32 wolff.to kernel:   Normal zone: 222206 pages, LIFO batch:31
-Dec 21 21:36:32 wolff.to kernel:   HighMem zone: 559986 pages, LIFO batch:31
-Dec 21 21:36:32 wolff.to kernel: Reserved but unavailable: 101 pages
-Dec 21 21:36:32 wolff.to kernel: Using APIC driver default
-Dec 21 21:36:32 wolff.to kernel: ACPI: PM-Timer IO Port: 0x1008
-Dec 21 21:36:32 wolff.to kernel: ACPI: Local APIC address 0xfee00000
-Dec 21 21:36:32 wolff.to kernel: ACPI: LAPIC_NMI (acpi_id[0x00] high edge lint[0x1])
-Dec 21 21:36:32 wolff.to kernel: ACPI: LAPIC_NMI (acpi_id[0x01] high edge lint[0x1])
-Dec 21 21:36:32 wolff.to kernel: ACPI: LAPIC_NMI (acpi_id[0x02] high edge lint[0x1])
-Dec 21 21:36:32 wolff.to kernel: ACPI: LAPIC_NMI (acpi_id[0x03] high edge lint[0x1])
-Dec 21 21:36:32 wolff.to kernel: IOAPIC[0]: apic_id 2, version 32, address 0xfec00000, GSI 0-23
-Dec 21 21:36:32 wolff.to kernel: IOAPIC[1]: apic_id 3, version 32, address 0xfec80000, GSI 24-47
-Dec 21 21:36:32 wolff.to kernel: IOAPIC[2]: apic_id 4, version 32, address 0xfec80400, GSI 48-71
-Dec 21 21:36:32 wolff.to kernel: ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 high edge)
-Dec 21 21:36:32 wolff.to kernel: ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
-Dec 21 21:36:32 wolff.to kernel: ACPI: IRQ0 used by override.
-Dec 21 21:36:32 wolff.to kernel: ACPI: IRQ9 used by override.
-Dec 21 21:36:32 wolff.to kernel: Using ACPI (MADT) for SMP configuration information
-Dec 21 21:36:32 wolff.to kernel: smpboot: Allowing 4 CPUs, 0 hotplug CPUs
-Dec 21 21:36:32 wolff.to kernel: PM: Registered nosave memory: [mem 0x00000000-0x00000fff]
-Dec 21 21:36:32 wolff.to kernel: PM: Registered nosave memory: [mem 0x0009c000-0x0009cfff]
-Dec 21 21:36:32 wolff.to kernel: PM: Registered nosave memory: [mem 0x0009d000-0x0009ffff]
-Dec 21 21:36:32 wolff.to kernel: PM: Registered nosave memory: [mem 0x000a0000-0x000dffff]
-Dec 21 21:36:32 wolff.to kernel: PM: Registered nosave memory: [mem 0x000e0000-0x000fffff]
-Dec 21 21:36:32 wolff.to kernel: e820: [mem 0xc0000000-0xfebfffff] available for PCI devices
-Dec 21 21:36:32 wolff.to kernel: Booting paravirtualized kernel on bare hardware
-Dec 21 21:36:32 wolff.to kernel: clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
-Dec 21 21:36:32 wolff.to kernel: setup_percpu: NR_CPUS:32 nr_cpumask_bits:4 nr_cpu_ids:4 nr_node_ids:1
-Dec 21 21:36:32 wolff.to kernel: percpu: Embedded 24 pages/cpu @(ptrval) s65676 r0 d32628 u98304
-Dec 21 21:36:32 wolff.to kernel: pcpu-alloc: s65676 r0 d32628 u98304 alloc=24*4096
-Dec 21 21:36:32 wolff.to kernel: pcpu-alloc: [0] 0 [0] 1 [0] 2 [0] 3 
-Dec 21 21:36:32 wolff.to kernel: Built 1 zonelists, mobility grouping on.  Total pages: 783977
-Dec 21 21:36:32 wolff.to kernel: Kernel command line: ro root=/dev/mapper/luks-6298c7e5-aadf-44d5-be91-28734671492a SYSFONT=latarcyrheb-sun16 LANG=en_US.UTF-8 KEYTABLE=us slub_debug=- nomodeset vga=795
-Dec 21 21:36:32 wolff.to kernel: Dentry cache hash table entries: 131072 (order: 7, 524288 bytes)
-Dec 21 21:36:32 wolff.to kernel: Inode-cache hash table entries: 65536 (order: 6, 262144 bytes)
-Dec 21 21:36:32 wolff.to kernel: Initializing CPU#0
-Dec 21 21:36:32 wolff.to kernel: Initializing HighMem for node 0 (000373fe:000bff80)
-Dec 21 21:36:32 wolff.to kernel: Initializing Movable for node 0 (00000000:00000000)
-Dec 21 21:36:32 wolff.to kernel: Memory: 3073868K/3144748K available (7826K kernel code, 766K rwdata, 3152K rodata, 884K init, 624K bss, 70880K reserved, 0K cma-reserved, 2239944K highmem)
-Dec 21 21:36:32 wolff.to kernel: virtual kernel memory layout:
-                                     fixmap  : 0xff9d4000 - 0xfffff000   (6316 kB)
-                                     pkmap   : 0xff400000 - 0xff800000   (4096 kB)
-                                     vmalloc : 0xf7bfe000 - 0xff3fe000   ( 120 MB)
-                                     lowmem  : 0xc0000000 - 0xf73fe000   ( 883 MB)
-                                       .init : 0xca393000 - 0xca470000   ( 884 kB)
-                                       .data : 0xc9fa4b88 - 0xca37d840   (3939 kB)
-                                       .text : 0xc9800000 - 0xc9fa4b88   (7826 kB)
-Dec 21 21:36:32 wolff.to kernel: Checking if this processor honours the WP bit even in supervisor mode...Ok.
-Dec 21 21:36:32 wolff.to kernel: SLUB: HWalign=128, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
-Dec 21 21:36:32 wolff.to kernel: ftrace: allocating 33584 entries in 66 pages
-Dec 21 21:36:32 wolff.to kernel: Hierarchical RCU implementation.
-Dec 21 21:36:32 wolff.to kernel:         RCU restricting CPUs from NR_CPUS=32 to nr_cpu_ids=4.
-Dec 21 21:36:32 wolff.to kernel:         Tasks RCU enabled.
-Dec 21 21:36:32 wolff.to kernel: RCU: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
-Dec 21 21:36:32 wolff.to kernel: NR_IRQS: 2304, nr_irqs: 1024, preallocated irqs: 16
-Dec 21 21:36:32 wolff.to kernel: CPU 0 irqstacks, hard=(ptrval) soft=(ptrval)
-Dec 21 21:36:32 wolff.to kernel: Console: colour dummy device 80x25
-Dec 21 21:36:32 wolff.to kernel: console [tty0] enabled
-Dec 21 21:36:32 wolff.to kernel: ACPI: Core revision 20170831
-Dec 21 21:36:32 wolff.to kernel: ACPI: 1 ACPI AML tables successfully acquired and loaded
-Dec 21 21:36:32 wolff.to kernel: APIC: Switch to symmetric I/O mode setup
-Dec 21 21:36:32 wolff.to kernel: Enabling APIC mode:  Flat.  Using 3 I/O APICs
-Dec 21 21:36:32 wolff.to kernel: ..TIMER: vector=0x30 apic1=0 pin1=2 apic2=-1 pin2=-1
-Dec 21 21:36:32 wolff.to kernel: tsc: Fast TSC calibration using PIT
-Dec 21 21:36:32 wolff.to kernel: tsc: Detected 2657.635 MHz processor
-Dec 21 21:36:32 wolff.to kernel: Calibrating delay loop (skipped), value calculated using timer frequency.. 5315.27 BogoMIPS (lpj=2657635)
-Dec 21 21:36:32 wolff.to kernel: pid_max: default: 32768 minimum: 301
-Dec 21 21:36:32 wolff.to kernel: Security Framework initialized
-Dec 21 21:36:32 wolff.to kernel: Yama: becoming mindful.
-Dec 21 21:36:32 wolff.to kernel: SELinux:  Initializing.
-Dec 21 21:36:32 wolff.to kernel: SELinux:  Starting in permissive mode
-Dec 21 21:36:32 wolff.to kernel: Mount-cache hash table entries: 2048 (order: 1, 8192 bytes)
-Dec 21 21:36:32 wolff.to kernel: Mountpoint-cache hash table entries: 2048 (order: 1, 8192 bytes)
-Dec 21 21:36:32 wolff.to kernel: CPU: Physical Processor ID: 0
-Dec 21 21:36:32 wolff.to kernel: CPU: Processor Core ID: 0
-Dec 21 21:36:32 wolff.to kernel: mce: CPU supports 4 MCE banks
-Dec 21 21:36:32 wolff.to kernel: CPU0: Thermal monitoring enabled (TM1)
-Dec 21 21:36:32 wolff.to kernel: Last level iTLB entries: 4KB 64, 2MB 64, 4MB 64
-Dec 21 21:36:32 wolff.to kernel: Last level dTLB entries: 4KB 64, 2MB 0, 4MB 64, 1GB 0
-Dec 21 21:36:32 wolff.to kernel: Freeing SMP alternatives memory: 32K
-Dec 21 21:36:32 wolff.to kernel: smpboot: CPU0: Intel(R) Xeon(TM) CPU 2.66GHz (family: 0xf, model: 0x2, stepping: 0x9)
-Dec 21 21:36:32 wolff.to kernel: Performance Events: Netburst events, Netburst P4/Xeon PMU driver.
-Dec 21 21:36:32 wolff.to kernel: ... version:                0
-Dec 21 21:36:32 wolff.to kernel: ... bit width:              40
-Dec 21 21:36:32 wolff.to kernel: ... generic registers:      18
-Dec 21 21:36:32 wolff.to kernel: ... value mask:             000000ffffffffff
-Dec 21 21:36:32 wolff.to kernel: ... max period:             0000007fffffffff
-Dec 21 21:36:32 wolff.to kernel: ... fixed-purpose events:   0
-Dec 21 21:36:32 wolff.to kernel: ... event mask:             000000000003ffff
-Dec 21 21:36:32 wolff.to kernel: Hierarchical SRCU implementation.
-Dec 21 21:36:32 wolff.to kernel: NMI watchdog: Enabled. Permanently consumes one hw-PMU counter.
-Dec 21 21:36:32 wolff.to kernel: smp: Bringing up secondary CPUs ...
-Dec 21 21:36:32 wolff.to kernel: CPU 1 irqstacks, hard=91786052 soft=dd4da3c7
-Dec 21 21:36:32 wolff.to kernel: x86: Booting SMP configuration:
-Dec 21 21:36:32 wolff.to kernel: .... node  #0, CPUs:      #1
-Dec 21 21:36:32 wolff.to kernel: Initializing CPU#1
-Dec 21 21:36:32 wolff.to kernel: smpboot: CPU 1 Converting physical 3 to logical package 1
-Dec 21 21:36:32 wolff.to kernel: CPU 2 irqstacks, hard=0a74345e soft=03089ece
-Dec 21 21:36:32 wolff.to kernel:  #2
-Dec 21 21:36:32 wolff.to kernel: Initializing CPU#2
-Dec 21 21:36:32 wolff.to kernel: CPU 3 irqstacks, hard=e52ed12e soft=296c5adc
-Dec 21 21:36:32 wolff.to kernel:  #3
-Dec 21 21:36:32 wolff.to kernel: Initializing CPU#3
-Dec 21 21:36:32 wolff.to kernel: smp: Brought up 1 node, 4 CPUs
-Dec 21 21:36:32 wolff.to kernel: smpboot: Max logical packages: 2
-Dec 21 21:36:32 wolff.to kernel: smpboot: Total of 4 processors activated (21259.31 BogoMIPS)
-Dec 21 21:36:32 wolff.to kernel: devtmpfs: initialized
-Dec 21 21:36:32 wolff.to kernel: PM: Registering ACPI NVS region [mem 0xbfefc000-0xbfefffff] (16384 bytes)
-Dec 21 21:36:32 wolff.to kernel: clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
-Dec 21 21:36:32 wolff.to kernel: futex hash table entries: 1024 (order: 4, 65536 bytes)
-Dec 21 21:36:32 wolff.to kernel: pinctrl core: initialized pinctrl subsystem
-Dec 21 21:36:32 wolff.to kernel: RTC time:  3:36:26, date: 12/22/17
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 16
-Dec 21 21:36:32 wolff.to kernel: audit: initializing netlink subsys (disabled)
-Dec 21 21:36:32 wolff.to kernel: audit: type=2000 audit(1513913786.230:1): state=initialized audit_enabled=0 res=1
-Dec 21 21:36:32 wolff.to kernel: cpuidle: using governor menu
-Dec 21 21:36:32 wolff.to kernel: Simple Boot Flag at 0x36 set to 0x1
-Dec 21 21:36:32 wolff.to kernel: ACPI: bus type PCI registered
-Dec 21 21:36:32 wolff.to kernel: acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
-Dec 21 21:36:32 wolff.to kernel: PCI: PCI BIOS revision 2.10 entry at 0xfd895, last bus=5
-Dec 21 21:36:32 wolff.to kernel: PCI: Using configuration type 1 for base access
-Dec 21 21:36:32 wolff.to kernel: HugeTLB registered 4.00 MiB page size, pre-allocated 0 pages
-Dec 21 21:36:32 wolff.to kernel: ACPI: Added _OSI(Module Device)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Added _OSI(Processor Device)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Added _OSI(3.0 _SCP Extensions)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Added _OSI(Processor Aggregator Device)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Interpreter enabled
-Dec 21 21:36:32 wolff.to kernel: ACPI: (supports S0 S1 S4 S5)
-Dec 21 21:36:32 wolff.to kernel: ACPI: Using IOAPIC for interrupt routing
-Dec 21 21:36:32 wolff.to kernel: PCI: Ignoring host bridge windows from ACPI; if necessary, use "pci=use_crs" and report a bug
-Dec 21 21:36:32 wolff.to kernel: ACPI: Enabled 7 GPEs in block 00 to 1F
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: _OSC: OS supports [ASPM ClockPM Segments MSI]
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: _OSC failed (AE_NOT_FOUND); disabling ASPM
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: fail to add MMCONFIG information, can't access extended PCI configuration space under this bridge.
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [io  0x0cf8-0x0cff] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [io  0x0000-0x0cf7 window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [mem 0x000a0000-0x000bffff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [mem 0x000d4000-0x000d7fff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [mem 0x000d8000-0x000dbfff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [mem 0x000dc000-0x000dffff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [mem 0xc0000000-0xfebfffff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0A03:00: host bridge window [io  0x0d00-0xffff window] (ignored)
-Dec 21 21:36:32 wolff.to kernel: PCI: root bus 00: using default resources
-Dec 21 21:36:32 wolff.to kernel: PCI host bridge to bus 0000:00
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: root bus resource [io  0x0000-0xffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: root bus resource [mem 0x00000000-0xffffffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: root bus resource [bus 00-ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:00.0: [8086:2550] type 00 class 0x060000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:00.0: reg 0x10: [mem 0xd8000000-0xdfffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:00.1: [8086:2551] type 00 class 0xff0000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0: [8086:2552] type 01 class 0x060400
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0: reg 0x10: [mem 0xe0000000-0xe7ffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0: [8086:2553] type 01 class 0x060400
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.0: [8086:24c2] type 00 class 0x0c0300
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.0: reg 0x20: [io  0x1880-0x189f]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.1: [8086:24c4] type 00 class 0x0c0300
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.1: reg 0x20: [io  0x18a0-0x18bf]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.2: [8086:24c7] type 00 class 0x0c0300
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.2: reg 0x20: [io  0x18c0-0x18df]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.7: [8086:24cd] type 00 class 0x0c0320
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.7: reg 0x10: [mem 0xd0000c00-0xd0000fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1d.7: PME# supported from D0 D3hot D3cold
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0: [8086:244e] type 01 class 0x060400
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.0: [8086:24c0] type 00 class 0x060100
-Dec 21 21:36:32 wolff.to kernel: * The chipset may have PM-Timer Bug. Due to workarounds for a bug,
-                                 * this clock source is slow. If you are sure your timer does not have
-                                 * this bug, please use "acpi_pm_good" to disable the workaround
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.0: quirk: [io  0x1000-0x107f] claimed by ICH4 ACPI/GPIO/TCO
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.0: quirk: [io  0x1180-0x11bf] claimed by ICH4 GPIO
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: [8086:24cb] type 00 class 0x01018a
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x10: [io  0x0000-0x0007]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x14: [io  0x0000-0x0003]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x18: [io  0x0000-0x0007]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x1c: [io  0x0000-0x0003]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x20: [io  0x1800-0x180f]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: reg 0x24: [mem 0x00000000-0x000003ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: legacy IDE quirk: reg 0x10: [io  0x01f0-0x01f7]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: legacy IDE quirk: reg 0x14: [io  0x03f6]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: legacy IDE quirk: reg 0x18: [io  0x0170-0x0177]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: legacy IDE quirk: reg 0x1c: [io  0x0376]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.3: [8086:24c3] type 00 class 0x0c0500
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.3: reg 0x20: [io  0x1820-0x183f]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: [8086:24c5] type 00 class 0x040100
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: reg 0x10: [io  0x1c00-0x1cff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: reg 0x14: [io  0x1840-0x187f]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: reg 0x18: [mem 0xd0000800-0xd00009ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: reg 0x1c: [mem 0xd0000400-0xd00004ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.5: PME# supported from D0 D3hot D3cold
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: [1002:5961] type 00 class 0x030000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: reg 0x10: [mem 0xe8000000-0xefffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: reg 0x14: [io  0x2000-0x20ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: reg 0x18: [mem 0xd0100000-0xd010ffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: reg 0x30: [mem 0x00000000-0x0001ffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: supports D1 D2
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.1: [1002:5941] type 00 class 0x038000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.1: reg 0x10: [mem 0xf0000000-0xf7ffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.1: reg 0x14: [mem 0xd0110000-0xd011ffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.1: supports D1 D2
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0: PCI bridge to [bus 01]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [io  0x2000-0x2fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [mem 0xd0100000-0xd01fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [mem 0xe8000000-0xf7ffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1c.0: [8086:1461] type 00 class 0x080020
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1c.0: reg 0x10: [mem 0xd0200000-0xd0200fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0: [8086:1460] type 01 class 0x060400
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1e.0: [8086:1461] type 00 class 0x080020
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1e.0: reg 0x10: [mem 0xd0201000-0xd0201fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1f.0: [8086:1460] type 01 class 0x060400
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0: PCI bridge to [bus 02-04]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0:   bridge window [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0:   bridge window [mem 0xd0200000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: [1000:0030] type 00 class 0x010000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: reg 0x10: [io  0x3000-0x30ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: reg 0x14: [mem 0xd0310000-0xd031ffff 64bit]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: reg 0x1c: [mem 0xd0300000-0xd030ffff 64bit]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: reg 0x30: [mem 0x00000000-0x000fffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: supports D1 D2
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: [1000:0030] type 00 class 0x010000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: reg 0x10: [io  0x3400-0x34ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: reg 0x14: [mem 0xd0330000-0xd033ffff 64bit]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: reg 0x1c: [mem 0xd0320000-0xd032ffff 64bit]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: reg 0x30: [mem 0x00000000-0x000fffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: supports D1 D2
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0: PCI bridge to [bus 03]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0:   bridge window [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0:   bridge window [mem 0xd0300000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1f.0: PCI bridge to [bus 04]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:05:03.0: [8086:100e] type 00 class 0x020000
-Dec 21 21:36:32 wolff.to kernel: pci 0000:05:03.0: reg 0x10: [mem 0xd0400000-0xd041ffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:05:03.0: reg 0x18: [io  0x4000-0x403f]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:05:03.0: PME# supported from D0 D3hot D3cold
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0: PCI bridge to [bus 05] (subtractive decode)
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [io  0x4000-0x4fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [mem 0xd0400000-0xd04fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [io  0x0000-0xffff] (subtractive decode)
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [mem 0x00000000-0xffffffff] (subtractive decode)
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: on NUMA node 0
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKA] (IRQs 3 *10 11 14 15)
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKB] (IRQs 3 10 *11 14 15)
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKC] (IRQs *3 10 11 14 15)
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKD] (IRQs 3 10 11 14 15) *5
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKE] (IRQs 3 10 11 14 15) *0, disabled.
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKF] (IRQs 3 10 11 14 15) *0, disabled.
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKG] (IRQs 3 10 11 14 15) *0, disabled.
-Dec 21 21:36:32 wolff.to kernel: ACPI: PCI Interrupt Link [LNKH] (IRQs 3 10 *11 14 15)
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: vgaarb: setting as boot VGA device
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: vgaarb: bridge control possible
-Dec 21 21:36:32 wolff.to kernel: vgaarb: loaded
-Dec 21 21:36:32 wolff.to kernel: SCSI subsystem initialized
-Dec 21 21:36:32 wolff.to kernel: libata version 3.00 loaded.
-Dec 21 21:36:32 wolff.to kernel: ACPI: bus type USB registered
-Dec 21 21:36:32 wolff.to kernel: usbcore: registered new interface driver usbfs
-Dec 21 21:36:32 wolff.to kernel: usbcore: registered new interface driver hub
-Dec 21 21:36:32 wolff.to kernel: usbcore: registered new device driver usb
-Dec 21 21:36:32 wolff.to kernel: EDAC MC: Ver: 3.0.0
-Dec 21 21:36:32 wolff.to kernel: PCI: Using ACPI for IRQ routing
-Dec 21 21:36:32 wolff.to kernel: PCI: pci_cache_line_size set to 64 bytes
-Dec 21 21:36:32 wolff.to kernel: e820: reserve RAM buffer [mem 0x0009cc00-0x0009ffff]
-Dec 21 21:36:32 wolff.to kernel: e820: reserve RAM buffer [mem 0xbfef0000-0xbfffffff]
-Dec 21 21:36:32 wolff.to kernel: e820: reserve RAM buffer [mem 0xbff80000-0xbfffffff]
-Dec 21 21:36:32 wolff.to kernel: NetLabel: Initializing
-Dec 21 21:36:32 wolff.to kernel: NetLabel:  domain hash size = 128
-Dec 21 21:36:32 wolff.to kernel: NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO
-Dec 21 21:36:32 wolff.to kernel: NetLabel:  unlabeled traffic allowed by default
-Dec 21 21:36:32 wolff.to kernel: clocksource: Switched to clocksource refined-jiffies
-Dec 21 21:36:32 wolff.to kernel: VFS: Disk quotas dquot_6.6.0
-Dec 21 21:36:32 wolff.to kernel: VFS: Dquot-cache hash table entries: 1024 (order 0, 4096 bytes)
-Dec 21 21:36:32 wolff.to kernel: pnp: PnP ACPI init
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0x0200-0x0207] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0x0330-0x0331] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0x04d0-0x04d1] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0x1000-0x107f] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0x1180-0x11bf] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: [io  0xfe00] has been reserved
-Dec 21 21:36:32 wolff.to kernel: system 00:00: Plug and Play ACPI device, IDs PNP0c02 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:01: Plug and Play ACPI device, IDs PNP0b00 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:02: Plug and Play ACPI device, IDs PNP0303 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:03: Plug and Play ACPI device, IDs PNP0f13 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:04: Plug and Play ACPI device, IDs PNP0501 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:05: [dma 2]
-Dec 21 21:36:32 wolff.to kernel: pnp 00:05: Plug and Play ACPI device, IDs PNP0700 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp 00:06: [dma 3]
-Dec 21 21:36:32 wolff.to kernel: pnp 00:06: Plug and Play ACPI device, IDs PNP0401 (active)
-Dec 21 21:36:32 wolff.to kernel: pnp: PnP ACPI: found 7 devices
-Dec 21 21:36:32 wolff.to kernel: clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
-Dec 21 21:36:32 wolff.to kernel: clocksource: Switched to clocksource acpi_pm
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1f.1: BAR 5: assigned [mem 0xc0000000-0xc00003ff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: BAR 6: assigned [mem 0xd0120000-0xd013ffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0: PCI bridge to [bus 01]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [io  0x2000-0x2fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [mem 0xd0100000-0xd01fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:01.0:   bridge window [mem 0xe8000000-0xf7ffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: BAR 6: no space for [mem size 0x00100000 pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.0: BAR 6: failed to assign [mem size 0x00100000 pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: BAR 6: no space for [mem size 0x00100000 pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:03:05.1: BAR 6: failed to assign [mem size 0x00100000 pref]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0: PCI bridge to [bus 03]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0:   bridge window [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1d.0:   bridge window [mem 0xd0300000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:02:1f.0: PCI bridge to [bus 04]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0: PCI bridge to [bus 02-04]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0:   bridge window [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:02.0:   bridge window [mem 0xd0200000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0: PCI bridge to [bus 05]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [io  0x4000-0x4fff]
-Dec 21 21:36:32 wolff.to kernel: pci 0000:00:1e.0:   bridge window [mem 0xd0400000-0xd04fffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: resource 4 [io  0x0000-0xffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:00: resource 5 [mem 0x00000000-0xffffffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:01: resource 0 [io  0x2000-0x2fff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:01: resource 1 [mem 0xd0100000-0xd01fffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:01: resource 2 [mem 0xe8000000-0xf7ffffff pref]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:02: resource 0 [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:02: resource 1 [mem 0xd0200000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:03: resource 0 [io  0x3000-0x3fff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:03: resource 1 [mem 0xd0300000-0xd03fffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:05: resource 0 [io  0x4000-0x4fff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:05: resource 1 [mem 0xd0400000-0xd04fffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:05: resource 4 [io  0x0000-0xffff]
-Dec 21 21:36:32 wolff.to kernel: pci_bus 0000:05: resource 5 [mem 0x00000000-0xffffffff]
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 2
-Dec 21 21:36:32 wolff.to kernel: TCP established hash table entries: 8192 (order: 3, 32768 bytes)
-Dec 21 21:36:32 wolff.to kernel: TCP bind hash table entries: 8192 (order: 4, 65536 bytes)
-Dec 21 21:36:32 wolff.to kernel: TCP: Hash tables configured (established 8192 bind 8192)
-Dec 21 21:36:32 wolff.to kernel: UDP hash table entries: 512 (order: 2, 16384 bytes)
-Dec 21 21:36:32 wolff.to kernel: UDP-Lite hash table entries: 512 (order: 2, 16384 bytes)
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 1
-Dec 21 21:36:32 wolff.to kernel: pci 0000:01:00.0: Video device with shadowed ROM at [mem 0x000c0000-0x000dffff]
-Dec 21 21:36:32 wolff.to kernel: PCI: CLS mismatch (32 != 64), using 64 bytes
-Dec 21 21:36:32 wolff.to kernel: Unpacking initramfs...
-Dec 21 21:36:32 wolff.to kernel: Freeing initrd memory: 25336K
-Dec 21 21:36:32 wolff.to kernel: apm: BIOS version 1.2 Flags 0x03 (Driver version 1.16ac)
-Dec 21 21:36:32 wolff.to kernel: apm: disabled - APM is not SMP safe.
-Dec 21 21:36:32 wolff.to kernel: Initialise system trusted keyrings
-Dec 21 21:36:32 wolff.to kernel: Key type blacklist registered
-Dec 21 21:36:32 wolff.to kernel: workingset: timestamp_bits=14 max_order=20 bucket_order=6
-Dec 21 21:36:32 wolff.to kernel: zbud: loaded
-Dec 21 21:36:32 wolff.to kernel: SELinux:  Registering netfilter hooks
-Dec 21 21:36:32 wolff.to kernel: tsc: Refined TSC clocksource calibration: 2657.812 MHz
-Dec 21 21:36:32 wolff.to kernel: clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x264f913f74d, max_idle_ns: 440795309567 ns
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 38
-Dec 21 21:36:32 wolff.to kernel: Key type asymmetric registered
-Dec 21 21:36:32 wolff.to kernel: Asymmetric key parser 'x509' registered
-Dec 21 21:36:32 wolff.to kernel: bounce: pool size: 64 pages
-Dec 21 21:36:32 wolff.to kernel: Block layer SCSI generic (bsg) driver version 0.4 loaded (major 250)
-Dec 21 21:36:32 wolff.to kernel: io scheduler noop registered
-Dec 21 21:36:32 wolff.to kernel: io scheduler deadline registered
-Dec 21 21:36:32 wolff.to kernel: io scheduler cfq registered (default)
-Dec 21 21:36:32 wolff.to kernel: io scheduler mq-deadline registered
-Dec 21 21:36:32 wolff.to kernel: atomic64_test: passed for i586+ platform with CX8 and with SSE
-Dec 21 21:36:32 wolff.to kernel: vesafb: cannot reserve video memory at 0xe8000000
-Dec 21 21:36:32 wolff.to kernel: vesafb: mode is 1280x1024x24, linelength=3840, pages=67
-Dec 21 21:36:32 wolff.to kernel: vesafb: protected mode interface info at c000:56df
-Dec 21 21:36:32 wolff.to kernel: vesafb: pmi: set display start = a928c552, set palette = 73e7564e
-Dec 21 21:36:32 wolff.to kernel: vesafb: pmi: ports = 
-Dec 21 21:36:32 wolff.to kernel: 2010 
-Dec 21 21:36:32 wolff.to kernel: 2016 
-Dec 21 21:36:32 wolff.to kernel: 2054 
-Dec 21 21:36:32 wolff.to kernel: 2038 
-Dec 21 21:36:32 wolff.to kernel: 203c 
-Dec 21 21:36:32 wolff.to kernel: 205c 
-Dec 21 21:36:32 wolff.to kernel: 2000 
-Dec 21 21:36:32 wolff.to kernel: 2004 
-Dec 21 21:36:32 wolff.to kernel: 20b0 
-Dec 21 21:36:32 wolff.to kernel: 20b2 
-Dec 21 21:36:32 wolff.to kernel: 20b4 
-Dec 21 21:36:32 wolff.to kernel: 
-Dec 21 21:36:32 wolff.to kernel: vesafb: scrolling: redraw
-Dec 21 21:36:32 wolff.to kernel: vesafb: Truecolor: size=0:8:8:8, shift=0:16:8:0
-Dec 21 21:36:32 wolff.to kernel: vesafb: framebuffer at 0xe8000000, mapped to 0xd4ae3250, using 7680k, total 262144k
-Dec 21 21:36:32 wolff.to kernel: Console: switching to colour frame buffer device 160x64
-Dec 21 21:36:32 wolff.to kernel: fb0: VESA VGA frame buffer device
-Dec 21 21:36:32 wolff.to kernel: input: Power Button as /devices/LNXSYSTM:00/LNXSYBUS:00/PNP0A03:00/PNP0C0C:00/input/input0
-Dec 21 21:36:32 wolff.to kernel: ACPI: Power Button [PWRB]
-Dec 21 21:36:32 wolff.to kernel: input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input1
-Dec 21 21:36:32 wolff.to kernel: ACPI: Power Button [PWRF]
-Dec 21 21:36:32 wolff.to kernel: Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
-Dec 21 21:36:32 wolff.to kernel: 00:04: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
-Dec 21 21:36:32 wolff.to kernel: Non-volatile memory driver v1.3
-Dec 21 21:36:32 wolff.to kernel: Linux agpgart interface v0.103
-Dec 21 21:36:32 wolff.to kernel: agpgart-intel 0000:00:00.0: Intel E7505 Chipset
-Dec 21 21:36:32 wolff.to kernel: agpgart-intel 0000:00:00.0: AGP aperture is 128M @ 0xd8000000
-Dec 21 21:36:32 wolff.to kernel: ata_piix 0000:00:1f.1: version 2.13
-Dec 21 21:36:32 wolff.to kernel: ata_piix 0000:00:1f.1: enabling device (0005 -> 0007)
-Dec 21 21:36:32 wolff.to kernel: scsi host0: ata_piix
-Dec 21 21:36:32 wolff.to kernel: scsi host1: ata_piix
-Dec 21 21:36:32 wolff.to kernel: ata1: PATA max UDMA/100 cmd 0x1f0 ctl 0x3f6 bmdma 0x1800 irq 14
-Dec 21 21:36:32 wolff.to kernel: ata2: PATA max UDMA/100 cmd 0x170 ctl 0x376 bmdma 0x1808 irq 15
-Dec 21 21:36:32 wolff.to kernel: libphy: Fixed MDIO Bus: probed
-Dec 21 21:36:32 wolff.to kernel: ehci_hcd: USB 2.0 'Enhanced' Host Controller (EHCI) Driver
-Dec 21 21:36:32 wolff.to kernel: ehci-pci: EHCI PCI platform driver
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: EHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: new USB bus registered, assigned bus number 1
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: debug port 1
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: cache line size of 64 is not supported
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: irq 23, io mem 0xd0000c00
-Dec 21 21:36:32 wolff.to kernel: ehci-pci 0000:00:1d.7: USB 2.0 started, EHCI 1.00
-Dec 21 21:36:32 wolff.to kernel: usb usb1: New USB device found, idVendor=1d6b, idProduct=0002
-Dec 21 21:36:32 wolff.to kernel: usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
-Dec 21 21:36:32 wolff.to kernel: usb usb1: Product: EHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: usb usb1: Manufacturer: Linux 4.15.0-0.rc4.git1.2.fc28.i686 ehci_hcd
-Dec 21 21:36:32 wolff.to kernel: usb usb1: SerialNumber: 0000:00:1d.7
-Dec 21 21:36:32 wolff.to kernel: hub 1-0:1.0: USB hub found
-Dec 21 21:36:32 wolff.to kernel: hub 1-0:1.0: 6 ports detected
-Dec 21 21:36:32 wolff.to kernel: ohci_hcd: USB 1.1 'Open' Host Controller (OHCI) Driver
-Dec 21 21:36:32 wolff.to kernel: ohci-pci: OHCI PCI platform driver
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd: USB Universal Host Controller Interface driver
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.0: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.0: new USB bus registered, assigned bus number 2
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.0: detected 2 ports
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.0: irq 16, io base 0x00001880
-Dec 21 21:36:32 wolff.to kernel: usb usb2: New USB device found, idVendor=1d6b, idProduct=0001
-Dec 21 21:36:32 wolff.to kernel: usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
-Dec 21 21:36:32 wolff.to kernel: ata1.00: ATA-6: WDC WD3200JB-00KFA0, 08.05J08, max UDMA/100
-Dec 21 21:36:32 wolff.to kernel: ata1.00: 625142448 sectors, multi 16: LBA48 
-Dec 21 21:36:32 wolff.to kernel: ata1.00: configured for UDMA/100
-Dec 21 21:36:32 wolff.to kernel: scsi 0:0:0:0: Direct-Access     ATA      WDC WD3200JB-00K 5J08 PQ: 0 ANSI: 5
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: Attached scsi generic sg0 type 0
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: [sda] 625142448 512-byte logical blocks: (320 GB/298 GiB)
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: [sda] Write Protect is off
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: [sda] Mode Sense: 00 3a 00 00
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: [sda] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
-Dec 21 21:36:32 wolff.to kernel:  sda: sda1 sda2 sda3 sda4
-Dec 21 21:36:32 wolff.to kernel: sd 0:0:0:0: [sda] Attached SCSI disk
-Dec 21 21:36:32 wolff.to kernel: ata2.00: ATA-6: WDC WD3200JB-00KFA0, 08.05J08, max UDMA/100
-Dec 21 21:36:32 wolff.to kernel: ata2.00: 625142448 sectors, multi 16: LBA48 
-Dec 21 21:36:32 wolff.to kernel: ata2.00: configured for UDMA/100
-Dec 21 21:36:32 wolff.to kernel: scsi 1:0:0:0: Direct-Access     ATA      WDC WD3200JB-00K 5J08 PQ: 0 ANSI: 5
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: [sdb] 625142448 512-byte logical blocks: (320 GB/298 GiB)
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: [sdb] Write Protect is off
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: [sdb] Mode Sense: 00 3a 00 00
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: Attached scsi generic sg1 type 0
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: [sdb] Write cache: enabled, read cache: enabled, doesn't support DPO or FUA
-Dec 21 21:36:32 wolff.to kernel:  sdb: sdb1 sdb2 sdb3 sdb4
-Dec 21 21:36:32 wolff.to kernel: sd 1:0:0:0: [sdb] Attached SCSI disk
-Dec 21 21:36:32 wolff.to kernel: usb usb2: Product: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: usb usb2: Manufacturer: Linux 4.15.0-0.rc4.git1.2.fc28.i686 uhci_hcd
-Dec 21 21:36:32 wolff.to kernel: usb usb2: SerialNumber: 0000:00:1d.0
-Dec 21 21:36:32 wolff.to kernel: clocksource: Switched to clocksource tsc
-Dec 21 21:36:32 wolff.to kernel: hub 2-0:1.0: USB hub found
-Dec 21 21:36:32 wolff.to kernel: hub 2-0:1.0: 2 ports detected
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.1: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.1: new USB bus registered, assigned bus number 3
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.1: detected 2 ports
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.1: irq 19, io base 0x000018a0
-Dec 21 21:36:32 wolff.to kernel: usb usb3: New USB device found, idVendor=1d6b, idProduct=0001
-Dec 21 21:36:32 wolff.to kernel: usb usb3: New USB device strings: Mfr=3, Product=2, SerialNumber=1
-Dec 21 21:36:32 wolff.to kernel: usb usb3: Product: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: usb usb3: Manufacturer: Linux 4.15.0-0.rc4.git1.2.fc28.i686 uhci_hcd
-Dec 21 21:36:32 wolff.to kernel: usb usb3: SerialNumber: 0000:00:1d.1
-Dec 21 21:36:32 wolff.to kernel: hub 3-0:1.0: USB hub found
-Dec 21 21:36:32 wolff.to kernel: hub 3-0:1.0: 2 ports detected
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.2: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.2: new USB bus registered, assigned bus number 4
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.2: detected 2 ports
-Dec 21 21:36:32 wolff.to kernel: uhci_hcd 0000:00:1d.2: irq 18, io base 0x000018c0
-Dec 21 21:36:32 wolff.to kernel: usb usb4: New USB device found, idVendor=1d6b, idProduct=0001
-Dec 21 21:36:32 wolff.to kernel: usb usb4: New USB device strings: Mfr=3, Product=2, SerialNumber=1
-Dec 21 21:36:32 wolff.to kernel: usb usb4: Product: UHCI Host Controller
-Dec 21 21:36:32 wolff.to kernel: usb usb4: Manufacturer: Linux 4.15.0-0.rc4.git1.2.fc28.i686 uhci_hcd
-Dec 21 21:36:32 wolff.to kernel: usb usb4: SerialNumber: 0000:00:1d.2
-Dec 21 21:36:32 wolff.to kernel: hub 4-0:1.0: USB hub found
-Dec 21 21:36:32 wolff.to kernel: hub 4-0:1.0: 2 ports detected
-Dec 21 21:36:32 wolff.to kernel: usbcore: registered new interface driver usbserial_generic
-Dec 21 21:36:32 wolff.to kernel: usbserial: USB Serial support registered for generic
-Dec 21 21:36:32 wolff.to kernel: i8042: PNP: PS/2 Controller [PNP0303:KBC0,PNP0f13:MOUS] at 0x60,0x64 irq 1,12
-Dec 21 21:36:32 wolff.to kernel: serio: i8042 KBD port at 0x60,0x64 irq 1
-Dec 21 21:36:32 wolff.to kernel: mousedev: PS/2 mouse device common for all mice
-Dec 21 21:36:32 wolff.to kernel: rtc_cmos 00:01: RTC can wake from S4
-Dec 21 21:36:32 wolff.to kernel: rtc_cmos 00:01: rtc core: registered rtc_cmos as rtc0
-Dec 21 21:36:32 wolff.to kernel: rtc_cmos 00:01: alarms up to one month, y3k, 114 bytes nvram
-Dec 21 21:36:32 wolff.to kernel: device-mapper: uevent: version 1.0.3
-Dec 21 21:36:32 wolff.to kernel: device-mapper: ioctl: 4.37.0-ioctl (2017-09-20) initialised: dm-devel@redhat.com
-Dec 21 21:36:32 wolff.to kernel: hidraw: raw HID events driver (C) Jiri Kosina
-Dec 21 21:36:32 wolff.to kernel: usbcore: registered new interface driver usbhid
-Dec 21 21:36:32 wolff.to kernel: usbhid: USB HID core driver
-Dec 21 21:36:32 wolff.to kernel: drop_monitor: Initializing network drop monitor service
-Dec 21 21:36:32 wolff.to kernel: ip_tables: (C) 2000-2006 Netfilter Core Team
-Dec 21 21:36:32 wolff.to kernel: input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input2
-Dec 21 21:36:32 wolff.to kernel: Initializing XFRM netlink socket
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 10
-Dec 21 21:36:32 wolff.to kernel: Segment Routing with IPv6
-Dec 21 21:36:32 wolff.to kernel: mip6: Mobile IPv6
-Dec 21 21:36:32 wolff.to kernel: NET: Registered protocol family 17
-Dec 21 21:36:32 wolff.to kernel: RAS: Correctable Errors collector initialized.
-Dec 21 21:36:32 wolff.to kernel: microcode: sig=0xf29, pf=0x2, revision=0x2d
-Dec 21 21:36:32 wolff.to kernel: microcode: Microcode Update Driver: v2.2.
-Dec 21 21:36:32 wolff.to kernel: Using IPI No-Shortcut mode
-Dec 21 21:36:32 wolff.to kernel: sched_clock: Marking stable (4690937605, 0)->(4807466556, -116528951)
-Dec 21 21:36:32 wolff.to kernel: registered taskstats version 1
-Dec 21 21:36:32 wolff.to kernel: Loading compiled-in X.509 certificates
-Dec 21 21:36:32 wolff.to kernel: Loaded X.509 cert 'Fedora kernel signing key: d7fa16559f9a1d68f393d57450f4491f8ebf752d'
-Dec 21 21:36:32 wolff.to kernel: zswap: loaded using pool lzo/zbud
-Dec 21 21:36:32 wolff.to kernel: Key type big_key registered
-Dec 21 21:36:32 wolff.to kernel: Key type encrypted registered
-Dec 21 21:36:32 wolff.to kernel:   Magic number: 13:586:614
-Dec 21 21:36:32 wolff.to kernel: acpi PNP0303:00: hash matches
-Dec 21 21:36:32 wolff.to kernel: rtc_cmos 00:01: setting system clock to 2017-12-22 03:36:31 UTC (1513913791)
-Dec 21 21:36:32 wolff.to kernel: Freeing unused kernel memory: 884K
-Dec 21 21:36:32 wolff.to kernel: Write protecting the kernel text: 7828k
-Dec 21 21:36:32 wolff.to kernel: Write protecting the kernel read-only data: 3172k
-Dec 21 21:36:32 wolff.to kernel: rodata_test: all tests were successful
-Dec 21 21:36:32 wolff.to systemd[1]: systemd 236 running in system mode. (+PAM +AUDIT +SELINUX +IMA -APPARMOR +SMACK +SYSVINIT +UTMP +LIBCRYPTSETUP +GCRYPT +GNUTLS +ACL +XZ +LZ4 +SECCOMP +BLKID +ELFUTILS +KMOD +IDN2 -IDN default-hierarchy=hybrid)
-Dec 21 21:36:32 wolff.to systemd[1]: Detected architecture x86.
-Dec 21 21:36:32 wolff.to systemd[1]: Running in initial RAM disk.
-Dec 21 21:36:32 wolff.to systemd[1]: Set hostname to <wolff.to>.
-Dec 21 21:36:32 wolff.to systemd[1]: Reached target Swap.
-Dec 21 21:36:32 wolff.to systemd[1]: Reached target Local File Systems.
-Dec 21 21:36:32 wolff.to systemd[1]: Reached target Timers.
-Dec 21 21:36:32 wolff.to systemd[1]: Created slice System Slice.
-Dec 21 21:36:32 wolff.to systemd[1]: Created slice system-systemd\x2dcryptsetup.slice.
-Dec 21 21:36:32 wolff.to systemd[1]: Listening on Journal Socket.
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: local port 6665
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: local IPv4 address 98.103.208.27
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: interface 'eth0'
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: remote port 6666
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: remote IPv4 address 98.103.208.28
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: remote ethernet address ff:ff:ff:ff:ff:ff
-Dec 21 21:36:32 wolff.to kernel: netpoll: netconsole: eth0 doesn't exist, aborting
-Dec 21 21:36:32 wolff.to kernel: netconsole: cleaning up
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.031:2): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-journald comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.148:3): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-modules-load comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.244:4): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-cmdline-ask comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.344:5): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-tmpfiles-setup comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.447:6): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=kmod-static-nodes comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.555:7): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-vconsole-setup comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1131 audit(1513913793.555:8): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-vconsole-setup comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:33 wolff.to kernel: audit: type=1130 audit(1513913793.908:9): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-tmpfiles-setup-dev comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:34 wolff.to kernel: audit: type=1130 audit(1513913794.038:10): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-sysctl comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:34 wolff.to kernel: audit: type=1130 audit(1513913794.327:11): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-cmdline comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:35 wolff.to kernel: Fusion MPT base driver 3.04.20
-Dec 21 21:36:35 wolff.to kernel: Copyright (c) 1999-2008 LSI Corporation
-Dec 21 21:36:35 wolff.to kernel: e1000: Intel(R) PRO/1000 Network Driver - version 7.3.21-k8-NAPI
-Dec 21 21:36:35 wolff.to kernel: e1000: Copyright (c) 1999-2006 Intel Corporation.
-Dec 21 21:36:35 wolff.to kernel: Fusion MPT SPI Host driver 3.04.20
-Dec 21 21:36:35 wolff.to kernel: mptbase: ioc0: Initiating bringup
-Dec 21 21:36:36 wolff.to kernel: e1000 0000:05:03.0 eth0: (PCI:33MHz:32-bit) 00:0d:9d:ff:20:ab
-Dec 21 21:36:36 wolff.to kernel: e1000 0000:05:03.0 eth0: Intel(R) PRO/1000 Network Connection
-Dec 21 21:36:36 wolff.to kernel: e1000 0000:05:03.0 enp5s3: renamed from eth0
-Dec 21 21:36:36 wolff.to kernel: ioc0: LSI53C1030 B2: Capabilities={Initiator}
-Dec 21 21:36:36 wolff.to kernel: [drm] VGACON disable radeon kernel modesetting.
-Dec 21 21:36:36 wolff.to kernel: [drm:radeon_init [radeon]] *ERROR* No UMS support in radeon module!
-Dec 21 21:36:36 wolff.to kernel: random: crng init done
-Dec 21 21:36:36 wolff.to kernel: scsi host2: ioc0: LSI53C1030 B2, FwRev=01030a00h, Ports=1, MaxQ=255, IRQ=24
-Dec 21 21:36:36 wolff.to kernel: md/raid1:md11: active with 2 out of 2 mirrors
-Dec 21 21:36:36 wolff.to kernel: md/raid1:md12: active with 2 out of 2 mirrors
-Dec 21 21:36:36 wolff.to kernel: md12: detected capacity change from 0 to 10736295936
-Dec 21 21:36:36 wolff.to kernel: md/raid1:md13: active with 2 out of 2 mirrors
-Dec 21 21:36:36 wolff.to kernel: md13: detected capacity change from 0 to 85898223616
-Dec 21 21:36:36 wolff.to kernel: mptbase: ioc1: Initiating bringup
-Dec 21 21:36:36 wolff.to kernel: md11: detected capacity change from 0 to 1073729536
-Dec 21 21:36:36 wolff.to kernel: ioc1: LSI53C1030 B2: Capabilities={Initiator}
-Dec 21 21:36:37 wolff.to kernel: scsi host3: ioc1: LSI53C1030 B2, FwRev=01030a00h, Ports=1, MaxQ=255, IRQ=25
-Dec 21 21:36:37 wolff.to kernel: scsi 2:0:0:0: Direct-Access     SEAGATE  ST336753LW       HPS2 PQ: 0 ANSI: 3
-Dec 21 21:36:37 wolff.to kernel: scsi target2:0:0: Beginning Domain Validation
-Dec 21 21:36:37 wolff.to kernel: scsi 2:0:0:0: Power-on or device reset occurred
-Dec 21 21:36:37 wolff.to kernel: scsi target2:0:0: Ending Domain Validation
-Dec 21 21:36:37 wolff.to kernel: scsi target2:0:0: FAST-160 WIDE SCSI 320.0 MB/s DT IU QAS RTI WRFLOW PCOMP (6.25 ns, offset 63)
-Dec 21 21:36:37 wolff.to kernel: scsi 2:0:1:0: Direct-Access     SEAGATE  ST336753LW       HPS2 PQ: 0 ANSI: 3
-Dec 21 21:36:37 wolff.to kernel: scsi target2:0:1: Beginning Domain Validation
-Dec 21 21:36:37 wolff.to kernel: scsi 2:0:1:0: Power-on or device reset occurred
-Dec 21 21:36:38 wolff.to kernel: scsi target2:0:1: Ending Domain Validation
-Dec 21 21:36:38 wolff.to kernel: scsi target2:0:1: FAST-160 WIDE SCSI 320.0 MB/s DT IU QAS RTI WRFLOW PCOMP (6.25 ns, offset 63)
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: Attached scsi generic sg2 type 0
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: [sdc] 71132960 512-byte logical blocks: (36.4 GB/33.9 GiB)
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: [sdc] Write Protect is off
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: [sdc] Mode Sense: ab 00 10 08
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: [sdc] Write cache: enabled, read cache: enabled, supports DPO and FUA
-Dec 21 21:36:41 wolff.to kernel:  sdc: sdc1
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:0:0: [sdc] Attached SCSI disk
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: Attached scsi generic sg3 type 0
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: [sdd] 71132960 512-byte logical blocks: (36.4 GB/33.9 GiB)
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: [sdd] Write Protect is off
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: [sdd] Mode Sense: ab 00 10 08
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: [sdd] Write cache: enabled, read cache: enabled, supports DPO and FUA
-Dec 21 21:36:41 wolff.to kernel:  sdd: sdd1
-Dec 21 21:36:41 wolff.to kernel: sd 2:0:1:0: [sdd] Attached SCSI disk
-Dec 21 21:36:55 wolff.to kernel: kauditd_printk_skb: 8 callbacks suppressed
-Dec 21 21:36:55 wolff.to kernel: audit: type=1130 audit(1513913815.663:20): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-cryptsetup@luks\x2d6298c7e5\x2daadf\x2d44d5\x2dbe91\x2d28734671492a comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:55 wolff.to kernel: audit: type=1130 audit(1513913815.764:21): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-initqueue comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:55 wolff.to kernel: audit: type=1130 audit(1513913815.870:22): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-cryptsetup@luks\x2d11707d7d\x2d2c96\x2d4dd9\x2d8bb4\x2d506d8e7dcdd8 comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:56 wolff.to kernel: audit: type=1130 audit(1513913816.111:23): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-pre-mount comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:56 wolff.to kernel: audit: type=1130 audit(1513913816.525:24): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-fsck-root comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:56 wolff.to kernel: EXT4-fs: Warning: mounting with data=journal disables delayed allocation and O_DIRECT support!
-Dec 21 21:36:56 wolff.to kernel: EXT4-fs (dm-0): mounted filesystem with journalled data mode. Opts: (null)
-Dec 21 21:36:57 wolff.to kernel: audit: type=1130 audit(1513913817.139:25): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=initrd-parse-etc comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:57 wolff.to kernel: audit: type=1131 audit(1513913817.139:26): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=initrd-parse-etc comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:57 wolff.to kernel: audit: type=1130 audit(1513913817.581:27): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-pre-pivot comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:57 wolff.to kernel: audit: type=1131 audit(1513913817.720:28): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=dracut-pre-pivot comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:36:58 wolff.to kernel: audit: type=1130 audit(1513913818.085:29): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=kernel msg='unit=systemd-sysctl comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:10 wolff.to systemd-journald[176]: Received SIGTERM from PID 1 (systemd).
-Dec 21 21:37:10 wolff.to kernel: systemd: 13 output lines suppressed due to ratelimiting
-Dec 21 21:37:10 wolff.to kernel: kauditd_printk_skb: 33 callbacks suppressed
-Dec 21 21:37:10 wolff.to kernel: audit: type=1404 audit(1513913822.042:63): enforcing=1 old_enforcing=0 auid=4294967295 ses=4294967295
-Dec 21 21:37:10 wolff.to kernel: SELinux: 32768 avtab hash slots, 109731 rules.
-Dec 21 21:37:10 wolff.to kernel: SELinux: 32768 avtab hash slots, 109731 rules.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  8 users, 14 roles, 5120 types, 317 bools, 1 sens, 1024 cats
-Dec 21 21:37:10 wolff.to kernel: SELinux:  97 classes, 109731 rules
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Permission getrlimit in class process not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class sctp_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class icmp_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class ax25_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class ipx_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class netrom_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class atmpvc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class x25_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class rose_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class decnet_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class atmsvc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class rds_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class irda_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class pppox_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class llc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class can_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class tipc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class bluetooth_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class iucv_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class rxrpc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class isdn_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class phonet_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class ieee802154_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class caif_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class alg_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class nfc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class vsock_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class kcm_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class qipcrtr_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class smc_socket not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Class bpf not defined in policy.
-Dec 21 21:37:10 wolff.to kernel: SELinux: the above unknown classes and permissions will be allowed
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability network_peer_controls=1
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability open_perms=1
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability extended_socket_class=0
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability always_check_network=0
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability cgroup_seclabel=1
-Dec 21 21:37:10 wolff.to kernel: SELinux:  policy capability nnp_nosuid_transition=1
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Completing initialization.
-Dec 21 21:37:10 wolff.to kernel: SELinux:  Setting up existing superblocks.
-Dec 21 21:37:10 wolff.to kernel: audit: type=1403 audit(1513913823.759:64): policy loaded auid=4294967295 ses=4294967295
-Dec 21 21:37:10 wolff.to systemd[1]: Successfully loaded SELinux policy in 1.732257s.
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.191:65): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:initrd-switch-root.service" dev="tmpfs" ino=15253 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:initrd-switch-root.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:sysroot.mount: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:systemd-fsck-root.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:systemd-cryptsetup@luks\x2d6298c7e5\x2daadf\x2d44d5\x2dbe91\x2d28734671492a.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:systemd-cryptsetup@luks\x2d11707d7d\x2d2c96\x2d4dd9\x2d8bb4\x2d506d8e7dcdd8.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:plymouth-start.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:sys-kernel-config.mount: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Unable to fix SELinux security context of /run/systemd/units/invocation:systemd-journald.service: Permission denied
-Dec 21 21:37:10 wolff.to systemd[1]: Relabelled /dev, /run and /sys/fs/cgroup in 176.458ms.
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.192:66): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:sysroot.mount" dev="tmpfs" ino=15224 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.193:67): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:systemd-fsck-root.service" dev="tmpfs" ino=15221 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.194:68): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:systemd-cryptsetup@luks\x2d6298c7e5\x2daadf\x2d44d5\x2dbe91\x2d28734671492a.service" dev="tmpfs" ino=14918 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.195:69): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:systemd-cryptsetup@luks\x2d11707d7d\x2d2c96\x2d4dd9\x2d8bb4\x2d506d8e7dcdd8.service" dev="tmpfs" ino=14914 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.195:70): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:plymouth-start.service" dev="tmpfs" ino=13744 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.196:71): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:sys-kernel-config.mount" dev="tmpfs" ino=13734 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913824.197:72): avc:  denied  { relabelfrom } for  pid=1 comm="systemd" name="invocation:systemd-journald.service" dev="tmpfs" ino=14368 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:tmpfs_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:10 wolff.to systemd-sysv-generator[867]: stat() failed on /etc/rc.d/init.d/qmailctl, ignoring: No such file or directory
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913827.060:73): avc:  denied  { map } for  pid=852 comm="anaconda-genera" path="/etc/passwd" dev="dm-0" ino=2638674 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:passwd_file_t:s0 tclass=file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1300 audit(1513913827.060:73): arch=40000003 syscall=192 success=no exit=-13 a0=0 a1=2792 a2=1 a3=1 items=0 ppid=851 pid=852 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="anaconda-genera" exe="/usr/bin/bash" subj=system_u:system_r:init_t:s0 key=(null)
-Dec 21 21:37:10 wolff.to kernel: audit: type=1327 audit(1513913827.060:73): proctitle=2F62696E2F62617368002F7573722F6C69622F73797374656D642F73797374656D2D67656E657261746F72732F616E61636F6E64612D67656E657261746F72002F72756E2F73797374656D642F67656E657261746F72002F72756E2F73797374656D642F67656E657261746F722E6561726C79002F72756E2F73797374656D64
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913827.061:74): avc:  denied  { map } for  pid=858 comm="selinux-autorel" path="/etc/passwd" dev="dm-0" ino=2638674 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:passwd_file_t:s0 tclass=file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913827.061:75): avc:  denied  { map } for  pid=853 comm="kdump-dep-gener" path="/etc/passwd" dev="dm-0" ino=2638674 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:passwd_file_t:s0 tclass=file permissive=0
-Dec 21 21:37:10 wolff.to kernel: audit: type=1300 audit(1513913827.061:74): arch=40000003 syscall=192 success=no exit=-13 a0=0 a1=2792 a2=1 a3=1 items=0 ppid=851 pid=858 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="selinux-autorel" exe="/usr/bin/bash" subj=system_u:system_r:init_t:s0 key=(null)
-Dec 21 21:37:10 wolff.to kernel: audit: type=1300 audit(1513913827.061:75): arch=40000003 syscall=192 success=no exit=-13 a0=0 a1=2792 a2=1 a3=1 items=0 ppid=851 pid=853 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="kdump-dep-gener" exe="/usr/bin/bash" subj=system_u:system_r:init_t:s0 key=(null)
-Dec 21 21:37:10 wolff.to kernel: audit: type=1327 audit(1513913827.061:74): proctitle=2F62696E2F7368002F7573722F6C69622F73797374656D642F73797374656D2D67656E657261746F72732F73656C696E75782D6175746F72656C6162656C2D67656E657261746F722E7368002F72756E2F73797374656D642F67656E657261746F72002F72756E2F73797374656D642F67656E657261746F722E6561726C79
-Dec 21 21:37:10 wolff.to kernel: audit: type=1327 audit(1513913827.061:75): proctitle=2F62696E2F7368002F7573722F6C69622F73797374656D642F73797374656D2D67656E657261746F72732F6B64756D702D6465702D67656E657261746F722E7368002F72756E2F73797374656D642F67656E657261746F72002F72756E2F73797374656D642F67656E657261746F722E6561726C79002F72756E2F7379737465
-Dec 21 21:37:10 wolff.to kernel: audit: type=1400 audit(1513913827.061:76): avc:  denied  { map } for  pid=869 comm="vsftpd-generato" path="/etc/passwd" dev="dm-0" ino=2638674 scontext=system_u:system_r:init_t:s0 tcontext=system_u:object_r:passwd_file_t:s0 tclass=file permissive=0
-Dec 21 21:37:11 wolff.to kernel: EXT4-fs (dm-0): re-mounted. Opts: barrier=1
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: local port 6665
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: local IPv4 address 98.103.208.27
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: interface 'eth0'
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: remote port 6666
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: remote IPv4 address 98.103.208.28
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: remote ethernet address ff:ff:ff:ff:ff:ff
-Dec 21 21:37:12 wolff.to kernel: netpoll: netconsole: eth0 doesn't exist, aborting
-Dec 21 21:37:12 wolff.to kernel: netconsole: cleaning up
-Dec 21 21:37:13 wolff.to kernel: kauditd_printk_skb: 12 callbacks suppressed
-Dec 21 21:37:13 wolff.to kernel: audit: type=1400 audit(1513913832.659:85): avc:  denied  { read } for  pid=880 comm="systemd-journal" name="invocation:systemd-modules-load.service" dev="tmpfs" ino=15290 scontext=system_u:system_r:syslogd_t:s0 tcontext=system_u:object_r:init_var_run_t:s0 tclass=lnk_file permissive=0
-Dec 21 21:37:13 wolff.to kernel: audit: type=1300 audit(1513913832.659:85): arch=40000003 syscall=305 success=no exit=-13 a0=ffffff9c a1=bfb408f0 a2=238a680 a3=63 items=0 ppid=1 pid=880 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="systemd-journal" exe="/usr/lib/systemd/systemd-journald" subj=system_u:system_r:syslogd_t:s0 key=(null)
-Dec 21 21:37:13 wolff.to kernel: audit: type=1327 audit(1513913832.659:85): proctitle="/usr/lib/systemd/systemd-journald"
-Dec 21 21:37:13 wolff.to kernel: audit: type=1130 audit(1513913833.212:86): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=systemd-journald comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:13 wolff.to kernel: audit: type=1130 audit(1513913833.382:87): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=systemd-remount-fs comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:13 wolff.to kernel: audit: type=1130 audit(1513913833.533:88): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=systemd-modules-load comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=failed'
-Dec 21 21:37:13 wolff.to kernel: audit: type=1130 audit(1513913833.662:89): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=kmod-static-nodes comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:13 wolff.to kernel: audit: type=1130 audit(1513913833.745:90): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=systemd-udev-trigger comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:14 wolff.to kernel: audit: type=1400 audit(1513913833.779:91): avc:  denied  { map } for  pid=905 comm="sh" path="/etc/passwd" dev="dm-0" ino=2638674 scontext=system_u:system_r:loadkeys_t:s0 tcontext=system_u:object_r:passwd_file_t:s0 tclass=file permissive=0
-Dec 21 21:37:14 wolff.to kernel: audit: type=1300 audit(1513913833.779:91): arch=40000003 syscall=192 success=no exit=-13 a0=0 a1=2792 a2=1 a3=1 items=0 ppid=902 pid=905 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty=(none) ses=4294967295 comm="sh" exe="/usr/bin/bash" subj=system_u:system_r:loadkeys_t:s0 key=(null)
-Dec 21 21:37:26 wolff.to kernel: kauditd_printk_skb: 68 callbacks suppressed
-Dec 21 21:37:26 wolff.to kernel: audit: type=1130 audit(1513913838.491:119): pid=1 uid=0 auid=4294967295 ses=4294967295 subj=system_u:system_r:init_t:s0 msg='unit=systemd-udevd comm="systemd" exe="/usr/lib/systemd/systemd" hostname=? addr=? terminal=? res=success'
-Dec 21 21:37:26 wolff.to kernel: i801_smbus 0000:00:1f.3: SMBus using polling
-Dec 21 21:37:26 wolff.to kernel: intel_rng: FWH not detected
-Dec 21 21:37:26 wolff.to kernel: parport_pc 00:06: reported by Plug and Play ACPI
-Dec 21 21:37:26 wolff.to kernel: parport0: PC-style at 0x378 (0x778), irq 7 [PCSPP,TRISTATE,EPP]
-Dec 21 21:37:26 wolff.to kernel: [drm] VGACON disable radeon kernel modesetting.
-Dec 21 21:37:26 wolff.to kernel: [drm:radeon_init [radeon]] *ERROR* No UMS support in radeon module!
-Dec 21 21:37:26 wolff.to kernel: snd_intel8x0 0000:00:1f.5: intel8x0_measure_ac97_clock: measured 52000 usecs (2506 samples)
-Dec 21 21:37:26 wolff.to kernel: snd_intel8x0 0000:00:1f.5: clocking to 48000
-Dec 21 21:37:26 wolff.to kernel: e1000 0000:05:03.0 eth0: renamed from enp5s3
-Dec 21 21:37:26 wolff.to kernel: ppdev: user-space parallel port driver
-Dec 21 21:37:26 wolff.to kernel: iTCO_vendor_support: vendor-support=0
-Dec 21 21:37:26 wolff.to kernel: iTCO_wdt: Intel TCO WatchDog Timer Driver v1.11
-Dec 21 21:37:26 wolff.to kernel: iTCO_wdt: Found a ICH4 TCO device (Version=1, TCOBASE=0x1060)
-Dec 21 21:37:26 wolff.to kernel: iTCO_wdt: initialized. heartbeat=30 sec (nowayout=0)
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: local port 6665
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: local IPv4 address 98.103.208.27
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: interface 'eth0'
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: remote port 6666
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: remote IPv4 address 98.103.208.28
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: remote ethernet address ff:ff:ff:ff:ff:ff
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: device eth0 not up yet, forcing it
-Dec 21 21:37:26 wolff.to kernel: IPv6: ADDRCONF(NETDEV_UP): eth0: link is not ready
-Dec 21 21:37:26 wolff.to kernel: e1000: eth0 NIC Link is Up 1000 Mbps Full Duplex, Flow Control: RX/TX
-Dec 21 21:37:26 wolff.to kernel: IPv6: ADDRCONF(NETDEV_CHANGE): eth0: link becomes ready
-Dec 21 21:37:26 wolff.to kernel: netpoll: netconsole: carrier detect appears untrustworthy, waiting 4 seconds
-Dec 21 21:37:26 wolff.to kernel: WARNING: CPU: 1 PID: 991 at block/genhd.c:680 device_add_disk+0x3a0/0x420
-Dec 21 21:37:26 wolff.to kernel: Modules linked in: netconsole(+) iTCO_wdt iTCO_vendor_support ppdev snd_intel8x0 lpc_ich snd_ac97_codec parport_pc ac97_bus i2c_i801 e7xxx_edac parport binfmt_misc snd_pcm_oss snd_mixer_oss dm_crypt raid1 i2c_algo_bit drm_kms_helper syscopyarea sysfillrect sysimgblt mptspi fb_sys_fops ttm scsi_transport_spi mptscsih ata_generic serio_raw drm e1000 pata_acpi mptbase snd_pcm snd_timer snd soundcore analog gameport joydev
-Dec 21 21:37:26 wolff.to kernel: CPU: 1 PID: 991 Comm: mdadm Not tainted 4.15.0-0.rc4.git1.2.fc28.i686 #1
-Dec 21 21:37:26 wolff.to kernel: Hardware name: Hewlett-Packard hp workstation xw8000/0844, BIOS JQ.W1.19US      04/13/05
-Dec 21 21:37:26 wolff.to kernel: EIP: device_add_disk+0x3a0/0x420
-Dec 21 21:37:26 wolff.to kernel: EFLAGS: 00010282 CPU: 1
-Dec 21 21:37:26 wolff.to kernel: EAX: fffffff4 EBX: f6388800 ECX: 820001fd EDX: 820001fe
-Dec 21 21:37:26 wolff.to kernel: ESI: f638885c EDI: 00000000 EBP: f22a7d38 ESP: f22a7d10
-Dec 21 21:37:26 wolff.to kernel:  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-Dec 21 21:37:26 wolff.to kernel: CR0: 80050033 CR2: 004c8014 CR3: 323d3000 CR4: 000006d0
-Dec 21 21:37:26 wolff.to kernel: Call Trace:
-Dec 21 21:37:26 wolff.to kernel:  md_alloc+0x185/0x340
-Dec 21 21:37:26 wolff.to kernel:  ? md_alloc+0x340/0x340
-Dec 21 21:37:26 wolff.to kernel:  md_probe+0x22/0x30
-Dec 21 21:37:26 wolff.to kernel:  kobj_lookup+0xd0/0x130
-Dec 21 21:37:26 wolff.to kernel:  ? md_alloc+0x340/0x340
-Dec 21 21:37:26 wolff.to kernel:  get_gendisk+0x26/0xf0
-Dec 21 21:37:27 wolff.to kernel:  blkdev_get+0x55/0x2c0
-Dec 21 21:37:27 wolff.to kernel:  ? unlock_new_inode+0x33/0x50
-Dec 21 21:37:27 wolff.to kernel:  blkdev_open+0x7d/0x90
-Dec 21 21:37:27 wolff.to kernel:  do_dentry_open+0x1a9/0x2d0
-Dec 21 21:37:27 wolff.to kernel:  ? bd_acquire+0xb0/0xb0
-Dec 21 21:37:27 wolff.to kernel:  vfs_open+0x41/0x70
-Dec 21 21:37:27 wolff.to kernel:  path_openat+0x560/0x11e0
-Dec 21 21:37:27 wolff.to kernel:  do_filp_open+0x6a/0xd0
-Dec 21 21:37:27 wolff.to kernel:  ? __alloc_fd+0x2e/0x150
-Dec 21 21:37:27 wolff.to kernel:  do_sys_open+0x1b5/0x250
-Dec 21 21:37:27 wolff.to kernel:  SyS_openat+0x1b/0x20
-Dec 21 21:37:27 wolff.to kernel:  do_fast_syscall_32+0x71/0x1a0
-Dec 21 21:37:27 wolff.to kernel:  entry_SYSENTER_32+0x4e/0x7c
-Dec 21 21:37:27 wolff.to kernel: EIP: 0xb7fb9cd9
-Dec 21 21:37:27 wolff.to kernel: EFLAGS: 00000246 CPU: 1
-Dec 21 21:37:27 wolff.to kernel: EAX: ffffffda EBX: ffffff9c ECX: bf9adadc EDX: 0000c082
-Dec 21 21:37:27 wolff.to kernel: ESI: 00000000 EDI: 00000000 EBP: bf9adadc ESP: bf9ada60
-Dec 21 21:37:27 wolff.to kernel:  DS: 007b ES: 007b FS: 0000 GS: 0033 SS: 007b
-Dec 21 21:37:27 wolff.to kernel: Code: 0f ff e9 fe fd ff ff 8d 74 26 00 80 a3 84 00 00 00 ef e9 ee fd ff ff 8d 74 26 00 0f ff e9 fd fd ff ff 89 f6 8d bc 27 00 00 00 00 <0f> ff e9 bd fe ff ff 31 d2 89 d8 e8 50 ef ff ff 85 c0 89 c6 0f
-Dec 21 21:37:27 wolff.to kernel: ---[ end trace 0b0feb86adcc7001 ]---
-Dec 21 21:37:27 wolff.to kernel: BUG: unable to handle kernel NULL pointer dereference at 00000020
-Dec 21 21:37:27 wolff.to kernel: IP: sysfs_do_create_link_sd.isra.2+0x27/0xb0
-Dec 21 21:37:27 wolff.to kernel: *pde = 00000000 
-Dec 21 21:37:27 wolff.to kernel: Oops: 0000 [#1] SMP
-Dec 21 21:37:27 wolff.to kernel: Modules linked in: netconsole(+) iTCO_wdt iTCO_vendor_support ppdev snd_intel8x0 lpc_ich snd_ac97_codec parport_pc ac97_bus i2c_i801 e7xxx_edac parport binfmt_misc snd_pcm_oss snd_mixer_oss dm_crypt raid1 i2c_algo_bit drm_kms_helper syscopyarea sysfillrect sysimgblt mptspi fb_sys_fops ttm scsi_transport_spi mptscsih ata_generic serio_raw drm e1000 pata_acpi mptbase snd_pcm snd_timer snd soundcore analog gameport joydev
-Dec 21 21:37:27 wolff.to kernel: CPU: 3 PID: 991 Comm: mdadm Tainted: G        W        4.15.0-0.rc4.git1.2.fc28.i686 #1
-Dec 21 21:37:27 wolff.to kernel: Hardware name: Hewlett-Packard hp workstation xw8000/0844, BIOS JQ.W1.19US      04/13/05
-Dec 21 21:37:27 wolff.to kernel: EIP: sysfs_do_create_link_sd.isra.2+0x27/0xb0
-Dec 21 21:37:27 wolff.to kernel: EFLAGS: 00010246 CPU: 3
-Dec 21 21:37:27 wolff.to kernel: EAX: 00000000 EBX: ca1dadc7 ECX: 00000001 EDX: ca4f464c
-Dec 21 21:37:27 wolff.to kernel: ESI: 00000020 EDI: f6388864 EBP: f22a7cfc ESP: f22a7cec
-Dec 21 21:37:27 wolff.to kernel:  DS: 007b ES: 007b FS: 00d8 GS: 00e0 SS: 0068
-Dec 21 21:37:27 wolff.to kernel: CR0: 80050033 CR2: 00680ef0 CR3: 323d3000 CR4: 000006d0
-Dec 21 21:37:27 wolff.to kernel: Call Trace:
-Dec 21 21:37:27 wolff.to kernel:  sysfs_create_link+0x1d/0x40
-Dec 21 21:37:27 wolff.to kernel:  device_add_disk+0x36d/0x420
-Dec 21 21:37:27 wolff.to kernel:  md_alloc+0x185/0x340
-Dec 21 21:37:27 wolff.to kernel:  ? md_alloc+0x340/0x340
-Dec 21 21:37:28 wolff.to kernel:  md_probe+0x22/0x30
-Dec 21 21:37:28 wolff.to kernel:  kobj_lookup+0xd0/0x130
-Dec 21 21:37:28 wolff.to kernel:  ? md_alloc+0x340/0x340
-Dec 21 21:37:28 wolff.to kernel:  get_gendisk+0x26/0xf0
-Dec 21 21:37:28 wolff.to kernel:  blkdev_get+0x55/0x2c0
-Dec 21 21:37:28 wolff.to kernel:  ? unlock_new_inode+0x33/0x50
-Dec 21 21:37:28 wolff.to kernel:  blkdev_open+0x7d/0x90
-Dec 21 21:37:28 wolff.to kernel:  do_dentry_open+0x1a9/0x2d0
-Dec 21 21:37:28 wolff.to kernel:  ? bd_acquire+0xb0/0xb0
-Dec 21 21:37:28 wolff.to kernel:  vfs_open+0x41/0x70
-
---BOKacYhQ+x31HxR3--
+Patrick
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
