@@ -1,94 +1,106 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 663F66B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 21:51:12 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id w141so4797060wme.1
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:51:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l60sor12557159edl.14.2017.12.21.18.51.11
+Received: from mail-qk0-f197.google.com (mail-qk0-f197.google.com [209.85.220.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A04E06B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 22:10:05 -0500 (EST)
+Received: by mail-qk0-f197.google.com with SMTP id l18so2447837qkk.23
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 19:10:05 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id x64si1215264qke.189.2017.12.21.19.10.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 21 Dec 2017 18:51:11 -0800 (PST)
-Date: Fri, 22 Dec 2017 10:53:28 +0800
-From: Boqun Feng <boqun.feng@gmail.com>
-Subject: Re: [PATCH v2 1/1] Move kfree_call_rcu() to slab_common.c
-Message-ID: <20171222025328.GF9516@tardis>
-References: <1513895570-28640-1-git-send-email-rao.shoaib@oracle.com>
- <20171222011704.GD1044@tardis>
- <20171222014212.GB7829@linux.vnet.ibm.com>
- <20171222023846.GE9516@tardis>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 19:10:04 -0800 (PST)
+Received: from pps.filterd (m0098413.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBM39FLi006326
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 22:10:04 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2f0pvu73d5-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 22:10:03 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Fri, 22 Dec 2017 03:10:01 -0000
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Fri, 22 Dec 2017 08:39:41 +0530
 MIME-Version: 1.0
-Content-Type: multipart/signed; micalg=pgp-sha256;
-	protocol="application/pgp-signature"; boundary="qp4W5+cUSnZs0RIF"
-Content-Disposition: inline
-In-Reply-To: <20171222023846.GE9516@tardis>
+In-Reply-To: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Message-Id: <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: rao.shoaib@oracle.com, brouer@redhat.com, linux-mm@kvack.org
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
+On 12/14/2017 07:40 AM, Ross Zwisler wrote:
+> ==== Quick Summary ====
+> 
+> Platforms exist today which have multiple types of memory attached to a
+> single CPU.  These disparate memory ranges have some characteristics in
+> common, such as CPU cache coherence, but they can have wide ranges of
+> performance both in terms of latency and bandwidth.
 
---qp4W5+cUSnZs0RIF
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
+Right.
 
-On Fri, Dec 22, 2017 at 10:38:46AM +0800, Boqun Feng wrote:
-> On Thu, Dec 21, 2017 at 05:42:12PM -0800, Paul E. McKenney wrote:
-> > On Fri, Dec 22, 2017 at 09:17:04AM +0800, Boqun Feng wrote:
-> > > Hi Shoaib,
-> > >=20
-> > > On Thu, Dec 21, 2017 at 02:32:50PM -0800, rao.shoaib@oracle.com wrote:
-> > > > From: Rao Shoaib <rao.shoaib@oracle.com>
-> > > >=20
-> > > > This patch moves kfree_call_rcu() and related macros out of rcu cod=
-e.
-> > > > A new function call_rcu_lazy() is created for calling __call_rcu() =
-with
-> > > > the lazy flag. kfree_call_rcu() in the tiny implementation remains =
-unchanged.
-> > > >=20
-> > >=20
-> > > Mind to explain why you want to do this in the commit log?
-> >=20
-> > I am too close to this one, so I need you guys to hash this out.  ;-)
-> >=20
->=20
-> I think simply improving the modularity is OK, but it's better to have
-> some words in the commit log ;-)
->=20
+> 
+> For example, consider a system that contains persistent memory, standard
+> DDR memory and High Bandwidth Memory (HBM), all attached to the same CPU.
+> There could potentially be an order of magnitude or more difference in
+> performance between the slowest and fastest memory attached to that CPU.
 
-Hmm.. seems like this is first part of the split version for:
+Right.
 
-	https://lkml.kernel.org/r/1513705948-31072-1-git-send-email-rao.shoaib@ora=
-cle.com
+> 
+> With the current Linux code NUMA nodes are CPU-centric, so all the memory
+> attached to a given CPU will be lumped into the same NUMA node.  This makes
+> it very difficult for userspace applications to understand the performance
+> of different memory ranges on a given CPU.
 
-In that case, Shoaib, I think you'd better send the whole thing as a
-proper patchset(which is a set of patches) and write a cover letter.
+Right but that might require fundamental changes to the NUMA representation.
+Plugging those memory as separate NUMA nodes, identify them through sysfs
+and try allocating from it through mbind() seems like a short term solution.
 
-Feel free to ask questions ;-)
+Though if we decide to go in this direction, sysfs interface or something
+similar is required to enumerate memory properties.
 
-Regards,
-Boqun
+> 
+> We solve this issue by providing userspace with performance information on
+> individual memory ranges.  This performance information is exposed via
+> sysfs:
+> 
+>   # grep . mem_tgt2/* mem_tgt2/local_init/* 2>/dev/null
+>   mem_tgt2/firmware_id:1
+>   mem_tgt2/is_cached:0
+>   mem_tgt2/local_init/read_bw_MBps:40960
+>   mem_tgt2/local_init/read_lat_nsec:50
+>   mem_tgt2/local_init/write_bw_MBps:40960
+>   mem_tgt2/local_init/write_lat_nsec:50
 
-[...]
+I might have missed discussions from earlier versions, why we have this
+kind of a "source --> target" model ? We will enlist properties for all
+possible "source --> target" on the system ? Right now it shows only
+bandwidth and latency properties, can it accommodate other properties
+as well in future ?
 
---qp4W5+cUSnZs0RIF
-Content-Type: application/pgp-signature; name="signature.asc"
+> 
+> This allows applications to easily find the memory that they want to use.
+> We expect that the existing NUMA APIs will be enhanced to use this new
+> information so that applications can continue to use them to select their
+> desired memory.
 
------BEGIN PGP SIGNATURE-----
+I had presented a proposal for NUMA redesign in the Plumbers Conference this
+year where various memory devices with different kind of memory attributes
+can be represented in the kernel and be used explicitly from the user space.
+Here is the link to the proposal if you feel interested. The proposal is
+very intrusive and also I dont have a RFC for it yet for discussion here.
 
-iQEzBAABCAAdFiEEj5IosQTPz8XU1wRHSXnow7UH+rgFAlo8c6UACgkQSXnow7UH
-+rgzxAgAiTUQDFuyVdnMrBtt4XifXQZnbWe+/0uZhOVaMPG0P3t4sanFfeD/g74L
-yNDUlPzfFsnG08NO4UjnE45BTvlUGwSUyi29d3ZLvkUZcXyojjguGaOjE/Mse8cS
-c8wg1Z9co+LuGhUb4pIHW6Zikd+5LR0yOf68FqeNNnHhnn3+DCPPIB703PWISRv1
-k2Sv0j6C3kGG/uX+AiGTLuwviQ/GpE0eAV7+66av8qDM9cZ8k7DXbGzGnZftyx02
-yu4h0ytGcuyu5Phx0SEJZ5n6IGQsJkq3AB5BjAKUuYmicbjkiwe/+HX1hHFGMB8r
-78i71gGC1VWIytJNalas81CKEuRvVg==
-=1Oy3
------END PGP SIGNATURE-----
+https://linuxplumbersconf.org/2017/ocw//system/presentations/4656/original/Hierarchical_NUMA_Design_Plumbers_2017.pdf
 
---qp4W5+cUSnZs0RIF--
+Problem is, designing the sysfs interface for memory attribute detection
+from user space without first thinking about redesigning the NUMA for
+heterogeneous memory may not be a good idea. Will look into this further.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
