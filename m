@@ -1,49 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 176D26B0069
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 04:48:52 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id f4so16325436wre.9
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 01:48:52 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q30si11479436wra.151.2017.12.22.01.48.50
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A064B6B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 05:03:15 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id z3so13276615plh.18
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 02:03:15 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id y40si14463128pla.710.2017.12.22.02.03.14
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Dec 2017 01:48:50 -0800 (PST)
-Date: Fri, 22 Dec 2017 10:48:49 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 0/5] mm, hugetlb: allocation API and migration
- improvements
-Message-ID: <20171222094849.GO4831@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 22 Dec 2017 02:03:14 -0800 (PST)
+Date: Fri, 22 Dec 2017 11:03:08 +0100
+From: Peter Zijlstra <peterz@infradead.org>
+Subject: Re: general protection fault in finish_task_switch
+Message-ID: <20171222100308.lllrvfhpvyhgc5yz@hirez.programming.kicks-ass.net>
+References: <001a113ef748cc1ee50560c7b718@google.com>
+ <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
+ <20171222081756.ur5uuh5wjri2ymyk@hirez.programming.kicks-ass.net>
+ <CACT4Y+Z7__4qeMP-jG07-M+ugL3PxkQ_z83=TB8O9e4=jjV4ug@mail.gmail.com>
+ <20171222083615.dr7jpzjjc6ye3eut@hirez.programming.kicks-ass.net>
+ <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com>
+ <20171222085730.c4kkiohz3fkwsqnr@hirez.programming.kicks-ass.net>
+ <CACT4Y+YQZa+E5KbioAtadpUDLNSPtTJh7NAsmM-BvBUA1BUgmw@mail.gmail.com>
+ <20171222093045.cblxhzev5drgtj4s@hirez.programming.kicks-ass.net>
+ <CACT4Y+a67mm-qwhuVb8OozRwvbpRbBScc6YZEj=nuNnzaG74XQ@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <7cf6978c-5bf2-cbe4-6f7f-ba09998f482d@ah.jp.nec.com>
- <659e21c7-ebed-8b64-053a-f01a31ef6e25@oracle.com>
+In-Reply-To: <CACT4Y+a67mm-qwhuVb8OozRwvbpRbBScc6YZEj=nuNnzaG74XQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, syzbot <bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, tcharding <me@tobin.cc>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs@googlegroups.com, Matthew Wilcox <willy@infradead.org>, Eric Biggers <ebiggers3@gmail.com>
 
-On Thu 21-12-17 15:35:28, Mike Kravetz wrote:
-[...]
-> You can add,
+On Fri, Dec 22, 2017 at 10:48:28AM +0100, Dmitry Vyukov wrote:
+> On Fri, Dec 22, 2017 at 10:30 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> > On Fri, Dec 22, 2017 at 10:08:00AM +0100, Dmitry Vyukov wrote:
+> >
+> >> You mean the messages themselves are translated?
+> >
+> > No, just the webapp thing, which is bad enough. The actual messages are
+> > untouched.
 > 
-> Reviewed-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Then try to open dev console in chromium (for me it's shift+ctrl+c),
+> reload the page, and then on the Network tab of dev console you can
+> see all request headers your browser sends. For me I see:
 > 
-> I had some concerns about transferring huge page state during migration
-> not specific to this patch, so I did a bunch of testing.
+> accept-language: en-US,en;q=0.9,ru;q=0.8
 
-On Fri 22-12-17 08:58:48, Naoya Horiguchi wrote:
-[...]
-> Yes, I tested again with additional changes below, and hugetlb migration
-> works fine from mbind(2). Thank you very much for your work.
-> 
-> Reviewed-by: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-> 
-> for the series.
+accept-language:en-US,en;q=0.9
 
-Thanks a lot to both of you! I have added the changelog to the last
-patch. I am currently busy as hell so I will unlikely send the whole
-thing before new year but please double check the changelog if you find
-some more time.
----
+> and the resulting page is in english.
+
+But I suspect you are in fact signed in and located in the US (your
+email headers suggest you're in PST), right?
+
+I'm sure that if I request the page using an IP that geo-locates to the
+US, I'd see the thing in English too.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
