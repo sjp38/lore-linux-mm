@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 075E96B025E
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:59:18 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id l3so5292707wrf.4
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:59:17 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CC1936B0260
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:59:37 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id r20so15857003wrg.23
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:59:37 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id q5si5152366wrg.500.2017.12.22.00.59.16
+        by mx.google.com with ESMTPS id p39si5026732wrb.93.2017.12.22.00.59.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 00:59:16 -0800 (PST)
+        Fri, 22 Dec 2017 00:59:36 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 026/159] x86/xen: Drop 5-level paging support code from the XEN_PV code
-Date: Fri, 22 Dec 2017 09:45:11 +0100
-Message-Id: <20171222084625.169591732@linuxfoundation.org>
+Subject: [PATCH 4.14 033/159] x86/boot: Relocate definition of the initial state of CR0
+Date: Fri, 22 Dec 2017 09:45:18 +0100
+Message-Id: <20171222084625.544783162@linuxfoundation.org>
 In-Reply-To: <20171222084623.668990192@linuxfoundation.org>
 References: <20171222084623.668990192@linuxfoundation.org>
 MIME-Version: 1.0
@@ -20,313 +20,96 @@ Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Juergen Gross <jgross@suse.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Borislav Petkov <bp@alien8.de>, Ricardo Neri <ricardo.neri-calderon@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, "Michael S. Tsirkin" <mst@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Dave Hansen <dave.hansen@linux.intel.com>, ricardo.neri@intel.com, linux-mm@kvack.org, Paul Gortmaker <paul.gortmaker@windriver.com>, Huang Rui <ray.huang@amd.com>, Shuah Khan <shuah@kernel.org>, linux-arch@vger.kernel.org, Jonathan Corbet <corbet@lwn.net>, Jiri Slaby <jslaby@suse.cz>, "Ravi V. Shankar" <ravi.v.shankar@intel.com>, Denys Vlasenko <dvlasenk@redhat.com>, Chris Metcalf <cmetcalf@mellanox.com>, Brian Gerst <brgerst@gmail.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Chen Yucong <slaoub@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Dave Hansen <dave.hansen@intel.com>, Andy Lutomirski <luto@amacapital.net>, Masami Hiramatsu <mhiramat@kernel.org>, Paolo Bonzini <pbonzini@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Linus Torvalds <torvalds@linux-foundation.org>
 
 4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+From: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
 
-commit 773dd2fca581b0a80e5a33332cc8ee67e5a79cba upstream.
+commit b0ce5b8c95c83a7b98c679b117e3d6ae6f97154b upstream.
 
-It was decided 5-level paging is not going to be supported in XEN_PV.
+Both head_32.S and head_64.S utilize the same value to initialize the
+control register CR0. Also, other parts of the kernel might want to access
+this initial definition (e.g., emulation code for User-Mode Instruction
+Prevention uses this state to provide a sane dummy value for CR0 when
+emulating the smsw instruction). Thus, relocate this definition to a
+header file from which it can be conveniently accessed.
 
-Let's drop the dead code from the XEN_PV code.
-
-Tested-by: Juergen Gross <jgross@suse.com>
-Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andy Lutomirski <luto@amacapital.net>
-Cc: Borislav Petkov <bp@suse.de>
-Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Suggested-by: Borislav Petkov <bp@alien8.de>
+Signed-off-by: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Reviewed-by: Andy Lutomirski <luto@kernel.org>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: ricardo.neri@intel.com
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/20170929140821.37654-6-kirill.shutemov@linux.intel.com
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
+Cc: Huang Rui <ray.huang@amd.com>
+Cc: Shuah Khan <shuah@kernel.org>
+Cc: linux-arch@vger.kernel.org
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Jiri Slaby <jslaby@suse.cz>
+Cc: "Ravi V. Shankar" <ravi.v.shankar@intel.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Chris Metcalf <cmetcalf@mellanox.com>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Chen Yucong <slaoub@gmail.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Andy Lutomirski <luto@amacapital.net>
+Cc: Masami Hiramatsu <mhiramat@kernel.org>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Link: https://lkml.kernel.org/r/1509135945-13762-3-git-send-email-ricardo.neri-calderon@linux.intel.com
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/xen/mmu_pv.c |  159 ++++++++++++++++++--------------------------------
- 1 file changed, 60 insertions(+), 99 deletions(-)
+ arch/x86/include/uapi/asm/processor-flags.h |    3 +++
+ arch/x86/kernel/head_32.S                   |    3 ---
+ arch/x86/kernel/head_64.S                   |    3 ---
+ 3 files changed, 3 insertions(+), 6 deletions(-)
 
---- a/arch/x86/xen/mmu_pv.c
-+++ b/arch/x86/xen/mmu_pv.c
-@@ -449,7 +449,7 @@ __visible pmd_t xen_make_pmd(pmdval_t pm
- }
- PV_CALLEE_SAVE_REGS_THUNK(xen_make_pmd);
+--- a/arch/x86/include/uapi/asm/processor-flags.h
++++ b/arch/x86/include/uapi/asm/processor-flags.h
+@@ -152,5 +152,8 @@
+ #define CX86_ARR_BASE	0xc4
+ #define CX86_RCR_BASE	0xdc
  
--#if CONFIG_PGTABLE_LEVELS == 4
-+#ifdef CONFIG_X86_64
- __visible pudval_t xen_pud_val(pud_t pud)
- {
- 	return pte_mfn_to_pfn(pud.pud);
-@@ -538,7 +538,7 @@ static void xen_set_p4d(p4d_t *ptr, p4d_
++#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
++			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
++			 X86_CR0_PG)
  
- 	xen_mc_issue(PARAVIRT_LAZY_MMU);
- }
--#endif	/* CONFIG_PGTABLE_LEVELS == 4 */
-+#endif	/* CONFIG_X86_64 */
- 
- static int xen_pmd_walk(struct mm_struct *mm, pmd_t *pmd,
- 		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
-@@ -580,21 +580,17 @@ static int xen_p4d_walk(struct mm_struct
- 		int (*func)(struct mm_struct *mm, struct page *, enum pt_level),
- 		bool last, unsigned long limit)
- {
--	int i, nr, flush = 0;
-+	int flush = 0;
-+	pud_t *pud;
- 
--	nr = last ? p4d_index(limit) + 1 : PTRS_PER_P4D;
--	for (i = 0; i < nr; i++) {
--		pud_t *pud;
- 
--		if (p4d_none(p4d[i]))
--			continue;
-+	if (p4d_none(*p4d))
-+		return flush;
- 
--		pud = pud_offset(&p4d[i], 0);
--		if (PTRS_PER_PUD > 1)
--			flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
--		flush |= xen_pud_walk(mm, pud, func,
--				last && i == nr - 1, limit);
--	}
-+	pud = pud_offset(p4d, 0);
-+	if (PTRS_PER_PUD > 1)
-+		flush |= (*func)(mm, virt_to_page(pud), PT_PUD);
-+	flush |= xen_pud_walk(mm, pud, func, last, limit);
- 	return flush;
- }
- 
-@@ -644,8 +640,6 @@ static int __xen_pgd_walk(struct mm_stru
- 			continue;
- 
- 		p4d = p4d_offset(&pgd[i], 0);
--		if (PTRS_PER_P4D > 1)
--			flush |= (*func)(mm, virt_to_page(p4d), PT_P4D);
- 		flush |= xen_p4d_walk(mm, p4d, func, i == nr - 1, limit);
- 	}
- 
-@@ -1176,22 +1170,14 @@ static void __init xen_cleanmfnmap(unsig
- {
- 	pgd_t *pgd;
- 	p4d_t *p4d;
--	unsigned int i;
- 	bool unpin;
- 
- 	unpin = (vaddr == 2 * PGDIR_SIZE);
- 	vaddr &= PMD_MASK;
- 	pgd = pgd_offset_k(vaddr);
- 	p4d = p4d_offset(pgd, 0);
--	for (i = 0; i < PTRS_PER_P4D; i++) {
--		if (p4d_none(p4d[i]))
--			continue;
--		xen_cleanmfnmap_p4d(p4d + i, unpin);
--	}
--	if (IS_ENABLED(CONFIG_X86_5LEVEL)) {
--		set_pgd(pgd, __pgd(0));
--		xen_cleanmfnmap_free_pgtbl(p4d, unpin);
--	}
-+	if (!p4d_none(*p4d))
-+		xen_cleanmfnmap_p4d(p4d, unpin);
- }
- 
- static void __init xen_pagetable_p2m_free(void)
-@@ -1692,7 +1678,7 @@ static void xen_release_pmd(unsigned lon
- 	xen_release_ptpage(pfn, PT_PMD);
- }
- 
--#if CONFIG_PGTABLE_LEVELS >= 4
-+#ifdef CONFIG_X86_64
- static void xen_alloc_pud(struct mm_struct *mm, unsigned long pfn)
- {
- 	xen_alloc_ptpage(mm, pfn, PT_PUD);
-@@ -2029,13 +2015,12 @@ static phys_addr_t __init xen_early_virt
-  */
- void __init xen_relocate_p2m(void)
- {
--	phys_addr_t size, new_area, pt_phys, pmd_phys, pud_phys, p4d_phys;
-+	phys_addr_t size, new_area, pt_phys, pmd_phys, pud_phys;
- 	unsigned long p2m_pfn, p2m_pfn_end, n_frames, pfn, pfn_end;
--	int n_pte, n_pt, n_pmd, n_pud, n_p4d, idx_pte, idx_pt, idx_pmd, idx_pud, idx_p4d;
-+	int n_pte, n_pt, n_pmd, n_pud, idx_pte, idx_pt, idx_pmd, idx_pud;
- 	pte_t *pt;
- 	pmd_t *pmd;
- 	pud_t *pud;
--	p4d_t *p4d = NULL;
- 	pgd_t *pgd;
- 	unsigned long *new_p2m;
- 	int save_pud;
-@@ -2045,11 +2030,7 @@ void __init xen_relocate_p2m(void)
- 	n_pt = roundup(size, PMD_SIZE) >> PMD_SHIFT;
- 	n_pmd = roundup(size, PUD_SIZE) >> PUD_SHIFT;
- 	n_pud = roundup(size, P4D_SIZE) >> P4D_SHIFT;
--	if (PTRS_PER_P4D > 1)
--		n_p4d = roundup(size, PGDIR_SIZE) >> PGDIR_SHIFT;
--	else
--		n_p4d = 0;
--	n_frames = n_pte + n_pt + n_pmd + n_pud + n_p4d;
-+	n_frames = n_pte + n_pt + n_pmd + n_pud;
- 
- 	new_area = xen_find_free_area(PFN_PHYS(n_frames));
- 	if (!new_area) {
-@@ -2065,76 +2046,56 @@ void __init xen_relocate_p2m(void)
- 	 * To avoid any possible virtual address collision, just use
- 	 * 2 * PUD_SIZE for the new area.
- 	 */
--	p4d_phys = new_area;
--	pud_phys = p4d_phys + PFN_PHYS(n_p4d);
-+	pud_phys = new_area;
- 	pmd_phys = pud_phys + PFN_PHYS(n_pud);
- 	pt_phys = pmd_phys + PFN_PHYS(n_pmd);
- 	p2m_pfn = PFN_DOWN(pt_phys) + n_pt;
- 
- 	pgd = __va(read_cr3_pa());
- 	new_p2m = (unsigned long *)(2 * PGDIR_SIZE);
--	idx_p4d = 0;
- 	save_pud = n_pud;
--	do {
--		if (n_p4d > 0) {
--			p4d = early_memremap(p4d_phys, PAGE_SIZE);
--			clear_page(p4d);
--			n_pud = min(save_pud, PTRS_PER_P4D);
--		}
--		for (idx_pud = 0; idx_pud < n_pud; idx_pud++) {
--			pud = early_memremap(pud_phys, PAGE_SIZE);
--			clear_page(pud);
--			for (idx_pmd = 0; idx_pmd < min(n_pmd, PTRS_PER_PUD);
--				 idx_pmd++) {
--				pmd = early_memremap(pmd_phys, PAGE_SIZE);
--				clear_page(pmd);
--				for (idx_pt = 0; idx_pt < min(n_pt, PTRS_PER_PMD);
--					 idx_pt++) {
--					pt = early_memremap(pt_phys, PAGE_SIZE);
--					clear_page(pt);
--					for (idx_pte = 0;
--						 idx_pte < min(n_pte, PTRS_PER_PTE);
--						 idx_pte++) {
--						set_pte(pt + idx_pte,
--								pfn_pte(p2m_pfn, PAGE_KERNEL));
--						p2m_pfn++;
--					}
--					n_pte -= PTRS_PER_PTE;
--					early_memunmap(pt, PAGE_SIZE);
--					make_lowmem_page_readonly(__va(pt_phys));
--					pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE,
--							PFN_DOWN(pt_phys));
--					set_pmd(pmd + idx_pt,
--							__pmd(_PAGE_TABLE | pt_phys));
--					pt_phys += PAGE_SIZE;
-+	for (idx_pud = 0; idx_pud < n_pud; idx_pud++) {
-+		pud = early_memremap(pud_phys, PAGE_SIZE);
-+		clear_page(pud);
-+		for (idx_pmd = 0; idx_pmd < min(n_pmd, PTRS_PER_PUD);
-+				idx_pmd++) {
-+			pmd = early_memremap(pmd_phys, PAGE_SIZE);
-+			clear_page(pmd);
-+			for (idx_pt = 0; idx_pt < min(n_pt, PTRS_PER_PMD);
-+					idx_pt++) {
-+				pt = early_memremap(pt_phys, PAGE_SIZE);
-+				clear_page(pt);
-+				for (idx_pte = 0;
-+						idx_pte < min(n_pte, PTRS_PER_PTE);
-+						idx_pte++) {
-+					set_pte(pt + idx_pte,
-+							pfn_pte(p2m_pfn, PAGE_KERNEL));
-+					p2m_pfn++;
- 				}
--				n_pt -= PTRS_PER_PMD;
--				early_memunmap(pmd, PAGE_SIZE);
--				make_lowmem_page_readonly(__va(pmd_phys));
--				pin_pagetable_pfn(MMUEXT_PIN_L2_TABLE,
--						PFN_DOWN(pmd_phys));
--				set_pud(pud + idx_pmd, __pud(_PAGE_TABLE | pmd_phys));
--				pmd_phys += PAGE_SIZE;
-+				n_pte -= PTRS_PER_PTE;
-+				early_memunmap(pt, PAGE_SIZE);
-+				make_lowmem_page_readonly(__va(pt_phys));
-+				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE,
-+						PFN_DOWN(pt_phys));
-+				set_pmd(pmd + idx_pt,
-+						__pmd(_PAGE_TABLE | pt_phys));
-+				pt_phys += PAGE_SIZE;
- 			}
--			n_pmd -= PTRS_PER_PUD;
--			early_memunmap(pud, PAGE_SIZE);
--			make_lowmem_page_readonly(__va(pud_phys));
--			pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(pud_phys));
--			if (n_p4d > 0)
--				set_p4d(p4d + idx_pud, __p4d(_PAGE_TABLE | pud_phys));
--			else
--				set_pgd(pgd + 2 + idx_pud, __pgd(_PAGE_TABLE | pud_phys));
--			pud_phys += PAGE_SIZE;
--		}
--		if (n_p4d > 0) {
--			save_pud -= PTRS_PER_P4D;
--			early_memunmap(p4d, PAGE_SIZE);
--			make_lowmem_page_readonly(__va(p4d_phys));
--			pin_pagetable_pfn(MMUEXT_PIN_L4_TABLE, PFN_DOWN(p4d_phys));
--			set_pgd(pgd + 2 + idx_p4d, __pgd(_PAGE_TABLE | p4d_phys));
--			p4d_phys += PAGE_SIZE;
-+			n_pt -= PTRS_PER_PMD;
-+			early_memunmap(pmd, PAGE_SIZE);
-+			make_lowmem_page_readonly(__va(pmd_phys));
-+			pin_pagetable_pfn(MMUEXT_PIN_L2_TABLE,
-+					PFN_DOWN(pmd_phys));
-+			set_pud(pud + idx_pmd, __pud(_PAGE_TABLE | pmd_phys));
-+			pmd_phys += PAGE_SIZE;
- 		}
--	} while (++idx_p4d < n_p4d);
-+		n_pmd -= PTRS_PER_PUD;
-+		early_memunmap(pud, PAGE_SIZE);
-+		make_lowmem_page_readonly(__va(pud_phys));
-+		pin_pagetable_pfn(MMUEXT_PIN_L3_TABLE, PFN_DOWN(pud_phys));
-+		set_pgd(pgd + 2 + idx_pud, __pgd(_PAGE_TABLE | pud_phys));
-+		pud_phys += PAGE_SIZE;
-+	}
- 
- 	/* Now copy the old p2m info to the new area. */
- 	memcpy(new_p2m, xen_p2m_addr, size);
-@@ -2361,7 +2322,7 @@ static void __init xen_post_allocator_in
- 	pv_mmu_ops.set_pte = xen_set_pte;
- 	pv_mmu_ops.set_pmd = xen_set_pmd;
- 	pv_mmu_ops.set_pud = xen_set_pud;
--#if CONFIG_PGTABLE_LEVELS >= 4
-+#ifdef CONFIG_X86_64
- 	pv_mmu_ops.set_p4d = xen_set_p4d;
+ #endif /* _UAPI_ASM_X86_PROCESSOR_FLAGS_H */
+--- a/arch/x86/kernel/head_32.S
++++ b/arch/x86/kernel/head_32.S
+@@ -212,9 +212,6 @@ ENTRY(startup_32_smp)
  #endif
  
-@@ -2371,7 +2332,7 @@ static void __init xen_post_allocator_in
- 	pv_mmu_ops.alloc_pmd = xen_alloc_pmd;
- 	pv_mmu_ops.release_pte = xen_release_pte;
- 	pv_mmu_ops.release_pmd = xen_release_pmd;
--#if CONFIG_PGTABLE_LEVELS >= 4
-+#ifdef CONFIG_X86_64
- 	pv_mmu_ops.alloc_pud = xen_alloc_pud;
- 	pv_mmu_ops.release_pud = xen_release_pud;
- #endif
-@@ -2435,14 +2396,14 @@ static const struct pv_mmu_ops xen_mmu_o
- 	.make_pmd = PV_CALLEE_SAVE(xen_make_pmd),
- 	.pmd_val = PV_CALLEE_SAVE(xen_pmd_val),
+ .Ldefault_entry:
+-#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+-			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+-			 X86_CR0_PG)
+ 	movl $(CR0_STATE & ~X86_CR0_PG),%eax
+ 	movl %eax,%cr0
  
--#if CONFIG_PGTABLE_LEVELS >= 4
-+#ifdef CONFIG_X86_64
- 	.pud_val = PV_CALLEE_SAVE(xen_pud_val),
- 	.make_pud = PV_CALLEE_SAVE(xen_make_pud),
- 	.set_p4d = xen_set_p4d_hyper,
+--- a/arch/x86/kernel/head_64.S
++++ b/arch/x86/kernel/head_64.S
+@@ -154,9 +154,6 @@ ENTRY(secondary_startup_64)
+ 1:	wrmsr				/* Make changes effective */
  
- 	.alloc_pud = xen_alloc_pmd_init,
- 	.release_pud = xen_release_pmd_init,
--#endif	/* CONFIG_PGTABLE_LEVELS == 4 */
-+#endif	/* CONFIG_X86_64 */
- 
- 	.activate_mm = xen_activate_mm,
- 	.dup_mmap = xen_dup_mmap,
+ 	/* Setup cr0 */
+-#define CR0_STATE	(X86_CR0_PE | X86_CR0_MP | X86_CR0_ET | \
+-			 X86_CR0_NE | X86_CR0_WP | X86_CR0_AM | \
+-			 X86_CR0_PG)
+ 	movl	$CR0_STATE, %eax
+ 	/* Make changes effective */
+ 	movq	%rax, %cr0
 
 
 --
