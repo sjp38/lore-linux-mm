@@ -1,157 +1,206 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 492FB6B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:12:47 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n126so5353505wma.7
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:12:47 -0800 (PST)
-Received: from youngberry.canonical.com (youngberry.canonical.com. [91.189.89.112])
-        by mx.google.com with ESMTPS id d200si6734330wmd.238.2017.12.22.08.12.45
+Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F1DC46B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:51 -0500 (EST)
+Received: by mail-qt0-f198.google.com with SMTP id a19so21682855qtb.22
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:14:51 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id y198si5153403qka.407.2017.12.22.08.14.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 22 Dec 2017 08:12:46 -0800 (PST)
-Received: from mail-it0-f72.google.com ([209.85.214.72])
-	by youngberry.canonical.com with esmtps (TLS1.0:RSA_AES_128_CBC_SHA1:16)
-	(Exim 4.76)
-	(envelope-from <seth.forshee@canonical.com>)
-	id 1eSPwD-0000VC-IU
-	for linux-mm@kvack.org; Fri, 22 Dec 2017 16:12:45 +0000
-Received: by mail-it0-f72.google.com with SMTP id c33so11022958itf.8
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:12:45 -0800 (PST)
-Date: Fri, 22 Dec 2017 10:12:40 -0600
-From: Seth Forshee <seth.forshee@canonical.com>
-Subject: Re: Memory hotplug regression in 4.13
-Message-ID: <20171222161240.GA25425@ubuntu-xps13>
-References: <20170919164114.f4ef6oi3yhhjwkqy@ubuntu-xps13>
- <20170920092931.m2ouxfoy62wr65ld@dhcp22.suse.cz>
- <20170921054034.judv6ovyg5yks4na@ubuntu-hedt>
- <20170925125825.zpgasjhjufupbias@dhcp22.suse.cz>
- <20171201142327.GA16952@ubuntu-xps13>
- <20171218145320.GO16951@dhcp22.suse.cz>
- <20171222144925.GR4831@dhcp22.suse.cz>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 22 Dec 2017 08:14:50 -0800 (PST)
+Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBMGEPtK098696
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:50 -0500
+Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2f103112bp-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:49 -0500
+Received: from localhost
+	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
+	Fri, 22 Dec 2017 11:14:49 -0500
+Date: Fri, 22 Dec 2017 08:14:47 -0800
+From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
+ operations
+Reply-To: paulmck@linux.vnet.ibm.com
+References: <20171220012632.26840-1-ying.huang@intel.com>
+ <20171221021619.GA27475@bbox>
+ <871sjopllj.fsf@yhuang-dev.intel.com>
+ <20171221235813.GA29033@bbox>
+ <87r2rmj1d8.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171222144925.GR4831@dhcp22.suse.cz>
+In-Reply-To: <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+Message-Id: <20171222161447.GF7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On Fri, Dec 22, 2017 at 03:49:25PM +0100, Michal Hocko wrote:
-> On Mon 18-12-17 15:53:20, Michal Hocko wrote:
-> > On Fri 01-12-17 08:23:27, Seth Forshee wrote:
-> > > On Mon, Sep 25, 2017 at 02:58:25PM +0200, Michal Hocko wrote:
-> > > > On Thu 21-09-17 00:40:34, Seth Forshee wrote:
-> > [...]
-> > > > > It seems I don't have that kernel anymore, but I've got a 4.14-rc1 build
-> > > > > and the problem still occurs there. It's pointing to the call to
-> > > > > __builtin_memcpy in memcpy (include/linux/string.h line 340), which we
-> > > > > get to via wp_page_copy -> cow_user_page -> copy_user_highpage.
-> > > > 
-> > > > Hmm, this is interesting. That would mean that we have successfully
-> > > > mapped the destination page but its memory is still not accessible.
-> > > > 
-> > > > Right now I do not see how the patch you have bisected to could make any
-> > > > difference because it only postponed the onlining to be independent but
-> > > > your config simply onlines automatically so there shouldn't be any
-> > > > semantic change. Maybe there is some sort of off-by-one or something.
-> > > > 
-> > > > I will try to investigate some more. Do you think it would be possible
-> > > > to configure kdump on your system and provide me with the vmcore in some
-> > > > way?
-> > > 
-> > > Sorry, I got busy with other stuff and this kind of fell off my radar.
-> > > It came to my attention again recently though.
-> > 
-> > Apology on my side. This has completely fall of my radar.
-> > 
-> > > I was looking through the hotplug rework changes, and I noticed that
-> > > 32-bit x86 previously was using ZONE_HIGHMEM as a default but after the
-> > > rework it doesn't look like it's possible for memory to be associated
-> > > with ZONE_HIGHMEM when onlining. So I made the change below against 4.14
-> > > and am now no longer seeing the oopses.
-> > 
-> > Thanks a lot for debugging! Do I read the above correctly that the
-> > current code simply returns ZONE_NORMAL and maps an unrelated pfn into
-> > this zone and that leads to later blowups? Could you attach the fresh
-> > boot dmesg output please?
-> > 
-> > > I'm sure this isn't the correct fix, but I think it does confirm that
-> > > the problem is that the memory should be associated with ZONE_HIGHMEM
-> > > but is not.
-> > 
-> > 
-> > Yes, the fix is not quite right. HIGHMEM is not a _kernel_ memory
-> > zone. The kernel cannot access that memory directly. It is essentially a
-> > movable zone from the hotplug API POV. We simply do not have any way to
-> > tell into which zone we want to online this memory range in.
-> > Unfortunately both zones _can_ be present. It would require an explicit
-> > configuration (movable_node and a NUMA hoptlugable nodes running in 32b
-> > or and movable memory configured explicitly on the kernel command line).
-> > 
-> > The below patch is not really complete but I would rather start simple.
-> > Maybe we do not even have to care as most 32b users will never use both
-> > zones at the same time. I've placed a warning to learn about those.
-> > 
-> > Does this pass your testing?
+On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
 > 
-> Any chances to test this?
-
-Yes, I should get to testing it soon. I'm working through a backlog of
-things I need to get done and this just hasn't quite made it to the top.
-
-> > ---
-> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> > index 262bfd26baf9..18fec18bdb60 100644
-> > --- a/mm/memory_hotplug.c
-> > +++ b/mm/memory_hotplug.c
-> > @@ -855,12 +855,29 @@ static struct zone *default_kernel_zone_for_pfn(int nid, unsigned long start_pfn
-> >  	return &pgdat->node_zones[ZONE_NORMAL];
-> >  }
-> >  
-> > +static struct zone *default_movable_zone_for_pfn(int nid)
-> > +{
-> > +	/*
-> > +	 * Please note that 32b HIGHMEM systems might have 2 movable zones
-> > +	 * actually so we have to check for both. This is rather ugly hack
-> > +	 * to enforce using Highmem on those systems but we do not have a
-> > +	 * good user API to tell into which movable zone we should online.
-> > +	 * WARN if we have a movable zone which is not highmem.
-> > +	 */
-> > +#ifdef CONFIG_HIGHMEM
-> > +	WARN_ON_ONCE(!zone_movable_is_highmem());
-> > +	return &NODE_DATA(nid)->node_zones[ZONE_HIGHMEM];
-> > +#else
-> > +	return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-> > +#endif
-> > +}
-> > +
-> >  static inline struct zone *default_zone_for_pfn(int nid, unsigned long start_pfn,
-> >  		unsigned long nr_pages)
-> >  {
-> >  	struct zone *kernel_zone = default_kernel_zone_for_pfn(nid, start_pfn,
-> >  			nr_pages);
-> > -	struct zone *movable_zone = &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-> > +	struct zone *movable_zone = default_movable_zone_for_pfn(nid);
-> >  	bool in_kernel = zone_intersects(kernel_zone, start_pfn, nr_pages);
-> >  	bool in_movable = zone_intersects(movable_zone, start_pfn, nr_pages);
-> >  
-> > @@ -886,7 +903,7 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
-> >  		return default_kernel_zone_for_pfn(nid, start_pfn, nr_pages);
-> >  
-> >  	if (online_type == MMOP_ONLINE_MOVABLE)
-> > -		return &NODE_DATA(nid)->node_zones[ZONE_MOVABLE];
-> > +		return default_movable_zone_for_pfn(nid);
-> >  
-> >  	return default_zone_for_pfn(nid, start_pfn, nr_pages);
-> >  }
-> > -- 
-> > Michal Hocko
-> > SUSE Labs
+> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
+> >> Minchan Kim <minchan@kernel.org> writes:
+> >> 
+> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
+> >> >> From: Huang Ying <ying.huang@intel.com>
+> >> >> 
+> >> >> When the swapin is performed, after getting the swap entry information
+> >> >> from the page table, system will swap in the swap entry, without any
+> >> >> lock held to prevent the swap device from being swapoff.  This may
+> >> >> cause the race like below,
+> >> >> 
+> >> >> CPU 1				CPU 2
+> >> >> -----				-----
+> >> >> 				do_swap_page
+> >> >> 				  swapin_readahead
+> >> >> 				    __read_swap_cache_async
+> >> >> swapoff				      swapcache_prepare
+> >> >>   p->swap_map = NULL		        __swap_duplicate
+> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
+> >> >> 
+> >> >> Because swapoff is usually done when system shutdown only, the race
+> >> >> may not hit many people in practice.  But it is still a race need to
+> >> >> be fixed.
+> >> >> 
+> >> >> To fix the race, get_swap_device() is added to check whether the
+> >> >> specified swap entry is valid in its swap device.  If so, it will keep
+> >> >> the swap entry valid via preventing the swap device from being
+> >> >> swapoff, until put_swap_device() is called.
+> >> >> 
+> >> >> Because swapoff() is very race code path, to make the normal path runs
+> >> >> as fast as possible, RCU instead of reference count is used to
+> >> >> implement get/put_swap_device().  From get_swap_device() to
+> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
+> >> >> swapoff() will wait until put_swap_device() is called.
+> >> >> 
+> >> >> In addition to swap_map, cluster_info, etc. data structure in the
+> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
+> >> >> swapoff, so this patch fixes the race between swap cache looking up
+> >> >> and swapoff too.
+> >> >> 
+> >> >> Cc: Hugh Dickins <hughd@google.com>
+> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> >> >> Cc: Minchan Kim <minchan@kernel.org>
+> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
+> >> >> Cc: Shaohua Li <shli@fb.com>
+> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
+> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
+> >> >> Cc: Michal Hocko <mhocko@suse.com>
+> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> >> >> Cc: David Rientjes <rientjes@google.com>
+> >> >> Cc: Rik van Riel <riel@redhat.com>
+> >> >> Cc: Jan Kara <jack@suse.cz>
+> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
+> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
+> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> >> >> 
+> >> >> Changelog:
+> >> >> 
+> >> >> v4:
+> >> >> 
+> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
+> >> >>   normal paths further.
+> >> >
+> >> > Hi Huang,
+> >> 
+> >> Hi, Minchan,
+> >> 
+> >> > This version is much better than old. To me, it's due to not rcu,
+> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
+> >> > into every swap related functions so users who don't interested on swap
+> >> > don't need to care of it. Good.
+> >> >
+> >> > The problem is caused by freeing by swap related-data structure
+> >> > *dynamically* while old swap logic was based on static data
+> >> > structure(i.e., never freed and the verify it's stale).
+> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
+> >> > which could make access of swap related data structures.
+> >> >
+> >> > A example is __isolate_lru_page
+> >> >
+> >> > It calls page_mapping to get a address_space.
+> >> > What happens if the page is on SwapCache and raced with swapoff?
+> >> > The mapping got could be disappeared by the race. Right?
+> >> 
+> >> Yes.  We should think about that.  Considering the file cache pages, the
+> >> address_space backing the file cache pages may be freed dynamically too.
+> >> So to use page_mapping() return value for the file cache pages, some
+> >> kind of locking is needed to guarantee the address_space isn't freed
+> >> under us.  Page may be locked, or under writeback, or some other locks
+> >
+> > I didn't look at the code in detail but I guess every file page should
+> > be freed before the address space destruction and page_lock/lru_lock makes
+> > the work safe, I guess. So, it wouldn't be a problem.
+> >
+> > However, in case of swapoff, it doesn't remove pages from LRU list
+> > so there is no lock to prevent the race at this moment. :(
 > 
-> -- 
-> Michal Hocko
-> SUSE Labs
+> Take a look at file cache pages and file cache address_space freeing
+> code path.  It appears that similar situation is possible for them too.
+> 
+> The file cache pages will be delete from file cache address_space before
+> address_space (embedded in inode) is freed.  But they will be deleted
+> from LRU list only when its refcount dropped to zero, please take a look
+> at put_page() and release_pages().  While address_space will be freed
+> after putting reference to all file cache pages.  If someone holds a
+> reference to a file cache page for quite long time, it is possible for a
+> file cache page to be in LRU list after the inode/address_space is
+> freed.
+> 
+> And I found inode/address_space is freed witch call_rcu().  I don't know
+> whether this is related to page_mapping().
+> 
+> This is just my understanding.
+> 
+> >> need to be held, for example, page table lock, or lru_lock, etc.  For
+> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
+> >> will call synchronize_rcu() between clear PageSwapCache and free swap
+> >> cache, so the usage of swap cache in __isolate_lru_page() should be
+> >> safe.  Do you think my analysis makes sense?
+> >
+> > I don't understand how synchronize_rcu closes the race with spin_lock.
+> > Paul might help it.
+> 
+> Per my understanding, spin_lock() will preempt_disable(), so
+> synchronize_rcu() will wait until spin_unlock() is called.
+
+Only when CONFIG_PREEMPT=n!
+
+In CONFIG_PREEMPT=y kernels, preempt_disable() won't necessarily prevent
+synchronize_rcu() from completing.
+
+Now, preempt_disable() does prevent synchronize_sched() from
+completing, but that would require changing the rcu_read_lock() and
+rcu_read_unlock() to rcu_read_lock_sched()/rcu_read_unlock_sched()
+or preempt_enable()/preempt_disable().
+
+Another fix would be to invoke rcu_read_lock() just after acquiring
+the spinlock and rcu_read_unlock() just before releasing it.
+
+							Thanx, Paul
+
+> > Even if we solve it, there is a other problem I spot.
+> > When I see migrate_vma_pages, it pass mapping to migrate_page which
+> > accesses mapping->tree_lock unconditionally even though the address_space
+> > is already gone.
+> 
+> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
+> where pages are locked.  So it is safe.
+> 
+> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
+> > but gut feeling is it would be not simple.
+> 
+> Yes.  We should check all sites.  Thanks for your help!
+> 
+> Best Regards,
+> Huang, Ying
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
