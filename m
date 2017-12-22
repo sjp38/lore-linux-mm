@@ -1,101 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1396D6B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:33 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id e135so3031898qka.10
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 17:27:33 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id s6si4789858qke.396.2017.12.21.17.27.31
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC7AB6B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:29:33 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id l33so15827544wrl.5
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 17:29:33 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l13sor11554401edj.1.2017.12.21.17.29.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 21 Dec 2017 17:27:32 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBM1PlPE098704
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:30 -0500
-Received: from e11.ny.us.ibm.com (e11.ny.us.ibm.com [129.33.205.201])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2f0mr88mwc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:27:30 -0500
-Received: from localhost
-	by e11.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Thu, 21 Dec 2017 20:27:29 -0500
-Date: Thu, 21 Dec 2017 17:27:41 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH] Move kfree_call_rcu() to slab_common.c
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <1513844387-2668-1-git-send-email-rao.shoaib@oracle.com>
- <20171221155434.GT7829@linux.vnet.ibm.com>
- <20171221170628.GA25009@bombadil.infradead.org>
+        (Google Transport Security);
+        Thu, 21 Dec 2017 17:29:32 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171221170628.GA25009@bombadil.infradead.org>
-Message-Id: <20171222012741.GZ7829@linux.vnet.ibm.com>
+In-Reply-To: <1513902570.3132.22.camel@HansenPartnership.com>
+References: <b1415a6d-fccd-31d0-ffa2-9b54fa699692@redhat.com>
+ <20171221130057.GA26743@wolff.to> <CAA70yB6Z=r+zO7E+ZP74jXNk_XM2CggYthAD=TKOdBVsHLLV-w@mail.gmail.com>
+ <20171221151843.GA453@wolff.to> <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
+ <20171221153631.GA2300@wolff.to> <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
+ <20171221164221.GA23680@wolff.to> <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+ <1513902570.3132.22.camel@HansenPartnership.com>
+From: weiping zhang <zwp10758@gmail.com>
+Date: Fri, 22 Dec 2017 09:29:31 +0800
+Message-ID: <CAA70yB6nQxjtsRhKEv_z4bgQ5sGW=Ej-i=je2D+cwMgoGPDF9Q@mail.gmail.com>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for bdi_debug_register")
+Content-Type: multipart/alternative; boundary="94eb2c1affd09f6b320560e3bf92"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: rao.shoaib@oracle.com, linux-kernel@vger.kernel.org, brouer@redhat.com, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@hansenpartnership.com>
+Cc: Jens Axboe <axboe@kernel.dk>, Bruno Wolff III <bruno@wolff.to>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, "linux-mm@kvack.org" <linux-mm@kvack.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, "regressions@leemhuis.info" <regressions@leemhuis.info>, weiping zhang <zhangweiping@didichuxing.com>, "linux-block@vger.kernel.org" <linux-block@vger.kernel.org>
 
-On Thu, Dec 21, 2017 at 09:06:28AM -0800, Matthew Wilcox wrote:
-> On Thu, Dec 21, 2017 at 07:54:34AM -0800, Paul E. McKenney wrote:
-> > > +/* Queue an RCU callback for lazy invocation after a grace period.
-> > > + * Currently there is no way of tagging the lazy RCU callbacks in the
-> > > + * list of pending callbacks. Until then, this function may only be
-> > > + * called from kfree_call_rcu().
-> > 
-> > But now we might have a way.
-> > 
-> > If the value in ->func is too small to be a valid function, RCU invokes
-> > a fixed function name.  This function can then look at ->func and do
-> > whatever it wants, for example, maintaining an array indexed by the
-> > ->func value that says what function to call and what else to pass it,
-> > including for example the slab pointer and offset.
-> > 
-> > Thoughts?
-> 
-> Thought 1 is that we can force functions to be quad-byte aligned on all
-> architectures (gcc option -falign-functions=...), so we can have more
-> than the 4096 different values we currently use.  We can get 63.5 bits of
-> information into that ->func argument if we align functions to at least
-> 4 bytes, or 63 if we only force alignment to a 2-byte boundary.  I'm not
-> sure if we support any architecture other than x86 with byte-aligned
-> instructions.  (I'm assuming that function descriptors as used on POWER
-> and ia64 will also be sensibly aligned).
+--94eb2c1affd09f6b320560e3bf92
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-I do like this approach, especially should some additional subsystems
-need this sort of special handling from RCU.  It is also much faster
-to demultiplex than alternative schemes based on address ranges and
-the like.
+2017=E5=B9=B412=E6=9C=8822=E6=97=A5=E6=98=9F=E6=9C=9F=E4=BA=94=EF=BC=8CJame=
+s Bottomley <James.Bottomley@hansenpartnership.com> =E5=86=99=E9=81=93=EF=
+=BC=9A
 
-How many bits are required by slab?  Would ~56 bits (less the bottom
-bit pattern reserved for function pointers) suffice on 64-bit systems
-and ~24 bits on 32-bit systems?  That would allow up to 256 specially
-handled situations, which should be enough.  (Famous last words!)
+> On Thu, 2017-12-21 at 10:02 -0700, Jens Axboe wrote:
+> > On 12/21/17 9:42 AM, Bruno Wolff III wrote:
+> > >
+> > > On Thu, Dec 21, 2017 at 23:48:19 +0800,
+> > >   weiping zhang <zwp10758@gmail.com> wrote:
+> > > >
+> > > > >
+> > > > > output you want. I never saw it for any kernels I compiled
+> > > > > myself. Only when I test kernels built by Fedora do I see it.
+> > > > > see it every boot ?
+> > >
+> > > I don't look every boot. The warning gets scrolled of the screen.
+> > > Once I see the CPU hang warnings I know the boot is failing. I
+> > > don't always look at journalctl later to see what's there.
+> >
+> > I'm going to revert a0747a859ef6 for now, since we're now 8 days into
+> > this and no progress has been made on fixing it.
+>
+> There is a dummy function in this file, if DEBUG_FS =3DN=EF=BC=8C
 
-> Thought 2 is that the slab is quite capable of getting the slab pointer
-> from the address of the object -- virt_to_head_page(p)->slab_cache
-> So sorting objects by address is as good as storing their slab caches
-> and offsets.
+> I think this is correct.  If you build the kernel with
+> CONFIG_DEBUG_FS=3DN, you're definitely going to get the same hang
+> (because the debugfs_ functions fail with -ENODEV and the bdi will
+> never get registered).  This alone leads me to suspect the commit is
+> bogus because it's a randconfig/test accident waiting to happen.
+> We should still root cause the debugfs failure in this case, but I
+> really think debugfs files should be treated as optional, so a failure
+> in setting them up should translate to some sort of warning not a
+> failure to set up the bdi.
+>
+> Yes, its just for debug, has no effect on gendisk(include weiteback),
 
-Different slabs can in some cases interleave their slabs of objects,
-right?  It might well be that grouping together different slabs from
-the same slab cache doesn't help, but seems worth my asking the question.
+> James
+>
+>
 
-> Thought 3 is that we probably don't want to overengineer this.
-> Just allocating a 14-entry buffer (along with an RCU head) is probably
-> enough to give us at least 90% of the wins that a more complex solution
-> would give.
+--94eb2c1affd09f6b320560e3bf92
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Can we benchmark this?  After all, memory allocation can sometimes
-counter one's intuition.
+<br><br>2017=E5=B9=B412=E6=9C=8822=E6=97=A5=E6=98=9F=E6=9C=9F=E4=BA=94=EF=
+=BC=8CJames Bottomley &lt;<a href=3D"mailto:James.Bottomley@hansenpartnersh=
+ip.com">James.Bottomley@hansenpartnership.com</a>&gt; =E5=86=99=E9=81=93=EF=
+=BC=9A<br><blockquote class=3D"gmail_quote" style=3D"margin:0 0 0 .8ex;bord=
+er-left:1px #ccc solid;padding-left:1ex">On Thu, 2017-12-21 at 10:02 -0700,=
+ Jens Axboe wrote:<br>
+&gt; On 12/21/17 9:42 AM, Bruno Wolff III wrote:<br>
+&gt; &gt;<br>
+&gt; &gt; On Thu, Dec 21, 2017 at 23:48:19 +0800,<br>
+&gt; &gt; =C2=A0 weiping zhang &lt;<a href=3D"mailto:zwp10758@gmail.com">zw=
+p10758@gmail.com</a>&gt; wrote:<br>
+&gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt;<br>
+&gt; &gt; &gt; &gt; output you want. I never saw it for any kernels I compi=
+led<br>
+&gt; &gt; &gt; &gt; myself. Only when I test kernels built by Fedora do I s=
+ee it.<br>
+&gt; &gt; &gt; &gt; see it every boot ?<br>
+&gt; &gt;<br>
+&gt; &gt; I don&#39;t look every boot. The warning gets scrolled of the scr=
+een.<br>
+&gt; &gt; Once I see the CPU hang warnings I know the boot is failing. I<br=
+>
+&gt; &gt; don&#39;t always look at journalctl later to see what&#39;s there=
+.<br>
+&gt;<br>
+&gt; I&#39;m going to revert a0747a859ef6 for now, since we&#39;re now 8 da=
+ys into<br>
+&gt; this and no progress has been made on fixing it.<br>
+<br></blockquote><div>There is a dummy function in this file, if DEBUG_FS =
+=3DN=EF=BC=8C=C2=A0</div><blockquote class=3D"gmail_quote" style=3D"margin:=
+0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+I think this is correct.=C2=A0 If you build the kernel with<br>
+CONFIG_DEBUG_FS=3DN, you&#39;re definitely going to get the same hang<br>
+(because the debugfs_ functions fail with -ENODEV and the bdi will<br>
+never get registered).=C2=A0 This alone leads me to suspect the commit is<b=
+r>
+bogus because it&#39;s a randconfig/test accident waiting to happen.<br>
+We should still root cause the debugfs failure in this case, but I<br>
+really think debugfs files should be treated as optional, so a failure<br>
+in setting them up should translate to some sort of warning not a<br>
+failure to set up the bdi.<br>
+<br></blockquote><div>Yes, its just for debug, has no effect on gendisk(inc=
+lude weiteback),=C2=A0</div><blockquote class=3D"gmail_quote" style=3D"marg=
+in:0 0 0 .8ex;border-left:1px #ccc solid;padding-left:1ex">
+James<br>
+<br>
+</blockquote>
 
-One alternative approach would be to allocate such a buffer per
-slab cache, and run each slab caches through RCU independently.
-Seems like this should allow some savings.  Might not be worthwhile,
-but again seemed worth asking the question.
-
-							Thanx, Paul
+--94eb2c1affd09f6b320560e3bf92--
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
