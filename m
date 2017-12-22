@@ -1,112 +1,313 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 342416B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 10:12:11 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id k44so11124872wre.1
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 07:12:11 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 61si14476971wrj.86.2017.12.22.07.12.09
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 669446B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 10:19:45 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id h25so17429398iob.2
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 07:19:45 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id x96si7397919ita.75.2017.12.22.07.19.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 07:12:10 -0800 (PST)
-Date: Fri, 22 Dec 2017 16:12:10 +0100
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20171222151210.GB6874@kroah.com>
-References: <20171222084623.668990192@linuxfoundation.org>
- <20171222084625.007160464@linuxfoundation.org>
- <20171222141810.dpeozmylmnj253do@xps>
- <CA+G9fYtMCwsA+L-rC77DLZi5i2Vyz7K8dXORscs-5x3voByHJA@mail.gmail.com>
+        Fri, 22 Dec 2017 07:19:43 -0800 (PST)
+Subject: Re: [RFC PATCH v4 08/18] kvm: add the VM introspection subsystem
+References: <20171218190642.7790-1-alazar@bitdefender.com>
+ <20171218190642.7790-9-alazar@bitdefender.com>
+ <3b9dd83a-5e13-97b5-3d87-14de288e88d8@oracle.com>
+ <1513951900.E02F46f7.12019@host>
+From: Patrick Colp <patrick.colp@oracle.com>
+Message-ID: <6c329fc6-4be8-8119-1516-2e41a106662e@oracle.com>
+Date: Fri, 22 Dec 2017 10:12:35 -0500
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CA+G9fYtMCwsA+L-rC77DLZi5i2Vyz7K8dXORscs-5x3voByHJA@mail.gmail.com>
+In-Reply-To: <1513951900.E02F46f7.12019@host>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Naresh Kamboju <naresh.kamboju@linaro.org>
-Cc: linux-kernel@vger.kernel.org, linux- stable <stable@vger.kernel.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>, =?UTF-8?B?TmljdciZb3IgQ8OuyJt1?= <ncitu@bitdefender.com>, =?UTF-8?Q?Mircea_C=c3=aerjaliu?= <mcirjaliu@bitdefender.com>, Marian Rotariu <mrotariu@bitdefender.com>
 
-On Fri, Dec 22, 2017 at 08:22:09PM +0530, Naresh Kamboju wrote:
-> On 22 December 2017 at 19:48, Dan Rue <dan.rue@linaro.org> wrote:
-> > On Fri, Dec 22, 2017 at 09:45:08AM +0100, Greg Kroah-Hartman wrote:
-> >> 4.14-stable review patch.  If anyone has any objections, please let me know.
-> >>
-> >> ------------------
-> >>
-> >> From: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >>
-> >> commit 83e3c48729d9ebb7af5a31a504f3fd6aff0348c4 upstream.
-> >>
-> >> Size of the mem_section[] array depends on the size of the physical address space.
-> >>
-> >> In preparation for boot-time switching between paging modes on x86-64
-> >> we need to make the allocation of mem_section[] dynamic, because otherwise
-> >> we waste a lot of RAM: with CONFIG_NODE_SHIFT=10, mem_section[] size is 32kB
-> >> for 4-level paging and 2MB for 5-level paging mode.
-> >>
-> >> The patch allocates the array on the first call to sparse_memory_present_with_active_regions().
-> >>
-> >> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >> Cc: Andrew Morton <akpm@linux-foundation.org>
-> >> Cc: Andy Lutomirski <luto@amacapital.net>
-> >> Cc: Borislav Petkov <bp@suse.de>
-> >> Cc: Cyrill Gorcunov <gorcunov@openvz.org>
-> >> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> >> Cc: Peter Zijlstra <peterz@infradead.org>
-> >> Cc: Thomas Gleixner <tglx@linutronix.de>
-> >> Cc: linux-mm@kvack.org
-> >> Link: http://lkml.kernel.org/r/20170929140821.37654-2-kirill.shutemov@linux.intel.com
-> >> Signed-off-by: Ingo Molnar <mingo@kernel.org>
-> >> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> >
-> > This patch causes a boot failure on arm64.
-> >
-> > Please drop this patch, or pick up the fix in:
-> >
-> >     commit 629a359bdb0e0652a8227b4ff3125431995fec6e
-> >     Author: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> >     Date:   Tue Nov 7 11:33:37 2017 +0300
-> >
-> >         mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
-> >
-> > See https://www.mail-archive.com/linux-kernel@vger.kernel.org/msg1527427.html
+On 2017-12-22 09:11 AM, Adalbert Lazi? 1/2 i? 1/2 i? 1/2 i? 1/2 r wrote:
+> We've made changes in all the places pointed by you, but read below.
+> Thanks again,
+> Adalbert
 > 
-> +1.
-> Boot failed on arm64 without 629a359b
-> mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
+> On Fri, 22 Dec 2017 02:34:45 -0500, Patrick Colp <patrick.colp@oracle.com> wrote:
+>> On 2017-12-18 02:06 PM, Adalber LazA?r wrote:
+>>> From: Adalbert Lazar <alazar@bitdefender.com>
+>>>
+>>> This subsystem is split into three source files:
+>>>    - kvmi_msg.c - ABI and socket related functions
+>>>    - kvmi_mem.c - handle map/unmap requests from the introspector
+>>>    - kvmi.c - all the other
+>>>
+>>> The new data used by this subsystem is attached to the 'kvm' and
+>>> 'kvm_vcpu' structures as opaque pointers (to 'kvmi' and 'kvmi_vcpu'
+>>> structures).
+>>>
+>>> Besides the KVMI system, this patch exports the
+>>> kvm_vcpu_ioctl_x86_get_xsave() and the mm_find_pmd() functions,
+>>> adds a new vCPU request (KVM_REQ_INTROSPECTION) and a new VM ioctl
+>>> (KVM_INTROSPECTION) used to pass the connection file handle from QEMU.
+>>>
+>>> Signed-off-by: Mihai DonE?u <mdontu@bitdefender.com>
+>>> Signed-off-by: Adalbert LazA?r <alazar@bitdefender.com>
+>>> Signed-off-by: NicuE?or CA(R)E?u <ncitu@bitdefender.com>
+>>> Signed-off-by: Mircea CA(R)rjaliu <mcirjaliu@bitdefender.com>
+>>> Signed-off-by: Marian Rotariu <mrotariu@bitdefender.com>
+>>> ---
+>>>    arch/x86/include/asm/kvm_host.h |    1 +
+>>>    arch/x86/kvm/Makefile           |    1 +
+>>>    arch/x86/kvm/x86.c              |    4 +-
+>>>    include/linux/kvm_host.h        |    4 +
+>>>    include/linux/kvmi.h            |   32 +
+>>>    include/linux/mm.h              |    3 +
+>>>    include/trace/events/kvmi.h     |  174 +++++
+>>>    include/uapi/linux/kvm.h        |    8 +
+>>>    mm/internal.h                   |    5 -
+>>>    virt/kvm/kvmi.c                 | 1410 +++++++++++++++++++++++++++++++++++++++
+>>>    virt/kvm/kvmi_int.h             |  121 ++++
+>>>    virt/kvm/kvmi_mem.c             |  730 ++++++++++++++++++++
+>>>    virt/kvm/kvmi_msg.c             | 1134 +++++++++++++++++++++++++++++++
+>>>    13 files changed, 3620 insertions(+), 7 deletions(-)
+>>>    create mode 100644 include/linux/kvmi.h
+>>>    create mode 100644 include/trace/events/kvmi.h
+>>>    create mode 100644 virt/kvm/kvmi.c
+>>>    create mode 100644 virt/kvm/kvmi_int.h
+>>>    create mode 100644 virt/kvm/kvmi_mem.c
+>>>    create mode 100644 virt/kvm/kvmi_msg.c
+>>>
+>>> +int kvmi_set_mem_access(struct kvm *kvm, u64 gpa, u8 access)
+>>> +{
+>>> +	struct kvmi_mem_access *m;
+>>> +	struct kvmi_mem_access *__m;
+>>> +	struct kvmi *ikvm = IKVM(kvm);
+>>> +	gfn_t gfn = gpa_to_gfn(gpa);
+>>> +
+>>> +	if (kvm_is_error_hva(gfn_to_hva_safe(kvm, gfn)))
+>>> +		kvm_err("Invalid gpa %llx (or memslot not available yet)", gpa);
+>>
+>> If there's an error, should this not return or something instead of
+>> continuing as if nothing is wrong?
 > 
-> Boot Error log:
-> --------------------
-> [    0.000000] Unable to handle kernel NULL pointer dereference at
-> virtual address 00000000
-> [    0.000000] Mem abort info:
-> [    0.000000]   Exception class = DABT (current EL), IL = 32 bits
-> [    0.000000]   SET = 0, FnV = 0
-> [    0.000000]   EA = 0, S1PTW = 0
-> [    0.000000] Data abort info:
-> [    0.000000]   ISV = 0, ISS = 0x00000004
-> [    0.000000]   CM = 0, WnR = 0
-> [    0.000000] [0000000000000000] user address but active_mm is swapper
-> [    0.000000] Internal error: Oops: 96000004 [#1] PREEMPT SMP
-> [    0.000000] Modules linked in:
-> [    0.000000] CPU: 0 PID: 0 Comm: swapper Not tainted 4.14.9-rc1 #1
-> [    0.000000] Hardware name: ARM Juno development board (r2) (DT)
-> [    0.000000] task: ffff0000091d9380 task.stack: ffff0000091c0000
-> [    0.000000] PC is at memory_present+0x64/0xf4
-> [    0.000000] LR is at memory_present+0x38/0xf4
-> [    0.000000] pc : [<ffff0000090a1f54>] lr : [<ffff0000090a1f28>]
-> pstate: 800000c5
-> [    0.000000] sp : ffff0000091c3e80
+> It was a debug message masqueraded as an error message to be logged in dmesg.
+> The page will be tracked when the memslot becomes available.
+
+I began to wonder if that's what was going on afterwards (I saw 
+kvm_err() used in some other places where it was more obvious that it 
+was debug messages).
+
+>>> +static bool alloc_kvmi(struct kvm *kvm)
+>>> +{
+>>> +	bool done;
+>>> +
+>>> +	mutex_lock(&kvm->lock);
+>>> +	done = (
+>>> +		maybe_delayed_init() == 0    &&
+>>> +		IKVM(kvm)            == NULL &&
+>>> +		__alloc_kvmi(kvm)    == true
+>>> +	);
+>>> +	mutex_unlock(&kvm->lock);
+>>> +
+>>> +	return done;
+>>> +}
+>>> +
+>>> +static void alloc_all_kvmi_vcpu(struct kvm *kvm)
+>>> +{
+>>> +	struct kvm_vcpu *vcpu;
+>>> +	int i;
+>>> +
+>>> +	mutex_lock(&kvm->lock);
+>>> +	kvm_for_each_vcpu(i, vcpu, kvm)
+>>> +		if (!IKVM(vcpu))
+>>> +			__alloc_vcpu_kvmi(vcpu);
+>>> +	mutex_unlock(&kvm->lock);
+>>> +}
+>>> +
+>>> +static bool setup_socket(struct kvm *kvm, struct kvm_introspection *qemu)
+>>> +{
+>>> +	struct kvmi *ikvm = IKVM(kvm);
+>>> +
+>>> +	if (is_introspected(ikvm)) {
+>>> +		kvm_err("Guest already introspected\n");
+>>> +		return false;
+>>> +	}
+>>> +
+>>> +	if (!kvmi_msg_init(ikvm, qemu->fd))
+>>> +		return false;
+>>
+>> kvmi_msg_init assumes that ikvm is not NULL -- it makes no check and
+>> then does "WRITE_ONCE(ikvm->sock, sock)". is_introspected() does check
+>> if ikvm is NULL, but if it is, it returns false, which would still end
+>> up here. There should be a check that ikvm is not NULL before this if
+>> statement.
 > 
-> More information,
-> https://pastebin.com/KambxUwb
+> setup_socket() is called only when 'ikvm' is not NULL.
 
--rc2 is out with the fix, hopefully that survives longer :)
+Ah, right. Forgot to check that :)
 
-thanks,
+> 
+> is_introspected() checks 'ikvm' because it is called from other contexts.
+> The real check is ikvm->sock (to see if the 'command channel' is 'active').
 
-greg k-h
+Yes, that makes more sense.
+
+> 
+>>> +
+>>> +	ikvm->cmd_allow_mask = -1; /* TODO: qemu->commands; */
+>>> +	ikvm->event_allow_mask = -1; /* TODO: qemu->events; */
+>>> +
+>>> +	alloc_all_kvmi_vcpu(kvm);
+>>> +	queue_work(wq, &ikvm->work);
+>>> +
+>>> +	return true;
+>>> +}
+>>> +
+>>> +/*
+>>> + * When called from outside a page fault handler, this call should
+>>> + * return ~0ull
+>>> + */
+>>> +static u64 kvmi_mmu_fault_gla(struct kvm_vcpu *vcpu, gpa_t gpa)
+>>> +{
+>>> +	u64 gla;
+>>> +	u64 gla_val;
+>>> +	u64 v;
+>>> +
+>>> +	if (!vcpu->arch.gpa_available)
+>>> +		return ~0ull;
+>>> +
+>>> +	gla = kvm_mmu_fault_gla(vcpu);
+>>> +	if (gla == ~0ull)
+>>> +		return gla;
+>>> +	gla_val = gla;
+>>> +
+>>> +	/* Handle the potential overflow by returning ~0ull */
+>>> +	if (vcpu->arch.gpa_val > gpa) {
+>>> +		v = vcpu->arch.gpa_val - gpa;
+>>> +		if (v > gla)
+>>> +			gla = ~0ull;
+>>> +		else
+>>> +			gla -= v;
+>>> +	} else {
+>>> +		v = gpa - vcpu->arch.gpa_val;
+>>> +		if (v > (U64_MAX - gla))
+>>> +			gla = ~0ull;
+>>> +		else
+>>> +			gla += v;
+>>> +	}
+>>> +
+>>> +	return gla;
+>>> +}
+>>> +
+>>> +static bool kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa,
+>>> +			       u8 *new,
+>>> +			       int bytes,
+>>> +			       struct kvm_page_track_notifier_node *node,
+>>> +			       bool *data_ready)
+>>> +{
+>>> +	u64 gla;
+>>> +	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+>>> +	bool ret = true;
+>>> +
+>>> +	if (kvm_mmu_nested_guest_page_fault(vcpu))
+>>> +		return ret;
+>>> +	gla = kvmi_mmu_fault_gla(vcpu, gpa);
+>>> +	ret = kvmi_page_fault_event(vcpu, gpa, gla, KVMI_PAGE_ACCESS_R);
+>>
+>> Should you not check the value of ret here before proceeding?
+>>
+> 
+> Indeed. These 'track' functions are new additions and aren't integrated
+> well with kvmi_page_fault_event(). We'll change this. The code is ugly
+> but 'safe' (ctx_size will be non-zero only with ret == true).
+> 
+
+Ah, yes, I can see that now. Not the most obvious interaction.
+
+>>> +	if (ivcpu && ivcpu->ctx_size > 0) {
+>>> +		int s = min_t(int, bytes, ivcpu->ctx_size);
+>>> +
+>>> +		memcpy(new, ivcpu->ctx_data, s);
+>>> +		ivcpu->ctx_size = 0;
+>>> +
+>>> +		if (*data_ready)
+>>> +			kvm_err("Override custom data");
+>>> +
+>>> +		*data_ready = true;
+>>> +	}
+>>> +
+>>> +	return ret;
+>>> +}
+>>> +
+>>> +bool kvmi_hook(struct kvm *kvm, struct kvm_introspection *qemu)
+>>> +{
+>>> +	kvm_info("Hooking vm with fd: %d\n", qemu->fd);
+>>> +
+>>> +	kvm_page_track_register_notifier(kvm, &kptn_node);
+>>> +
+>>> +	return (alloc_kvmi(kvm) && setup_socket(kvm, qemu));
+>>
+>> Is this safe? It could return false if the alloc fails (in which case
+>> the caller has to do nothing) or if setting up the socket fails (in
+>> which case the caller needs to free the allocated kvmi).
+>>
+> 
+> If the socket fails for any reason (eg. the introspection tool is
+> stopped == socket closed) 'the plan' is to signal QEMU to reconnect
+> (and call kvmi_hook() again) or else let the introspected VM continue (and
+> try to reconnect asynchronously).
+> 
+> I see that kvm_page_track_register_notifier() should not be called more
+> than once.
+> 
+> Maybe we should rename this to kvmi_rehook() or kvmi_reconnect().
+
+I assume that a kvmi_rehook() function would then not call 
+kvm_page_track_register_notifier() or at least have some check to make 
+sure it only calls it once?
+
+One approach would be to have separate kvmi_hook() and kvmi_rehook() 
+functions. Another possibility is to have kvmi_hook() take an extra 
+argument that's a boolean to specify if it's the first attempt at 
+hooking or not.
+
+>>> +bool kvmi_breakpoint_event(struct kvm_vcpu *vcpu, u64 gva)
+>>> +{
+>>> +	u32 action;
+>>> +	u64 gpa;
+>>> +
+>>> +	if (!is_event_enabled(vcpu->kvm, KVMI_EVENT_BREAKPOINT))
+>>> +		/* qemu will automatically reinject the breakpoint */
+>>> +		return false;
+>>> +
+>>> +	gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, NULL);
+>>> +
+>>> +	if (gpa == UNMAPPED_GVA)
+>>> +		kvm_err("%s: invalid gva: %llx", __func__, gva);
+>>
+>> If the gpa is unmapped, shouldn't it return false rather than proceeding?
+>>
+> 
+> This was just a debug message. I'm not sure if is possible for 'gpa'
+> to be unmapped. Even so, the introspection tool should still be notified.
+> 
+>>> +
+>>> +	action = kvmi_msg_send_bp(vcpu, gpa);
+>>> +
+>>> +	switch (action) {
+>>> +	case KVMI_EVENT_ACTION_CONTINUE:
+>>> +		break;
+>>> +	case KVMI_EVENT_ACTION_RETRY:
+>>> +		/* rip was most likely adjusted past the INT 3 instruction */
+>>> +		return true;
+>>> +	default:
+>>> +		handle_common_event_actions(vcpu, action);
+>>> +	}
+>>> +
+>>> +	/* qemu will automatically reinject the breakpoint */
+>>> +	return false;
+>>> +}
+>>> +EXPORT_SYMBOL(kvmi_breakpoint_event);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
