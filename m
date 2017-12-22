@@ -1,75 +1,73 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 949296B0038
-	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 20:51:05 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id v190so16712247pgv.11
-        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 17:51:05 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id c25si5504983pgn.16.2017.12.21.17.51.03
-        for <linux-mm@kvack.org>;
-        Thu, 21 Dec 2017 17:51:04 -0800 (PST)
-Date: Fri, 22 Dec 2017 10:51:15 +0900
-From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Subject: Re: [PATCH 00/18] introduce a new tool, valid access checker
-Message-ID: <20171222015114.GC1729@js1304-P5Q-DELUXE>
-References: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 501396B0038
+	for <linux-mm@kvack.org>; Thu, 21 Dec 2017 21:08:46 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id q3so16722482pgv.16
+        for <linux-mm@kvack.org>; Thu, 21 Dec 2017 18:08:46 -0800 (PST)
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id b12si14408067pgq.139.2017.12.21.18.08.44
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 21 Dec 2017 18:08:44 -0800 (PST)
+Subject: Re: [PATCH v2 3/5] mm: enlarge NUMA counters threshold size
+References: <1513665566-4465-1-git-send-email-kemi.wang@intel.com>
+ <1513665566-4465-4-git-send-email-kemi.wang@intel.com>
+ <20171219124045.GO2787@dhcp22.suse.cz>
+ <439918f7-e8a3-c007-496c-99535cbc4582@intel.com>
+ <20171220101229.GJ4831@dhcp22.suse.cz>
+ <268b1b6e-ff7a-8f1a-f97c-f94e14591975@intel.com>
+ <alpine.DEB.2.20.1712211107430.22093@nuc-kabylake>
+From: kemi <kemi.wang@intel.com>
+Message-ID: <9fb9af97-167c-6a0b-ded1-2790113ece9a@intel.com>
+Date: Fri, 22 Dec 2017 10:06:42 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1511855333-3570-1-git-send-email-iamjoonsoo.kim@lge.com>
+In-Reply-To: <alpine.DEB.2.20.1712211107430.22093@nuc-kabylake>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Namhyung Kim <namhyung@kernel.org>, Wengang Wang <wen.gang.wang@oracle.com>
+To: Christopher Lameter <cl@linux.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Andrew Morton <akpm@linux-foundation.org>, Vlastimil Babka <vbabka@suse.cz>, Mel Gorman <mgorman@techsingularity.net>, Johannes Weiner <hannes@cmpxchg.org>, YASUAKI ISHIMATSU <yasu.isimatu@gmail.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Nikolay Borisov <nborisov@suse.com>, Pavel Tatashin <pasha.tatashin@oracle.com>, David Rientjes <rientjes@google.com>, Sebastian Andrzej Siewior <bigeasy@linutronix.de>, Dave <dave.hansen@linux.intel.com>, Andi Kleen <andi.kleen@intel.com>, Tim Chen <tim.c.chen@intel.com>, Jesper Dangaard Brouer <brouer@redhat.com>, Ying Huang <ying.huang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Aubrey Li <aubrey.li@intel.com>, Linux MM <linux-mm@kvack.org>, Linux Kernel <linux-kernel@vger.kernel.org>
 
-On Tue, Nov 28, 2017 at 04:48:35PM +0900, js1304@gmail.com wrote:
-> From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> 
-> Hello,
-> 
-> This patchset introduces a new tool, valid access checker.
-> 
-> Vchecker is a dynamic memory error detector. It provides a new debug feature
-> that can find out an un-intended access to valid area. Valid area here means
-> the memory which is allocated and allowed to be accessed by memory owner and
-> un-intended access means the read/write that is initiated by non-owner.
-> Usual problem of this class is memory overwritten.
-> 
-> Most of debug feature focused on finding out un-intended access to
-> in-valid area, for example, out-of-bound access and use-after-free, and,
-> there are many good tools for it. But, as far as I know, there is no good tool
-> to find out un-intended access to valid area. This kind of problem is really
-> hard to solve so this tool would be very useful.
-> 
-> This tool doesn't automatically catch a problem. Manual runtime configuration
-> to specify the target object is required.
-> 
-> Note that there was a similar attempt for the debugging overwritten problem
-> however it requires manual code modifying and recompile.
-> 
-> http://lkml.kernel.org/r/<20171117223043.7277-1-wen.gang.wang@oracle.com>
-> 
-> To get more information about vchecker, please see a documention at
-> the last patch.
-> 
-> Patchset can also be available at
-> 
-> https://github.com/JoonsooKim/linux/tree/vchecker-master-v1.0-next-20171122
-> 
-> Enjoy it.
-> 
-> Thanks.
 
-Hello, Andrew.
 
-Before the fixing some build failure on this patchset, I'd like to know
-other reviewer's opinion on this patchset, especially, yours. :)
+On 2017a1'12ae??22ae?JPY 01:10, Christopher Lameter wrote:
+> On Thu, 21 Dec 2017, kemi wrote:
+> 
+>> Some thinking about that:
+>> a) the overhead due to cache bouncing caused by NUMA counter update in fast path
+>> severely increase with more and more CPUs cores
+>> b) AFAIK, the typical usage scenario (similar at least)for which this optimization can
+>> benefit is 10/40G NIC used in high-speed data center network of cloud service providers.
+> 
+> I think you are fighting a lost battle there. As evident from the timing
+> constraints on packet processing in a 10/40G you will have a hard time to
+> process data if the packets are of regular ethernet size. And we alrady
+> have 100G NICs in operation here.
+> 
 
-There are some interests on this patchset from some developers. Wengang
-come up with a very similar change and Andi said that this looks useful.
-Do you think that this tool is useful and can be merged?
+Not really.
+For 10/40G NIC or even 100G, I admit DPDK is widely used in data center network 
+rather than kernel driver in production environment.
+That's due to the slow page allocator and long pipeline processing in network 
+protocol stack.
+That's not easy to change this state in short time, but if we can do something
+here to change it a little, why not.
 
-Thanks.
+> We can try to get the performance as high as possible but full rate high
+> speed networking invariable must use offload mechanisms and thus the
+> statistics would only be available from the hardware devices that can do
+> wire speed processing.
+> 
+
+I think you may be talking something about SmartNIC (e.g. OpenVswitch offload + 
+VF pass through). That's usually used in virtualization environment to eliminate 
+the overhead from device emulation and packet processing in software virtual 
+switch(OVS or linux bridge). 
+
+What I have done in this patch series is to improve page allocator performance,
+that's also helpful in offload environment (guest kernel at least), IMHO.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
