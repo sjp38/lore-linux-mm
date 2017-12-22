@@ -1,97 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 06C516B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:43:26 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id q12so13150522pli.12
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:43:25 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id q1si16254084plb.29.2017.12.22.00.43.24
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B8C36B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 03:44:33 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id h18so19890092pfi.2
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 00:44:33 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e10sor2043101pgt.17.2017.12.22.00.44.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 00:43:24 -0800 (PST)
-Message-ID: <5A3CC62D.6020001@intel.com>
-Date: Fri, 22 Dec 2017 16:45:33 +0800
-From: Wei Wang <wei.w.wang@intel.com>
+        (Google Transport Security);
+        Fri, 22 Dec 2017 00:44:32 -0800 (PST)
 MIME-Version: 1.0
-Subject: Re: [PATCH v20 3/7 RESEND] xbitmap: add more operations
-References: <1513823406-43632-1-git-send-email-wei.w.wang@intel.com>	<20171221141805.GA27695@bombadil.infradead.org> <201712212337.JFC57368.tLFOJFVSFHMOOQ@I-love.SAKURA.ne.jp>
-In-Reply-To: <201712212337.JFC57368.tLFOJFVSFHMOOQ@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=windows-1252; format=flowed
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171222083615.dr7jpzjjc6ye3eut@hirez.programming.kicks-ass.net>
+References: <001a113ef748cc1ee50560c7b718@google.com> <CA+55aFyco00CBed1ADAz+EGtoP6w+nvuR2Y+YWH13cvkatOg4w@mail.gmail.com>
+ <20171222081756.ur5uuh5wjri2ymyk@hirez.programming.kicks-ass.net>
+ <CACT4Y+Z7__4qeMP-jG07-M+ugL3PxkQ_z83=TB8O9e4=jjV4ug@mail.gmail.com> <20171222083615.dr7jpzjjc6ye3eut@hirez.programming.kicks-ass.net>
+From: Dmitry Vyukov <dvyukov@google.com>
+Date: Fri, 22 Dec 2017 09:44:11 +0100
+Message-ID: <CACT4Y+Yb7a_tiGc4=NHSMpqv30-kBKO0iwAn79M6yv_EaRwG3w@mail.gmail.com>
+Subject: Re: general protection fault in finish_task_switch
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, willy@infradead.org
-Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>, syzbot <bot+72c44cd8b0e8a1a64b9c03c4396aea93a16465ef@syzkaller.appspotmail.com>, Ingo Molnar <mingo@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Dave Jiang <dave.jiang@intel.com>, Hugh Dickins <hughd@google.com>, Jan Kara <jack@suse.cz>, Jerome Glisse <jglisse@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, tcharding <me@tobin.cc>, Michal Hocko <mhocko@suse.com>, Minchan Kim <minchan@kernel.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, syzkaller-bugs@googlegroups.com, Matthew Wilcox <willy@infradead.org>, Eric Biggers <ebiggers3@gmail.com>
 
-On 12/21/2017 10:37 PM, Tetsuo Handa wrote:
-> Matthew Wilcox wrote:
->>> +/**
->>> + * xb_find_set - find the next set bit in a range of bits
->>> + * @xb: the xbitmap to search from
->>> + * @offset: the offset in the range to start searching
->>> + * @size: the size of the range
->>> + *
->>> + * Returns: the found bit or, @size if no set bit is found.
->>> + */
->>> +unsigned long xb_find_set(struct xb *xb, unsigned long size,
->>> +			  unsigned long offset)
->>> +{
->>> +	struct radix_tree_root *root = &xb->xbrt;
->>> +	struct radix_tree_node *node;
->>> +	void __rcu **slot;
->>> +	struct ida_bitmap *bitmap;
->>> +	unsigned long index = offset / IDA_BITMAP_BITS;
->>> +	unsigned long index_end = size / IDA_BITMAP_BITS;
->>> +	unsigned long bit = offset % IDA_BITMAP_BITS;
->>> +
->>> +	if (unlikely(offset >= size))
->>> +		return size;
->>> +
->>> +	while (index <= index_end) {
->>> +		unsigned long ret;
->>> +		unsigned int nbits = size - index * IDA_BITMAP_BITS;
->>> +
->>> +		bitmap = __radix_tree_lookup(root, index, &node, &slot);
->>> +
->>> +		if (!node && !bitmap)
->>> +			return size;
->>> +
->>> +		if (bitmap) {
->>> +			if (nbits > IDA_BITMAP_BITS)
->>> +				nbits = IDA_BITMAP_BITS;
->>> +
->>> +			ret = find_next_bit(bitmap->bitmap, nbits, bit);
->>> +			if (ret != nbits)
->>> +				return ret + index * IDA_BITMAP_BITS;
->>> +		}
->>> +		bit = 0;
->>> +		index++;
->>> +	}
->>> +
->>> +	return size;
->>> +}
->>> +EXPORT_SYMBOL(xb_find_set);
->> This is going to be slower than the implementation I sent yesterday.  If I
->> call:
->> 	xb_init(xb);
->> 	xb_set_bit(xb, ULONG_MAX);
->> 	xb_find_set(xb, ULONG_MAX, 0);
->>
->> it's going to call __radix_tree_lookup() 16 quadrillion times.
->> My implementation will walk the tree precisely once.
->>
-> Yes. Wei's patch still can not work.
-> We should start reviewing Matthew's implementation.
+On Fri, Dec 22, 2017 at 9:36 AM, Peter Zijlstra <peterz@infradead.org> wrote:
+> On Fri, Dec 22, 2017 at 09:26:28AM +0100, Dmitry Vyukov wrote:
+>> I think this is another manifestation of "KASAN: use-after-free Read
+>> in __schedule":
+>> https://groups.google.com/forum/#!msg/syzkaller-bugs/-8JZhr4W8AY/FpPFh8EqAQAJ
+>> +Eric already mailed a fix for it (indeed new bug in kvm code).
+>
+> FWIW, these google links keep translating everything to my local
+> language, is there any way to tell google to not do stupid stuff like
+> that and give me English like computers ought to speak?
 
-It runs without any issue on my machine. I didn't generate an "xbitmap" 
-executable (I just found adding xbitmap executable causes a build error 
-due to a Makefile error), instead, I tested it within "main" and it 
-passed all the tests.
 
-Matthew has implemented a new version, let's start from there.
-
-Best,
-Wei
+The group has "Group's primary language: English" in settings. I guess
+that's either your Google account settings (if you are signed in), or
+browser settings.
+For chrome there is an option in setting for preferred languages,
+browsers are supposed to send that in requests. For google account
+check https://myaccount.google.com/intro there is "Languages" section.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
