@@ -1,45 +1,94 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 24AC06B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 12:14:03 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 61so13917743plz.1
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 09:14:03 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id w12si16924661pld.27.2017.12.22.09.14.01
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 558016B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 13:30:11 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id l99so11122657wrc.18
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 10:30:11 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id i8sor10386410wre.3.2017.12.22.10.30.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 09:14:01 -0800 (PST)
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
- <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Message-ID: <5d7df981-69c2-e371-f48d-13c418fff134@intel.com>
-Date: Fri, 22 Dec 2017 09:13:59 -0800
+        (Google Transport Security);
+        Fri, 22 Dec 2017 10:30:09 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <843a6fd0-b8a3-7146-fe48-f9e81977f567@oracle.com>
+References: <20171107122800.25517-1-marcandre.lureau@redhat.com>
+ <aca9951c-7b8a-7884-5b31-c505e4e35d8a@oracle.com> <CAJ+F1CJCbmUHSMfKou_LP3eMq+p-b7S9vbe1Vv=JsGMFr7bk_w@mail.gmail.com>
+ <20171220151051.GV4831@dhcp22.suse.cz> <20171220162653.4beeadd43629ccb8a5901aea@linux-foundation.org>
+ <843a6fd0-b8a3-7146-fe48-f9e81977f567@oracle.com>
+From: =?UTF-8?B?TWFyYy1BbmRyw6kgTHVyZWF1?= <marcandre.lureau@gmail.com>
+Date: Fri, 22 Dec 2017 19:30:08 +0100
+Message-ID: <CAJ+F1CLpYCY3XFi7uGOvuqUocR1z-L+UeubQefHJSD0ymZ97Ng@mail.gmail.com>
+Subject: Re: [PATCH v3 0/9] memfd: add sealing to hugetlb-backed memory
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org
-Cc: "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, open list <linux-kernel@vger.kernel.org>, Andrea Arcangeli <aarcange@redhat.com>, Hugh Dickins <hughd@google.com>, nyc@holomorphy.com, David Herrmann <dh.herrmann@gmail.com>
 
-On 12/21/2017 07:09 PM, Anshuman Khandual wrote:
-> I had presented a proposal for NUMA redesign in the Plumbers Conference this
-> year where various memory devices with different kind of memory attributes
-> can be represented in the kernel and be used explicitly from the user space.
-> Here is the link to the proposal if you feel interested. The proposal is
-> very intrusive and also I dont have a RFC for it yet for discussion here.
+Hi Mike
 
-I think that's the best reason to "re-use NUMA" for this: it's _not_
-intrusive.
+On Thu, Dec 21, 2017 at 1:40 AM, Mike Kravetz <mike.kravetz@oracle.com> wro=
+te:
+> On 12/20/2017 04:26 PM, Andrew Morton wrote:
+>> On Wed, 20 Dec 2017 16:10:51 +0100 Michal Hocko <mhocko@kernel.org> wrot=
+e:
+>>
+>>> On Wed 20-12-17 15:15:50, Marc-Andr=C3=A9 Lureau wrote:
+>>>> Hi
+>>>>
+>>>> On Wed, Nov 15, 2017 at 4:13 AM, Mike Kravetz <mike.kravetz@oracle.com=
+> wrote:
+>>>>> +Cc: Andrew, Michal, David
+>>>>>
+>>>>> Are there any other comments on this patch series from Marc-Andr=C3=
+=A9?  Is anything
+>>>>> else needed to move forward?
+>>>>>
+>>>>> I have reviewed the patches in the series.  David Herrmann (the origi=
+nal
+>>>>> memfd_create/file sealing author) has also taken a look at the patche=
+s.
+>>>>>
+>>>>> One outstanding issue is sorting out the config option dependencies. =
+ Although,
+>>>>> IMO this is not a strict requirement for this series.  I have address=
+ed this
+>>>>> issue in a follow on series:
+>>>>> http://lkml.kernel.org/r/20171109014109.21077-1-mike.kravetz@oracle.c=
+om
+>>>>
+>>>> Are we good for the next merge window? Is Hugh Dickins the maintainer
+>>>> with the final word, and doing the pull request? (sorry, I am not very
+>>>> familiar with kernel development)
+>>>
+>>> Andrew will pick it up, I assume. I will try to get and review this but
+>>> there is way too much going on before holiday.
+>>
+>> Yup, things are quiet at present.
+>>
+>> I'll suck these up for a bit of testing - please let me know if you'd
+>> prefer them to be held back for a cycle (ie: for 4.17-rc1)
+>
+> Thanks Andrew,
+>
+> As mentioned above there is one issue related to this series that we may
+> want to address.  It is described in the series at:
+> http://lkml.kernel.org/r/20171109014109.21077-1-mike.kravetz@oracle.com
+>
+> I did not get many comments on this series/issue.  If we want to do
+> something like this, now might be a good time.
 
-Also, from an x86 perspective, these HMAT systems *will* be out there.
-Old versions of Linux *will* see different types of memory as separate
-NUMA nodes.  So, if we are going to do something different, it's going
-to be interesting to un-teach those systems about using the NUMA APIs
-for this.  That ship has sailed.
+I am not the best person to say, but I think that series makes a lot
+of sense (and looks good to me). However, I don't think we need to
+wait for it to get the sealing support added (furthermore, your rfc
+series is on top).
+
+Thanks!
+
+
+--=20
+Marc-Andr=C3=A9 Lureau
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
