@@ -1,206 +1,53 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f198.google.com (mail-qt0-f198.google.com [209.85.216.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F1DC46B0038
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:51 -0500 (EST)
-Received: by mail-qt0-f198.google.com with SMTP id a19so21682855qtb.22
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:14:51 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id y198si5153403qka.407.2017.12.22.08.14.50
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 76AC26B0038
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:18:41 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id p8so12802848wrh.17
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 08:18:41 -0800 (PST)
+Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
+        by mx.google.com with ESMTPS id j127si6502017wma.144.2017.12.22.08.18.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 22 Dec 2017 08:14:50 -0800 (PST)
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id vBMGEPtK098696
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:50 -0500
-Received: from e16.ny.us.ibm.com (e16.ny.us.ibm.com [129.33.205.206])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2f103112bp-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 11:14:49 -0500
-Received: from localhost
-	by e16.ny.us.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <paulmck@linux.vnet.ibm.com>;
-	Fri, 22 Dec 2017 11:14:49 -0500
-Date: Fri, 22 Dec 2017 08:14:47 -0800
-From: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Reply-To: paulmck@linux.vnet.ibm.com
-References: <20171220012632.26840-1-ying.huang@intel.com>
- <20171221021619.GA27475@bbox>
- <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+        Fri, 22 Dec 2017 08:18:40 -0800 (PST)
+Received: from smtp03.buh.bitdefender.org (smtp.bitdefender.biz [10.17.80.77])
+	by mx-sr.buh.bitdefender.com (Postfix) with ESMTP id 43DFA7FBED
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 18:18:39 +0200 (EET)
+From: Mircea CIRJALIU-MELIU <mcirjaliu@bitdefender.com>
+Subject: RE: [RFC PATCH v4 08/18] kvm: add the VM introspection subsystem
+Date: Fri, 22 Dec 2017 16:18:38 +0000
+Message-ID: <06e5932438614d7092d67b88e336d3d8@mb1xmail.bitdefender.biz>
+References: <20171218190642.7790-1-alazar@bitdefender.com>
+ <20171218190642.7790-9-alazar@bitdefender.com>
+ <533d5a75-1ac7-4cd4-347d-237a3c9a54c5@redhat.com>
+In-Reply-To: <533d5a75-1ac7-4cd4-347d-237a3c9a54c5@redhat.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87r2rmj1d8.fsf@yhuang-dev.intel.com>
-Message-Id: <20171222161447.GF7829@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Paolo Bonzini <pbonzini@redhat.com>, =?utf-8?B?QWRhbGJlciBMYXrEg3I=?= <alazar@bitdefender.com>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, =?utf-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>, =?utf-8?B?TWloYWkgRG9uyJt1?= <mdontu@bitdefender.com>, Nicusor CITU <ncitu@bitdefender.com>, Marian Cristian ROTARIU <mrotariu@bitdefender.com>
 
-On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> 
-> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
-> >> Minchan Kim <minchan@kernel.org> writes:
-> >> 
-> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
-> >> >> From: Huang Ying <ying.huang@intel.com>
-> >> >> 
-> >> >> When the swapin is performed, after getting the swap entry information
-> >> >> from the page table, system will swap in the swap entry, without any
-> >> >> lock held to prevent the swap device from being swapoff.  This may
-> >> >> cause the race like below,
-> >> >> 
-> >> >> CPU 1				CPU 2
-> >> >> -----				-----
-> >> >> 				do_swap_page
-> >> >> 				  swapin_readahead
-> >> >> 				    __read_swap_cache_async
-> >> >> swapoff				      swapcache_prepare
-> >> >>   p->swap_map = NULL		        __swap_duplicate
-> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
-> >> >> 
-> >> >> Because swapoff is usually done when system shutdown only, the race
-> >> >> may not hit many people in practice.  But it is still a race need to
-> >> >> be fixed.
-> >> >> 
-> >> >> To fix the race, get_swap_device() is added to check whether the
-> >> >> specified swap entry is valid in its swap device.  If so, it will keep
-> >> >> the swap entry valid via preventing the swap device from being
-> >> >> swapoff, until put_swap_device() is called.
-> >> >> 
-> >> >> Because swapoff() is very race code path, to make the normal path runs
-> >> >> as fast as possible, RCU instead of reference count is used to
-> >> >> implement get/put_swap_device().  From get_swap_device() to
-> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
-> >> >> swapoff() will wait until put_swap_device() is called.
-> >> >> 
-> >> >> In addition to swap_map, cluster_info, etc. data structure in the
-> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
-> >> >> swapoff, so this patch fixes the race between swap cache looking up
-> >> >> and swapoff too.
-> >> >> 
-> >> >> Cc: Hugh Dickins <hughd@google.com>
-> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> >> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> >> >> Cc: Shaohua Li <shli@fb.com>
-> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
-> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
-> >> >> Cc: Michal Hocko <mhocko@suse.com>
-> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> >> >> Cc: David Rientjes <rientjes@google.com>
-> >> >> Cc: Rik van Riel <riel@redhat.com>
-> >> >> Cc: Jan Kara <jack@suse.cz>
-> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
-> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
-> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> >> >> 
-> >> >> Changelog:
-> >> >> 
-> >> >> v4:
-> >> >> 
-> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
-> >> >>   normal paths further.
-> >> >
-> >> > Hi Huang,
-> >> 
-> >> Hi, Minchan,
-> >> 
-> >> > This version is much better than old. To me, it's due to not rcu,
-> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
-> >> > into every swap related functions so users who don't interested on swap
-> >> > don't need to care of it. Good.
-> >> >
-> >> > The problem is caused by freeing by swap related-data structure
-> >> > *dynamically* while old swap logic was based on static data
-> >> > structure(i.e., never freed and the verify it's stale).
-> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
-> >> > which could make access of swap related data structures.
-> >> >
-> >> > A example is __isolate_lru_page
-> >> >
-> >> > It calls page_mapping to get a address_space.
-> >> > What happens if the page is on SwapCache and raced with swapoff?
-> >> > The mapping got could be disappeared by the race. Right?
-> >> 
-> >> Yes.  We should think about that.  Considering the file cache pages, the
-> >> address_space backing the file cache pages may be freed dynamically too.
-> >> So to use page_mapping() return value for the file cache pages, some
-> >> kind of locking is needed to guarantee the address_space isn't freed
-> >> under us.  Page may be locked, or under writeback, or some other locks
-> >
-> > I didn't look at the code in detail but I guess every file page should
-> > be freed before the address space destruction and page_lock/lru_lock makes
-> > the work safe, I guess. So, it wouldn't be a problem.
-> >
-> > However, in case of swapoff, it doesn't remove pages from LRU list
-> > so there is no lock to prevent the race at this moment. :(
-> 
-> Take a look at file cache pages and file cache address_space freeing
-> code path.  It appears that similar situation is possible for them too.
-> 
-> The file cache pages will be delete from file cache address_space before
-> address_space (embedded in inode) is freed.  But they will be deleted
-> from LRU list only when its refcount dropped to zero, please take a look
-> at put_page() and release_pages().  While address_space will be freed
-> after putting reference to all file cache pages.  If someone holds a
-> reference to a file cache page for quite long time, it is possible for a
-> file cache page to be in LRU list after the inode/address_space is
-> freed.
-> 
-> And I found inode/address_space is freed witch call_rcu().  I don't know
-> whether this is related to page_mapping().
-> 
-> This is just my understanding.
-> 
-> >> need to be held, for example, page table lock, or lru_lock, etc.  For
-> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
-> >> will call synchronize_rcu() between clear PageSwapCache and free swap
-> >> cache, so the usage of swap cache in __isolate_lru_page() should be
-> >> safe.  Do you think my analysis makes sense?
-> >
-> > I don't understand how synchronize_rcu closes the race with spin_lock.
-> > Paul might help it.
-> 
-> Per my understanding, spin_lock() will preempt_disable(), so
-> synchronize_rcu() will wait until spin_unlock() is called.
-
-Only when CONFIG_PREEMPT=n!
-
-In CONFIG_PREEMPT=y kernels, preempt_disable() won't necessarily prevent
-synchronize_rcu() from completing.
-
-Now, preempt_disable() does prevent synchronize_sched() from
-completing, but that would require changing the rcu_read_lock() and
-rcu_read_unlock() to rcu_read_lock_sched()/rcu_read_unlock_sched()
-or preempt_enable()/preempt_disable().
-
-Another fix would be to invoke rcu_read_lock() just after acquiring
-the spinlock and rcu_read_unlock() just before releasing it.
-
-							Thanx, Paul
-
-> > Even if we solve it, there is a other problem I spot.
-> > When I see migrate_vma_pages, it pass mapping to migrate_page which
-> > accesses mapping->tree_lock unconditionally even though the address_space
-> > is already gone.
-> 
-> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
-> where pages are locked.  So it is safe.
-> 
-> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
-> > but gut feeling is it would be not simple.
-> 
-> Yes.  We should check all sites.  Thanks for your help!
-> 
-> Best Regards,
-> Huang, Ying
-> 
+DQoNCj4gLS0tLS1PcmlnaW5hbCBNZXNzYWdlLS0tLS0NCj4gRnJvbTogUGFvbG8gQm9uemluaSBb
+bWFpbHRvOnBib256aW5pQHJlZGhhdC5jb21dDQo+IFNlbnQ6IEZyaWRheSwgMjIgRGVjZW1iZXIg
+MjAxNyAxODowMg0KPiBUbzogQWRhbGJlciBMYXrEg3IgPGFsYXphckBiaXRkZWZlbmRlci5jb20+
+OyBrdm1Admdlci5rZXJuZWwub3JnDQo+IENjOiBsaW51eC1tbUBrdmFjay5vcmc7IFJhZGltIEty
+xI1tw6HFmSA8cmtyY21hckByZWRoYXQuY29tPjsgWGlhbw0KPiBHdWFuZ3JvbmcgPGd1YW5ncm9u
+Zy54aWFvQGxpbnV4LmludGVsLmNvbT47IE1paGFpIERvbsibdQ0KPiA8bWRvbnR1QGJpdGRlZmVu
+ZGVyLmNvbT47IE5pY3Vzb3IgQ0lUVSA8bmNpdHVAYml0ZGVmZW5kZXIuY29tPjsNCj4gTWlyY2Vh
+IENJUkpBTElVLU1FTElVIDxtY2lyamFsaXVAYml0ZGVmZW5kZXIuY29tPjsgTWFyaWFuIENyaXN0
+aWFuDQo+IFJPVEFSSVUgPG1yb3Rhcml1QGJpdGRlZmVuZGVyLmNvbT4NCj4gU3ViamVjdDogUmU6
+IFtSRkMgUEFUQ0ggdjQgMDgvMThdIGt2bTogYWRkIHRoZSBWTSBpbnRyb3NwZWN0aW9uIHN1YnN5
+c3RlbQ0KPiANCj4gT24gMTgvMTIvMjAxNyAyMDowNiwgQWRhbGJlciBMYXrEg3Igd3JvdGU6DQo+
+ID4gKwkvKiBWTUFzIHdpbGwgYmUgbW9kaWZpZWQgKi8NCj4gPiArCWRvd25fd3JpdGUoJnJlcV9t
+bS0+bW1hcF9zZW0pOw0KPiA+ICsJZG93bl93cml0ZSgmbWFwX21tLT5tbWFwX3NlbSk7DQo+ID4g
+Kw0KPiANCj4gSXMgdGhlcmUgYSBsb2NraW5nIHJ1bGUgd2hlbiBsb2NraW5nIG11bHRpcGxlIG1t
+YXBfc2VtcyBhdCB0aGUgc2FtZQ0KPiB0aW1lPyAgQXMgaXQncyB3cml0dGVuLCB0aGlzIGNhbiBj
+YXVzZSBkZWFkbG9ja3MuDQoNCkZpcnN0IHJlcV9tbSwgc2Vjb25kIG1hcF9tbS4NClRoZSBvdGhl
+ciBmdW5jdGlvbiB1c2VzIHRoZSBzYW1lIG5lc3RpbmcuDQoNCj4gDQo+IFBhb2xvDQo+IA0KPiBf
+X19fX19fX19fX19fX19fX19fX19fX18NCj4gVGhpcyBlbWFpbCB3YXMgc2Nhbm5lZCBieSBCaXRk
+ZWZlbmRlcg0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
