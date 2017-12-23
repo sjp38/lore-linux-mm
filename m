@@ -1,45 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4805E6B0253
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B6416B025E
 	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 07:59:49 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id j26so21487837pff.8
+Received: by mail-pl0-f69.google.com with SMTP id m39so13645312plg.19
         for <linux-mm@kvack.org>; Sat, 23 Dec 2017 04:59:49 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id w24si18054625plq.159.2017.12.23.04.59.48
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id g3si18371817plb.153.2017.12.23.04.59.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Sat, 23 Dec 2017 04:59:48 -0800 (PST)
 Date: Sat, 23 Dec 2017 20:59:43 +0800
 From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 157/234] mm/kasan/kasan.c:781:1: sparse: symbol
- '__asan_set_shadow_00' was not declared. Should it be static?
-Message-ID: <201712232039.vNkPEjbE%fengguang.wu@intel.com>
+Subject: [RFC PATCH mmotm] kasan: __asan_set_shadow_00 can be static
+Message-ID: <20171223125943.GA74341@lkp-ib03>
+References: <201712232039.vNkPEjbE%fengguang.wu@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <201712232039.vNkPEjbE%fengguang.wu@intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Alexander Potapenko <glider@google.com>
 Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   a4f20e3ed193cd4b2f742ce37f88112c7441146f
-commit: 1749be8333b77defc7cd0888acfaa0b87d2f53b9 [157/234] kasan: add functions for unpoisoning stack variables
-reproduce:
-        # apt-get install sparse
-        git checkout 1749be8333b77defc7cd0888acfaa0b87d2f53b9
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
 
-
-sparse warnings: (new ones prefixed by >>)
-
-
-Please review and possibly fold the followup patch.
-
+Fixes: 1749be8333b7 ("kasan: add functions for unpoisoning stack variables")
+Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
 ---
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+ kasan.c |   12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 8aaee42..dcfcb26 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -778,12 +778,12 @@ EXPORT_SYMBOL(__asan_allocas_unpoison);
+ 	}								\
+ 	EXPORT_SYMBOL(__asan_set_shadow_##byte)
+ 
+-DEFINE_ASAN_SET_SHADOW(00);
+-DEFINE_ASAN_SET_SHADOW(f1);
+-DEFINE_ASAN_SET_SHADOW(f2);
+-DEFINE_ASAN_SET_SHADOW(f3);
+-DEFINE_ASAN_SET_SHADOW(f5);
+-DEFINE_ASAN_SET_SHADOW(f8);
++static DEFINE_ASAN_SET_SHADOW(00);
++static DEFINE_ASAN_SET_SHADOW(f1);
++static DEFINE_ASAN_SET_SHADOW(f2);
++static DEFINE_ASAN_SET_SHADOW(f3);
++static DEFINE_ASAN_SET_SHADOW(f5);
++static DEFINE_ASAN_SET_SHADOW(f8);
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
