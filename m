@@ -1,116 +1,192 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C0AEB6B0266
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 20:14:43 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id o43so11353317otd.12
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:14:43 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d46sor7038466otf.133.2017.12.22.17.14.42
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3D06B026B
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 20:37:05 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id n6so21051381pfg.19
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:37:05 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z3sor2371386pgs.245.2017.12.22.17.37.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Dec 2017 17:14:42 -0800 (PST)
+        Fri, 22 Dec 2017 17:37:04 -0800 (PST)
+Date: Sat, 23 Dec 2017 10:36:53 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
+ operations
+Message-ID: <20171223013653.GB5279@bgram>
+References: <20171220012632.26840-1-ying.huang@intel.com>
+ <20171221021619.GA27475@bbox>
+ <871sjopllj.fsf@yhuang-dev.intel.com>
+ <20171221235813.GA29033@bbox>
+ <87r2rmj1d8.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <CAPcyv4j95rWmFM5NDvoRJakwVE5YUgcipQW2Ju+40+FD6vYs+Q@mail.gmail.com>
-References: <20171214130032.GK16951@dhcp22.suse.cz> <20171218203547.GA2366@linux.intel.com>
- <20171220181937.GB12236@bombadil.infradead.org> <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
- <20171220211649.GA32200@bombadil.infradead.org> <20171220212408.GA8308@linux.intel.com>
- <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
- <20171220224105.GA27258@linux.intel.com> <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
- <CAPcyv4j9shdJFrvADa=qW4L-jPJJ4S_TJc_c=aRoW3EmSCCChQ@mail.gmail.com>
- <20171222232231.GA26715@linux.intel.com> <CAPcyv4j95rWmFM5NDvoRJakwVE5YUgcipQW2Ju+40+FD6vYs+Q@mail.gmail.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Sat, 23 Dec 2017 02:14:41 +0100
-Message-ID: <CAJZ5v0j22oRwsO7uULdeamUK-BwQAYq_v6h1LUZw3vpwqCLunQ@mail.gmail.com>
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <87r2rmj1d8.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, Brice Goglin <brice.goglin@gmail.com>, Matthew Wilcox <willy@infradead.org>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>
 
-On Sat, Dec 23, 2017 at 12:57 AM, Dan Williams <dan.j.williams@intel.com> w=
-rote:
-> On Fri, Dec 22, 2017 at 3:22 PM, Ross Zwisler
-> <ross.zwisler@linux.intel.com> wrote:
->> On Fri, Dec 22, 2017 at 02:53:42PM -0800, Dan Williams wrote:
->>> On Thu, Dec 21, 2017 at 12:31 PM, Brice Goglin <brice.goglin@gmail.com>=
- wrote:
->>> > Le 20/12/2017 =C3=A0 23:41, Ross Zwisler a =C3=A9crit :
->>> [..]
->>> > Hello
->>> >
->>> > I can confirm that HPC runtimes are going to use these patches (at le=
-ast
->>> > all runtimes that use hwloc for topology discovery, but that's the va=
-st
->>> > majority of HPC anyway).
->>> >
->>> > We really didn't like KNL exposing a hacky SLIT table [1]. We had to
->>> > explicitly detect that specific crazy table to find out which NUMA no=
-des
->>> > were local to which cores, and to find out which NUMA nodes were
->>> > HBM/MCDRAM or DDR. And then we had to hide the SLIT values to the
->>> > application because the reported latencies didn't match reality. Quit=
-e
->>> > annoying.
->>> >
->>> > With Ross' patches, we can easily get what we need:
->>> > * which NUMA nodes are local to which CPUs? /sys/devices/system/node/
->>> > can only report a single local node per CPU (doesn't work for KNL and
->>> > upcoming architectures with HBM+DDR+...)
->>> > * which NUMA nodes are slow/fast (for both bandwidth and latency)
->>> > And we can still look at SLIT under /sys/devices/system/node if reall=
-y
->>> > needed.
->>> >
->>> > And of course having this in sysfs is much better than parsing ACPI
->>> > tables that are only accessible to root :)
->>>
->>> On this point, it's not clear to me that we should allow these sysfs
->>> entries to be world readable. Given /proc/iomem now hides physical
->>> address information from non-root we at least need to be careful not
->>> to undo that with new sysfs HMAT attributes.
->>
->> This enabling does not expose any physical addresses to userspace.  It o=
-nly
->> provides performance numbers from the HMAT and associates them with exis=
-ting
->> NUMA nodes.  Are you worried that exposing performance numbers to non-ro=
-ot
->> users via sysfs poses a security risk?
->
-> It's an information disclosure that's not clear we need to make to
-> non-root processes.
->
-> I'm more worried about userspace growing dependencies on the absolute
-> numbers when those numbers can change from platform to platform.
-> Differentiated memory on one platform may be the common memory pool on
-> another.
->
-> To me this has parallels with storage device hinting where
-> specifications like T10 have a complex enumeration of all the
-> performance hints that can be passed to the device, but the Linux
-> enabling effort aims for a sanitzed set of relative hints that make
-> sense. It's more flexible if userspace specifies a relative intent
-> rather than an absolute performance target. Putting all the HMAT
-> information into sysfs gives userspace more information than it could
-> possibly do anything reasonable, at least outside of specialized apps
-> that are hand tuned for a given hardware platform.
+On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
+> Minchan Kim <minchan@kernel.org> writes:
+> 
+> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
+> >> Minchan Kim <minchan@kernel.org> writes:
+> >> 
+> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
+> >> >> From: Huang Ying <ying.huang@intel.com>
+> >> >> 
+> >> >> When the swapin is performed, after getting the swap entry information
+> >> >> from the page table, system will swap in the swap entry, without any
+> >> >> lock held to prevent the swap device from being swapoff.  This may
+> >> >> cause the race like below,
+> >> >> 
+> >> >> CPU 1				CPU 2
+> >> >> -----				-----
+> >> >> 				do_swap_page
+> >> >> 				  swapin_readahead
+> >> >> 				    __read_swap_cache_async
+> >> >> swapoff				      swapcache_prepare
+> >> >>   p->swap_map = NULL		        __swap_duplicate
+> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
+> >> >> 
+> >> >> Because swapoff is usually done when system shutdown only, the race
+> >> >> may not hit many people in practice.  But it is still a race need to
+> >> >> be fixed.
+> >> >> 
+> >> >> To fix the race, get_swap_device() is added to check whether the
+> >> >> specified swap entry is valid in its swap device.  If so, it will keep
+> >> >> the swap entry valid via preventing the swap device from being
+> >> >> swapoff, until put_swap_device() is called.
+> >> >> 
+> >> >> Because swapoff() is very race code path, to make the normal path runs
+> >> >> as fast as possible, RCU instead of reference count is used to
+> >> >> implement get/put_swap_device().  From get_swap_device() to
+> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
+> >> >> swapoff() will wait until put_swap_device() is called.
+> >> >> 
+> >> >> In addition to swap_map, cluster_info, etc. data structure in the
+> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
+> >> >> swapoff, so this patch fixes the race between swap cache looking up
+> >> >> and swapoff too.
+> >> >> 
+> >> >> Cc: Hugh Dickins <hughd@google.com>
+> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+> >> >> Cc: Minchan Kim <minchan@kernel.org>
+> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
+> >> >> Cc: Shaohua Li <shli@fb.com>
+> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
+> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
+> >> >> Cc: Michal Hocko <mhocko@suse.com>
+> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
+> >> >> Cc: David Rientjes <rientjes@google.com>
+> >> >> Cc: Rik van Riel <riel@redhat.com>
+> >> >> Cc: Jan Kara <jack@suse.cz>
+> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
+> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
+> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
+> >> >> 
+> >> >> Changelog:
+> >> >> 
+> >> >> v4:
+> >> >> 
+> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
+> >> >>   normal paths further.
+> >> >
+> >> > Hi Huang,
+> >> 
+> >> Hi, Minchan,
+> >> 
+> >> > This version is much better than old. To me, it's due to not rcu,
+> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
+> >> > into every swap related functions so users who don't interested on swap
+> >> > don't need to care of it. Good.
+> >> >
+> >> > The problem is caused by freeing by swap related-data structure
+> >> > *dynamically* while old swap logic was based on static data
+> >> > structure(i.e., never freed and the verify it's stale).
+> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
+> >> > which could make access of swap related data structures.
+> >> >
+> >> > A example is __isolate_lru_page
+> >> >
+> >> > It calls page_mapping to get a address_space.
+> >> > What happens if the page is on SwapCache and raced with swapoff?
+> >> > The mapping got could be disappeared by the race. Right?
+> >> 
+> >> Yes.  We should think about that.  Considering the file cache pages, the
+> >> address_space backing the file cache pages may be freed dynamically too.
+> >> So to use page_mapping() return value for the file cache pages, some
+> >> kind of locking is needed to guarantee the address_space isn't freed
+> >> under us.  Page may be locked, or under writeback, or some other locks
+> >
+> > I didn't look at the code in detail but I guess every file page should
+> > be freed before the address space destruction and page_lock/lru_lock makes
+> > the work safe, I guess. So, it wouldn't be a problem.
+> >
+> > However, in case of swapoff, it doesn't remove pages from LRU list
+> > so there is no lock to prevent the race at this moment. :(
+> 
+> Take a look at file cache pages and file cache address_space freeing
+> code path.  It appears that similar situation is possible for them too.
+> 
+> The file cache pages will be delete from file cache address_space before
+> address_space (embedded in inode) is freed.  But they will be deleted
+> from LRU list only when its refcount dropped to zero, please take a look
+> at put_page() and release_pages().  While address_space will be freed
+> after putting reference to all file cache pages.  If someone holds a
+> reference to a file cache page for quite long time, it is possible for a
+> file cache page to be in LRU list after the inode/address_space is
+> freed.
+> 
+> And I found inode/address_space is freed witch call_rcu().  I don't know
+> whether this is related to page_mapping().
+> 
+> This is just my understanding.
 
-That's a valid point IMO.
+Hmm, it smells like a bug of __isolate_lru_page.
 
-It is sort of tempting to expose everything to user space verbatim,
-especially early in the enabling process when the kernel has not yet
-found suitable ways to utilize the given information, but the very act
-of exposing it may affect what can be done with it in the future.
+Ccing Mel:
 
-User space interfaces need to stay around and be supported forever, at
-least potentially, so adding every one of them is a serious
-commitment.
+What locks protects address_space destroying when race happens between
+inode trauncation and __isolate_lru_page?
 
-Thanks,
-Rafael
+> 
+> >> need to be held, for example, page table lock, or lru_lock, etc.  For
+> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
+> >> will call synchronize_rcu() between clear PageSwapCache and free swap
+> >> cache, so the usage of swap cache in __isolate_lru_page() should be
+> >> safe.  Do you think my analysis makes sense?
+> >
+> > I don't understand how synchronize_rcu closes the race with spin_lock.
+> > Paul might help it.
+> 
+> Per my understanding, spin_lock() will preempt_disable(), so
+> synchronize_rcu() will wait until spin_unlock() is called.
+> 
+> > Even if we solve it, there is a other problem I spot.
+> > When I see migrate_vma_pages, it pass mapping to migrate_page which
+> > accesses mapping->tree_lock unconditionally even though the address_space
+> > is already gone.
+> 
+> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
+> where pages are locked.  So it is safe.
+
+I missed that. You're right. It's no problem. Thanks.
+
+> 
+> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
+> > but gut feeling is it would be not simple.
+> 
+> Yes.  We should check all sites.  Thanks for your help!
+
+You might start checking already and found it.
+Many architectures use page_mapping in cache flush code so we should
+check there, too.
+
+Thanks!
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
