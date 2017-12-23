@@ -1,115 +1,322 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0719C6B0253
-	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 09:59:10 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id 8so21598818pfv.12
-        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 06:59:09 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id 1si15597672plw.572.2017.12.23.06.59.08
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0A6506B0038
+	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 10:34:47 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id a10so18633391pgq.3
+        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 07:34:47 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k26si18870888pfh.110.2017.12.23.07.34.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 23 Dec 2017 06:59:08 -0800 (PST)
-Date: Sat, 23 Dec 2017 06:58:59 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v20 3/7 RESEND] xbitmap: add more operations
-Message-ID: <20171223145859.GA24464@bombadil.infradead.org>
-References: <1513823406-43632-1-git-send-email-wei.w.wang@intel.com>
- <20171221210327.GB25009@bombadil.infradead.org>
- <201712231159.ECI73411.tFFFJOHOVMOLQS@I-love.SAKURA.ne.jp>
- <20171223032959.GA11578@bombadil.infradead.org>
- <201712232333.BAH82874.FFFtOMHSLVQOOJ@I-love.SAKURA.ne.jp>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 23 Dec 2017 07:34:45 -0800 (PST)
+Subject: Re: [PATCH] mm,oom: use ALLOC_OOM for OOM victim's last second allocation
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201712132006.DDE78145.FMFJSOOHVFQtOL@I-love.SAKURA.ne.jp>
+	<201712192336.GHG30208.MLFSVJQOHOFtOF@I-love.SAKURA.ne.jp>
+	<20171219145508.GZ2787@dhcp22.suse.cz>
+	<201712220034.HIC12926.OtQJOOFFVFMSLH@I-love.SAKURA.ne.jp>
+	<20171221164244.GK4831@dhcp22.suse.cz>
+In-Reply-To: <20171221164244.GK4831@dhcp22.suse.cz>
+Message-Id: <201712232341.FGC64072.VFLOOJOtFSFMHQ@I-love.SAKURA.ne.jp>
+Date: Sat, 23 Dec 2017 23:41:44 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <201712232333.BAH82874.FFFtOMHSLVQOOJ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: wei.w.wang@intel.com, virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
+To: mhocko@suse.com
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org, aarcange@redhat.com, rientjes@google.com, hannes@cmpxchg.org, mjaggi@caviumnetworks.com, oleg@redhat.com, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
 
-On Sat, Dec 23, 2017 at 11:33:45PM +0900, Tetsuo Handa wrote:
-> Matthew Wilcox wrote:
-> > On Sat, Dec 23, 2017 at 11:59:54AM +0900, Tetsuo Handa wrote:
-> > > Matthew Wilcox wrote:
-> > > > +	bit %= IDA_BITMAP_BITS;
-> > > > +	radix_tree_iter_init(&iter, index);
-> > > > +	slot = idr_get_free_cmn(root, &iter, GFP_NOWAIT | __GFP_NOWARN, index);
-> > > > +	if (IS_ERR(slot)) {
-> > > > +		if (slot == ERR_PTR(-ENOSPC))
-> > > > +			return 0;	/* Already set */
-> > > 
-> > > Why already set? I guess something is there, but is it guaranteed that
-> > > there is a bitmap with the "bit" set?
+Michal Hocko wrote:
+> On Fri 22-12-17 00:34:05, Tetsuo Handa wrote:
+> > Michal Hocko wrote:
+> [...]
+> > >                                   Let me repeat something I've said a
+> > > long ago. We do not optimize for corner cases. We want to survive but if
+> > > an alternative is to kill another task then we can live with that.
+> > >  
 > > 
-> > Yes.  For radix trees tagged with IDR_RT_MARKER, newly created slots
-> > have the IDR_FREE tag set.  We only clear the IDR_FREE tag once the
-> > bitmap is full.  So if we try to find a free slot and the tag is clear,
-> > we know the bitmap is full.
+> > Setting MMF_OOM_SKIP before all OOM-killed threads try memory reserves
+> > leads to needlessly selecting more OOM victims.
 > > 
+> > Unless any OOM-killed thread fails to satisfy allocation even with ALLOC_OOM,
+> > no OOM-killed thread needs to select more OOM victims. Commit 696453e66630ad45
+> > ("mm, oom: task_will_free_mem should skip oom_reaped tasks") obviously broke
+> > it, which is exactly a regression.
 > 
-> OK. But does using IDR_FREE tag have more benefit than cost?
-> You are doing
-> 
-> 	if (bitmap_full(bitmap->bitmap, IDA_BITMAP_BITS))
-> 		radix_tree_iter_tag_clear(root, &iter, IDR_FREE);
-> 
-> for each xb_set_bit() call. How likely do we hit ERR_PTR(-ENOSPC) path?
-> Isn't removing both bitmap_full() and ERR_PTR(-ENOSPC) better?
+> You are trying to fix a completely artificial case. Or do you have any
+> example of an application which uses CLONE_VM without sharing signals?
 
-You're assuming that the purpose of using IDR_FREE is to save xb_set_bit
-from walking the tree unnecessarily.  It isn't; that's just a happy
-side-effect.  Its main purpose is to make xb_find_zero() efficient.  If
-we have large ranges of set bits, xb_find_zero() will be able to skip them.
+Your response is an invalid and insane resistance.
 
-> > This is just a lazy test.  We "know" that the bits in the range 1024-2047
-> > will all land in the same bitmap, so there's no need to preload for each
-> > of them.
-> 
-> Testcases also serves as how to use that API.
-> Assuming such thing leads to incorrect usage.
+You dare to silently made user visible changes. If you really believe that
+there is no application which uses CLONE_VM without sharing signals, let's
+revert below patch.
 
-Sure.  Would you like to submit a patch?
+----------
+commit 44a70adec910d6929689e42b6e5cee5b7d202d20
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Thu Jul 28 15:44:43 2016 -0700
 
-> > > If bitmap == NULL at this_cpu_xchg(ida_bitmap, NULL) is allowed,
-> > > you can use kzalloc(sizeof(*bitmap), GFP_NOWAIT | __GFP_NOWARN)
-> > > and get rid of xb_preload()/xb_preload_end().
-> > 
-> > No, we can't.  GFP_NOWAIT | __GFP_NOWARN won't try very hard to allocate
-> > memory.  There's no reason to fail the call if the user is in a context
-> > where they can try harder to free memory.
-> 
-> But there is no reason to use GFP_NOWAIT at idr_get_free_cmn() if it is
-> safe to use GFP_KERNEL. If we don't require xb_preload() which forces
-> idr_get_free_cmn() to use GFP_NOWAIT due to possibility of preemption
-> disabled by xb_preload(), we can allow passing gfp flags to xb_set_bit().
+    mm, oom_adj: make sure processes sharing mm have same view of oom_score_adj
 
-The assumption is that the user has done:
+    oom_score_adj is shared for the thread groups (via struct signal) but this
+    is not sufficient to cover processes sharing mm (CLONE_VM without
+    CLONE_SIGHAND) and so we can easily end up in a situation when some
+    processes update their oom_score_adj and confuse the oom killer.  In the
+    worst case some of those processes might hide from the oom killer
+    altogether via OOM_SCORE_ADJ_MIN while others are eligible.  OOM killer
+    would then pick up those eligible but won't be allowed to kill others
+    sharing the same mm so the mm wouldn't release the mm and so the memory.
 
-	xb_preload(GFP_KERNEL);
-	spin_lock(my_lock);
-	xb_set_bit(xb, bit);
-	spin_unlock(my_lock);
-	xb_preload_end();
+    It would be ideal to have the oom_score_adj per mm_struct because that is
+    the natural entity OOM killer considers.  But this will not work because
+    some programs are doing
 
-This is not the world's greatest interface.  Once I have the XArray
-finished, we'll be able to ditch the external spinlock and the preload
-interface and be able to call:
+        vfork()
+        set_oom_adj()
+        exec()
 
-	xb_set_bit(xb, bit, GFP_KERNEL);
+    We can achieve the same though.  oom_score_adj write handler can set the
+    oom_score_adj for all processes sharing the same mm if the task is not in
+    the middle of vfork.  As a result all the processes will share the same
+    oom_score_adj.  The current implementation is rather pessimistic and
+    checks all the existing processes by default if there is more than 1
+    holder of the mm but we do not have any reliable way to check for external
+    users yet.
 
-> > xb_preload also preloads radix tree nodes.
-> 
-> But it after all forces idr_get_free_cmn() to use GFP_NOWAIT, doesn't it?
+    Link: http://lkml.kernel.org/r/1466426628-15074-5-git-send-email-mhocko@kernel.org
+    Signed-off-by: Michal Hocko <mhocko@suse.com>
+    Acked-by: Oleg Nesterov <oleg@redhat.com>
+    Cc: Vladimir Davydov <vdavydov@virtuozzo.com>
+    Cc: David Rientjes <rientjes@google.com>
+    Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+----------
 
-I think you don't understand how the radix tree allocates nodes.  preloading
-means that it will be able to access the nodes which were allocated earlier.
+We do prepare for the worst case. We have just experienced two mistakes
+by not considering the worst case.
 
-> Speak of initial user (i.e. virtio-balloon), xb_preload() won't be able to
-> use GFP_KERNEL in order to avoid OOM lockup. Therefore, I don't see
-> advantages with using xb_preload(). If xb_set_bit() receives gfp flags,
-> the caller can pass GFP_KERNEL if it is safe to use GFP_KERNEL.
+----------
+commit 400e22499dd92613821374c8c6c88c7225359980
+Author: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Date:   Wed Nov 15 17:38:37 2017 -0800
 
-I haven't reviewed how virtio-balloon is using the interfaces.
+    mm: don't warn about allocations which stall for too long
+
+    Commit 63f53dea0c98 ("mm: warn about allocations which stall for too
+    long") was a great step for reducing possibility of silent hang up
+    problem caused by memory allocation stalls.  But this commit reverts it,
+    for it is possible to trigger OOM lockup and/or soft lockups when many
+    threads concurrently called warn_alloc() (in order to warn about memory
+    allocation stalls) due to current implementation of printk(), and it is
+    difficult to obtain useful information due to limitation of synchronous
+    warning approach.
+
+    Current printk() implementation flushes all pending logs using the
+    context of a thread which called console_unlock().  printk() should be
+    able to flush all pending logs eventually unless somebody continues
+    appending to printk() buffer.
+
+    Since warn_alloc() started appending to printk() buffer while waiting
+    for oom_kill_process() to make forward progress when oom_kill_process()
+    is processing pending logs, it became possible for warn_alloc() to force
+    oom_kill_process() loop inside printk().  As a result, warn_alloc()
+    significantly increased possibility of preventing oom_kill_process()
+    from making forward progress.
+
+    ---------- Pseudo code start ----------
+    Before warn_alloc() was introduced:
+
+      retry:
+        if (mutex_trylock(&oom_lock)) {
+          while (atomic_read(&printk_pending_logs) > 0) {
+            atomic_dec(&printk_pending_logs);
+            print_one_log();
+          }
+          // Send SIGKILL here.
+          mutex_unlock(&oom_lock)
+        }
+        goto retry;
+
+    After warn_alloc() was introduced:
+
+      retry:
+        if (mutex_trylock(&oom_lock)) {
+          while (atomic_read(&printk_pending_logs) > 0) {
+            atomic_dec(&printk_pending_logs);
+            print_one_log();
+          }
+          // Send SIGKILL here.
+          mutex_unlock(&oom_lock)
+        } else if (waited_for_10seconds()) {
+          atomic_inc(&printk_pending_logs);
+        }
+        goto retry;
+    ---------- Pseudo code end ----------
+
+    Although waited_for_10seconds() becomes true once per 10 seconds,
+    unbounded number of threads can call waited_for_10seconds() at the same
+    time.  Also, since threads doing waited_for_10seconds() keep doing
+    almost busy loop, the thread doing print_one_log() can use little CPU
+    resource.  Therefore, this situation can be simplified like
+
+    ---------- Pseudo code start ----------
+      retry:
+        if (mutex_trylock(&oom_lock)) {
+          while (atomic_read(&printk_pending_logs) > 0) {
+            atomic_dec(&printk_pending_logs);
+            print_one_log();
+          }
+          // Send SIGKILL here.
+          mutex_unlock(&oom_lock)
+        } else {
+          atomic_inc(&printk_pending_logs);
+        }
+        goto retry;
+    ---------- Pseudo code end ----------
+
+    when printk() is called faster than print_one_log() can process a log.
+
+    One of possible mitigation would be to introduce a new lock in order to
+    make sure that no other series of printk() (either oom_kill_process() or
+    warn_alloc()) can append to printk() buffer when one series of printk()
+    (either oom_kill_process() or warn_alloc()) is already in progress.
+
+    Such serialization will also help obtaining kernel messages in readable
+    form.
+
+    ---------- Pseudo code start ----------
+      retry:
+        if (mutex_trylock(&oom_lock)) {
+          mutex_lock(&oom_printk_lock);
+          while (atomic_read(&printk_pending_logs) > 0) {
+            atomic_dec(&printk_pending_logs);
+            print_one_log();
+          }
+          // Send SIGKILL here.
+          mutex_unlock(&oom_printk_lock);
+          mutex_unlock(&oom_lock)
+        } else {
+          if (mutex_trylock(&oom_printk_lock)) {
+            atomic_inc(&printk_pending_logs);
+            mutex_unlock(&oom_printk_lock);
+          }
+        }
+        goto retry;
+    ---------- Pseudo code end ----------
+
+    But this commit does not go that direction, for we don't want to
+    introduce a new lock dependency, and we unlikely be able to obtain
+    useful information even if we serialized oom_kill_process() and
+    warn_alloc().
+
+    Synchronous approach is prone to unexpected results (e.g.  too late [1],
+    too frequent [2], overlooked [3]).  As far as I know, warn_alloc() never
+    helped with providing information other than "something is going wrong".
+    I want to consider asynchronous approach which can obtain information
+    during stalls with possibly relevant threads (e.g.  the owner of
+    oom_lock and kswapd-like threads) and serve as a trigger for actions
+    (e.g.  turn on/off tracepoints, ask libvirt daemon to take a memory dump
+    of stalling KVM guest for diagnostic purpose).
+
+    This commit temporarily loses ability to report e.g.  OOM lockup due to
+    unable to invoke the OOM killer due to !__GFP_FS allocation request.
+    But asynchronous approach will be able to detect such situation and emit
+    warning.  Thus, let's remove warn_alloc().
+
+    [1] https://bugzilla.kernel.org/show_bug.cgi?id=192981
+    [2] http://lkml.kernel.org/r/CAM_iQpWuPVGc2ky8M-9yukECtS+zKjiDasNymX7rMcBjBFyM_A@mail.gmail.com
+    [3] commit db73ee0d46379922 ("mm, vmscan: do not loop on too_many_isolated for ever"))
+
+    Link: http://lkml.kernel.org/r/1509017339-4802-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp
+    Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    Reported-by: Cong Wang <xiyou.wangcong@gmail.com>
+    Reported-by: yuwang.yuwang <yuwang.yuwang@alibaba-inc.com>
+    Reported-by: Johannes Weiner <hannes@cmpxchg.org>
+    Acked-by: Michal Hocko <mhocko@suse.com>
+    Acked-by: Johannes Weiner <hannes@cmpxchg.org>
+    Cc: Vlastimil Babka <vbabka@suse.cz>
+    Cc: Mel Gorman <mgorman@suse.de>
+    Cc: Dave Hansen <dave.hansen@intel.com>
+    Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+    Cc: Petr Mladek <pmladek@suse.com>
+    Cc: Steven Rostedt <rostedt@goodmis.org>
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+----------
+
+----------
+commit 4837fe37adff1d159904f0c013471b1ecbcb455e
+Author: Michal Hocko <mhocko@suse.com>
+Date:   Thu Dec 14 15:33:15 2017 -0800
+
+    mm, oom_reaper: fix memory corruption
+
+    David Rientjes has reported the following memory corruption while the
+    oom reaper tries to unmap the victims address space
+
+      BUG: Bad page map in process oom_reaper  pte:6353826300000000 pmd:00000000
+      addr:00007f50cab1d000 vm_flags:08100073 anon_vma:ffff9eea335603f0 mapping:          (null) index:7f50cab1d
+      file:          (null) fault:          (null) mmap:          (null) readpage:          (null)
+      CPU: 2 PID: 1001 Comm: oom_reaper
+      Call Trace:
+         unmap_page_range+0x1068/0x1130
+         __oom_reap_task_mm+0xd5/0x16b
+         oom_reaper+0xff/0x14c
+         kthread+0xc1/0xe0
+
+    Tetsuo Handa has noticed that the synchronization inside exit_mmap is
+    insufficient.  We only synchronize with the oom reaper if
+    tsk_is_oom_victim which is not true if the final __mmput is called from
+    a different context than the oom victim exit path.  This can trivially
+    happen from context of any task which has grabbed mm reference (e.g.  to
+    read /proc/<pid>/ file which requires mm etc.).
+
+    The race would look like this
+
+      oom_reaper                oom_victim              task
+                                                mmget_not_zero
+                        do_exit
+                          mmput
+      __oom_reap_task_mm                                mmput
+                                                  __mmput
+                                                    exit_mmap
+                                                      remove_vma
+        unmap_page_range
+
+    Fix this issue by providing a new mm_is_oom_victim() helper which
+    operates on the mm struct rather than a task.  Any context which
+    operates on a remote mm struct should use this helper in place of
+    tsk_is_oom_victim.  The flag is set in mark_oom_victim and never cleared
+    so it is stable in the exit_mmap path.
+
+    Debugged by Tetsuo Handa.
+
+    Link: http://lkml.kernel.org/r/20171210095130.17110-1-mhocko@kernel.org
+    Fixes: 212925802454 ("mm: oom: let oom_reap_task and exit_mmap run concurrently")
+    Signed-off-by: Michal Hocko <mhocko@suse.com>
+    Reported-by: David Rientjes <rientjes@google.com>
+    Acked-by: David Rientjes <rientjes@google.com>
+    Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+    Cc: Andrea Argangeli <andrea@kernel.org>
+    Cc: <stable@vger.kernel.org>        [4.14]
+    Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+    Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+----------
+
+There is no reason not to make sure processes sharing victim's mm have
+same treatment regarding use of memory reserves.
+
+You want to get rid of TIF_MEMDIE flag, but you rejected my patch which is
+one of steps for getting rid of TIF_MEMDIE flag.
+
+Whether a problem is seen in real life is a catch-22 discussion, for you
+keep refusing/ignoring to provide a method for allowing normal users to
+tell whether they hit that problem.
+
+Please stop rejecting my patches without thinking deeply.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
