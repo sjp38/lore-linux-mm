@@ -1,58 +1,98 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B6416B025E
-	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 07:59:49 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id m39so13645312plg.19
-        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 04:59:49 -0800 (PST)
-Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
-        by mx.google.com with ESMTPS id g3si18371817plb.153.2017.12.23.04.59.48
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 180D66B0253
+	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 08:06:28 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id i12so15170462plk.5
+        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 05:06:28 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id h123si16660987pgc.417.2017.12.23.05.06.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 23 Dec 2017 04:59:48 -0800 (PST)
-Date: Sat, 23 Dec 2017 20:59:43 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [RFC PATCH mmotm] kasan: __asan_set_shadow_00 can be static
-Message-ID: <20171223125943.GA74341@lkp-ib03>
-References: <201712232039.vNkPEjbE%fengguang.wu@intel.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 23 Dec 2017 05:06:26 -0800 (PST)
+Date: Sat, 23 Dec 2017 05:06:21 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
+Message-ID: <20171223130621.GA3994@bombadil.infradead.org>
+References: <20171219165823.24243-1-willy@infradead.org>
+ <20171219165823.24243-2-willy@infradead.org>
+ <20171221214810.GC9087@linux.intel.com>
+ <20171222011000.GB23624@bombadil.infradead.org>
+ <20171222042120.GA18036@localhost>
+ <20171222123112.GA6401@bombadil.infradead.org>
+ <20171222133634.GE6401@bombadil.infradead.org>
+ <20171223093910.GB6160@localhost>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201712232039.vNkPEjbE%fengguang.wu@intel.com>
+In-Reply-To: <20171223093910.GB6160@localhost>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexander Potapenko <glider@google.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Greg Hackmann <ghackmann@google.com>, Paul Lawrence <paullawrence@google.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Josh Triplett <josh@joshtriplett.org>
+Cc: Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-sparse@vger.kernel.org
 
+On Sat, Dec 23, 2017 at 01:39:11AM -0800, Josh Triplett wrote:
+> +linux-sparse
 
-Fixes: 1749be8333b7 ("kasan: add functions for unpoisoning stack variables")
-Signed-off-by: Fengguang Wu <fengguang.wu@intel.com>
----
- kasan.c |   12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+Ehh ... we've probably trimmed too much to give linux-sparse a good summary.
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 8aaee42..dcfcb26 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -778,12 +778,12 @@ EXPORT_SYMBOL(__asan_allocas_unpoison);
- 	}								\
- 	EXPORT_SYMBOL(__asan_set_shadow_##byte)
- 
--DEFINE_ASAN_SET_SHADOW(00);
--DEFINE_ASAN_SET_SHADOW(f1);
--DEFINE_ASAN_SET_SHADOW(f2);
--DEFINE_ASAN_SET_SHADOW(f3);
--DEFINE_ASAN_SET_SHADOW(f5);
--DEFINE_ASAN_SET_SHADOW(f8);
-+static DEFINE_ASAN_SET_SHADOW(00);
-+static DEFINE_ASAN_SET_SHADOW(f1);
-+static DEFINE_ASAN_SET_SHADOW(f2);
-+static DEFINE_ASAN_SET_SHADOW(f3);
-+static DEFINE_ASAN_SET_SHADOW(f5);
-+static DEFINE_ASAN_SET_SHADOW(f8);
- 
- #ifdef CONFIG_MEMORY_HOTPLUG
- static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+Here're the important lines from my patch:
+
++# define __cond_lock_err(x,c)  ((c) ? 1 : ({ __acquire(x); 0; }))
+
++       return __cond_lock_err(*ptlp, __follow_pte_pmd(mm, address, start, end,
++                                                   ptepp, pmdpp, ptlp));
+
+This is supposed to be "If "c" is an error value, we don't have a lock,
+otherwise we have a lock".  And to translate from linux-speak into
+sparse-speak:
+
+ # define __acquire(x)  __context__(x,1)
+
+Josh & Ross pointed out (quite correctly) that code which does something like
+
+if (foo())
+	return;
+
+will work with this, but code that does
+
+if (foo() < 0)
+	return;
+
+will not because we're now returning 1 instead of -ENOMEM (for example).
+
+So they made the very sensible suggestion that I change the definition
+of __cond_lock to:
+
+# define __cond_lock_err(x,c)  ((c) ?: ({ __acquire(x); 0; }))
+
+Unfortunately, when I do that, the context imbalance warning returns.
+As I said below, this is with sparse 0.5.1.
+
+> On Fri, Dec 22, 2017 at 05:36:34AM -0800, Matthew Wilcox wrote:
+> > On Fri, Dec 22, 2017 at 04:31:12AM -0800, Matthew Wilcox wrote:
+> > > On Thu, Dec 21, 2017 at 08:21:20PM -0800, Josh Triplett wrote:
+> > > > On Thu, Dec 21, 2017 at 05:10:00PM -0800, Matthew Wilcox wrote:
+> > > > > Yes, but this define is only #if __CHECKER__, so it doesn't matter what we
+> > > > > return as this code will never run.
+> > > > 
+> > > > It does matter slightly, as Sparse does some (very limited) value-based
+> > > > analyses. Let's future-proof it.
+> > > > 
+> > > > > That said, if sparse supports the GNU syntax of ?: then I have no
+> > > > > objection to doing that.
+> > > > 
+> > > > Sparse does support that syntax.
+> > > 
+> > > Great, I'll fix that and resubmit.
+> > 
+> > Except the context imbalance warning comes back if I do.  This is sparse
+> > 0.5.1 (Debian's 0.5.1-2 package).
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
