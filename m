@@ -1,192 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3D06B026B
-	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 20:37:05 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id n6so21051381pfg.19
-        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:37:05 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z3sor2371386pgs.245.2017.12.22.17.37.04
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5321C6B026D
+	for <linux-mm@kvack.org>; Fri, 22 Dec 2017 20:49:03 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id z32so5254648ota.5
+        for <linux-mm@kvack.org>; Fri, 22 Dec 2017 17:49:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 2sor9818073otb.235.2017.12.22.17.49.01
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 22 Dec 2017 17:37:04 -0800 (PST)
-Date: Sat, 23 Dec 2017 10:36:53 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Message-ID: <20171223013653.GB5279@bgram>
-References: <20171220012632.26840-1-ying.huang@intel.com>
- <20171221021619.GA27475@bbox>
- <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+        Fri, 22 Dec 2017 17:49:02 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+In-Reply-To: <20171215140947.26075-5-hch@lst.de>
+References: <20171215140947.26075-1-hch@lst.de> <20171215140947.26075-5-hch@lst.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Fri, 22 Dec 2017 17:49:01 -0800
+Message-ID: <CAPcyv4jyjNM1nRskA5Q9Q6w69OeL1=mssyTYDqFXqW2X40Oc0g@mail.gmail.com>
+Subject: Re: [PATCH 04/17] mm: pass the vmem_altmap to arch_add_memory and __add_pages
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, linux-nvdimm@lists.01.org, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>, X86 ML <x86@kernel.org>, Linux MM <linux-mm@kvack.org>, linux-kernel@vger.kernel.org
 
-On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
-> Minchan Kim <minchan@kernel.org> writes:
-> 
-> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
-> >> Minchan Kim <minchan@kernel.org> writes:
-> >> 
-> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
-> >> >> From: Huang Ying <ying.huang@intel.com>
-> >> >> 
-> >> >> When the swapin is performed, after getting the swap entry information
-> >> >> from the page table, system will swap in the swap entry, without any
-> >> >> lock held to prevent the swap device from being swapoff.  This may
-> >> >> cause the race like below,
-> >> >> 
-> >> >> CPU 1				CPU 2
-> >> >> -----				-----
-> >> >> 				do_swap_page
-> >> >> 				  swapin_readahead
-> >> >> 				    __read_swap_cache_async
-> >> >> swapoff				      swapcache_prepare
-> >> >>   p->swap_map = NULL		        __swap_duplicate
-> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
-> >> >> 
-> >> >> Because swapoff is usually done when system shutdown only, the race
-> >> >> may not hit many people in practice.  But it is still a race need to
-> >> >> be fixed.
-> >> >> 
-> >> >> To fix the race, get_swap_device() is added to check whether the
-> >> >> specified swap entry is valid in its swap device.  If so, it will keep
-> >> >> the swap entry valid via preventing the swap device from being
-> >> >> swapoff, until put_swap_device() is called.
-> >> >> 
-> >> >> Because swapoff() is very race code path, to make the normal path runs
-> >> >> as fast as possible, RCU instead of reference count is used to
-> >> >> implement get/put_swap_device().  From get_swap_device() to
-> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
-> >> >> swapoff() will wait until put_swap_device() is called.
-> >> >> 
-> >> >> In addition to swap_map, cluster_info, etc. data structure in the
-> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
-> >> >> swapoff, so this patch fixes the race between swap cache looking up
-> >> >> and swapoff too.
-> >> >> 
-> >> >> Cc: Hugh Dickins <hughd@google.com>
-> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
-> >> >> Cc: Minchan Kim <minchan@kernel.org>
-> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
-> >> >> Cc: Shaohua Li <shli@fb.com>
-> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
-> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
-> >> >> Cc: Michal Hocko <mhocko@suse.com>
-> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
-> >> >> Cc: David Rientjes <rientjes@google.com>
-> >> >> Cc: Rik van Riel <riel@redhat.com>
-> >> >> Cc: Jan Kara <jack@suse.cz>
-> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
-> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
-> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
-> >> >> 
-> >> >> Changelog:
-> >> >> 
-> >> >> v4:
-> >> >> 
-> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
-> >> >>   normal paths further.
-> >> >
-> >> > Hi Huang,
-> >> 
-> >> Hi, Minchan,
-> >> 
-> >> > This version is much better than old. To me, it's due to not rcu,
-> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
-> >> > into every swap related functions so users who don't interested on swap
-> >> > don't need to care of it. Good.
-> >> >
-> >> > The problem is caused by freeing by swap related-data structure
-> >> > *dynamically* while old swap logic was based on static data
-> >> > structure(i.e., never freed and the verify it's stale).
-> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
-> >> > which could make access of swap related data structures.
-> >> >
-> >> > A example is __isolate_lru_page
-> >> >
-> >> > It calls page_mapping to get a address_space.
-> >> > What happens if the page is on SwapCache and raced with swapoff?
-> >> > The mapping got could be disappeared by the race. Right?
-> >> 
-> >> Yes.  We should think about that.  Considering the file cache pages, the
-> >> address_space backing the file cache pages may be freed dynamically too.
-> >> So to use page_mapping() return value for the file cache pages, some
-> >> kind of locking is needed to guarantee the address_space isn't freed
-> >> under us.  Page may be locked, or under writeback, or some other locks
-> >
-> > I didn't look at the code in detail but I guess every file page should
-> > be freed before the address space destruction and page_lock/lru_lock makes
-> > the work safe, I guess. So, it wouldn't be a problem.
-> >
-> > However, in case of swapoff, it doesn't remove pages from LRU list
-> > so there is no lock to prevent the race at this moment. :(
-> 
-> Take a look at file cache pages and file cache address_space freeing
-> code path.  It appears that similar situation is possible for them too.
-> 
-> The file cache pages will be delete from file cache address_space before
-> address_space (embedded in inode) is freed.  But they will be deleted
-> from LRU list only when its refcount dropped to zero, please take a look
-> at put_page() and release_pages().  While address_space will be freed
-> after putting reference to all file cache pages.  If someone holds a
-> reference to a file cache page for quite long time, it is possible for a
-> file cache page to be in LRU list after the inode/address_space is
-> freed.
-> 
-> And I found inode/address_space is freed witch call_rcu().  I don't know
-> whether this is related to page_mapping().
-> 
-> This is just my understanding.
+On Fri, Dec 15, 2017 at 6:09 AM, Christoph Hellwig <hch@lst.de> wrote:
+> We can just pass this on instead of having to do a radix tree lookup
+> without proper locking 2 levels into the callchain.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+[..]
+> diff --git a/kernel/memremap.c b/kernel/memremap.c
+> index 403ab9cdb949..16456117a1b1 100644
+> --- a/kernel/memremap.c
+> +++ b/kernel/memremap.c
+> @@ -427,7 +427,7 @@ void *devm_memremap_pages(struct device *dev, struct resource *res,
+>                 goto err_pfn_remap;
+>
+>         mem_hotplug_begin();
+> -       error = arch_add_memory(nid, align_start, align_size, false);
+> +       error = arch_add_memory(nid, align_start, align_size, altmap, false);
+>         if (!error)
+>                 move_pfn_range_to_zone(&NODE_DATA(nid)->node_zones[ZONE_DEVICE],
+>                                         align_start >> PAGE_SHIFT,
 
-Hmm, it smells like a bug of __isolate_lru_page.
+Subtle bug here. This altmap is the one that was passed in that we
+copy into its permanent location in the pgmap, so it looks like this
+patch needs to fold the following fix:
 
-Ccing Mel:
-
-What locks protects address_space destroying when race happens between
-inode trauncation and __isolate_lru_page?
-
-> 
-> >> need to be held, for example, page table lock, or lru_lock, etc.  For
-> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
-> >> will call synchronize_rcu() between clear PageSwapCache and free swap
-> >> cache, so the usage of swap cache in __isolate_lru_page() should be
-> >> safe.  Do you think my analysis makes sense?
-> >
-> > I don't understand how synchronize_rcu closes the race with spin_lock.
-> > Paul might help it.
-> 
-> Per my understanding, spin_lock() will preempt_disable(), so
-> synchronize_rcu() will wait until spin_unlock() is called.
-> 
-> > Even if we solve it, there is a other problem I spot.
-> > When I see migrate_vma_pages, it pass mapping to migrate_page which
-> > accesses mapping->tree_lock unconditionally even though the address_space
-> > is already gone.
-> 
-> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
-> where pages are locked.  So it is safe.
-
-I missed that. You're right. It's no problem. Thanks.
-
-> 
-> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
-> > but gut feeling is it would be not simple.
-> 
-> Yes.  We should check all sites.  Thanks for your help!
-
-You might start checking already and found it.
-Many architectures use page_mapping in cache flush code so we should
-check there, too.
-
-Thanks!
+diff --git a/kernel/memremap.c b/kernel/memremap.c
+index f277bf5b8c57..157a3756e1d5 100644
+--- a/kernel/memremap.c
++++ b/kernel/memremap.c
+@@ -382,6 +382,7 @@ void *devm_memremap_pages(struct device *dev,
+struct resource *res,
+        if (altmap) {
+                memcpy(&page_map->altmap, altmap, sizeof(*altmap));
+                pgmap->altmap = &page_map->altmap;
++               altmap = pgmap->altmap;
+        }
+        pgmap->ref = ref;
+        pgmap->res = &page_map->res;
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
