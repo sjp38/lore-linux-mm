@@ -1,56 +1,91 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9399E6B025E
-	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 22:28:39 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id 74so8968150oty.15
-        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 19:28:39 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id w134sor9005293oiw.167.2017.12.23.19.28.38
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 096DF6B0033
+	for <linux-mm@kvack.org>; Sat, 23 Dec 2017 23:45:53 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id r6so14578732itr.1
+        for <linux-mm@kvack.org>; Sat, 23 Dec 2017 20:45:53 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id r96si10857680ioi.90.2017.12.23.20.45.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 23 Dec 2017 19:28:38 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20171224032437.GB5273@bombadil.infradead.org>
-References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com> <20171224032437.GB5273@bombadil.infradead.org>
-From: Nick Desaulniers <nick.desaulniers@gmail.com>
-Date: Sat, 23 Dec 2017 22:28:37 -0500
-Message-ID: <CAH7mPvgqLf5x5QvdP1u1hpJCD+p2vy3aj=nt0RsHQH+aKTdovA@mail.gmail.com>
-Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being shifted
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 23 Dec 2017 20:45:51 -0800 (PST)
+Subject: Re: [PATCH v20 4/7] virtio-balloon: VIRTIO_BALLOON_F_SG
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1513685879-21823-1-git-send-email-wei.w.wang@intel.com>
+	<1513685879-21823-5-git-send-email-wei.w.wang@intel.com>
+	<20171224032121.GA5273@bombadil.infradead.org>
+In-Reply-To: <20171224032121.GA5273@bombadil.infradead.org>
+Message-Id: <201712241345.DIG21823.SLFOOJtQFOMVFH@I-love.SAKURA.ne.jp>
+Date: Sun, 24 Dec 2017 13:45:10 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+To: willy@infradead.org, wei.w.wang@intel.com
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-On Sat, Dec 23, 2017 at 10:24 PM, Matthew Wilcox <willy@infradead.org> wrote:
-> On Sat, Dec 23, 2017 at 09:33:40PM -0500, Nick Desaulniers wrote:
->> Fixes warnings about shifting unsigned literals being undefined
->> behavior.
->
-> Do you mean signed literals?
+Matthew Wilcox wrote:
+> > +	unsigned long pfn = page_to_pfn(page);
+> > +	int ret;
+> > +
+> > +	*pfn_min = min(pfn, *pfn_min);
+> > +	*pfn_max = max(pfn, *pfn_max);
+> > +
+> > +	do {
+> > +		if (xb_preload(GFP_NOWAIT | __GFP_NOWARN) < 0)
+> > +			return -ENOMEM;
+> > +
+> > +		ret = xb_set_bit(&vb->page_xb, pfn);
+> > +		xb_preload_end();
+> > +	} while (unlikely(ret == -EAGAIN));
+> 
+> OK, so you don't need a spinlock because you're under a mutex?  But you
+> can't allocate memory because you're in the balloon driver, and so a
+> GFP_KERNEL allocation might recurse into your driver?
 
+Right. We can't (directly or indirectly) depend on __GFP_DIRECT_RECLAIM && !__GFP_NORETRY
+allocations because the balloon driver needs to handle OOM notifier callback.
 
-A sorry, s/unsigned/negative signed/g.  The warning is:
+>                                                        Would GFP_NOIO
+> do the job?  I'm a little hazy on exactly how the balloon driver works.
 
-mm/zsmalloc.c:1059:20: warning: shifting a negative signed value is undefined
-      [-Wshift-negative-value]
-                        link->next = -1 << OBJ_TAG_BITS;
-                                     ~~ ^
+GFP_NOIO implies __GFP_DIRECT_RECLAIM. In the worst case, it can lockup due to
+the too small to fail memory allocation rule. GFP_NOIO | __GFP_NORETRY would work
+if there is really a guarantee that GFP_NOIO | __GFP_NORETRY never depend on
+__GFP_DIRECT_RECLAIM && !__GFP_NORETRY allocations, which is too subtle for me to
+validate. The direct reclaim dependency is too complicated to validate.
+I consider that !__GFP_DIRECT_RECLAIM is the future-safe choice.
 
->
->>                        */
->> -                     link->next = -1 << OBJ_TAG_BITS;
->> +                     link->next = -1U << OBJ_TAG_BITS;
->>               }
->
-> I don't understand what -1U means.  Seems like a contradiction in terms,
-> a negative unsigned number.  Is this supposed to be ~0U?
+> 
+> If you can't preload with anything better than that, I think that
+> xb_set_bit() should attempt an allocation with GFP_NOWAIT | __GFP_NOWARN,
+> and then you can skip the preload; it has no value for you.
 
-$ ag \\-1U[^L]
+Yes, that's why I suggest directly using kzalloc() at xb_set_bit().
 
-The code base is full of that literal.  I think of it as:
+> 
+> > @@ -173,8 +292,15 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
+> >  
+> >  	while ((page = balloon_page_pop(&pages))) {
+> >  		balloon_page_enqueue(&vb->vb_dev_info, page);
+> > +		if (use_sg) {
+> > +			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
+> > +				__free_page(page);
+> > +				continue;
+> > +			}
+> > +		} else {
+> > +			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+> > +		}
+> 
+> Is this the right behaviour?
 
-(unsigned) -1
+I don't think so. In the worst case, we can set no bit using xb_set_page().
+
+>                               If we can't record the page in the xb,
+> wouldn't we rather send it across as a single page?
+> 
+
+I think that we need to be able to fallback to !use_sg path when OOM.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
