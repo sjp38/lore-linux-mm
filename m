@@ -1,202 +1,110 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8E05F6B0038
-	for <linux-mm@kvack.org>; Sun, 24 Dec 2017 20:28:54 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id i12so17366892plk.5
-        for <linux-mm@kvack.org>; Sun, 24 Dec 2017 17:28:54 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id w9si20233208plp.783.2017.12.24.17.28.52
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 982B16B0253
+	for <linux-mm@kvack.org>; Sun, 24 Dec 2017 21:05:40 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z12so19584548pgv.6
+        for <linux-mm@kvack.org>; Sun, 24 Dec 2017 18:05:40 -0800 (PST)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id k7si21259153pls.500.2017.12.24.18.05.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 24 Dec 2017 17:28:52 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171220012632.26840-1-ying.huang@intel.com>
-	<20171221021619.GA27475@bbox> <871sjopllj.fsf@yhuang-dev.intel.com>
-	<20171221235813.GA29033@bbox> <87r2rmj1d8.fsf@yhuang-dev.intel.com>
-	<20171222161447.GF7829@linux.vnet.ibm.com>
-Date: Mon, 25 Dec 2017 09:28:48 +0800
-In-Reply-To: <20171222161447.GF7829@linux.vnet.ibm.com> (Paul E. McKenney's
-	message of "Fri, 22 Dec 2017 08:14:47 -0800")
-Message-ID: <87po734mun.fsf@yhuang-dev.intel.com>
+        Sun, 24 Dec 2017 18:05:39 -0800 (PST)
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+References: <20171214021019.13579-1-ross.zwisler@linux.intel.com>
+ <2d6420f7-0a95-adfe-7390-a2aea4385ab2@linux.vnet.ibm.com>
+ <20171222223154.GC25711@linux.intel.com>
+From: "Liubo(OS Lab)" <liubo95@huawei.com>
+Message-ID: <794c531c-eb96-b6ef-97a1-64c81779dc72@huawei.com>
+Date: Mon, 25 Dec 2017 10:05:01 +0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+In-Reply-To: <20171222223154.GC25711@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-Cc: Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Su+/vXLvv71tZQ==?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Ross Zwisler <ross.zwisler@linux.intel.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-kernel@vger.kernel.org, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Brice Goglin <brice.goglin@gmail.com>, Dan Williams <dan.j.williams@intel.com>, Dave Hansen <dave.hansen@intel.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len
+ Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, linux-acpi@vger.kernel.org, linux-mm@kvack.org, linux-nvdimm@lists.01.org
 
-"Paul E. McKenney" <paulmck@linux.vnet.ibm.com> writes:
+On 2017/12/23 6:31, Ross Zwisler wrote:
+> On Fri, Dec 22, 2017 at 08:39:41AM +0530, Anshuman Khandual wrote:
+>> On 12/14/2017 07:40 AM, Ross Zwisler wrote:
+> <>
+>>> We solve this issue by providing userspace with performance information on
+>>> individual memory ranges.  This performance information is exposed via
+>>> sysfs:
+>>>
+>>>   # grep . mem_tgt2/* mem_tgt2/local_init/* 2>/dev/null
+>>>   mem_tgt2/firmware_id:1
+>>>   mem_tgt2/is_cached:0
+>>>   mem_tgt2/local_init/read_bw_MBps:40960
+>>>   mem_tgt2/local_init/read_lat_nsec:50
+>>>   mem_tgt2/local_init/write_bw_MBps:40960
+>>>   mem_tgt2/local_init/write_lat_nsec:50
+> <>
+>> We will enlist properties for all possible "source --> target" on the system?
+> 
+> Nope, just 'local' initiator/target pairs.  I talk about the reasoning for
+> this in the cover letter for patch 3:
+> 
+> https://lists.01.org/pipermail/linux-nvdimm/2017-December/013574.html
+> 
+>> Right now it shows only bandwidth and latency properties, can it accommodate
+>> other properties as well in future ?
+> 
+> We also have an 'is_cached' attribute for the memory targets if they are
+> involved in a caching hierarchy, but right now those are all the things we
+> expose.  We can potentially expose whatever we want that is present in the
+> HMAT, but those seemed like a good start.
+> 
+> I noticed that in your presentation you had some other examples of attributes
+> you cared about:
+> 
+>  * reliability
+>  * power consumption
+>  * density
+> 
+> The HMAT doesn't provide this sort of information at present, but we
+> could/would add them to sysfs if the HMAT ever grew support for them.
+> 
+>>> This allows applications to easily find the memory that they want to use.
+>>> We expect that the existing NUMA APIs will be enhanced to use this new
+>>> information so that applications can continue to use them to select their
+>>> desired memory.
+>>
+>> I had presented a proposal for NUMA redesign in the Plumbers Conference this
+>> year where various memory devices with different kind of memory attributes
+>> can be represented in the kernel and be used explicitly from the user space.
+>> Here is the link to the proposal if you feel interested. The proposal is
+>> very intrusive and also I dont have a RFC for it yet for discussion here.
+>>
+>> https://linuxplumbersconf.org/2017/ocw//system/presentations/4656/original/Hierarchical_NUMA_Design_Plumbers_2017.pdf
+>>
+>> Problem is, designing the sysfs interface for memory attribute detection
+>> from user space without first thinking about redesigning the NUMA for
+>> heterogeneous memory may not be a good idea. Will look into this further.
+> 
+> I took another look at your presentation, and overall I think that if/when a
+> NUMA redesign like this takes place ACPI systems with HMAT tables will be able
+> to participate.  But I think we are probably a ways away from that, and like I
 
-> On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
->> >> >> From: Huang Ying <ying.huang@intel.com>
->> >> >> 
->> >> >> When the swapin is performed, after getting the swap entry information
->> >> >> from the page table, system will swap in the swap entry, without any
->> >> >> lock held to prevent the swap device from being swapoff.  This may
->> >> >> cause the race like below,
->> >> >> 
->> >> >> CPU 1				CPU 2
->> >> >> -----				-----
->> >> >> 				do_swap_page
->> >> >> 				  swapin_readahead
->> >> >> 				    __read_swap_cache_async
->> >> >> swapoff				      swapcache_prepare
->> >> >>   p->swap_map = NULL		        __swap_duplicate
->> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
->> >> >> 
->> >> >> Because swapoff is usually done when system shutdown only, the race
->> >> >> may not hit many people in practice.  But it is still a race need to
->> >> >> be fixed.
->> >> >> 
->> >> >> To fix the race, get_swap_device() is added to check whether the
->> >> >> specified swap entry is valid in its swap device.  If so, it will keep
->> >> >> the swap entry valid via preventing the swap device from being
->> >> >> swapoff, until put_swap_device() is called.
->> >> >> 
->> >> >> Because swapoff() is very race code path, to make the normal path runs
->> >> >> as fast as possible, RCU instead of reference count is used to
->> >> >> implement get/put_swap_device().  From get_swap_device() to
->> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
->> >> >> swapoff() will wait until put_swap_device() is called.
->> >> >> 
->> >> >> In addition to swap_map, cluster_info, etc. data structure in the
->> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
->> >> >> swapoff, so this patch fixes the race between swap cache looking up
->> >> >> and swapoff too.
->> >> >> 
->> >> >> Cc: Hugh Dickins <hughd@google.com>
->> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
->> >> >> Cc: Minchan Kim <minchan@kernel.org>
->> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
->> >> >> Cc: Shaohua Li <shli@fb.com>
->> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
->> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
->> >> >> Cc: Michal Hocko <mhocko@suse.com>
->> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> >> >> Cc: David Rientjes <rientjes@google.com>
->> >> >> Cc: Rik van Riel <riel@redhat.com>
->> >> >> Cc: Jan Kara <jack@suse.cz>
->> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
->> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
->> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> >> >> 
->> >> >> Changelog:
->> >> >> 
->> >> >> v4:
->> >> >> 
->> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
->> >> >>   normal paths further.
->> >> >
->> >> > Hi Huang,
->> >> 
->> >> Hi, Minchan,
->> >> 
->> >> > This version is much better than old. To me, it's due to not rcu,
->> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
->> >> > into every swap related functions so users who don't interested on swap
->> >> > don't need to care of it. Good.
->> >> >
->> >> > The problem is caused by freeing by swap related-data structure
->> >> > *dynamically* while old swap logic was based on static data
->> >> > structure(i.e., never freed and the verify it's stale).
->> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
->> >> > which could make access of swap related data structures.
->> >> >
->> >> > A example is __isolate_lru_page
->> >> >
->> >> > It calls page_mapping to get a address_space.
->> >> > What happens if the page is on SwapCache and raced with swapoff?
->> >> > The mapping got could be disappeared by the race. Right?
->> >> 
->> >> Yes.  We should think about that.  Considering the file cache pages, the
->> >> address_space backing the file cache pages may be freed dynamically too.
->> >> So to use page_mapping() return value for the file cache pages, some
->> >> kind of locking is needed to guarantee the address_space isn't freed
->> >> under us.  Page may be locked, or under writeback, or some other locks
->> >
->> > I didn't look at the code in detail but I guess every file page should
->> > be freed before the address space destruction and page_lock/lru_lock makes
->> > the work safe, I guess. So, it wouldn't be a problem.
->> >
->> > However, in case of swapoff, it doesn't remove pages from LRU list
->> > so there is no lock to prevent the race at this moment. :(
->> 
->> Take a look at file cache pages and file cache address_space freeing
->> code path.  It appears that similar situation is possible for them too.
->> 
->> The file cache pages will be delete from file cache address_space before
->> address_space (embedded in inode) is freed.  But they will be deleted
->> from LRU list only when its refcount dropped to zero, please take a look
->> at put_page() and release_pages().  While address_space will be freed
->> after putting reference to all file cache pages.  If someone holds a
->> reference to a file cache page for quite long time, it is possible for a
->> file cache page to be in LRU list after the inode/address_space is
->> freed.
->> 
->> And I found inode/address_space is freed witch call_rcu().  I don't know
->> whether this is related to page_mapping().
->> 
->> This is just my understanding.
->> 
->> >> need to be held, for example, page table lock, or lru_lock, etc.  For
->> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
->> >> will call synchronize_rcu() between clear PageSwapCache and free swap
->> >> cache, so the usage of swap cache in __isolate_lru_page() should be
->> >> safe.  Do you think my analysis makes sense?
->> >
->> > I don't understand how synchronize_rcu closes the race with spin_lock.
->> > Paul might help it.
->> 
->> Per my understanding, spin_lock() will preempt_disable(), so
->> synchronize_rcu() will wait until spin_unlock() is called.
->
-> Only when CONFIG_PREEMPT=n!
->
-> In CONFIG_PREEMPT=y kernels, preempt_disable() won't necessarily prevent
-> synchronize_rcu() from completing.
->
-> Now, preempt_disable() does prevent synchronize_sched() from
-> completing, but that would require changing the rcu_read_lock() and
-> rcu_read_unlock() to rcu_read_lock_sched()/rcu_read_unlock_sched()
-> or preempt_enable()/preempt_disable().
->
-> Another fix would be to invoke rcu_read_lock() just after acquiring
-> the spinlock and rcu_read_unlock() just before releasing it.
+I'm afraid not, there are cache-coherent bus like CCIX/OpenCAPI come out soon.
+No matter to say System-on-Chip already with internal bus linked DDRa??HBMa??CPUa??Accelerator..
 
-Hi, Paul,
+> said in my previous mail ACPI systems with memory-only NUMA nodes are going to
+> exist and need to be supported with the current NUMA scheme.  Hence I don't
 
-Thanks for your correction.  This makes me clearer about the important
-RCU semantics.
+And not only memory-only, but the accelerators can also be a master like CPU.
 
-Best Regards,
-Huang, Ying
+> think that this patch series conflicts with your proposal.
 
-> 							Thanx, Paul
->
->> > Even if we solve it, there is a other problem I spot.
->> > When I see migrate_vma_pages, it pass mapping to migrate_page which
->> > accesses mapping->tree_lock unconditionally even though the address_space
->> > is already gone.
->> 
->> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
->> where pages are locked.  So it is safe.
->> 
->> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
->> > but gut feeling is it would be not simple.
->> 
->> Yes.  We should check all sites.  Thanks for your help!
->> 
->> Best Regards,
->> Huang, Ying
->> 
+Didn't see conflict neither, but perhaps we should think for a longer-term solution and cover more
+situations/platforms.
+Anshuman's proposal is really a good start point to us.
+
+Cheers,
+Bob Liu
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
