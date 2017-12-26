@@ -1,41 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 116786B0038
-	for <linux-mm@kvack.org>; Tue, 26 Dec 2017 11:54:45 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id q12so2719996wrg.13
-        for <linux-mm@kvack.org>; Tue, 26 Dec 2017 08:54:45 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0907F6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Dec 2017 11:56:27 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id f132so7807867wmf.6
+        for <linux-mm@kvack.org>; Tue, 26 Dec 2017 08:56:26 -0800 (PST)
 Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y3sor16416372edi.51.2017.12.26.08.54.43
+        by mx.google.com with SMTPS id 4sor17559588edx.50.2017.12.26.08.56.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 26 Dec 2017 08:54:43 -0800 (PST)
-Date: Tue, 26 Dec 2017 19:54:40 +0300
+        Tue, 26 Dec 2017 08:56:25 -0800 (PST)
+Date: Tue, 26 Dec 2017 19:56:24 +0300
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCH v5 03/78] xarray: Add the xa_lock to the radix_tree_root
-Message-ID: <20171226165440.tv6inwa2fgk3bfy6@node.shutemov.name>
+Subject: Re: [PATCH v5 04/78] page cache: Use xa_lock
+Message-ID: <20171226165624.vdarbqqx5czgeqxc@node.shutemov.name>
 References: <20171215220450.7899-1-willy@infradead.org>
- <20171215220450.7899-4-willy@infradead.org>
+ <20171215220450.7899-5-willy@infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171215220450.7899-4-willy@infradead.org>
+In-Reply-To: <20171215220450.7899-5-willy@infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Howells <dhowells@redhat.com>, Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, Marc Zyngier <marc.zyngier@arm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-raid@vger.kernel.org
 
-On Fri, Dec 15, 2017 at 02:03:35PM -0800, Matthew Wilcox wrote:
+On Fri, Dec 15, 2017 at 02:03:36PM -0800, Matthew Wilcox wrote:
 > From: Matthew Wilcox <mawilcox@microsoft.com>
 > 
-> This results in no change in structure size on 64-bit x86 as it fits in
-> the padding between the gfp_t and the void *.
+> Remove the address_space ->tree_lock and use the xa_lock newly added to
+> the radix_tree_root.  Rename the address_space ->page_tree to ->pages,
+> since we don't really care that it's a tree.  Take the opportunity to
+> rearrange the elements of address_space to pack them better on 64-bit,
+> and make the comments more useful.
 
-The patch does more than described in the subject and commit message. At first
-I was confused why do you need to touch idr here. It took few minutes to figure
-it out.
-
-Could you please add more into commit message about lockname and xa_ locking
-interface since you introduce it here?
+The description sounds a lot like three commits ;)
 
 -- 
  Kirill A. Shutemov
