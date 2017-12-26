@@ -1,196 +1,146 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F2726B0038
-	for <linux-mm@kvack.org>; Tue, 26 Dec 2017 00:34:01 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id q3so20776652pgv.16
-        for <linux-mm@kvack.org>; Mon, 25 Dec 2017 21:34:01 -0800 (PST)
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id 91si16589691plb.456.2017.12.25.21.33.59
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A552D6B0038
+	for <linux-mm@kvack.org>; Tue, 26 Dec 2017 05:38:50 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id w78so15950187oiw.6
+        for <linux-mm@kvack.org>; Tue, 26 Dec 2017 02:38:50 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id x13si5965348ote.400.2017.12.26.02.38.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 25 Dec 2017 21:33:59 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171220012632.26840-1-ying.huang@intel.com>
-	<20171221021619.GA27475@bbox> <871sjopllj.fsf@yhuang-dev.intel.com>
-	<20171221235813.GA29033@bbox> <87r2rmj1d8.fsf@yhuang-dev.intel.com>
-	<20171223013653.GB5279@bgram>
-Date: Tue, 26 Dec 2017 13:33:55 +0800
-In-Reply-To: <20171223013653.GB5279@bgram> (Minchan Kim's message of "Sat, 23
-	Dec 2017 10:36:53 +0900")
-Message-ID: <87r2rixdbw.fsf@yhuang-dev.intel.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 26 Dec 2017 02:38:49 -0800 (PST)
+Subject: Re: [PATCH v20 4/7] virtio-balloon: VIRTIO_BALLOON_F_SG
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <201712241345.DIG21823.SLFOOJtQFOMVFH@I-love.SAKURA.ne.jp>
+	<5A3F5A4A.1070009@intel.com>
+	<5A3F6254.7070306@intel.com>
+	<201712252351.FBE81721.HFOtFOJQSOFLVM@I-love.SAKURA.ne.jp>
+	<5A41BCC1.5010004@intel.com>
+In-Reply-To: <5A41BCC1.5010004@intel.com>
+Message-Id: <201712261938.IFF64061.LtFMOVJFHOSFQO@I-love.SAKURA.ne.jp>
+Date: Tue, 26 Dec 2017 19:38:13 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul
- E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, =?utf-8?B?Sg==?= =?utf-8?B?77+9cu+/vW1l?= Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>, Mel Gorman <mgorman@suse.de>
+To: wei.w.wang@intel.com, willy@infradead.org
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, david@redhat.com, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
 
-Minchan Kim <minchan@kernel.org> writes:
+Wei Wang wrote:
+> On 12/25/2017 10:51 PM, Tetsuo Handa wrote:
+> > Wei Wang wrote:
+> >>>>>> @@ -173,8 +292,15 @@ static unsigned fill_balloon(struct
+> >>>>>> virtio_balloon *vb, size_t num)
+> >>>>>>          while ((page = balloon_page_pop(&pages))) {
+> >>>>>>            balloon_page_enqueue(&vb->vb_dev_info, page);
+> >>>>>> +        if (use_sg) {
+> >>>>>> +            if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
+> >>>>>> +                __free_page(page);
+> >>>>>> +                continue;
+> >>>>>> +            }
+> >>>>>> +        } else {
+> >>>>>> +            set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+> >>>>>> +        }
+> >>>>> Is this the right behaviour?
+> >>>> I don't think so. In the worst case, we can set no bit using
+> >>>> xb_set_page().
+> >>>>>                                 If we can't record the page in the xb,
+> >>>>> wouldn't we rather send it across as a single page?
+> >>>>>
+> >>>> I think that we need to be able to fallback to !use_sg path when OOM.
+> >>> I also have different thoughts:
+> >>>
+> >>> 1) For OOM, we have leak_balloon_sg_oom (oom has nothing to do with
+> >>> fill_balloon), which does not use xbitmap to record pages, thus no
+> >>> memory allocation.
+> >>>
+> >>> 2) If the memory is already under pressure, it is pointless to
+> >>> continue inflating memory to the host. We need to give thanks to the
+> >>> memory allocation failure reported by xbitmap, which gets us a chance
+> >>> to release the inflated pages that have been demonstrated to cause the
+> >>> memory pressure of the guest.
+> >>>
+> >> Forgot to add my conclusion: I think the above behavior is correct.
+> >>
+> > What is the desired behavior when hitting OOM path during inflate/deflate?
+> > Once inflation started, the inflation logic is called again and again
+> > until the balloon inflates to the requested size.
+> 
+> The above is true, but I can't agree with the following. Please see below.
+> 
+> > Such situation will
+> > continue wasting CPU resource between inflate-due-to-host's-request versus
+> > deflate-due-to-guest's-OOM. It is pointless but cannot stop doing pointless
+> > thing.
+> 
+> What we are doing here is to free the pages that were just allocated in 
+> this round of inflating. Next round will be sometime later when the 
+> balloon work item gets its turn to run. Yes, it will then continue to 
+> inflate.
+> Here are the two cases that will happen then:
+> 1) the guest is still under memory pressure, the inflate will fail at 
+> memory allocation, which results in a msleep(200), and then it exists 
+> for another time to run.
+> 2) the guest isn't under memory pressure any more (e.g. the task which 
+> consumes the huge amount of memory is gone), it will continue to inflate 
+> as normal till the requested size.
+> 
 
-> On Fri, Dec 22, 2017 at 10:14:43PM +0800, Huang, Ying wrote:
->> Minchan Kim <minchan@kernel.org> writes:
->> 
->> > On Thu, Dec 21, 2017 at 03:48:56PM +0800, Huang, Ying wrote:
->> >> Minchan Kim <minchan@kernel.org> writes:
->> >> 
->> >> > On Wed, Dec 20, 2017 at 09:26:32AM +0800, Huang, Ying wrote:
->> >> >> From: Huang Ying <ying.huang@intel.com>
->> >> >> 
->> >> >> When the swapin is performed, after getting the swap entry information
->> >> >> from the page table, system will swap in the swap entry, without any
->> >> >> lock held to prevent the swap device from being swapoff.  This may
->> >> >> cause the race like below,
->> >> >> 
->> >> >> CPU 1				CPU 2
->> >> >> -----				-----
->> >> >> 				do_swap_page
->> >> >> 				  swapin_readahead
->> >> >> 				    __read_swap_cache_async
->> >> >> swapoff				      swapcache_prepare
->> >> >>   p->swap_map = NULL		        __swap_duplicate
->> >> >> 					  p->swap_map[?] /* !!! NULL pointer access */
->> >> >> 
->> >> >> Because swapoff is usually done when system shutdown only, the race
->> >> >> may not hit many people in practice.  But it is still a race need to
->> >> >> be fixed.
->> >> >> 
->> >> >> To fix the race, get_swap_device() is added to check whether the
->> >> >> specified swap entry is valid in its swap device.  If so, it will keep
->> >> >> the swap entry valid via preventing the swap device from being
->> >> >> swapoff, until put_swap_device() is called.
->> >> >> 
->> >> >> Because swapoff() is very race code path, to make the normal path runs
->> >> >> as fast as possible, RCU instead of reference count is used to
->> >> >> implement get/put_swap_device().  From get_swap_device() to
->> >> >> put_swap_device(), the RCU read lock is held, so synchronize_rcu() in
->> >> >> swapoff() will wait until put_swap_device() is called.
->> >> >> 
->> >> >> In addition to swap_map, cluster_info, etc. data structure in the
->> >> >> struct swap_info_struct, the swap cache radix tree will be freed after
->> >> >> swapoff, so this patch fixes the race between swap cache looking up
->> >> >> and swapoff too.
->> >> >> 
->> >> >> Cc: Hugh Dickins <hughd@google.com>
->> >> >> Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
->> >> >> Cc: Minchan Kim <minchan@kernel.org>
->> >> >> Cc: Johannes Weiner <hannes@cmpxchg.org>
->> >> >> Cc: Tim Chen <tim.c.chen@linux.intel.com>
->> >> >> Cc: Shaohua Li <shli@fb.com>
->> >> >> Cc: Mel Gorman <mgorman@techsingularity.net>
->> >> >> Cc: "Jrme Glisse" <jglisse@redhat.com>
->> >> >> Cc: Michal Hocko <mhocko@suse.com>
->> >> >> Cc: Andrea Arcangeli <aarcange@redhat.com>
->> >> >> Cc: David Rientjes <rientjes@google.com>
->> >> >> Cc: Rik van Riel <riel@redhat.com>
->> >> >> Cc: Jan Kara <jack@suse.cz>
->> >> >> Cc: Dave Jiang <dave.jiang@intel.com>
->> >> >> Cc: Aaron Lu <aaron.lu@intel.com>
->> >> >> Signed-off-by: "Huang, Ying" <ying.huang@intel.com>
->> >> >> 
->> >> >> Changelog:
->> >> >> 
->> >> >> v4:
->> >> >> 
->> >> >> - Use synchronize_rcu() in enable_swap_info() to reduce overhead of
->> >> >>   normal paths further.
->> >> >
->> >> > Hi Huang,
->> >> 
->> >> Hi, Minchan,
->> >> 
->> >> > This version is much better than old. To me, it's due to not rcu,
->> >> > srcu, refcount thing but it adds swap device dependency(i.e., get/put)
->> >> > into every swap related functions so users who don't interested on swap
->> >> > don't need to care of it. Good.
->> >> >
->> >> > The problem is caused by freeing by swap related-data structure
->> >> > *dynamically* while old swap logic was based on static data
->> >> > structure(i.e., never freed and the verify it's stale).
->> >> > So, I reviewed some places where use PageSwapCache and swp_entry_t
->> >> > which could make access of swap related data structures.
->> >> >
->> >> > A example is __isolate_lru_page
->> >> >
->> >> > It calls page_mapping to get a address_space.
->> >> > What happens if the page is on SwapCache and raced with swapoff?
->> >> > The mapping got could be disappeared by the race. Right?
->> >> 
->> >> Yes.  We should think about that.  Considering the file cache pages, the
->> >> address_space backing the file cache pages may be freed dynamically too.
->> >> So to use page_mapping() return value for the file cache pages, some
->> >> kind of locking is needed to guarantee the address_space isn't freed
->> >> under us.  Page may be locked, or under writeback, or some other locks
->> >
->> > I didn't look at the code in detail but I guess every file page should
->> > be freed before the address space destruction and page_lock/lru_lock makes
->> > the work safe, I guess. So, it wouldn't be a problem.
->> >
->> > However, in case of swapoff, it doesn't remove pages from LRU list
->> > so there is no lock to prevent the race at this moment. :(
->> 
->> Take a look at file cache pages and file cache address_space freeing
->> code path.  It appears that similar situation is possible for them too.
->> 
->> The file cache pages will be delete from file cache address_space before
->> address_space (embedded in inode) is freed.  But they will be deleted
->> from LRU list only when its refcount dropped to zero, please take a look
->> at put_page() and release_pages().  While address_space will be freed
->> after putting reference to all file cache pages.  If someone holds a
->> reference to a file cache page for quite long time, it is possible for a
->> file cache page to be in LRU list after the inode/address_space is
->> freed.
->> 
->> And I found inode/address_space is freed witch call_rcu().  I don't know
->> whether this is related to page_mapping().
->> 
->> This is just my understanding.
->
-> Hmm, it smells like a bug of __isolate_lru_page.
->
-> Ccing Mel:
->
-> What locks protects address_space destroying when race happens between
-> inode trauncation and __isolate_lru_page?
->
->> 
->> >> need to be held, for example, page table lock, or lru_lock, etc.  For
->> >> __isolate_lru_page(), lru_lock will be held when it is called.  And we
->> >> will call synchronize_rcu() between clear PageSwapCache and free swap
->> >> cache, so the usage of swap cache in __isolate_lru_page() should be
->> >> safe.  Do you think my analysis makes sense?
->> >
->> > I don't understand how synchronize_rcu closes the race with spin_lock.
->> > Paul might help it.
->> 
->> Per my understanding, spin_lock() will preempt_disable(), so
->> synchronize_rcu() will wait until spin_unlock() is called.
->> 
->> > Even if we solve it, there is a other problem I spot.
->> > When I see migrate_vma_pages, it pass mapping to migrate_page which
->> > accesses mapping->tree_lock unconditionally even though the address_space
->> > is already gone.
->> 
->> Before migrate_vma_pages() is called, migrate_vma_prepare() is called,
->> where pages are locked.  So it is safe.
->
-> I missed that. You're right. It's no problem. Thanks.
->
->> 
->> > Hmm, I didn't check all sites where uses PageSwapCache, swp_entry_t
->> > but gut feeling is it would be not simple.
->> 
->> Yes.  We should check all sites.  Thanks for your help!
->
-> You might start checking already and found it.
-> Many architectures use page_mapping in cache flush code so we should
-> check there, too.
+How likely does 2) occur? It is not so likely. msleep(200) is enough to spam
+the guest with puff messages. Next round is starting too quickly.
 
-Thanks for your reminding!  I will check them.
+> I think what we are doing is a quite sensible behavior, except a small 
+> change I plan to make:
+> 
+>          while ((page = balloon_page_pop(&pages))) {
+> -               balloon_page_enqueue(&vb->vb_dev_info, page);
+>                  if (use_sg) {
+>                          if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 
+> 0) {
+>                                  __free_page(page);
+>                                  continue;
+>                          }
+>                  } else {
+>                          set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
+>                  }
+> +             balloon_page_enqueue(&vb->vb_dev_info, page);
+> 
+> >
+> > Also, as of Linux 4.15, only up to VIRTIO_BALLOON_ARRAY_PFNS_MAX pages (i.e.
+> > 1MB) are invisible from deflate request. That amount would be an acceptable
+> > error. But your patch makes more pages being invisible, for pages allocated
+> > by balloon_page_alloc() without holding balloon_lock are stored into a local
+> > variable "LIST_HEAD(pages)" (which means that balloon_page_dequeue() with
+> > balloon_lock held won't be able to find pages not yet queued by
+> > balloon_page_enqueue()), doesn't it? What if all memory pages were held in
+> > "LIST_HEAD(pages)" and balloon_page_dequeue() was called before
+> > balloon_page_enqueue() is called?
+> >
+> 
+> If we think of the balloon driver just as a regular driver or 
+> application, that will be a pretty nature thing. A regular driver can 
+> eat a huge amount of memory for its own usages, would this amount of 
+> memory be treated as an error as they are invisible to the 
+> balloon_page_enqueue?
+> 
 
-Best Regards,
-Huang, Ying
+No. Memory used by applications which consumed a lot of memory in their
+mm_struct is reclaimed by the OOM killer/reaper. Drivers try to avoid
+allocating more memory than they need. If drivers allocate more memory
+than they need, they have a hook for releasing unused memory (i.e.
+register_shrinker() or OOM notifier). What I'm saying here is that
+the hook for releasing unused memory does not work unless memory held in
+LIST_HEAD(pages) becomes visible to balloon_page_dequeue().
+
+If a system has 128GB of memory, and 127GB of memory was stored into
+LIST_HEAD(pages) upon first fill_balloon() request, and somebody held
+balloon_lock from OOM notifier path from out_of_memory() before
+fill_balloon() holds balloon_lock, leak_balloon_sg_oom() finds that
+no memory can be freed because balloon_page_enqueue() was never called,
+and allows the caller of out_of_memory() to invoke the OOM killer despite
+there is 127GB of memory which can be freed if fill_balloon() was able
+to hold balloon_lock before leak_balloon_sg_oom() holds balloon_lock.
+I don't think that that amount is an acceptable error.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
