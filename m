@@ -1,164 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id EFE966B0268
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 17:11:49 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id n31so30381428qtc.2
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 14:11:49 -0800 (PST)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id k3si4478961qkd.362.2017.12.27.14.11.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 14:11:49 -0800 (PST)
-Message-Id: <20171227220652.804369136@linux.com>
-Date: Wed, 27 Dec 2017 16:06:44 -0600
-From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 8/8] Add debugging output
-References: <20171227220636.361857279@linux.com>
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 147206B0033
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 18:26:54 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id z3so22371704pln.6
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 15:26:54 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id d12si22990184pgt.286.2017.12.27.15.26.51
+        for <linux-mm@kvack.org>;
+        Wed, 27 Dec 2017 15:26:52 -0800 (PST)
+Date: Thu, 28 Dec 2017 08:26:50 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Hang with v4.15-rc trying to swap back in
+Message-ID: <20171227232650.GA9702@bbox>
+References: <1514398340.3986.10.camel@HansenPartnership.com>
+ <1514407817.4169.4.camel@HansenPartnership.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=debug
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1514407817.4169.4.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>
 
-Useful to see whats going on.
+Hello James,
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+On Wed, Dec 27, 2017 at 12:50:17PM -0800, James Bottomley wrote:
+> Reverting these three patches fixes the problem:
+> 
+> commit aa8d22a11da933dbf880b4933b58931f4aefe91c
+> Author: Minchan Kim <minchan@kernel.org>
+> Date:   Wed Nov 15 17:33:11 2017 -0800
+> 
+>     mm: swap: SWP_SYNCHRONOUS_IO: skip swapcache only if swapped page
+> has no other reference
+> 
+> commit 0bcac06f27d7528591c27ac2b093ccd71c5d0168
+> Author: Minchan Kim <minchan@kernel.org>
+> Date:   Wed Nov 15 17:33:07 2017 -0800
+> 
+>     mm, swap: skip swapcache for swapin of synchronous device
+> 
+> Also need to revert:
+> 
+> commit e9a6effa500526e2a19d5ad042cb758b55b1ef93
+> Author: Huang Ying <huang.ying.caritas@gmail.com>
+> Date:   Wed Nov 15 17:33:15 2017 -0800
+> 
+>     mm, swap: fix false error message in __swp_swapcount()
+> 
+> (The latter is simply because it used a function that is eliminated by
+> one of the other reversions).  They came into the merge window via the
+> -mm tree as part of a 4 part series:
+> 
+> Subject:	[PATCH v2 0/4] skip swapcache for super fast device
+> Message-Id:	<1505886205-9671-1-git-send-email-minchan@kernel.org
+> >
+> 
+> James
 
-Index: linux/lib/xarray.c
-===================================================================
---- linux.orig/lib/xarray.c
-+++ linux/lib/xarray.c
-@@ -1583,11 +1583,13 @@ void xa_object_migrate(struct xa_node *n
- 
- 	new_node = kmem_cache_alloc_node(radix_tree_node_cachep, GFP_KERNEL, numa_node);
- 
-+	printk(KERN_INFO "xa_object_migrate(%px, %d)\n", node, numa_node);
- 	xa_lock_irq(xa);
- 
- 	/* Check again..... */
- 	if (xa != node->array || !list_empty(&node->private_list)) {
- 		node = new_node;
-+		printk(KERN_ERR "Skip temporary object\n");
- 		goto unlock;
- 	}
- 
-@@ -1606,6 +1608,7 @@ void xa_object_migrate(struct xa_node *n
- 	else
- 		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
- 	rcu_assign_pointer(*slot, xa_mk_node(new_node));
-+	printk(KERN_ERR "Success\n");
- 
- unlock:
- 	xa_unlock_irq(xa);
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -4245,6 +4245,7 @@ static void kmem_cache_move(struct page
- 	unsigned long flags;
- 	unsigned long objects;
- 
-+	printk(KERN_ERR "kmem_cache_move in: page=%px inuse=%d\n", page, page->inuse);
- 	local_irq_save(flags);
- 	slab_lock(page);
- 
-@@ -4267,6 +4268,7 @@ static void kmem_cache_move(struct page
- 		if (test_bit(slab_index(p, s, addr), map))
- 			vector[count++] = p;
- 
-+	printk(KERN_ERR "Vector of %d items\n", count);
- 	if (s->isolate)
- 		private = s->isolate(s, vector, count);
- 	else
-@@ -4295,6 +4297,7 @@ static void kmem_cache_move(struct page
- 	 * Perform callbacks to move the objects.
- 	 */
- 	s->migrate(s, vector, count, node, private);
-+	printk(KERN_ERR "kmem_cache_move out: page=%px inuse=%d\n", page, page->inuse);
- }
- 
- /*
-@@ -4312,6 +4315,7 @@ static unsigned long __move(struct kmem_
- 	LIST_HEAD(move_list);
- 	struct kmem_cache_node *n = get_node(s, node);
- 
-+	printk(KERN_ERR "__move(%s, %d, %d, %d) migrate=%px\n", s->name, node, target_node, ratio, s->migrate);
- 	if (node == target_node && n->nr_partial <= 1)
- 		/*
- 		 * Trying to reduce fragmentataion on a node but there is
-@@ -4322,9 +4326,16 @@ static unsigned long __move(struct kmem_
- 
- 	spin_lock_irqsave(&n->list_lock, flags);
- 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
--		if (!slab_trylock(page))
-+		printk(KERN_ERR "Slab page %px inuse=%d ", page, page->inuse);
-+		if (page->inuse > 1000) {
-+			printk("Page->inuse too high....\n");
-+			break;
-+		}
-+		if (!slab_trylock(page)) {
-+			printk("Locked\n");
- 			/* Busy slab. Get out of the way */
- 			continue;
-+		}
- 
- 		if (page->inuse) {
- 			if (page->inuse > ratio * page->objects / 100) {
-@@ -4333,10 +4344,13 @@ static unsigned long __move(struct kmem_
- 				 * Skip slab because the object density
- 				 * in the slab page is high enough
- 				*/
-+				printk("Below ratio. Skipping\n");
- 				continue;
- 			}
- 
- 			list_move(&page->lru, &move_list);
-+			printk("Added to list to move\n");
-+
- 			if (s->migrate) {
- 				/* Remove page from being considered for allocations */
- 				n->nr_partial--;
-@@ -4345,6 +4359,7 @@ static unsigned long __move(struct kmem_
- 			slab_unlock(page);
- 		} else {
- 			/* Empty slab page */
-+			printk("Empty\n");
- 			list_del(&page->lru);
- 			n->nr_partial--;
- 			slab_unlock(page);
-@@ -4374,11 +4389,17 @@ static unsigned long __move(struct kmem_
- 		struct page *page;
- 		struct page *page2;
- 
-+		printk(KERN_ERR "Beginning to migrate pages\n");
- 		if (scratch) {
- 			/* Try to remove / move the objects left */
- 			list_for_each_entry(page, &move_list, lru) {
--				if (page->inuse)
-+				if (page->inuse) {
- 					kmem_cache_move(page, scratch, target_node);
-+					if (page->inuse > 1000) {
-+						printk(KERN_ERR "Page corrupted. Abort\n");
-+						break;
-+					}
-+				}
- 			}
- 			kfree(scratch);
- 		}
-@@ -4404,9 +4425,11 @@ static unsigned long __move(struct kmem_
- 			} else {
- 				slab_unlock(page);
- 				discard_slab(s, page);
-+				printk(KERN_ERR "Freed one page %px\n", page);
- 			}
- 		}
- 		spin_unlock_irqrestore(&n->list_lock, flags);
-+		printk(KERN_ERR "Finished migrating slab objects\n");
- 	}
- out:
- 	return atomic_long_read(&n->nr_slabs);
+Thanks for the report.
+Patches are related to synchronous swap devices like brd, zram, nvdimm so
+
+1. What swap device do you use among them?
+
+2. Could you tell me how you can reproduce it?
+
+Thanks.
+
+> 
+> On Wed, 2017-12-27 at 10:12 -0800, James Bottomley wrote:
+> > I think I've seen this a lot shutting down systems, but never manged
+> > to trace it before.  Now I can reproduce it starting kvm on a 4GB
+> > system with 3GB of memory and booting up a linux OS.  What eventually
+> > happens (after logging into the virtual system) is that kvm itself
+> > hangs, although the stuck process is one of the kworkers in D wait
+> > hung on this stack trace:
+> > 
+> > [<0>] io_schedule+0x12/0x40
+> > [<0>] __lock_page_or_retry+0x2b8/0x300
+> > [<0>] do_swap_page+0x1b9/0x910
+> > [<0>] __handle_mm_fault+0x7ee/0xe20
+> > [<0>] handle_mm_fault+0xce/0x1e0
+> > [<0>] __get_user_pages+0x104/0x6c0
+> > [<0>] get_user_pages_remote+0x84/0x1f0
+> > [<0>] async_pf_execute+0x67/0x1a0 [kvm]
+> > [<0>] process_one_work+0x13c/0x370
+> > [<0>] worker_thread+0x44/0x3e0
+> > [<0>] kthread+0xf5/0x130
+> > [<0>] ret_from_fork+0x1f/0x30
+> > [<0>] 0xffffffffffffffff
+> > 
+> > The async_pf_execute() is a kvm async callback, failure to execute it
+> > appears to be causing the kvm hang.
+> > 
+> > Next to go is kswapd
+> > 
+> > [<0>] io_schedule+0x12/0x40
+> > [<0>] __lock_page+0xec/0x120
+> > [<0>] deferred_split_scan+0x21b/0x2a0
+> > [<0>] shrink_slab+0x24a/0x460
+> > [<0>] shrink_node+0x2e6/0x2f0
+> > [<0>] kswapd+0x2ad/0x730
+> > [<0>] kthread+0xf5/0x130
+> > [<0>] ret_from_fork+0x1f/0x30
+> > [<0>] 0xffffffffffffffff
+> > 
+> > And finally systemd-logind hangs making it very difficult to get into
+> > the system (and impossible to shut it down)
+> > 
+> > [<0>] call_rwsem_down_write_failed+0x13/0x20
+> > [<0>] register_shrinker+0x45/0xa0
+> > [<0>] sget_userns+0x44d/0x480
+> > [<0>] mount_nodev+0x2a/0xa0
+> > [<0>] mount_fs+0x34/0x150
+> > [<0>] vfs_kern_mount+0x62/0x120
+> > [<0>] do_mount+0x1d7/0xbf0
+> > [<0>] SyS_mount+0x7e/0xd0
+> > [<0>] do_syscall_64+0x5b/0x100
+> > [<0>] entry_SYSCALL64_slow_path+0x25/0x25
+> > [<0>] 0xffffffffffffffff
+> > 
+> > I've seen this with -rc1 and -rc5, so I think it's some problem with
+> > merge window code.
+> > 
+> > James
+> 
+> --
+> To unsubscribe, send a message with 'unsubscribe linux-mm' in
+> the body to majordomo@kvack.org.  For more info on Linux MM,
+> see: http://www.linux-mm.org/ .
+> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
