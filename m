@@ -1,86 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 703E76B0253
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 09:38:54 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id l33so22782320wrl.5
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 06:38:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p6sor17389927edb.38.2017.12.27.06.38.53
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B24306B0033
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:17 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id s105so5502389wrc.23
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:17 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id a136si13619830wmd.169.2017.12.27.08.48.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 27 Dec 2017 06:38:53 -0800 (PST)
-Date: Wed, 27 Dec 2017 15:38:50 +0100
-From: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
-Message-ID: <20171227143850.nnuatshhezurbu7r@ltop.local>
-References: <20171219165823.24243-1-willy@infradead.org>
- <20171219165823.24243-2-willy@infradead.org>
- <20171221214810.GC9087@linux.intel.com>
- <20171222011000.GB23624@bombadil.infradead.org>
- <20171222042120.GA18036@localhost>
- <20171222123112.GA6401@bombadil.infradead.org>
- <20171222133634.GE6401@bombadil.infradead.org>
- <20171223093910.GB6160@localhost>
- <20171223130621.GA3994@bombadil.infradead.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 27 Dec 2017 08:48:16 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.14 20/74] x86/uv: Use the right TLB-flush API
+Date: Wed, 27 Dec 2017 17:45:53 +0100
+Message-Id: <20171227164614.911155949@linuxfoundation.org>
+In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
+References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171223130621.GA3994@bombadil.infradead.org>
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Josh Triplett <josh@joshtriplett.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>, linux-sparse@vger.kernel.org
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andrew Banman <abanman@hpe.com>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mike Travis <mike.travis@hpe.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-On Sat, Dec 23, 2017 at 05:06:21AM -0800, Matthew Wilcox wrote:
-> On Sat, Dec 23, 2017 at 01:39:11AM -0800, Josh Triplett wrote:
-> > +linux-sparse
-> 
-> Ehh ... we've probably trimmed too much to give linux-sparse a good summary.
-> 
-> Here're the important lines from my patch:
-> 
-> +# define __cond_lock_err(x,c)  ((c) ? 1 : ({ __acquire(x); 0; }))
-> 
-> +       return __cond_lock_err(*ptlp, __follow_pte_pmd(mm, address, start, end,
-> +                                                   ptepp, pmdpp, ptlp));
-> 
-> This is supposed to be "If "c" is an error value, we don't have a lock,
-> otherwise we have a lock".  And to translate from linux-speak into
-> sparse-speak:
-> 
->  # define __acquire(x)  __context__(x,1)
-> 
-> Josh & Ross pointed out (quite correctly) that code which does something like
-> 
-> if (foo())
-> 	return;
-> 
-> will work with this, but code that does
-> 
-> if (foo() < 0)
-> 	return;
-> 
-> will not because we're now returning 1 instead of -ENOMEM (for example).
-> 
-> So they made the very sensible suggestion that I change the definition
-> of __cond_lock to:
-> 
-> # define __cond_lock_err(x,c)  ((c) ?: ({ __acquire(x); 0; }))
-> 
-> Unfortunately, when I do that, the context imbalance warning returns.
-> As I said below, this is with sparse 0.5.1.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
-I think this __cond_lock_err() is now OK (but some comment about
-how its use is different from __cond_lock() would be welcome).
+------------------
 
-For the context imbalance, I would really need a concrete example
-to be able to help more because it depends heavily on what the
-test is and what code is before and after.
+From: Peter Zijlstra <peterz@infradead.org>
 
-If you can point me to a tree, a .config and a specific warning,
-I'll be glad to take a look.
+commit 3e46e0f5ee3643a1239be9046c7ba6c66ca2b329 upstream.
 
--- Luc Van Oostenryck
+Since uv_flush_tlb_others() implements flush_tlb_others() which is
+about flushing user mappings, we should use __flush_tlb_single(),
+which too is about flushing user mappings.
+
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Acked-by: Andrew Banman <abanman@hpe.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
+Cc: Juergen Gross <jgross@suse.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Mike Travis <mike.travis@hpe.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
+Cc: linux-mm@kvack.org
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+---
+ arch/x86/platform/uv/tlb_uv.c |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/arch/x86/platform/uv/tlb_uv.c
++++ b/arch/x86/platform/uv/tlb_uv.c
+@@ -299,7 +299,7 @@ static void bau_process_message(struct m
+ 		local_flush_tlb();
+ 		stat->d_alltlb++;
+ 	} else {
+-		__flush_tlb_one(msg->address);
++		__flush_tlb_single(msg->address);
+ 		stat->d_onetlb++;
+ 	}
+ 	stat->d_requestee++;
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
