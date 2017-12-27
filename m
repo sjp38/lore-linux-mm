@@ -1,192 +1,164 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-vk0-f71.google.com (mail-vk0-f71.google.com [209.85.213.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 171686B0261
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 17:11:48 -0500 (EST)
-Received: by mail-vk0-f71.google.com with SMTP id y16so10298931vkd.16
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 14:11:48 -0800 (PST)
-Received: from resqmta-ch2-08v.sys.comcast.net (resqmta-ch2-08v.sys.comcast.net. [2001:558:fe21:29:69:252:207:40])
-        by mx.google.com with ESMTPS id y36si14271681uac.0.2017.12.27.14.11.47
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EFE966B0268
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 17:11:49 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id n31so30381428qtc.2
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 14:11:49 -0800 (PST)
+Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
+        by mx.google.com with ESMTPS id k3si4478961qkd.362.2017.12.27.14.11.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 14:11:47 -0800 (PST)
-Message-Id: <20171227220652.651198943@linux.com>
-Date: Wed, 27 Dec 2017 16:06:42 -0600
+        Wed, 27 Dec 2017 14:11:49 -0800 (PST)
+Message-Id: <20171227220652.804369136@linux.com>
+Date: Wed, 27 Dec 2017 16:06:44 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 6/8] slub: Extend slabinfo to support -D and -F options
+Subject: [RFC 8/8] Add debugging output
 References: <20171227220636.361857279@linux.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=extend_slabinfo
+Content-Disposition: inline; filename=debug
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
 
--F lists caches that support moving and defragmentation
-
--C lists caches that use a ctor.
-
-Change field names for defrag_ratio and remote_node_defrag_ratio.
-
-Add determination of the allocation ratio for a slab. The allocation ratio
-is the percentage of available slots for objects in use.
+Useful to see whats going on.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- Documentation/vm/slabinfo.c |   48 +++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 43 insertions(+), 5 deletions(-)
-
-Index: linux/tools/vm/slabinfo.c
+Index: linux/lib/xarray.c
 ===================================================================
---- linux.orig/tools/vm/slabinfo.c
-+++ linux/tools/vm/slabinfo.c
-@@ -33,6 +33,8 @@ struct slabinfo {
- 	int hwcache_align, object_size, objs_per_slab;
- 	int sanity_checks, slab_size, store_user, trace;
- 	int order, poison, reclaim_account, red_zone;
-+	int movable, ctor;
-+	int defrag_ratio, remote_node_defrag_ratio;
- 	unsigned long partial, objects, slabs, objects_partial, objects_total;
- 	unsigned long alloc_fastpath, alloc_slowpath;
- 	unsigned long free_fastpath, free_slowpath;
-@@ -67,6 +69,8 @@ int show_report;
- int show_alias;
- int show_slab;
- int skip_zero = 1;
-+int show_movable;
-+int show_ctor;
- int show_numa;
- int show_track;
- int show_first_alias;
-@@ -109,14 +113,16 @@ static void fatal(const char *x, ...)
+--- linux.orig/lib/xarray.c
++++ linux/lib/xarray.c
+@@ -1583,11 +1583,13 @@ void xa_object_migrate(struct xa_node *n
  
- static void usage(void)
- {
--	printf("slabinfo 4/15/2011. (c) 2007 sgi/(c) 2011 Linux Foundation.\n\n"
--		"slabinfo [-ahnpvtsz] [-d debugopts] [slab-regexp]\n"
-+	printf("slabinfo 4/15/2017. (c) 2007 sgi/(c) 2011 Linux Foundation/(c) 2017 Jump Trading LLC.\n\n"
-+		"slabinfo [-aCdDefFhnpvtsz] [-d debugopts] [slab-regexp]\n"
- 		"-a|--aliases           Show aliases\n"
- 		"-A|--activity          Most active slabs first\n"
- 		"-d<options>|--debug=<options> Set/Clear Debug options\n"
-+		"-C|--ctor              Show slabs with ctors\n"
- 		"-D|--display-active    Switch line format to activity\n"
- 		"-e|--empty             Show empty slabs\n"
- 		"-f|--first-alias       Show first alias\n"
-+		"-F|--movable           Show caches that support movable objects\n"
- 		"-h|--help              Show usage information\n"
- 		"-i|--inverted          Inverted list\n"
- 		"-l|--slabs             Show slabs\n"
-@@ -369,7 +375,7 @@ static void slab_numa(struct slabinfo *s
- 		return;
+ 	new_node = kmem_cache_alloc_node(radix_tree_node_cachep, GFP_KERNEL, numa_node);
  
- 	if (!line) {
--		printf("\n%-21s:", mode ? "NUMA nodes" : "Slab");
-+		printf("\n%-21s: Rto ", mode ? "NUMA nodes" : "Slab");
- 		for(node = 0; node <= highest_node; node++)
- 			printf(" %4d", node);
- 		printf("\n----------------------");
-@@ -378,6 +384,7 @@ static void slab_numa(struct slabinfo *s
- 		printf("\n");
++	printk(KERN_INFO "xa_object_migrate(%px, %d)\n", node, numa_node);
+ 	xa_lock_irq(xa);
+ 
+ 	/* Check again..... */
+ 	if (xa != node->array || !list_empty(&node->private_list)) {
+ 		node = new_node;
++		printk(KERN_ERR "Skip temporary object\n");
+ 		goto unlock;
  	}
- 	printf("%-21s ", mode ? "All slabs" : s->name);
-+	printf("%3d ", s->remote_node_defrag_ratio);
- 	for(node = 0; node <= highest_node; node++) {
- 		char b[20];
  
-@@ -535,6 +542,8 @@ static void report(struct slabinfo *s)
- 		printf("** Slabs are destroyed via RCU\n");
- 	if (s->reclaim_account)
- 		printf("** Reclaim accounting active\n");
-+	if (s->movable)
-+		printf("** Defragmentation at %d%%\n", s->defrag_ratio);
- 
- 	printf("\nSizes (bytes)     Slabs              Debug                Memory\n");
- 	printf("------------------------------------------------------------------------\n");
-@@ -585,6 +594,12 @@ static void slabcache(struct slabinfo *s
- 	if (show_empty && s->slabs)
- 		return;
- 
-+	if (show_movable && !s->movable)
-+		return;
-+
-+	if (show_ctor && !s->ctor)
-+		return;
-+
- 	if (sort_loss == 0)
- 		store_size(size_str, slab_size(s));
+@@ -1606,6 +1608,7 @@ void xa_object_migrate(struct xa_node *n
  	else
-@@ -599,6 +614,10 @@ static void slabcache(struct slabinfo *s
- 		*p++ = '*';
- 	if (s->cache_dma)
- 		*p++ = 'd';
-+	if (s->movable)
-+		*p++ = 'F';
-+	if (s->ctor)
-+		*p++ = 'C';
- 	if (s->hwcache_align)
- 		*p++ = 'A';
- 	if (s->poison)
-@@ -633,7 +652,8 @@ static void slabcache(struct slabinfo *s
- 		printf("%-21s %8ld %7d %15s %14s %4d %1d %3ld %3ld %s\n",
- 			s->name, s->objects, s->object_size, size_str, dist_str,
- 			s->objs_per_slab, s->order,
--			s->slabs ? (s->partial * 100) / s->slabs : 100,
-+			s->slabs ? (s->partial * 100) /
-+					(s->slabs * s->objs_per_slab) : 100,
- 			s->slabs ? (s->objects * s->object_size * 100) /
- 				(s->slabs * (page_size << s->order)) : 100,
- 			flags);
-@@ -1252,7 +1272,17 @@ static void read_slab_dir(void)
- 			slab->cpu_partial_free = get_obj("cpu_partial_free");
- 			slab->alloc_node_mismatch = get_obj("alloc_node_mismatch");
- 			slab->deactivate_bypass = get_obj("deactivate_bypass");
-+			slab->defrag_ratio = get_obj("defrag_ratio");
-+			slab->remote_node_defrag_ratio =
-+					get_obj("remote_node_defrag_ratio");
- 			chdir("..");
-+			if (read_slab_obj(slab, "ops")) {
-+				if (strstr(buffer, "ctor :"))
-+					slab->ctor = 1;
-+				if (strstr(buffer, "migrate :"))
-+					slab->movable = 1;
-+			}
-+
- 			if (slab->name[0] == ':')
- 				alias_targets++;
- 			slab++;
-@@ -1329,6 +1359,8 @@ static void xtotals(void)
+ 		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
+ 	rcu_assign_pointer(*slot, xa_mk_node(new_node));
++	printk(KERN_ERR "Success\n");
+ 
+ unlock:
+ 	xa_unlock_irq(xa);
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -4245,6 +4245,7 @@ static void kmem_cache_move(struct page
+ 	unsigned long flags;
+ 	unsigned long objects;
+ 
++	printk(KERN_ERR "kmem_cache_move in: page=%px inuse=%d\n", page, page->inuse);
+ 	local_irq_save(flags);
+ 	slab_lock(page);
+ 
+@@ -4267,6 +4268,7 @@ static void kmem_cache_move(struct page
+ 		if (test_bit(slab_index(p, s, addr), map))
+ 			vector[count++] = p;
+ 
++	printk(KERN_ERR "Vector of %d items\n", count);
+ 	if (s->isolate)
+ 		private = s->isolate(s, vector, count);
+ 	else
+@@ -4295,6 +4297,7 @@ static void kmem_cache_move(struct page
+ 	 * Perform callbacks to move the objects.
+ 	 */
+ 	s->migrate(s, vector, count, node, private);
++	printk(KERN_ERR "kmem_cache_move out: page=%px inuse=%d\n", page, page->inuse);
  }
  
- struct option opts[] = {
-+	{ "ctor", no_argument, NULL, 'C' },
-+	{ "movable", no_argument, NULL, 'F' },
- 	{ "aliases", no_argument, NULL, 'a' },
- 	{ "activity", no_argument, NULL, 'A' },
- 	{ "debug", optional_argument, NULL, 'd' },
-@@ -1364,7 +1396,7 @@ int main(int argc, char *argv[])
+ /*
+@@ -4312,6 +4315,7 @@ static unsigned long __move(struct kmem_
+ 	LIST_HEAD(move_list);
+ 	struct kmem_cache_node *n = get_node(s, node);
  
- 	page_size = getpagesize();
++	printk(KERN_ERR "__move(%s, %d, %d, %d) migrate=%px\n", s->name, node, target_node, ratio, s->migrate);
+ 	if (node == target_node && n->nr_partial <= 1)
+ 		/*
+ 		 * Trying to reduce fragmentataion on a node but there is
+@@ -4322,9 +4326,16 @@ static unsigned long __move(struct kmem_
  
--	while ((c = getopt_long(argc, argv, "aAd::Defhil1noprstvzTSN:LXBU",
-+	while ((c = getopt_long(argc, argv, "aACd::DefFhil1noprstvzTSN:LXBU",
- 						opts, NULL)) != -1)
- 		switch (c) {
- 		case '1':
-@@ -1420,6 +1452,12 @@ int main(int argc, char *argv[])
- 		case 'z':
- 			skip_zero = 0;
- 			break;
-+		case 'C':
-+			show_ctor = 1;
+ 	spin_lock_irqsave(&n->list_lock, flags);
+ 	list_for_each_entry_safe(page, page2, &n->partial, lru) {
+-		if (!slab_trylock(page))
++		printk(KERN_ERR "Slab page %px inuse=%d ", page, page->inuse);
++		if (page->inuse > 1000) {
++			printk("Page->inuse too high....\n");
 +			break;
-+		case 'F':
-+			show_movable = 1;
-+			break;
- 		case 'T':
- 			show_totals = 1;
- 			break;
++		}
++		if (!slab_trylock(page)) {
++			printk("Locked\n");
+ 			/* Busy slab. Get out of the way */
+ 			continue;
++		}
+ 
+ 		if (page->inuse) {
+ 			if (page->inuse > ratio * page->objects / 100) {
+@@ -4333,10 +4344,13 @@ static unsigned long __move(struct kmem_
+ 				 * Skip slab because the object density
+ 				 * in the slab page is high enough
+ 				*/
++				printk("Below ratio. Skipping\n");
+ 				continue;
+ 			}
+ 
+ 			list_move(&page->lru, &move_list);
++			printk("Added to list to move\n");
++
+ 			if (s->migrate) {
+ 				/* Remove page from being considered for allocations */
+ 				n->nr_partial--;
+@@ -4345,6 +4359,7 @@ static unsigned long __move(struct kmem_
+ 			slab_unlock(page);
+ 		} else {
+ 			/* Empty slab page */
++			printk("Empty\n");
+ 			list_del(&page->lru);
+ 			n->nr_partial--;
+ 			slab_unlock(page);
+@@ -4374,11 +4389,17 @@ static unsigned long __move(struct kmem_
+ 		struct page *page;
+ 		struct page *page2;
+ 
++		printk(KERN_ERR "Beginning to migrate pages\n");
+ 		if (scratch) {
+ 			/* Try to remove / move the objects left */
+ 			list_for_each_entry(page, &move_list, lru) {
+-				if (page->inuse)
++				if (page->inuse) {
+ 					kmem_cache_move(page, scratch, target_node);
++					if (page->inuse > 1000) {
++						printk(KERN_ERR "Page corrupted. Abort\n");
++						break;
++					}
++				}
+ 			}
+ 			kfree(scratch);
+ 		}
+@@ -4404,9 +4425,11 @@ static unsigned long __move(struct kmem_
+ 			} else {
+ 				slab_unlock(page);
+ 				discard_slab(s, page);
++				printk(KERN_ERR "Freed one page %px\n", page);
+ 			}
+ 		}
+ 		spin_unlock_irqrestore(&n->list_lock, flags);
++		printk(KERN_ERR "Finished migrating slab objects\n");
+ 	}
+ out:
+ 	return atomic_long_read(&n->nr_slabs);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
