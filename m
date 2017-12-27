@@ -1,114 +1,141 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f197.google.com (mail-ua0-f197.google.com [209.85.217.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 044886B0253
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 17:09:30 -0500 (EST)
-Received: by mail-ua0-f197.google.com with SMTP id b42so13868501uah.20
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 14:09:29 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id 61si1881038uas.96.2017.12.27.14.09.29
+Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ADD7E6B025F
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 17:09:33 -0500 (EST)
+Received: by mail-ua0-f199.google.com with SMTP id a2so2169023uak.0
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 14:09:33 -0800 (PST)
+Received: from resqmta-ch2-05v.sys.comcast.net (resqmta-ch2-05v.sys.comcast.net. [2001:558:fe21:29:69:252:207:37])
+        by mx.google.com with ESMTPS id h32si2809318uae.350.2017.12.27.14.09.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 14:09:29 -0800 (PST)
-Message-Id: <20171227220652.487092808@linux.com>
-Date: Wed, 27 Dec 2017 16:06:40 -0600
+        Wed, 27 Dec 2017 14:09:33 -0800 (PST)
+Message-Id: <20171227220652.718663523@linux.com>
+Date: Wed, 27 Dec 2017 16:06:43 -0600
 From: Christoph Lameter <cl@linux.com>
-Subject: [RFC 4/8] slub: Sort slab cache list and establish maximum objects for defrag slabs
+Subject: [RFC 7/8] xarray: Implement migration function for objects
 References: <20171227220636.361857279@linux.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
-Content-Disposition: inline; filename=sort_and_max
+Content-Disposition: inline; filename=xarray
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
 
-It is advantageous to have all defragmentable slabs together at the
-beginning of the list of slabs so that there is no need to scan the
-complete list. Put defragmentable caches first when adding a slab cache
-and others last.
-
-Determine the maximum number of objects in defragmentable slabs. This allows
-the sizing of the array holding refs to objects in a slab later.
+Implement functions to migrate objects. This is based on
+initial code by Matthew Wilcox and was modified to work with
+slab object migration.
 
 Signed-off-by: Christoph Lameter <cl@linux.com>
 
----
- mm/slub.c |   26 ++++++++++++++++++++++++--
- 1 file changed, 24 insertions(+), 2 deletions(-)
-
-Index: linux/mm/slub.c
+Index: linux/lib/radix-tree.c
 ===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -197,6 +197,9 @@ static inline bool kmem_cache_has_cpu_pa
- /* Use cmpxchg_double */
- #define __CMPXCHG_DOUBLE	((slab_flags_t __force)0x40000000U)
- 
-+/* Maximum objects in defragmentable slabs */
-+static unsigned int max_defrag_slab_objects;
-+
- /*
-  * Tracking user of a slab.
-  */
-@@ -4274,22 +4278,45 @@ int __kmem_cache_create(struct kmem_cach
- 	return err;
+--- linux.orig/lib/radix-tree.c
++++ linux/lib/radix-tree.c
+@@ -1754,6 +1754,18 @@ static int radix_tree_cpu_dead(unsigned
+ 	return 0;
  }
  
-+/*
-+ * Allocate a slab scratch space that is sufficient to keep at least
-+ * max_defrag_slab_objects pointers to individual objects and also a bitmap
-+ * for max_defrag_slab_objects.
-+ */
-+static inline void *alloc_scratch(void)
++
++extern void xa_object_migrate(void *tree_node, int numa_node);
++
++static void radix_tree_migrate(struct kmem_cache *s, void **objects, int nr,
++		int node, void *private)
 +{
-+	return kmalloc(max_defrag_slab_objects * sizeof(void *) +
-+		BITS_TO_LONGS(max_defrag_slab_objects) * sizeof(unsigned long),
-+		GFP_KERNEL);
++	int i;
++
++	for (i=0; i<nr; i++)
++		xa_object_migrate(objects[i], node);
 +}
 +
- void kmem_cache_setup_mobility(struct kmem_cache *s,
- 	kmem_isolate_func isolate, kmem_migrate_func migrate)
+ void __init radix_tree_init(void)
  {
-+	int max_objects = oo_objects(s->max);
-+
- 	/*
- 	 * Defragmentable slabs must have a ctor otherwise objects may be
- 	 * in an undetermined state after they are allocated.
- 	 */
- 	BUG_ON(!s->ctor);
-+
-+	mutex_lock(&slab_mutex);
-+
- 	s->isolate = isolate;
- 	s->migrate = migrate;
-+
- 	/*
- 	 * Sadly serialization requirements currently mean that we have
- 	 * to disable fast cmpxchg based processing.
- 	 */
- 	s->flags &= ~__CMPXCHG_DOUBLE;
- 
-+	list_move(&s->list, &slab_caches);	/* Move to top */
-+	if (max_objects > max_defrag_slab_objects)
-+		max_defrag_slab_objects = max_objects;
-+
-+	mutex_unlock(&slab_mutex);
+ 	int ret;
+@@ -1766,4 +1778,7 @@ void __init radix_tree_init(void)
+ 	ret = cpuhp_setup_state_nocalls(CPUHP_RADIX_DEAD, "lib/radix:dead",
+ 					NULL, radix_tree_cpu_dead);
+ 	WARN_ON(ret < 0);
++	kmem_cache_setup_mobility(radix_tree_node_cachep,
++					NULL,
++					radix_tree_migrate);
  }
- EXPORT_SYMBOL(kmem_cache_setup_mobility);
- 
-Index: linux/mm/slab_common.c
+Index: linux/include/linux/xarray.h
 ===================================================================
---- linux.orig/mm/slab_common.c
-+++ linux/mm/slab_common.c
-@@ -392,7 +392,7 @@ static struct kmem_cache *create_cache(c
- 		goto out_free_cache;
+--- linux.orig/include/linux/xarray.h
++++ linux/include/linux/xarray.h
+@@ -62,6 +62,8 @@ struct xarray {
  
- 	s->refcount = 1;
--	list_add(&s->list, &slab_caches);
-+	list_add_tail(&s->list, &slab_caches);
- 	memcg_link_cache(s);
- out:
- 	if (err)
+ void __xa_init(struct xarray *, gfp_t flags);
+ 
++#define XA_FREE ((struct xarray *)1)
++
+ /**
+  * xa_init() - Initialise an empty XArray.
+  * @xa: XArray.
+Index: linux/lib/xarray.c
+===================================================================
+--- linux.orig/lib/xarray.c
++++ linux/lib/xarray.c
+@@ -186,6 +186,7 @@ extern void radix_tree_node_rcu_free(str
+ static void xa_node_free(struct xa_node *node)
+ {
+ 	XA_BUG_ON(node, !list_empty(&node->private_list));
++	node->array = XA_FREE;
+ 	call_rcu(&node->rcu_head, radix_tree_node_rcu_free);
+ }
+ 
+@@ -1569,6 +1570,51 @@ void xa_destroy(struct xarray *xa)
+ }
+ EXPORT_SYMBOL(xa_destroy);
+ 
++void xa_object_migrate(struct xa_node *node, int numa_node)
++{
++	struct xarray *xa = READ_ONCE(node->array);
++	void __rcu **slot;
++	struct xa_node *new_node;
++	int i;
++
++	/* Freed or not yet in tree then skip */
++	if (!xa || xa == XA_FREE)
++		return;
++
++	new_node = kmem_cache_alloc_node(radix_tree_node_cachep, GFP_KERNEL, numa_node);
++
++	xa_lock_irq(xa);
++
++	/* Check again..... */
++	if (xa != node->array || !list_empty(&node->private_list)) {
++		node = new_node;
++		goto unlock;
++	}
++
++	memcpy(new_node, node, sizeof(struct xa_node));
++
++	/* Move pointers to new node */
++	INIT_LIST_HEAD(&new_node->private_list);
++	for (i = 0; i < XA_CHUNK_SIZE; i++) {
++		void *x = xa_entry_locked(xa, new_node, i);
++
++		if (xa_is_node(x))
++			rcu_assign_pointer(xa_to_node(x)->parent, new_node);
++	}
++	if (!new_node->parent)
++		slot = &xa->xa_head;
++	else
++		slot = &xa_parent_locked(xa, new_node)->slots[new_node->offset];
++	rcu_assign_pointer(*slot, xa_mk_node(new_node));
++
++unlock:
++	xa_unlock_irq(xa);
++	xa_node_free(node);
++	rcu_barrier();
++	return;
++
++}
++
+ #ifdef XA_DEBUG
+ void xa_dump_node(const struct xa_node *node)
+ {
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
