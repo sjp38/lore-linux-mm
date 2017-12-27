@@ -1,106 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 800ED6B0033
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 07:44:44 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id s5so18911924wra.3
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 092C36B0253
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 07:44:45 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id y10so2036433wrh.12
         for <linux-mm@kvack.org>; Wed, 27 Dec 2017 04:44:44 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g192sor4519360wmd.32.2017.12.27.04.44.42
+        by mx.google.com with SMTPS id d13sor13798243wre.53.2017.12.27.04.44.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Wed, 27 Dec 2017 04:44:43 -0800 (PST)
 From: Dmitry Vyukov <dvyukov@google.com>
-Subject: [PATCH 4/5] kasan: unify code between kasan_slab_free() and kasan_poison_kfree()
-Date: Wed, 27 Dec 2017 13:44:35 +0100
-Message-Id: <385493d863acf60408be219a021c3c8e27daa96f.1514378558.git.dvyukov@google.com>
-In-Reply-To: <cover.1514378558.git.dvyukov@google.com>
-References: <cover.1514378558.git.dvyukov@google.com>
-In-Reply-To: <cover.1514378558.git.dvyukov@google.com>
-References: <cover.1514378558.git.dvyukov@google.com>
+Subject: [PATCH 0/5] kasan: detect invalid frees
+Date: Wed, 27 Dec 2017 13:44:31 +0100
+Message-Id: <cover.1514378558.git.dvyukov@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: akpm@linux-foundation.org, aryabinin@virtuozzo.com
 Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, kasan-dev@googlegroups.com, Dmitry Vyukov <dvyukov@google.com>
 
-Both of these functions deal with freeing of slab objects.
-However, kasan_poison_kfree() mishandles SLAB_TYPESAFE_BY_RCU
-(must also not poison such objects) and does not detect double-frees.
+KASAN detects double-frees, but does not detect invalid-frees
+(when a pointer into a middle of heap object is passed to free).
+We recently had a very unpleasant case in crypto code which freed
+an inner object inside of a heap allocation. This left unnoticed
+during free, but totally corrupted heap and later lead to a bunch
+of random crashes all over kernel code.
 
-Unify code between these functions.
-This solves both of the problems and allows to add more common code
-(e.g. detection of invalid frees).
+Detect invalid frees.
 
-Signed-off-by: Dmitry Vyukov <dvyukov@google.com>
-Cc: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org
-Cc: kasan-dev@googlegroups.com
----
- mm/kasan/kasan.c | 28 ++++++++++++----------------
- 1 file changed, 12 insertions(+), 16 deletions(-)
+Dmitry Vyukov (5):
+  kasan: detect invalid frees for large objects
+  kasan: don't use __builtin_return_address(1)
+  kasan: detect invalid frees for large mempool objects
+  kasan: unify code between kasan_slab_free() and kasan_poison_kfree()
+  kasan: detect invalid frees
 
-diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
-index 77c103748728..578843fab5dc 100644
---- a/mm/kasan/kasan.c
-+++ b/mm/kasan/kasan.c
-@@ -489,21 +489,11 @@ void kasan_slab_alloc(struct kmem_cache *cache, void *object, gfp_t flags)
- 	kasan_kmalloc(cache, object, cache->object_size, flags);
- }
- 
--static void kasan_poison_slab_free(struct kmem_cache *cache, void *object)
--{
--	unsigned long size = cache->object_size;
--	unsigned long rounded_up_size = round_up(size, KASAN_SHADOW_SCALE_SIZE);
--
--	/* RCU slabs could be legally used after free within the RCU period */
--	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
--		return;
--
--	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
--}
--
--bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
-+static bool __kasan_slab_free(struct kmem_cache *cache, void *object,
-+			      unsigned long ip, bool quarantine)
- {
- 	s8 shadow_byte;
-+	unsigned long rounded_up_size;
- 
- 	/* RCU slabs could be legally used after free within the RCU period */
- 	if (unlikely(cache->flags & SLAB_TYPESAFE_BY_RCU))
-@@ -515,9 +505,10 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
- 		return true;
- 	}
- 
--	kasan_poison_slab_free(cache, object);
-+	rounded_up_size = round_up(cache->object_size, KASAN_SHADOW_SCALE_SIZE);
-+	kasan_poison_shadow(object, rounded_up_size, KASAN_KMALLOC_FREE);
- 
--	if (unlikely(!(cache->flags & SLAB_KASAN)))
-+	if (!quarantine || unlikely(!(cache->flags & SLAB_KASAN)))
- 		return false;
- 
- 	set_track(&get_alloc_info(cache, object)->free_track, GFP_NOWAIT);
-@@ -525,6 +516,11 @@ bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
- 	return true;
- }
- 
-+bool kasan_slab_free(struct kmem_cache *cache, void *object, unsigned long ip)
-+{
-+	return __kasan_slab_free(cache, object, ip, true);
-+}
-+
- void kasan_kmalloc(struct kmem_cache *cache, const void *object, size_t size,
- 		   gfp_t flags)
- {
-@@ -602,7 +598,7 @@ void kasan_poison_kfree(void *ptr, unsigned long ip)
- 		kasan_poison_shadow(ptr, PAGE_SIZE << compound_order(page),
- 				KASAN_FREE_PAGE);
- 	} else {
--		kasan_poison_slab_free(page->slab_cache, ptr);
-+		__kasan_slab_free(page->slab_cache, ptr, ip, false);
- 	}
- }
- 
+ include/linux/kasan.h | 13 ++++----
+ lib/test_kasan.c      | 83 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ mm/kasan/kasan.c      | 57 +++++++++++++++++++----------------
+ mm/kasan/kasan.h      |  3 +-
+ mm/kasan/report.c     |  5 ++--
+ mm/mempool.c          |  6 ++--
+ mm/slab.c             |  6 ++--
+ mm/slub.c             | 10 +++----
+ 8 files changed, 135 insertions(+), 48 deletions(-)
+
 -- 
 2.15.1.620.gb9897f4670-goog
 
