@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 745066B0266
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:25 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id k2so11006201wrh.16
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:25 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 595456B026A
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:28 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id k2so11006243wrh.16
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:28 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id f10si1366744wrc.412.2017.12.27.08.48.24
+        by mx.google.com with ESMTPS id j77si13457977wmi.266.2017.12.27.08.48.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 08:48:24 -0800 (PST)
+        Wed, 27 Dec 2017 08:48:27 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 23/74] x86/mm: Remove superfluous barriers
-Date: Wed, 27 Dec 2017 17:45:56 +0100
-Message-Id: <20171227164615.031202968@linuxfoundation.org>
+Subject: [PATCH 4.14 24/74] x86/mm: Add comments to clarify which TLB-flush functions are supposed to flush what
+Date: Wed, 27 Dec 2017 17:45:57 +0100
+Message-Id: <20171227164615.068071173@linuxfoundation.org>
 In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
 References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,9 +28,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Pe
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-commit b5fc6d943808b570bdfbec80f40c6b3855f1c48b upstream.
+commit 3f67af51e56f291d7417d77c4f67cd774633c5e1 upstream.
 
-atomic64_inc_return() already implies smp_mb() before and after.
+Per popular request..
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
@@ -58,32 +58,71 @@ Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/tlbflush.h |    8 +-------
- 1 file changed, 1 insertion(+), 7 deletions(-)
+ arch/x86/include/asm/tlbflush.h |   23 +++++++++++++++++++++--
+ 1 file changed, 21 insertions(+), 2 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -60,19 +60,13 @@ static inline void invpcid_flush_all_non
+@@ -228,6 +228,9 @@ static inline void cr4_set_bits_and_upda
  
- static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+ extern void initialize_tlbstate_and_flush(void);
+ 
++/*
++ * flush the entire current user mapping
++ */
+ static inline void __native_flush_tlb(void)
  {
--	u64 new_tlb_gen;
--
  	/*
- 	 * Bump the generation count.  This also serves as a full barrier
- 	 * that synchronizes with switch_mm(): callers are required to order
- 	 * their read of mm_cpumask after their writes to the paging
- 	 * structures.
- 	 */
--	smp_mb__before_atomic();
--	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
--	smp_mb__after_atomic();
--
--	return new_tlb_gen;
-+	return atomic64_inc_return(&mm->context.tlb_gen);
+@@ -240,6 +243,9 @@ static inline void __native_flush_tlb(vo
+ 	preempt_enable();
  }
  
- #ifdef CONFIG_PARAVIRT
++/*
++ * flush everything
++ */
+ static inline void __native_flush_tlb_global(void)
+ {
+ 	unsigned long cr4, flags;
+@@ -269,17 +275,27 @@ static inline void __native_flush_tlb_gl
+ 	raw_local_irq_restore(flags);
+ }
+ 
++/*
++ * flush one page in the user mapping
++ */
+ static inline void __native_flush_tlb_single(unsigned long addr)
+ {
+ 	asm volatile("invlpg (%0)" ::"r" (addr) : "memory");
+ }
+ 
++/*
++ * flush everything
++ */
+ static inline void __flush_tlb_all(void)
+ {
+-	if (boot_cpu_has(X86_FEATURE_PGE))
++	if (boot_cpu_has(X86_FEATURE_PGE)) {
+ 		__flush_tlb_global();
+-	else
++	} else {
++		/*
++		 * !PGE -> !PCID (setup_pcid()), thus every flush is total.
++		 */
+ 		__flush_tlb();
++	}
+ 
+ 	/*
+ 	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
+@@ -290,6 +306,9 @@ static inline void __flush_tlb_all(void)
+ 	 */
+ }
+ 
++/*
++ * flush one page in the kernel mapping
++ */
+ static inline void __flush_tlb_one(unsigned long addr)
+ {
+ 	count_vm_tlb_event(NR_TLB_LOCAL_FLUSH_ONE);
 
 
 --
