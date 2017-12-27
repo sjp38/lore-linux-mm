@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 52DC26B0271
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:40 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id n126so8713656wma.7
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:40 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 209456B0273
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:49:32 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id o16so10008154wmf.4
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:49:32 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id m203si14088110wmd.252.2017.12.27.08.48.38
+        by mx.google.com with ESMTPS id q1si19871585wre.202.2017.12.27.08.49.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 08:48:39 -0800 (PST)
+        Wed, 27 Dec 2017 08:49:28 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 28/74] x86/mm: Create asm/invpcid.h
-Date: Wed, 27 Dec 2017 17:46:01 +0100
-Message-Id: <20171227164615.223499127@linuxfoundation.org>
+Subject: [PATCH 4.14 14/74] arch, mm: Allow arch_dup_mmap() to fail
+Date: Wed, 27 Dec 2017 17:45:47 +0100
+Message-Id: <20171227164614.681423295@linuxfoundation.org>
 In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
 References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
@@ -20,23 +20,28 @@ Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bpetkov@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, dan.j.williams@intel.com, hughd@google.com, keescook@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
 4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Thomas Gleixner <tglx@linutronix.de>
 
-commit 1a3b0caeb77edeac5ce5fa05e6a61c474c9a9745 upstream.
+commit c10e83f598d08046dd1ebc8360d4bb12d802d51b upstream.
 
-Unclutter tlbflush.h a little.
+In order to sanitize the LDT initialization on x86 arch_dup_mmap() must be
+allowed to fail. Fix up all instances.
 
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Andy Lutomirsky <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bpetkov@suse.de>
 Cc: Brian Gerst <brgerst@gmail.com>
+Cc: Dave Hansen <dave.hansen@intel.com>
 Cc: Dave Hansen <dave.hansen@linux.intel.com>
 Cc: David Laight <David.Laight@aculab.com>
 Cc: Denys Vlasenko <dvlasenk@redhat.com>
@@ -47,135 +52,111 @@ Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
+Cc: dan.j.williams@intel.com
 Cc: hughd@google.com
 Cc: keescook@google.com
+Cc: kirill.shutemov@linux.intel.com
 Cc: linux-mm@kvack.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/invpcid.h  |   53 ++++++++++++++++++++++++++++++++++++++++
- arch/x86/include/asm/tlbflush.h |   49 ------------------------------------
- 2 files changed, 54 insertions(+), 48 deletions(-)
+ arch/powerpc/include/asm/mmu_context.h   |    5 +++--
+ arch/um/include/asm/mmu_context.h        |    3 ++-
+ arch/unicore32/include/asm/mmu_context.h |    5 +++--
+ arch/x86/include/asm/mmu_context.h       |    4 ++--
+ include/asm-generic/mm_hooks.h           |    5 +++--
+ kernel/fork.c                            |    3 +--
+ 6 files changed, 14 insertions(+), 11 deletions(-)
 
---- /dev/null
-+++ b/arch/x86/include/asm/invpcid.h
-@@ -0,0 +1,53 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _ASM_X86_INVPCID
-+#define _ASM_X86_INVPCID
-+
-+static inline void __invpcid(unsigned long pcid, unsigned long addr,
-+			     unsigned long type)
-+{
-+	struct { u64 d[2]; } desc = { { pcid, addr } };
-+
-+	/*
-+	 * The memory clobber is because the whole point is to invalidate
-+	 * stale TLB entries and, especially if we're flushing global
-+	 * mappings, we don't want the compiler to reorder any subsequent
-+	 * memory accesses before the TLB flush.
-+	 *
-+	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
-+	 * invpcid (%rcx), %rax in long mode.
-+	 */
-+	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
-+		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
-+}
-+
-+#define INVPCID_TYPE_INDIV_ADDR		0
-+#define INVPCID_TYPE_SINGLE_CTXT	1
-+#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
-+#define INVPCID_TYPE_ALL_NON_GLOBAL	3
-+
-+/* Flush all mappings for a given pcid and addr, not including globals. */
-+static inline void invpcid_flush_one(unsigned long pcid,
-+				     unsigned long addr)
-+{
-+	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
-+}
-+
-+/* Flush all mappings for a given PCID, not including globals. */
-+static inline void invpcid_flush_single_context(unsigned long pcid)
-+{
-+	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
-+}
-+
-+/* Flush all mappings, including globals, for all PCIDs. */
-+static inline void invpcid_flush_all(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
-+}
-+
-+/* Flush all mappings for all PCIDs except globals. */
-+static inline void invpcid_flush_all_nonglobals(void)
-+{
-+	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
-+}
-+
-+#endif /* _ASM_X86_INVPCID */
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -9,54 +9,7 @@
- #include <asm/cpufeature.h>
- #include <asm/special_insns.h>
- #include <asm/smp.h>
--
--static inline void __invpcid(unsigned long pcid, unsigned long addr,
--			     unsigned long type)
--{
--	struct { u64 d[2]; } desc = { { pcid, addr } };
--
--	/*
--	 * The memory clobber is because the whole point is to invalidate
--	 * stale TLB entries and, especially if we're flushing global
--	 * mappings, we don't want the compiler to reorder any subsequent
--	 * memory accesses before the TLB flush.
--	 *
--	 * The hex opcode is invpcid (%ecx), %eax in 32-bit mode and
--	 * invpcid (%rcx), %rax in long mode.
--	 */
--	asm volatile (".byte 0x66, 0x0f, 0x38, 0x82, 0x01"
--		      : : "m" (desc), "a" (type), "c" (&desc) : "memory");
--}
--
--#define INVPCID_TYPE_INDIV_ADDR		0
--#define INVPCID_TYPE_SINGLE_CTXT	1
--#define INVPCID_TYPE_ALL_INCL_GLOBAL	2
--#define INVPCID_TYPE_ALL_NON_GLOBAL	3
--
--/* Flush all mappings for a given pcid and addr, not including globals. */
--static inline void invpcid_flush_one(unsigned long pcid,
--				     unsigned long addr)
--{
--	__invpcid(pcid, addr, INVPCID_TYPE_INDIV_ADDR);
--}
--
--/* Flush all mappings for a given PCID, not including globals. */
--static inline void invpcid_flush_single_context(unsigned long pcid)
--{
--	__invpcid(pcid, 0, INVPCID_TYPE_SINGLE_CTXT);
--}
--
--/* Flush all mappings, including globals, for all PCIDs. */
--static inline void invpcid_flush_all(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_INCL_GLOBAL);
--}
--
--/* Flush all mappings for all PCIDs except globals. */
--static inline void invpcid_flush_all_nonglobals(void)
--{
--	__invpcid(0, 0, INVPCID_TYPE_ALL_NON_GLOBAL);
--}
-+#include <asm/invpcid.h>
+--- a/arch/powerpc/include/asm/mmu_context.h
++++ b/arch/powerpc/include/asm/mmu_context.h
+@@ -114,9 +114,10 @@ static inline void enter_lazy_tlb(struct
+ #endif
+ }
  
- static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
  {
++	return 0;
+ }
+ 
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/arch/um/include/asm/mmu_context.h
++++ b/arch/um/include/asm/mmu_context.h
+@@ -15,9 +15,10 @@ extern void uml_setup_stubs(struct mm_st
+ /*
+  * Needed since we do not use the asm-generic/mm_hooks.h:
+  */
+-static inline void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+ {
+ 	uml_setup_stubs(mm);
++	return 0;
+ }
+ extern void arch_exit_mmap(struct mm_struct *mm);
+ static inline void arch_unmap(struct mm_struct *mm,
+--- a/arch/unicore32/include/asm/mmu_context.h
++++ b/arch/unicore32/include/asm/mmu_context.h
+@@ -81,9 +81,10 @@ do { \
+ 	} \
+ } while (0)
+ 
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
+ {
++	return 0;
+ }
+ 
+ static inline void arch_unmap(struct mm_struct *mm,
+--- a/arch/x86/include/asm/mmu_context.h
++++ b/arch/x86/include/asm/mmu_context.h
+@@ -176,10 +176,10 @@ do {						\
+ } while (0)
+ #endif
+ 
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+ {
+ 	paravirt_arch_dup_mmap(oldmm, mm);
++	return 0;
+ }
+ 
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/include/asm-generic/mm_hooks.h
++++ b/include/asm-generic/mm_hooks.h
+@@ -7,9 +7,10 @@
+ #ifndef _ASM_GENERIC_MM_HOOKS_H
+ #define _ASM_GENERIC_MM_HOOKS_H
+ 
+-static inline void arch_dup_mmap(struct mm_struct *oldmm,
+-				 struct mm_struct *mm)
++static inline int arch_dup_mmap(struct mm_struct *oldmm,
++				struct mm_struct *mm)
+ {
++	return 0;
+ }
+ 
+ static inline void arch_exit_mmap(struct mm_struct *mm)
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -721,8 +721,7 @@ static __latent_entropy int dup_mmap(str
+ 			goto out;
+ 	}
+ 	/* a new mm has just been created */
+-	arch_dup_mmap(oldmm, mm);
+-	retval = 0;
++	retval = arch_dup_mmap(oldmm, mm);
+ out:
+ 	up_write(&mm->mmap_sem);
+ 	flush_tlb_mm(oldmm);
 
 
 --
