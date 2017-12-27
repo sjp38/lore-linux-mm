@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B7C0F6B0275
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:49:32 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id n21so15604404wrb.11
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:49:32 -0800 (PST)
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 360E76B0275
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:49:35 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id o16so10008185wmf.4
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:49:35 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a19si13911954wma.107.2017.12.27.08.49.30
+        by mx.google.com with ESMTPS id 89si12915222wrg.320.2017.12.27.08.49.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 08:49:31 -0800 (PST)
+        Wed, 27 Dec 2017 08:49:33 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 15/74] x86/ldt: Rework locking
-Date: Wed, 27 Dec 2017 17:45:48 +0100
-Message-Id: <20171227164614.719631597@linuxfoundation.org>
+Subject: [PATCH 4.14 16/74] x86/ldt: Prevent LDT inheritance on exec
+Date: Wed, 27 Dec 2017 17:45:49 +0100
+Message-Id: <20171227164614.757983636@linuxfoundation.org>
 In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
 References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
@@ -20,35 +20,32 @@ Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Peter Zijlstra (Intel)" <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bpetkov@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, dan.j.williams@intel.com, hughd@google.com, keescook@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bpetkov@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, dan.j.williams@intel.com, hughd@google.com, keescook@google.com, kirill.shutemov@linux.intel.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
 4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Peter Zijlstra <peterz@infradead.org>
+From: Thomas Gleixner <tglx@linutronix.de>
 
-commit c2b3496bb30bd159e9de42e5c952e1f1f33c9a77 upstream.
+commit a4828f81037f491b2cc986595e3a969a6eeb2fb5 upstream.
 
-The LDT is duplicated on fork() and on exec(), which is wrong as exec()
-should start from a clean state, i.e. without LDT. To fix this the LDT
-duplication code will be moved into arch_dup_mmap() which is only called
-for fork().
+The LDT is inherited across fork() or exec(), but that makes no sense
+at all because exec() is supposed to start the process clean.
 
-This introduces a locking problem. arch_dup_mmap() holds mmap_sem of the
-parent process, but the LDT duplication code needs to acquire
-mm->context.lock to access the LDT data safely, which is the reverse lock
-order of write_ldt() where mmap_sem nests into context.lock.
+The reason why this happens is that init_new_context_ldt() is called from
+init_new_context() which obviously needs to be called for both fork() and
+exec().
 
-Solve this by introducing a new rw semaphore which serializes the
-read/write_ldt() syscall operations and use context.lock to protect the
-actual installment of the LDT descriptor.
+It would be surprising if anything relies on that behaviour, so it seems to
+be safe to remove that misfeature.
 
-So context.lock stabilizes mm->context.ldt and can nest inside of the new
-semaphore or mmap_sem.
+Split the context initialization into two parts. Clear the LDT pointer and
+initialize the mutex from the general context init and move the LDT
+duplication to arch_dup_mmap() which is only called on fork().
 
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Signed-off-by: Peter Zijlstra <peterz@infradead.org>
 Cc: Andy Lutomirski <luto@kernel.org>
 Cc: Andy Lutomirsky <luto@kernel.org>
 Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
@@ -65,7 +62,6 @@ Cc: H. Peter Anvin <hpa@zytor.com>
 Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Will Deacon <will.deacon@arm.com>
 Cc: aliguori@amazon.com
 Cc: dan.j.williams@intel.com
@@ -77,135 +73,117 @@ Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/mmu.h         |    4 +++-
- arch/x86/include/asm/mmu_context.h |    2 ++
- arch/x86/kernel/ldt.c              |   33 +++++++++++++++++++++------------
- 3 files changed, 26 insertions(+), 13 deletions(-)
+ arch/x86/include/asm/mmu_context.h    |   21 ++++++++++++++-------
+ arch/x86/kernel/ldt.c                 |   18 +++++-------------
+ tools/testing/selftests/x86/ldt_gdt.c |    9 +++------
+ 3 files changed, 22 insertions(+), 26 deletions(-)
 
---- a/arch/x86/include/asm/mmu.h
-+++ b/arch/x86/include/asm/mmu.h
-@@ -3,6 +3,7 @@
- #define _ASM_X86_MMU_H
- 
- #include <linux/spinlock.h>
-+#include <linux/rwsem.h>
- #include <linux/mutex.h>
- #include <linux/atomic.h>
- 
-@@ -27,7 +28,8 @@ typedef struct {
- 	atomic64_t tlb_gen;
- 
- #ifdef CONFIG_MODIFY_LDT_SYSCALL
--	struct ldt_struct *ldt;
-+	struct rw_semaphore	ldt_usr_sem;
-+	struct ldt_struct	*ldt;
- #endif
- 
- #ifdef CONFIG_X86_64
 --- a/arch/x86/include/asm/mmu_context.h
 +++ b/arch/x86/include/asm/mmu_context.h
-@@ -132,6 +132,8 @@ void enter_lazy_tlb(struct mm_struct *mm
- static inline int init_new_context(struct task_struct *tsk,
- 				   struct mm_struct *mm)
+@@ -57,11 +57,17 @@ struct ldt_struct {
+ /*
+  * Used for LDT copy/destruction.
+  */
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm);
++static inline void init_new_context_ldt(struct mm_struct *mm)
++{
++	mm->context.ldt = NULL;
++	init_rwsem(&mm->context.ldt_usr_sem);
++}
++int ldt_dup_context(struct mm_struct *oldmm, struct mm_struct *mm);
+ void destroy_context_ldt(struct mm_struct *mm);
+ #else	/* CONFIG_MODIFY_LDT_SYSCALL */
+-static inline int init_new_context_ldt(struct task_struct *tsk,
+-				       struct mm_struct *mm)
++static inline void init_new_context_ldt(struct mm_struct *mm) { }
++static inline int ldt_dup_context(struct mm_struct *oldmm,
++				  struct mm_struct *mm)
  {
-+	mutex_init(&mm->context.lock);
-+
+ 	return 0;
+ }
+@@ -137,15 +143,16 @@ static inline int init_new_context(struc
  	mm->context.ctx_id = atomic64_inc_return(&last_mm_ctx_id);
  	atomic64_set(&mm->context.tlb_gen, 0);
  
+-	#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
++#ifdef CONFIG_X86_INTEL_MEMORY_PROTECTION_KEYS
+ 	if (cpu_feature_enabled(X86_FEATURE_OSPKE)) {
+ 		/* pkey 0 is the default and always allocated */
+ 		mm->context.pkey_allocation_map = 0x1;
+ 		/* -1 means unallocated or invalid */
+ 		mm->context.execute_only_pkey = -1;
+ 	}
+-	#endif
+-	return init_new_context_ldt(tsk, mm);
++#endif
++	init_new_context_ldt(mm);
++	return 0;
+ }
+ static inline void destroy_context(struct mm_struct *mm)
+ {
+@@ -181,7 +188,7 @@ do {						\
+ static inline int arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+ {
+ 	paravirt_arch_dup_mmap(oldmm, mm);
+-	return 0;
++	return ldt_dup_context(oldmm, mm);
+ }
+ 
+ static inline void arch_exit_mmap(struct mm_struct *mm)
 --- a/arch/x86/kernel/ldt.c
 +++ b/arch/x86/kernel/ldt.c
-@@ -5,6 +5,11 @@
-  * Copyright (C) 2002 Andi Kleen
-  *
-  * This handles calls from both 32bit and 64bit mode.
-+ *
-+ * Lock order:
-+ *	contex.ldt_usr_sem
-+ *	  mmap_sem
-+ *	    context.lock
+@@ -131,28 +131,20 @@ static void free_ldt_struct(struct ldt_s
+ }
+ 
+ /*
+- * we do not have to muck with descriptors here, that is
+- * done in switch_mm() as needed.
++ * Called on fork from arch_dup_mmap(). Just copy the current LDT state,
++ * the new task is not running, so nothing can be installed.
   */
- 
- #include <linux/errno.h>
-@@ -42,7 +47,7 @@ static void refresh_ldt_segments(void)
- #endif
- }
- 
--/* context.lock is held for us, so we don't need any locking. */
-+/* context.lock is held by the task which issued the smp function call */
- static void flush_ldt(void *__mm)
+-int init_new_context_ldt(struct task_struct *tsk, struct mm_struct *mm)
++int ldt_dup_context(struct mm_struct *old_mm, struct mm_struct *mm)
  {
- 	struct mm_struct *mm = __mm;
-@@ -99,15 +104,17 @@ static void finalize_ldt_struct(struct l
- 	paravirt_alloc_ldt(ldt->entries, ldt->nr_entries);
- }
- 
--/* context.lock is held */
--static void install_ldt(struct mm_struct *current_mm,
--			struct ldt_struct *ldt)
-+static void install_ldt(struct mm_struct *mm, struct ldt_struct *ldt)
- {
-+	mutex_lock(&mm->context.lock);
-+
- 	/* Synchronizes with READ_ONCE in load_mm_ldt. */
--	smp_store_release(&current_mm->context.ldt, ldt);
-+	smp_store_release(&mm->context.ldt, ldt);
- 
--	/* Activate the LDT for all CPUs using current_mm. */
--	on_each_cpu_mask(mm_cpumask(current_mm), flush_ldt, current_mm, true);
-+	/* Activate the LDT for all CPUs using currents mm. */
-+	on_each_cpu_mask(mm_cpumask(mm), flush_ldt, mm, true);
-+
-+	mutex_unlock(&mm->context.lock);
- }
- 
- static void free_ldt_struct(struct ldt_struct *ldt)
-@@ -133,7 +140,8 @@ int init_new_context_ldt(struct task_str
- 	struct mm_struct *old_mm;
+ 	struct ldt_struct *new_ldt;
+-	struct mm_struct *old_mm;
  	int retval = 0;
  
--	mutex_init(&mm->context.lock);
-+	init_rwsem(&mm->context.ldt_usr_sem);
-+
- 	old_mm = current->mm;
- 	if (!old_mm) {
- 		mm->context.ldt = NULL;
-@@ -180,7 +188,7 @@ static int read_ldt(void __user *ptr, un
- 	unsigned long entries_size;
- 	int retval;
+-	init_rwsem(&mm->context.ldt_usr_sem);
+-
+-	old_mm = current->mm;
+-	if (!old_mm) {
+-		mm->context.ldt = NULL;
++	if (!old_mm)
+ 		return 0;
+-	}
  
--	mutex_lock(&mm->context.lock);
-+	down_read(&mm->context.ldt_usr_sem);
+ 	mutex_lock(&old_mm->context.lock);
+-	if (!old_mm->context.ldt) {
+-		mm->context.ldt = NULL;
++	if (!old_mm->context.ldt)
+ 		goto out_unlock;
+-	}
  
- 	if (!mm->context.ldt) {
- 		retval = 0;
-@@ -209,7 +217,7 @@ static int read_ldt(void __user *ptr, un
- 	retval = bytecount;
+ 	new_ldt = alloc_ldt_struct(old_mm->context.ldt->nr_entries);
+ 	if (!new_ldt) {
+--- a/tools/testing/selftests/x86/ldt_gdt.c
++++ b/tools/testing/selftests/x86/ldt_gdt.c
+@@ -627,13 +627,10 @@ static void do_multicpu_tests(void)
+ static int finish_exec_test(void)
+ {
+ 	/*
+-	 * In a sensible world, this would be check_invalid_segment(0, 1);
+-	 * For better or for worse, though, the LDT is inherited across exec.
+-	 * We can probably change this safely, but for now we test it.
++	 * Older kernel versions did inherit the LDT on exec() which is
++	 * wrong because exec() starts from a clean state.
+ 	 */
+-	check_valid_segment(0, 1,
+-			    AR_DPL3 | AR_TYPE_XRCODE | AR_S | AR_P | AR_DB,
+-			    42, true);
++	check_invalid_segment(0, 1);
  
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_read(&mm->context.ldt_usr_sem);
- 	return retval;
- }
- 
-@@ -269,7 +277,8 @@ static int write_ldt(void __user *ptr, u
- 			ldt.avl = 0;
- 	}
- 
--	mutex_lock(&mm->context.lock);
-+	if (down_write_killable(&mm->context.ldt_usr_sem))
-+		return -EINTR;
- 
- 	old_ldt       = mm->context.ldt;
- 	old_nr_entries = old_ldt ? old_ldt->nr_entries : 0;
-@@ -291,7 +300,7 @@ static int write_ldt(void __user *ptr, u
- 	error = 0;
- 
- out_unlock:
--	mutex_unlock(&mm->context.lock);
-+	up_write(&mm->context.ldt_usr_sem);
- out:
- 	return error;
+ 	return nerrs ? 1 : 0;
  }
 
 
