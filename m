@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 687856B026D
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:34 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id f132so8712837wmf.6
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:34 -0800 (PST)
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DDE956B026F
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:37 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id d7so1498208wre.15
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:37 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id k40si1276168wrf.22.2017.12.27.08.48.32
+        by mx.google.com with ESMTPS id r11si15725569wra.438.2017.12.27.08.48.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 08:48:33 -0800 (PST)
+        Wed, 27 Dec 2017 08:48:36 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 26/74] x86/mm: Remove hard-coded ASID limit checks
-Date: Wed, 27 Dec 2017 17:45:59 +0100
-Message-Id: <20171227164615.143855374@linuxfoundation.org>
+Subject: [PATCH 4.14 27/74] x86/mm: Put MMU to hardware ASID translation in one place
+Date: Wed, 27 Dec 2017 17:46:00 +0100
+Message-Id: <20171227164615.182204914@linuxfoundation.org>
 In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
 References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,13 +28,17 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dav
 
 From: Dave Hansen <dave.hansen@linux.intel.com>
 
-commit cb0a9144a744e55207e24dcef812f05cd15a499a upstream.
+commit dd95f1a4b5ca904c78e6a097091eb21436478abb upstream.
 
-First, it's nice to remove the magic numbers.
+There are effectively two ASID types:
 
-Second, PAGE_TABLE_ISOLATION is going to consume half of the available ASID
-space.  The space is currently unused, but add a comment to spell out this
-new restriction.
+ 1. The one stored in the mmu_context that goes from 0..5
+ 2. The one programmed into the hardware that goes from 1..6
+
+This consolidates the locations where converting between the two (by doing
+a +1) to a single place which gives us a nice place to comment.
+PAGE_TABLE_ISOLATION will also need to, given an ASID, know which hardware
+ASID to flush for the userspace mapping.
 
 Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
@@ -62,52 +66,58 @@ Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/tlbflush.h |   20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/tlbflush.h |   29 ++++++++++++++++++-----------
+ 1 file changed, 18 insertions(+), 11 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -69,6 +69,22 @@ static inline u64 inc_mm_tlb_gen(struct
- 	return atomic64_inc_return(&mm->context.tlb_gen);
- }
+@@ -85,20 +85,26 @@ static inline u64 inc_mm_tlb_gen(struct
+  */
+ #define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
  
-+/* There are 12 bits of space for ASIDS in CR3 */
-+#define CR3_HW_ASID_BITS		12
-+/*
-+ * When enabled, PAGE_TABLE_ISOLATION consumes a single bit for
-+ * user/kernel switches
-+ */
-+#define PTI_CONSUMED_ASID_BITS		0
+-/*
+- * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
+- * This serves two purposes.  It prevents a nasty situation in which
+- * PCID-unaware code saves CR3, loads some other value (with PCID == 0),
+- * and then restores CR3, thus corrupting the TLB for ASID 0 if the saved
+- * ASID was nonzero.  It also means that any bugs involving loading a
+- * PCID-enabled CR3 with CR4.PCIDE off will trigger deterministically.
+- */
++static inline u16 kern_pcid(u16 asid)
++{
++	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
++	/*
++	 * If PCID is on, ASID-aware code paths put the ASID+1 into the
++	 * PCID bits.  This serves two purposes.  It prevents a nasty
++	 * situation in which PCID-unaware code saves CR3, loads some other
++	 * value (with PCID == 0), and then restores CR3, thus corrupting
++	 * the TLB for ASID 0 if the saved ASID was nonzero.  It also means
++	 * that any bugs involving loading a PCID-enabled CR3 with
++	 * CR4.PCIDE off will trigger deterministically.
++	 */
++	return asid + 1;
++}
 +
-+#define CR3_AVAIL_ASID_BITS (CR3_HW_ASID_BITS - PTI_CONSUMED_ASID_BITS)
-+/*
-+ * ASIDs are zero-based: 0->MAX_AVAIL_ASID are valid.  -1 below to account
-+ * for them being zero-based.  Another -1 is because ASID 0 is reserved for
-+ * use by non-PCID-aware users.
-+ */
-+#define MAX_ASID_AVAILABLE ((1 << CR3_AVAIL_ASID_BITS) - 2)
-+
- /*
-  * If PCID is on, ASID-aware code paths put the ASID+1 into the PCID bits.
-  * This serves two purposes.  It prevents a nasty situation in which
-@@ -81,7 +97,7 @@ struct pgd_t;
+ struct pgd_t;
  static inline unsigned long build_cr3(pgd_t *pgd, u16 asid)
  {
  	if (static_cpu_has(X86_FEATURE_PCID)) {
--		VM_WARN_ON_ONCE(asid > 4094);
-+		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
- 		return __sme_pa(pgd) | (asid + 1);
+-		VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+-		return __sme_pa(pgd) | (asid + 1);
++		return __sme_pa(pgd) | kern_pcid(asid);
  	} else {
  		VM_WARN_ON_ONCE(asid != 0);
-@@ -91,7 +107,7 @@ static inline unsigned long build_cr3(pg
- 
+ 		return __sme_pa(pgd);
+@@ -108,7 +114,8 @@ static inline unsigned long build_cr3(pg
  static inline unsigned long build_cr3_noflush(pgd_t *pgd, u16 asid)
  {
--	VM_WARN_ON_ONCE(asid > 4094);
-+	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
- 	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
+ 	VM_WARN_ON_ONCE(asid > MAX_ASID_AVAILABLE);
+-	return __sme_pa(pgd) | (asid + 1) | CR3_NOFLUSH;
++	VM_WARN_ON_ONCE(!this_cpu_has(X86_FEATURE_PCID));
++	return __sme_pa(pgd) | kern_pcid(asid) | CR3_NOFLUSH;
  }
  
+ #ifdef CONFIG_PARAVIRT
 
 
 --
