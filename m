@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C3D2F6B025F
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:22 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id c82so10003478wme.8
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:22 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 745066B0266
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 11:48:25 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id k2so11006201wrh.16
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 08:48:25 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a64si13658885wmd.147.2017.12.27.08.48.21
+        by mx.google.com with ESMTPS id f10si1366744wrc.412.2017.12.27.08.48.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 08:48:21 -0800 (PST)
+        Wed, 27 Dec 2017 08:48:24 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.14 22/74] x86/mm: Use __flush_tlb_one() for kernel memory
-Date: Wed, 27 Dec 2017 17:45:55 +0100
-Message-Id: <20171227164614.991752621@linuxfoundation.org>
+Subject: [PATCH 4.14 23/74] x86/mm: Remove superfluous barriers
+Date: Wed, 27 Dec 2017 17:45:56 +0100
+Message-Id: <20171227164615.031202968@linuxfoundation.org>
 In-Reply-To: <20171227164614.109898944@linuxfoundation.org>
 References: <20171227164614.109898944@linuxfoundation.org>
 MIME-Version: 1.0
@@ -28,10 +28,9 @@ Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, "Pe
 
 From: Peter Zijlstra <peterz@infradead.org>
 
-commit a501686b2923ce6f2ff2b1d0d50682c6411baf72 upstream.
+commit b5fc6d943808b570bdfbec80f40c6b3855f1c48b upstream.
 
-__flush_tlb_single() is for user mappings, __flush_tlb_one() for
-kernel mappings.
+atomic64_inc_return() already implies smp_mb() before and after.
 
 Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
@@ -59,20 +58,32 @@ Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/mm/tlb.c |    2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ arch/x86/include/asm/tlbflush.h |    8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
 
---- a/arch/x86/mm/tlb.c
-+++ b/arch/x86/mm/tlb.c
-@@ -551,7 +551,7 @@ static void do_kernel_range_flush(void *
+--- a/arch/x86/include/asm/tlbflush.h
++++ b/arch/x86/include/asm/tlbflush.h
+@@ -60,19 +60,13 @@ static inline void invpcid_flush_all_non
  
- 	/* flush range by one by one 'invlpg' */
- 	for (addr = f->start; addr < f->end; addr += PAGE_SIZE)
--		__flush_tlb_single(addr);
-+		__flush_tlb_one(addr);
+ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
+ {
+-	u64 new_tlb_gen;
+-
+ 	/*
+ 	 * Bump the generation count.  This also serves as a full barrier
+ 	 * that synchronizes with switch_mm(): callers are required to order
+ 	 * their read of mm_cpumask after their writes to the paging
+ 	 * structures.
+ 	 */
+-	smp_mb__before_atomic();
+-	new_tlb_gen = atomic64_inc_return(&mm->context.tlb_gen);
+-	smp_mb__after_atomic();
+-
+-	return new_tlb_gen;
++	return atomic64_inc_return(&mm->context.tlb_gen);
  }
  
- void flush_tlb_kernel_range(unsigned long start, unsigned long end)
+ #ifdef CONFIG_PARAVIRT
 
 
 --
