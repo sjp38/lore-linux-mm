@@ -1,90 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AE85F6B0033
-	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 09:59:25 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id g81so33528194ioa.14
-        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 06:59:25 -0800 (PST)
-Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
-        by mx.google.com with ESMTPS id g137si4859227ioe.172.2017.12.28.06.59.24
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Dec 2017 06:59:24 -0800 (PST)
-Date: Thu, 28 Dec 2017 08:57:21 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CC6AC6B0033
+	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 12:18:59 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id a10so24049257pgq.3
+        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 09:18:59 -0800 (PST)
+Message-ID: <1514481533.3040.6.camel@HansenPartnership.com>
 Subject: Re: [RFC 0/8] Xarray object migration V1
-In-Reply-To: <d54a8261-75f0-a9c8-d86d-e20b3b492ef9@infradead.org>
-Message-ID: <alpine.DEB.2.20.1712280856260.30955@nuc-kabylake>
-References: <20171227220636.361857279@linux.com> <d54a8261-75f0-a9c8-d86d-e20b3b492ef9@infradead.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Thu, 28 Dec 2017 09:18:53 -0800
+In-Reply-To: <alpine.DEB.2.20.1712280856260.30955@nuc-kabylake>
+References: <20171227220636.361857279@linux.com>
+	 <d54a8261-75f0-a9c8-d86d-e20b3b492ef9@infradead.org>
+	 <alpine.DEB.2.20.1712280856260.30955@nuc-kabylake>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Randy Dunlap <rdunlap@infradead.org>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: Christopher Lameter <cl@linux.com>, Randy Dunlap <rdunlap@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>, Benjamin LaHaise <bcrl@kvack.org>
 
-On Wed, 27 Dec 2017, Randy Dunlap wrote:
+On Thu, 2017-12-28 at 08:57 -0600, Christopher Lameter wrote:
+> On Wed, 27 Dec 2017, Randy Dunlap wrote:
+> 
+> > 
+> > > 
+> > > To test apply this patchset on top of Matthew Wilcox Xarray code
+> > > from Dec 11th (See infradead github).
+> > 
+> > linux-mm archive is missing patch 1/8 and so am I.
+> > 
+> > https://marc.info/?l=linux-mm
+> 
+> Duh. How can you troubleshoot that one?
 
-> > To test apply this patchset on top of Matthew Wilcox Xarray code
-> > from Dec 11th (See infradead github).
->
-> linux-mm archive is missing patch 1/8 and so am I.
->
-> https://marc.info/?l=linux-mm
+Well you can ask for expert help. A The mm list also ate one of my bug
+reports (although the followup made it). A This is the lost email:
 
-Duh. How can you troubleshoot that one?
+From:	James Bottomley <James.Bottomley@HansenPartnership.com>
+To:	Linux Memory Management List <linux-mm@kvack.org>
+Subject:	Hang with v4.15-rc trying to swap back in
+Date:	Wed, 27 Dec 2017 10:12:20 -0800
+Message-Id:	<1514398340.3986.10.camel@HansenPartnership.com>
 
-First patch:
+This is the accepting MTA line from postfix:
 
-Subject: slub: Replace ctor field with ops field in /sys/slab/*
+Dec 27 10:12:23 bedivere postfix/smtp[15670]: CFB7E8EE190: to=<linux-mm@kvack.org>, relay=aspmx.l.google.com[74.125.28.26]:25, delay=1.2, delays=0.09/0.03/0.6/0.42, dsn=2.0.0, status=sent (250 2.0.0 OK 1514398342 z21si24644492plo.126 - gsmtp)
 
-Create an ops field in /sys/slab/*/ops to contain all the callback
-operations defined for a slab cache. This will be used to display
-the additional callbacks that will be defined soon to enable
-defragmentation.
+The one that made it is:
 
-Display the existing ctor callback in the ops fields contents.
+Message-Id:	<1514407817.4169.4.camel@HansenPartnership.com>
 
-Signed-off-by: Christoph Lameter <cl@linux.com>
+I've cc'd Ben because I think the list is still on his systems.
 
----
- mm/slub.c |   16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
-
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -4959,13 +4959,18 @@ static ssize_t cpu_partial_store(struct
- }
- SLAB_ATTR(cpu_partial);
-
--static ssize_t ctor_show(struct kmem_cache *s, char *buf)
-+static ssize_t ops_show(struct kmem_cache *s, char *buf)
- {
-+	int x = 0;
-+
- 	if (!s->ctor)
- 		return 0;
--	return sprintf(buf, "%pS\n", s->ctor);
-+
-+	if (s->ctor)
-+		x += sprintf(buf + x, "ctor : %pS\n", s->ctor);
-+	return x;
- }
--SLAB_ATTR_RO(ctor);
-+SLAB_ATTR_RO(ops);
-
- static ssize_t aliases_show(struct kmem_cache *s, char *buf)
- {
-@@ -5377,7 +5382,7 @@ static struct attribute *slab_attrs[] =
- 	&objects_partial_attr.attr,
- 	&partial_attr.attr,
- 	&cpu_slabs_attr.attr,
--	&ctor_attr.attr,
-+	&ops_attr.attr,
- 	&aliases_attr.attr,
- 	&align_attr.attr,
- 	&hwcache_align_attr.attr,
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
