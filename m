@@ -1,170 +1,90 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D719A6B025E
-	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 09:12:55 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id h10so2422694pgn.19
-        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 06:12:55 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15sor8093762pgr.381.2017.12.28.06.12.54
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AE85F6B0033
+	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 09:59:25 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id g81so33528194ioa.14
+        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 06:59:25 -0800 (PST)
+Received: from resqmta-ch2-02v.sys.comcast.net (resqmta-ch2-02v.sys.comcast.net. [2001:558:fe21:29:69:252:207:34])
+        by mx.google.com with ESMTPS id g137si4859227ioe.172.2017.12.28.06.59.24
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 28 Dec 2017 06:12:54 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 28 Dec 2017 06:59:24 -0800 (PST)
+Date: Thu, 28 Dec 2017 08:57:21 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [RFC 0/8] Xarray object migration V1
+In-Reply-To: <d54a8261-75f0-a9c8-d86d-e20b3b492ef9@infradead.org>
+Message-ID: <alpine.DEB.2.20.1712280856260.30955@nuc-kabylake>
+References: <20171227220636.361857279@linux.com> <d54a8261-75f0-a9c8-d86d-e20b3b492ef9@infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171228135856.GB24720@rapoport-lnx>
-References: <001a113f542a43cb1f05616305fb@google.com> <CACT4Y+bGVNgKd2PDkDgD8T8sWCRh_E5_jEjSr-Fy-vYNbt89nA@mail.gmail.com>
- <20171228135856.GB24720@rapoport-lnx>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 28 Dec 2017 15:12:33 +0100
-Message-ID: <CACT4Y+ZX3vRJXHT804CBm3rdMC9RGKQ4Gdyt7t0GZHxQNTz=XQ@mail.gmail.com>
-Subject: Re: WARNING in __wake_up_common
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Cc: syzbot <syzbot+aa0386edb3e128ffa315@syzkaller.appspotmail.com>, LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, syzkaller-bugs@googlegroups.com, Linux-MM <linux-mm@kvack.org>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
 
-On Thu, Dec 28, 2017 at 2:58 PM, Mike Rapoport <rppt@linux.vnet.ibm.com> wrote:
-> On Thu, Dec 28, 2017 at 10:30:46AM +0100, Dmitry Vyukov wrote:
->> On Thu, Dec 28, 2017 at 10:20 AM, syzbot
->> <syzbot+aa0386edb3e128ffa315@syzkaller.appspotmail.com> wrote:
->> > Hello,
->> >
->> > syzkaller hit the following crash on
->> > 82bcf1def3b5f1251177ad47c44f7e17af039b4b
->> > git://git.cmpxchg.org/linux-mmots.git/master
->> > compiler: gcc (GCC) 7.1.1 20170620
->> > .config is attached
->> > Raw console output is attached.
->> > C reproducer is attached
->> > syzkaller reproducer is attached. See https://goo.gl/kgGztJ
->> > for information about syzkaller reproducers
->> >
->> >
->> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
->> > Reported-by: syzbot+aa0386edb3e128ffa315@syzkaller.appspotmail.com
->> > It will help syzbot understand when the bug is fixed. See footer for
->> > details.
->> > If you forward the report, please keep this part and the footer.
->> >
->> > audit: type=1400 audit(1513711793.237:7): avc:  denied  { map } for
->> > pid=3151 comm="syzkaller173649" path="/root/syzkaller173649879" dev="sda1"
->> > ino=16481 scontext=unconfined_u:system_r:insmod_t:s0-s0:c0.c1023
->> > tcontext=unconfined_u:object_r:user_home_t:s0 tclass=file permissive=1
->> > WARNING: CPU: 1 PID: 3151 at kernel/sched/wait.c:79
->> > __wake_up_common+0x433/0x770 kernel/sched/wait.c:79
->> > Kernel panic - not syncing: panic_on_warn set ...
->> >
->> > CPU: 1 PID: 3151 Comm: syzkaller173649 Not tainted 4.15.0-rc2-mm1+ #39
->> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
->> > Google 01/01/2011
->> > Call Trace:
->> >  __dump_stack lib/dump_stack.c:17 [inline]
->> >  dump_stack+0x194/0x257 lib/dump_stack.c:53
->> >  panic+0x1e4/0x41c kernel/panic.c:183
->> >  __warn+0x1dc/0x200 kernel/panic.c:547
->> >  report_bug+0x211/0x2d0 lib/bug.c:184
->> >  fixup_bug.part.11+0x37/0x80 arch/x86/kernel/traps.c:177
->> >  fixup_bug arch/x86/kernel/traps.c:246 [inline]
->> >  do_error_trap+0x2d7/0x3e0 arch/x86/kernel/traps.c:295
->> >  do_invalid_op+0x1b/0x20 arch/x86/kernel/traps.c:314
->> >  invalid_op+0x22/0x40 arch/x86/entry/entry_64.S:1079
->> > RIP: 0010:__wake_up_common+0x433/0x770 kernel/sched/wait.c:79
->> > RSP: 0018:ffff8801c4897648 EFLAGS: 00010246
->> > RAX: 0000000000000000 RBX: ffff8801d8cbfe50 RCX: 0000000000000004
->> > RDX: 1ffffffff0c59731 RSI: ffff8801d8cbfe68 RDI: 0000000000000282
->> > RBP: ffff8801c4897748 R08: ffff8801c4897858 R09: 0000000000000000
->> > R10: 000000000000000b R11: ffffed0038912e48 R12: 0000000000000000
->> > R13: ffff8801d8cbfe00 R14: 0000000000000001 R15: ffff8801c4897858
->> >  __wake_up_locked_key+0x16/0x20 kernel/sched/wait.c:166
->> >  userfaultfd_release+0x4da/0x750 fs/userfaultfd.c:885
->> >  __fput+0x333/0x7f0 fs/file_table.c:210
->> >  ____fput+0x15/0x20 fs/file_table.c:244
->> >  task_work_run+0x199/0x270 kernel/task_work.c:113
->> >  exit_task_work include/linux/task_work.h:22 [inline]
->> >  do_exit+0x9bb/0x1ae0 kernel/exit.c:869
->> >  do_group_exit+0x149/0x400 kernel/exit.c:972
->> >  SYSC_exit_group kernel/exit.c:983 [inline]
->> >  SyS_exit_group+0x1d/0x20 kernel/exit.c:981
->> >  entry_SYSCALL_64_fastpath+0x1f/0x96
->> > RIP: 0033:0x43e848
->> > RSP: 002b:00007ffe33766e08 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
->> > RAX: ffffffffffffffda RBX: 00000000006ca800 RCX: 000000000043e848
->> > RDX: 0000000000000000 RSI: 000000000000003c RDI: 0000000000000000
->> > RBP: 00000000000014b1 R08: 00000000000000e7 R09: ffffffffffffffd0
->> > R10: 0000000000000006 R11: 0000000000000246 R12: 00000000006ca858
->> > R13: 00000000006ca858 R14: 0000000000000000 R15: 0000000000002710
->> > Dumping ftrace buffer:
->> >    (ftrace buffer empty)
->> > Kernel Offset: disabled
->> > Rebooting in 86400 seconds..
->>
->>
->> This was triggered by just creating a userfaultfd, and happened only
->> in mmots but stopped happening few days ago. I don't see any recent
->> commits touching useffaultfd.c in mm tree (other than
->> "mm/userfaultfd.c: remove duplicate include"). Was a bogus commit
->> dropped from mm tree? Let's close this bug for now and see if it
->> happens again:
+On Wed, 27 Dec 2017, Randy Dunlap wrote:
+
+> > To test apply this patchset on top of Matthew Wilcox Xarray code
+> > from Dec 11th (See infradead github).
 >
-> Seems to me it's the same problem as one reported by 01day bot [1].
+> linux-mm archive is missing patch 1/8 and so am I.
 >
-> There was Christoph's patch "sched/wait: assert the wait_queue_head lock is
-> held in __wake_up_common" that Andrew dropped from his tree.
-> This patch revealed, hmm, special wait queue locking in the userfault.
+> https://marc.info/?l=linux-mm
 
-Thanks. Always good to know the actual root cause.
-So now 2 bots won't let it re-enter the tree if it breaks something :)
+Duh. How can you troubleshoot that one?
 
+First patch:
 
-> [1] https://lkml.org/lkml/2017/12/13/942
->
->> #syz invalid
->>
->>
->> > ---
->> > This bug is generated by a dumb bot. It may contain errors.
->> > See https://goo.gl/tpsmEJ for details.
->> > Direct all questions to syzkaller@googlegroups.com.
->> >
->> > syzbot will keep track of this bug report.
->> > If you forgot to add the Reported-by tag, once the fix for this bug is
->> > merged
->> > into any tree, please reply to this email with:
->> > #syz fix: exact-commit-title
->> > If you want to test a patch for this bug, please reply with:
->> > #syz test: git://repo/address.git branch
->> > and provide the patch inline or as an attachment.
->> > To mark this as a duplicate of another syzbot report, please reply with:
->> > #syz dup: exact-subject-of-another-report
->> > If it's a one-off invalid bug report, please reply with:
->> > #syz invalid
->> > Note: if the crash happens again, it will cause creation of a new bug
->> > report.
->> > Note: all commands must start from beginning of the line in the email body.
->> >
->> > --
->> > You received this message because you are subscribed to the Google Groups
->> > "syzkaller-bugs" group.
->> > To unsubscribe from this group and stop receiving emails from it, send an
->> > email to syzkaller-bugs+unsubscribe@googlegroups.com.
->> > To view this discussion on the web visit
->> > https://groups.google.com/d/msgid/syzkaller-bugs/001a113f542a43cb1f05616305fb%40google.com.
->> > For more options, visit https://groups.google.com/d/optout.
->>
->> --
->> To unsubscribe, send a message with 'unsubscribe linux-mm' in
->> the body to majordomo@kvack.org.  For more info on Linux MM,
->> see: http://www.linux-mm.org/ .
->> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Subject: slub: Replace ctor field with ops field in /sys/slab/*
 
+Create an ops field in /sys/slab/*/ops to contain all the callback
+operations defined for a slab cache. This will be used to display
+the additional callbacks that will be defined soon to enable
+defragmentation.
 
+Display the existing ctor callback in the ops fields contents.
 
->>
->
-> --
-> Sincerely yours,
-> Mike.
->
+Signed-off-by: Christoph Lameter <cl@linux.com>
+
+---
+ mm/slub.c |   16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
+
+Index: linux/mm/slub.c
+===================================================================
+--- linux.orig/mm/slub.c
++++ linux/mm/slub.c
+@@ -4959,13 +4959,18 @@ static ssize_t cpu_partial_store(struct
+ }
+ SLAB_ATTR(cpu_partial);
+
+-static ssize_t ctor_show(struct kmem_cache *s, char *buf)
++static ssize_t ops_show(struct kmem_cache *s, char *buf)
+ {
++	int x = 0;
++
+ 	if (!s->ctor)
+ 		return 0;
+-	return sprintf(buf, "%pS\n", s->ctor);
++
++	if (s->ctor)
++		x += sprintf(buf + x, "ctor : %pS\n", s->ctor);
++	return x;
+ }
+-SLAB_ATTR_RO(ctor);
++SLAB_ATTR_RO(ops);
+
+ static ssize_t aliases_show(struct kmem_cache *s, char *buf)
+ {
+@@ -5377,7 +5382,7 @@ static struct attribute *slab_attrs[] =
+ 	&objects_partial_attr.attr,
+ 	&partial_attr.attr,
+ 	&cpu_slabs_attr.attr,
+-	&ctor_attr.attr,
++	&ops_attr.attr,
+ 	&aliases_attr.attr,
+ 	&align_attr.attr,
+ 	&hwcache_align_attr.attr,
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
