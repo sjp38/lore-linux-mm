@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5236F6B0033
-	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 19:58:03 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id i33so22515304pld.0
-        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 16:58:03 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id y40si23693612pla.710.2017.12.27.16.58.01
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9C9FF6B0069
+	for <linux-mm@kvack.org>; Wed, 27 Dec 2017 19:58:14 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id m7so2449348pgv.17
+        for <linux-mm@kvack.org>; Wed, 27 Dec 2017 16:58:14 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id i1si25272703plt.36.2017.12.27.16.58.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 27 Dec 2017 16:58:01 -0800 (PST)
+        Wed, 27 Dec 2017 16:58:13 -0800 (PST)
 From: "Huang, Ying" <ying.huang@intel.com>
-Subject: [PATCH -V5a -mm] mm, swap: Fix race between swapoff and some swap operations
-Date: Thu, 28 Dec 2017 08:57:08 +0800
-Message-Id: <20171228005708.15150-1-ying.huang@intel.com>
+Subject: [PATCH -V5b -mm] mm, swap: Fix race between swapoff and some swap operations
+Date: Thu, 28 Dec 2017 08:58:05 +0800
+Message-Id: <20171228005805.15632-1-ying.huang@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -47,10 +47,10 @@ the swap entry valid via preventing the swap device from being
 swapoff, until put_swap_device() is called.
 
 Because swapoff() is very rare code path, to make the normal path runs
-as fast as possible, RCU-sched instead of reference count is used to
-implement get/put_swap_device().  From get_swap_device() to
-put_swap_device(), the RCU-sched read lock is held, so
-synchronize_sched() in swapoff() will wait until put_swap_device() is
+as fast as possible, disabling preemption + stop_machine() instead of
+reference count is used to implement get/put_swap_device().  From
+get_swap_device() to put_swap_device(), the preemption is disabled, so
+stop_machine() in swapoff() will wait until put_swap_device() is
 called.
 
 In addition to swap_map, cluster_info, etc. data structure in the
@@ -59,9 +59,12 @@ swapoff, so this patch fixes the race between swap cache looking up
 and swapoff too.
 
 Races between some other swap cache usages protected via disabling
-preemption and swapoff are fixed too via calling synchronize_sched()
+preemption and swapoff are fixed too via calling stop_machine()
 between clearing PageSwapCache() and freeing swap cache data
 structure.
+
+Alternative implementation could be replacing disable preemption with
+rcu_read_lock_sched and stop_machine() with synchronize_sched().
 
 Cc: Hugh Dickins <hughd@google.com>
 Cc: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
@@ -84,8 +87,7 @@ Changelog:
 
 v5:
 
-- Replace RCU with RCU-sched to fix some races between swap cache
-  usage and swapoff.
+- Replace RCU with stop_machine()
 
 v4:
 
@@ -107,11 +109,11 @@ v2:
  include/linux/swap.h |  13 ++++--
  mm/memory.c          |   2 +-
  mm/swap_state.c      |  16 +++++--
- mm/swapfile.c        | 123 ++++++++++++++++++++++++++++++++++++++-------------
- 4 files changed, 117 insertions(+), 37 deletions(-)
+ mm/swapfile.c        | 129 +++++++++++++++++++++++++++++++++++++++------------
+ 4 files changed, 123 insertions(+), 37 deletions(-)
 
 diff --git a/include/linux/swap.h b/include/linux/swap.h
-index 2417d288e016..4d91e003e2e5 100644
+index 2417d288e016..1985940af479 100644
 --- a/include/linux/swap.h
 +++ b/include/linux/swap.h
 @@ -172,8 +172,9 @@ enum {
@@ -142,7 +144,7 @@ index 2417d288e016..4d91e003e2e5 100644
 +
 +static inline void put_swap_device(struct swap_info_struct *si)
 +{
-+	rcu_read_unlock_sched();
++	preempt_enable();
 +}
  
  #else /* CONFIG_SWAP */
@@ -213,10 +215,18 @@ index 0b8ae361981f..8dde719e973c 100644
  			break;
  
 diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 42fe5653814a..4995cff20c21 100644
+index 42fe5653814a..823ea9cb8854 100644
 --- a/mm/swapfile.c
 +++ b/mm/swapfile.c
-@@ -1107,6 +1107,41 @@ static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
+@@ -38,6 +38,7 @@
+ #include <linux/export.h>
+ #include <linux/swap_slots.h>
+ #include <linux/sort.h>
++#include <linux/stop_machine.h>
+ 
+ #include <asm/pgtable.h>
+ #include <asm/tlbflush.h>
+@@ -1107,6 +1108,41 @@ static struct swap_info_struct *swap_info_get_cont(swp_entry_t entry,
  	return p;
  }
  
@@ -238,7 +248,7 @@ index 42fe5653814a..4995cff20c21 100644
 +		goto bad_nofile;
 +	si = swap_info[type];
 +
-+	rcu_read_lock_sched();
++	preempt_disable();
 +	if (!(si->flags & SWP_VALID))
 +		goto unlock_out;
 +	offset = swp_offset(entry);
@@ -251,14 +261,14 @@ index 42fe5653814a..4995cff20c21 100644
 +out:
 +	return NULL;
 +unlock_out:
-+	rcu_read_unlock_sched();
++	preempt_enable();
 +	return NULL;
 +}
 +
  static unsigned char __swap_entry_free(struct swap_info_struct *p,
  				       swp_entry_t entry, unsigned char usage)
  {
-@@ -1328,11 +1363,18 @@ int page_swapcount(struct page *page)
+@@ -1328,11 +1364,18 @@ int page_swapcount(struct page *page)
  	return count;
  }
  
@@ -279,7 +289,7 @@ index 42fe5653814a..4995cff20c21 100644
  }
  
  static int swap_swapcount(struct swap_info_struct *si, swp_entry_t entry)
-@@ -1357,9 +1399,11 @@ int __swp_swapcount(swp_entry_t entry)
+@@ -1357,9 +1400,11 @@ int __swp_swapcount(swp_entry_t entry)
  	int count = 0;
  	struct swap_info_struct *si;
  
@@ -293,7 +303,7 @@ index 42fe5653814a..4995cff20c21 100644
  	return count;
  }
  
-@@ -2451,9 +2495,9 @@ static int swap_node(struct swap_info_struct *p)
+@@ -2451,9 +2496,9 @@ static int swap_node(struct swap_info_struct *p)
  	return bdev ? bdev->bd_disk->node_id : NUMA_NO_NODE;
  }
  
@@ -306,7 +316,7 @@ index 42fe5653814a..4995cff20c21 100644
  {
  	int i;
  
-@@ -2478,7 +2522,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+@@ -2478,7 +2523,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
  	}
  	p->swap_map = swap_map;
  	p->cluster_info = cluster_info;
@@ -319,7 +329,19 @@ index 42fe5653814a..4995cff20c21 100644
  	atomic_long_add(p->pages, &nr_swap_pages);
  	total_swap_pages += p->pages;
  
-@@ -2505,7 +2553,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
+@@ -2497,6 +2546,11 @@ static void _enable_swap_info(struct swap_info_struct *p, int prio,
+ 	add_to_avail_list(p);
+ }
+ 
++static int swap_onoff_stop(void *arg)
++{
++	return 0;
++}
++
+ static void enable_swap_info(struct swap_info_struct *p, int prio,
+ 				unsigned char *swap_map,
+ 				struct swap_cluster_info *cluster_info,
+@@ -2505,7 +2559,17 @@ static void enable_swap_info(struct swap_info_struct *p, int prio,
  	frontswap_init(p->type, frontswap_map);
  	spin_lock(&swap_lock);
  	spin_lock(&p->lock);
@@ -331,14 +353,14 @@ index 42fe5653814a..4995cff20c21 100644
 +	 * Guarantee swap_map, cluster_info, etc. fields are used
 +	 * between get/put_swap_device() only if SWP_VALID bit is set
 +	 */
-+	synchronize_sched();
++	stop_machine(swap_onoff_stop, NULL, cpu_online_mask);
 +	spin_lock(&swap_lock);
 +	spin_lock(&p->lock);
 +	_enable_swap_info(p);
  	spin_unlock(&p->lock);
  	spin_unlock(&swap_lock);
  }
-@@ -2514,7 +2572,8 @@ static void reinsert_swap_info(struct swap_info_struct *p)
+@@ -2514,7 +2578,8 @@ static void reinsert_swap_info(struct swap_info_struct *p)
  {
  	spin_lock(&swap_lock);
  	spin_lock(&p->lock);
@@ -348,7 +370,7 @@ index 42fe5653814a..4995cff20c21 100644
  	spin_unlock(&p->lock);
  	spin_unlock(&swap_lock);
  }
-@@ -2617,6 +2676,17 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
+@@ -2617,6 +2682,17 @@ SYSCALL_DEFINE1(swapoff, const char __user *, specialfile)
  
  	reenable_swap_slots_cache_unlock();
  
@@ -361,12 +383,12 @@ index 42fe5653814a..4995cff20c21 100644
 +	 * wait for swap operations protected by get/put_swap_device()
 +	 * to complete
 +	 */
-+	synchronize_sched();
++	stop_machine(swap_onoff_stop, NULL, cpu_online_mask);
 +
  	flush_work(&p->discard_work);
  
  	destroy_swap_extents(p);
-@@ -3356,22 +3426,16 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+@@ -3356,22 +3432,16 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
  {
  	struct swap_info_struct *p;
  	struct swap_cluster_info *ci;
@@ -392,7 +414,7 @@ index 42fe5653814a..4995cff20c21 100644
  	ci = lock_cluster_or_swap_info(p, offset);
  
  	count = p->swap_map[offset];
-@@ -3417,11 +3481,9 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
+@@ -3417,11 +3487,9 @@ static int __swap_duplicate(swp_entry_t entry, unsigned char usage)
  unlock_out:
  	unlock_cluster_or_swap_info(p, ci);
  out:
@@ -406,7 +428,7 @@ index 42fe5653814a..4995cff20c21 100644
  }
  
  /*
-@@ -3513,6 +3575,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+@@ -3513,6 +3581,7 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
  	struct page *list_page;
  	pgoff_t offset;
  	unsigned char count;
@@ -414,7 +436,7 @@ index 42fe5653814a..4995cff20c21 100644
  
  	/*
  	 * When debugging, it's easier to use __GFP_ZERO here; but it's better
-@@ -3520,15 +3583,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+@@ -3520,15 +3589,15 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
  	 */
  	page = alloc_page(gfp_mask | __GFP_HIGHMEM);
  
@@ -433,7 +455,7 @@ index 42fe5653814a..4995cff20c21 100644
  
  	offset = swp_offset(entry);
  
-@@ -3546,9 +3609,8 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+@@ -3546,9 +3615,8 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
  	}
  
  	if (!page) {
@@ -445,7 +467,7 @@ index 42fe5653814a..4995cff20c21 100644
  	}
  
  	/*
-@@ -3600,10 +3662,11 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
+@@ -3600,10 +3668,11 @@ int add_swap_count_continuation(swp_entry_t entry, gfp_t gfp_mask)
  out:
  	unlock_cluster(ci);
  	spin_unlock(&si->lock);
