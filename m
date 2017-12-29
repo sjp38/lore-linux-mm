@@ -1,64 +1,105 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BC4D16B0275
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 02:55:32 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id t65so29877680pfe.22
-        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 23:55:32 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z100si28143451plh.172.2017.12.28.23.55.31
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 88EB96B0260
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 03:01:58 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id d4so24551776plr.8
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 00:01:58 -0800 (PST)
+Received: from huawei.com ([45.249.212.35])
+        by mx.google.com with ESMTPS id s24si27526306plp.220.2017.12.29.00.01.57
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 28 Dec 2017 23:55:31 -0800 (PST)
-From: Christoph Hellwig <hch@lst.de>
-Subject: [PATCH 17/17] memremap: merge find_dev_pagemap into get_dev_pagemap
-Date: Fri, 29 Dec 2017 08:54:06 +0100
-Message-Id: <20171229075406.1936-18-hch@lst.de>
-In-Reply-To: <20171229075406.1936-1-hch@lst.de>
-References: <20171229075406.1936-1-hch@lst.de>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 29 Dec 2017 00:01:57 -0800 (PST)
+Subject: Re: [RFC patch] ioremap: don't set up huge I/O mappings when
+ p4d/pud/pmd is zero
+From: Hanjun Guo <guohanjun@huawei.com>
+References: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
+Message-ID: <17c8384a-7748-3acc-a56f-78698087560a@huawei.com>
+Date: Fri, 29 Dec 2017 16:00:25 +0800
+MIME-Version: 1.0
+In-Reply-To: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>, Michal Hocko <mhocko@kernel.org>, linux-nvdimm@lists.01.org, linuxppc-dev@lists.ozlabs.org, x86@kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
+Cc: linuxarm@huawei.com, linux-mm@kvack.org, Hanjun Guo <hanjun.guo@linaro.org>, Toshi Kani <toshi.kani@hpe.com>, Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Xuefeng Wang <wxf.wang@hisilicon.com>
 
-There is only one caller of the trivial function find_dev_pagemap left,
-so just merge it into the caller.
+oops, the title of this patch is wrong, should be:
+ioremap: skip setting up huge I/O mappings when p4d/pud/pmd is zero
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Dan Williams <dan.j.williams@intel.com>
----
- kernel/memremap.c | 10 +---------
- 1 file changed, 1 insertion(+), 9 deletions(-)
-
-diff --git a/kernel/memremap.c b/kernel/memremap.c
-index a9a948cd3d7f..ada31b0d76d4 100644
---- a/kernel/memremap.c
-+++ b/kernel/memremap.c
-@@ -306,14 +306,6 @@ static void devm_memremap_pages_release(void *data)
- 		      "%s: failed to free all reserved pages\n", __func__);
- }
- 
--/* assumes rcu_read_lock() held at entry */
--static struct dev_pagemap *find_dev_pagemap(resource_size_t phys)
--{
--	WARN_ON_ONCE(!rcu_read_lock_held());
--
--	return radix_tree_lookup(&pgmap_radix, PHYS_PFN(phys));
--}
--
- /**
-  * devm_memremap_pages - remap and provide memmap backing for the given resource
-  * @dev: hosting device for @res
-@@ -466,7 +458,7 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
- 
- 	/* fall back to slow path lookup */
- 	rcu_read_lock();
--	pgmap = find_dev_pagemap(phys);
-+	pgmap = radix_tree_lookup(&pgmap_radix, PHYS_PFN(phys));
- 	if (pgmap && !percpu_ref_tryget_live(pgmap->ref))
- 		pgmap = NULL;
- 	rcu_read_unlock();
--- 
-2.14.2
+On 2017/12/28 19:24, Hanjun Guo wrote:
+> From: Hanjun Guo <hanjun.guo@linaro.org>
+> 
+> When we using iounmap() to free the 4K mapping, it just clear the PTEs
+> but leave P4D/PUD/PMD unchanged, also will not free the memory of page
+> tables.
+> 
+> This will cause issues on ARM64 platform (not sure if other archs have
+> the same issue) for this case:
+> 
+> 1. ioremap a 4K size, valid page table will build,
+> 2. iounmap it, pte0 will set to 0;
+> 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
+>    then set the a new value for pmd;
+> 4. pte0 is leaked;
+> 5. CPU may meet exception because the old pmd is still in TLB,
+>    which will lead to kernel panic.
+> 
+> Fix it by skip setting up the huge I/O mappings when p4d/pud/pmd is
+> zero.
+> 
+> Reported-by: Lei Li <lious.lilei@hisilicon.com>
+> Signed-off-by: Hanjun Guo <hanjun.guo@linaro.org>
+> Cc: Toshi Kani <toshi.kani@hpe.com>
+> Cc: Mark Rutland <mark.rutland@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Xuefeng Wang <wxf.wang@hisilicon.com>
+> ---
+> 
+> Not sure if this is the right direction, this patch has a obvious
+> side effect that a mapped address with 4K will not back to 2M.  I may
+> miss something and just wrong, so this is just a RFC version, comments
+> are welcomed.
+> 
+>  lib/ioremap.c | 6 +++---
+>  1 file changed, 3 insertions(+), 3 deletions(-)
+> 
+> diff --git a/lib/ioremap.c b/lib/ioremap.c
+> index b808a39..4e6f19a 100644
+> --- a/lib/ioremap.c
+> +++ b/lib/ioremap.c
+> @@ -89,7 +89,7 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
+>  	do {
+>  		next = pmd_addr_end(addr, end);
+>  
+> -		if (ioremap_pmd_enabled() &&
+> +		if (ioremap_pmd_enabled() && pmd_none(*pmd) &&
+>  		    ((next - addr) == PMD_SIZE) &&
+>  		    IS_ALIGNED(phys_addr + addr, PMD_SIZE)) {
+>  			if (pmd_set_huge(pmd, phys_addr + addr, prot))
+> @@ -115,7 +115,7 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
+>  	do {
+>  		next = pud_addr_end(addr, end);
+>  
+> -		if (ioremap_pud_enabled() &&
+> +		if (ioremap_pud_enabled() && pud_none(*pud) &&
+>  		    ((next - addr) == PUD_SIZE) &&
+>  		    IS_ALIGNED(phys_addr + addr, PUD_SIZE)) {
+>  			if (pud_set_huge(pud, phys_addr + addr, prot))
+> @@ -141,7 +141,7 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
+>  	do {
+>  		next = p4d_addr_end(addr, end);
+>  
+> -		if (ioremap_p4d_enabled() &&
+> +		if (ioremap_p4d_enabled() && p4d_none(*p4d) &&
+>  		    ((next - addr) == P4D_SIZE) &&
+>  		    IS_ALIGNED(phys_addr + addr, P4D_SIZE)) {
+>  			if (p4d_set_huge(p4d, phys_addr + addr, prot))
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
