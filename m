@@ -1,59 +1,82 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f72.google.com (mail-it0-f72.google.com [209.85.214.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3E7CC6B0033
-	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 19:19:18 -0500 (EST)
-Received: by mail-it0-f72.google.com with SMTP id z142so24900130itc.6
-        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 16:19:18 -0800 (PST)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id f11si17474317ite.9.2017.12.28.16.19.17
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 28 Dec 2017 16:19:17 -0800 (PST)
-Date: Thu, 28 Dec 2017 18:19:15 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC 0/8] Xarray object migration V1
-In-Reply-To: <20171228222419.GQ1871@rh>
-Message-ID: <alpine.DEB.2.20.1712281803130.26478@nuc-kabylake>
-References: <20171227220636.361857279@linux.com> <20171228222419.GQ1871@rh>
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9402B6B0033
+	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 19:45:46 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z24so1963150pgu.20
+        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 16:45:46 -0800 (PST)
+Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
+        by mx.google.com with ESMTP id 73si27600425pfr.73.2017.12.28.16.45.44
+        for <linux-mm@kvack.org>;
+        Thu, 28 Dec 2017 16:45:45 -0800 (PST)
+Date: Fri, 29 Dec 2017 09:45:42 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: Hang with v4.15-rc trying to swap back in
+Message-ID: <20171229004542.GA575@bbox>
+References: <1514398340.3986.10.camel@HansenPartnership.com>
+ <1514407817.4169.4.camel@HansenPartnership.com>
+ <20171227232650.GA9702@bbox>
+ <1514417689.3083.1.camel@HansenPartnership.com>
+ <20171227235643.GA10532@bbox>
+ <1514482907.3040.15.camel@HansenPartnership.com>
+ <1514487640.3040.21.camel@HansenPartnership.com>
+ <20171229000016.GA11452@bbox>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20171229000016.GA11452@bbox>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <dchinner@redhat.com>
-Cc: Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Linux Memory Management List <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, Thorsten Leemhuis <regressions@leemhuis.info>
 
-On Fri, 29 Dec 2017, Dave Chinner wrote:
+On Fri, Dec 29, 2017 at 09:00:16AM +0900, Minchan Kim wrote:
+> On Thu, Dec 28, 2017 at 11:00:40AM -0800, James Bottomley wrote:
+> > On Thu, 2017-12-28 at 09:41 -0800, James Bottomley wrote:
+> > > I'd guess that since they're both in io_schedule, the problem is that
+> > > the io_scheduler is taking far too long servicing the requests due to
+> > > some priority issue you've introduced.
+> > 
+> > OK, so after some analysis, that turned out to be incorrect.  The
+> > problem seems to be that we're exiting do_swap_page() with locked pages
+> > that have been read in from swap.
+> > 
+> > Your changelogs are entirely unclear on why you changed the swapcache
+> > setting logic in this patch:
+> > 
+> > commit 0bcac06f27d7528591c27ac2b093ccd71c5d0168
+> > Author: Minchan Kim <minchan@kernel.org>
+> > Date:   Wed Nov 15 17:33:07 2017 -0800
+> > 
+> >     mm, swap: skip swapcache for swapin of synchronous device
+> > 
+> > But I think you're using swapcache == NULL as a signal the page came
+> > from a synchronous device.  In which case the bug is that you've
+> 
+> Exactly. Because the patchset aims for skipping swap cache for synchronous
+> device and some logics of do_swap_page has has assumed the page is on
+> swap cache.
+> 
+> > forgotten we may already have picked up a page in
+> > swap_readahead_detect() which you're wrongly keeping swapcache == NULL
+> > for and the fix is this (it works on my system, although I'm still
+> > getting an unaccountable shutdown delay).
+> 
+> SIGH. I missed that.
+> 
+> > 
+> > I still think we should revert this series, because this may not be the
+> > only bug lurking in the code, so it should go through a lot more
+> > rigorous testing than it has.
+> 
+> I have no problem. It's not urgent.
+> 
+> Andrew, this is reverting patch based on 4.15-rc5. And I need to send
+> another revert patch against on mmotm because it would have conflict due to
+> vma-based readahead restructuring patch. I will send soon.
+> 
 
-> IOWs, just saying "it would be worthwhile to extend this to dentries
-> and inodes" completely misrepresents the sheer complexity of doing
-> so. We've known that atomic replacement is the big problem for
-> defragging inodes and dentries since this work was started, what,
-> more than 10 years? And while there's been many revisions of the
-> core defrag code since then, there has been no credible solution
-> presented for atomic replacement of objects with complex external
-> references. This is a show-stopper for inode/dentry slab defrag, and
-> I don't see that this new patchset is any different...
+We should revert (23c47d2ada9f, bdi: introduce BDI_CAP_SYNCHRONOUS_IO) as well.
+I resend reverting patch with including 23c47d2ada9f.
 
-Well this is a chance here to start an implementation since the radix tree
-is being reworked anyways. This is not dealing with dentries and inodes
-but it brings in the basic infrastructure into the slab allocators that
-can then be used to add other slab caches. Same warnings were given to me
-when we did page migration and it languished for 5 years.
-
-I have not had time to really focus on memory management issues since I
-left SGI about 9 years ago but it seems that I may now have the chance in
-2018 to put a significant amount of time into making some progress.
-
-Large memory in servers has become a significant problem for my employer
-and the ability to allocate and manage contiguous memory blocks is
-essential to preserve performance and avoid constant reboot. So I will be
-looking for ways to address these issues. Maybe with a couple of
-approaches.
-
-
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Andrew, Pleas take this patch for linus-tree. Sorry for the confusion.
