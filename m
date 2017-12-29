@@ -1,19 +1,19 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D44D56B0033
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 11:30:42 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id t65so30376419pfe.22
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 08:30:42 -0800 (PST)
-Received: from BJEXCAS004.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
-        by mx.google.com with ESMTPS id d132si25670570pgc.187.2017.12.29.08.30.38
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2542D6B0033
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 11:36:45 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id s3so3304766otd.16
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 08:36:45 -0800 (PST)
+Received: from BJEXCAS001.didichuxing.com ([36.110.17.22])
+        by mx.google.com with ESMTPS id w201si11198384oia.276.2017.12.29.08.36.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Dec 2017 08:30:39 -0800 (PST)
-Date: Sat, 30 Dec 2017 00:30:32 +0800
+        Fri, 29 Dec 2017 08:36:43 -0800 (PST)
+Date: Sat, 30 Dec 2017 00:36:17 +0800
 From: weiping zhang <zhangweiping@didichuxing.com>
 Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
  bdi_debug_register")
-Message-ID: <20171229163021.GA9150@bogon.didichuxing.com>
+Message-ID: <20171229163617.GB9150@bogon.didichuxing.com>
 References: <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
  <20171221153631.GA2300@wolff.to>
  <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
@@ -55,23 +55,23 @@ On Fri, Dec 22, 2017 at 08:04:23AM -0600, Bruno Wolff III wrote:
 > >that warning, I'll debug it later.
 > 
 > Great. When you have a fix, I can test it.
-This issue can trigger easily in Centos7.3 + kernel-4.15-rc3, if meet two factors:
+This issue can trigger easily in Centos7.3, if meet two factors:
 1. SELINUX in enforceing mode
 2. mdadm try to create new gendisk.
 
 if disable SELINUX or let it in permissive mode, issue disappear.
 As Jens has revert that commit, it seems boot normally, actually
-there is no diretory created under /sys/kernel/debug/bdi/, though
+this is no diretor created under /sys/kernel/debug/bdi/, though
 has no effect on disk workflow.
 
-As James said before, "debugfs files should be treated as optional",
+As james said before, "debugfs files should be treated as optional",
 so kernel give warning here is enough.
 
-So, we may solve this issue in two ways:
-1. Add proper SELINUX policy that give permission to mdadm for debugfs.
-2. Split mdadm into 2 part, Firstly, user proccess mdadm trigger a kwork,
-secondly kwork will create gendisk)and mdadm wait it done, Like
-following: 
+So there are 2 ways to fix this issue:
+1. Add proper SELINUX policy allow mdadm create dir at debugfs
+2. mdadm don't create gendisk directly, first mdadm trigger a kwork and
+wait it done, let kwork create gendisk.
+A possible change for MD like following:
 
 diff --git a/drivers/md/md.c b/drivers/md/md.c
 index 4e4dee0..86ead5a 100644
