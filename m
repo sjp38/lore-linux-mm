@@ -1,123 +1,170 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 124756B0033
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 10:45:56 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id d3so25165153plj.22
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 07:45:56 -0800 (PST)
-Received: from NAM01-SN1-obe.outbound.protection.outlook.com (mail-sn1nam01on0113.outbound.protection.outlook.com. [104.47.32.113])
-        by mx.google.com with ESMTPS id n74si28602917pfi.305.2017.12.29.07.45.53
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D44D56B0033
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 11:30:42 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id t65so30376419pfe.22
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 08:30:42 -0800 (PST)
+Received: from BJEXCAS004.didichuxing.com (mx1.didichuxing.com. [111.202.154.82])
+        by mx.google.com with ESMTPS id d132si25670570pgc.187.2017.12.29.08.30.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Dec 2017 07:45:54 -0800 (PST)
-From: "Zi Yan" <zi.yan@cs.rutgers.edu>
-Subject: Re: [RFC PATCH 3/3] mm: unclutter THP migration
-Date: Fri, 29 Dec 2017 10:45:46 -0500
-Message-ID: <044496C5-5ACD-4845-A7A3-BD920BF9233B@cs.rutgers.edu>
-In-Reply-To: <20171229113627.GB27077@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-4-mhocko@kernel.org>
- <AEE005DE-5103-4BCC-BAAB-9E126173AB62@cs.rutgers.edu>
- <20171229113627.GB27077@dhcp22.suse.cz>
+        Fri, 29 Dec 2017 08:30:39 -0800 (PST)
+Date: Sat, 30 Dec 2017 00:30:32 +0800
+From: weiping zhang <zhangweiping@didichuxing.com>
+Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
+ bdi_debug_register")
+Message-ID: <20171229163021.GA9150@bogon.didichuxing.com>
+References: <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
+ <20171221153631.GA2300@wolff.to>
+ <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
+ <20171221164221.GA23680@wolff.to>
+ <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
+ <20171221181531.GA21050@wolff.to>
+ <20171221231603.GA15702@wolff.to>
+ <20171222045318.GA4505@wolff.to>
+ <CAA70yB5y1uLvtvEFLsE2C_ALLvSqEZ6XKA=zoPeSaH_eSAVL4w@mail.gmail.com>
+ <20171222140423.GA23107@wolff.to>
 MIME-Version: 1.0
-Content-Type: multipart/signed;
- boundary="=_MailMate_968C8C0A-88F7-4A68-B1FC-F6AA0EFDF428_=";
- micalg=pgp-sha512; protocol="application/pgp-signature"
+Content-Type: text/plain; charset="us-ascii"
+Content-Disposition: inline
+In-Reply-To: <20171222140423.GA23107@wolff.to>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: Bruno Wolff III <bruno@wolff.to>
+Cc: Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, weiping zhang <zwp10758@gmail.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
 
-This is an OpenPGP/MIME signed message (RFC 3156 and 4880).
+On Fri, Dec 22, 2017 at 08:04:23AM -0600, Bruno Wolff III wrote:
+> On Fri, Dec 22, 2017 at 21:20:10 +0800,
+>  weiping zhang <zwp10758@gmail.com> wrote:
+> >2017-12-22 12:53 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
+> >>On Thu, Dec 21, 2017 at 17:16:03 -0600,
+> >> Bruno Wolff III <bruno@wolff.to> wrote:
+> >>>
+> >>>
+> >>>Enforcing mode alone isn't enough as I tested that one one machine at home
+> >>>and it didn't trigger the problem. I'll try another machine late tonight.
+> >>
+> >>
+> >>I got the problem to occur on my i686 machine when booting in enforcing
+> >>mode. This machine uses raid 1 vua mdraid which may or may not be a factor
+> >>in this problem. The boot log has a trace at the end and might be helpful,
+> >>so I'm attaching it here.
+> >Hi Bruno,
+> >I can reproduce this issue in my QEMU test VM easily, just add an soft
+> >RAID1, always trigger
+> >that warning, I'll debug it later.
+> 
+> Great. When you have a fix, I can test it.
+This issue can trigger easily in Centos7.3 + kernel-4.15-rc3, if meet two factors:
+1. SELINUX in enforceing mode
+2. mdadm try to create new gendisk.
 
---=_MailMate_968C8C0A-88F7-4A68-B1FC-F6AA0EFDF428_=
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
+if disable SELINUX or let it in permissive mode, issue disappear.
+As Jens has revert that commit, it seems boot normally, actually
+there is no diretory created under /sys/kernel/debug/bdi/, though
+has no effect on disk workflow.
 
-On 29 Dec 2017, at 6:36, Michal Hocko wrote:
+As James said before, "debugfs files should be treated as optional",
+so kernel give warning here is enough.
 
-> On Tue 26-12-17 21:19:35, Zi Yan wrote:
->> On 8 Dec 2017, at 11:15, Michal Hocko wrote:
-> [...]
->>> @@ -1394,6 +1390,21 @@ int migrate_pages(struct list_head *from, new_=
-page_t get_new_page,
->>>
->>>  			switch(rc) {
->>>  			case -ENOMEM:
->>> +				/*
->>> +				 * THP migration might be unsupported or the
->>> +				 * allocation could've failed so we should
->>> +				 * retry on the same page with the THP split
->>> +				 * to base pages.
->>> +				 */
->>> +				if (PageTransHuge(page)) {
->>> +					lock_page(page);
->>> +					rc =3D split_huge_page_to_list(page, from);
->>> +					unlock_page(page);
->>> +					if (!rc) {
->>> +						list_safe_reset_next(page, page2, lru);
->>> +						goto retry;
->>> +					}
->>> +				}
->>
->> The hunk splits the THP and adds all tail pages at the end of the list=
- =E2=80=9Cfrom=E2=80=9D.
->> Why do we need =E2=80=9Clist_safe_reset_next(page, page2, lru);=E2=80=9D=
- here, when page2 is not changed here?
->
-> Because we need to handle the case when the page2 was the last on the
-> list.
+So, we may solve this issue in two ways:
+1. Add proper SELINUX policy that give permission to mdadm for debugfs.
+2. Split mdadm into 2 part, Firstly, user proccess mdadm trigger a kwork,
+secondly kwork will create gendisk)and mdadm wait it done, Like
+following: 
 
-Got it. Thanks for the explanation.
-
->
->> And it seems a little bit strange to only re-migrate the head page, th=
-en come back to all tail
->> pages after migrating the rest of pages in the list =E2=80=9Cfrom=E2=80=
-=9D. Is it better to split the THP into
->> a list other than =E2=80=9Cfrom=E2=80=9D and insert the list after =E2=
-=80=9Cpage=E2=80=9D, then retry from the split =E2=80=9Cpage=E2=80=9D?
->> Thus, we attempt to migrate all sub pages of the THP after it is split=
-=2E
->
-> Why does this matter?
-
-Functionally, it does not matter.
-
-This behavior is just less intuitive and a little different from current =
-one,
-which implicitly preserves its original order of the not-migrated pages
-in the =E2=80=9Cfrom=E2=80=9D list, although no one relies on this implic=
-it behavior now.
-
-Adding one line comment about this difference would be good for code main=
-tenance. :)
-
-Reviewed-by: Zi Yan <zi.yan@cs.rutgers.edu>
-
-=E2=80=94
-Best Regards,
-Yan Zi
-
---=_MailMate_968C8C0A-88F7-4A68-B1FC-F6AA0EFDF428_=
-Content-Description: OpenPGP digital signature
-Content-Disposition: attachment; filename=signature.asc
-Content-Type: application/pgp-signature; name=signature.asc
-
------BEGIN PGP SIGNATURE-----
-Comment: GPGTools - https://gpgtools.org
-
-iQFKBAEBCgA0FiEEOXBxLIohamfZUwd5QYsvEZxOpswFAlpGYyoWHHppLnlhbkBj
-cy5ydXRnZXJzLmVkdQAKCRBBiy8RnE6mzCq7B/9XVb6Em/umlP4zwIkYM/rCC+F+
-tPdL8LJbfJ01tgVA6MGCe/AUT2Sk8acW39TC0IpUjTUJ6y01dboSK1sEuJU/8sBf
-as7V/AAHEX6v86aP4Yv3hIlwcmT4Fpwstd0EMqGexS3xYiChM2oSHSOjgvUYo97+
-EnUfgY/KUICs8qANdlz6lxeg4IMrnyghgRoXYHaV5MbGaWXk7INMtenluWsD3DL5
-HlJMjPOqdFyyfvS/P8S3ntv2bsm3LyfY6XYI6qL3byGL51aJtvB99fmiTyp/8nBI
-IfiARMg1oHo9qL2ln/8OCPd/Hm4rEbhVzT2aL+ivyTQObTGFA3Val/F10DJ3
-=9pEm
------END PGP SIGNATURE-----
-
---=_MailMate_968C8C0A-88F7-4A68-B1FC-F6AA0EFDF428_=--
+diff --git a/drivers/md/md.c b/drivers/md/md.c
+index 4e4dee0..86ead5a 100644
+--- a/drivers/md/md.c
++++ b/drivers/md/md.c
+@@ -90,6 +90,7 @@
+ EXPORT_SYMBOL(md_cluster_mod);
+ 
+ static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
++static struct workqueue_struct *md_probe_wq;
+ static struct workqueue_struct *md_wq;
+ static struct workqueue_struct *md_misc_wq;
+ 
+@@ -5367,10 +5368,27 @@ static int md_alloc(dev_t dev, char *name)
+ 	return error;
+ }
+ 
++static void md_probe_work_fn(struct work_struct *ws)
++{
++	struct md_probe_work *mpw = container_of(ws, struct md_probe_work,
++					work);
++	md_alloc(mpw->dev, NULL);
++	mpw->done = 1;
++	wake_up(&mpw->wait);
++}
++
+ static struct kobject *md_probe(dev_t dev, int *part, void *data)
+ {
+-	if (create_on_open)
+-		md_alloc(dev, NULL);
++	struct md_probe_work mpw;
++
++	if (create_on_open) {
++		init_waitqueue_head(&mpw.wait);
++		mpw.dev = dev;
++		mpw.done = 0;
++		INIT_WORK(&mpw.work, md_probe_work_fn);
++		queue_work(md_probe_wq, &mpw.work);
++		wait_event(mpw.wait, mpw.done);
++	}
+ 	return NULL;
+ }
+ 
+@@ -9023,9 +9041,13 @@ static int __init md_init(void)
+ {
+ 	int ret = -ENOMEM;
+ 
++	md_probe_wq = alloc_workqueue("md_probe", 0, 0);
++	if (!md_probe_wq)
++		goto err_wq;
++
+ 	md_wq = alloc_workqueue("md", WQ_MEM_RECLAIM, 0);
+ 	if (!md_wq)
+-		goto err_wq;
++		goto err_probe_wq;
+ 
+ 	md_misc_wq = alloc_workqueue("md_misc", 0, 0);
+ 	if (!md_misc_wq)
+@@ -9055,6 +9077,8 @@ static int __init md_init(void)
+ 	destroy_workqueue(md_misc_wq);
+ err_misc_wq:
+ 	destroy_workqueue(md_wq);
++err_probe_wq:
++	destroy_workqueue(md_probe_wq);
+ err_wq:
+ 	return ret;
+ }
+@@ -9311,6 +9335,7 @@ static __exit void md_exit(void)
+ 	}
+ 	destroy_workqueue(md_misc_wq);
+ 	destroy_workqueue(md_wq);
++	destroy_workqueue(md_probe_wq);
+ }
+ 
+ subsys_initcall(md_init);
+diff --git a/drivers/md/md.h b/drivers/md/md.h
+index 7d6bcf0..3953896 100644
+--- a/drivers/md/md.h
++++ b/drivers/md/md.h
+@@ -487,6 +487,13 @@ enum recovery_flags {
+ 	MD_RECOVERY_ERROR,	/* sync-action interrupted because io-error */
+ };
+ 
++struct md_probe_work {
++	struct work_struct work;
++	wait_queue_head_t wait;
++	dev_t dev;
++	int done;
++};
++
+ static inline int __must_check mddev_lock(struct mddev *mddev)
+ {
+ 	return mutex_lock_interruptible(&mddev->reconfig_mutex);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
