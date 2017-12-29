@@ -1,113 +1,48 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DAA7C6B0033
-	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 21:03:23 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id a12so24322895pll.21
-        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 18:03:23 -0800 (PST)
-Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
-        by mx.google.com with ESMTP id e3si8697268pgn.9.2017.12.28.18.03.21
-        for <linux-mm@kvack.org>;
-        Thu, 28 Dec 2017 18:03:22 -0800 (PST)
-Date: Fri, 29 Dec 2017 11:02:38 +0900
-From: Byungchul Park <byungchul.park@lge.com>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Message-ID: <20171229020238.GB10341@X58A-UD3R>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171229014736.GA10341@X58A-UD3R>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171229014736.GA10341@X58A-UD3R>
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BA7D06B0033
+	for <linux-mm@kvack.org>; Thu, 28 Dec 2017 22:48:49 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id v2so10634328iog.10
+        for <linux-mm@kvack.org>; Thu, 28 Dec 2017 19:48:49 -0800 (PST)
+Received: from smtpbgau1.qq.com (smtpbgau1.qq.com. [54.206.16.166])
+        by mx.google.com with ESMTPS id k4si18055757ita.143.2017.12.28.19.48.47
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 28 Dec 2017 19:48:48 -0800 (PST)
+From: Huacai Chen <chenhc@lemote.com>
+Subject: [PATCH] kallsyms: let print_ip_sym() print raw addresses
+Date: Fri, 29 Dec 2017 11:49:42 +0800
+Message-Id: <1514519382-405-1-git-send-email-chenhc@lemote.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Byungchul Park <max.byungchul.park@gmail.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, tytso@mit.edu, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Fuxin Zhang <zhangfx@lemote.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Huacai Chen <chenhc@lemote.com>
 
-On Fri, Dec 29, 2017 at 10:47:36AM +0900, Byungchul Park wrote:
-> On Wed, Dec 13, 2017 at 03:24:29PM +0900, Byungchul Park wrote:
-> > Lockdep works, based on the following:
-> > 
-> >    (1) Classifying locks properly
-> >    (2) Checking relationship between the classes
-> > 
-> > If (1) is not good or (2) is not good, then we
-> > might get false positives.
-> > 
-> > For (1), we don't have to classify locks 100%
-> > properly but need as enough as lockdep works.
-> > 
-> > For (2), we should have a mechanism w/o
-> > logical defects.
-> > 
-> > Cross-release added an additional capacity to
-> > (2) and requires (1) to get more precisely classified.
-> > 
-> > Since the current classification level is too low for
-> > cross-release to work, false positives are being
-> > reported frequently with enabling cross-release.
-> > Yes. It's a obvious problem. It needs to be off by
-> > default until the classification is done by the level
-> > that cross-release requires.
-> > 
-> > But, the logic (2) is valid and logically true. Please
-> > keep the code, mechanism, and logic.
-> 
-> I admit the cross-release feature had introduced several false positives
-> about 4 times(?), maybe. And I suggested roughly 3 ways to solve it. I
-> should have explained each in more detail. The lack might have led some
-> to misunderstand.
-> 
->    (1) The best way: To classify all waiters correctly.
-> 
->       Ultimately the problems should be solved in this way. But it
->       takes a lot of time so it's not easy to use the way right away.
->       And I need helps from experts of other sub-systems.
-> 
->       While talking about this way, I made a trouble.. I still believe
->       that each sub-system expert knows how to solve dependency problems
->       most, since each has own dependency rule, but it was not about
->       responsibility. I've never wanted to charge someone else it but me.
-> 
->    (2) The 2nd way: To make cross-release off by default.
-> 
->       At the beginning, I proposed cross-release being off by default.
->       Honestly, I was happy and did it when Ingo suggested it on by
->       default once lockdep on. But I shouldn't have done that but kept
->       it off by default. Cross-release can make some happy but some
->       unhappy until problems go away through (1) or (2).
-> 
->    (3) The 3rd way: To invalidate waiters making trouble.
-> 
->       Of course, this is not the best. Now that you have already spent
->       a lot of time to fix original lockdep's problems since lockdep was
->       introduced in 2006, we don't need to use this way for typical
->       locks except a few special cases. Lockdep is fairly robust by now.
-> 
->       And I understand you don't want to spend more time to fix
->       additional problems again. Now that the situation is different
->       from the time, 2006, it's not too bad to use this way to handle
->       the issues.
-> 
-> IMO, the ways can be considered together at a time, which perhaps would
-> be even better.
+print_ip_sym() is mostly used for debugging, so I think it should print
+the raw addresses.
 
-+cc daniel@ffwll.ch
+Signed-off-by: Huacai Chen <chenhc@lemote.com>
+---
+ include/linux/kallsyms.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
-> Talking about what Ingo said in the commit msg.. I want to ask him back,
+diff --git a/include/linux/kallsyms.h b/include/linux/kallsyms.h
+index bd118a6..e502db8 100644
+--- a/include/linux/kallsyms.h
++++ b/include/linux/kallsyms.h
+@@ -131,7 +131,7 @@ static inline void print_symbol(const char *fmt, unsigned long addr)
+ 
+ static inline void print_ip_sym(unsigned long ip)
+ {
+-	printk("[<%p>] %pS\n", (void *) ip, (void *) ip);
++	printk("[<%px>] %pS\n", (void *) ip, (void *) ip);
+ }
+ 
+ #endif /*_LINUX_KALLSYMS_H*/
+-- 
+2.7.0
 
-I'm sorry for missing specifying the commit I'm talking about.
 
-   e966eaeeb locking/lockdep: Remove the cross-release locking checks
-
-> if he did it with no false positives at the moment merging it in 2006,
-> without using (2) or (3) method. I bet he know what it means.. And
-> classifying locks/waiters correctly is not something uglifying code but
-> a way to document code better. I've felt ill at ease because of the
-> unnatural and forced explanation.
-> 
-> --
-> Thanks,
-> Byungchul
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
