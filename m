@@ -1,105 +1,116 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 88EB96B0260
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 03:01:58 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id d4so24551776plr.8
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 00:01:58 -0800 (PST)
-Received: from huawei.com ([45.249.212.35])
-        by mx.google.com with ESMTPS id s24si27526306plp.220.2017.12.29.00.01.57
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C88036B026E
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 03:09:07 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id b93so5024367ybi.13
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 00:09:07 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id a17sor10031106ybm.13.2017.12.29.00.09.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 29 Dec 2017 00:01:57 -0800 (PST)
-Subject: Re: [RFC patch] ioremap: don't set up huge I/O mappings when
- p4d/pud/pmd is zero
-From: Hanjun Guo <guohanjun@huawei.com>
-References: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
-Message-ID: <17c8384a-7748-3acc-a56f-78698087560a@huawei.com>
-Date: Fri, 29 Dec 2017 16:00:25 +0800
+        (Google Transport Security);
+        Fri, 29 Dec 2017 00:09:06 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20171229014736.GA10341@X58A-UD3R>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+From: Amir Goldstein <amir73il@gmail.com>
+Date: Fri, 29 Dec 2017 10:09:05 +0200
+Message-ID: <CAOQ4uxin+OEZrkb_fQvJHP2jU_DBRqC9w7uwcPUDaOYv-MrvXg@mail.gmail.com>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org
-Cc: linuxarm@huawei.com, linux-mm@kvack.org, Hanjun Guo <hanjun.guo@linaro.org>, Toshi Kani <toshi.kani@hpe.com>, Mark Rutland <mark.rutland@arm.com>, Will Deacon <will.deacon@arm.com>, Catalin Marinas <catalin.marinas@arm.com>, Michal Hocko <mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>, Xuefeng Wang <wxf.wang@hisilicon.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, Dave Chinner <david@fromorbit.com>, Theodore Tso <tytso@mit.edu>, willy@infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, linux-kernel <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, linux-block <linux-block@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Oleg Nesterov <oleg@redhat.com>, kernel-team@lge.com
 
-oops, the title of this patch is wrong, should be:
-ioremap: skip setting up huge I/O mappings when p4d/pud/pmd is zero
+On Fri, Dec 29, 2017 at 3:47 AM, Byungchul Park <byungchul.park@lge.com> wrote:
+> On Wed, Dec 13, 2017 at 03:24:29PM +0900, Byungchul Park wrote:
+>> Lockdep works, based on the following:
+>>
+>>    (1) Classifying locks properly
+>>    (2) Checking relationship between the classes
+>>
+>> If (1) is not good or (2) is not good, then we
+>> might get false positives.
+>>
+>> For (1), we don't have to classify locks 100%
+>> properly but need as enough as lockdep works.
+>>
+>> For (2), we should have a mechanism w/o
+>> logical defects.
+>>
+>> Cross-release added an additional capacity to
+>> (2) and requires (1) to get more precisely classified.
+>>
+>> Since the current classification level is too low for
+>> cross-release to work, false positives are being
+>> reported frequently with enabling cross-release.
+>> Yes. It's a obvious problem. It needs to be off by
+>> default until the classification is done by the level
+>> that cross-release requires.
+>>
+>> But, the logic (2) is valid and logically true. Please
+>> keep the code, mechanism, and logic.
+>
+> I admit the cross-release feature had introduced several false positives
+> about 4 times(?), maybe. And I suggested roughly 3 ways to solve it. I
+> should have explained each in more detail. The lack might have led some
+> to misunderstand.
+>
+>    (1) The best way: To classify all waiters correctly.
+>
+>       Ultimately the problems should be solved in this way. But it
+>       takes a lot of time so it's not easy to use the way right away.
+>       And I need helps from experts of other sub-systems.
+>
+>       While talking about this way, I made a trouble.. I still believe
+>       that each sub-system expert knows how to solve dependency problems
+>       most, since each has own dependency rule, but it was not about
+>       responsibility. I've never wanted to charge someone else it but me.
+>
+>    (2) The 2nd way: To make cross-release off by default.
+>
+>       At the beginning, I proposed cross-release being off by default.
+>       Honestly, I was happy and did it when Ingo suggested it on by
+>       default once lockdep on. But I shouldn't have done that but kept
+>       it off by default. Cross-release can make some happy but some
+>       unhappy until problems go away through (1) or (2).
+>
+>    (3) The 3rd way: To invalidate waiters making trouble.
+>
+>       Of course, this is not the best. Now that you have already spent
+>       a lot of time to fix original lockdep's problems since lockdep was
+>       introduced in 2006, we don't need to use this way for typical
+>       locks except a few special cases. Lockdep is fairly robust by now.
+>
+>       And I understand you don't want to spend more time to fix
+>       additional problems again. Now that the situation is different
+>       from the time, 2006, it's not too bad to use this way to handle
+>       the issues.
+>
 
-On 2017/12/28 19:24, Hanjun Guo wrote:
-> From: Hanjun Guo <hanjun.guo@linaro.org>
-> 
-> When we using iounmap() to free the 4K mapping, it just clear the PTEs
-> but leave P4D/PUD/PMD unchanged, also will not free the memory of page
-> tables.
-> 
-> This will cause issues on ARM64 platform (not sure if other archs have
-> the same issue) for this case:
-> 
-> 1. ioremap a 4K size, valid page table will build,
-> 2. iounmap it, pte0 will set to 0;
-> 3. ioremap the same address with 2M size, pgd/pmd is unchanged,
->    then set the a new value for pmd;
-> 4. pte0 is leaked;
-> 5. CPU may meet exception because the old pmd is still in TLB,
->    which will lead to kernel panic.
-> 
-> Fix it by skip setting up the huge I/O mappings when p4d/pud/pmd is
-> zero.
-> 
-> Reported-by: Lei Li <lious.lilei@hisilicon.com>
-> Signed-off-by: Hanjun Guo <hanjun.guo@linaro.org>
-> Cc: Toshi Kani <toshi.kani@hpe.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Xuefeng Wang <wxf.wang@hisilicon.com>
-> ---
-> 
-> Not sure if this is the right direction, this patch has a obvious
-> side effect that a mapped address with 4K will not back to 2M.  I may
-> miss something and just wrong, so this is just a RFC version, comments
-> are welcomed.
-> 
->  lib/ioremap.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/lib/ioremap.c b/lib/ioremap.c
-> index b808a39..4e6f19a 100644
-> --- a/lib/ioremap.c
-> +++ b/lib/ioremap.c
-> @@ -89,7 +89,7 @@ static inline int ioremap_pmd_range(pud_t *pud, unsigned long addr,
->  	do {
->  		next = pmd_addr_end(addr, end);
->  
-> -		if (ioremap_pmd_enabled() &&
-> +		if (ioremap_pmd_enabled() && pmd_none(*pmd) &&
->  		    ((next - addr) == PMD_SIZE) &&
->  		    IS_ALIGNED(phys_addr + addr, PMD_SIZE)) {
->  			if (pmd_set_huge(pmd, phys_addr + addr, prot))
-> @@ -115,7 +115,7 @@ static inline int ioremap_pud_range(p4d_t *p4d, unsigned long addr,
->  	do {
->  		next = pud_addr_end(addr, end);
->  
-> -		if (ioremap_pud_enabled() &&
-> +		if (ioremap_pud_enabled() && pud_none(*pud) &&
->  		    ((next - addr) == PUD_SIZE) &&
->  		    IS_ALIGNED(phys_addr + addr, PUD_SIZE)) {
->  			if (pud_set_huge(pud, phys_addr + addr, prot))
-> @@ -141,7 +141,7 @@ static inline int ioremap_p4d_range(pgd_t *pgd, unsigned long addr,
->  	do {
->  		next = p4d_addr_end(addr, end);
->  
-> -		if (ioremap_p4d_enabled() &&
-> +		if (ioremap_p4d_enabled() && p4d_none(*p4d) &&
->  		    ((next - addr) == P4D_SIZE) &&
->  		    IS_ALIGNED(phys_addr + addr, P4D_SIZE)) {
->  			if (p4d_set_huge(p4d, phys_addr + addr, prot))
-> 
+Purely logically, aren't you missing a 4th option:
+
+    (4) The 4th way: To validate specific waiters.
+
+Is it not an option for a subsystem to opt-in for cross-release validation
+of specific locks/waiters? This may be a much preferred route for cross-
+release. I remember seeing a post from a graphic driver developer that
+found cross-release useful for finding bugs in his code.
+
+For example, many waiters in kernel can be waiting for userspace code,
+so does that mean the cross-release is going to free the world from
+userspace deadlocks as well?? Possibly I am missing something.
+
+In any way, it seem logical to me that some waiters should particpate
+in lock chain dependencies, while other waiters should break the chain
+to avoid false positives and to avoid protecting against user configurable
+deadlocks (like loop mount over file inside the loop mounted fs).
+And if you agree that this logic claim is correct, than surely, an inclusive
+approach is the best way forward.
+
+Cheers,
+Amir.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
