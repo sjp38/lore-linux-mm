@@ -1,170 +1,111 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2542D6B0033
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 11:36:45 -0500 (EST)
-Received: by mail-ot0-f198.google.com with SMTP id s3so3304766otd.16
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 08:36:45 -0800 (PST)
-Received: from BJEXCAS001.didichuxing.com ([36.110.17.22])
-        by mx.google.com with ESMTPS id w201si11198384oia.276.2017.12.29.08.36.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E9356B0038
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 11:37:03 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id f132so10532851wmf.6
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 08:37:03 -0800 (PST)
+Received: from the.earth.li (the.earth.li. [2001:41c8:10:b1f:c0ff:ee:15:900d])
+        by mx.google.com with ESMTPS id u14si18574752wrg.297.2017.12.29.08.37.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 29 Dec 2017 08:36:43 -0800 (PST)
-Date: Sat, 30 Dec 2017 00:36:17 +0800
-From: weiping zhang <zhangweiping@didichuxing.com>
-Subject: Re: Regression with a0747a859ef6 ("bdi: add error handle for
- bdi_debug_register")
-Message-ID: <20171229163617.GB9150@bogon.didichuxing.com>
-References: <CAA70yB496Nuy2FM5idxLZthBwOVbhtsZ4VtXNJ_9mj2cvNC4kA@mail.gmail.com>
- <20171221153631.GA2300@wolff.to>
- <CAA70yB6nD7CiDZUpVPy7cGhi7ooQ5SPkrcXPDKqSYD2ezLrGHA@mail.gmail.com>
- <20171221164221.GA23680@wolff.to>
- <14f04d43-728a-953f-e07c-e7f9d5e3392d@kernel.dk>
- <20171221181531.GA21050@wolff.to>
- <20171221231603.GA15702@wolff.to>
- <20171222045318.GA4505@wolff.to>
- <CAA70yB5y1uLvtvEFLsE2C_ALLvSqEZ6XKA=zoPeSaH_eSAVL4w@mail.gmail.com>
- <20171222140423.GA23107@wolff.to>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 29 Dec 2017 08:37:01 -0800 (PST)
+Date: Fri, 29 Dec 2017 16:36:59 +0000
+From: Jonathan McDowell <noodles@earth.li>
+Subject: Re: ACPI issues on cold power on [bisected]
+Message-ID: <20171229163659.c5ccfvww4ebvyz54@earth.li>
+References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
+ <20171222002108.GB1729@js1304-P5Q-DELUXE>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171222140423.GA23107@wolff.to>
+In-Reply-To: <20171222002108.GB1729@js1304-P5Q-DELUXE>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Bruno Wolff III <bruno@wolff.to>
-Cc: Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Laura Abbott <labbott@redhat.com>, Jan Kara <jack@suse.cz>, James Bottomley <James.Bottomley@HansenPartnership.com>, weiping zhang <zwp10758@gmail.com>, linux-mm@kvack.org, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, regressions@leemhuis.info, linux-block@vger.kernel.org
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Cc: linux-acpi@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, netdev@vger.kernel.org
 
-On Fri, Dec 22, 2017 at 08:04:23AM -0600, Bruno Wolff III wrote:
-> On Fri, Dec 22, 2017 at 21:20:10 +0800,
->  weiping zhang <zwp10758@gmail.com> wrote:
-> >2017-12-22 12:53 GMT+08:00 Bruno Wolff III <bruno@wolff.to>:
-> >>On Thu, Dec 21, 2017 at 17:16:03 -0600,
-> >> Bruno Wolff III <bruno@wolff.to> wrote:
-> >>>
-> >>>
-> >>>Enforcing mode alone isn't enough as I tested that one one machine at home
-> >>>and it didn't trigger the problem. I'll try another machine late tonight.
-> >>
-> >>
-> >>I got the problem to occur on my i686 machine when booting in enforcing
-> >>mode. This machine uses raid 1 vua mdraid which may or may not be a factor
-> >>in this problem. The boot log has a trace at the end and might be helpful,
-> >>so I'm attaching it here.
-> >Hi Bruno,
-> >I can reproduce this issue in my QEMU test VM easily, just add an soft
-> >RAID1, always trigger
-> >that warning, I'll debug it later.
+On Fri, Dec 22, 2017 at 09:21:09AM +0900, Joonsoo Kim wrote:
+> On Fri, Dec 08, 2017 at 03:11:59PM +0000, Jonathan McDowell wrote:
+> > I've been sitting on this for a while and should have spent time to
+> > investigate sooner, but it's been an odd failure mode that wasn't quite
+> > obvious.
+> > 
+> > In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
+> > don't see anything after grub says its booting. In 4.10 onwards the
+> > laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
+> > (no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
+> > taken from 4.12 as that's the most recent error dmesg I have saved but
+> > also seen back in 4.10. It's always address 0x30 for the dereference.
+> > 
+> > Rebooting the laptop does not lead to these problems; it's *only* from a
+> > complete cold boot that they arise (which didn't help me in terms of
+> > being able to reliably bisect). Once I realised that I was able to
+> > bisect, but it leads me to an odd commit:
+> > 
+> > 86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
+> > (mm/slab: fix kmemcg cache creation delayed issue)
+> > 
+> > If I revert this then I can cold boot without problems.
+> > 
+> > Also I don't see the problem with a stock Debian kernel, I think because
+> > the ACPI support is modularised.
 > 
-> Great. When you have a fix, I can test it.
-This issue can trigger easily in Centos7.3, if meet two factors:
-1. SELINUX in enforceing mode
-2. mdadm try to create new gendisk.
+> Sorry for late response. I was on a long vacation.
 
-if disable SELINUX or let it in permissive mode, issue disappear.
-As Jens has revert that commit, it seems boot normally, actually
-this is no diretor created under /sys/kernel/debug/bdi/, though
-has no effect on disk workflow.
+No problem. I've been trying to get around to diagnosing this for a
+while now anyway and this isn't a great time of year for fast responses.
 
-As james said before, "debugfs files should be treated as optional",
-so kernel give warning here is enough.
+> I have tried to solve the problem however I don't find any clue yet.
+> 
+> >From my analysis, oops report shows that 'struct sock *ssk' passed to
+> netlink_broadcast_filtered() is NULL. It means that some of
+> netlink_kernel_create() returns NULL. Maybe, it is due to slab
+> allocation failure. Could you check it by inserting some log on that
+> part? The issue cannot be reproducible in my side so I need your help.
 
-So there are 2 ways to fix this issue:
-1. Add proper SELINUX policy allow mdadm create dir at debugfs
-2. mdadm don't create gendisk directly, first mdadm trigger a kwork and
-wait it done, let kwork create gendisk.
-A possible change for MD like following:
+I've added some debug in acpi_bus_generate_netlink_event +
+genlmsg_multicast and the problem seems to be that genlmsg_multicast is
+getting called when init_net.genl_sock has not yet been initialised,
+leading to the NULL deference.
 
-diff --git a/drivers/md/md.c b/drivers/md/md.c
-index 4e4dee0..86ead5a 100644
---- a/drivers/md/md.c
-+++ b/drivers/md/md.c
-@@ -90,6 +90,7 @@
- EXPORT_SYMBOL(md_cluster_mod);
- 
- static DECLARE_WAIT_QUEUE_HEAD(resync_wait);
-+static struct workqueue_struct *md_probe_wq;
- static struct workqueue_struct *md_wq;
- static struct workqueue_struct *md_misc_wq;
- 
-@@ -5367,10 +5368,27 @@ static int md_alloc(dev_t dev, char *name)
- 	return error;
- }
- 
-+static void md_probe_work_fn(struct work_struct *ws)
-+{
-+	struct md_probe_work *mpw = container_of(ws, struct md_probe_work,
-+					work);
-+	md_alloc(mpw->dev, NULL);
-+	mpw->done = 1;
-+	wake_up(&mpw->wait);
-+}
-+
- static struct kobject *md_probe(dev_t dev, int *part, void *data)
- {
--	if (create_on_open)
--		md_alloc(dev, NULL);
-+	struct md_probe_work mpw;
-+
-+	if (create_on_open) {
-+		init_waitqueue_head(&mpw.wait);
-+		mpw.dev = dev;
-+		mpw.done = 0;
-+		INIT_WORK(&mpw.work, md_probe_work_fn);
-+		queue_work(md_probe_wq, &mpw.work);
-+		wait_event(mpw.wait, mpw.done);
-+	}
- 	return NULL;
- }
- 
-@@ -9023,9 +9041,13 @@ static int __init md_init(void)
- {
- 	int ret = -ENOMEM;
- 
-+	md_probe_wq = alloc_workqueue("md_probe", 0, 0);
-+	if (!md_probe_wq)
-+		goto err_wq;
-+
- 	md_wq = alloc_workqueue("md", WQ_MEM_RECLAIM, 0);
- 	if (!md_wq)
--		goto err_wq;
-+		goto err_probe_wq;
- 
- 	md_misc_wq = alloc_workqueue("md_misc", 0, 0);
- 	if (!md_misc_wq)
-@@ -9055,6 +9077,8 @@ static int __init md_init(void)
- 	destroy_workqueue(md_misc_wq);
- err_misc_wq:
- 	destroy_workqueue(md_wq);
-+err_probe_wq:
-+	destroy_workqueue(md_probe_wq);
- err_wq:
- 	return ret;
- }
-@@ -9311,6 +9335,7 @@ static __exit void md_exit(void)
- 	}
- 	destroy_workqueue(md_misc_wq);
- 	destroy_workqueue(md_wq);
-+	destroy_workqueue(md_probe_wq);
- }
- 
- subsys_initcall(md_init);
-diff --git a/drivers/md/md.h b/drivers/md/md.h
-index 7d6bcf0..3953896 100644
---- a/drivers/md/md.h
-+++ b/drivers/md/md.h
-@@ -487,6 +487,13 @@ enum recovery_flags {
- 	MD_RECOVERY_ERROR,	/* sync-action interrupted because io-error */
- };
- 
-+struct md_probe_work {
-+	struct work_struct work;
-+	wait_queue_head_t wait;
-+	dev_t dev;
-+	int done;
-+};
-+
- static inline int __must_check mddev_lock(struct mddev *mddev)
- {
- 	return mutex_lock_interruptible(&mddev->reconfig_mutex);
+Full dmesg output from a cold 4.14.8 boot at:
+
+https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-broken
+
+And the same kernel after a reboot ("shutdown -r now"):
+
+https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-working
+
+Patch that I've applied is at
+
+https://the.earth.li/~noodles/acpi-problem/debug-acpi.diff
+
+The interesting difference seems to be:
+
+ PCI: Using ACPI for IRQ routing
++ACPI: Generating event type 208 (:9DBB5994-A997-11DA-B012-B622A1EF5492)
++ERROR: init_net.genl_sock is NULL
++BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
++IP: netlink_broadcast_filtered+0x20/0x3d0
++PGD 0 P4D 0 
++Oops: 0000 [#1] SMP
++Modules linked in:
++CPU: 0 PID: 29 Comm: kworker/0:1 Not tainted 4.14.8+ #1
++Hardware name: Dell Inc. Latitude E7240/07RPNV, BIOS A22 10/18/2017
++Workqueue: kacpi_notify acpi_os_execute_deferred
+
+9DBB5994-A997-11DA-B012-B622A1EF5492 is the Dell WMI event GUID and
+there's no visible event for it on a reboot, just on a cold power on.
+Some sort of ordering issues such that genl_sock is being initialised
+later with the slab change?
+
+J.
+
+-- 
+  Hail Eris. All hail Discordia.   |  .''`.  Debian GNU/Linux Developer
+              Fnord?               | : :' :  Happy to accept PGP signed
+                                   | `. `'   or encrypted mail - RSA
+                                   |   `-    key on the keyservers.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
