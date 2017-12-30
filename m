@@ -1,71 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f200.google.com (mail-yb0-f200.google.com [209.85.213.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9348F6B0038
-	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 18:01:03 -0500 (EST)
-Received: by mail-yb0-f200.google.com with SMTP id l65so13210220ybc.9
-        for <linux-mm@kvack.org>; Sat, 30 Dec 2017 15:01:03 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id x126si1486897ybb.320.2017.12.30.15.01.02
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E21486B0038
+	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 18:26:56 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id p4so9497562wrf.4
+        for <linux-mm@kvack.org>; Sat, 30 Dec 2017 15:26:56 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 49sor4601792wrz.85.2017.12.30.15.26.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 30 Dec 2017 15:01:02 -0800 (PST)
-Date: Sat, 30 Dec 2017 18:00:57 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Message-ID: <20171230230057.GB12995@thunk.org>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171229014736.GA10341@X58A-UD3R>
- <20171229035146.GA11757@thunk.org>
- <20171229072851.GA12235@X58A-UD3R>
- <20171230061624.GA27959@bombadil.infradead.org>
- <20171230154041.GB3366@thunk.org>
- <20171230204417.GF27959@bombadil.infradead.org>
- <20171230224028.GC3366@thunk.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171230224028.GC3366@thunk.org>
+        (Google Transport Security);
+        Sat, 30 Dec 2017 15:26:55 -0800 (PST)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [PATCH V5 1/2] xxHash: create arch dependent 32/64-bit xxhash()
+Date: Sun, 31 Dec 2017 02:26:42 +0300
+Message-Id: <20171230232643.12315-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>, Byungchul Park <byungchul.park@lge.com>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-On Sat, Dec 30, 2017 at 05:40:28PM -0500, Theodore Ts'o wrote:
-> On Sat, Dec 30, 2017 at 12:44:17PM -0800, Matthew Wilcox wrote:
-> > 
-> > I'm not sure I agree with this part.  What if we add a new TCP lock class
-> > for connections which are used for filesystems/network block devices/...?
-> > Yes, it'll be up to each user to set the lockdep classification correctly,
-> > but that's a relatively small number of places to add annotations,
-> > and I don't see why it wouldn't work.
-> 
-> I was exagerrating a bit for effect, I admit.  (but only a bit).
-> 
-> It can probably be for all TCP connections that are used by kernel
-> code (as opposed to userspace-only TCP connections).  But it would
-> probably have to be each and every device-mapper instance, each and
-> every block device, each and every mounted file system, each and every
-> bdi object, etc.
+xxh32() - fast on both 32/64-bit platforms
+xxh64() - fast only on 64-bit platform
 
-Clarification: all TCP connections that are used by kernel code would
-need to be in their own separate lock class.  All TCP connections used
-only by userspace could be in their own shared lock class.  You can't
-use a one lock class for all kernel-used TCP connections, because of
-the Network Block Device mounted on a local file system which is then
-exported via NFS and squirted out yet another TCP connection problem.
+Create xxhash() which will pickup fastest version
+on compile time.
 
-Also, what to do with TCP connections which are created in userspace
-(with some authentication exchanges happening in userspace), and then
-passed into kernel space for use in kernel space, is an interesting
-question.
+As result depends on cpu word size,
+the main proporse of that - in memory hashing.
 
-So "all you have to do is classify the locks 'properly'" is much like
-the apocrophal, "all you have to do is bell the cat"[1].  Or like the
-saying, "colonizing the stars is *easy*; all you have to do is figure
-out faster than light travel."
+Changes:
+  v2:
+    - Create that patch
+  v3 -> v5:
+    - Nothing, whole patchset version bump
 
-[1] https://en.wikipedia.org/wiki/Belling_the_cat
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
+---
+ include/linux/xxhash.h | 23 +++++++++++++++++++++++
+ 1 file changed, 23 insertions(+)
 
-							- Ted
+diff --git a/include/linux/xxhash.h b/include/linux/xxhash.h
+index 9e1f42cb57e9..52b073fea17f 100644
+--- a/include/linux/xxhash.h
++++ b/include/linux/xxhash.h
+@@ -107,6 +107,29 @@ uint32_t xxh32(const void *input, size_t length, uint32_t seed);
+  */
+ uint64_t xxh64(const void *input, size_t length, uint64_t seed);
+ 
++/**
++ * xxhash() - calculate wordsize hash of the input with a given seed
++ * @input:  The data to hash.
++ * @length: The length of the data to hash.
++ * @seed:   The seed can be used to alter the result predictably.
++ *
++ * If the hash does not need to be comparable between machines with
++ * different word sizes, this function will call whichever of xxh32()
++ * or xxh64() is faster.
++ *
++ * Return:  wordsize hash of the data.
++ */
++
++static inline unsigned long xxhash(const void *input, size_t length,
++				   uint64_t seed)
++{
++#if BITS_PER_LONG == 64
++       return xxh64(input, length, seed);
++#else
++       return xxh32(input, length, seed);
++#endif
++}
++
+ /*-****************************
+  * Streaming Hash Functions
+  *****************************/
+-- 
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
