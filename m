@@ -1,87 +1,59 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EFC616B0069
-	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 01:42:49 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id 33so26070845pll.9
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 22:42:49 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 64D1D6B0033
+	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 01:58:58 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id q6so13259317pff.16
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 22:58:58 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id s76si7838826pgc.768.2017.12.29.22.42.48
+        by mx.google.com with ESMTPS id f1si30231245plk.140.2017.12.29.22.58.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 29 Dec 2017 22:42:48 -0800 (PST)
-Date: Fri, 29 Dec 2017 22:42:46 -0800
+        Fri, 29 Dec 2017 22:58:57 -0800 (PST)
+Date: Fri, 29 Dec 2017 22:58:45 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [RFC 3/8] slub: Add isolate() and migrate() methods
-Message-ID: <20171230064246.GC27959@bombadil.infradead.org>
-References: <20171227220636.361857279@linux.com>
- <20171227220652.402842142@linux.com>
+Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
+Message-ID: <20171230065845.GD27959@bombadil.infradead.org>
+References: <20171218203547.GA2366@linux.intel.com>
+ <20171220181937.GB12236@bombadil.infradead.org>
+ <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
+ <20171220211649.GA32200@bombadil.infradead.org>
+ <20171220212408.GA8308@linux.intel.com>
+ <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
+ <20171220224105.GA27258@linux.intel.com>
+ <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
+ <CAPcyv4j9shdJFrvADa=qW4L-jPJJ4S_TJc_c=aRoW3EmSCCChQ@mail.gmail.com>
+ <71317994-af66-a1b2-4c7a-86a03253cf62@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171227220652.402842142@linux.com>
+In-Reply-To: <71317994-af66-a1b2-4c7a-86a03253cf62@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
+To: Brice Goglin <brice.goglin@gmail.com>
+Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
 
-On Wed, Dec 27, 2017 at 04:06:39PM -0600, Christoph Lameter wrote:
-> @@ -98,6 +98,9 @@ struct kmem_cache {
->  	gfp_t allocflags;	/* gfp flags to use on each alloc */
->  	int refcount;		/* Refcount for slab cache destroy */
->  	void (*ctor)(void *);
-> +	kmem_isolate_func *isolate;
-> +	kmem_migrate_func *migrate;
-> +
->  	int inuse;		/* Offset to metadata */
->  	int align;		/* Alignment */
->  	int reserved;		/* Reserved bytes at the end of slabs */
-[...]
-> +/*
-> + * kmem_cache_setup_mobility() is used to setup callbacks for a slab cache.
-> + */
-> +#ifdef CONFIG_SLUB
-> +void kmem_cache_setup_mobility(struct kmem_cache *, kmem_isolate_func,
-> +						kmem_migrate_func);
-> +#else
-> +static inline void kmem_cache_setup_mobility(struct kmem_cache *s,
-> +	kmem_isolate_func isolate, kmem_migrate_func migrate) {}
-> +#endif
+On Wed, Dec 27, 2017 at 10:10:34AM +0100, Brice Goglin wrote:
+> > Perhaps we can enlist /proc/iomem or a similar enumeration interface
+> > to tell userspace the NUMA node and whether the kernel thinks it has
+> > better or worse performance characteristics relative to base
+> > system-RAM, i.e. new IORES_DESC_* values. I'm worried that if we start
+> > publishing absolute numbers in sysfs userspace will default to looking
+> > for specific magic numbers in sysfs vs asking the kernel for memory
+> > that has performance characteristics relative to base "System RAM". In
+> > other words the absolute performance information that the HMAT
+> > publishes is useful to the kernel, but it's not clear that userspace
+> > needs that vs a relative indicator for making NUMA node preference
+> > decisions.
+> 
+> Some HPC users will benchmark the machine to discovery actual
+> performance numbers anyway.
+> However, most users won't do this. They will want to know relative
+> performance of different nodes. If you normalize HMAT values by dividing
+> them with system-RAM values, that's likely OK. If you just say "that
+> node is faster than system RAM", it's not precise enough.
 
-Is this the right approach?  I could imagine there being more ops in
-the future.  I suspect we should bite the bullet now and do:
-
-struct kmem_cache_operations {
-	void (*ctor)(void *);
-	void *(*isolate)(struct kmem_cache *, void **objs, int nr);
-	void (*migrate)(struct kmem_cache *, void **objs, int nr, int node,
-			void *private);
-};
-
-Not sure how best to convert the existing constructor users to this scheme.
-Perhaps cheat ...
-
-- 	void (*ctor)(void *);
-+	union {
-+	 	void (*ctor)(void *);
-+		const struct kmem_cache_operations *ops;
-+	};
-
-and use a slab flag to tell you which to use.		
-
-> @@ -4969,6 +4987,20 @@ static ssize_t ops_show(struct kmem_cach
->  
->  	if (s->ctor)
->  		x += sprintf(buf + x, "ctor : %pS\n", s->ctor);
-> +
-> +	if (s->isolate) {
-> +		x += sprintf(buf + x, "isolate : ");
-> +		x += sprint_symbol(buf + x,
-> +				(unsigned long)s->isolate);
-> +		x += sprintf(buf + x, "\n");
-> +	}
-
-Here you could print the symbol of the ops vector instead of the function
-pointer ...
+So "this memory has 800% bandwidth of normal" and "this memory has 70%
+bandwidth of normal"?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
