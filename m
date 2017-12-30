@@ -1,65 +1,103 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DF9746B0033
-	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 04:19:33 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id d7so4886923wre.15
-        for <linux-mm@kvack.org>; Sat, 30 Dec 2017 01:19:33 -0800 (PST)
-Received: from mail3-relais-sop.national.inria.fr (mail3-relais-sop.national.inria.fr. [192.134.164.104])
-        by mx.google.com with ESMTPS id f6si17471447wrh.353.2017.12.30.01.19.32
+Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F3B176B0033
+	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 10:45:05 -0500 (EST)
+Received: by mail-yb0-f198.google.com with SMTP id u30so8798718ybi.2
+        for <linux-mm@kvack.org>; Sat, 30 Dec 2017 07:45:05 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id f14si875958ybk.213.2017.12.30.07.45.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 30 Dec 2017 01:19:32 -0800 (PST)
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-References: <20171218203547.GA2366@linux.intel.com>
- <20171220181937.GB12236@bombadil.infradead.org>
- <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
- <20171220211649.GA32200@bombadil.infradead.org>
- <20171220212408.GA8308@linux.intel.com>
- <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
- <20171220224105.GA27258@linux.intel.com>
- <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
- <CAPcyv4j9shdJFrvADa=qW4L-jPJJ4S_TJc_c=aRoW3EmSCCChQ@mail.gmail.com>
- <71317994-af66-a1b2-4c7a-86a03253cf62@gmail.com>
- <20171230065845.GD27959@bombadil.infradead.org>
-From: Brice Goglin <brice.goglin@gmail.com>
-Message-ID: <74a585de-c825-b568-ee14-c8799b9d6238@gmail.com>
-Date: Sat, 30 Dec 2017 10:19:29 +0100
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 30 Dec 2017 07:45:04 -0800 (PST)
+Date: Sat, 30 Dec 2017 10:40:41 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20171230154041.GB3366@thunk.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+ <20171229035146.GA11757@thunk.org>
+ <20171229072851.GA12235@X58A-UD3R>
+ <20171230061624.GA27959@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20171230065845.GD27959@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171230061624.GA27959@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+Cc: Byungchul Park <byungchul.park@lge.com>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+
+On Fri, Dec 29, 2017 at 10:16:24PM -0800, Matthew Wilcox wrote:
+> 
+> I think this is a terminology problem.  To me (and, I suspect Ted), a
+> waiter is a subject of a verb while a lock is an object.  So Ted is asking
+> whether we have to classify the users, while I think you're saying we
+> have extra objects to classify.
+
+Exactly, the classification is applied when the {lock, mutex,
+completion} object is initialized.  Not currently at the individual
+call points to mutex_lock(), wait_for_completion(), down_write(), etc.
 
 
+> > The problems come from wrong classification. Waiters either classfied
+> > well or invalidated properly won't bitrot.
+> 
+> I disagree here.  As Ted says, it's the interactions between the
+> subsystems that leads to problems.  Everything's goig to work great
+> until somebody does something in a way that's never been tried before.
 
-Le 30/12/2017 A  07:58, Matthew Wilcox a A(C)critA :
-> On Wed, Dec 27, 2017 at 10:10:34AM +0100, Brice Goglin wrote:
->>> Perhaps we can enlist /proc/iomem or a similar enumeration interface
->>> to tell userspace the NUMA node and whether the kernel thinks it has
->>> better or worse performance characteristics relative to base
->>> system-RAM, i.e. new IORES_DESC_* values. I'm worried that if we start
->>> publishing absolute numbers in sysfs userspace will default to looking
->>> for specific magic numbers in sysfs vs asking the kernel for memory
->>> that has performance characteristics relative to base "System RAM". In
->>> other words the absolute performance information that the HMAT
->>> publishes is useful to the kernel, but it's not clear that userspace
->>> needs that vs a relative indicator for making NUMA node preference
->>> decisions.
->> Some HPC users will benchmark the machine to discovery actual
->> performance numbers anyway.
->> However, most users won't do this. They will want to know relative
->> performance of different nodes. If you normalize HMAT values by dividing
->> them with system-RAM values, that's likely OK. If you just say "that
->> node is faster than system RAM", it's not precise enough.
-> So "this memory has 800% bandwidth of normal" and "this memory has 70%
-> bandwidth of normal"?
+The question what is classified *well* mean?  At the extreme, we could
+put the locks for every single TCP connection into their own lockdep
+class.  But that would blow the limits in terms of the number of locks
+out of the water super-quickly --- and it would destroy the ability
+for lockdep to learn what the proper locking order should be.  Yet
+given Lockdep's current implementation, the only way to guarantee that
+there won't be any interactions between subsystems that cause false
+positives would be to categorizes locks for each TCP connection into
+their own class.
 
-I guess that would work.
-Brice
+So this is why I get a little annoyed when you say, "it's just a
+matter of classification".  NO IT IS NOT.  We can not possibly
+classify things "correctly" to completely limit false positives
+without completely destroying lockdep's scalability as it is currently
+designed.  Byungchul, you don't acknowledge this, and it makes the
+"just classify everything" argument completely suspect as a result.
+
+As far as the "just invalidate the waiter", the problem is that it
+requires source level changes to invalidate the waiter, and for
+different use cases, we will need to validate different waiters.  For
+example, in the example I gave, we would have to invalidate *all* TCP
+waiters/locks in order to prevent false positives.  But that makes the
+lockdep useless for all TCP locks.  What's the solution?  I claim that
+until lockdep is fundamentally fixed, there is no way to eliminate
+*all* false positives without invalidating *all*
+cross-release/cross-locks --- in which case you might as well leave
+the cross-release patches as an out of tree patch.
+
+So to claim that we can somehow fix the problem by making source-level
+changes outside of lockdep, by "properly classifying" or "properly
+invalidating" all locks, just doesn't make sense. 
+
+The only way it can work is to either dump it on the reposibility of
+the people debugging lockdep reports to make source level changes to
+other subsystems which they aren't the maintainers of to suppress
+false positives that arise due to how the subsystems are being used
+together in their particular configuration ---- or you can try to
+claim that there is an "acceptable level" of false positives with
+which we can live with forever, and which can not be fixed by "proper
+classifying" the locks.
+
+Or you can try to make lockdep scalable enough that if we could put
+every single lock for every single object into its own lock class
+(e.g., each lock for every single TCP connection gets its own lock
+class) which is after all the only way we can "properly classify
+everything") and still let lockdep be useful.
+
+If you think that is doable, why don't you work on that, and once that
+is done, maybe cross-locks lockdep will be considered more acceptable
+for mainstream?
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
