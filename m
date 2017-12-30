@@ -1,59 +1,132 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 64D1D6B0033
-	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 01:58:58 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id q6so13259317pff.16
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 22:58:58 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7758C6B0033
+	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 02:17:29 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id r8so7522705pgp.7
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 23:17:29 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id f1si30231245plk.140.2017.12.29.22.58.56
+        by mx.google.com with ESMTPS id a20si29558503pfg.38.2017.12.29.23.17.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 29 Dec 2017 22:58:57 -0800 (PST)
-Date: Fri, 29 Dec 2017 22:58:45 -0800
+        Fri, 29 Dec 2017 23:17:28 -0800 (PST)
+Date: Fri, 29 Dec 2017 23:17:20 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 0/3] create sysfs representation of ACPI HMAT
-Message-ID: <20171230065845.GD27959@bombadil.infradead.org>
-References: <20171218203547.GA2366@linux.intel.com>
- <20171220181937.GB12236@bombadil.infradead.org>
- <2da89d31-27a3-34ab-2dbb-92403c8215ec@intel.com>
- <20171220211649.GA32200@bombadil.infradead.org>
- <20171220212408.GA8308@linux.intel.com>
- <CAPcyv4gTknp=0yQnVrrB5Ui+mJE_x-wdkV86UD4hsYnx3CAjfA@mail.gmail.com>
- <20171220224105.GA27258@linux.intel.com>
- <39cbe02a-d309-443d-54c9-678a0799342d@gmail.com>
- <CAPcyv4j9shdJFrvADa=qW4L-jPJJ4S_TJc_c=aRoW3EmSCCChQ@mail.gmail.com>
- <71317994-af66-a1b2-4c7a-86a03253cf62@gmail.com>
+Subject: Re: [PATCH 2/2] Introduce __cond_lock_err
+Message-ID: <20171230071720.GE27959@bombadil.infradead.org>
+References: <20171219165823.24243-1-willy@infradead.org>
+ <20171219165823.24243-2-willy@infradead.org>
+ <20171221214810.GC9087@linux.intel.com>
+ <20171222011000.GB23624@bombadil.infradead.org>
+ <20171222042120.GA18036@localhost>
+ <20171222123112.GA6401@bombadil.infradead.org>
+ <20171227142853.b5agfi2kzo25g5ot@ltop.local>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <71317994-af66-a1b2-4c7a-86a03253cf62@gmail.com>
+In-Reply-To: <20171227142853.b5agfi2kzo25g5ot@ltop.local>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Brice Goglin <brice.goglin@gmail.com>
-Cc: Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@kernel.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "Anaczkowski, Lukasz" <lukasz.anaczkowski@intel.com>, "Box, David E" <david.e.box@intel.com>, "Kogut, Jaroslaw" <Jaroslaw.Kogut@intel.com>, "Koss, Marcin" <marcin.koss@intel.com>, "Koziej, Artur" <artur.koziej@intel.com>, "Lahtinen, Joonas" <joonas.lahtinen@intel.com>, "Moore, Robert" <robert.moore@intel.com>, "Nachimuthu, Murugasamy" <murugasamy.nachimuthu@intel.com>, "Odzioba, Lukasz" <lukasz.odzioba@intel.com>, "Rafael J. Wysocki" <rafael.j.wysocki@intel.com>, "Rafael J. Wysocki" <rjw@rjwysocki.net>, "Schmauss, Erik" <erik.schmauss@intel.com>, "Verma, Vishal L" <vishal.l.verma@intel.com>, "Zheng, Lv" <lv.zheng@intel.com>, Andrew Morton <akpm@linux-foundation.org>, Balbir Singh <bsingharora@gmail.com>, Jerome Glisse <jglisse@redhat.com>, John Hubbard <jhubbard@nvidia.com>, Len Brown <lenb@kernel.org>, Tim Chen <tim.c.chen@linux.intel.com>, devel@acpica.org, Linux ACPI <linux-acpi@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, "linux-nvdimm@lists.01.org" <linux-nvdimm@lists.01.org>, Linux API <linux-api@vger.kernel.org>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Cc: Josh Triplett <josh@joshtriplett.org>, Ross Zwisler <ross.zwisler@linux.intel.com>, linux-kernel@vger.kernel.org, Dave Hansen <dave.hansen@intel.com>, linux-mm@kvack.org, Matthew Wilcox <mawilcox@microsoft.com>
 
-On Wed, Dec 27, 2017 at 10:10:34AM +0100, Brice Goglin wrote:
-> > Perhaps we can enlist /proc/iomem or a similar enumeration interface
-> > to tell userspace the NUMA node and whether the kernel thinks it has
-> > better or worse performance characteristics relative to base
-> > system-RAM, i.e. new IORES_DESC_* values. I'm worried that if we start
-> > publishing absolute numbers in sysfs userspace will default to looking
-> > for specific magic numbers in sysfs vs asking the kernel for memory
-> > that has performance characteristics relative to base "System RAM". In
-> > other words the absolute performance information that the HMAT
-> > publishes is useful to the kernel, but it's not clear that userspace
-> > needs that vs a relative indicator for making NUMA node preference
-> > decisions.
+On Wed, Dec 27, 2017 at 03:28:54PM +0100, Luc Van Oostenryck wrote:
+> On Fri, Dec 22, 2017 at 04:31:12AM -0800, Matthew Wilcox wrote:
+> > On Thu, Dec 21, 2017 at 08:21:20PM -0800, Josh Triplett wrote:
+> > 
+> > While I've got you, I've been looking at some other sparse warnings from
+> > this file.  There are several caused by sparse being unable to handle
+> > the following construct:
+> > 
+> > 	if (foo)
+> > 		x = NULL;
+> > 	else {
+> > 		x = bar;
+> > 		__acquire(bar);
+> > 	}
+> > 	if (!x)
+> > 		return -ENOMEM;
+> > 
+> > Writing it as:
+> > 
+> > 	if (foo)
+> > 		return -ENOMEM;
+> > 	else {
+> > 		x = bar;
+> > 		__acquire(bar);
+> > 	}
+> > 
+> > works just fine.  ie this removes the warning:
 > 
-> Some HPC users will benchmark the machine to discovery actual
-> performance numbers anyway.
-> However, most users won't do this. They will want to know relative
-> performance of different nodes. If you normalize HMAT values by dividing
-> them with system-RAM values, that's likely OK. If you just say "that
-> node is faster than system RAM", it's not precise enough.
+> It must be noted that these two versions are not equivalent
+> (in the first version, it also returns with -ENOMEM if bar
+> is NULL/zero).
 
-So "this memory has 800% bandwidth of normal" and "this memory has 70%
-bandwidth of normal"?
+They happen to be equivalent in the original; I was providing a simplified
+version.  Here's the construct sparse can't understand:
+
+        dst_pte = pte_alloc_map_lock(dst_mm, dst_pmd, addr, &dst_ptl);
+        if (!dst_pte)
+                return -ENOMEM;
+
+with:
+
+#define pte_alloc(mm, pmd, address)                     \
+        (unlikely(pmd_none(*(pmd))) && __pte_alloc(mm, pmd, address))
+
+#define pte_offset_map_lock(mm, pmd, address, ptlp)     \
+({                                                      \
+        spinlock_t *__ptl = pte_lockptr(mm, pmd);       \
+        pte_t *__pte = pte_offset_map(pmd, address);    \
+        *(ptlp) = __ptl;                                \
+        spin_lock(__ptl);                               \
+        __pte;                                          \
+})
+
+#define pte_alloc_map_lock(mm, pmd, address, ptlp)      \
+        (pte_alloc(mm, pmd, address) ?                  \
+                 NULL : pte_offset_map_lock(mm, pmd, address, ptlp))
+
+If pte_alloc() succeeds, pte_offset_map_lock() will return non-NULL.
+Manually inlining pte_alloc_map_lock() into the caller like so:
+
+        if (pte_alloc(dst_mm, dst_pmd, addr)
+		return -ENOMEM;
+        dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, addr, ptlp);
+
+causes sparse to not warn.
+
+> > Is there any chance sparse's dataflow analysis will be improved in the
+> > near future?
+> 
+> A lot of functions in the kernel have this context imbalance,
+> really a lot. For example, any function doing conditional locking
+> is a problem here. Happily when these functions are inlined,
+> sparse, thanks to its optimizations, can remove some paths and
+> merge some others. 
+> So yes, by adding some smartness to sparse, some of the false
+> warnings will be removed, however:
+> 1) some __must_hold()/__acquires()/__releases() annotations are
+>    missing, making sparse's job impossible.
+
+Partly there's a documentation problem here.  I'd really like to see a
+document explaining how to add sparse annotations to a function which
+intentionally does conditional locking.  For example, should we be
+annotating the function as __acquires, and then marking the exits which
+don't acquire the lock with __acquire(), or should we not annotate
+the function, and annotate the exits which _do_ acquire the lock as
+__release() with a comment like /* Caller will release */
+
+> 2) a lot of the 'false warnings' are not so false because there is
+>    indeed two possible paths with different lock state
+> 3) it has its limits (at the end, giving the correct warning is
+>    equivalent to the halting problem).
+> 
+> Now, to answer to your question, I'm not aware of any effort that would
+> make a significant differences (it would need, IMO, code hoisting & 
+> value range propagation).
+
+That's fair.  I wonder if we were starting from scratch whether we'd
+choose to make sparse a GCC plugin today.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
