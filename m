@@ -1,156 +1,263 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EDA56B0033
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 16:24:59 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id g69so26780095ita.9
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 13:24:59 -0800 (PST)
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id A98196B0033
+	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 20:49:31 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id p9so11917059wre.22
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 17:49:31 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n206sor13019919iod.87.2017.12.29.13.24.57
+        by mx.google.com with SMTPS id q19sor7320574wrg.78.2017.12.29.17.49.29
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 29 Dec 2017 13:24:57 -0800 (PST)
-From: Eric Biggers <ebiggers3@gmail.com>
-Subject: [PATCH] userfaultfd: convert to use anon_inode_getfd()
-Date: Fri, 29 Dec 2017 15:24:03 -0600
-Message-Id: <20171229212403.22800-1-ebiggers3@gmail.com>
+        Fri, 29 Dec 2017 17:49:29 -0800 (PST)
+From: Timofey Titovets <nefelim4ag@gmail.com>
+Subject: [RFC PATCH Resend] ksm: allow dedup all tasks memory
+Date: Sat, 30 Dec 2017 04:49:20 +0300
+Message-Id: <20171230014920.16666-1-nefelim4ag@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-mm@kvack.org
-Cc: linux-fsdevel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Biggers <ebiggers@google.com>
+Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
 
-From: Eric Biggers <ebiggers@google.com>
+ksm by default working only on memory that added by
+madvice().
 
-Nothing actually calls userfaultfd_file_create() besides the
-userfaultfd() system call itself.  So simplify things by folding it into
-the system call and using anon_inode_getfd() instead of
-anon_inode_getfile().  Do the same in resolve_userfault_fork() as well.
-This removes over 50 lines with no change in functionality.
+And only way get that work on other applications:
+ - Use LD_PRELOAD and libraries
+ - Patch kernel
 
-Signed-off-by: Eric Biggers <ebiggers@google.com>
+Lets use kernel task list in ksm_scan_thread and add logic to allow ksm
+import VMA from tasks.
+That behaviour controlled by new attribute: mode
+I try mimic hugepages attribute, so mode have two states:
+ - normal       - old default behaviour
+ - always [new] - allow ksm to get tasks vma and try working on that.
+
+To reduce CPU load & tasklist locking time,
+ksm try import VMAs from one task per loop.
+
+So add new attribute "mode"
+Two passible values:
+ - normal [default] - ksm use only madvice
+ - always [new]     - ksm will search vma over all processes memory and
+                      add it to the dedup list
+
+Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
 ---
- fs/userfaultfd.c | 70 ++++++++------------------------------------------------
- 1 file changed, 9 insertions(+), 61 deletions(-)
+ Documentation/vm/ksm.txt |   3 +
+ mm/ksm.c                 | 139 ++++++++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 121 insertions(+), 21 deletions(-)
 
-diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-index 41a75f9f23fd..b87cc2c5cfb1 100644
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -985,24 +985,14 @@ static int resolve_userfault_fork(struct userfaultfd_ctx *ctx,
- 				  struct uffd_msg *msg)
+diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
+index 6686bd267dc9..3ba6a558c48e 100644
+--- a/Documentation/vm/ksm.txt
++++ b/Documentation/vm/ksm.txt
+@@ -84,6 +84,9 @@ run              - set 0 to stop ksmd from running but keep merged pages,
+                    Default: 0 (must be changed to 1 to activate KSM,
+                                except if CONFIG_SYSFS is disabled)
+
++mode             - set always to allow ksm dedup whole memory
++                   set normal to use only madvice [default]
++
+ use_zero_pages   - specifies whether empty pages (i.e. allocated pages
+                    that only contain zeroes) should be treated specially.
+                    When set to 1, empty pages are merged with the kernel
+diff --git a/mm/ksm.c b/mm/ksm.c
+index 15dd7415f7b3..78ecb62ad7e6 100644
+--- a/mm/ksm.c
++++ b/mm/ksm.c
+@@ -276,6 +276,10 @@ static int ksm_nr_node_ids = 1;
+ static unsigned long ksm_run = KSM_RUN_STOP;
+ static void wait_while_offlining(void);
+
++#define KSM_MODE_NORMAL 0
++#define KSM_MODE_ALWAYS	1
++static unsigned long ksm_mode = KSM_MODE_NORMAL;
++
+ static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
+ static DEFINE_MUTEX(ksm_thread_mutex);
+ static DEFINE_SPINLOCK(ksm_mmlist_lock);
+@@ -284,6 +288,11 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
+ 		sizeof(struct __struct), __alignof__(struct __struct),\
+ 		(__flags), NULL)
+
++static inline int ksm_mode_always(void)
++{
++	return (ksm_mode == KSM_MODE_ALWAYS);
++}
++
+ static int __init ksm_slab_init(void)
  {
- 	int fd;
--	struct file *file;
--	unsigned int flags = new->flags & UFFD_SHARED_FCNTL_FLAGS;
- 
--	fd = get_unused_fd_flags(flags);
-+	fd = anon_inode_getfd("[userfaultfd]", &userfaultfd_fops, new,
-+			      O_RDWR | (new->flags & UFFD_SHARED_FCNTL_FLAGS));
- 	if (fd < 0)
- 		return fd;
- 
--	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, new,
--				  O_RDWR | flags);
--	if (IS_ERR(file)) {
--		put_unused_fd(fd);
--		return PTR_ERR(file);
--	}
--
--	fd_install(fd, file);
- 	msg->arg.reserved.reserved1 = 0;
- 	msg->arg.fork.ufd = fd;
--
- 	return 0;
- }
- 
-@@ -1884,24 +1874,10 @@ static void init_once_userfaultfd_ctx(void *mem)
- 	seqcount_init(&ctx->refile_seq);
- }
- 
--/**
-- * userfaultfd_file_create - Creates a userfaultfd file pointer.
-- * @flags: Flags for the userfaultfd file.
-- *
-- * This function creates a userfaultfd file pointer, w/out installing
-- * it into the fd table. This is useful when the userfaultfd file is
-- * used during the initialization of data structures that require
-- * extra setup after the userfaultfd creation. So the userfaultfd
-- * creation is split into the file pointer creation phase, and the
-- * file descriptor installation phase.  In this way races with
-- * userspace closing the newly installed file descriptor can be
-- * avoided.  Returns a userfaultfd file pointer, or a proper error
-- * pointer.
-- */
--static struct file *userfaultfd_file_create(int flags)
-+SYSCALL_DEFINE1(userfaultfd, int, flags)
+ 	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
+@@ -2314,17 +2323,91 @@ static void ksm_do_scan(unsigned int scan_npages)
+
+ static int ksmd_should_run(void)
  {
--	struct file *file;
- 	struct userfaultfd_ctx *ctx;
-+	int fd;
- 
- 	BUG_ON(!current->mm);
- 
-@@ -1909,14 +1885,12 @@ static struct file *userfaultfd_file_create(int flags)
- 	BUILD_BUG_ON(UFFD_CLOEXEC != O_CLOEXEC);
- 	BUILD_BUG_ON(UFFD_NONBLOCK != O_NONBLOCK);
- 
--	file = ERR_PTR(-EINVAL);
- 	if (flags & ~UFFD_SHARED_FCNTL_FLAGS)
--		goto out;
+-	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
++	return (ksm_run & KSM_RUN_MERGE) &&
++		(!list_empty(&ksm_mm_head.mm_list) || ksm_mode_always());
++}
++
++
++int ksm_enter(struct mm_struct *mm, unsigned long *vm_flags)
++{
++	int err;
++
++	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
++			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
++			 VM_HUGETLB | VM_MIXEDMAP))
++		return 0;
++
++#ifdef VM_SAO
++	if (*vm_flags & VM_SAO)
++		return 0;
++#endif
++
++	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
++		err = __ksm_enter(mm);
++		if (err)
++			return err;
++	}
++
++	*vm_flags |= VM_MERGEABLE;
++
++	return 0;
++}
++
++/*
++ * Register all vmas for all processes in the system with KSM.
++ * Note that every call to ksm_madvise, for a given vma, after the first
++ * does nothing but set flags.
++ */
++void ksm_import_task_vma(struct task_struct *task)
++{
++	struct vm_area_struct *vma;
++	struct mm_struct *mm;
++	int error;
++
++	mm = get_task_mm(task);
++	if (!mm)
++		return;
++	down_write(&mm->mmap_sem);
++	vma = mm->mmap;
++	while (vma) {
++		error = ksm_enter(vma->vm_mm, &vma->vm_flags);
++		vma = vma->vm_next;
++	}
++	up_write(&mm->mmap_sem);
++	mmput(mm);
++	return;
+ }
+
+ static int ksm_scan_thread(void *nothing)
+ {
++	pid_t last_pid = 1;
++	pid_t curr_pid;
++	struct task_struct *task;
++
+ 	set_freezable();
+ 	set_user_nice(current, 5);
+
+ 	while (!kthread_should_stop()) {
+ 		mutex_lock(&ksm_thread_mutex);
+ 		wait_while_offlining();
++		if (ksm_mode_always()) {
++			/*
++			 * import one task's vma per run
++			 */
++			read_lock(&tasklist_lock);
++
++			for_each_process(task) {
++				curr_pid = task_pid_nr(task);
++				if (curr_pid == last_pid)
++					break;
++			}
++
++			task = next_task(task);
++			last_pid = task_pid_nr(task);
++
++			ksm_import_task_vma(task);
++			read_unlock(&tasklist_lock);
++		}
+ 		if (ksmd_should_run())
+ 			ksm_do_scan(ksm_thread_pages_to_scan);
+ 		mutex_unlock(&ksm_thread_mutex);
+@@ -2350,26 +2433,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
+
+ 	switch (advice) {
+ 	case MADV_MERGEABLE:
+-		/*
+-		 * Be somewhat over-protective for now!
+-		 */
+-		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
+-				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
+-				 VM_HUGETLB | VM_MIXEDMAP))
+-			return 0;		/* just ignore the advice */
+-
+-#ifdef VM_SAO
+-		if (*vm_flags & VM_SAO)
+-			return 0;
+-#endif
+-
+-		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
+-			err = __ksm_enter(mm);
+-			if (err)
+-				return err;
+-		}
+-
+-		*vm_flags |= VM_MERGEABLE;
++		err = ksm_enter(mm, vm_flags);
++		if (err)
++			return err;
+ 		break;
+
+ 	case MADV_UNMERGEABLE:
+@@ -2769,6 +2835,36 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
+ }
+ KSM_ATTR(pages_to_scan);
+
++static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr,
++			char *buf)
++{
++	switch (ksm_mode) {
++		case KSM_MODE_NORMAL:
++			return sprintf(buf, "always [normal]\n");
++			break;
++		case KSM_MODE_ALWAYS:
++			return sprintf(buf, "[always] normal\n");
++			break;
++	}
++
++	return sprintf(buf, "always [normal]\n");
++}
++
++static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
++			 const char *buf, size_t count)
++{
++	if (!memcmp("always", buf, min(sizeof("always")-1, count))) {
++		ksm_mode = KSM_MODE_ALWAYS;
++		wake_up_interruptible(&ksm_thread_wait);
++	} else if (!memcmp("normal", buf, min(sizeof("normal")-1, count))) {
++		ksm_mode = KSM_MODE_NORMAL;
++	} else
 +		return -EINVAL;
- 
--	file = ERR_PTR(-ENOMEM);
- 	ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
- 	if (!ctx)
--		goto out;
-+		return -ENOMEM;
- 
- 	atomic_set(&ctx->refcount, 1);
- 	ctx->flags = flags;
-@@ -1927,39 +1901,13 @@ static struct file *userfaultfd_file_create(int flags)
- 	/* prevent the mm struct to be freed */
- 	mmgrab(ctx->mm);
- 
--	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
--				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
--	if (IS_ERR(file)) {
-+	fd = anon_inode_getfd("[userfaultfd]", &userfaultfd_fops, ctx,
-+			      O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
-+	if (fd < 0) {
- 		mmdrop(ctx->mm);
- 		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
- 	}
--out:
--	return file;
--}
--
--SYSCALL_DEFINE1(userfaultfd, int, flags)
--{
--	int fd, error;
--	struct file *file;
--
--	error = get_unused_fd_flags(flags & UFFD_SHARED_FCNTL_FLAGS);
--	if (error < 0)
--		return error;
--	fd = error;
--
--	file = userfaultfd_file_create(flags);
--	if (IS_ERR(file)) {
--		error = PTR_ERR(file);
--		goto err_put_unused_fd;
--	}
--	fd_install(fd, file);
--
- 	return fd;
--
--err_put_unused_fd:
--	put_unused_fd(fd);
--
--	return error;
- }
- 
- static int __init userfaultfd_init(void)
--- 
-2.15.1
++
++	return count;
++}
++KSM_ATTR(mode);
++
+ static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
+ 			char *buf)
+ {
+@@ -3026,6 +3122,7 @@ KSM_ATTR_RO(full_scans);
+ static struct attribute *ksm_attrs[] = {
+ 	&sleep_millisecs_attr.attr,
+ 	&pages_to_scan_attr.attr,
++	&mode_attr.attr,
+ 	&run_attr.attr,
+ 	&pages_shared_attr.attr,
+ 	&pages_sharing_attr.attr,
+--
+2.14.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
