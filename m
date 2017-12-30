@@ -1,263 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A98196B0033
-	for <linux-mm@kvack.org>; Fri, 29 Dec 2017 20:49:31 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id p9so11917059wre.22
-        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 17:49:31 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q19sor7320574wrg.78.2017.12.29.17.49.29
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9A1296B0033
+	for <linux-mm@kvack.org>; Sat, 30 Dec 2017 01:16:38 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id f2so26043273plj.15
+        for <linux-mm@kvack.org>; Fri, 29 Dec 2017 22:16:38 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id r9si29497385pfe.13.2017.12.29.22.16.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 29 Dec 2017 17:49:29 -0800 (PST)
-From: Timofey Titovets <nefelim4ag@gmail.com>
-Subject: [RFC PATCH Resend] ksm: allow dedup all tasks memory
-Date: Sat, 30 Dec 2017 04:49:20 +0300
-Message-Id: <20171230014920.16666-1-nefelim4ag@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 29 Dec 2017 22:16:37 -0800 (PST)
+Date: Fri, 29 Dec 2017 22:16:24 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20171230061624.GA27959@bombadil.infradead.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+ <20171229035146.GA11757@thunk.org>
+ <20171229072851.GA12235@X58A-UD3R>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171229072851.GA12235@X58A-UD3R>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, kvm@vger.kernel.org, Timofey Titovets <nefelim4ag@gmail.com>
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
 
-ksm by default working only on memory that added by
-madvice().
+On Fri, Dec 29, 2017 at 04:28:51PM +0900, Byungchul Park wrote:
+> On Thu, Dec 28, 2017 at 10:51:46PM -0500, Theodore Ts'o wrote:
+> > On Fri, Dec 29, 2017 at 10:47:36AM +0900, Byungchul Park wrote:
+> > > 
+> > >    (1) The best way: To classify all waiters correctly.
+> > 
+> > It's really not all waiters, but all *locks*, no?
+> 
+> Thanks for your opinion. I will add my opinion on you.
+> 
+> I meant *waiters*. Locks are only a sub set of potential waiters, which
+> actually cause deadlocks. Cross-release was designed to consider the
+> super set including all general waiters such as typical locks,
+> wait_for_completion(), and lock_page() and so on..
 
-And only way get that work on other applications:
- - Use LD_PRELOAD and libraries
- - Patch kernel
+I think this is a terminology problem.  To me (and, I suspect Ted), a
+waiter is a subject of a verb while a lock is an object.  So Ted is asking
+whether we have to classify the users, while I think you're saying we
+have extra objects to classify.
 
-Lets use kernel task list in ksm_scan_thread and add logic to allow ksm
-import VMA from tasks.
-That behaviour controlled by new attribute: mode
-I try mimic hugepages attribute, so mode have two states:
- - normal       - old default behaviour
- - always [new] - allow ksm to get tasks vma and try working on that.
+I'd be comfortable continuing to refer to completions as locks.  We could
+try to come up with a new object name like waitpoints though?
 
-To reduce CPU load & tasklist locking time,
-ksm try import VMAs from one task per loop.
+> > In addition, the lock classification system is not documented at all,
+> > so now you also need someone who understands the lockdep code.  And
+> > since some of these classifications involve transient objects, and
+> > lockdep doesn't have a way of dealing with transient locks, and has a
+> > hard compile time limit of the number of locks that it supports, to
+> > expect a subsystem maintainer to figure out all of the interactions,
+> > plus figure out lockdep, and work around lockdep's limitations
+> > seems.... not realistic.
+> 
+> I have to think it more to find out how to solve it simply enough to be
+> acceptable. The only solution I come up with for now is too complex.
 
-So add new attribute "mode"
-Two passible values:
- - normal [default] - ksm use only madvice
- - always [new]     - ksm will search vma over all processes memory and
-                      add it to the dedup list
+I want to amplify Ted's point here.  How to use the existing lockdep
+functionality is undocumented.  And that's not your fault.  We have
+Documentation/locking/lockdep-design.txt which I'm sure is great for
+someone who's willing to invest a week understanding it, but we need a
+"here's how to use it" guide.
 
-Signed-off-by: Timofey Titovets <nefelim4ag@gmail.com>
----
- Documentation/vm/ksm.txt |   3 +
- mm/ksm.c                 | 139 ++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 121 insertions(+), 21 deletions(-)
+> > Given that once Lockdep reports a locking violation, it doesn't report
+> > any more lockdep violations, if there are a large number of false
+> > positives, people will not want to turn on cross-release, since it
+> > will report the false positive and then turn itself off, so it won't
+> > report anything useful.  So if no one turns it on because of the false
+> > positives, how does the bitrot problem get resolved?
+> 
+> The problems come from wrong classification. Waiters either classfied
+> well or invalidated properly won't bitrot.
 
-diff --git a/Documentation/vm/ksm.txt b/Documentation/vm/ksm.txt
-index 6686bd267dc9..3ba6a558c48e 100644
---- a/Documentation/vm/ksm.txt
-+++ b/Documentation/vm/ksm.txt
-@@ -84,6 +84,9 @@ run              - set 0 to stop ksmd from running but keep merged pages,
-                    Default: 0 (must be changed to 1 to activate KSM,
-                                except if CONFIG_SYSFS is disabled)
-
-+mode             - set always to allow ksm dedup whole memory
-+                   set normal to use only madvice [default]
-+
- use_zero_pages   - specifies whether empty pages (i.e. allocated pages
-                    that only contain zeroes) should be treated specially.
-                    When set to 1, empty pages are merged with the kernel
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 15dd7415f7b3..78ecb62ad7e6 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -276,6 +276,10 @@ static int ksm_nr_node_ids = 1;
- static unsigned long ksm_run = KSM_RUN_STOP;
- static void wait_while_offlining(void);
-
-+#define KSM_MODE_NORMAL 0
-+#define KSM_MODE_ALWAYS	1
-+static unsigned long ksm_mode = KSM_MODE_NORMAL;
-+
- static DECLARE_WAIT_QUEUE_HEAD(ksm_thread_wait);
- static DEFINE_MUTEX(ksm_thread_mutex);
- static DEFINE_SPINLOCK(ksm_mmlist_lock);
-@@ -284,6 +288,11 @@ static DEFINE_SPINLOCK(ksm_mmlist_lock);
- 		sizeof(struct __struct), __alignof__(struct __struct),\
- 		(__flags), NULL)
-
-+static inline int ksm_mode_always(void)
-+{
-+	return (ksm_mode == KSM_MODE_ALWAYS);
-+}
-+
- static int __init ksm_slab_init(void)
- {
- 	rmap_item_cache = KSM_KMEM_CACHE(rmap_item, 0);
-@@ -2314,17 +2323,91 @@ static void ksm_do_scan(unsigned int scan_npages)
-
- static int ksmd_should_run(void)
- {
--	return (ksm_run & KSM_RUN_MERGE) && !list_empty(&ksm_mm_head.mm_list);
-+	return (ksm_run & KSM_RUN_MERGE) &&
-+		(!list_empty(&ksm_mm_head.mm_list) || ksm_mode_always());
-+}
-+
-+
-+int ksm_enter(struct mm_struct *mm, unsigned long *vm_flags)
-+{
-+	int err;
-+
-+	if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
-+			 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
-+			 VM_HUGETLB | VM_MIXEDMAP))
-+		return 0;
-+
-+#ifdef VM_SAO
-+	if (*vm_flags & VM_SAO)
-+		return 0;
-+#endif
-+
-+	if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
-+		err = __ksm_enter(mm);
-+		if (err)
-+			return err;
-+	}
-+
-+	*vm_flags |= VM_MERGEABLE;
-+
-+	return 0;
-+}
-+
-+/*
-+ * Register all vmas for all processes in the system with KSM.
-+ * Note that every call to ksm_madvise, for a given vma, after the first
-+ * does nothing but set flags.
-+ */
-+void ksm_import_task_vma(struct task_struct *task)
-+{
-+	struct vm_area_struct *vma;
-+	struct mm_struct *mm;
-+	int error;
-+
-+	mm = get_task_mm(task);
-+	if (!mm)
-+		return;
-+	down_write(&mm->mmap_sem);
-+	vma = mm->mmap;
-+	while (vma) {
-+		error = ksm_enter(vma->vm_mm, &vma->vm_flags);
-+		vma = vma->vm_next;
-+	}
-+	up_write(&mm->mmap_sem);
-+	mmput(mm);
-+	return;
- }
-
- static int ksm_scan_thread(void *nothing)
- {
-+	pid_t last_pid = 1;
-+	pid_t curr_pid;
-+	struct task_struct *task;
-+
- 	set_freezable();
- 	set_user_nice(current, 5);
-
- 	while (!kthread_should_stop()) {
- 		mutex_lock(&ksm_thread_mutex);
- 		wait_while_offlining();
-+		if (ksm_mode_always()) {
-+			/*
-+			 * import one task's vma per run
-+			 */
-+			read_lock(&tasklist_lock);
-+
-+			for_each_process(task) {
-+				curr_pid = task_pid_nr(task);
-+				if (curr_pid == last_pid)
-+					break;
-+			}
-+
-+			task = next_task(task);
-+			last_pid = task_pid_nr(task);
-+
-+			ksm_import_task_vma(task);
-+			read_unlock(&tasklist_lock);
-+		}
- 		if (ksmd_should_run())
- 			ksm_do_scan(ksm_thread_pages_to_scan);
- 		mutex_unlock(&ksm_thread_mutex);
-@@ -2350,26 +2433,9 @@ int ksm_madvise(struct vm_area_struct *vma, unsigned long start,
-
- 	switch (advice) {
- 	case MADV_MERGEABLE:
--		/*
--		 * Be somewhat over-protective for now!
--		 */
--		if (*vm_flags & (VM_MERGEABLE | VM_SHARED  | VM_MAYSHARE   |
--				 VM_PFNMAP    | VM_IO      | VM_DONTEXPAND |
--				 VM_HUGETLB | VM_MIXEDMAP))
--			return 0;		/* just ignore the advice */
--
--#ifdef VM_SAO
--		if (*vm_flags & VM_SAO)
--			return 0;
--#endif
--
--		if (!test_bit(MMF_VM_MERGEABLE, &mm->flags)) {
--			err = __ksm_enter(mm);
--			if (err)
--				return err;
--		}
--
--		*vm_flags |= VM_MERGEABLE;
-+		err = ksm_enter(mm, vm_flags);
-+		if (err)
-+			return err;
- 		break;
-
- 	case MADV_UNMERGEABLE:
-@@ -2769,6 +2835,36 @@ static ssize_t pages_to_scan_store(struct kobject *kobj,
- }
- KSM_ATTR(pages_to_scan);
-
-+static ssize_t mode_show(struct kobject *kobj, struct kobj_attribute *attr,
-+			char *buf)
-+{
-+	switch (ksm_mode) {
-+		case KSM_MODE_NORMAL:
-+			return sprintf(buf, "always [normal]\n");
-+			break;
-+		case KSM_MODE_ALWAYS:
-+			return sprintf(buf, "[always] normal\n");
-+			break;
-+	}
-+
-+	return sprintf(buf, "always [normal]\n");
-+}
-+
-+static ssize_t mode_store(struct kobject *kobj, struct kobj_attribute *attr,
-+			 const char *buf, size_t count)
-+{
-+	if (!memcmp("always", buf, min(sizeof("always")-1, count))) {
-+		ksm_mode = KSM_MODE_ALWAYS;
-+		wake_up_interruptible(&ksm_thread_wait);
-+	} else if (!memcmp("normal", buf, min(sizeof("normal")-1, count))) {
-+		ksm_mode = KSM_MODE_NORMAL;
-+	} else
-+		return -EINVAL;
-+
-+	return count;
-+}
-+KSM_ATTR(mode);
-+
- static ssize_t run_show(struct kobject *kobj, struct kobj_attribute *attr,
- 			char *buf)
- {
-@@ -3026,6 +3122,7 @@ KSM_ATTR_RO(full_scans);
- static struct attribute *ksm_attrs[] = {
- 	&sleep_millisecs_attr.attr,
- 	&pages_to_scan_attr.attr,
-+	&mode_attr.attr,
- 	&run_attr.attr,
- 	&pages_shared_attr.attr,
- 	&pages_sharing_attr.attr,
---
-2.14.1
+I disagree here.  As Ted says, it's the interactions between the
+subsystems that leads to problems.  Everything's goig to work great
+until somebody does something in a way that's never been tried before.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
