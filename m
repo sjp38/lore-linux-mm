@@ -1,134 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 28EC26B026A
-	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 09:28:48 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id p4so11333736wrf.4
-        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 06:28:48 -0800 (PST)
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 1280F6B026D
+	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 09:33:35 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id q4so11856691wre.14
+        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 06:33:35 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id a18si2393306wrd.548.2018.01.01.06.28.46
+        by mx.google.com with ESMTPS id i77si23411725wme.39.2018.01.01.06.33.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jan 2018 06:28:46 -0800 (PST)
+        Mon, 01 Jan 2018 06:33:33 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 31/63] x86/mm: Enable CR4.PCIDE on supported systems
-Date: Mon,  1 Jan 2018 15:24:49 +0100
-Message-Id: <20180101140047.790942342@linuxfoundation.org>
-In-Reply-To: <20180101140042.456380281@linuxfoundation.org>
-References: <20180101140042.456380281@linuxfoundation.org>
+Subject: [PATCH 4.9 17/75] x86/mm: Reimplement flush_tlb_page() using flush_tlb_mm_range()
+Date: Mon,  1 Jan 2018 15:31:54 +0100
+Message-Id: <20180101140059.336865906@linuxfoundation.org>
+In-Reply-To: <20180101140056.475827799@linuxfoundation.org>
+References: <20180101140056.475827799@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Kees Cook <keescook@chromium.org>, Andrew Morton <akpm@linux-foundation.org>, Borislav Petkov <bpetkov@suse.de>, Dave Hansen <dave.hansen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@suse.com>, Nadav Amit <nadav.amit@gmail.com>, Nadav Amit <namit@vmware.com>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
 From: Andy Lutomirski <luto@kernel.org>
 
-commit 660da7c9228f685b2ebe664f9fd69aaddcc420b5 upstream.
+commit ca6c99c0794875c6d1db6e22f246699691ab7e6b upstream.
 
-We can use PCID if the CPU has PCID and PGE and we're not on Xen.
+flush_tlb_page() was very similar to flush_tlb_mm_range() except that
+it had a couple of issues:
 
-By itself, this has no effect. A followup patch will start using PCID.
+ - It was missing an smp_mb() in the case where
+   current->active_mm != mm.  (This is a longstanding bug reported by Nadav Amit)
+
+ - It was missing tracepoints and vm counter updates.
+
+The only reason that I can see for keeping it at as a separate
+function is that it could avoid a few branches that
+flush_tlb_mm_range() needs to decide to flush just one page.  This
+hardly seems worthwhile.  If we decide we want to get rid of those
+branches again, a better way would be to introduce an
+__flush_tlb_mm_range() helper and make both flush_tlb_page() and
+flush_tlb_mm_range() use it.
 
 Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Acked-by: Kees Cook <keescook@chromium.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
-Cc: Borislav Petkov <bp@alien8.de>
+Cc: Borislav Petkov <bpetkov@suse.de>
 Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
 Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Nadav Amit <nadav.amit@gmail.com>
+Cc: Nadav Amit <namit@vmware.com>
 Cc: Peter Zijlstra <peterz@infradead.org>
 Cc: Rik van Riel <riel@redhat.com>
+Cc: Thomas Gleixner <tglx@linutronix.de>
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/6327ecd907b32f79d5aa0d466f04503bbec5df88.1498751203.git.luto@kernel.org
+Link: http://lkml.kernel.org/r/3cc3847cf888d8907577569b8bac3f01992ef8f9.1495492063.git.luto@kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
 Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/tlbflush.h |    8 ++++++++
- arch/x86/kernel/cpu/common.c    |   22 ++++++++++++++++++++++
- arch/x86/xen/enlighten.c        |    6 ++++++
- 3 files changed, 36 insertions(+)
+ arch/x86/include/asm/tlbflush.h |    6 +++++-
+ arch/x86/mm/tlb.c               |   27 ---------------------------
+ 2 files changed, 5 insertions(+), 28 deletions(-)
 
 --- a/arch/x86/include/asm/tlbflush.h
 +++ b/arch/x86/include/asm/tlbflush.h
-@@ -190,6 +190,14 @@ static inline void __flush_tlb_all(void)
- 		__flush_tlb_global();
- 	else
- 		__flush_tlb();
-+
-+	/*
-+	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
-+	 * we'd end up flushing kernel translations for the current ASID but
-+	 * we might fail to flush kernel translations for other cached ASIDs.
-+	 *
-+	 * To avoid this issue, we force PCID off if PGE is off.
-+	 */
- }
+@@ -297,11 +297,15 @@ static inline void flush_tlb_kernel_rang
+ 		flush_tlb_mm_range(vma->vm_mm, start, end, vma->vm_flags)
  
- static inline void __flush_tlb_one(unsigned long addr)
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -321,6 +321,25 @@ static __always_inline void setup_smap(s
- 	}
- }
+ extern void flush_tlb_all(void);
+-extern void flush_tlb_page(struct vm_area_struct *, unsigned long);
+ extern void flush_tlb_mm_range(struct mm_struct *mm, unsigned long start,
+ 				unsigned long end, unsigned long vmflag);
+ extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
  
-+static void setup_pcid(struct cpuinfo_x86 *c)
++static inline void flush_tlb_page(struct vm_area_struct *vma, unsigned long a)
 +{
-+	if (cpu_has(c, X86_FEATURE_PCID)) {
-+		if (cpu_has(c, X86_FEATURE_PGE)) {
-+			cr4_set_bits(X86_CR4_PCIDE);
-+		} else {
-+			/*
-+			 * flush_tlb_all(), as currently implemented, won't
-+			 * work if PCID is on but PGE is not.  Since that
-+			 * combination doesn't exist on real hardware, there's
-+			 * no reason to try to fully support it, but it's
-+			 * polite to avoid corrupting data if we're on
-+			 * an improperly configured VM.
-+			 */
-+			clear_cpu_cap(c, X86_FEATURE_PCID);
-+		}
-+	}
++	flush_tlb_mm_range(vma->vm_mm, a, a + PAGE_SIZE, VM_NONE);
 +}
 +
- /*
-  * Some CPU features depend on higher CPUID levels, which may not always
-  * be available due to CPUID level capping or broken virtualization
-@@ -952,6 +971,9 @@ static void identify_cpu(struct cpuinfo_
- 	setup_smep(c);
- 	setup_smap(c);
+ void native_flush_tlb_others(const struct cpumask *cpumask,
+ 				struct mm_struct *mm,
+ 				unsigned long start, unsigned long end);
+--- a/arch/x86/mm/tlb.c
++++ b/arch/x86/mm/tlb.c
+@@ -354,33 +354,6 @@ out:
+ 	preempt_enable();
+ }
  
-+	/* Set up PCID */
-+	setup_pcid(c);
-+
- 	/*
- 	 * The vendor-specific functions might have changed features.
- 	 * Now we do "generic changes."
---- a/arch/x86/xen/enlighten.c
-+++ b/arch/x86/xen/enlighten.c
-@@ -433,6 +433,12 @@ static void __init xen_init_cpuid_mask(v
- 		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
- 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
- 
-+	/*
-+	 * Xen PV would need some work to support PCID: CR3 handling as well
-+	 * as xen_flush_tlb_others() would need updating.
-+	 */
-+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_PCID % 32));  /* disable PCID */
-+
- 	if (!xen_initial_domain())
- 		cpuid_leaf1_edx_mask &=
- 			~((1 << X86_FEATURE_ACPI));  /* disable ACPI */
+-void flush_tlb_page(struct vm_area_struct *vma, unsigned long start)
+-{
+-	struct mm_struct *mm = vma->vm_mm;
+-
+-	preempt_disable();
+-
+-	if (current->active_mm == mm) {
+-		if (current->mm) {
+-			/*
+-			 * Implicit full barrier (INVLPG) that synchronizes
+-			 * with switch_mm.
+-			 */
+-			__flush_tlb_one(start);
+-		} else {
+-			leave_mm(smp_processor_id());
+-
+-			/* Synchronize with switch_mm. */
+-			smp_mb();
+-		}
+-	}
+-
+-	if (cpumask_any_but(mm_cpumask(mm), smp_processor_id()) < nr_cpu_ids)
+-		flush_tlb_others(mm_cpumask(mm), mm, start, start + PAGE_SIZE);
+-
+-	preempt_enable();
+-}
+-
+ static void do_flush_tlb_all(void *info)
+ {
+ 	count_vm_tlb_event(NR_TLB_REMOTE_FLUSH_RECEIVED);
 
 
 --
