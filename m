@@ -1,187 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BD016B0286
-	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 10:52:44 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id j141so15142280qke.4
-        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 07:52:44 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z50si3419122qtb.99.2018.01.01.07.52.42
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id D03386B0288
+	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 11:00:20 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id x185so8170503ybe.3
+        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 08:00:20 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id d11si4023362ywh.235.2018.01.01.08.00.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jan 2018 07:52:43 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w01FnvF5124297
-	for <linux-mm@kvack.org>; Mon, 1 Jan 2018 10:52:41 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2f7g3rbcmv-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 01 Jan 2018 10:52:41 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Mon, 1 Jan 2018 15:52:39 -0000
-Date: Mon, 1 Jan 2018 17:52:34 +0200
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: Re: [PATCH] userfaultfd: convert to use anon_inode_getfd()
-References: <20171229212403.22800-1-ebiggers3@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 01 Jan 2018 08:00:19 -0800 (PST)
+Date: Mon, 1 Jan 2018 11:00:11 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20180101160011.GA27417@thunk.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+ <20171229035146.GA11757@thunk.org>
+ <20171229072851.GA12235@X58A-UD3R>
+ <20171230061624.GA27959@bombadil.infradead.org>
+ <20171230154041.GB3366@thunk.org>
+ <20171230204417.GF27959@bombadil.infradead.org>
+ <20171230224028.GC3366@thunk.org>
+ <20171230230057.GB12995@thunk.org>
+ <20180101101855.GA23567@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20171229212403.22800-1-ebiggers3@gmail.com>
-Message-Id: <20180101155233.GA17038@rapoport-lnx>
+In-Reply-To: <20180101101855.GA23567@bombadil.infradead.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Eric Biggers <ebiggers3@gmail.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Andrea Arcangeli <aarcange@redhat.com>, Andrew Morton <akpm@linux-foundation.org>, Eric Biggers <ebiggers@google.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Byungchul Park <byungchul.park@lge.com>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
 
-On Fri, Dec 29, 2017 at 03:24:03PM -0600, Eric Biggers wrote:
-> From: Eric Biggers <ebiggers@google.com>
+On Mon, Jan 01, 2018 at 02:18:55AM -0800, Matthew Wilcox wrote:
+> > Clarification: all TCP connections that are used by kernel code would
+> > need to be in their own separate lock class.  All TCP connections used
+> > only by userspace could be in their own shared lock class.  You can't
+> > use a one lock class for all kernel-used TCP connections, because of
+> > the Network Block Device mounted on a local file system which is then
+> > exported via NFS and squirted out yet another TCP connection problem.
 > 
-> Nothing actually calls userfaultfd_file_create() besides the
-> userfaultfd() system call itself.  So simplify things by folding it into
-> the system call and using anon_inode_getfd() instead of
-> anon_inode_getfile().  Do the same in resolve_userfault_fork() as well.
-> This removes over 50 lines with no change in functionality.
-> 
-> Signed-off-by: Eric Biggers <ebiggers@google.com>
+> So the false positive you're concerned about is write-comes-in-over-NFS
+> (with socket lock held), NFS sends a write request to local filesystem,
+> local filesystem sends write to block device, block device sends a
+> packet to a socket which takes that socket lock.
 
-Reviewed-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
+It's not just the socket lock, but any of the locks/mutexes/"waiters"
+that might be taken in the TCP code path and below, including in the
+NIC driver.
 
-> ---
->  fs/userfaultfd.c | 70 ++++++++------------------------------------------------
->  1 file changed, 9 insertions(+), 61 deletions(-)
-> 
-> diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
-> index 41a75f9f23fd..b87cc2c5cfb1 100644
-> --- a/fs/userfaultfd.c
-> +++ b/fs/userfaultfd.c
-> @@ -985,24 +985,14 @@ static int resolve_userfault_fork(struct userfaultfd_ctx *ctx,
->  				  struct uffd_msg *msg)
->  {
->  	int fd;
-> -	struct file *file;
-> -	unsigned int flags = new->flags & UFFD_SHARED_FCNTL_FLAGS;
-> 
-> -	fd = get_unused_fd_flags(flags);
-> +	fd = anon_inode_getfd("[userfaultfd]", &userfaultfd_fops, new,
-> +			      O_RDWR | (new->flags & UFFD_SHARED_FCNTL_FLAGS));
->  	if (fd < 0)
->  		return fd;
-> 
-> -	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, new,
-> -				  O_RDWR | flags);
-> -	if (IS_ERR(file)) {
-> -		put_unused_fd(fd);
-> -		return PTR_ERR(file);
-> -	}
-> -
-> -	fd_install(fd, file);
->  	msg->arg.reserved.reserved1 = 0;
->  	msg->arg.fork.ufd = fd;
-> -
->  	return 0;
->  }
-> 
-> @@ -1884,24 +1874,10 @@ static void init_once_userfaultfd_ctx(void *mem)
->  	seqcount_init(&ctx->refile_seq);
->  }
-> 
-> -/**
-> - * userfaultfd_file_create - Creates a userfaultfd file pointer.
-> - * @flags: Flags for the userfaultfd file.
-> - *
-> - * This function creates a userfaultfd file pointer, w/out installing
-> - * it into the fd table. This is useful when the userfaultfd file is
-> - * used during the initialization of data structures that require
-> - * extra setup after the userfaultfd creation. So the userfaultfd
-> - * creation is split into the file pointer creation phase, and the
-> - * file descriptor installation phase.  In this way races with
-> - * userspace closing the newly installed file descriptor can be
-> - * avoided.  Returns a userfaultfd file pointer, or a proper error
-> - * pointer.
-> - */
-> -static struct file *userfaultfd_file_create(int flags)
-> +SYSCALL_DEFINE1(userfaultfd, int, flags)
->  {
-> -	struct file *file;
->  	struct userfaultfd_ctx *ctx;
-> +	int fd;
-> 
->  	BUG_ON(!current->mm);
-> 
-> @@ -1909,14 +1885,12 @@ static struct file *userfaultfd_file_create(int flags)
->  	BUILD_BUG_ON(UFFD_CLOEXEC != O_CLOEXEC);
->  	BUILD_BUG_ON(UFFD_NONBLOCK != O_NONBLOCK);
-> 
-> -	file = ERR_PTR(-EINVAL);
->  	if (flags & ~UFFD_SHARED_FCNTL_FLAGS)
-> -		goto out;
-> +		return -EINVAL;
-> 
-> -	file = ERR_PTR(-ENOMEM);
->  	ctx = kmem_cache_alloc(userfaultfd_ctx_cachep, GFP_KERNEL);
->  	if (!ctx)
-> -		goto out;
-> +		return -ENOMEM;
-> 
->  	atomic_set(&ctx->refcount, 1);
->  	ctx->flags = flags;
-> @@ -1927,39 +1901,13 @@ static struct file *userfaultfd_file_create(int flags)
->  	/* prevent the mm struct to be freed */
->  	mmgrab(ctx->mm);
-> 
-> -	file = anon_inode_getfile("[userfaultfd]", &userfaultfd_fops, ctx,
-> -				  O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
-> -	if (IS_ERR(file)) {
-> +	fd = anon_inode_getfd("[userfaultfd]", &userfaultfd_fops, ctx,
-> +			      O_RDWR | (flags & UFFD_SHARED_FCNTL_FLAGS));
-> +	if (fd < 0) {
->  		mmdrop(ctx->mm);
->  		kmem_cache_free(userfaultfd_ctx_cachep, ctx);
->  	}
-> -out:
-> -	return file;
-> -}
-> -
-> -SYSCALL_DEFINE1(userfaultfd, int, flags)
-> -{
-> -	int fd, error;
-> -	struct file *file;
-> -
-> -	error = get_unused_fd_flags(flags & UFFD_SHARED_FCNTL_FLAGS);
-> -	if (error < 0)
-> -		return error;
-> -	fd = error;
-> -
-> -	file = userfaultfd_file_create(flags);
-> -	if (IS_ERR(file)) {
-> -		error = PTR_ERR(file);
-> -		goto err_put_unused_fd;
-> -	}
-> -	fd_install(fd, file);
-> -
->  	return fd;
-> -
-> -err_put_unused_fd:
-> -	put_unused_fd(fd);
-> -
-> -	return error;
->  }
-> 
->  static int __init userfaultfd_init(void)
-> -- 
-> 2.15.1
-> 
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-> 
+> I don't think we need to be as drastic as giving each socket its own lock
+> class to solve this.  All NFS sockets can be in lock class A; all NBD
+> sockets can be in lock class B; all user sockets can be in lock class
+> C; etc.
 
--- 
-Sincerely yours,
-Mike.
+But how do you know which of the locks taken in the networking stack
+are for the NBD versus the NFS sockets?  What manner of horrific
+abstraction violation is going to pass that information all the way
+down to all of the locks that might be taken at the socket layer and
+below?
+
+How is this "proper clasification" supposed to happen?  It's the
+repeated handwaving which claims this is easy which is rather
+frustrating.  The simple thing is to use a unique ID which is bumped
+for each struct sock, each struct super, struct block_device, struct
+request_queue, struct bdi, etc, but that runs into lockdep scalability
+issues.
+
+Anything else means that you have to somehow pass down through the
+layers so that, in the general case, the socket knows that it is "an
+NFS socket" versus "an NBD socket" --- and remember, if there is any
+kind of completion handling done in the NIC driver, it's going to have
+to passed down well below the TCP layer all the way down to the
+network device drivers.  Or is the plan to do this add a bit ad hoc of
+plumbing for each false positive which cross-release lockdep failures
+are reported?
+
+> > Also, what to do with TCP connections which are created in userspace
+> > (with some authentication exchanges happening in userspace), and then
+> > passed into kernel space for use in kernel space, is an interesting
+> > question.
+> 
+> Yes!  I'd love to have a lockdep expert weigh in here.  I believe it's
+> legitimate to change a lock's class after it's been used, essentially
+> destroying it and reinitialising it.  If not, it should be because it's
+> a reasonable design for an object to need different lock classes for
+> different phases of its existance.
+
+We just also need to be destroy a lock class after the transient
+object has been deleted.  This is especially true for file system
+testing, since we are constantly mounting and unmounting file systems,
+and creating and destroying loop devices, potentially hundreds or
+thousands of times during a test run.  So if we have to create a
+unique lock class for "proper classification" each time a file system
+is mounted, or loop device or device-mapper device (dm-error, etc.) is
+created, we'll run into lockdep scalability issues really quickly.
+
+So this is yet another example where the handwaving, "all you have to
+do is proper classification" just doesn't work.
+
+> > So "all you have to do is classify the locks 'properly'" is much like
+> > the apocrophal, "all you have to do is bell the cat"[1].  Or like the
+> > saying, "colonizing the stars is *easy*; all you have to do is figure
+> > out faster than light travel."
+> 
+> This is only computer programming, not rocket surgery :-)
+
+Given the current state of the lockdep technology, merging cross-lock
+certainly feels like requiring the use of sledgehammers to do rocket
+surgery in order to avoid false positives --- sorry, "proper
+classification".
+
+					- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
