@@ -1,134 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 017516B0274
-	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 09:33:56 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id w18so4506338wra.5
-        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 06:33:55 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 718AE6B0278
+	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 09:40:19 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id n13so13723557wmc.3
+        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 06:40:19 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 195si20565985wmp.215.2018.01.01.06.33.54
+        by mx.google.com with ESMTPS id m70si19765640wma.241.2018.01.01.06.40.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jan 2018 06:33:54 -0800 (PST)
+        Mon, 01 Jan 2018 06:40:18 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 21/75] x86/mm: Enable CR4.PCIDE on supported systems
-Date: Mon,  1 Jan 2018 15:31:58 +0100
-Message-Id: <20180101140059.950536297@linuxfoundation.org>
-In-Reply-To: <20180101140056.475827799@linuxfoundation.org>
-References: <20180101140056.475827799@linuxfoundation.org>
+Subject: [PATCH 4.14 005/146] x86/mm/pti: Disable global pages if PAGE_TABLE_ISOLATION=y
+Date: Mon,  1 Jan 2018 15:36:36 +0100
+Message-Id: <20180101140124.570232806@linuxfoundation.org>
+In-Reply-To: <20180101140123.743014891@linuxfoundation.org>
+References: <20180101140123.743014891@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Nadav Amit <nadav.amit@gmail.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Thomas Gleixner <tglx@linutronix.de>, Andrew Morton <akpm@linux-foundation.org>, Arjan van de Ven <arjan@linux.intel.com>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@intel.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Mel Gorman <mgorman@suse.de>, Peter Zijlstra <peterz@infradead.org>, Rik van Riel <riel@redhat.com>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>, Hugh Dickins <hughd@google.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>, Borislav Petkov <bp@suse.de>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Brian Gerst <brgerst@gmail.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+4.14-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Andy Lutomirski <luto@kernel.org>
+From: Dave Hansen <dave.hansen@linux.intel.com>
 
-commit 660da7c9228f685b2ebe664f9fd69aaddcc420b5 upstream.
+commit c313ec66317d421fb5768d78c56abed2dc862264 upstream.
 
-We can use PCID if the CPU has PCID and PGE and we're not on Xen.
+Global pages stay in the TLB across context switches.  Since all contexts
+share the same kernel mapping, these mappings are marked as global pages
+so kernel entries in the TLB are not flushed out on a context switch.
 
-By itself, this has no effect. A followup patch will start using PCID.
+But, even having these entries in the TLB opens up something that an
+attacker can use, such as the double-page-fault attack:
 
-Signed-off-by: Andy Lutomirski <luto@kernel.org>
-Reviewed-by: Nadav Amit <nadav.amit@gmail.com>
-Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Arjan van de Ven <arjan@linux.intel.com>
+   http://www.ieee-security.org/TC/SP2013/papers/4977a191.pdf
+
+That means that even when PAGE_TABLE_ISOLATION switches page tables
+on return to user space the global pages would stay in the TLB cache.
+
+Disable global pages so that kernel TLB entries can be flushed before
+returning to user space. This way, all accesses to kernel addresses from
+userspace result in a TLB miss independent of the existence of a kernel
+mapping.
+
+Suppress global pages via the __supported_pte_mask. The user space
+mappings set PAGE_GLOBAL for the minimal kernel mappings which are
+required for entry/exit. These mappings are set up manually so the
+filtering does not take place.
+
+[ The __supported_pte_mask simplification was written by Thomas Gleixner. ]
+Signed-off-by: Dave Hansen <dave.hansen@linux.intel.com>
+Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
+Reviewed-by: Borislav Petkov <bp@suse.de>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dave Hansen <dave.hansen@intel.com>
+Cc: Brian Gerst <brgerst@gmail.com>
+Cc: David Laight <David.Laight@aculab.com>
+Cc: Denys Vlasenko <dvlasenk@redhat.com>
+Cc: Eduardo Valentin <eduval@amazon.com>
+Cc: Greg KH <gregkh@linuxfoundation.org>
+Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Josh Poimboeuf <jpoimboe@redhat.com>
 Cc: Juergen Gross <jgross@suse.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Mel Gorman <mgorman@suse.de>
 Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Rik van Riel <riel@redhat.com>
+Cc: Will Deacon <will.deacon@arm.com>
+Cc: aliguori@amazon.com
+Cc: daniel.gruss@iaik.tugraz.at
+Cc: hughd@google.com
+Cc: keescook@google.com
 Cc: linux-mm@kvack.org
-Link: http://lkml.kernel.org/r/6327ecd907b32f79d5aa0d466f04503bbec5df88.1498751203.git.luto@kernel.org
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Cc: Hugh Dickins <hughd@google.com>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
 ---
- arch/x86/include/asm/tlbflush.h |    8 ++++++++
- arch/x86/kernel/cpu/common.c    |   22 ++++++++++++++++++++++
- arch/x86/xen/enlighten.c        |    6 ++++++
- 3 files changed, 36 insertions(+)
+ arch/x86/mm/init.c |   12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
 
---- a/arch/x86/include/asm/tlbflush.h
-+++ b/arch/x86/include/asm/tlbflush.h
-@@ -191,6 +191,14 @@ static inline void __flush_tlb_all(void)
- 		__flush_tlb_global();
- 	else
- 		__flush_tlb();
-+
-+	/*
-+	 * Note: if we somehow had PCID but not PGE, then this wouldn't work --
-+	 * we'd end up flushing kernel translations for the current ASID but
-+	 * we might fail to flush kernel translations for other cached ASIDs.
-+	 *
-+	 * To avoid this issue, we force PCID off if PGE is off.
-+	 */
- }
+--- a/arch/x86/mm/init.c
++++ b/arch/x86/mm/init.c
+@@ -161,6 +161,12 @@ struct map_range {
  
- static inline void __flush_tlb_one(unsigned long addr)
---- a/arch/x86/kernel/cpu/common.c
-+++ b/arch/x86/kernel/cpu/common.c
-@@ -324,6 +324,25 @@ static __always_inline void setup_smap(s
- 	}
- }
+ static int page_size_mask;
  
-+static void setup_pcid(struct cpuinfo_x86 *c)
++static void enable_global_pages(void)
 +{
-+	if (cpu_has(c, X86_FEATURE_PCID)) {
-+		if (cpu_has(c, X86_FEATURE_PGE)) {
-+			cr4_set_bits(X86_CR4_PCIDE);
-+		} else {
-+			/*
-+			 * flush_tlb_all(), as currently implemented, won't
-+			 * work if PCID is on but PGE is not.  Since that
-+			 * combination doesn't exist on real hardware, there's
-+			 * no reason to try to fully support it, but it's
-+			 * polite to avoid corrupting data if we're on
-+			 * an improperly configured VM.
-+			 */
-+			clear_cpu_cap(c, X86_FEATURE_PCID);
-+		}
-+	}
++	if (!static_cpu_has(X86_FEATURE_PTI))
++		__supported_pte_mask |= _PAGE_GLOBAL;
 +}
 +
- /*
-  * Protection Keys are not available in 32-bit mode.
-  */
-@@ -1082,6 +1101,9 @@ static void identify_cpu(struct cpuinfo_
- 	setup_smep(c);
- 	setup_smap(c);
- 
-+	/* Set up PCID */
-+	setup_pcid(c);
-+
+ static void __init probe_page_size_mask(void)
+ {
  	/*
- 	 * The vendor-specific functions might have changed features.
- 	 * Now we do "generic changes."
---- a/arch/x86/xen/enlighten.c
-+++ b/arch/x86/xen/enlighten.c
-@@ -444,6 +444,12 @@ static void __init xen_init_cpuid_mask(v
- 		~((1 << X86_FEATURE_MTRR) |  /* disable MTRR */
- 		  (1 << X86_FEATURE_ACC));   /* thermal monitoring */
+@@ -179,11 +185,11 @@ static void __init probe_page_size_mask(
+ 		cr4_set_bits_and_update_boot(X86_CR4_PSE);
  
-+	/*
-+	 * Xen PV would need some work to support PCID: CR3 handling as well
-+	 * as xen_flush_tlb_others() would need updating.
-+	 */
-+	cpuid_leaf1_ecx_mask &= ~(1 << (X86_FEATURE_PCID % 32));  /* disable PCID */
-+
- 	if (!xen_initial_domain())
- 		cpuid_leaf1_edx_mask &=
- 			~((1 << X86_FEATURE_ACPI));  /* disable ACPI */
+ 	/* Enable PGE if available */
++	__supported_pte_mask &= ~_PAGE_GLOBAL;
+ 	if (boot_cpu_has(X86_FEATURE_PGE)) {
+ 		cr4_set_bits_and_update_boot(X86_CR4_PGE);
+-		__supported_pte_mask |= _PAGE_GLOBAL;
+-	} else
+-		__supported_pte_mask &= ~_PAGE_GLOBAL;
++		enable_global_pages();
++	}
+ 
+ 	/* Enable 1 GB linear kernel mappings if available: */
+ 	if (direct_gbpages && boot_cpu_has(X86_FEATURE_GBPAGES)) {
 
 
 --
