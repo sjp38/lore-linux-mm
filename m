@@ -1,54 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F0476B028C
-	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 20:40:35 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z24so4691260pgu.20
-        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 17:40:35 -0800 (PST)
-Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
-        by mx.google.com with ESMTPS id u80si33130689pfd.169.2018.01.01.17.40.33
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C3CB56B028E
+	for <linux-mm@kvack.org>; Mon,  1 Jan 2018 21:09:27 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id f7so34341069pfa.21
+        for <linux-mm@kvack.org>; Mon, 01 Jan 2018 18:09:27 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id k15si24432607pgf.34.2018.01.01.18.09.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 01 Jan 2018 17:40:34 -0800 (PST)
-Subject: Re: [RFC] does ioremap() cause memory leak?
-References: <5A3B76EE.8020001@huawei.com> <5A3DEA6A.9080709@huawei.com>
-From: Hanjun Guo <guohanjun@huawei.com>
-Message-ID: <e25b1da2-14fb-eeec-1a76-1756011535bb@huawei.com>
-Date: Tue, 2 Jan 2018 09:39:47 +0800
-MIME-Version: 1.0
-In-Reply-To: <5A3DEA6A.9080709@huawei.com>
-Content-Type: text/plain; charset="windows-1252"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Mon, 01 Jan 2018 18:09:26 -0800 (PST)
+Subject: Is GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM supported?
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-Id: <201801021108.BCC17635.FQtOHMOLJSVFFO@I-love.SAKURA.ne.jp>
+Date: Tue, 2 Jan 2018 11:08:47 +0900
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Xishi Qiu <qiuxishi@huawei.com>
-Cc: Toshi Kani <toshi.kani@hp.com>, "H. Peter Anvin" <hpa@zytor.com>, Thomas
- Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, lious.lilei@hisilicon.com, "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, LinuxArm <linuxarm@huawei.com>
+To: mhocko@kernel.org
+Cc: linux-mm@kvack.org, wei.w.wang@intel.com, willy@infradead.org, mst@redhat.com
 
-On 2017/12/23 13:32, Xishi Qiu wrote:
-> On 2017/12/21 16:55, Xishi Qiu wrote:
-> 
->> When we use iounmap() to free the mapping, it calls unmap_vmap_area() to clear page table,
->> but do not free the memory of page table, right?
->>
->> So when use ioremap() to mapping another area(incluce the area before), it may use
->> large mapping(e.g. ioremap_pmd_enabled()), so the original page table memory(e.g. pte memory)
->> will be lost, it cause memory leak, right?
-> 
->  
-> 
-> So I have two questions for this scene.
-> 
-> 1. When the same virtual address allocated from ioremap, first is 4K size, second is 2M size, if Kernel would leak memory.
-> 
-> 2. Kernel modifies the old invalid 4K pagetable to 2M, but doesn`t follow the ARM break-before-make flow, CPU maybe get the old invalid 4K pagetable information, then Kernel would panic.
+virtio-balloon wants to try allocation only when that allocation does not cause
+OOM situation. Since there is no gfp flag which succeeds allocations only if
+there is plenty of free memory (i.e. higher watermark than other requests),
+virtio-balloon needs to watch for OOM notifier and release just allocated memory
+when OOM notifier is invoked.
 
-I sent a RFC patch for this one [1].
+Currently virtio-balloon is using
 
-[1]: https://patchwork.kernel.org/patch/10134581/
+  GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY
 
-Thanks
-Hanjun
+for allocation, but is
+
+  GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM
+
+supported (from MM subsystem's point of view) ?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
