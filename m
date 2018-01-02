@@ -1,76 +1,123 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B1366B029E
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 05:21:10 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id 199so4530385pgc.11
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 02:21:10 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u9si20160328pgb.632.2018.01.02.02.21.08
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 899AA6B029F
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 05:25:03 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id v137so22235868oia.21
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 02:25:03 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id c50sor13392446otc.261.2018.01.02.02.25.01
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Jan 2018 02:21:09 -0800 (PST)
-Date: Tue, 2 Jan 2018 10:21:03 +0000
-From: Mel Gorman <mgorman@suse.de>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Message-ID: <20180102102103.mpah2ehglufwhzle@suse.de>
-References: <20171220012632.26840-1-ying.huang@intel.com>
- <20171221021619.GA27475@bbox>
- <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
- <20171223013653.GB5279@bgram>
+        (Google Transport Security);
+        Tue, 02 Jan 2018 02:25:01 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-In-Reply-To: <20171223013653.GB5279@bgram>
+In-Reply-To: <20180102025417.GA20740@js1304-P5Q-DELUXE>
+References: <20171208151159.urdcrzl5qpfd6jnu@earth.li> <20171222002108.GB1729@js1304-P5Q-DELUXE>
+ <20171229163659.c5ccfvww4ebvyz54@earth.li> <20180102025417.GA20740@js1304-P5Q-DELUXE>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Tue, 2 Jan 2018 11:25:01 +0100
+Message-ID: <CAJZ5v0hSkEvmcubFzW03COW0f1TwB6W1d7vwJoF9qpJJ6Jc5JQ@mail.gmail.com>
+Subject: Re: ACPI issues on cold power on [bisected]
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jonathan McDowell <noodles@earth.li>
+Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, netdev@vger.kernel.org
 
-On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
-> > code path.  It appears that similar situation is possible for them too.
-> > 
-> > The file cache pages will be delete from file cache address_space before
-> > address_space (embedded in inode) is freed.  But they will be deleted
-> > from LRU list only when its refcount dropped to zero, please take a look
-> > at put_page() and release_pages().  While address_space will be freed
-> > after putting reference to all file cache pages.  If someone holds a
-> > reference to a file cache page for quite long time, it is possible for a
-> > file cache page to be in LRU list after the inode/address_space is
-> > freed.
-> > 
-> > And I found inode/address_space is freed witch call_rcu().  I don't know
-> > whether this is related to page_mapping().
-> > 
-> > This is just my understanding.
-> 
-> Hmm, it smells like a bug of __isolate_lru_page.
-> 
-> Ccing Mel:
-> 
-> What locks protects address_space destroying when race happens between
-> inode trauncation and __isolate_lru_page?
-> 
+On Tue, Jan 2, 2018 at 3:54 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> On Fri, Dec 29, 2017 at 04:36:59PM +0000, Jonathan McDowell wrote:
+>> On Fri, Dec 22, 2017 at 09:21:09AM +0900, Joonsoo Kim wrote:
+>> > On Fri, Dec 08, 2017 at 03:11:59PM +0000, Jonathan McDowell wrote:
+>> > > I've been sitting on this for a while and should have spent time to
+>> > > investigate sooner, but it's been an odd failure mode that wasn't quite
+>> > > obvious.
+>> > >
+>> > > In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
+>> > > don't see anything after grub says its booting. In 4.10 onwards the
+>> > > laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
+>> > > (no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
+>> > > taken from 4.12 as that's the most recent error dmesg I have saved but
+>> > > also seen back in 4.10. It's always address 0x30 for the dereference.
+>> > >
+>> > > Rebooting the laptop does not lead to these problems; it's *only* from a
+>> > > complete cold boot that they arise (which didn't help me in terms of
+>> > > being able to reliably bisect). Once I realised that I was able to
+>> > > bisect, but it leads me to an odd commit:
+>> > >
+>> > > 86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
+>> > > (mm/slab: fix kmemcg cache creation delayed issue)
+>> > >
+>> > > If I revert this then I can cold boot without problems.
+>> > >
+>> > > Also I don't see the problem with a stock Debian kernel, I think because
+>> > > the ACPI support is modularised.
+>> >
+>> > Sorry for late response. I was on a long vacation.
+>>
+>> No problem. I've been trying to get around to diagnosing this for a
+>> while now anyway and this isn't a great time of year for fast responses.
+>>
+>> > I have tried to solve the problem however I don't find any clue yet.
+>> >
+>> > >From my analysis, oops report shows that 'struct sock *ssk' passed to
+>> > netlink_broadcast_filtered() is NULL. It means that some of
+>> > netlink_kernel_create() returns NULL. Maybe, it is due to slab
+>> > allocation failure. Could you check it by inserting some log on that
+>> > part? The issue cannot be reproducible in my side so I need your help.
+>>
+>> I've added some debug in acpi_bus_generate_netlink_event +
+>> genlmsg_multicast and the problem seems to be that genlmsg_multicast is
+>> getting called when init_net.genl_sock has not yet been initialised,
+>> leading to the NULL deference.
+>>
+>> Full dmesg output from a cold 4.14.8 boot at:
+>>
+>> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-broken
+>>
+>> And the same kernel after a reboot ("shutdown -r now"):
+>>
+>> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-working
+>>
+>> Patch that I've applied is at
+>>
+>> https://the.earth.li/~noodles/acpi-problem/debug-acpi.diff
+>>
+>
+> Thanks for testing! It's very helpful.
+>
+>> The interesting difference seems to be:
+>>
+>>  PCI: Using ACPI for IRQ routing
+>> +ACPI: Generating event type 208 (:9DBB5994-A997-11DA-B012-B622A1EF5492)
+>> +ERROR: init_net.genl_sock is NULL
+>> +BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
+>> +IP: netlink_broadcast_filtered+0x20/0x3d0
+>> +PGD 0 P4D 0
+>> +Oops: 0000 [#1] SMP
+>> +Modules linked in:
+>> +CPU: 0 PID: 29 Comm: kworker/0:1 Not tainted 4.14.8+ #1
+>> +Hardware name: Dell Inc. Latitude E7240/07RPNV, BIOS A22 10/18/2017
+>> +Workqueue: kacpi_notify acpi_os_execute_deferred
+>>
+>> 9DBB5994-A997-11DA-B012-B622A1EF5492 is the Dell WMI event GUID and
+>> there's no visible event for it on a reboot, just on a cold power on.
+>> Some sort of ordering issues such that genl_sock is being initialised
+>> later with the slab change?
+>
+> I have checked that there is an ordering issue.
+>
+> genl_init() which initializes init_net->genl_sock is called on
+> subsys_initcall().
+>
+> acpi_wmi_init() which schedules acpi_wmi_notify_handler() to the
+> workqueue is called on subsys_initcall(), too.
+> (acpi_wmi_notify_handler() -> acpi_bus_generate_netlink_event() ->
+> netlink_broadcast())
+>
+> In my system, acpi_wmi_init() is called before the genl_init().
+> Therefore, if the worker is scheduled before genl_init() is done, NULL
+> derefence would happen.
 
-I'm just back online and have a lot of catching up to do so this is a rushed
-answer and I didn't read the background of this. However the question is
-somewhat ambiguous and the scope is broad as I'm not sure which race you
-refer to. For file cache pages, I wouldnt' expect the address_space to be
-destroyed specifically as long as the inode exists which is the structure
-containing the address_space in this case. A page on the LRU being isolated
-in __isolate_lru_page will have an elevated reference count which will
-pin the inode until remove_mapping is called which holds the page lock
-while inode truncation looking at a page for truncation also only checks
-page_mapping under the page lock. Very broadly speaking, pages avoid being
-added back to an inode being freed by checking the I_FREEING state.
-
-Hopefully that helps while I go back to the TODO mountain.
-
--- 
-Mel Gorman
-SUSE Labs
+Does it help to change the subsys_initcall() in wmi.c to subsys_initcall_sync()?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
