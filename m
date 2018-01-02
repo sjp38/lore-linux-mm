@@ -1,102 +1,101 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B07476B02A4
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:30:02 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id q12so30073884pli.12
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:30:02 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 306756B02A6
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:40:21 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so14391585wmd.0
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:40:21 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y14si14674904pgv.555.2018.01.02.03.30.01
+        by mx.google.com with ESMTPS id d200si21901414wmd.238.2018.01.02.03.40.19
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Jan 2018 03:30:01 -0800 (PST)
-Date: Tue, 2 Jan 2018 12:29:55 +0100
-From: Jan Kara <jack@suse.cz>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Message-ID: <20180102112955.GA29170@quack2.suse.cz>
-References: <20171220012632.26840-1-ying.huang@intel.com>
- <20171221021619.GA27475@bbox>
- <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
- <20171223013653.GB5279@bgram>
- <20180102102103.mpah2ehglufwhzle@suse.de>
+        Tue, 02 Jan 2018 03:40:19 -0800 (PST)
+Date: Tue, 2 Jan 2018 12:40:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: Is GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) &
+ ~__GFP_DIRECT_RECLAIM supported?
+Message-ID: <20180102114017.GB25397@dhcp22.suse.cz>
+References: <201801021108.BCC17635.FQtOHMOLJSVFFO@I-love.SAKURA.ne.jp>
+ <20180102091457.GA25397@dhcp22.suse.cz>
+ <201801021856.CBE48424.HFSOMFLJFOOVtQ@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180102102103.mpah2ehglufwhzle@suse.de>
+In-Reply-To: <201801021856.CBE48424.HFSOMFLJFOOVtQ@I-love.SAKURA.ne.jp>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@suse.de>
-Cc: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, wei.w.wang@intel.com, willy@infradead.org, mst@redhat.com
 
-On Tue 02-01-18 10:21:03, Mel Gorman wrote:
-> On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
-> > > code path.  It appears that similar situation is possible for them too.
+On Tue 02-01-18 18:56:56, Tetsuo Handa wrote:
+> Michal Hocko wrote:
+> > On Tue 02-01-18 11:08:47, Tetsuo Handa wrote:
+> > > virtio-balloon wants to try allocation only when that allocation does not cause
+> > > OOM situation. Since there is no gfp flag which succeeds allocations only if
+> > > there is plenty of free memory (i.e. higher watermark than other requests),
+> > > virtio-balloon needs to watch for OOM notifier and release just allocated memory
+> > > when OOM notifier is invoked.
+> > 
+> > I do not understand the last part mentioning OOM notifier.
+> > 
+> > > Currently virtio-balloon is using
 > > > 
-> > > The file cache pages will be delete from file cache address_space before
-> > > address_space (embedded in inode) is freed.  But they will be deleted
-> > > from LRU list only when its refcount dropped to zero, please take a look
-> > > at put_page() and release_pages().  While address_space will be freed
-> > > after putting reference to all file cache pages.  If someone holds a
-> > > reference to a file cache page for quite long time, it is possible for a
-> > > file cache page to be in LRU list after the inode/address_space is
-> > > freed.
+> > >   GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY
 > > > 
-> > > And I found inode/address_space is freed witch call_rcu().  I don't know
-> > > whether this is related to page_mapping().
+> > > for allocation, but is
 > > > 
-> > > This is just my understanding.
+> > >   GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM
+> > > 
+> > > supported (from MM subsystem's point of view) ?
 > > 
-> > Hmm, it smells like a bug of __isolate_lru_page.
-> > 
-> > Ccing Mel:
-> > 
-> > What locks protects address_space destroying when race happens between
-> > inode trauncation and __isolate_lru_page?
-> > 
+> > Semantically I do not see any reason why we shouldn't support
+> > non-sleeping user allocation with an explicit nomemalloc flag.
 > 
-> I'm just back online and have a lot of catching up to do so this is a rushed
-> answer and I didn't read the background of this. However the question is
-> somewhat ambiguous and the scope is broad as I'm not sure which race you
-> refer to. For file cache pages, I wouldnt' expect the address_space to be
-> destroyed specifically as long as the inode exists which is the structure
-> containing the address_space in this case. A page on the LRU being isolated
-> in __isolate_lru_page will have an elevated reference count which will
-> pin the inode until remove_mapping is called which holds the page lock
-> while inode truncation looking at a page for truncation also only checks
-> page_mapping under the page lock. Very broadly speaking, pages avoid being
-> added back to an inode being freed by checking the I_FREEING state.
+> I see. Then, allocating with balloon_lock held can become a choice.
+> 
+> The virtio-balloon driver is trying to allocate many pages using
+> GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY for inflating the
+> balloon, and then hold the balloon_lock, and then is trying to allocate some
+> more pages using GFP_NOWAIT for faster communication using scatter-gather API.
+> 
+> Unfortunately, since the former memory is not visible to OOM notifier path until
+> the latter memory is allocated, when someone hit OOM notifier path before the
+> driver holds the balloon_lock, the driver fails to release the former memory
+> (i.e. premature OOM killer invocation).
+> 
+> While it would be possible to make the former memory visible to OOM notifier path,
+> allocating (GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM and
+> GFP_NOWAIT with the balloon_lock held would simplify the code.
+> 
+> >                                                                Btw. why
+> > is __GFP_NOMEMALLOC needed at all?
+> 
+> Because there is no need to use memory reserves for memory allocations for
+> inflating the balloon. If we use memory reserves for inflating the balloon,
+> some allocation request will immediately hit OOM notifier path, and we will
+> after all release memory allocated from memory reserves.
 
-So I'm wondering what prevents the following:
+Well, the primary reason to use __GFP_NOMEMALLOC is to override either
+PF_MEMALLOC or an explicit use of __GFP_MEMALLOC from the above layer.
+Normally you shouldn't really care. So the question is whether this
+allocation is called from a context which uses the above...
 
-CPU1						CPU2
+> Although there will be no need to specify __GFP_NOMEMALLOC because it is
+> a workqueue context
 
-truncate(inode)					__isolate_lru_page()
-  ...
-  truncate_inode_page(mapping, page);
-    delete_from_page_cache(page)
-      spin_lock_irqsave(&mapping->tree_lock, flags);
-        __delete_from_page_cache(page, NULL)
-          page_cache_tree_delete(..)
-            ...					  mapping = page_mapping(page);
-            page->mapping = NULL;
-            ...
-      spin_unlock_irqrestore(&mapping->tree_lock, flags);
-      page_cache_free_page(mapping, page)
-        put_page(page)
-          if (put_page_testzero(page)) -> false
-- inode now has no pages and can be freed including embedded address_space
+... so the above doesn't seem to be the case.
 
-						  if (mapping && !mapping->a_ops->migratepage)
-- we've dereferenced mapping which is potentially already free.
+> which does this allocation (which will never cause
+> __gfp_pfmemalloc_flags() to return ALLOC_OOM), I think there will be
+> no harm with shortcutting __gfp_pfmemalloc_flags() by specifying
+> __GFP_NOMEMALLOC.
 
-This all seems very theoretical but in principle possible...
+I do not see a reason why. Moreover I think the usage of
+__GFP_NOMEMALLOC should be reduced because it tends to be wrong in many
+cases. People just tend to add it without a deeper understanding why.
 
-								Honza
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
