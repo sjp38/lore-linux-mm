@@ -1,104 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 234A76B02CF
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:49:58 -0500 (EST)
-Received: by mail-io0-f197.google.com with SMTP id g63so247138ioe.5
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:49:58 -0800 (PST)
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id y6si24244202itd.86.2018.01.02.14.49.56
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 14:49:57 -0800 (PST)
-Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
- <20180102222341.GB20405@bombadil.infradead.org>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
-Date: Tue, 2 Jan 2018 14:49:25 -0800
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 652046B02D0
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 18:56:11 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id e12so22757pga.5
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 15:56:11 -0800 (PST)
+Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
+        by mx.google.com with ESMTP id a14si14365641pgd.623.2018.01.02.15.56.07
+        for <linux-mm@kvack.org>;
+        Tue, 02 Jan 2018 15:56:08 -0800 (PST)
+Date: Wed, 3 Jan 2018 08:56:06 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] mm for mmotm: Revert skip swap cache feture for
+ synchronous device
+Message-ID: <20180102235606.GA19438@bbox>
+References: <1514508907-10039-1-git-send-email-minchan@kernel.org>
+ <20180102132214.289b725cf00ac07d91e8f60b@linux-foundation.org>
+ <1514932941.4018.12.camel@HansenPartnership.com>
 MIME-Version: 1.0
-In-Reply-To: <20180102222341.GB20405@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1514932941.4018.12.camel@HansenPartnership.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
+To: James Bottomley <James.Bottomley@HansenPartnership.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ilya Dryomov <idryomov@gmail.com>, Jens Axboe <axboe@kernel.dk>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Huang Ying <ying.huang@intel.com>
 
+On Tue, Jan 02, 2018 at 02:42:21PM -0800, James Bottomley wrote:
+> On Tue, 2018-01-02 at 13:22 -0800, Andrew Morton wrote:
+> > On Fri, 29 Dec 2017 09:55:07 +0900 Minchan Kim <minchan@kernel.org>
+> > wrote:
+> > 
+> > > 
+> > > James reported a bug of swap paging-in for his testing and found it
+> > > at rc5, soon to be -rc5.
+> > > 
+> > > Although we can fix the specific problem at the moment, it may
+> > > have other lurkig bugs so want to have one more cycle in -next
+> > > before merging.
+> > > 
+> > > This patchset reverts 23c47d2ada9f, 08fa93021d80, 8e31f339295f
+> > > completely
+> > > but 79b5f08fa34e partially because the swp_swap_info function that
+> > > 79b5f08fa34e introduced is used by [1].
+> > 
+> > Gets a significant reject in do_swap_page().  Could you please take a
+> > look, redo against current mainline?
+> > 
+> > Or not.  We had a bug and James fixed it.  That's what -rc is
+> > for.  Why not fix the thing and proceed?
+> 
+> My main worry was lack of testing at -rc5, since the bug could
+> essentially be excited by pushing pages out to swap and then trying to
+> access them again ... plus since one serious bug was discovered it
+> wouldn't be unusual for there to be others.  However, because of the
+> IPT stuff, I think Linus is going to take 4.15 over a couple of extra
+> -rc releases, so this is less of a problem.
 
-
-On 01/02/2018 02:23 PM, Matthew Wilcox wrote:
-> On Tue, Jan 02, 2018 at 12:11:37PM -0800, rao.shoaib@oracle.com wrote:
->> -#define kfree_rcu(ptr, rcu_head)					\
->> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
->> +#define kfree_rcu(ptr, rcu_head_name)	\
->> +	do { \
->> +		typeof(ptr) __ptr = ptr;	\
->> +		unsigned long __off = offsetof(typeof(*(__ptr)), \
->> +						      rcu_head_name); \
->> +		struct rcu_head *__rptr = (void *)__ptr + __off; \
->> +		__kfree_rcu(__rptr, __off); \
->> +	} while (0)
-> I feel like you're trying to help people understand the code better,
-> but using longer names can really work against that.  Reverting to
-> calling the parameter 'rcu_head' lets you not split the line:
-I think it is a matter of preference, what is the issue with line 
-splitting ?
-Coming from a background other than Linux I find it very annoying that 
-Linux allows variables names that are meaning less. Linux does not even 
-enforce adding a prefix for structure members, so trying to find out 
-where a member is used or set is impossible using cscope.
-I can not change the Linux requirements so I will go ahead and make the 
-change in the next rev.
-
->
-> +#define kfree_rcu(ptr, rcu_head)	\
-> +	do { \
-> +		typeof(ptr) __ptr = ptr;	\
-> +		unsigned long __off = offsetof(typeof(*(__ptr)), rcu_head); \
-> +		struct rcu_head *__rptr = (void *)__ptr + __off; \
-> +		__kfree_rcu(__rptr, __off); \
-> +	} while (0)
->
-> Also, I don't understand why you're bothering to create __ptr here.
-> I understand the desire to not mention the same argument more than once,
-> but you have 'ptr' twice anyway.
->
-> And it's good practice to enclose macro arguments in parentheses in case
-> the user has done something really tricksy like pass in "p + 1".
->
-> In summary, I don't see anything fundamentally better in your rewrite
-> of kfree_rcu().  The previous version is more succinct, and to my
-> mind, easier to understand.
-I did not want to make thins change but it is required due to the new 
-tests added for macro expansion where the same name as in the macro can 
-not be used twice. It takes care of the 'p + 1' hazard that you refer to 
-above.
->
->> +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
->> +{
->> +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
->> +}
->> -void kfree_call_rcu(struct rcu_head *head,
->> -		    rcu_callback_t func)
->> -{
->> -	__call_rcu(head, func, rcu_state_p, -1, 1);
->> -}
-> You've silently changed this.  Why?  It might well be the right change,
-> but it at least merits mentioning in the changelog.
-This was to address a comment about me not changing the tiny 
-implementation to be same as the tree implementation.
-
-Shoaib
->
-> --
-> To unsubscribe, send a message with 'unsubscribe linux-mm' in
-> the body to majordomo@kvack.org.  For more info on Linux MM,
-> see: http://www.linux-mm.org/ .
-> Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Then, Here is right fix patch against current mainline.
