@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1B0B96B02B2
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 09:53:37 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id w125so33804872itf.0
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 06:53:37 -0800 (PST)
-Received: from resqmta-ch2-03v.sys.comcast.net (resqmta-ch2-03v.sys.comcast.net. [2001:558:fe21:29:69:252:207:35])
-        by mx.google.com with ESMTPS id p127si5941381iop.174.2018.01.02.06.53.36
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 79C286B02B4
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 09:56:18 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id a2so20996237ioc.12
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 06:56:18 -0800 (PST)
+Received: from resqmta-ch2-06v.sys.comcast.net (resqmta-ch2-06v.sys.comcast.net. [2001:558:fe21:29:69:252:207:38])
+        by mx.google.com with ESMTPS id n138si23688650itb.16.2018.01.02.06.56.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 06:53:36 -0800 (PST)
-Date: Tue, 2 Jan 2018 08:53:34 -0600 (CST)
+        Tue, 02 Jan 2018 06:56:17 -0800 (PST)
+Date: Tue, 2 Jan 2018 08:56:15 -0600 (CST)
 From: Christopher Lameter <cl@linux.com>
-Subject: Re: [RFC 2/8] slub: Add defrag_ratio field and sysfs support
-In-Reply-To: <20171230062052.GB27959@bombadil.infradead.org>
-Message-ID: <alpine.DEB.2.20.1801020852310.14141@nuc-kabylake>
-References: <20171227220636.361857279@linux.com> <20171227220652.322991754@linux.com> <20171230062052.GB27959@bombadil.infradead.org>
+Subject: Re: [RFC 3/8] slub: Add isolate() and migrate() methods
+In-Reply-To: <20180101212039.GA13116@bombadil.infradead.org>
+Message-ID: <alpine.DEB.2.20.1801020855560.14141@nuc-kabylake>
+References: <20171227220636.361857279@linux.com> <20171227220652.402842142@linux.com> <20171230064246.GC27959@bombadil.infradead.org> <20180101212039.GA13116@bombadil.infradead.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
@@ -22,18 +22,26 @@ List-ID: <linux-mm.kvack.org>
 To: Matthew Wilcox <willy@infradead.org>
 Cc: linux-mm@kvack.org, Pekka Enberg <penberg@cs.helsinki.fi>, akpm@linux-foundation.org, Mel Gorman <mel@skynet.ie>, andi@firstfloor.org, Rik van Riel <riel@redhat.com>, Dave Chinner <dchinner@redhat.com>, Christoph Hellwig <hch@lst.de>
 
-On Fri, 29 Dec 2017, Matthew Wilcox wrote:
+On Mon, 1 Jan 2018, Matthew Wilcox wrote:
 
-> >  What:		/sys/kernel/slab/cache/deactivate_to_tail
-> >  Date:		February 2008
-> >  KernelVersion:	2.6.25
+> I thought of a cute additional slab operation we could define, print().
+> We could do something like this ...
 >
-> Should this documentation mention it's SLUB-only?
+>         struct page *page = virt_to_head_page(ptr);
+>         if (!PageSlab(page))
+>                 return false;
+>         slab = page->slab_cache;
+>         if (!(slab->flags & SLAB_FLAGS_OPS) || !slab->ops->print)
+>                 return false;
+>         slab->ops->print(ptr);
+>         return true;
+>
+> and get nice debugging output like we have for VM_BUG_ON_PAGE, only
+> for any type that's implemented a slab operations vec.  Of course, this
+> won't replace VM_BUG_ON_PAGE because struct pages aren't slab-allocated
+> (but could we pretend they are?)
 
-It could but /sys/kernel/slab is only supported for SLUB at this point.
-Sysfs handling should move into slab_common.c though long terms so that it
-works for any allocator.
-
+Cute...
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
