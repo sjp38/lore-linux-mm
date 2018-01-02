@@ -1,50 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DE3546B02C6
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 16:22:18 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id 80so23852wmb.7
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 13:22:18 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id y60si31291766wrb.428.2018.01.02.13.22.17
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7344C6B02C9
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:23:48 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id i2so9951435pgq.8
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:23:48 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id e7si81327plt.807.2018.01.02.14.23.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 13:22:17 -0800 (PST)
-Date: Tue, 2 Jan 2018 13:22:14 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm for mmotm: Revert skip swap cache feture for
- synchronous device
-Message-Id: <20180102132214.289b725cf00ac07d91e8f60b@linux-foundation.org>
-In-Reply-To: <1514508907-10039-1-git-send-email-minchan@kernel.org>
-References: <1514508907-10039-1-git-send-email-minchan@kernel.org>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 02 Jan 2018 14:23:45 -0800 (PST)
+Date: Tue, 2 Jan 2018 14:23:41 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
+Message-ID: <20180102222341.GB20405@bombadil.infradead.org>
+References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-mm@kvack.org, James Bottomley <James.Bottomley@hansenpartnership.com>, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ilya Dryomov <idryomov@gmail.com>, Jens Axboe <axboe@kernel.dk>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Huang Ying <ying.huang@intel.com>
+To: rao.shoaib@oracle.com
+Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
 
-On Fri, 29 Dec 2017 09:55:07 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On Tue, Jan 02, 2018 at 12:11:37PM -0800, rao.shoaib@oracle.com wrote:
+> -#define kfree_rcu(ptr, rcu_head)					\
+> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
 
-> James reported a bug of swap paging-in for his testing and found it
-> at rc5, soon to be -rc5.
-> 
-> Although we can fix the specific problem at the moment, it may
-> have other lurkig bugs so want to have one more cycle in -next
-> before merging.
-> 
-> This patchset reverts 23c47d2ada9f, 08fa93021d80, 8e31f339295f completely
-> but 79b5f08fa34e partially because the swp_swap_info function that
-> 79b5f08fa34e introduced is used by [1].
+> +#define kfree_rcu(ptr, rcu_head_name)	\
+> +	do { \
+> +		typeof(ptr) __ptr = ptr;	\
+> +		unsigned long __off = offsetof(typeof(*(__ptr)), \
+> +						      rcu_head_name); \
+> +		struct rcu_head *__rptr = (void *)__ptr + __off; \
+> +		__kfree_rcu(__rptr, __off); \
+> +	} while (0)
 
-Gets a significant reject in do_swap_page().  Could you please take a
-look, redo against current mainline?
+I feel like you're trying to help people understand the code better,
+but using longer names can really work against that.  Reverting to
+calling the parameter 'rcu_head' lets you not split the line:
 
-Or not.  We had a bug and James fixed it.  That's what -rc is for.  Why
-not fix the thing and proceed?
++#define kfree_rcu(ptr, rcu_head)	\
++	do { \
++		typeof(ptr) __ptr = ptr;	\
++		unsigned long __off = offsetof(typeof(*(__ptr)), rcu_head); \
++		struct rcu_head *__rptr = (void *)__ptr + __off; \
++		__kfree_rcu(__rptr, __off); \
++	} while (0)
 
-There's still James's "unaccountable shutdown delay".  Is that still
-present?  Is it possible to see whether the full revert patch fixes it?
+Also, I don't understand why you're bothering to create __ptr here.
+I understand the desire to not mention the same argument more than once,
+but you have 'ptr' twice anyway.
+
+And it's good practice to enclose macro arguments in parentheses in case
+the user has done something really tricksy like pass in "p + 1".
+
+In summary, I don't see anything fundamentally better in your rewrite
+of kfree_rcu().  The previous version is more succinct, and to my
+mind, easier to understand.
+
+> +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
+> +{
+> +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
+> +}
+
+> -void kfree_call_rcu(struct rcu_head *head,
+> -		    rcu_callback_t func)
+> -{
+> -	__call_rcu(head, func, rcu_state_p, -1, 1);
+> -}
+
+You've silently changed this.  Why?  It might well be the right change,
+but it at least merits mentioning in the changelog.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
