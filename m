@@ -1,97 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 306756B02A6
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:40:21 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id p190so14391585wmd.0
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:40:21 -0800 (PST)
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DF2016B02A8
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 07:12:42 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v25so34863306pfg.14
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 04:12:42 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id d200si21901414wmd.238.2018.01.02.03.40.19
+        by mx.google.com with ESMTPS id o2si33452215pll.585.2018.01.02.04.12.41
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Tue, 02 Jan 2018 03:40:19 -0800 (PST)
-Date: Tue, 2 Jan 2018 12:40:17 +0100
+        Tue, 02 Jan 2018 04:12:41 -0800 (PST)
+Date: Tue, 2 Jan 2018 13:12:37 +0100
 From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: Is GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) &
- ~__GFP_DIRECT_RECLAIM supported?
-Message-ID: <20180102114017.GB25397@dhcp22.suse.cz>
-References: <201801021108.BCC17635.FQtOHMOLJSVFFO@I-love.SAKURA.ne.jp>
- <20180102091457.GA25397@dhcp22.suse.cz>
- <201801021856.CBE48424.HFSOMFLJFOOVtQ@I-love.SAKURA.ne.jp>
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20180102121237.GC25397@dhcp22.suse.cz>
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+ <2e467ad3-a443-bde4-afa2-664bca57914f@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201801021856.CBE48424.HFSOMFLJFOOVtQ@I-love.SAKURA.ne.jp>
+In-Reply-To: <2e467ad3-a443-bde4-afa2-664bca57914f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, wei.w.wang@intel.com, willy@infradead.org, mst@redhat.com
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
 
-On Tue 02-01-18 18:56:56, Tetsuo Handa wrote:
-> Michal Hocko wrote:
-> > On Tue 02-01-18 11:08:47, Tetsuo Handa wrote:
-> > > virtio-balloon wants to try allocation only when that allocation does not cause
-> > > OOM situation. Since there is no gfp flag which succeeds allocations only if
-> > > there is plenty of free memory (i.e. higher watermark than other requests),
-> > > virtio-balloon needs to watch for OOM notifier and release just allocated memory
-> > > when OOM notifier is invoked.
+On Tue 02-01-18 16:55:46, Anshuman Khandual wrote:
+> On 12/08/2017 09:45 PM, Michal Hocko wrote:
+> > From: Michal Hocko <mhocko@suse.com>
 > > 
-> > I do not understand the last part mentioning OOM notifier.
-> > 
-> > > Currently virtio-balloon is using
-> > > 
-> > >   GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY
-> > > 
-> > > for allocation, but is
-> > > 
-> > >   GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM
-> > > 
-> > > supported (from MM subsystem's point of view) ?
-> > 
-> > Semantically I do not see any reason why we shouldn't support
-> > non-sleeping user allocation with an explicit nomemalloc flag.
+> > do_pages_move is supposed to move user defined memory (an array of
+> > addresses) to the user defined numa nodes (an array of nodes one for
+> > each address). The user provided status array then contains resulting
+> > numa node for each address or an error. The semantic of this function is
+> > little bit confusing because only some errors are reported back. Notably
+> > migrate_pages error is only reported via the return value. This patch
 > 
-> I see. Then, allocating with balloon_lock held can become a choice.
+> It does report back the migration failures as well. In new_page_node
+> there is '*result = &pm->status' which going forward in unmap_and_move
+> will hold migration error or node ID of the new page.
 > 
-> The virtio-balloon driver is trying to allocate many pages using
-> GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC | __GFP_NORETRY for inflating the
-> balloon, and then hold the balloon_lock, and then is trying to allocate some
-> more pages using GFP_NOWAIT for faster communication using scatter-gather API.
+> 	newpage = get_new_page(page, private, &result);
+> 	............
+> 	if (result) {
+> 		if (rc)
+> 			*result = rc;
+> 		else
+> 			*result = page_to_nid(newpage);
+> 	}
 > 
-> Unfortunately, since the former memory is not visible to OOM notifier path until
-> the latter memory is allocated, when someone hit OOM notifier path before the
-> driver holds the balloon_lock, the driver fails to release the former memory
-> (i.e. premature OOM killer invocation).
-> 
-> While it would be possible to make the former memory visible to OOM notifier path,
-> allocating (GFP_HIGHUSER[_MOVABLE] | __GFP_NOMEMALLOC) & ~__GFP_DIRECT_RECLAIM and
-> GFP_NOWAIT with the balloon_lock held would simplify the code.
-> 
-> >                                                                Btw. why
-> > is __GFP_NOMEMALLOC needed at all?
-> 
-> Because there is no need to use memory reserves for memory allocations for
-> inflating the balloon. If we use memory reserves for inflating the balloon,
-> some allocation request will immediately hit OOM notifier path, and we will
-> after all release memory allocated from memory reserves.
 
-Well, the primary reason to use __GFP_NOMEMALLOC is to override either
-PF_MEMALLOC or an explicit use of __GFP_MEMALLOC from the above layer.
-Normally you shouldn't really care. So the question is whether this
-allocation is called from a context which uses the above...
-
-> Although there will be no need to specify __GFP_NOMEMALLOC because it is
-> a workqueue context
-
-... so the above doesn't seem to be the case.
-
-> which does this allocation (which will never cause
-> __gfp_pfmemalloc_flags() to return ALLOC_OOM), I think there will be
-> no harm with shortcutting __gfp_pfmemalloc_flags() by specifying
-> __GFP_NOMEMALLOC.
-
-I do not see a reason why. Moreover I think the usage of
-__GFP_NOMEMALLOC should be reduced because it tends to be wrong in many
-cases. People just tend to add it without a deeper understanding why.
+This is true, except the user will not get this information. Have a look
+how we do not copy status on error up in the do_pages_move layer.
 
 -- 
 Michal Hocko
