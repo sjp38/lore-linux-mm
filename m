@@ -1,63 +1,102 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 99FFA6B02A2
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:26:03 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id g49so38196005qta.8
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:26:03 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id j63si1892455qkd.84.2018.01.02.03.26.02
+Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B07476B02A4
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:30:02 -0500 (EST)
+Received: by mail-pl0-f72.google.com with SMTP id q12so30073884pli.12
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:30:02 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y14si14674904pgv.555.2018.01.02.03.30.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 03:26:02 -0800 (PST)
-Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w02BNtV0101225
-	for <linux-mm@kvack.org>; Tue, 2 Jan 2018 06:26:01 -0500
-Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2f86s1n3nb-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 02 Jan 2018 06:26:01 -0500
-Received: from localhost
-	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Tue, 2 Jan 2018 11:25:58 -0000
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Tue, 2 Jan 2018 16:55:46 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Tue, 02 Jan 2018 03:30:01 -0800 (PST)
+Date: Tue, 2 Jan 2018 12:29:55 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
+ operations
+Message-ID: <20180102112955.GA29170@quack2.suse.cz>
+References: <20171220012632.26840-1-ying.huang@intel.com>
+ <20171221021619.GA27475@bbox>
+ <871sjopllj.fsf@yhuang-dev.intel.com>
+ <20171221235813.GA29033@bbox>
+ <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+ <20171223013653.GB5279@bgram>
+ <20180102102103.mpah2ehglufwhzle@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20171208161559.27313-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <2e467ad3-a443-bde4-afa2-664bca57914f@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180102102103.mpah2ehglufwhzle@suse.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Minchan Kim <minchan@kernel.org>, "Huang, Ying" <ying.huang@intel.com>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, Mel Gorman <mgorman@techsingularity.net>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Jan Kara <jack@suse.cz>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On 12/08/2017 09:45 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+On Tue 02-01-18 10:21:03, Mel Gorman wrote:
+> On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
+> > > code path.  It appears that similar situation is possible for them too.
+> > > 
+> > > The file cache pages will be delete from file cache address_space before
+> > > address_space (embedded in inode) is freed.  But they will be deleted
+> > > from LRU list only when its refcount dropped to zero, please take a look
+> > > at put_page() and release_pages().  While address_space will be freed
+> > > after putting reference to all file cache pages.  If someone holds a
+> > > reference to a file cache page for quite long time, it is possible for a
+> > > file cache page to be in LRU list after the inode/address_space is
+> > > freed.
+> > > 
+> > > And I found inode/address_space is freed witch call_rcu().  I don't know
+> > > whether this is related to page_mapping().
+> > > 
+> > > This is just my understanding.
+> > 
+> > Hmm, it smells like a bug of __isolate_lru_page.
+> > 
+> > Ccing Mel:
+> > 
+> > What locks protects address_space destroying when race happens between
+> > inode trauncation and __isolate_lru_page?
+> > 
 > 
-> do_pages_move is supposed to move user defined memory (an array of
-> addresses) to the user defined numa nodes (an array of nodes one for
-> each address). The user provided status array then contains resulting
-> numa node for each address or an error. The semantic of this function is
-> little bit confusing because only some errors are reported back. Notably
-> migrate_pages error is only reported via the return value. This patch
+> I'm just back online and have a lot of catching up to do so this is a rushed
+> answer and I didn't read the background of this. However the question is
+> somewhat ambiguous and the scope is broad as I'm not sure which race you
+> refer to. For file cache pages, I wouldnt' expect the address_space to be
+> destroyed specifically as long as the inode exists which is the structure
+> containing the address_space in this case. A page on the LRU being isolated
+> in __isolate_lru_page will have an elevated reference count which will
+> pin the inode until remove_mapping is called which holds the page lock
+> while inode truncation looking at a page for truncation also only checks
+> page_mapping under the page lock. Very broadly speaking, pages avoid being
+> added back to an inode being freed by checking the I_FREEING state.
 
-It does report back the migration failures as well. In new_page_node
-there is '*result = &pm->status' which going forward in unmap_and_move
-will hold migration error or node ID of the new page.
+So I'm wondering what prevents the following:
 
-	newpage = get_new_page(page, private, &result);
-	............
-	if (result) {
-		if (rc)
-			*result = rc;
-		else
-			*result = page_to_nid(newpage);
-	}
+CPU1						CPU2
+
+truncate(inode)					__isolate_lru_page()
+  ...
+  truncate_inode_page(mapping, page);
+    delete_from_page_cache(page)
+      spin_lock_irqsave(&mapping->tree_lock, flags);
+        __delete_from_page_cache(page, NULL)
+          page_cache_tree_delete(..)
+            ...					  mapping = page_mapping(page);
+            page->mapping = NULL;
+            ...
+      spin_unlock_irqrestore(&mapping->tree_lock, flags);
+      page_cache_free_page(mapping, page)
+        put_page(page)
+          if (put_page_testzero(page)) -> false
+- inode now has no pages and can be freed including embedded address_space
+
+						  if (mapping && !mapping->a_ops->migratepage)
+- we've dereferenced mapping which is potentially already free.
+
+This all seems very theoretical but in principle possible...
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
