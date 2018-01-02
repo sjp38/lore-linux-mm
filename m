@@ -1,65 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A201B6B02CB
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:41:46 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id q12so30977920plk.16
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:41:46 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y23si26485925pfk.4.2018.01.02.14.41.45
+	by kanga.kvack.org (Postfix) with ESMTP id B6BDB6B02CD
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:42:25 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 61so30979767plz.1
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:42:25 -0800 (PST)
+Received: from bedivere.hansenpartnership.com (bedivere.hansenpartnership.com. [66.63.167.143])
+        by mx.google.com with ESMTPS id v8si34588750plg.491.2018.01.02.14.42.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 02 Jan 2018 14:41:45 -0800 (PST)
-Date: Tue, 2 Jan 2018 14:41:37 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v5 03/78] xarray: Add the xa_lock to the radix_tree_root
-Message-ID: <20180102224137.GC20405@bombadil.infradead.org>
-References: <20171215220450.7899-1-willy@infradead.org>
- <20171215220450.7899-4-willy@infradead.org>
- <20171226165440.tv6inwa2fgk3bfy6@node.shutemov.name>
- <20171227034340.GC24828@bombadil.infradead.org>
- <20171227035815.GD24828@bombadil.infradead.org>
- <20180102180155.GD4857@magnolia>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180102180155.GD4857@magnolia>
+        Tue, 02 Jan 2018 14:42:24 -0800 (PST)
+Message-ID: <1514932941.4018.12.camel@HansenPartnership.com>
+Subject: Re: [PATCH] mm for mmotm: Revert skip swap cache feture for
+ synchronous device
+From: James Bottomley <James.Bottomley@HansenPartnership.com>
+Date: Tue, 02 Jan 2018 14:42:21 -0800
+In-Reply-To: <20180102132214.289b725cf00ac07d91e8f60b@linux-foundation.org>
+References: <1514508907-10039-1-git-send-email-minchan@kernel.org>
+	 <20180102132214.289b725cf00ac07d91e8f60b@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Darrick J. Wong" <darrick.wong@oracle.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Howells <dhowells@redhat.com>, Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, Marc Zyngier <marc.zyngier@arm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-raid@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ilya Dryomov <idryomov@gmail.com>, Jens Axboe <axboe@kernel.dk>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Huang Ying <ying.huang@intel.com>
 
-On Tue, Jan 02, 2018 at 10:01:55AM -0800, Darrick J. Wong wrote:
-> On Tue, Dec 26, 2017 at 07:58:15PM -0800, Matthew Wilcox wrote:
-> >         spin_lock_irqsave(&mapping->pages, flags);
-> >         __delete_from_page_cache(page, NULL);
-> >         spin_unlock_irqrestore(&mapping->pages, flags);
-> >
-> > More details here: https://9p.io/sys/doc/compiler.html
+On Tue, 2018-01-02 at 13:22 -0800, Andrew Morton wrote:
+> On Fri, 29 Dec 2017 09:55:07 +0900 Minchan Kim <minchan@kernel.org>
+> wrote:
 > 
-> I read the link, and I understand (from section 3.3) that replacing
-> foo.bar.baz.goo with foo.goo is less typing, but otoh the first time I
-> read your example above I thought "we're passing (an array of pages |
-> something that doesn't have the word 'lock' in the name) to
-> spin_lock_irqsave? wtf?"
-
-I can see that being a bit jarring initially.  If you think about what
-object-oriented languages were offering in the nineties, this is basically
-C++ multiple-inheritance / Java interfaces.  So when I read the above
-example, I think "lock the mapping pages, delete from page cache, unlock
-the mapping pages", and I don't have a wtf moment.  It's just simpler to
-read than "lock the mapping pages lock", and less redundant.
-
-> I suppose it does force me to go dig into whatever mapping->pages is to
-> figure out that there's an unnamed spinlock_t and that the compiler can
-> insert the appropriate pointer arithmetic, but now my brain trips over
-> 'pages' being at the end of the selector for parameter 1 which slows
-> down my review reading...
+> > 
+> > James reported a bug of swap paging-in for his testing and found it
+> > at rc5, soon to be -rc5.
+> > 
+> > Although we can fix the specific problem at the moment, it may
+> > have other lurkig bugs so want to have one more cycle in -next
+> > before merging.
+> > 
+> > This patchset reverts 23c47d2ada9f, 08fa93021d80, 8e31f339295f
+> > completely
+> > but 79b5f08fa34e partially because the swp_swap_info function that
+> > 79b5f08fa34e introduced is used by [1].
 > 
-> OTOH I guess it /did/ motivate me to click the link, so well played,
-> sir. :)
+> Gets a significant reject in do_swap_page().A A Could you please take a
+> look, redo against current mainline?
+> 
+> Or not.A A We had a bug and James fixed it.A A That's what -rc is
+> for.A A Why not fix the thing and proceed?
 
-Now if only I can trick you into giving your ACK on patch 1,
-"xfs: Rename xa_ elements to ail_"
+My main worry was lack of testing at -rc5, since the bug could
+essentially be excited by pushing pages out to swap and then trying to
+access them again ... plus since one serious bug was discovered it
+wouldn't be unusual for there to be others. A However, because of the
+IPT stuff, I think Linus is going to take 4.15 over a couple of extra
+-rc releases, so this is less of a problem.
+
+> There's still James's "unaccountable shutdown delay".A A Is that still
+> present?A A Is it possible to see whether the full revert patch fixes
+> it?
+
+On -rc6 it's no longer manifesting with just the bug fix applied, so it
+might have been a -rc5 artifact.
+
+James
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
