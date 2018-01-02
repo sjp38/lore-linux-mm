@@ -1,77 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7344C6B02C9
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:23:48 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id i2so9951435pgq.8
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:23:48 -0800 (PST)
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A201B6B02CB
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 17:41:46 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id q12so30977920plk.16
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 14:41:46 -0800 (PST)
 Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id e7si81327plt.807.2018.01.02.14.23.45
+        by mx.google.com with ESMTPS id y23si26485925pfk.4.2018.01.02.14.41.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 02 Jan 2018 14:23:45 -0800 (PST)
-Date: Tue, 2 Jan 2018 14:23:41 -0800
+        Tue, 02 Jan 2018 14:41:45 -0800 (PST)
+Date: Tue, 2 Jan 2018 14:41:37 -0800
 From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-Message-ID: <20180102222341.GB20405@bombadil.infradead.org>
-References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+Subject: Re: [PATCH v5 03/78] xarray: Add the xa_lock to the radix_tree_root
+Message-ID: <20180102224137.GC20405@bombadil.infradead.org>
+References: <20171215220450.7899-1-willy@infradead.org>
+ <20171215220450.7899-4-willy@infradead.org>
+ <20171226165440.tv6inwa2fgk3bfy6@node.shutemov.name>
+ <20171227034340.GC24828@bombadil.infradead.org>
+ <20171227035815.GD24828@bombadil.infradead.org>
+ <20180102180155.GD4857@magnolia>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+In-Reply-To: <20180102180155.GD4857@magnolia>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: rao.shoaib@oracle.com
-Cc: linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
+To: "Darrick J. Wong" <darrick.wong@oracle.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, linux-kernel@vger.kernel.org, Matthew Wilcox <mawilcox@microsoft.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, David Howells <dhowells@redhat.com>, Shaohua Li <shli@kernel.org>, Jens Axboe <axboe@kernel.dk>, Rehas Sachdeva <aquannie@gmail.com>, Marc Zyngier <marc.zyngier@arm.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-f2fs-devel@lists.sourceforge.net, linux-nilfs@vger.kernel.org, linux-btrfs@vger.kernel.org, linux-xfs@vger.kernel.org, linux-usb@vger.kernel.org, linux-raid@vger.kernel.org
 
-On Tue, Jan 02, 2018 at 12:11:37PM -0800, rao.shoaib@oracle.com wrote:
-> -#define kfree_rcu(ptr, rcu_head)					\
-> -	__kfree_rcu(&((ptr)->rcu_head), offsetof(typeof(*(ptr)), rcu_head))
+On Tue, Jan 02, 2018 at 10:01:55AM -0800, Darrick J. Wong wrote:
+> On Tue, Dec 26, 2017 at 07:58:15PM -0800, Matthew Wilcox wrote:
+> >         spin_lock_irqsave(&mapping->pages, flags);
+> >         __delete_from_page_cache(page, NULL);
+> >         spin_unlock_irqrestore(&mapping->pages, flags);
+> >
+> > More details here: https://9p.io/sys/doc/compiler.html
+> 
+> I read the link, and I understand (from section 3.3) that replacing
+> foo.bar.baz.goo with foo.goo is less typing, but otoh the first time I
+> read your example above I thought "we're passing (an array of pages |
+> something that doesn't have the word 'lock' in the name) to
+> spin_lock_irqsave? wtf?"
 
-> +#define kfree_rcu(ptr, rcu_head_name)	\
-> +	do { \
-> +		typeof(ptr) __ptr = ptr;	\
-> +		unsigned long __off = offsetof(typeof(*(__ptr)), \
-> +						      rcu_head_name); \
-> +		struct rcu_head *__rptr = (void *)__ptr + __off; \
-> +		__kfree_rcu(__rptr, __off); \
-> +	} while (0)
+I can see that being a bit jarring initially.  If you think about what
+object-oriented languages were offering in the nineties, this is basically
+C++ multiple-inheritance / Java interfaces.  So when I read the above
+example, I think "lock the mapping pages, delete from page cache, unlock
+the mapping pages", and I don't have a wtf moment.  It's just simpler to
+read than "lock the mapping pages lock", and less redundant.
 
-I feel like you're trying to help people understand the code better,
-but using longer names can really work against that.  Reverting to
-calling the parameter 'rcu_head' lets you not split the line:
+> I suppose it does force me to go dig into whatever mapping->pages is to
+> figure out that there's an unnamed spinlock_t and that the compiler can
+> insert the appropriate pointer arithmetic, but now my brain trips over
+> 'pages' being at the end of the selector for parameter 1 which slows
+> down my review reading...
+> 
+> OTOH I guess it /did/ motivate me to click the link, so well played,
+> sir. :)
 
-+#define kfree_rcu(ptr, rcu_head)	\
-+	do { \
-+		typeof(ptr) __ptr = ptr;	\
-+		unsigned long __off = offsetof(typeof(*(__ptr)), rcu_head); \
-+		struct rcu_head *__rptr = (void *)__ptr + __off; \
-+		__kfree_rcu(__rptr, __off); \
-+	} while (0)
-
-Also, I don't understand why you're bothering to create __ptr here.
-I understand the desire to not mention the same argument more than once,
-but you have 'ptr' twice anyway.
-
-And it's good practice to enclose macro arguments in parentheses in case
-the user has done something really tricksy like pass in "p + 1".
-
-In summary, I don't see anything fundamentally better in your rewrite
-of kfree_rcu().  The previous version is more succinct, and to my
-mind, easier to understand.
-
-> +void call_rcu_lazy(struct rcu_head *head, rcu_callback_t func)
-> +{
-> +	__call_rcu(head, func, &rcu_sched_state, -1, 1);
-> +}
-
-> -void kfree_call_rcu(struct rcu_head *head,
-> -		    rcu_callback_t func)
-> -{
-> -	__call_rcu(head, func, rcu_state_p, -1, 1);
-> -}
-
-You've silently changed this.  Why?  It might well be the right change,
-but it at least merits mentioning in the changelog.
+Now if only I can trick you into giving your ACK on patch 1,
+"xfs: Rename xa_ elements to ail_"
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
