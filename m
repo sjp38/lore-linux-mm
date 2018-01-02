@@ -1,123 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 899AA6B029F
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 05:25:03 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id v137so22235868oia.21
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 02:25:03 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id c50sor13392446otc.261.2018.01.02.02.25.01
+Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 99FFA6B02A2
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 06:26:03 -0500 (EST)
+Received: by mail-qt0-f199.google.com with SMTP id g49so38196005qta.8
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 03:26:03 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id j63si1892455qkd.84.2018.01.02.03.26.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 02 Jan 2018 02:25:01 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jan 2018 03:26:02 -0800 (PST)
+Received: from pps.filterd (m0098409.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w02BNtV0101225
+	for <linux-mm@kvack.org>; Tue, 2 Jan 2018 06:26:01 -0500
+Received: from e06smtp11.uk.ibm.com (e06smtp11.uk.ibm.com [195.75.94.107])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2f86s1n3nb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 02 Jan 2018 06:26:01 -0500
+Received: from localhost
+	by e06smtp11.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Tue, 2 Jan 2018 11:25:58 -0000
+Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
+References: <20171207143401.GK20234@dhcp22.suse.cz>
+ <20171208161559.27313-1-mhocko@kernel.org>
+ <20171208161559.27313-2-mhocko@kernel.org>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Tue, 2 Jan 2018 16:55:46 +0530
 MIME-Version: 1.0
-In-Reply-To: <20180102025417.GA20740@js1304-P5Q-DELUXE>
-References: <20171208151159.urdcrzl5qpfd6jnu@earth.li> <20171222002108.GB1729@js1304-P5Q-DELUXE>
- <20171229163659.c5ccfvww4ebvyz54@earth.li> <20180102025417.GA20740@js1304-P5Q-DELUXE>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Tue, 2 Jan 2018 11:25:01 +0100
-Message-ID: <CAJZ5v0hSkEvmcubFzW03COW0f1TwB6W1d7vwJoF9qpJJ6Jc5JQ@mail.gmail.com>
-Subject: Re: ACPI issues on cold power on [bisected]
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20171208161559.27313-2-mhocko@kernel.org>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <2e467ad3-a443-bde4-afa2-664bca57914f@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joonsoo Kim <iamjoonsoo.kim@lge.com>, Jonathan McDowell <noodles@earth.li>
-Cc: ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, netdev@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
 
-On Tue, Jan 2, 2018 at 3:54 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
-> On Fri, Dec 29, 2017 at 04:36:59PM +0000, Jonathan McDowell wrote:
->> On Fri, Dec 22, 2017 at 09:21:09AM +0900, Joonsoo Kim wrote:
->> > On Fri, Dec 08, 2017 at 03:11:59PM +0000, Jonathan McDowell wrote:
->> > > I've been sitting on this for a while and should have spent time to
->> > > investigate sooner, but it's been an odd failure mode that wasn't quite
->> > > obvious.
->> > >
->> > > In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
->> > > don't see anything after grub says its booting. In 4.10 onwards the
->> > > laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
->> > > (no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
->> > > taken from 4.12 as that's the most recent error dmesg I have saved but
->> > > also seen back in 4.10. It's always address 0x30 for the dereference.
->> > >
->> > > Rebooting the laptop does not lead to these problems; it's *only* from a
->> > > complete cold boot that they arise (which didn't help me in terms of
->> > > being able to reliably bisect). Once I realised that I was able to
->> > > bisect, but it leads me to an odd commit:
->> > >
->> > > 86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
->> > > (mm/slab: fix kmemcg cache creation delayed issue)
->> > >
->> > > If I revert this then I can cold boot without problems.
->> > >
->> > > Also I don't see the problem with a stock Debian kernel, I think because
->> > > the ACPI support is modularised.
->> >
->> > Sorry for late response. I was on a long vacation.
->>
->> No problem. I've been trying to get around to diagnosing this for a
->> while now anyway and this isn't a great time of year for fast responses.
->>
->> > I have tried to solve the problem however I don't find any clue yet.
->> >
->> > >From my analysis, oops report shows that 'struct sock *ssk' passed to
->> > netlink_broadcast_filtered() is NULL. It means that some of
->> > netlink_kernel_create() returns NULL. Maybe, it is due to slab
->> > allocation failure. Could you check it by inserting some log on that
->> > part? The issue cannot be reproducible in my side so I need your help.
->>
->> I've added some debug in acpi_bus_generate_netlink_event +
->> genlmsg_multicast and the problem seems to be that genlmsg_multicast is
->> getting called when init_net.genl_sock has not yet been initialised,
->> leading to the NULL deference.
->>
->> Full dmesg output from a cold 4.14.8 boot at:
->>
->> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-broken
->>
->> And the same kernel after a reboot ("shutdown -r now"):
->>
->> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-working
->>
->> Patch that I've applied is at
->>
->> https://the.earth.li/~noodles/acpi-problem/debug-acpi.diff
->>
->
-> Thanks for testing! It's very helpful.
->
->> The interesting difference seems to be:
->>
->>  PCI: Using ACPI for IRQ routing
->> +ACPI: Generating event type 208 (:9DBB5994-A997-11DA-B012-B622A1EF5492)
->> +ERROR: init_net.genl_sock is NULL
->> +BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
->> +IP: netlink_broadcast_filtered+0x20/0x3d0
->> +PGD 0 P4D 0
->> +Oops: 0000 [#1] SMP
->> +Modules linked in:
->> +CPU: 0 PID: 29 Comm: kworker/0:1 Not tainted 4.14.8+ #1
->> +Hardware name: Dell Inc. Latitude E7240/07RPNV, BIOS A22 10/18/2017
->> +Workqueue: kacpi_notify acpi_os_execute_deferred
->>
->> 9DBB5994-A997-11DA-B012-B622A1EF5492 is the Dell WMI event GUID and
->> there's no visible event for it on a reboot, just on a cold power on.
->> Some sort of ordering issues such that genl_sock is being initialised
->> later with the slab change?
->
-> I have checked that there is an ordering issue.
->
-> genl_init() which initializes init_net->genl_sock is called on
-> subsys_initcall().
->
-> acpi_wmi_init() which schedules acpi_wmi_notify_handler() to the
-> workqueue is called on subsys_initcall(), too.
-> (acpi_wmi_notify_handler() -> acpi_bus_generate_netlink_event() ->
-> netlink_broadcast())
->
-> In my system, acpi_wmi_init() is called before the genl_init().
-> Therefore, if the worker is scheduled before genl_init() is done, NULL
-> derefence would happen.
+On 12/08/2017 09:45 PM, Michal Hocko wrote:
+> From: Michal Hocko <mhocko@suse.com>
+> 
+> do_pages_move is supposed to move user defined memory (an array of
+> addresses) to the user defined numa nodes (an array of nodes one for
+> each address). The user provided status array then contains resulting
+> numa node for each address or an error. The semantic of this function is
+> little bit confusing because only some errors are reported back. Notably
+> migrate_pages error is only reported via the return value. This patch
 
-Does it help to change the subsys_initcall() in wmi.c to subsys_initcall_sync()?
+It does report back the migration failures as well. In new_page_node
+there is '*result = &pm->status' which going forward in unmap_and_move
+will hold migration error or node ID of the new page.
+
+	newpage = get_new_page(page, private, &result);
+	............
+	if (result) {
+		if (rc)
+			*result = rc;
+		else
+			*result = page_to_nid(newpage);
+	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
