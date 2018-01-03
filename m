@@ -1,84 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 923BA6B02FD
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:23:10 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id h10so380777pgn.19
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:23:10 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id l24si348682pgn.528.2018.01.03.00.23.08
-        for <linux-mm@kvack.org>;
-        Wed, 03 Jan 2018 00:23:09 -0800 (PST)
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-From: Byungchul Park <byungchul.park@lge.com>
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171229014736.GA10341@X58A-UD3R> <20171229035146.GA11757@thunk.org>
- <20171229072851.GA12235@X58A-UD3R>
- <20171230061624.GA27959@bombadil.infradead.org>
- <20171230154041.GB3366@thunk.org>
- <20171230204417.GF27959@bombadil.infradead.org>
- <20171230224028.GC3366@thunk.org>
- <f2bc220a-a363-122a-dbf9-e5416c550899@lge.com>
- <20180103070556.GA22583@thunk.org>
- <66296fcb-8df0-9697-2825-efa37c234ad9@lge.com>
-Message-ID: <45973bf8-f20c-ec0c-7e82-71b4d0a64998@lge.com>
-Date: Wed, 3 Jan 2018 17:23:07 +0900
-MIME-Version: 1.0
-In-Reply-To: <66296fcb-8df0-9697-2825-efa37c234ad9@lge.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E9C46B02FE
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:26:06 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id 31so515931plk.20
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:26:06 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id h126sor97777pgc.126.2018.01.03.00.26.04
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 03 Jan 2018 00:26:04 -0800 (PST)
+From: Michal Hocko <mhocko@kernel.org>
+Subject: [PATCH 0/3] unclutter thp migration
+Date: Wed,  3 Jan 2018 09:25:52 +0100
+Message-Id: <20180103082555.14592-1-mhocko@kernel.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On 1/3/2018 5:10 PM, Byungchul Park wrote:
-> On 1/3/2018 4:05 PM, Theodore Ts'o wrote:
->> On Wed, Jan 03, 2018 at 11:10:37AM +0900, Byungchul Park wrote:
->>>> The point I was trying to drive home is that "all we have to do is
->>>> just classify everything well or just invalidate the right lock
->>>
->>> Just to be sure, we don't have to invalidate lock objects at all but
->>> a problematic waiter only.
->>
->> So essentially you are proposing that we have to play "whack-a-mole"
->> as we find false positives, and where we may have to put in ad-hoc
->> plumbing to only invalidate "a problematic waiter" when it's
->> problematic --- or to entirely suppress the problematic waiter
-> 
-> If we have too many problematic completions(waiters) to handle it,
-> then I agree with you. But so far, only one exits and it seems able
-> to be handled even in the future on my own.
-> 
-> Or if you believe that we have a lot of those kind of completions
-> making trouble so we cannot handle it, the (4) by Amir would work,
-> no? I'm asking because I'm really curious about your opinion..
-> 
->> altogether.A  And in that case, a file system developer might be forced
->> to invalidate a lock/"waiter"/"completion" in another subsystem.
-> 
-> As I said, with regard to the invalidation, we don't have to
-> consider locks at all. It's enough to invalidate the waiter only.
-> 
->> I will also remind you that doing this will trigger a checkpatch.pl
->> *error*:
-> 
-> This is what we decided. And I think the decision is reasonable for
-> original lockdep. But I wonder if we should apply the same decision
-> on waiters. I don't insist but just wonder.
+Hi,
+I have posted this work as an RFC [1] and there were no fundamental
+objections to the approach so I am resending for inclusion. It is
+quite late in the release cycle and I definitely do not want to
+rush this into the next release cycle but having it in linux-next
+for longer should be only better to show potential fallouts.
 
-What if we adopt the (4) in which waiters are validated one by one
-and no explicit invalidation is involved?
+Motivation:
+THP migration is hacked into the generic migration with rather
+surprising semantic. The migration allocation callback is supposed to
+check whether the THP can be migrated at once and if that is not the
+case then it allocates a simple page to migrate. unmap_and_move then
+fixes that up by splitting the THP into small pages while moving the head
+page to the newly allocated order-0 page. Remaining pages are moved to
+the LRU list by split_huge_page. The same happens if the THP allocation
+fails. This is really ugly and error prone [2].
 
->> ERROR("LOCKDEP", "lockdep_no_validate class is reserved for 
->> device->mutex.\n" . $herecurr);
->>
->> A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  - Ted
->>
-> 
+I also believe that split_huge_page to the LRU lists is inherently
+wrong because all tail pages are not migrated. Some callers will just
+work around that by retrying (e.g. memory hotplug). There are other
+pfn walkers which are simply broken though. e.g. madvise_inject_error
+will migrate head and then advances next pfn by the huge page size.
+do_move_page_to_node_array, queue_pages_range (migrate_pages, mbind),
+will simply split the THP before migration if the THP migration is not
+supported then falls back to single page migration but it doesn't handle
+tail pages if the THP migration path is not able to allocate a fresh
+THP so we end up with ENOMEM and fail the whole migration which is a
+questionable behavior. Page compaction doesn't try to migrate large
+pages so it should be immune.
 
--- 
-Thanks,
-Byungchul
+The first patch reworks do_pages_move which relies on a very ugly
+calling semantic when the return status is pushed to the migration
+path via private pointer. It uses pre allocated fixed size batching to
+achieve that.  We simply cannot do the same if a THP is to be split
+during the migration path which is done in the patch 3. Patch 2 is
+follow up cleanup which removes the mentioned return status calling
+convention ugliness.
+
+On a side note:
+There are some semantic issues I have encountered on the way when
+working on patch 1 but I am not addressing them here. E.g. trying
+to move THP tail pages will result in either success or EBUSY (the
+later one more likely once we isolate head from the LRU list). Hugetlb
+reports EACCESS on tail pages.  Some errors are reported via status
+parameter but migration failures are not even though the original
+`reason' argument suggests there was an intention to do so. From a
+quick look into git history this never worked. I have tried to keep the
+semantic unchanged.
+
+Then there is a relatively minor thing that the page isolation might
+fail because of pages not being on the LRU - e.g. because they are
+sitting on the per-cpu LRU caches. Easily fixable.
+
+Shortlog
+Michal Hocko (3):
+      mm, numa: rework do_pages_move
+      mm, migrate: remove reason argument from new_page_t
+      mm: unclutter THP migration
+
+Diffstat
+ include/linux/migrate.h        |   7 +-
+ include/linux/page-isolation.h |   3 +-
+ mm/compaction.c                |   3 +-
+ mm/huge_memory.c               |   6 +
+ mm/internal.h                  |   1 +
+ mm/memory_hotplug.c            |   5 +-
+ mm/mempolicy.c                 |  40 +----
+ mm/migrate.c                   | 354 ++++++++++++++++++-----------------------
+ mm/page_isolation.c            |   3 +-
+ 9 files changed, 181 insertions(+), 241 deletions(-)
+
+[1] http://lkml.kernel.org/r/20171208161559.27313-1-mhocko@kernel.org
+[2] http://lkml.kernel.org/r/20171121021855.50525-1-zi.yan@sent.com
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
