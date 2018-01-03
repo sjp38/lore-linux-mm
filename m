@@ -1,60 +1,60 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9FF1B6B0354
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 09:19:58 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id u15so1213071qtu.11
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 06:19:58 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id 39si836702qtm.361.2018.01.03.06.19.57
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B70E6B0356
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 09:32:13 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id w18so911540wra.5
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 06:32:13 -0800 (PST)
+Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
+        by mx.google.com with ESMTPS id j9si887194wrc.162.2018.01.03.06.32.11
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 06:19:57 -0800 (PST)
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w03EJIwB028944
-	for <linux-mm@kvack.org>; Wed, 3 Jan 2018 09:19:56 -0500
-Received: from e06smtp15.uk.ibm.com (e06smtp15.uk.ibm.com [195.75.94.111])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2f8vah3xmc-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Jan 2018 09:19:56 -0500
-Received: from localhost
-	by e06smtp15.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 3 Jan 2018 14:19:54 -0000
-Subject: Re: [PATCH 2/3] mm, migrate: remove reason argument from new_page_t
-References: <20180103082555.14592-1-mhocko@kernel.org>
- <20180103082555.14592-3-mhocko@kernel.org>
- <f31b8830-db49-05a2-9a64-d27476fd206c@linux.vnet.ibm.com>
- <20180103140923.GD11319@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Wed, 3 Jan 2018 19:49:40 +0530
-MIME-Version: 1.0
-In-Reply-To: <20180103140923.GD11319@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <2dff7c5e-118b-1e57-ef13-2fa7389895fd@linux.vnet.ibm.com>
+        Wed, 03 Jan 2018 06:32:12 -0800 (PST)
+Received: from smtp01.buh.bitdefender.com (smtp.bitdefender.biz [10.17.80.75])
+	by mx-sr.buh.bitdefender.com (Postfix) with ESMTP id B5D247FC04
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 16:32:10 +0200 (EET)
+Message-ID: <1514989930.2751.33.camel@bitdefender.com>
+Subject: Re: [RFC PATCH v4 00/18] VM introspection
+From: Mihai =?UTF-8?Q?Don=C8=9Bu?= <mdontu@bitdefender.com>
+Date: Wed, 03 Jan 2018 16:32:10 +0200
+In-Reply-To: <310d60aa-9979-cb73-058d-831ca6b98dfa@gmail.com>
+References: <20171218190642.7790-1-alazar@bitdefender.com>
+	 <310d60aa-9979-cb73-058d-831ca6b98dfa@gmail.com>
+Content-Type: text/plain; charset="UTF-8"
+Mime-Version: 1.0
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Xiao Guangrong <guangrong.xiao@gmail.com>, Adalber =?UTF-8?Q?Laz=C4=83r?= <alazar@bitdefender.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, Paolo Bonzini <pbonzini@redhat.com>, Radim =?UTF-8?Q?Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Xiao Guangrong <guangrong.xiao@linux.intel.com>
 
-On 01/03/2018 07:39 PM, Michal Hocko wrote:
-> On Wed 03-01-18 19:30:38, Anshuman Khandual wrote:
->> On 01/03/2018 01:55 PM, Michal Hocko wrote:
->>> From: Michal Hocko <mhocko@suse.com>
->>>
->>> No allocation callback is using this argument anymore. new_page_node
->>> used to use this parameter to convey node_id resp. migration error
->>> up to move_pages code (do_move_page_to_node_array). The error status
->>> never made it into the final status field and we have a better way
->>> to communicate node id to the status field now. All other allocation
->>> callbacks simply ignored the argument so we can drop it finally.
->>
->> There is a migrate_pages() call in powerpc which needs to be changed
->> as well. It was failing the build on powerpc.
+On Wed, 2018-01-03 at 11:34 +0800, Xiao Guangrong wrote:
+> On 12/19/2017 03:06 AM, Adalber LazA?r wrote:
+> > From: Adalbert Lazar <alazar@bitdefender.com>
+> > 
+> > This patch series proposes a VM introspection subsystem for KVM (KVMI).
+> > 
+> > The previous RFC can be read here: https://marc.info/?l=kvm&m=150514457912721
+> > 
+> > These patches were tested on kvm/master,
+> > commit 43aabca38aa9668eee3c3c1206207034614c0901 (Merge tag 'kvm-arm-fixes-for-v4.15-2' of git://git.kernel.org/pub/scm/linux/kernel/git/kvmarm/kvmarm into HEAD).
+> > 
+> > In this iteration we refactored the code based on the feedback received
+> > from Paolo and others.
 > 
-> Yes, see http://lkml.kernel.org/r/20180103091134.GB11319@dhcp22.suse.cz
+> I am thinking if we can define some check points in KVM where
+> BPF programs are allowed to attach, then employ the policies
+> in BPFs instead...
 
-Oops, my bad. I am sorry, missed this.
+That would be a nice feature to have. For example, we could use it to
+pre-filter the events (eg. drop EPT #PF events generated by A/D bit
+updates). Also, sure, given how BPF has evolved in Linux these past few
+years (see JIT) we could upload some pretty complex introspection
+logic.
+
+Regards,
+
+-- 
+Mihai DonE?u
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
