@@ -1,132 +1,136 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 167466B032F
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 04:54:11 -0500 (EST)
-Received: by mail-wm0-f71.google.com with SMTP id p190so406982wmd.0
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 01:54:11 -0800 (PST)
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id t2si597272edf.519.2018.01.03.01.54.09
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 26B306B0331
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 05:04:33 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id 59so570449wro.7
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 02:04:33 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id u19si542795wrb.546.2018.01.03.02.04.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 01:54:09 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 488C11C155E
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 09:54:09 +0000 (GMT)
-Date: Wed, 3 Jan 2018 09:54:08 +0000
-From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Message-ID: <20180103095408.pqxggi7voser7ia3@techsingularity.net>
-References: <20171220012632.26840-1-ying.huang@intel.com>
- <20171221021619.GA27475@bbox>
- <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
- <20171223013653.GB5279@bgram>
- <20180102102103.mpah2ehglufwhzle@suse.de>
- <20180102112955.GA29170@quack2.suse.cz>
- <20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net>
- <87o9mbixi0.fsf@yhuang-dev.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 03 Jan 2018 02:04:31 -0800 (PST)
+Date: Wed, 3 Jan 2018 11:04:30 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Filesystem crashes due to pages without buffers
+Message-ID: <20180103100430.GE4911@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <87o9mbixi0.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: linux-mm@kvack.org
+Cc: linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
 
-On Wed, Jan 03, 2018 at 08:42:15AM +0800, Huang, Ying wrote:
-> Mel Gorman <mgorman@techsingularity.net> writes:
-> 
-> > On Tue, Jan 02, 2018 at 12:29:55PM +0100, Jan Kara wrote:
-> >> On Tue 02-01-18 10:21:03, Mel Gorman wrote:
-> >> > On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
-> >> > > > code path.  It appears that similar situation is possible for them too.
-> >> > > > 
-> >> > > > The file cache pages will be delete from file cache address_space before
-> >> > > > address_space (embedded in inode) is freed.  But they will be deleted
-> >> > > > from LRU list only when its refcount dropped to zero, please take a look
-> >> > > > at put_page() and release_pages().  While address_space will be freed
-> >> > > > after putting reference to all file cache pages.  If someone holds a
-> >> > > > reference to a file cache page for quite long time, it is possible for a
-> >> > > > file cache page to be in LRU list after the inode/address_space is
-> >> > > > freed.
-> >> > > > 
-> >> > > > And I found inode/address_space is freed witch call_rcu().  I don't know
-> >> > > > whether this is related to page_mapping().
-> >> > > > 
-> >> > > > This is just my understanding.
-> >> > > 
-> >> > > Hmm, it smells like a bug of __isolate_lru_page.
-> >> > > 
-> >> > > Ccing Mel:
-> >> > > 
-> >> > > What locks protects address_space destroying when race happens between
-> >> > > inode trauncation and __isolate_lru_page?
-> >> > > 
-> >> > 
-> >> > I'm just back online and have a lot of catching up to do so this is a rushed
-> >> > answer and I didn't read the background of this. However the question is
-> >> > somewhat ambiguous and the scope is broad as I'm not sure which race you
-> >> > refer to. For file cache pages, I wouldnt' expect the address_space to be
-> >> > destroyed specifically as long as the inode exists which is the structure
-> >> > containing the address_space in this case. A page on the LRU being isolated
-> >> > in __isolate_lru_page will have an elevated reference count which will
-> >> > pin the inode until remove_mapping is called which holds the page lock
-> >> > while inode truncation looking at a page for truncation also only checks
-> >> > page_mapping under the page lock. Very broadly speaking, pages avoid being
-> >> > added back to an inode being freed by checking the I_FREEING state.
-> >> 
-> >> So I'm wondering what prevents the following:
-> >> 
-> >> CPU1						CPU2
-> >> 
-> >> truncate(inode)					__isolate_lru_page()
-> >>   ...
-> >>   truncate_inode_page(mapping, page);
-> >>     delete_from_page_cache(page)
-> >>       spin_lock_irqsave(&mapping->tree_lock, flags);
-> >>         __delete_from_page_cache(page, NULL)
-> >>           page_cache_tree_delete(..)
-> >>             ...					  mapping = page_mapping(page);
-> >>             page->mapping = NULL;
-> >>             ...
-> >>       spin_unlock_irqrestore(&mapping->tree_lock, flags);
-> >>       page_cache_free_page(mapping, page)
-> >>         put_page(page)
-> >>           if (put_page_testzero(page)) -> false
-> >> - inode now has no pages and can be freed including embedded address_space
-> >> 
-> >> 						  if (mapping && !mapping->a_ops->migratepage)
-> >> - we've dereferenced mapping which is potentially already free.
-> >> 
-> >
-> > Hmm, possible if unlikely.
-> >
-> > Before delete_from_page_cache, we called truncate_cleanup_page so the
-> > page is likely to be !PageDirty or PageWriteback which gets skipped by
-> > the only caller that checks the mappping in __isolate_lru_page. The race
-> > is tiny but it does exist. One way of closing it is to check the mapping
-> > under the page lock which will prevent races with truncation. The
-> > overhead is minimal as the calling context (compaction) is quite a heavy
-> > operation anyway.
-> >
-> 
-> I think another possible fix is to use call_rcu_sched() to free inode
-> (and address_space).  Because __isolate_lru_page() will be called with
-> LRU spinlock held and IRQ disabled, call_rcu_sched() will wait
-> LRU spin_unlock and IRQ enabled.
-> 
+Hello,
 
-Maybe, but in this particular case, I would prefer to go with something
-more conventional unless there is strong evidence that it's an improvement
-(which I doubt in this case given the cost of migration overall and the
-corner case of migrating a dirty page).
+Over the years I have seen so far unexplained crashed in filesystem's
+(ext4, xfs) writeback path due to dirty pages without buffers attached to
+them (see [1] and [2] for relatively recent reports). This was confusing as
+reclaim takes care not to strip buffers from a dirty page and both
+filesystems do add buffers to a page when it is first written to - in
+->page_mkwrite() and ->write_begin callbacks.
+
+Recently I have come across a code path that is probably leading to this
+inconsistent state and I'd like to discuss how to best fix the problem
+because it's not obvious to me. Consider the following race:
+
+CPU1					CPU2
+
+addr = mmap(file1, MAP_SHARED, ...);
+fd2 = open(file2, O_DIRECT | O_RDONLY);
+read(fd2, addr, len)
+  do_direct_IO()
+    page = dio_get_page()
+      dio_refill_pages()
+        iov_iter_get_pages()
+	  get_user_pages_fast()
+            - page fault
+              ->page_mkwrite()
+                block_page_mkwrite()
+                  lock_page(page);
+                  - attaches buffers to page
+                  - makes sure blocks are allocated
+                  set_page_dirty(page)
+              - install writeable PTE
+              unlock_page(page);
+    submit_page_section(page)
+      - submits bio with 'page' as a buffer
+					kswapd reclaims pages:
+					...
+					shrink_page_list()
+					  trylock_page(page) - this is the
+					    page CPU1 has just faulted in
+					  try_to_unmap(page)
+					  pageout(page);
+					    clear_page_dirty_for_io(page);
+					    ->writepage()
+					  - let's assume page got written
+					    out fast enough, alternatively
+					    we could get to the same path as
+					    soon as the page IO completes
+					  if (page_has_private(page)) {
+					    try_to_release_page(page)
+					      - reclaims buffers from the
+					        page
+					   __remove_mapping(page)
+					     - fails as DIO code still
+					       holds page reference
+...
+
+eventually read completes
+  dio_bio_complete(bio)
+    set_page_dirty_lock(page)
+      Bummer, we've just marked the page as dirty without having buffers.
+      Eventually writeback will find it and filesystem will complain...
+
+Am I missing something?
+ 
+The problem here is that filesystems fundamentally assume that a page can
+be written to only between ->write_begin - ->write_end (in this interval
+the page is locked), or between ->page_mkwrite - ->writepage and above is
+an example where this does not hold because when a page reference is
+acquired through get_user_pages(), page can get written to by the holder of
+the reference and dirtied even after it has been unmapped from page tables
+and ->writepage has been called. This is not only a cosmetic issue leading
+to assertion failure but it can also lead to data loss, data corruption, or
+other unpleasant surprises as filesystems assume page contents cannot be
+modified until either ->write_begin() or ->page_mkwrite gets called and
+those calls are serialized by proper locking with problematic operations
+such as hole punching etc.
+
+I'm not sure how to fix this problem. We could 'simulate' a writeable page
+fault in set_page_dirty_lock(). It is a bit ugly since we don't have a
+virtual address of the fault, don't hold mmap_sem, etc., possibly
+expensive, but it would make filesystems happy. Data stored by GUP user
+(e.g. read by DIO in the above case) could still get lost if someone e.g.
+punched hole under the buffer or otherwise messed with the underlying
+storage of the page while DIO was running but arguably users could expect
+such outcome.
+
+Another possible solution would be to make sure page is writeably mapped
+until GUP user drops its reference. That would be arguably cleaner but
+probably that would mean we have to track number of writeable GUP page
+references separately (no space space in struct page is a problem here) and
+block page_mkclean() until they are dropped. Also for long term GUP users
+like Infiniband or V4L we'd have to come up with some solution as we should
+not block page_mkclean() for so long.
+
+As a side note DAX needs some solution for GUP users as well. The problems
+are similar there in nature, just much easier to hit. So at least a
+solution for long-term GUP users can (and I strongly believe should) be
+shared between standard and DAX paths.
+
+Anybody has other ideas how to fix the problem or opinions on which
+solution would be better to use or some complications I have missed?
+
+								Honza
+
+[1] https://www.spinics.net/lists/linux-xfs/msg10090.html
+[2] https://www.spinics.net/lists/linux-ext4/msg54377.html
 
 -- 
-Mel Gorman
-SUSE Labs
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
