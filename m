@@ -1,95 +1,201 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E41B46B037C
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 15:13:18 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id g13so135964wrh.19
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 12:13:18 -0800 (PST)
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EB5406B037F
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 15:14:50 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id 80so1023486wmb.7
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 12:14:50 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id d30si1447958wrb.217.2018.01.03.12.13.17
+        by mx.google.com with ESMTPS id e23si1170918wmc.90.2018.01.03.12.14.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 12:13:17 -0800 (PST)
+        Wed, 03 Jan 2018 12:14:49 -0800 (PST)
 From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.4 32/37] x86/paravirt: Dont patch flush_tlb_single
-Date: Wed,  3 Jan 2018 21:11:38 +0100
-Message-Id: <20180103195058.503981922@linuxfoundation.org>
-In-Reply-To: <20180103195056.837404126@linuxfoundation.org>
-References: <20180103195056.837404126@linuxfoundation.org>
+Subject: [PATCH 4.9 03/39] x86/boot: Add early cmdline parsing for options with arguments
+Date: Wed,  3 Jan 2018 21:11:17 +0100
+Message-Id: <20180103195104.204429981@linuxfoundation.org>
+In-Reply-To: <20180103195104.066528044@linuxfoundation.org>
+References: <20180103195104.066528044@linuxfoundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bpetkov@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@suse.de>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, kasan-dev@googlegroups.com, kvm@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-4.4-stable review patch.  If anyone has any objections, please let me know.
+4.9-stable review patch.  If anyone has any objections, please let me know.
 
 ------------------
 
-From: Thomas Gleixner <tglx@linutronix.de>
+From: Tom Lendacky <thomas.lendacky@amd.com>
 
+commit e505371dd83963caae1a37ead9524e8d997341be upstream.
 
-commit a035795499ca1c2bd1928808d1a156eda1420383 upstream
+Add a cmdline_find_option() function to look for cmdline options that
+take arguments. The argument is returned in a supplied buffer and the
+argument length (regardless of whether it fits in the supplied buffer)
+is returned, with -1 indicating not found.
 
-native_flush_tlb_single() will be changed with the upcoming
-PAGE_TABLE_ISOLATION feature. This requires to have more code in
-there than INVLPG.
-
-Remove the paravirt patching for it.
-
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Acked-by: Peter Zijlstra <peterz@infradead.org>
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
 Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
 Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bpetkov@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
+Cc: Brijesh Singh <brijesh.singh@amd.com>
+Cc: Dave Young <dyoung@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
 Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
 Cc: Rik van Riel <riel@redhat.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
+Cc: Toshimitsu Kani <toshi.kani@hpe.com>
+Cc: kasan-dev@googlegroups.com
+Cc: kvm@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
 Cc: linux-mm@kvack.org
-Cc: michael.schwarz@iaik.tugraz.at
-Cc: moritz.lipp@iaik.tugraz.at
-Cc: richard.fellner@student.tugraz.at
-Link: https://lkml.kernel.org/r/20171204150606.828111617@linutronix.de
+Link: http://lkml.kernel.org/r/36b5f97492a9745dce27682305f990fc20e5cf8a.1500319216.git.thomas.lendacky@amd.com
 Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Acked-by: Borislav Petkov <bp@suse.de>
 Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/kernel/paravirt_patch_64.c |    2 --
- 1 file changed, 2 deletions(-)
 
---- a/arch/x86/kernel/paravirt_patch_64.c
-+++ b/arch/x86/kernel/paravirt_patch_64.c
-@@ -9,7 +9,6 @@ DEF_NATIVE(pv_irq_ops, save_fl, "pushfq;
- DEF_NATIVE(pv_mmu_ops, read_cr2, "movq %cr2, %rax");
- DEF_NATIVE(pv_mmu_ops, read_cr3, "movq %cr3, %rax");
- DEF_NATIVE(pv_mmu_ops, write_cr3, "movq %rdi, %cr3");
--DEF_NATIVE(pv_mmu_ops, flush_tlb_single, "invlpg (%rdi)");
- DEF_NATIVE(pv_cpu_ops, clts, "clts");
- DEF_NATIVE(pv_cpu_ops, wbinvd, "wbinvd");
+---
+ arch/x86/include/asm/cmdline.h |    2 
+ arch/x86/lib/cmdline.c         |  105 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+)
+
+--- a/arch/x86/include/asm/cmdline.h
++++ b/arch/x86/include/asm/cmdline.h
+@@ -2,5 +2,7 @@
+ #define _ASM_X86_CMDLINE_H
  
-@@ -62,7 +61,6 @@ unsigned native_patch(u8 type, u16 clobb
- 		PATCH_SITE(pv_mmu_ops, read_cr3);
- 		PATCH_SITE(pv_mmu_ops, write_cr3);
- 		PATCH_SITE(pv_cpu_ops, clts);
--		PATCH_SITE(pv_mmu_ops, flush_tlb_single);
- 		PATCH_SITE(pv_cpu_ops, wbinvd);
- #if defined(CONFIG_PARAVIRT_SPINLOCKS) && defined(CONFIG_QUEUED_SPINLOCKS)
- 		case PARAVIRT_PATCH(pv_lock_ops.queued_spin_unlock):
+ int cmdline_find_option_bool(const char *cmdline_ptr, const char *option);
++int cmdline_find_option(const char *cmdline_ptr, const char *option,
++			char *buffer, int bufsize);
+ 
+ #endif /* _ASM_X86_CMDLINE_H */
+--- a/arch/x86/lib/cmdline.c
++++ b/arch/x86/lib/cmdline.c
+@@ -104,7 +104,112 @@ __cmdline_find_option_bool(const char *c
+ 	return 0;	/* Buffer overrun */
+ }
+ 
++/*
++ * Find a non-boolean option (i.e. option=argument). In accordance with
++ * standard Linux practice, if this option is repeated, this returns the
++ * last instance on the command line.
++ *
++ * @cmdline: the cmdline string
++ * @max_cmdline_size: the maximum size of cmdline
++ * @option: option string to look for
++ * @buffer: memory buffer to return the option argument
++ * @bufsize: size of the supplied memory buffer
++ *
++ * Returns the length of the argument (regardless of if it was
++ * truncated to fit in the buffer), or -1 on not found.
++ */
++static int
++__cmdline_find_option(const char *cmdline, int max_cmdline_size,
++		      const char *option, char *buffer, int bufsize)
++{
++	char c;
++	int pos = 0, len = -1;
++	const char *opptr = NULL;
++	char *bufptr = buffer;
++	enum {
++		st_wordstart = 0,	/* Start of word/after whitespace */
++		st_wordcmp,	/* Comparing this word */
++		st_wordskip,	/* Miscompare, skip */
++		st_bufcpy,	/* Copying this to buffer */
++	} state = st_wordstart;
++
++	if (!cmdline)
++		return -1;      /* No command line */
++
++	/*
++	 * This 'pos' check ensures we do not overrun
++	 * a non-NULL-terminated 'cmdline'
++	 */
++	while (pos++ < max_cmdline_size) {
++		c = *(char *)cmdline++;
++		if (!c)
++			break;
++
++		switch (state) {
++		case st_wordstart:
++			if (myisspace(c))
++				break;
++
++			state = st_wordcmp;
++			opptr = option;
++			/* fall through */
++
++		case st_wordcmp:
++			if ((c == '=') && !*opptr) {
++				/*
++				 * We matched all the way to the end of the
++				 * option we were looking for, prepare to
++				 * copy the argument.
++				 */
++				len = 0;
++				bufptr = buffer;
++				state = st_bufcpy;
++				break;
++			} else if (c == *opptr++) {
++				/*
++				 * We are currently matching, so continue
++				 * to the next character on the cmdline.
++				 */
++				break;
++			}
++			state = st_wordskip;
++			/* fall through */
++
++		case st_wordskip:
++			if (myisspace(c))
++				state = st_wordstart;
++			break;
++
++		case st_bufcpy:
++			if (myisspace(c)) {
++				state = st_wordstart;
++			} else {
++				/*
++				 * Increment len, but don't overrun the
++				 * supplied buffer and leave room for the
++				 * NULL terminator.
++				 */
++				if (++len < bufsize)
++					*bufptr++ = c;
++			}
++			break;
++		}
++	}
++
++	if (bufsize)
++		*bufptr = '\0';
++
++	return len;
++}
++
+ int cmdline_find_option_bool(const char *cmdline, const char *option)
+ {
+ 	return __cmdline_find_option_bool(cmdline, COMMAND_LINE_SIZE, option);
+ }
++
++int cmdline_find_option(const char *cmdline, const char *option, char *buffer,
++			int bufsize)
++{
++	return __cmdline_find_option(cmdline, COMMAND_LINE_SIZE, option,
++				     buffer, bufsize);
++}
 
 
 --
