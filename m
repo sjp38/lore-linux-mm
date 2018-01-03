@@ -1,157 +1,198 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 665B46B0370
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 14:39:30 -0500 (EST)
-Received: by mail-it0-f71.google.com with SMTP id r6so2155733itr.1
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 11:39:30 -0800 (PST)
-Received: from resqmta-ch2-09v.sys.comcast.net (resqmta-ch2-09v.sys.comcast.net. [2001:558:fe21:29:69:252:207:41])
-        by mx.google.com with ESMTPS id n5si1235314ion.169.2018.01.03.11.39.29
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AE5A06B037A
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 15:11:50 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id a17so1303436otd.15
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 12:11:50 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id t4si7304014wmt.2.2018.01.03.12.11.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 11:39:29 -0800 (PST)
-Date: Wed, 3 Jan 2018 13:39:27 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: [RFC] Heuristic for inode/dentry fragmentation prevention
-Message-ID: <alpine.DEB.2.20.1801031332230.10522@nuc-kabylake>
+        Wed, 03 Jan 2018 12:11:49 -0800 (PST)
+From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Subject: [PATCH 4.4 01/37] x86/boot: Add early cmdline parsing for options with arguments
+Date: Wed,  3 Jan 2018 21:11:07 +0100
+Message-Id: <20180103195056.919290887@linuxfoundation.org>
+In-Reply-To: <20180103195056.837404126@linuxfoundation.org>
+References: <20180103195056.837404126@linuxfoundation.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=UTF-8
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Chinner <dchinner@redhat.com>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: linux-kernel@vger.kernel.org
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Tom Lendacky <thomas.lendacky@amd.com>, Thomas Gleixner <tglx@linutronix.de>, Alexander Potapenko <glider@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>, Andy Lutomirski <luto@kernel.org>, Arnd Bergmann <arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Brijesh Singh <brijesh.singh@amd.com>, Dave Young <dyoung@redhat.com>, Dmitry Vyukov <dvyukov@google.com>, Jonathan Corbet <corbet@lwn.net>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Larry Woodman <lwoodman@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Matt Fleming <matt@codeblueprint.co.uk>, "Michael S. Tsirkin" <mst@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, Peter Zijlstra <peterz@infradead.org>, =?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, Rik van Riel <riel@redhat.com>, Toshimitsu Kani <toshi.kani@hpe.com>, kasan-dev@googlegroups.com, kvm@vger.kernel.org, linux-arch@vger.kernel.org, linux-doc@vger.kernel.org, linux-efi@vger.kernel.org, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
 
-I was looking at the inode/dentry reclaim code today and I thought there
-is an obvious and easy to implement way to avoid fragmentation by checking
-the number of objects in a slab page.
+4.4-stable review patch.  If anyone has any objections, please let me know.
 
+------------------
 
-Subject: Heuristic for fragmentation prevention for inode and dentry caches
+From: Tom Lendacky <thomas.lendacky@amd.com>
 
-When freeing dentries and inodes we often get to the situation
-that a slab page cannot be freed because there is only a single
-object left in that slab page.
+commit e505371dd83963caae1a37ead9524e8d997341be upstream.
 
-We add a new function to the slab allocators that returns the
-number of objects in the same slab page.
+Add a cmdline_find_option() function to look for cmdline options that
+take arguments. The argument is returned in a supplied buffer and the
+argument length (regardless of whether it fits in the supplied buffer)
+is returned, with -1 indicating not found.
 
-Then the dentry and inode logic can check if such a situation
-exits and take measures to try to reclaim that entry sooner.
+Signed-off-by: Tom Lendacky <thomas.lendacky@amd.com>
+Reviewed-by: Thomas Gleixner <tglx@linutronix.de>
+Cc: Alexander Potapenko <glider@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andy Lutomirski <luto@kernel.org>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Borislav Petkov <bp@alien8.de>
+Cc: Brijesh Singh <brijesh.singh@amd.com>
+Cc: Dave Young <dyoung@redhat.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+Cc: Larry Woodman <lwoodman@redhat.com>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Matt Fleming <matt@codeblueprint.co.uk>
+Cc: Michael S. Tsirkin <mst@redhat.com>
+Cc: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Radim KrA?mA!A? <rkrcmar@redhat.com>
+Cc: Rik van Riel <riel@redhat.com>
+Cc: Toshimitsu Kani <toshi.kani@hpe.com>
+Cc: kasan-dev@googlegroups.com
+Cc: kvm@vger.kernel.org
+Cc: linux-arch@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-efi@vger.kernel.org
+Cc: linux-mm@kvack.org
+Link: http://lkml.kernel.org/r/36b5f97492a9745dce27682305f990fc20e5cf8a.1500319216.git.thomas.lendacky@amd.com
+Signed-off-by: Ingo Molnar <mingo@kernel.org>
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-In this patch the check if an inode or dentry has been referenced
-(and thus should be kept) is skipped if the freeing of the object
-would result in the slab page becoming available.
+---
+ arch/x86/include/asm/cmdline.h |    2 
+ arch/x86/lib/cmdline.c         |  105 +++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 107 insertions(+)
 
-That will cause overhead in terms of having to re-allocate and
-generate the inoden or dentry but in all likelyhood the inode
-or dentry will then be allocated in a slab page that already
-contains other inodes or dentries. Thus fragmentation is reduced.
-
-Signed-off-by: Christopher Lameter <cl@linux.com>
-
-Index: linux/include/linux/slab.h
-===================================================================
---- linux.orig/include/linux/slab.h
-+++ linux/include/linux/slab.h
-@@ -165,6 +165,7 @@ void * __must_check krealloc(const void
- void kfree(const void *);
- void kzfree(const void *);
- size_t ksize(const void *);
-+unsigned kobjects_left_in_slab_page(const void *);
-
- #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
- const char *__check_heap_object(const void *ptr, unsigned long n,
-Index: linux/mm/slab.c
-===================================================================
---- linux.orig/mm/slab.c
-+++ linux/mm/slab.c
-@@ -4446,3 +4446,24 @@ size_t ksize(const void *objp)
- 	return size;
+--- a/arch/x86/include/asm/cmdline.h
++++ b/arch/x86/include/asm/cmdline.h
+@@ -2,5 +2,7 @@
+ #define _ASM_X86_CMDLINE_H
+ 
+ int cmdline_find_option_bool(const char *cmdline_ptr, const char *option);
++int cmdline_find_option(const char *cmdline_ptr, const char *option,
++			char *buffer, int bufsize);
+ 
+ #endif /* _ASM_X86_CMDLINE_H */
+--- a/arch/x86/lib/cmdline.c
++++ b/arch/x86/lib/cmdline.c
+@@ -82,3 +82,108 @@ int cmdline_find_option_bool(const char
+ 
+ 	return 0;	/* Buffer overrun */
  }
- EXPORT_SYMBOL(ksize);
 +
-+/* How many objects left in slab page */
-+unsigned kobjects_left_in_slab_page(const void *object)
++/*
++ * Find a non-boolean option (i.e. option=argument). In accordance with
++ * standard Linux practice, if this option is repeated, this returns the
++ * last instance on the command line.
++ *
++ * @cmdline: the cmdline string
++ * @max_cmdline_size: the maximum size of cmdline
++ * @option: option string to look for
++ * @buffer: memory buffer to return the option argument
++ * @bufsize: size of the supplied memory buffer
++ *
++ * Returns the length of the argument (regardless of if it was
++ * truncated to fit in the buffer), or -1 on not found.
++ */
++static int
++__cmdline_find_option(const char *cmdline, int max_cmdline_size,
++		      const char *option, char *buffer, int bufsize)
 +{
-+	struct page *page;
++	char c;
++	int pos = 0, len = -1;
++	const char *opptr = NULL;
++	char *bufptr = buffer;
++	enum {
++		st_wordstart = 0,	/* Start of word/after whitespace */
++		st_wordcmp,	/* Comparing this word */
++		st_wordskip,	/* Miscompare, skip */
++		st_bufcpy,	/* Copying this to buffer */
++	} state = st_wordstart;
 +
-+	if (unlikely(ZERO_OR_NULL_PTR(object)))
-+		return 0;
++	if (!cmdline)
++		return -1;      /* No command line */
 +
-+	page = virt_to_head_page(object);
-+
-+	if (unlikely(!PageSlab(page))) {
-+		WARN_ON(1);
-+		return 1;
-+	}
-+
-+	return page->active;
-+}
-+EXPORT_SYMBOL(kobjects_left_in_slab_page);
-+
-+
-Index: linux/mm/slub.c
-===================================================================
---- linux.orig/mm/slub.c
-+++ linux/mm/slub.c
-@@ -3879,6 +3879,25 @@ size_t ksize(const void *object)
- }
- EXPORT_SYMBOL(ksize);
-
-+/* How many objects left in slab page */
-+unsigned kobjects_left_in_slab_page(const void *object)
-+{
-+	struct page *page;
-+
-+	if (unlikely(ZERO_OR_NULL_PTR(object)))
-+		return 0;
-+
-+	page = virt_to_head_page(object);
-+
-+	if (unlikely(!PageSlab(page))) {
-+		WARN_ON(!PageCompound(page));
-+		return 1;
-+	}
-+
-+	return page->inuse;
-+}
-+EXPORT_SYMBOL(kobjects_left_in_slab_page);
-+
- void kfree(const void *x)
- {
- 	struct page *page;
-Index: linux/fs/dcache.c
-===================================================================
---- linux.orig/fs/dcache.c
-+++ linux/fs/dcache.c
-@@ -1074,7 +1074,8 @@ static enum lru_status dentry_lru_isolat
- 		return LRU_REMOVED;
- 	}
-
--	if (dentry->d_flags & DCACHE_REFERENCED) {
-+	if (dentry->d_flags & DCACHE_REFERENCED &&
-+	   kobjects_left_in_slab_page(dentry) > 1) {
- 		dentry->d_flags &= ~DCACHE_REFERENCED;
- 		spin_unlock(&dentry->d_lock);
-
-Index: linux/fs/inode.c
-===================================================================
---- linux.orig/fs/inode.c
-+++ linux/fs/inode.c
-@@ -725,8 +725,12 @@ static enum lru_status inode_lru_isolate
- 		return LRU_REMOVED;
- 	}
-
--	/* recently referenced inodes get one more pass */
--	if (inode->i_state & I_REFERENCED) {
 +	/*
-+	 * Recently referenced inodes get one more pass
-+	 * if they are not the only objects in a slab page
++	 * This 'pos' check ensures we do not overrun
++	 * a non-NULL-terminated 'cmdline'
 +	 */
-+	if (inode->i_state & I_REFERENCED &&
-+	    kobjects_left_in_slab_page(inode) > 1) {
- 		inode->i_state &= ~I_REFERENCED;
- 		spin_unlock(&inode->i_lock);
- 		return LRU_ROTATE;
++	while (pos++ < max_cmdline_size) {
++		c = *(char *)cmdline++;
++		if (!c)
++			break;
++
++		switch (state) {
++		case st_wordstart:
++			if (myisspace(c))
++				break;
++
++			state = st_wordcmp;
++			opptr = option;
++			/* fall through */
++
++		case st_wordcmp:
++			if ((c == '=') && !*opptr) {
++				/*
++				 * We matched all the way to the end of the
++				 * option we were looking for, prepare to
++				 * copy the argument.
++				 */
++				len = 0;
++				bufptr = buffer;
++				state = st_bufcpy;
++				break;
++			} else if (c == *opptr++) {
++				/*
++				 * We are currently matching, so continue
++				 * to the next character on the cmdline.
++				 */
++				break;
++			}
++			state = st_wordskip;
++			/* fall through */
++
++		case st_wordskip:
++			if (myisspace(c))
++				state = st_wordstart;
++			break;
++
++		case st_bufcpy:
++			if (myisspace(c)) {
++				state = st_wordstart;
++			} else {
++				/*
++				 * Increment len, but don't overrun the
++				 * supplied buffer and leave room for the
++				 * NULL terminator.
++				 */
++				if (++len < bufsize)
++					*bufptr++ = c;
++			}
++			break;
++		}
++	}
++
++	if (bufsize)
++		*bufptr = '\0';
++
++	return len;
++}
++
++int cmdline_find_option(const char *cmdline, const char *option, char *buffer,
++			int bufsize)
++{
++	return __cmdline_find_option(cmdline, COMMAND_LINE_SIZE, option,
++				     buffer, bufsize);
++}
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
