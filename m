@@ -1,504 +1,128 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f199.google.com (mail-qt0-f199.google.com [209.85.216.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0067A6B0309
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:42:32 -0500 (EST)
-Received: by mail-qt0-f199.google.com with SMTP id g49so764815qta.8
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:42:31 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id q63si444905qtd.202.2018.01.03.00.42.30
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 222576B030B
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:46:05 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id a12so538835pll.21
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:46:05 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h1sor136056pfa.31.2018.01.03.00.46.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 00:42:30 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w038d4Wb176672
-	for <linux-mm@kvack.org>; Wed, 3 Jan 2018 03:42:30 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2f8qxkyncm-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 03 Jan 2018 03:42:29 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Wed, 3 Jan 2018 08:42:27 -0000
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
-Date: Wed, 3 Jan 2018 14:12:17 +0530
+        (Google Transport Security);
+        Wed, 03 Jan 2018 00:46:03 -0800 (PST)
+Date: Wed, 3 Jan 2018 00:46:00 -0800
+From: Benjamin Gilbert <benjamin.gilbert@coreos.com>
+Subject: "bad pmd" errors + oops with KPTI on 4.14.11 after loading X.509
+ certs
+Message-ID: <20180103084600.GA31648@trogon.sfo.coreos.systems>
+References: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171208161559.27313-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Message-Id: <7dd106bd-460a-73a7-bae8-17ffe66a69ee@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: linux-mm@kvack.org
+Cc: stable@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 
-On 12/08/2017 09:45 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
-> 
-> do_pages_move is supposed to move user defined memory (an array of
-> addresses) to the user defined numa nodes (an array of nodes one for
-> each address). The user provided status array then contains resulting
-> numa node for each address or an error. The semantic of this function is
-> little bit confusing because only some errors are reported back. Notably
-> migrate_pages error is only reported via the return value. This patch
-> doesn't try to address these semantic nuances but rather change the
-> underlying implementation.
-> 
-> Currently we are processing user input (which can be really large)
-> in batches which are stored to a temporarily allocated page. Each
-> address is resolved to its struct page and stored to page_to_node
-> structure along with the requested target numa node. The array of these
-> structures is then conveyed down the page migration path via private
-> argument. new_page_node then finds the corresponding structure and
-> allocates the proper target page.
-> 
-> What is the problem with the current implementation and why to change
-> it? Apart from being quite ugly it also doesn't cope with unexpected
-> pages showing up on the migration list inside migrate_pages path.
-> That doesn't happen currently but the follow up patch would like to
-> make the thp migration code more clear and that would need to split a
-> THP into the list for some cases.
-> 
-> How does the new implementation work? Well, instead of batching into a
-> fixed size array we simply batch all pages that should be migrated to
-> the same node and isolate all of them into a linked list which doesn't
-> require any additional storage. This should work reasonably well because
-> page migration usually migrates larger ranges of memory to a specific
-> node. So the common case should work equally well as the current
-> implementation. Even if somebody constructs an input where the target
-> numa nodes would be interleaved we shouldn't see a large performance
-> impact because page migration alone doesn't really benefit from
-> batching. mmap_sem batching for the lookup is quite questionable and
-> isolate_lru_page which would benefit from batching is not using it even
-> in the current implementation.
-> 
-> Signed-off-by: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/internal.h  |   1 +
->  mm/mempolicy.c |   5 +-
->  mm/migrate.c   | 306 +++++++++++++++++++++++++--------------------------------
->  3 files changed, 139 insertions(+), 173 deletions(-)
-> 
-> diff --git a/mm/internal.h b/mm/internal.h
-> index e6bd35182dae..1a1bb5d59c15 100644
-> --- a/mm/internal.h
-> +++ b/mm/internal.h
-> @@ -538,4 +538,5 @@ static inline bool is_migrate_highatomic_page(struct page *page)
->  }
->  
->  void setup_zone_pageset(struct zone *zone);
-> +extern struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x);
->  #endif	/* __MM_INTERNAL_H */
-> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
-> index f604b22ebb65..66c9c79b21be 100644
-> --- a/mm/mempolicy.c
-> +++ b/mm/mempolicy.c
-> @@ -942,7 +942,8 @@ static void migrate_page_add(struct page *page, struct list_head *pagelist,
->  	}
->  }
->  
-> -static struct page *new_node_page(struct page *page, unsigned long node, int **x)
-> +/* page allocation callback for NUMA node migration */
-> +struct page *alloc_new_node_page(struct page *page, unsigned long node, int **x)
->  {
->  	if (PageHuge(page))
->  		return alloc_huge_page_node(page_hstate(compound_head(page)),
-> @@ -986,7 +987,7 @@ static int migrate_to_node(struct mm_struct *mm, int source, int dest,
->  			flags | MPOL_MF_DISCONTIG_OK, &pagelist);
->  
->  	if (!list_empty(&pagelist)) {
-> -		err = migrate_pages(&pagelist, new_node_page, NULL, dest,
-> +		err = migrate_pages(&pagelist, alloc_new_node_page, NULL, dest,
->  					MIGRATE_SYNC, MR_SYSCALL);
->  		if (err)
->  			putback_movable_pages(&pagelist);
+[resending with less web]
 
-This reuses the existing page allocation helper from migrate_pages() system
-call. But all these allocator helper names for migrate_pages() function are
-really confusing. Even in this case alloc_new_node_page and the original
-new_node_page() which is still getting used in do_migrate_range() sounds
-similar even if their implementation is quite different. IMHO either all of
-them should be moved to the header file with proper differentiating names
-or let them be there in their respective files with these generic names and
-clean them up later.
+Hi all,
 
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 4d0be47a322a..9d7252ea2acd 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -1444,141 +1444,104 @@ int migrate_pages(struct list_head *from, new_page_t get_new_page,
->  }
->  
->  #ifdef CONFIG_NUMA
-> -/*
-> - * Move a list of individual pages
-> - */
-> -struct page_to_node {
-> -	unsigned long addr;
-> -	struct page *page;
-> -	int node;
-> -	int status;
-> -};
->  
-> -static struct page *new_page_node(struct page *p, unsigned long private,
-> -		int **result)
-> +static int store_status(int __user *status, int start, int value, int nr)
->  {
-> -	struct page_to_node *pm = (struct page_to_node *)private;
-> -
-> -	while (pm->node != MAX_NUMNODES && pm->page != p)
-> -		pm++;
-> +	while (nr-- > 0) {
-> +		if (put_user(value, status + start))
-> +			return -EFAULT;
-> +		start++;
-> +	}
->  
-> -	if (pm->node == MAX_NUMNODES)
-> -		return NULL;
-> +	return 0;
-> +}
+In our regression tests on kernel 4.14.11, we're occasionally seeing a run
+of "bad pmd" messages during boot, followed by a "BUG: unable to handle
+kernel paging request".  This happens on no more than a couple percent of
+boots, but we've seen it on AWS HVM, GCE, Oracle Cloud VMs, and local QEMU
+instances.  It always happens immediately after "Loading compiled-in X.509
+certificates".  I can't reproduce it on 4.14.10, nor, so far, on 4.14.11
+with pti=off.  Here's a sample backtrace:
 
+[    4.762964] Loading compiled-in X.509 certificates
+[    4.765620] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee000(800000007d6000e3)
+[    4.769099] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee008(800000007d8000e3)
+[    4.772479] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee010(800000007da000e3)
+[    4.775919] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee018(800000007dc000e3)
+[    4.779251] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee020(800000007de000e3)
+[    4.782558] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee028(800000007e0000e3)
+[    4.794160] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee030(800000007e2000e3)
+[    4.797525] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee038(800000007e4000e3)
+[    4.800776] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee040(800000007e6000e3)
+[    4.804100] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee048(800000007e8000e3)
+[    4.807437] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee050(800000007ea000e3)
+[    4.810729] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee058(800000007ec000e3)
+[    4.813989] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee060(800000007ee000e3)
+[    4.817294] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee068(800000007f0000e3)
+[    4.820713] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee070(800000007f2000e3)
+[    4.823943] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee078(800000007f4000e3)
+[    4.827311] BUG: unable to handle kernel paging request at fffffe27c1fdfba0
+[    4.830109] IP: free_page_and_swap_cache+0x6/0xa0
+[    4.831999] PGD 7f7ef067 P4D 7f7ef067 PUD 0
+[    4.833779] Oops: 0000 [#1] SMP PTI
+[    4.835197] Modules linked in:
+[    4.836450] CPU: 0 PID: 45 Comm: modprobe Not tainted 4.14.11-coreos #1
+[    4.839009] Hardware name: Xen HVM domU, BIOS 4.2.amazon 08/24/2006
+[    4.841551] task: ffff8b39b5a71e40 task.stack: ffffb92580558000
+[    4.844062] RIP: 0010:free_page_and_swap_cache+0x6/0xa0
+[    4.846238] RSP: 0018:ffffb9258055bc98 EFLAGS: 00010297
+[    4.848300] RAX: 0000000000000000 RBX: fffffe27c0001000 RCX: ffff8b39bf7ef4f8
+[    4.851184] RDX: 000000000007f7ee RSI: fffffe27c1fdfb80 RDI: fffffe27c1fdfb80
+[    4.854090] RBP: ffff8b39bf7ee000 R08: 0000000000000000 R09: 0000000000000162
+[    4.856946] R10: ffffffffffffff90 R11: 0000000000000161 R12: fffffe27ffe00000
+[    4.859777] R13: ffff8b39bf7ef000 R14: fffffe2800000000 R15: ffffb9258055bd60
+[    4.862602] FS:  0000000000000000(0000) GS:ffff8b39bd200000(0000) knlGS:0000000000000000
+[    4.865860] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[    4.868175] CR2: fffffe27c1fdfba0 CR3: 000000002d00a001 CR4: 00000000001606f0
+[    4.871162] Call Trace:
+[    4.872188]  free_pgd_range+0x3a5/0x5b0
+[    4.873781]  free_ldt_pgtables.part.2+0x60/0xa0
+[    4.875679]  ? arch_tlb_finish_mmu+0x42/0x70
+[    4.877476]  ? tlb_finish_mmu+0x1f/0x30
+[    4.878999]  exit_mmap+0x5b/0x1a0
+[    4.880327]  ? dput+0xb8/0x1e0
+[    4.881575]  ? hrtimer_try_to_cancel+0x25/0x110
+[    4.883388]  mmput+0x52/0x110
+[    4.884620]  do_exit+0x330/0xb10
+[    4.886044]  ? task_work_run+0x6b/0xa0
+[    4.887544]  do_group_exit+0x3c/0xa0
+[    4.889012]  SyS_exit_group+0x10/0x10
+[    4.890473]  entry_SYSCALL_64_fastpath+0x1a/0x7d
+[    4.892364] RIP: 0033:0x7f4a41d4ded9
+[    4.893812] RSP: 002b:00007ffe25d85708 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
+[    4.896974] RAX: ffffffffffffffda RBX: 00005601b3c9e2e0 RCX: 00007f4a41d4ded9
+[    4.899830] RDX: 0000000000000000 RSI: 0000000000000001 RDI: 0000000000000001
+[    4.902647] RBP: 00005601b3c9d0e8 R08: 000000000000003c R09: 00000000000000e7
+[    4.905743] R10: ffffffffffffff90 R11: 0000000000000246 R12: 00005601b3c9d090
+[    4.908659] R13: 0000000000000004 R14: 0000000000000001 R15: 00007ffe25d85828
+[    4.911495] Code: e0 01 48 83 f8 01 19 c0 25 01 fe ff ff 05 00 02 00 00 3e 29 43 1c 5b 5d 41 5c c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 53 <48> 8b 57 20 48 89 fb 48 8d 42 ff 83 e2 01 48 0f 44 c7 48 8b 48
+[    4.919014] RIP: free_page_and_swap_cache+0x6/0xa0 RSP: ffffb9258055bc98
+[    4.921801] CR2: fffffe27c1fdfba0
+[    4.923232] ---[ end trace e79ccb938bf80a4e ]---
+[    4.925166] Kernel panic - not syncing: Fatal exception
+[    4.927390] Kernel Offset: 0x1c000000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
 
-Just a nit. new_page_node() and store_status() seems different. Then why
-the git diff looks so clumsy.
+Traces were obtained via virtual serial port.  The backtrace varies a bit,
+as does the comm.
 
->  
-> -	*result = &pm->status;
-> +static int do_move_pages_to_node(struct mm_struct *mm,
-> +		struct list_head *pagelist, int node)
-> +{
-> +	int err;
->  
-> -	if (PageHuge(p))
-> -		return alloc_huge_page_node(page_hstate(compound_head(p)),
-> -					pm->node);
-> -	else if (thp_migration_supported() && PageTransHuge(p)) {
-> -		struct page *thp;
-> +	if (list_empty(pagelist))
-> +		return 0;
->  
-> -		thp = alloc_pages_node(pm->node,
-> -			(GFP_TRANSHUGE | __GFP_THISNODE) & ~__GFP_RECLAIM,
-> -			HPAGE_PMD_ORDER);
-> -		if (!thp)
-> -			return NULL;
-> -		prep_transhuge_page(thp);
-> -		return thp;
-> -	} else
-> -		return __alloc_pages_node(pm->node,
-> -				GFP_HIGHUSER_MOVABLE | __GFP_THISNODE, 0);
-> +	err = migrate_pages(pagelist, alloc_new_node_page, NULL, node,
-> +			MIGRATE_SYNC, MR_SYSCALL);
-> +	if (err)
-> +		putback_movable_pages(pagelist);
-> +	return err;
->  }
+The kernel config and a collection of backtraces are attached.  Our diff on
+top of vanilla 4.14.11 (unchanged from 4.14.10, and containing nothing
+especially relevant):
 
-Even this one. IIUC, do_move_pages_to_node() migrate a chunk of pages
-at a time which belong to the same target node. Perhaps the name should
-suggest so. All these helper page migration helper functions sound so
-similar.
+https://github.com/coreos/linux/compare/v4.14.11...coreos:v4.14.11-coreos
 
->  
->  /*
-> - * Move a set of pages as indicated in the pm array. The addr
-> - * field must be set to the virtual address of the page to be moved
-> - * and the node number must contain a valid target node.
-> - * The pm array ends with node = MAX_NUMNODES.
-> + * Resolves the given address to a struct page, isolates it from the LRU and
-> + * puts it to the given pagelist.
-> + * Returns -errno if the page cannot be found/isolated or 0 when it has been
-> + * queued or the page doesn't need to be migrated because it is already on
-> + * the target node
->   */
-> -static int do_move_page_to_node_array(struct mm_struct *mm,
-> -				      struct page_to_node *pm,
-> -				      int migrate_all)
-> +static int add_page_for_migration(struct mm_struct *mm, unsigned long addr,
-> +		int node, struct list_head *pagelist, bool migrate_all)
->  {
-> +	struct vm_area_struct *vma;
-> +	struct page *page;
-> +	unsigned int follflags;
->  	int err;
-> -	struct page_to_node *pp;
-> -	LIST_HEAD(pagelist);
->  
->  	down_read(&mm->mmap_sem);
+I'm happy to try test builds, etc.  For ease of reproduction if needed, an
+affected OS image:
 
-Holding mmap_sem for individual pages makes sense. Current
-implementation is holding it for an entire batch.
+https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/coreos_production_qemu_image.img.bz2
 
-> +	err = -EFAULT;
-> +	vma = find_vma(mm, addr);
-> +	if (!vma || addr < vma->vm_start || !vma_migratable(vma))
+and a wrapper script to start it with QEMU:
 
-While here, should not we add 'addr > vma->vm_end' into this condition ?
+https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/coreos_production_qemu.sh
 
-> +		goto out;
->  
-> -	/*
-> -	 * Build a list of pages to migrate
-> -	 */
-> -	for (pp = pm; pp->node != MAX_NUMNODES; pp++) {
-> -		struct vm_area_struct *vma;
-> -		struct page *page;
-> -		struct page *head;
-> -		unsigned int follflags;
-> -
-> -		err = -EFAULT;
-> -		vma = find_vma(mm, pp->addr);
-> -		if (!vma || pp->addr < vma->vm_start || !vma_migratable(vma))
-> -			goto set_status;
-> -
-> -		/* FOLL_DUMP to ignore special (like zero) pages */
-> -		follflags = FOLL_GET | FOLL_DUMP;
-> -		if (!thp_migration_supported())
-> -			follflags |= FOLL_SPLIT;
-> -		page = follow_page(vma, pp->addr, follflags);
-> +	/* FOLL_DUMP to ignore special (like zero) pages */
-> +	follflags = FOLL_GET | FOLL_DUMP;
-> +	if (!thp_migration_supported())
-> +		follflags |= FOLL_SPLIT;
-> +	page = follow_page(vma, addr, follflags);
->  
-> -		err = PTR_ERR(page);
-> -		if (IS_ERR(page))
-> -			goto set_status;
-> +	err = PTR_ERR(page);
-> +	if (IS_ERR(page))
-> +		goto out;
->  
-> -		err = -ENOENT;
-> -		if (!page)
-> -			goto set_status;
-> +	err = -ENOENT;
-> +	if (!page)
-> +		goto out;
->  
-> -		err = page_to_nid(page);
-> +	err = 0;
-> +	if (page_to_nid(page) == node)
-> +		goto out_putpage;
->  
-> -		if (err == pp->node)
-> -			/*
-> -			 * Node already in the right place
-> -			 */
-> -			goto put_and_set;
-> +	err = -EACCES;
-> +	if (page_mapcount(page) > 1 &&
-> +			!migrate_all)
-> +		goto out_putpage;
->  
-> -		err = -EACCES;
-> -		if (page_mapcount(page) > 1 &&
-> -				!migrate_all)
-> -			goto put_and_set;
-> -
-> -		if (PageHuge(page)) {
-> -			if (PageHead(page)) {
-> -				isolate_huge_page(page, &pagelist);
-> -				err = 0;
-> -				pp->page = page;
-> -			}
-> -			goto put_and_set;
-> +	if (PageHuge(page)) {
-> +		if (PageHead(page)) {
-> +			isolate_huge_page(page, pagelist);
-> +			err = 0;
->  		}
-> +	} else {
-> +		struct page *head;
->  
-> -		pp->page = compound_head(page);
->  		head = compound_head(page);
->  		err = isolate_lru_page(head);
-> -		if (!err) {
-> -			list_add_tail(&head->lru, &pagelist);
-> -			mod_node_page_state(page_pgdat(head),
-> -				NR_ISOLATED_ANON + page_is_file_cache(head),
-> -				hpage_nr_pages(head));
-> -		}
-> -put_and_set:
-> -		/*
-> -		 * Either remove the duplicate refcount from
-> -		 * isolate_lru_page() or drop the page ref if it was
-> -		 * not isolated.
-> -		 */
-> -		put_page(page);
-> -set_status:
-> -		pp->status = err;
-> -	}
-> -
-> -	err = 0;
-> -	if (!list_empty(&pagelist)) {
-> -		err = migrate_pages(&pagelist, new_page_node, NULL,
-> -				(unsigned long)pm, MIGRATE_SYNC, MR_SYSCALL);
->  		if (err)
-> -			putback_movable_pages(&pagelist);
-> -	}
-> +			goto out_putpage;
->  
-> +		err = 0;
-> +		list_add_tail(&head->lru, pagelist);
-> +		mod_node_page_state(page_pgdat(head),
-> +			NR_ISOLATED_ANON + page_is_file_cache(head),
-> +			hpage_nr_pages(head));
-> +	}
-> +out_putpage:
-> +	/*
-> +	 * Either remove the duplicate refcount from
-> +	 * isolate_lru_page() or drop the page ref if it was
-> +	 * not isolated.
-> +	 */
-> +	put_page(page);
-> +out:
->  	up_read(&mm->mmap_sem);
->  	return err;
->  }
-> @@ -1593,79 +1556,80 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
->  			 const int __user *nodes,
->  			 int __user *status, int flags)
->  {
-> -	struct page_to_node *pm;
-> -	unsigned long chunk_nr_pages;
-> -	unsigned long chunk_start;
-> -	int err;
-> -
-> -	err = -ENOMEM;
-> -	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
-> -	if (!pm)
-> -		goto out;
-> +	int chunk_node = NUMA_NO_NODE;
-> +	LIST_HEAD(pagelist);
-> +	int chunk_start, i;
-> +	int err = 0, err1;
+Get in with "ssh -p 2222 core@localhost".  Corresponding debug symbols:
 
-err init might not be required, its getting assigned to -EFAULT right away.
+https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/pkgs/sys-kernel/coreos-kernel-4.14.11.tbz2
+https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/pkgs/sys-kernel/coreos-modules-4.14.11.tbz2
 
->  
->  	migrate_prep();
->  
-> -	/*
-> -	 * Store a chunk of page_to_node array in a page,
-> -	 * but keep the last one as a marker
-> -	 */
-> -	chunk_nr_pages = (PAGE_SIZE / sizeof(struct page_to_node)) - 1;
-> -
-> -	for (chunk_start = 0;
-> -	     chunk_start < nr_pages;
-> -	     chunk_start += chunk_nr_pages) {
-> -		int j;
-> -
-> -		if (chunk_start + chunk_nr_pages > nr_pages)
-> -			chunk_nr_pages = nr_pages - chunk_start;
-> -
-> -		/* fill the chunk pm with addrs and nodes from user-space */
-> -		for (j = 0; j < chunk_nr_pages; j++) {
-> -			const void __user *p;
-> -			int node;
-> -
-> -			err = -EFAULT;
-> -			if (get_user(p, pages + j + chunk_start))
-> -				goto out_pm;
-> -			pm[j].addr = (unsigned long) p;
-> -
-> -			if (get_user(node, nodes + j + chunk_start))
-> -				goto out_pm;
-> -
-> -			err = -ENODEV;
-> -			if (node < 0 || node >= MAX_NUMNODES)
-> -				goto out_pm;
-> +	for (i = chunk_start = 0; i < nr_pages; i++) {
-> +		const void __user *p;
-> +		unsigned long addr;
-> +		int node;
->  
-> -			if (!node_state(node, N_MEMORY))
-> -				goto out_pm;
-> -
-> -			err = -EACCES;
-> -			if (!node_isset(node, task_nodes))
-> -				goto out_pm;
-> +		err = -EFAULT;
-> +		if (get_user(p, pages + i))
-> +			goto out_flush;
-> +		if (get_user(node, nodes + i))
-> +			goto out_flush;
-> +		addr = (unsigned long)p;
-> +
-> +		err = -ENODEV;
-> +		if (node < 0 || node >= MAX_NUMNODES)
-> +			goto out_flush;
-> +		if (!node_state(node, N_MEMORY))
-> +			goto out_flush;
->  
-> -			pm[j].node = node;
-> +		err = -EACCES;
-> +		if (!node_isset(node, task_nodes))
-> +			goto out_flush;
-> +
-> +		if (chunk_node == NUMA_NO_NODE) {
-> +			chunk_node = node;
-> +			chunk_start = i;
-> +		} else if (node != chunk_node) {
-> +			err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-> +			if (err)
-> +				goto out;
-> +			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-> +			if (err)
-> +				goto out;
-> +			chunk_start = i;
-> +			chunk_node = node;
->  		}
->  
-> -		/* End marker for this chunk */
-> -		pm[chunk_nr_pages].node = MAX_NUMNODES;
-> +		/*
-> +		 * Errors in the page lookup or isolation are not fatal and we simply
-> +		 * report them via status
-> +		 */
-> +		err = add_page_for_migration(mm, addr, chunk_node,
-> +				&pagelist, flags & MPOL_MF_MOVE_ALL);
-> +		if (!err)
-> +			continue;
->  
-> -		/* Migrate this chunk */
-> -		err = do_move_page_to_node_array(mm, pm,
-> -						 flags & MPOL_MF_MOVE_ALL);
-> -		if (err < 0)
-> -			goto out_pm;
-> +		err = store_status(status, i, err, 1);
-> +		if (err)
-> +			goto out_flush;
->  
-> -		/* Return status information */
-> -		for (j = 0; j < chunk_nr_pages; j++)
-> -			if (put_user(pm[j].status, status + j + chunk_start)) {
-> -				err = -EFAULT;
-> -				goto out_pm;
-> -			}
-> +		err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-> +		if (err)
-> +			goto out;
-> +		if (i > chunk_start) {
-> +			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-> +			if (err)
-> +				goto out;
-> +		}
-> +		chunk_node = NUMA_NO_NODE;
-
-This block of code is bit confusing.
-
-1) Why attempt to migrate when just one page could not be isolated ?
-2) 'i' is always greater than chunk_start except the starting page
-3) Why reset chunk_node as NUMA_NO_NODE ?
+--Benjamin Gilbert
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
