@@ -1,174 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B874A6B032D
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 04:52:15 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id s105so541392wrc.23
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 01:52:15 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t11si527117wrb.289.2018.01.03.01.52.14
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 167466B032F
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 04:54:11 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id p190so406982wmd.0
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 01:54:11 -0800 (PST)
+Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
+        by mx.google.com with ESMTPS id t2si597272edf.519.2018.01.03.01.54.09
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Wed, 03 Jan 2018 01:52:14 -0800 (PST)
-Date: Wed, 3 Jan 2018 10:52:11 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [RFC PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20180103095211.GC11319@dhcp22.suse.cz>
-References: <20171207143401.GK20234@dhcp22.suse.cz>
- <20171208161559.27313-1-mhocko@kernel.org>
- <20171208161559.27313-2-mhocko@kernel.org>
- <7dd106bd-460a-73a7-bae8-17ffe66a69ee@linux.vnet.ibm.com>
- <20180103085804.GA11319@dhcp22.suse.cz>
- <32bec0c9-60e2-0362-9446-feb4de1b119c@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jan 2018 01:54:09 -0800 (PST)
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 488C11C155E
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 09:54:09 +0000 (GMT)
+Date: Wed, 3 Jan 2018 09:54:08 +0000
+From: Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
+ operations
+Message-ID: <20180103095408.pqxggi7voser7ia3@techsingularity.net>
+References: <20171220012632.26840-1-ying.huang@intel.com>
+ <20171221021619.GA27475@bbox>
+ <871sjopllj.fsf@yhuang-dev.intel.com>
+ <20171221235813.GA29033@bbox>
+ <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+ <20171223013653.GB5279@bgram>
+ <20180102102103.mpah2ehglufwhzle@suse.de>
+ <20180102112955.GA29170@quack2.suse.cz>
+ <20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net>
+ <87o9mbixi0.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <32bec0c9-60e2-0362-9446-feb4de1b119c@linux.vnet.ibm.com>
+In-Reply-To: <87o9mbixi0.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: linux-mm@kvack.org, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrew Morton <akpm@linux-foundation.org>, Andrea Reale <ar@linux.vnet.ibm.com>, LKML <linux-kernel@vger.kernel.org>
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On Wed 03-01-18 15:06:49, Anshuman Khandual wrote:
-> On 01/03/2018 02:28 PM, Michal Hocko wrote:
-> > On Wed 03-01-18 14:12:17, Anshuman Khandual wrote:
-> >> On 12/08/2017 09:45 PM, Michal Hocko wrote:
-[...]
-> >>> @@ -1593,79 +1556,80 @@ static int do_pages_move(struct mm_struct *mm, nodemask_t task_nodes,
-> >>>  			 const int __user *nodes,
-> >>>  			 int __user *status, int flags)
-> >>>  {
-> >>> -	struct page_to_node *pm;
-> >>> -	unsigned long chunk_nr_pages;
-> >>> -	unsigned long chunk_start;
-> >>> -	int err;
-> >>> -
-> >>> -	err = -ENOMEM;
-> >>> -	pm = (struct page_to_node *)__get_free_page(GFP_KERNEL);
-> >>> -	if (!pm)
-> >>> -		goto out;
-> >>> +	int chunk_node = NUMA_NO_NODE;
-> >>> +	LIST_HEAD(pagelist);
-> >>> +	int chunk_start, i;
-> >>> +	int err = 0, err1;
-> >>
-> >> err init might not be required, its getting assigned to -EFAULT right away.
-> > 
-> > No, nr_pages might be 0 AFAICS.
+On Wed, Jan 03, 2018 at 08:42:15AM +0800, Huang, Ying wrote:
+> Mel Gorman <mgorman@techsingularity.net> writes:
 > 
-> Right but there is another err = 0 after the for loop.
-
-No we have 
-out_flush:
-	/* Make sure we do not overwrite the existing error */
-	err1 = do_move_pages_to_node(mm, &pagelist, current_node);
-	if (!err1)
-		err1 = store_status(status, start, current_node, i - start);
-	if (!err)
-		err = err1;
-
-This is obviously not an act of beauty and probably a subject to a
-cleanup but I just wanted this thing to be working first. Further
-cleanups can go on top.
-
-> > [...]
-> >>> +		if (chunk_node == NUMA_NO_NODE) {
-> >>> +			chunk_node = node;
-> >>> +			chunk_start = i;
-> >>> +		} else if (node != chunk_node) {
-> >>> +			err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-> >>> +			if (err)
-> >>> +				goto out;
-> >>> +			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-> >>> +			if (err)
-> >>> +				goto out;
-> >>> +			chunk_start = i;
-> >>> +			chunk_node = node;
-> >>>  		}
+> > On Tue, Jan 02, 2018 at 12:29:55PM +0100, Jan Kara wrote:
+> >> On Tue 02-01-18 10:21:03, Mel Gorman wrote:
+> >> > On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
+> >> > > > code path.  It appears that similar situation is possible for them too.
+> >> > > > 
+> >> > > > The file cache pages will be delete from file cache address_space before
+> >> > > > address_space (embedded in inode) is freed.  But they will be deleted
+> >> > > > from LRU list only when its refcount dropped to zero, please take a look
+> >> > > > at put_page() and release_pages().  While address_space will be freed
+> >> > > > after putting reference to all file cache pages.  If someone holds a
+> >> > > > reference to a file cache page for quite long time, it is possible for a
+> >> > > > file cache page to be in LRU list after the inode/address_space is
+> >> > > > freed.
+> >> > > > 
+> >> > > > And I found inode/address_space is freed witch call_rcu().  I don't know
+> >> > > > whether this is related to page_mapping().
+> >> > > > 
+> >> > > > This is just my understanding.
+> >> > > 
+> >> > > Hmm, it smells like a bug of __isolate_lru_page.
+> >> > > 
+> >> > > Ccing Mel:
+> >> > > 
+> >> > > What locks protects address_space destroying when race happens between
+> >> > > inode trauncation and __isolate_lru_page?
+> >> > > 
+> >> > 
+> >> > I'm just back online and have a lot of catching up to do so this is a rushed
+> >> > answer and I didn't read the background of this. However the question is
+> >> > somewhat ambiguous and the scope is broad as I'm not sure which race you
+> >> > refer to. For file cache pages, I wouldnt' expect the address_space to be
+> >> > destroyed specifically as long as the inode exists which is the structure
+> >> > containing the address_space in this case. A page on the LRU being isolated
+> >> > in __isolate_lru_page will have an elevated reference count which will
+> >> > pin the inode until remove_mapping is called which holds the page lock
+> >> > while inode truncation looking at a page for truncation also only checks
+> >> > page_mapping under the page lock. Very broadly speaking, pages avoid being
+> >> > added back to an inode being freed by checking the I_FREEING state.
+> >> 
+> >> So I'm wondering what prevents the following:
+> >> 
+> >> CPU1						CPU2
+> >> 
+> >> truncate(inode)					__isolate_lru_page()
+> >>   ...
+> >>   truncate_inode_page(mapping, page);
+> >>     delete_from_page_cache(page)
+> >>       spin_lock_irqsave(&mapping->tree_lock, flags);
+> >>         __delete_from_page_cache(page, NULL)
+> >>           page_cache_tree_delete(..)
+> >>             ...					  mapping = page_mapping(page);
+> >>             page->mapping = NULL;
+> >>             ...
+> >>       spin_unlock_irqrestore(&mapping->tree_lock, flags);
+> >>       page_cache_free_page(mapping, page)
+> >>         put_page(page)
+> >>           if (put_page_testzero(page)) -> false
+> >> - inode now has no pages and can be freed including embedded address_space
+> >> 
+> >> 						  if (mapping && !mapping->a_ops->migratepage)
+> >> - we've dereferenced mapping which is potentially already free.
+> >> 
+> >
+> > Hmm, possible if unlikely.
+> >
+> > Before delete_from_page_cache, we called truncate_cleanup_page so the
+> > page is likely to be !PageDirty or PageWriteback which gets skipped by
+> > the only caller that checks the mappping in __isolate_lru_page. The race
+> > is tiny but it does exist. One way of closing it is to check the mapping
+> > under the page lock which will prevent races with truncation. The
+> > overhead is minimal as the calling context (compaction) is quite a heavy
+> > operation anyway.
+> >
 > 
-> [...]
+> I think another possible fix is to use call_rcu_sched() to free inode
+> (and address_space).  Because __isolate_lru_page() will be called with
+> LRU spinlock held and IRQ disabled, call_rcu_sched() will wait
+> LRU spin_unlock and IRQ enabled.
 > 
-> >>> +		err = do_move_pages_to_node(mm, &pagelist, chunk_node);
-> >>> +		if (err)
-> >>> +			goto out;
-> >>> +		if (i > chunk_start) {
-> >>> +			err = store_status(status, chunk_start, chunk_node, i - chunk_start);
-> >>> +			if (err)
-> >>> +				goto out;
-> >>> +		}
-> >>> +		chunk_node = NUMA_NO_NODE;
-> >>
-> >> This block of code is bit confusing.
-> > 
-> > I believe this is easier to grasp when looking at the resulting code.
-> >>
-> >> 1) Why attempt to migrate when just one page could not be isolated ?
-> >> 2) 'i' is always greater than chunk_start except the starting page
-> >> 3) Why reset chunk_node as NUMA_NO_NODE ?
-> > 
-> > This is all about flushing the pending state on an error and
-> > distinguising a fresh batch.
-> 
-> Okay. Will test it out on a multi node system once I get hold of one.
 
-Thanks. I have been testing this specific code path with the following
-simple test program and numactl -m0. The code is rather crude so I've
-always modified it manually to test different scenarios (this one keeps
-every 1k page on the node node to test batching.
----
-#include <sys/mman.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <errno.h>
-#include <numaif.h>
-
-int main()
-{
-        unsigned long nr_pages = 10000;
-        size_t length = nr_pages << 12, i;
-        unsigned char *addr = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
-        void *addrs[nr_pages];
-        int nodes[nr_pages];
-        int status[nr_pages];
-        char cmd[128];
-        char ch;
-
-        if (addr == MAP_FAILED)
-                return 1;
-
-        madvise(addr, length, MADV_NOHUGEPAGE);
-
-        for (i = 0; i < length; i += 4096)
-                addr[i] = 1;
-        for (i = 0; i < nr_pages; i++)
-        {
-                addrs[i] = &addr[i * 4096];
-                if (i%1024)
-                        nodes[i] = 1;
-                else
-                        nodes[i] = 0;
-                status[i] = 0;
-        }
-        snprintf(cmd, sizeof(cmd)-1, "grep %lx /proc/%d/numa_maps", addr, getpid());
-        system(cmd);
-        snprintf(cmd, sizeof(cmd)-1, "grep %lx -A20 /proc/%d/smaps", addr, getpid());
-        system(cmd);
-        read(0, &ch, 1);
-        if (move_pages(0, nr_pages, addrs, nodes, status, MPOL_MF_MOVE)) {
-                printf("move_pages: err:%d\n", errno);
-        }
-        snprintf(cmd, sizeof(cmd)-1, "grep %lx /proc/%d/numa_maps", addr, getpid());
-        system(cmd);
-        snprintf(cmd, sizeof(cmd)-1, "grep %lx -A20 /proc/%d/smaps", addr, getpid());
-        system(cmd);
-        return 0;
-}
-
----
+Maybe, but in this particular case, I would prefer to go with something
+more conventional unless there is strong evidence that it's an improvement
+(which I doubt in this case given the cost of migration overall and the
+corner case of migrating a dirty page).
 
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
 --
