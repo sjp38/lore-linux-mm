@@ -1,128 +1,175 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 222576B030B
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:46:05 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id a12so538835pll.21
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:46:05 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id h1sor136056pfa.31.2018.01.03.00.46.03
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7238C6B030D
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 03:54:32 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id 199so410525pgc.11
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 00:54:32 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id u6si428688pld.270.2018.01.03.00.54.30
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Jan 2018 00:46:03 -0800 (PST)
-Date: Wed, 3 Jan 2018 00:46:00 -0800
-From: Benjamin Gilbert <benjamin.gilbert@coreos.com>
-Subject: "bad pmd" errors + oops with KPTI on 4.14.11 after loading X.509
- certs
-Message-ID: <20180103084600.GA31648@trogon.sfo.coreos.systems>
-References: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jan 2018 00:54:31 -0800 (PST)
+Message-ID: <5A4C9ACF.2090000@intel.com>
+Date: Wed, 03 Jan 2018 16:56:47 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
+Subject: Re: [PATCH v20 3/7 RESEND] xbitmap: add more operations
+References: <1513823406-43632-1-git-send-email-wei.w.wang@intel.com> <20171221210327.GB25009@bombadil.infradead.org> <5A3CC707.9070708@intel.com> <20180102140906.GC8222@bombadil.infradead.org>
+In-Reply-To: <20180102140906.GC8222@bombadil.infradead.org>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: stable@vger.kernel.org, Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com, penguin-kernel@I-love.SAKURA.ne.jp
 
-[resending with less web]
+On 01/02/2018 10:09 PM, Matthew Wilcox wrote:
+> On Fri, Dec 22, 2017 at 04:49:11PM +0800, Wei Wang wrote:
+>> Thanks for the improvement. I also found a small bug in xb_zero. With the
+>> following changes, it has passed the current test cases and tested with the
+>> virtio-balloon usage without any issue.
+> Thanks; I applied the change.  Can you supply a test-case for testing
+> xb_zero please?
+>
 
-Hi all,
+Sure. Please check below the test cases. Do you plan to send out the new 
+version of xbitmap yourself? If so, I will wait for that to send out the 
+virtio-balloon patches.
 
-In our regression tests on kernel 4.14.11, we're occasionally seeing a run
-of "bad pmd" messages during boot, followed by a "BUG: unable to handle
-kernel paging request".  This happens on no more than a couple percent of
-boots, but we've seen it on AWS HVM, GCE, Oracle Cloud VMs, and local QEMU
-instances.  It always happens immediately after "Loading compiled-in X.509
-certificates".  I can't reproduce it on 4.14.10, nor, so far, on 4.14.11
-with pti=off.  Here's a sample backtrace:
 
-[    4.762964] Loading compiled-in X.509 certificates
-[    4.765620] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee000(800000007d6000e3)
-[    4.769099] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee008(800000007d8000e3)
-[    4.772479] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee010(800000007da000e3)
-[    4.775919] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee018(800000007dc000e3)
-[    4.779251] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee020(800000007de000e3)
-[    4.782558] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee028(800000007e0000e3)
-[    4.794160] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee030(800000007e2000e3)
-[    4.797525] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee038(800000007e4000e3)
-[    4.800776] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee040(800000007e6000e3)
-[    4.804100] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee048(800000007e8000e3)
-[    4.807437] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee050(800000007ea000e3)
-[    4.810729] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee058(800000007ec000e3)
-[    4.813989] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee060(800000007ee000e3)
-[    4.817294] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee068(800000007f0000e3)
-[    4.820713] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee070(800000007f2000e3)
-[    4.823943] ../source/mm/pgtable-generic.c:40: bad pmd ffff8b39bf7ee078(800000007f4000e3)
-[    4.827311] BUG: unable to handle kernel paging request at fffffe27c1fdfba0
-[    4.830109] IP: free_page_and_swap_cache+0x6/0xa0
-[    4.831999] PGD 7f7ef067 P4D 7f7ef067 PUD 0
-[    4.833779] Oops: 0000 [#1] SMP PTI
-[    4.835197] Modules linked in:
-[    4.836450] CPU: 0 PID: 45 Comm: modprobe Not tainted 4.14.11-coreos #1
-[    4.839009] Hardware name: Xen HVM domU, BIOS 4.2.amazon 08/24/2006
-[    4.841551] task: ffff8b39b5a71e40 task.stack: ffffb92580558000
-[    4.844062] RIP: 0010:free_page_and_swap_cache+0x6/0xa0
-[    4.846238] RSP: 0018:ffffb9258055bc98 EFLAGS: 00010297
-[    4.848300] RAX: 0000000000000000 RBX: fffffe27c0001000 RCX: ffff8b39bf7ef4f8
-[    4.851184] RDX: 000000000007f7ee RSI: fffffe27c1fdfb80 RDI: fffffe27c1fdfb80
-[    4.854090] RBP: ffff8b39bf7ee000 R08: 0000000000000000 R09: 0000000000000162
-[    4.856946] R10: ffffffffffffff90 R11: 0000000000000161 R12: fffffe27ffe00000
-[    4.859777] R13: ffff8b39bf7ef000 R14: fffffe2800000000 R15: ffffb9258055bd60
-[    4.862602] FS:  0000000000000000(0000) GS:ffff8b39bd200000(0000) knlGS:0000000000000000
-[    4.865860] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-[    4.868175] CR2: fffffe27c1fdfba0 CR3: 000000002d00a001 CR4: 00000000001606f0
-[    4.871162] Call Trace:
-[    4.872188]  free_pgd_range+0x3a5/0x5b0
-[    4.873781]  free_ldt_pgtables.part.2+0x60/0xa0
-[    4.875679]  ? arch_tlb_finish_mmu+0x42/0x70
-[    4.877476]  ? tlb_finish_mmu+0x1f/0x30
-[    4.878999]  exit_mmap+0x5b/0x1a0
-[    4.880327]  ? dput+0xb8/0x1e0
-[    4.881575]  ? hrtimer_try_to_cancel+0x25/0x110
-[    4.883388]  mmput+0x52/0x110
-[    4.884620]  do_exit+0x330/0xb10
-[    4.886044]  ? task_work_run+0x6b/0xa0
-[    4.887544]  do_group_exit+0x3c/0xa0
-[    4.889012]  SyS_exit_group+0x10/0x10
-[    4.890473]  entry_SYSCALL_64_fastpath+0x1a/0x7d
-[    4.892364] RIP: 0033:0x7f4a41d4ded9
-[    4.893812] RSP: 002b:00007ffe25d85708 EFLAGS: 00000246 ORIG_RAX: 00000000000000e7
-[    4.896974] RAX: ffffffffffffffda RBX: 00005601b3c9e2e0 RCX: 00007f4a41d4ded9
-[    4.899830] RDX: 0000000000000000 RSI: 0000000000000001 RDI: 0000000000000001
-[    4.902647] RBP: 00005601b3c9d0e8 R08: 000000000000003c R09: 00000000000000e7
-[    4.905743] R10: ffffffffffffff90 R11: 0000000000000246 R12: 00005601b3c9d090
-[    4.908659] R13: 0000000000000004 R14: 0000000000000001 R15: 00007ffe25d85828
-[    4.911495] Code: e0 01 48 83 f8 01 19 c0 25 01 fe ff ff 05 00 02 00 00 3e 29 43 1c 5b 5d 41 5c c3 66 2e 0f 1f 84 00 00 00 00 00 0f 1f 44 00 00 53 <48> 8b 57 20 48 89 fb 48 8d 42 ff 83 e2 01 48 0f 44 c7 48 8b 48
-[    4.919014] RIP: free_page_and_swap_cache+0x6/0xa0 RSP: ffffb9258055bc98
-[    4.921801] CR2: fffffe27c1fdfba0
-[    4.923232] ---[ end trace e79ccb938bf80a4e ]---
-[    4.925166] Kernel panic - not syncing: Fatal exception
-[    4.927390] Kernel Offset: 0x1c000000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+static void xbitmap_check_zero_bits(void)
+{
+         assert(xb_empty(&xb1));
 
-Traces were obtained via virtual serial port.  The backtrace varies a bit,
-as does the comm.
+         /* Zero an empty xbitmap should work though no real work to do */
+         xb_zero(&xb1, 0, ULONG_MAX);
+         assert(xb_empty(&xb1));
 
-The kernel config and a collection of backtraces are attached.  Our diff on
-top of vanilla 4.14.11 (unchanged from 4.14.10, and containing nothing
-especially relevant):
+         xb_preload(GFP_KERNEL);
+         assert(xb_set_bit(&xb1, 0) == 0);
+         xb_preload_end();
 
-https://github.com/coreos/linux/compare/v4.14.11...coreos:v4.14.11-coreos
+         /* Overflow test */
+         xb_zero(&xb1, ULONG_MAX - 10, ULONG_MAX);
+         assert(xb_test_bit(&xb1, 0));
 
-I'm happy to try test builds, etc.  For ease of reproduction if needed, an
-affected OS image:
+         xb_preload(GFP_KERNEL);
+         assert(xb_set_bit(&xb1, ULONG_MAX) == 0);
+         xb_preload_end();
 
-https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/coreos_production_qemu_image.img.bz2
+         xb_zero(&xb1, 0, ULONG_MAX);
+         assert(xb_empty(&xb1));
+}
 
-and a wrapper script to start it with QEMU:
 
-https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/coreos_production_qemu.sh
+/*
+  * In the following tests, preload is called once when all the bits to set
+  * locate in the same ida bitmap. Otherwise, it is recommended to call
+  * preload for each xb_set_bit.
+  */
+static void xbitmap_check_bit_range(void)
+{
+         unsigned long nbit = 0;
 
-Get in with "ssh -p 2222 core@localhost".  Corresponding debug symbols:
+         /* Regular test1: node = NULL */
+         xb_preload(GFP_KERNEL);
+         xb_set_bit(&xb1, 700);
+         xb_preload_end();
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
+         assert(nbit == 700);
+         nbit++;
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
+         assert(nbit == 701);
+         xb_zero(&xb1, 0, 1023);
 
-https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/pkgs/sys-kernel/coreos-kernel-4.14.11.tbz2
-https://storage.googleapis.com/builds.developer.core-os.net/boards/amd64-usr/1632.0.0%2Bjenkins2-master%2Blocal-999/pkgs/sys-kernel/coreos-modules-4.14.11.tbz2
+         /*
+          * Regular test2
+          * set bit 2000, 2001, 2040
+          * Next 1 in [0, 2048]          --> 2000
+          * Next 1 in [2000, 2002]       --> 2000
+          * Next 1 in [2002, 2040]       --> 2040
+          * Next 1 in [2002, 2039]       --> none
+          * Next 0 in [2000, 2048]       --> 2002
+          * Next 0 in [2048, 2060]       --> 2048
+          */
+         xb_preload(GFP_KERNEL);
+         assert(!xb_set_bit(&xb1, 2000));
+         assert(!xb_set_bit(&xb1, 2001));
+         assert(!xb_set_bit(&xb1, 2040));
+         nbit = 0;
+         assert(xb_find_set(&xb1, 2048, &nbit) == true);
+         assert(nbit == 2000);
+         assert(xb_find_set(&xb1, 2002, &nbit) == true);
+         assert(nbit == 2000);
+         nbit = 2002;
+         assert(xb_find_set(&xb1, 2040, &nbit) == true);
+         assert(nbit == 2040);
+         nbit = 2002;
+         assert(xb_find_set(&xb1, 2039, &nbit) == false);
+         assert(nbit == 2002);
+         nbit = 2000;
+         assert(xb_find_zero(&xb1, 2048, &nbit) == true);
+         assert(nbit == 2002);
+         nbit = 2048;
+         assert(xb_find_zero(&xb1, 2060, &nbit) == true);
+         assert(nbit == 2048);
+         xb_zero(&xb1, 0, 2048);
+         nbit = 0;
+         assert(xb_find_set(&xb1, 2048, &nbit) == false);
+         assert(nbit == 0);
+         xb_preload_end();
 
---Benjamin Gilbert
+         /*
+          * Overflow tests:
+          * Set bit 1 and ULONG_MAX - 4
+          * Next 1 in [0, ULONG_MAX]                     --> 1
+          * Next 1 in [1, ULONG_MAX]                     --> 1
+          * Next 1 in [2, ULONG_MAX]                     --> ULONG_MAX - 4
+          * Next 1 in [ULONG_MAX - 3, 2]                 --> none
+          * Next 0 in [ULONG_MAX - 4, ULONG_MAX]         --> ULONG_MAX - 3
+          * Zero [ULONG_MAX - 4, ULONG_MAX]
+          * Next 1 in [ULONG_MAX - 10, ULONG_MAX]        --> none
+          * Next 1 in [ULONG_MAX - 1, 2]                 --> none
+          * Zero [0, 1]
+          * Next 1 in [0, 2]                             --> none
+          */
+         xb_preload(GFP_KERNEL);
+         assert(!xb_set_bit(&xb1, 1));
+         xb_preload_end();
+         xb_preload(GFP_KERNEL);
+         assert(!xb_set_bit(&xb1, ULONG_MAX - 4));
+         nbit = 0;
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
+         assert(nbit == 1);
+         nbit = 1;
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
+         assert(nbit == 1);
+         nbit = 2;
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == true);
+         assert(nbit == ULONG_MAX - 4);
+         nbit++;
+         assert(xb_find_set(&xb1, 2, &nbit) == false);
+         assert(nbit == ULONG_MAX - 3);
+         nbit--;
+         assert(xb_find_zero(&xb1, ULONG_MAX, &nbit) == true);
+         assert(nbit == ULONG_MAX - 3);
+         xb_zero(&xb1, ULONG_MAX - 4, ULONG_MAX);
+         nbit = ULONG_MAX - 10;
+         assert(xb_find_set(&xb1, ULONG_MAX, &nbit) == false);
+         assert(nbit == ULONG_MAX - 10);
+         nbit = ULONG_MAX - 1;
+         assert(xb_find_set(&xb1, 2, &nbit) == false);
+         xb_zero(&xb1, 0, 1);
+         nbit = 0;
+         assert(xb_find_set(&xb1, 2, &nbit) == false);
+         assert(nbit == 0);
+         xb_preload_end();
+         assert(xb_empty(&xb1));
+}
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
