@@ -1,174 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id C641F6B02D5
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 19:24:25 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id y36so59836plh.10
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 16:24:25 -0800 (PST)
-Received: from lgeamrelo12.lge.com (LGEAMRELO12.lge.com. [156.147.23.52])
-        by mx.google.com with ESMTP id 70si33031729ple.267.2018.01.02.16.24.23
-        for <linux-mm@kvack.org>;
-        Tue, 02 Jan 2018 16:24:24 -0800 (PST)
-Date: Wed, 3 Jan 2018 09:24:22 +0900
-From: Minchan Kim <minchan@kernel.org>
-Subject: Re: [PATCH] mm for mmotm: Revert skip swap cache feture for
- synchronous device
-Message-ID: <20180103002422.GA20500@bbox>
-References: <1514508907-10039-1-git-send-email-minchan@kernel.org>
- <20180102132214.289b725cf00ac07d91e8f60b@linux-foundation.org>
- <1514932941.4018.12.camel@HansenPartnership.com>
- <20180102235606.GA19438@bbox>
- <1514938277.4018.18.camel@HansenPartnership.com>
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 607806B02D7
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 19:42:21 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id x1so84922plb.2
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 16:42:21 -0800 (PST)
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id l90si34657927pfj.49.2018.01.02.16.42.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 02 Jan 2018 16:42:20 -0800 (PST)
+From: "Huang\, Ying" <ying.huang@intel.com>
+Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
+References: <20171220012632.26840-1-ying.huang@intel.com>
+	<20171221021619.GA27475@bbox> <871sjopllj.fsf@yhuang-dev.intel.com>
+	<20171221235813.GA29033@bbox> <87r2rmj1d8.fsf@yhuang-dev.intel.com>
+	<20171223013653.GB5279@bgram>
+	<20180102102103.mpah2ehglufwhzle@suse.de>
+	<20180102112955.GA29170@quack2.suse.cz>
+	<20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net>
+Date: Wed, 03 Jan 2018 08:42:15 +0800
+In-Reply-To: <20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net> (Mel
+	Gorman's message of "Tue, 2 Jan 2018 13:29:08 +0000")
+Message-ID: <87o9mbixi0.fsf@yhuang-dev.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1514938277.4018.18.camel@HansenPartnership.com>
+Content-Type: text/plain; charset=ascii
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Bottomley <James.Bottomley@HansenPartnership.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, kernel-team <kernel-team@lge.com>, Christoph Hellwig <hch@lst.de>, Dan Williams <dan.j.williams@intel.com>, Ross Zwisler <ross.zwisler@linux.intel.com>, Hugh Dickins <hughd@google.com>, Ilya Dryomov <idryomov@gmail.com>, Jens Axboe <axboe@kernel.dk>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Huang Ying <ying.huang@intel.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
 
-On Tue, Jan 02, 2018 at 04:11:17PM -0800, James Bottomley wrote:
-> On Wed, 2018-01-03 at 08:56 +0900, Minchan Kim wrote:
-> > On Tue, Jan 02, 2018 at 02:42:21PM -0800, James Bottomley wrote:
-> > > 
-> > > On Tue, 2018-01-02 at 13:22 -0800, Andrew Morton wrote:
-> > > > 
-> > > > On Fri, 29 Dec 2017 09:55:07 +0900 Minchan Kim <minchan@kernel.or
-> > > > g>
-> > > > wrote:
-> > > > 
-> > > > > 
-> > > > > 
-> > > > > James reported a bug of swap paging-in for his testing and
-> > > > > found it
-> > > > > at rc5, soon to be -rc5.
-> > > > > 
-> > > > > Although we can fix the specific problem at the moment, it may
-> > > > > have other lurkig bugs so want to have one more cycle in -next
-> > > > > before merging.
-> > > > > 
-> > > > > This patchset reverts 23c47d2ada9f, 08fa93021d80, 8e31f339295f
-> > > > > completely
-> > > > > but 79b5f08fa34e partially because the swp_swap_info function
-> > > > > that
-> > > > > 79b5f08fa34e introduced is used by [1].
-> > > > 
-> > > > Gets a significant reject in do_swap_page().  Could you please
-> > > > take a
-> > > > look, redo against current mainline?
-> > > > 
-> > > > Or not.  We had a bug and James fixed it.  That's what -rc is
-> > > > for.  Why not fix the thing and proceed?
-> > > 
-> > > My main worry was lack of testing at -rc5, since the bug could
-> > > essentially be excited by pushing pages out to swap and then trying
-> > > to
-> > > access them again ... plus since one serious bug was discovered it
-> > > wouldn't be unusual for there to be others.  However, because of
-> > > the
-> > > IPT stuff, I think Linus is going to take 4.15 over a couple of
-> > > extra
-> > > -rc releases, so this is less of a problem.
-> > 
-> > Then, Here is right fix patch against current mainline.
-> > 
-> > 
-> > From 012bdb0774744455ab7aa8abd74c8b9ca1cdc009 Mon Sep 17 00:00:00
-> > 2001
-> > From: Minchan Kim <minchan@kernel.org>
-> > Date: Wed, 3 Jan 2018 08:25:15 +0900
-> > Subject: [PATCH] mm: release locked page in do_swap_page
-> > 
-> > James reported a bug of swap paging-in for his testing. It is that
-> > do_swap_page doesn't release locked page so system hang-up happens
-> > by deadlock of PG_locked.
-> > 
-> > It was introduced by [1] because I missed swap cache hit places to
-> > update swapcache variable to work well with other logics against
-> > swapcache in do_swap_page.
-> > 
-> > This patch fixes it.
-> > 
-> > [1] 0bcac06f27d7, mm, swap: skip swapcache for swapin of synchronous
-> > device
-> > 
-> > Link: http://lkml.kernel.org/r/<1514407817.4169.4.camel@HansenPartner
-> > ship.com>;
-> > Cc: Hugh Dickins <hughd@google.com>
-> > Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
-> > Cc: Huang Ying <ying.huang@intel.com>
-> > Debugged-by: James Bottomley <James.Bottomley@hansenpartnership.com>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  mm/memory.c | 10 ++++++++--
-> >  1 file changed, 8 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/memory.c b/mm/memory.c
-> > index ca5674cbaff2..793004608332 100644
-> > --- a/mm/memory.c
-> > +++ b/mm/memory.c
-> > @@ -2857,8 +2857,11 @@ int do_swap_page(struct vm_fault *vmf)
-> >  	int ret = 0;
-> >  	bool vma_readahead = swap_use_vma_readahead();
-> >  
-> > -	if (vma_readahead)
-> > +	if (vma_readahead) {
-> >  		page = swap_readahead_detect(vmf, &swap_ra);
-> > +		swapcache = page;
-> > +	}
-> > +
-> >  	if (!pte_unmap_same(vma->vm_mm, vmf->pmd, vmf->pte, vmf-
-> > >orig_pte)) {
-> >  		if (page)
-> >  			put_page(page);
-> > @@ -2889,9 +2892,12 @@ int do_swap_page(struct vm_fault *vmf)
-> >  
-> >  
-> >  	delayacct_set_flag(DELAYACCT_PF_SWAPIN);
-> > -	if (!page)
-> > +	if (!page) {
-> >  		page = lookup_swap_cache(entry, vma_readahead ? vma
-> > : NULL,
-> >  					 vmf->address);
-> > +		swapcache = page;
-> > +	}
-> > +
-> 
-> I've got to say I prefer my version.  The problem with the above is
+Mel Gorman <mgorman@techsingularity.net> writes:
 
-Unfortunately, it was not right fix because with synchronous device,
-we skip swapcache but your patch set the swapcache variable
-unconditionally. So, it doesn't work by below logic, IOW, it goes
-with out_page jump.
+> On Tue, Jan 02, 2018 at 12:29:55PM +0100, Jan Kara wrote:
+>> On Tue 02-01-18 10:21:03, Mel Gorman wrote:
+>> > On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
+>> > > > code path.  It appears that similar situation is possible for them too.
+>> > > > 
+>> > > > The file cache pages will be delete from file cache address_space before
+>> > > > address_space (embedded in inode) is freed.  But they will be deleted
+>> > > > from LRU list only when its refcount dropped to zero, please take a look
+>> > > > at put_page() and release_pages().  While address_space will be freed
+>> > > > after putting reference to all file cache pages.  If someone holds a
+>> > > > reference to a file cache page for quite long time, it is possible for a
+>> > > > file cache page to be in LRU list after the inode/address_space is
+>> > > > freed.
+>> > > > 
+>> > > > And I found inode/address_space is freed witch call_rcu().  I don't know
+>> > > > whether this is related to page_mapping().
+>> > > > 
+>> > > > This is just my understanding.
+>> > > 
+>> > > Hmm, it smells like a bug of __isolate_lru_page.
+>> > > 
+>> > > Ccing Mel:
+>> > > 
+>> > > What locks protects address_space destroying when race happens between
+>> > > inode trauncation and __isolate_lru_page?
+>> > > 
+>> > 
+>> > I'm just back online and have a lot of catching up to do so this is a rushed
+>> > answer and I didn't read the background of this. However the question is
+>> > somewhat ambiguous and the scope is broad as I'm not sure which race you
+>> > refer to. For file cache pages, I wouldnt' expect the address_space to be
+>> > destroyed specifically as long as the inode exists which is the structure
+>> > containing the address_space in this case. A page on the LRU being isolated
+>> > in __isolate_lru_page will have an elevated reference count which will
+>> > pin the inode until remove_mapping is called which holds the page lock
+>> > while inode truncation looking at a page for truncation also only checks
+>> > page_mapping under the page lock. Very broadly speaking, pages avoid being
+>> > added back to an inode being freed by checking the I_FREEING state.
+>> 
+>> So I'm wondering what prevents the following:
+>> 
+>> CPU1						CPU2
+>> 
+>> truncate(inode)					__isolate_lru_page()
+>>   ...
+>>   truncate_inode_page(mapping, page);
+>>     delete_from_page_cache(page)
+>>       spin_lock_irqsave(&mapping->tree_lock, flags);
+>>         __delete_from_page_cache(page, NULL)
+>>           page_cache_tree_delete(..)
+>>             ...					  mapping = page_mapping(page);
+>>             page->mapping = NULL;
+>>             ...
+>>       spin_unlock_irqrestore(&mapping->tree_lock, flags);
+>>       page_cache_free_page(mapping, page)
+>>         put_page(page)
+>>           if (put_page_testzero(page)) -> false
+>> - inode now has no pages and can be freed including embedded address_space
+>> 
+>> 						  if (mapping && !mapping->a_ops->migratepage)
+>> - we've dereferenced mapping which is potentially already free.
+>> 
+>
+> Hmm, possible if unlikely.
+>
+> Before delete_from_page_cache, we called truncate_cleanup_page so the
+> page is likely to be !PageDirty or PageWriteback which gets skipped by
+> the only caller that checks the mappping in __isolate_lru_page. The race
+> is tiny but it does exist. One way of closing it is to check the mapping
+> under the page lock which will prevent races with truncation. The
+> overhead is minimal as the calling context (compaction) is quite a heavy
+> operation anyway.
+>
 
-        /*
-         * Make sure try_to_free_swap or reuse_swap_page or swapoff did not
-         * release the swapcache from under us.  The page pin, and pte_same
-         * test below, are not enough to exclude that.  Even if it is still
-         * swapcache, we need to check that the page's swap has not changed.
-         */
-        if (unlikely((!PageSwapCache(page) ||
-                        page_private(page) != entry.val)) && swapcache)
-                goto out_page;
+I think another possible fix is to use call_rcu_sched() to free inode
+(and address_space).  Because __isolate_lru_page() will be called with
+LRU spinlock held and IRQ disabled, call_rcu_sched() will wait
+LRU spin_unlock and IRQ enabled.
 
+Best Regards,
+Huang, Ying
 
-> that if something else gets added to this path and forgets to set
-> swapcache = page you'll get the locked pages problem back.
-> 
-> Instead of setting swapcache to NULL at the top, don't set it until it
-> matters, which is just before the second if (!page).  It doesn't matter
-> before this because you're using it as a signal for the synchronous I/O
-> path, so why have a whole section of code where you invite people to
-> get it wrong for no benefit.
-> 
-
-Yub, it doesn't looks neat. But please see below patch I am planning
-to send to Andrew for current mmotm. It looks better because in the
-head of do_swap_page, we set swapcache unconditionally and others
-logic work well due to patchset vma-based readahead cleanup.
-
-If you don't against, I want to go my patch into current mainline
-and Andrew can apply below patch into current mmots.
-
-Thanks.
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
