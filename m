@@ -1,13 +1,13 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C1F226B02DE
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 21:10:40 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id 61so194710plz.1
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 18:10:40 -0800 (PST)
+	by kanga.kvack.org (Postfix) with ESMTP id 5DCA56B02E1
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 21:28:47 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id i7so207718plt.3
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 18:28:47 -0800 (PST)
 Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id o2si480761pll.585.2018.01.02.18.10.39
+        by mx.google.com with ESMTP id k33si28935pld.119.2018.01.02.18.28.45
         for <linux-mm@kvack.org>;
-        Tue, 02 Jan 2018 18:10:39 -0800 (PST)
+        Tue, 02 Jan 2018 18:28:46 -0800 (PST)
 Subject: Re: About the try to remove cross-release feature entirely by Ingo
 References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
  <20171229014736.GA10341@X58A-UD3R> <20171229035146.GA11757@thunk.org>
@@ -15,48 +15,73 @@ References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
  <20171230061624.GA27959@bombadil.infradead.org>
  <20171230154041.GB3366@thunk.org>
  <20171230204417.GF27959@bombadil.infradead.org>
- <20171230224028.GC3366@thunk.org>
+ <20171230224028.GC3366@thunk.org> <20171230230057.GB12995@thunk.org>
+ <20180101101855.GA23567@bombadil.infradead.org>
 From: Byungchul Park <byungchul.park@lge.com>
-Message-ID: <f2bc220a-a363-122a-dbf9-e5416c550899@lge.com>
-Date: Wed, 3 Jan 2018 11:10:37 +0900
+Message-ID: <06e73e69-9c78-07bc-3d06-a51accb2645b@lge.com>
+Date: Wed, 3 Jan 2018 11:28:44 +0900
 MIME-Version: 1.0
-In-Reply-To: <20171230224028.GC3366@thunk.org>
+In-Reply-To: <20180101101855.GA23567@bombadil.infradead.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
 
-On 12/31/2017 7:40 AM, Theodore Ts'o wrote:
-> On Sat, Dec 30, 2017 at 12:44:17PM -0800, Matthew Wilcox wrote:
+On 1/1/2018 7:18 PM, Matthew Wilcox wrote:
+> On Sat, Dec 30, 2017 at 06:00:57PM -0500, Theodore Ts'o wrote:
+>> On Sat, Dec 30, 2017 at 05:40:28PM -0500, Theodore Ts'o wrote:
+>>> On Sat, Dec 30, 2017 at 12:44:17PM -0800, Matthew Wilcox wrote:
+>>>>
+>>>> I'm not sure I agree with this part.  What if we add a new TCP lock class
+>>>> for connections which are used for filesystems/network block devices/...?
+>>>> Yes, it'll be up to each user to set the lockdep classification correctly,
+>>>> but that's a relatively small number of places to add annotations,
+>>>> and I don't see why it wouldn't work.
+>>>
+>>> I was exagerrating a bit for effect, I admit.  (but only a bit).
+> 
+> I feel like there's been rather too much of that recently.  Can we stick
+> to facts as far as possible, please?
+> 
+>>> It can probably be for all TCP connections that are used by kernel
+>>> code (as opposed to userspace-only TCP connections).  But it would
+>>> probably have to be each and every device-mapper instance, each and
+>>> every block device, each and every mounted file system, each and every
+>>> bdi object, etc.
 >>
->> I'm not sure I agree with this part.  What if we add a new TCP lock class
->> for connections which are used for filesystems/network block devices/...?
->> Yes, it'll be up to each user to set the lockdep classification correctly,
->> but that's a relatively small number of places to add annotations,
->> and I don't see why it wouldn't work.
+>> Clarification: all TCP connections that are used by kernel code would
+>> need to be in their own separate lock class.  All TCP connections used
+>> only by userspace could be in their own shared lock class.  You can't
+>> use a one lock class for all kernel-used TCP connections, because of
+>> the Network Block Device mounted on a local file system which is then
+>> exported via NFS and squirted out yet another TCP connection problem.
 > 
-> I was exagerrating a bit for effect, I admit.  (but only a bit).
+> So the false positive you're concerned about is write-comes-in-over-NFS
+> (with socket lock held), NFS sends a write request to local filesystem,
+> local filesystem sends write to block device, block device sends a
+> packet to a socket which takes that socket lock.
 > 
-> It can probably be for all TCP connections that are used by kernel
-> code (as opposed to userspace-only TCP connections).  But it would
-> probably have to be each and every device-mapper instance, each and
-> every block device, each and every mounted file system, each and every
-> bdi object, etc.
+> I don't think we need to be as drastic as giving each socket its own lock
+> class to solve this.  All NFS sockets can be in lock class A; all NBD
+> sockets can be in lock class B; all user sockets can be in lock class
+> C; etc.
 > 
-> The point I was trying to drive home is that "all we have to do is
-> just classify everything well or just invalidate the right lock
+>> Also, what to do with TCP connections which are created in userspace
+>> (with some authentication exchanges happening in userspace), and then
+>> passed into kernel space for use in kernel space, is an interesting
+>> question.
+> 
+> Yes!  I'd love to have a lockdep expert weigh in here.  I believe it's
+> legitimate to change a lock's class after it's been used, essentially
+> destroying it and reinitialising it.  If not, it should be because it's
+> a reasonable design for an object to need different lock classes for
+> different phases of its existance.
 
-Just to be sure, we don't have to invalidate lock objects at all but
-a problematic waiter only.
-
-> objects" is a massive understatement of the complexity level of what
-> would be required, or the number of locks/completion handlers that
-> would have to be blacklisted.
-> 
-> 						- Ted
-> 
+I also think it should be done ultimately. And I think it's very much
+hard since it requires to change the dependency graph of lockdep but
+anyway possible. It's up to lockdep maintainer's will though..
 
 -- 
 Thanks,
