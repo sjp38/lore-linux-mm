@@ -1,89 +1,95 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13B516B02F5
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 01:54:00 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id 31so429616plk.20
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 22:54:00 -0800 (PST)
-Received: from out4441.biz.mail.alibaba.com (out4441.biz.mail.alibaba.com. [47.88.44.41])
-        by mx.google.com with ESMTPS id 5si299400plx.384.2018.01.02.22.53.57
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3528F6B02F7
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 02:02:41 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id w196so283150oia.17
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 23:02:41 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k35si127424otc.104.2018.01.02.23.02.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 22:53:58 -0800 (PST)
-Content-Type: text/plain;
-	charset=gb2312
-Mime-Version: 1.0 (Mac OS X Mail 11.2 \(3445.5.20\))
-Subject: Re: [PATCH] mm/fadvise: discard partial pages iff endbyte is also eof
-From: "=?UTF-8?B?5aS35YiZKENhc3Bhcik=?=" <jinli.zjl@alibaba-inc.com>
-In-Reply-To: <1514002568-120457-1-git-send-email-shidao.ytt@alibaba-inc.com>
-Date: Wed, 03 Jan 2018 14:53:43 +0800
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <8DAEE48B-AD5D-4702-AB4B-7102DD837071@alibaba-inc.com>
-References: <1514002568-120457-1-git-send-email-shidao.ytt@alibaba-inc.com>
+        Tue, 02 Jan 2018 23:02:40 -0800 (PST)
+Date: Wed, 3 Jan 2018 01:02:38 -0600
+From: Pete Zaitcev <zaitcev@redhat.com>
+Subject: Re: kernel BUG at ./include/linux/mm.h:LINE! (3)
+Message-ID: <20180103010238.1e510ac2@lembas.zaitcev.lan>
+In-Reply-To: <20171229132420.jn2pwabl6pyjo6mk@node.shutemov.name>
+References: <20171228160346.6406d52df0d9afe8cf7a0862@linux-foundation.org>
+	<20171229132420.jn2pwabl6pyjo6mk@node.shutemov.name>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mgorman@techsingularity.net, Andrew Morton <akpm@linux-foundation.org>
-Cc: green@linuxhacker.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?5p2o5YuHKOaZuuW9uyk=?= <zhiche.yy@alibaba-inc.com>, =?UTF-8?B?5Y2B5YiA?= <shidao.ytt@alibaba-inc.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-usb@vger.kernel.org, zaitcev@redhat.com
 
+On Fri, 29 Dec 2017 16:24:20 +0300
+"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
 
+> Looks like MON_IOCT_RING_SIZE reallocates ring buffer without any
+> serialization wrt mon_bin_vma_fault(). By the time of get_page() the page
+> may be freed.
 
-> =D4=DA 2017=C4=EA12=D4=C223=C8=D5=A3=AC12:16=A3=AC=CA=AE=B5=B6 =
-<shidao.ytt@alibaba-inc.com> =D0=B4=B5=C0=A3=BA
->=20
-> From: "shidao.ytt" <shidao.ytt@alibaba-inc.com>
->=20
-> in commit 441c228f817f7 ("mm: fadvise: document the
-> fadvise(FADV_DONTNEED) behaviour for partial pages") Mel Gorman
-> explained why partial pages should be preserved instead of discarded
-> when using fadvise(FADV_DONTNEED), however the actual codes to =
-calcuate
-> end_index was unexpectedly wrong, the code behavior didn't match to =
-the
-> statement in comments; Luckily in another commit 18aba41cbf
-> ("mm/fadvise.c: do not discard partial pages with =
-POSIX_FADV_DONTNEED")
-> Oleg Drokin fixed this behavior
->=20
-> Here I come up with a new idea that actually we can still discard the
-> last parital page iff the page-unaligned endbyte is also the end of
-> file, since no one else will use the rest of the page and it should be
-> safe enough to discard.
+Okay. Who knew that you could fork while holding an open descriptor. :-)
 
-+akpm...
+> The patch below seems help the crash to go away, but I *think* more work
+> is required. For instance, after ring buffer reallocation the old pages
+> will stay mapped. Nothing pulls them.
 
-Hi Mel, Andrew:
+You know, this bothered me all these years too, but I was assured
+back in the day (as much as I can remember), that doing get_page()
+in the .fault() is just the right thing. In my defense, you can
+see other drivers doing it, such as:
 
-Would you please take a look at this patch, to see if this proposal
-is reasonable enough, thanks in advance!
+./drivers/char/agp/alpha-agp.c
+./drivers/hsi/clients/cmt_speech.c
 
-Thanks,
-Caspar
+I'd appreciate insight from someone who knows how VM subsystem works.
 
->=20
-> Signed-off-by: shidao.ytt <shidao.ytt@alibaba-inc.com>
-> Signed-off-by: Caspar Zhang <jinli.zjl@alibaba-inc.com>
-> ---
-> mm/fadvise.c | 3 ++-
-> 1 file changed, 2 insertions(+), 1 deletion(-)
->=20
-> diff --git a/mm/fadvise.c b/mm/fadvise.c
-> index ec70d6e..f74b21e 100644
-> --- a/mm/fadvise.c
-> +++ b/mm/fadvise.c
-> @@ -127,7 +127,8 @@
-> 		 */
-> 		start_index =3D (offset+(PAGE_SIZE-1)) >> PAGE_SHIFT;
-> 		end_index =3D (endbyte >> PAGE_SHIFT);
-> -		if ((endbyte & ~PAGE_MASK) !=3D ~PAGE_MASK) {
-> +		if ((endbyte & ~PAGE_MASK) !=3D ~PAGE_MASK &&
-> +				endbyte !=3D inode->i_size - 1) {
-> 			/* First page is tricky as 0 - 1 =3D -1, but =
-pgoff_t
-> 			 * is unsigned, so the end_index >=3D =
-start_index
-> 			 * check below would be true and we'll discard =
-the whole
-> --=20
-> 1.8.3.1
+Now, about the code:
+
+> diff --git a/drivers/usb/mon/mon_bin.c b/drivers/usb/mon/mon_bin.c
+> index f6ae753ab99b..ac168fecf04f 100644
+> --- a/drivers/usb/mon/mon_bin.c
+> +++ b/drivers/usb/mon/mon_bin.c
+> @@ -1228,15 +1228,24 @@ static void mon_bin_vma_close(struct vm_area_struct *vma)
+>  static int mon_bin_vma_fault(struct vm_fault *vmf)
+>  {
+>  	struct mon_reader_bin *rp = vmf->vma->vm_private_data;
+> -	unsigned long offset, chunk_idx;
+> +	unsigned long offset, chunk_idx, flags;
+>  	struct page *pageptr;
+>  
+> +	mutex_lock(&rp->fetch_lock);
+> +	spin_lock_irqsave(&rp->b_lock, flags);
+>  	offset = vmf->pgoff << PAGE_SHIFT;
+> -	if (offset >= rp->b_size)
+> +	if (offset >= rp->b_size) {
+> +		spin_unlock_irqrestore(&rp->b_lock, flags);
+> +		mutex_unlock(&rp->fetch_lock);
+>  		return VM_FAULT_SIGBUS;
+> +	}
+>  	chunk_idx = offset / CHUNK_SIZE;
+> +
+>  	pageptr = rp->b_vec[chunk_idx].pg;
+>  	get_page(pageptr);
+> +	spin_unlock_irqrestore(&rp->b_lock, flags);
+> +	mutex_unlock(&rp->fetch_lock);
+> +
+>  	vmf->page = pageptr;
+>  	return 0;
+>  }
+
+I think that grabbing the spinlock is not really necessary in
+this case. The ->b_lock is designed for things that are accessed
+from interrupts that Host Controller Driver serves -- mostly
+various pointers. By defintion it's not covering things that
+are related to re-allocation. Now, the re-allocation itself
+grabs it, because it resets indexes into the new buffer, but
+does not appear to apply here, does it now?
+
+-- Pete
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
