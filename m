@@ -1,118 +1,133 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E0836B02DB
-	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 20:57:16 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id f7so143071pfa.21
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 17:57:16 -0800 (PST)
-Received: from lgeamrelo11.lge.com (LGEAMRELO11.lge.com. [156.147.23.51])
-        by mx.google.com with ESMTP id n74si261985pfi.305.2018.01.02.17.57.13
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4CF906B02DD
+	for <linux-mm@kvack.org>; Tue,  2 Jan 2018 21:10:39 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id v25so162076pfg.14
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 18:10:39 -0800 (PST)
+Received: from lgeamrelo13.lge.com (LGEAMRELO13.lge.com. [156.147.23.53])
+        by mx.google.com with ESMTP id u17si34728140plj.625.2018.01.02.18.10.35
         for <linux-mm@kvack.org>;
-        Tue, 02 Jan 2018 17:57:14 -0800 (PST)
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
- <20171229014736.GA10341@X58A-UD3R> <20171229035146.GA11757@thunk.org>
- <20171229072851.GA12235@X58A-UD3R>
- <20171230061624.GA27959@bombadil.infradead.org>
- <20171230154041.GB3366@thunk.org>
-From: Byungchul Park <byungchul.park@lge.com>
-Message-ID: <c32eb67d-8dc1-2e0a-e359-6f9fb3353906@lge.com>
-Date: Wed, 3 Jan 2018 10:57:11 +0900
+        Tue, 02 Jan 2018 18:10:36 -0800 (PST)
+Date: Wed, 3 Jan 2018 11:11:29 +0900
+From: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+Subject: Re: ACPI issues on cold power on [bisected]
+Message-ID: <20180103021129.GB26517@js1304-P5Q-DELUXE>
+References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
+ <20171222002108.GB1729@js1304-P5Q-DELUXE>
+ <20171229163659.c5ccfvww4ebvyz54@earth.li>
+ <20180102025417.GA20740@js1304-P5Q-DELUXE>
+ <CAJZ5v0hSkEvmcubFzW03COW0f1TwB6W1d7vwJoF9qpJJ6Jc5JQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20171230154041.GB3366@thunk.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0hSkEvmcubFzW03COW0f1TwB6W1d7vwJoF9qpJJ6Jc5JQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Theodore Ts'o <tytso@mit.edu>, Matthew Wilcox <willy@infradead.org>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Jonathan McDowell <noodles@earth.li>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, netdev@vger.kernel.org
 
-On 12/31/2017 12:40 AM, Theodore Ts'o wrote:
-> On Fri, Dec 29, 2017 at 10:16:24PM -0800, Matthew Wilcox wrote:
->>
->> I disagree here.  As Ted says, it's the interactions between the
->> subsystems that leads to problems.  Everything's goig to work great
->> until somebody does something in a way that's never been tried before.
+On Tue, Jan 02, 2018 at 11:25:01AM +0100, Rafael J. Wysocki wrote:
+> On Tue, Jan 2, 2018 at 3:54 AM, Joonsoo Kim <iamjoonsoo.kim@lge.com> wrote:
+> > On Fri, Dec 29, 2017 at 04:36:59PM +0000, Jonathan McDowell wrote:
+> >> On Fri, Dec 22, 2017 at 09:21:09AM +0900, Joonsoo Kim wrote:
+> >> > On Fri, Dec 08, 2017 at 03:11:59PM +0000, Jonathan McDowell wrote:
+> >> > > I've been sitting on this for a while and should have spent time to
+> >> > > investigate sooner, but it's been an odd failure mode that wasn't quite
+> >> > > obvious.
+> >> > >
+> >> > > In 4.9 if I cold power on my laptop (Dell E7240) it fails to boot - I
+> >> > > don't see anything after grub says its booting. In 4.10 onwards the
+> >> > > laptop boots, but I get an Oops as part of the boot and ACPI is unhappy
+> >> > > (no suspend, no clean poweroff, no ACPI buttons). The Oops is below;
+> >> > > taken from 4.12 as that's the most recent error dmesg I have saved but
+> >> > > also seen back in 4.10. It's always address 0x30 for the dereference.
+> >> > >
+> >> > > Rebooting the laptop does not lead to these problems; it's *only* from a
+> >> > > complete cold boot that they arise (which didn't help me in terms of
+> >> > > being able to reliably bisect). Once I realised that I was able to
+> >> > > bisect, but it leads me to an odd commit:
+> >> > >
+> >> > > 86d9f48534e800e4d62cdc1b5aaf539f4c1d47d6
+> >> > > (mm/slab: fix kmemcg cache creation delayed issue)
+> >> > >
+> >> > > If I revert this then I can cold boot without problems.
+> >> > >
+> >> > > Also I don't see the problem with a stock Debian kernel, I think because
+> >> > > the ACPI support is modularised.
+> >> >
+> >> > Sorry for late response. I was on a long vacation.
+> >>
+> >> No problem. I've been trying to get around to diagnosing this for a
+> >> while now anyway and this isn't a great time of year for fast responses.
+> >>
+> >> > I have tried to solve the problem however I don't find any clue yet.
+> >> >
+> >> > >From my analysis, oops report shows that 'struct sock *ssk' passed to
+> >> > netlink_broadcast_filtered() is NULL. It means that some of
+> >> > netlink_kernel_create() returns NULL. Maybe, it is due to slab
+> >> > allocation failure. Could you check it by inserting some log on that
+> >> > part? The issue cannot be reproducible in my side so I need your help.
+> >>
+> >> I've added some debug in acpi_bus_generate_netlink_event +
+> >> genlmsg_multicast and the problem seems to be that genlmsg_multicast is
+> >> getting called when init_net.genl_sock has not yet been initialised,
+> >> leading to the NULL deference.
+> >>
+> >> Full dmesg output from a cold 4.14.8 boot at:
+> >>
+> >> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-broken
+> >>
+> >> And the same kernel after a reboot ("shutdown -r now"):
+> >>
+> >> https://the.earth.li/~noodles/acpi-problem/dmesg-4.14.8-working
+> >>
+> >> Patch that I've applied is at
+> >>
+> >> https://the.earth.li/~noodles/acpi-problem/debug-acpi.diff
+> >>
+> >
+> > Thanks for testing! It's very helpful.
+> >
+> >> The interesting difference seems to be:
+> >>
+> >>  PCI: Using ACPI for IRQ routing
+> >> +ACPI: Generating event type 208 (:9DBB5994-A997-11DA-B012-B622A1EF5492)
+> >> +ERROR: init_net.genl_sock is NULL
+> >> +BUG: unable to handle kernel NULL pointer dereference at 0000000000000030
+> >> +IP: netlink_broadcast_filtered+0x20/0x3d0
+> >> +PGD 0 P4D 0
+> >> +Oops: 0000 [#1] SMP
+> >> +Modules linked in:
+> >> +CPU: 0 PID: 29 Comm: kworker/0:1 Not tainted 4.14.8+ #1
+> >> +Hardware name: Dell Inc. Latitude E7240/07RPNV, BIOS A22 10/18/2017
+> >> +Workqueue: kacpi_notify acpi_os_execute_deferred
+> >>
+> >> 9DBB5994-A997-11DA-B012-B622A1EF5492 is the Dell WMI event GUID and
+> >> there's no visible event for it on a reboot, just on a cold power on.
+> >> Some sort of ordering issues such that genl_sock is being initialised
+> >> later with the slab change?
+> >
+> > I have checked that there is an ordering issue.
+> >
+> > genl_init() which initializes init_net->genl_sock is called on
+> > subsys_initcall().
+> >
+> > acpi_wmi_init() which schedules acpi_wmi_notify_handler() to the
+> > workqueue is called on subsys_initcall(), too.
+> > (acpi_wmi_notify_handler() -> acpi_bus_generate_netlink_event() ->
+> > netlink_broadcast())
+> >
+> > In my system, acpi_wmi_init() is called before the genl_init().
+> > Therefore, if the worker is scheduled before genl_init() is done, NULL
+> > derefence would happen.
 > 
-> The question what is classified *well* mean?  At the extreme, we could
-> put the locks for every single TCP connection into their own lockdep
-> class.  But that would blow the limits in terms of the number of locks
-> out of the water super-quickly --- and it would destroy the ability
-> for lockdep to learn what the proper locking order should be.  Yet
-> given Lockdep's current implementation, the only way to guarantee that
-> there won't be any interactions between subsystems that cause false
-> positives would be to categorizes locks for each TCP connection into
-> their own class.
-> 
-> So this is why I get a little annoyed when you say, "it's just a
-> matter of classification".  NO IT IS NOT.  We can not possibly
-> classify things "correctly" to completely limit false positives
-> without completely destroying lockdep's scalability as it is currently
+> Does it help to change the subsys_initcall() in wmi.c to subsys_initcall_sync()?
 
-You seem to admit that it can be solved by proper classification but
-say that it's *not realistic* because of the limitation of lockdep.
+I guess that it would work. I cannot reproduce the issue so it needs
+to be checked by Jonathan. Jonathan, could you check the problem
+is disappeared with above change?
 
-Right?
-
-I've agreed with you for that point. I also think it's very hard to
-do it because of the lockdep design and the only way might be to fix
-lockdep fundamentally, that may be the one we should do ultimately.
-
-Is it the best decision to keep it removed until lockdep get fixed
-fundamentally? If I believe it were, I would have kept quiet. But, I
-don't think so. Almost other users had already gotten benifit from
-it except the special case.
-
-And it would be appriciated if you remind that I suggested 3 methods
-+ 1 (by Amir) before for that reason.
-
-I don't want to force it forward but just want the facts to be shared.
-I felt like I failed it because of the lack of explanation.
-
-> As far as the "just invalidate the waiter", the problem is that it
-> requires source level changes to invalidate the waiter, and for
-
-Or, no change is needed if we adopt the (4)th option (by Amir), in
-which we keep waiters invalidated by default and validate waiters
-explicitly only when it needs.
-
-> different use cases, we will need to validate different waiters.  For
-> example, in the example I gave, we would have to invalidate *all* TCP
-> waiters/locks in order to prevent false positives.  But that makes the
-
-No. Only invalidating waiters is enough. For now, the waiter in
-submit_bio_wait() is the only one to invalidate.
-
-> lockdep useless for all TCP locks.  What's the solution?  I claim that
-
-Even if we invalidate waiters, TCP locks can still work with lockdep.
-Invalidating waiters *never* affect lockdep checking for typical locks
-at all.
-
-> The only way it can work is to either dump it on the reposibility of
-> the people debugging lockdep reports to make source level changes to
-> other subsystems which they aren't the maintainers of to suppress
-> false positives that arise due to how the subsystems are being used
-> together in their particular configuration ---- or you can try to
-
-You seem to misunderstand it a lot.. The only thing we have to is to
-use init_completion_nomap() instead of init_completion() for the
-problematic completion object. So far, the completion in
-submit_bio_wait() has been the only one.
-
-If you belive that we have a lot of problematic completions(waiters)
-so that we cannot handle it, the (4) by Amir can be an option.
-
-Just to be sure, there were several false positives by cross-release.
-Something was due to confliction between manual acquire()s added
-before and automatic cross-release, both of which are for detecting
-deadlocks by a specific completion(waiter). Or, something was solved
-by classifying locks properly simply. And this case of
-submit_bio_wait() is the first case that we cannot classify locks
-simply and need to consider other options.
-
--- 
-Thanks,
-Byungchul
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
