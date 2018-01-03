@@ -1,96 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E2D46B0383
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 15:15:17 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id a141so991397wma.8
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 12:15:17 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id i10si1233858wre.295.2018.01.03.12.15.16
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 383326B0384
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 15:33:19 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id x1so1400288plb.2
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 12:33:19 -0800 (PST)
+Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
+        by mx.google.com with ESMTPS id f3si1038950pgn.718.2018.01.03.12.33.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 12:15:16 -0800 (PST)
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Subject: [PATCH 4.9 34/39] x86/paravirt: Dont patch flush_tlb_single
-Date: Wed,  3 Jan 2018 21:11:48 +0100
-Message-Id: <20180103195105.513955700@linuxfoundation.org>
-In-Reply-To: <20180103195104.066528044@linuxfoundation.org>
-References: <20180103195104.066528044@linuxfoundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 03 Jan 2018 12:33:18 -0800 (PST)
+Date: Wed, 3 Jan 2018 12:33:03 -0800
+From: Matthew Wilcox <willy@infradead.org>
+Subject: Re: [RFC] Heuristic for inode/dentry fragmentation prevention
+Message-ID: <20180103203303.GA3228@bombadil.infradead.org>
+References: <alpine.DEB.2.20.1801031332230.10522@nuc-kabylake>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <alpine.DEB.2.20.1801031332230.10522@nuc-kabylake>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, stable@vger.kernel.org, Thomas Gleixner <tglx@linutronix.de>, Josh Poimboeuf <jpoimboe@redhat.com>, Juergen Gross <jgross@suse.com>, Peter Zijlstra <peterz@infradead.org>, Andy Lutomirski <luto@kernel.org>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, Borislav Petkov <bp@alien8.de>, Borislav Petkov <bpetkov@suse.de>, Brian Gerst <brgerst@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Dave Hansen <dave.hansen@linux.intel.com>, David Laight <David.Laight@aculab.com>, Denys Vlasenko <dvlasenk@redhat.com>, Eduardo Valentin <eduval@amazon.com>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Rik van Riel <riel@redhat.com>, Will Deacon <will.deacon@arm.com>, aliguori@amazon.com, daniel.gruss@iaik.tugraz.at, hughd@google.com, keescook@google.com, linux-mm@kvack.org, michael.schwarz@iaik.tugraz.at, moritz.lipp@iaik.tugraz.at, richard.fellner@student.tugraz.at, Ingo Molnar <mingo@kernel.org>, Borislav Petkov <bp@suse.de>
+To: Christopher Lameter <cl@linux.com>
+Cc: Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, Pekka Enberg <penberg@cs.helsinki.fi>
 
-4.9-stable review patch.  If anyone has any objections, please let me know.
+On Wed, Jan 03, 2018 at 01:39:27PM -0600, Christopher Lameter wrote:
+> +/* How many objects left in slab page */
+> +unsigned kobjects_left_in_slab_page(const void *object)
+> +{
+> +	struct page *page;
+> +
+> +	if (unlikely(ZERO_OR_NULL_PTR(object)))
+> +		return 0;
+> +
+> +	page = virt_to_head_page(object);
+> +
+> +	if (unlikely(!PageSlab(page))) {
+> +		WARN_ON(1);
+> +		return 1;
+> +	}
 
-------------------
+I see this construct all over the kernel.  Here's a better one:
 
-From: Thomas Gleixner <tglx@linutronix.de>
+	if (WARN_ON(!PageSlab(page)))
+		return 1;
 
-
-commit a035795499ca1c2bd1928808d1a156eda1420383 upstream
-
-native_flush_tlb_single() will be changed with the upcoming
-PAGE_TABLE_ISOLATION feature. This requires to have more code in
-there than INVLPG.
-
-Remove the paravirt patching for it.
-
-Signed-off-by: Thomas Gleixner <tglx@linutronix.de>
-Reviewed-by: Josh Poimboeuf <jpoimboe@redhat.com>
-Reviewed-by: Juergen Gross <jgross@suse.com>
-Acked-by: Peter Zijlstra <peterz@infradead.org>
-Cc: Andy Lutomirski <luto@kernel.org>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Borislav Petkov <bpetkov@suse.de>
-Cc: Brian Gerst <brgerst@gmail.com>
-Cc: Dave Hansen <dave.hansen@intel.com>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: David Laight <David.Laight@aculab.com>
-Cc: Denys Vlasenko <dvlasenk@redhat.com>
-Cc: Eduardo Valentin <eduval@amazon.com>
-Cc: Greg KH <gregkh@linuxfoundation.org>
-Cc: H. Peter Anvin <hpa@zytor.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Will Deacon <will.deacon@arm.com>
-Cc: aliguori@amazon.com
-Cc: daniel.gruss@iaik.tugraz.at
-Cc: hughd@google.com
-Cc: keescook@google.com
-Cc: linux-mm@kvack.org
-Cc: michael.schwarz@iaik.tugraz.at
-Cc: moritz.lipp@iaik.tugraz.at
-Cc: richard.fellner@student.tugraz.at
-Link: https://lkml.kernel.org/r/20171204150606.828111617@linutronix.de
-Signed-off-by: Ingo Molnar <mingo@kernel.org>
-Acked-by: Borislav Petkov <bp@suse.de>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
- arch/x86/kernel/paravirt_patch_64.c |    2 --
- 1 file changed, 2 deletions(-)
-
---- a/arch/x86/kernel/paravirt_patch_64.c
-+++ b/arch/x86/kernel/paravirt_patch_64.c
-@@ -9,7 +9,6 @@ DEF_NATIVE(pv_irq_ops, save_fl, "pushfq;
- DEF_NATIVE(pv_mmu_ops, read_cr2, "movq %cr2, %rax");
- DEF_NATIVE(pv_mmu_ops, read_cr3, "movq %cr3, %rax");
- DEF_NATIVE(pv_mmu_ops, write_cr3, "movq %rdi, %cr3");
--DEF_NATIVE(pv_mmu_ops, flush_tlb_single, "invlpg (%rdi)");
- DEF_NATIVE(pv_cpu_ops, clts, "clts");
- DEF_NATIVE(pv_cpu_ops, wbinvd, "wbinvd");
- 
-@@ -59,7 +58,6 @@ unsigned native_patch(u8 type, u16 clobb
- 		PATCH_SITE(pv_mmu_ops, read_cr3);
- 		PATCH_SITE(pv_mmu_ops, write_cr3);
- 		PATCH_SITE(pv_cpu_ops, clts);
--		PATCH_SITE(pv_mmu_ops, flush_tlb_single);
- 		PATCH_SITE(pv_cpu_ops, wbinvd);
- #if defined(CONFIG_PARAVIRT_SPINLOCKS)
- 		case PARAVIRT_PATCH(pv_lock_ops.queued_spin_unlock):
-
+There's a built-in unlikely() in the definition of WARN_ON, so this
+works nicely.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
