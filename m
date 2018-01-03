@@ -1,95 +1,56 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3528F6B02F7
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 02:02:41 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id w196so283150oia.17
-        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 23:02:41 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k35si127424otc.104.2018.01.02.23.02.40
+Received: from mail-yb0-f199.google.com (mail-yb0-f199.google.com [209.85.213.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 627436B02F9
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 02:06:03 -0500 (EST)
+Received: by mail-yb0-f199.google.com with SMTP id q204so272358ybg.23
+        for <linux-mm@kvack.org>; Tue, 02 Jan 2018 23:06:03 -0800 (PST)
+Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
+        by mx.google.com with ESMTPS id w6si103347ywj.232.2018.01.02.23.06.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 02 Jan 2018 23:02:40 -0800 (PST)
-Date: Wed, 3 Jan 2018 01:02:38 -0600
-From: Pete Zaitcev <zaitcev@redhat.com>
-Subject: Re: kernel BUG at ./include/linux/mm.h:LINE! (3)
-Message-ID: <20180103010238.1e510ac2@lembas.zaitcev.lan>
-In-Reply-To: <20171229132420.jn2pwabl6pyjo6mk@node.shutemov.name>
-References: <20171228160346.6406d52df0d9afe8cf7a0862@linux-foundation.org>
-	<20171229132420.jn2pwabl6pyjo6mk@node.shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 02 Jan 2018 23:06:02 -0800 (PST)
+Date: Wed, 3 Jan 2018 02:05:56 -0500
+From: Theodore Ts'o <tytso@mit.edu>
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20180103070556.GA22583@thunk.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+ <20171229035146.GA11757@thunk.org>
+ <20171229072851.GA12235@X58A-UD3R>
+ <20171230061624.GA27959@bombadil.infradead.org>
+ <20171230154041.GB3366@thunk.org>
+ <20171230204417.GF27959@bombadil.infradead.org>
+ <20171230224028.GC3366@thunk.org>
+ <f2bc220a-a363-122a-dbf9-e5416c550899@lge.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <f2bc220a-a363-122a-dbf9-e5416c550899@lge.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-mm@kvack.org, linux-usb@vger.kernel.org, zaitcev@redhat.com
+To: Byungchul Park <byungchul.park@lge.com>
+Cc: Matthew Wilcox <willy@infradead.org>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
 
-On Fri, 29 Dec 2017 16:24:20 +0300
-"Kirill A. Shutemov" <kirill@shutemov.name> wrote:
+On Wed, Jan 03, 2018 at 11:10:37AM +0900, Byungchul Park wrote:
+> > The point I was trying to drive home is that "all we have to do is
+> > just classify everything well or just invalidate the right lock
+> 
+> Just to be sure, we don't have to invalidate lock objects at all but
+> a problematic waiter only.
 
-> Looks like MON_IOCT_RING_SIZE reallocates ring buffer without any
-> serialization wrt mon_bin_vma_fault(). By the time of get_page() the page
-> may be freed.
+So essentially you are proposing that we have to play "whack-a-mole"
+as we find false positives, and where we may have to put in ad-hoc
+plumbing to only invalidate "a problematic waiter" when it's
+problematic --- or to entirely suppress the problematic waiter
+altogether.  And in that case, a file system developer might be forced
+to invalidate a lock/"waiter"/"completion" in another subsystem.
 
-Okay. Who knew that you could fork while holding an open descriptor. :-)
+I will also remind you that doing this will trigger a checkpatch.pl
+*error*:
 
-> The patch below seems help the crash to go away, but I *think* more work
-> is required. For instance, after ring buffer reallocation the old pages
-> will stay mapped. Nothing pulls them.
+ERROR("LOCKDEP", "lockdep_no_validate class is reserved for device->mutex.\n" . $herecurr);
 
-You know, this bothered me all these years too, but I was assured
-back in the day (as much as I can remember), that doing get_page()
-in the .fault() is just the right thing. In my defense, you can
-see other drivers doing it, such as:
-
-./drivers/char/agp/alpha-agp.c
-./drivers/hsi/clients/cmt_speech.c
-
-I'd appreciate insight from someone who knows how VM subsystem works.
-
-Now, about the code:
-
-> diff --git a/drivers/usb/mon/mon_bin.c b/drivers/usb/mon/mon_bin.c
-> index f6ae753ab99b..ac168fecf04f 100644
-> --- a/drivers/usb/mon/mon_bin.c
-> +++ b/drivers/usb/mon/mon_bin.c
-> @@ -1228,15 +1228,24 @@ static void mon_bin_vma_close(struct vm_area_struct *vma)
->  static int mon_bin_vma_fault(struct vm_fault *vmf)
->  {
->  	struct mon_reader_bin *rp = vmf->vma->vm_private_data;
-> -	unsigned long offset, chunk_idx;
-> +	unsigned long offset, chunk_idx, flags;
->  	struct page *pageptr;
->  
-> +	mutex_lock(&rp->fetch_lock);
-> +	spin_lock_irqsave(&rp->b_lock, flags);
->  	offset = vmf->pgoff << PAGE_SHIFT;
-> -	if (offset >= rp->b_size)
-> +	if (offset >= rp->b_size) {
-> +		spin_unlock_irqrestore(&rp->b_lock, flags);
-> +		mutex_unlock(&rp->fetch_lock);
->  		return VM_FAULT_SIGBUS;
-> +	}
->  	chunk_idx = offset / CHUNK_SIZE;
-> +
->  	pageptr = rp->b_vec[chunk_idx].pg;
->  	get_page(pageptr);
-> +	spin_unlock_irqrestore(&rp->b_lock, flags);
-> +	mutex_unlock(&rp->fetch_lock);
-> +
->  	vmf->page = pageptr;
->  	return 0;
->  }
-
-I think that grabbing the spinlock is not really necessary in
-this case. The ->b_lock is designed for things that are accessed
-from interrupts that Host Controller Driver serves -- mostly
-various pointers. By defintion it's not covering things that
-are related to re-allocation. Now, the re-allocation itself
-grabs it, because it resets indexes into the new buffer, but
-does not appear to apply here, does it now?
-
--- Pete
+	 		      	       		- Ted
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
