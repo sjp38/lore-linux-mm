@@ -1,162 +1,147 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E81C280245
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 03:18:06 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id y62so655992pfd.3
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 00:18:06 -0800 (PST)
-Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
-        by mx.google.com with ESMTPS id r39si1972939pld.128.2018.01.04.00.18.03
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0B638280245
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 03:52:48 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id g33so771735plb.13
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 00:52:48 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j33si2003126pld.699.2018.01.04.00.52.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 00:18:05 -0800 (PST)
-Subject: Re: [PATCH] mm/fadvise: discard partial pages iff endbyte is also eof
-References: <1514002568-120457-1-git-send-email-shidao.ytt@alibaba-inc.com>
- <8DAEE48B-AD5D-4702-AB4B-7102DD837071@alibaba-inc.com>
- <20180103104800.xgqe32hv63xsmsjh@techsingularity.net>
- <20180103161753.8b22d32d640f6e0be4119081@linux-foundation.org>
-From: "=?UTF-8?B?5aS35YiZKENhc3Bhcik=?=" <jinli.zjl@alibaba-inc.com>
-Message-ID: <be7778b9-58de-3717-0da5-e88fc5ec5542@alibaba-inc.com>
-Date: Thu, 04 Jan 2018 16:17:50 +0800
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 04 Jan 2018 00:52:46 -0800 (PST)
+Date: Thu, 4 Jan 2018 09:52:44 +0100
+From: Jan Kara <jack@suse.cz>
+Subject: Re: Filesystem crashes due to pages without buffers
+Message-ID: <20180104085244.GA29010@quack2.suse.cz>
+References: <20180103100430.GE4911@quack2.suse.cz>
+ <20180104055919.GG30682@dastard>
 MIME-Version: 1.0
-In-Reply-To: <20180103161753.8b22d32d640f6e0be4119081@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180104055919.GG30682@dastard>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Mel Gorman <mgorman@techsingularity.net>
-Cc: green@linuxhacker.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?5p2o5YuHKOaZuuW9uyk=?= <zhiche.yy@alibaba-inc.com>, =?UTF-8?B?5Y2B5YiA?= <shidao.ytt@alibaba-inc.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: Jan Kara <jack@suse.cz>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-xfs@vger.kernel.org, linux-ext4@vger.kernel.org, Dan Williams <dan.j.williams@intel.com>
 
-
-
-On 2018/1/4 08:17, Andrew Morton wrote:
-> On Wed, 3 Jan 2018 10:48:00 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
+On Thu 04-01-18 16:59:19, Dave Chinner wrote:
+> On Wed, Jan 03, 2018 at 11:04:30AM +0100, Jan Kara wrote:
+> > Hello,
+> > 
+> > Over the years I have seen so far unexplained crashed in filesystem's
+> > (ext4, xfs) writeback path due to dirty pages without buffers attached to
+> > them (see [1] and [2] for relatively recent reports). This was confusing as
+> > reclaim takes care not to strip buffers from a dirty page and both
+> > filesystems do add buffers to a page when it is first written to - in
+> > ->page_mkwrite() and ->write_begin callbacks.
+> > 
+> > Recently I have come across a code path that is probably leading to this
+> > inconsistent state and I'd like to discuss how to best fix the problem
+> > because it's not obvious to me. Consider the following race:
+> > 
+> > CPU1					CPU2
+> > 
+> > addr = mmap(file1, MAP_SHARED, ...);
+> > fd2 = open(file2, O_DIRECT | O_RDONLY);
+> > read(fd2, addr, len)
+> >   do_direct_IO()
+> >     page = dio_get_page()
+> >       dio_refill_pages()
+> >         iov_iter_get_pages()
+> > 	  get_user_pages_fast()
+> >             - page fault
+> >               ->page_mkwrite()
+> >                 block_page_mkwrite()
+> >                   lock_page(page);
+> >                   - attaches buffers to page
+> >                   - makes sure blocks are allocated
+> >                   set_page_dirty(page)
+> >               - install writeable PTE
+> >               unlock_page(page);
+> >     submit_page_section(page)
+> >       - submits bio with 'page' as a buffer
+> > 					kswapd reclaims pages:
+> > 					...
+> > 					shrink_page_list()
+> > 					  trylock_page(page) - this is the
+> > 					    page CPU1 has just faulted in
+> > 					  try_to_unmap(page)
+> > 					  pageout(page);
+> > 					    clear_page_dirty_for_io(page);
+> > 					    ->writepage()
+> > 					  - let's assume page got written
+> > 					    out fast enough, alternatively
+> > 					    we could get to the same path as
+> > 					    soon as the page IO completes
+> > 					  if (page_has_private(page)) {
+> > 					    try_to_release_page(page)
+> > 					      - reclaims buffers from the
+> > 					        page
+> > 					   __remove_mapping(page)
+> > 					     - fails as DIO code still
+> > 					       holds page reference
+> > ...
+> > 
+> > eventually read completes
+> >   dio_bio_complete(bio)
+> >     set_page_dirty_lock(page)
+> >       Bummer, we've just marked the page as dirty without having buffers.
+> >       Eventually writeback will find it and filesystem will complain...
+> > 
+> > Am I missing something?
 > 
->> On Wed, Jan 03, 2018 at 02:53:43PM +0800, ??????(Caspar) wrote:
->>>
->>>
->>>> ?? 2017??12??23????12:16?????? <shidao.ytt@alibaba-inc.com> ??????
->>>>
->>>> From: "shidao.ytt" <shidao.ytt@alibaba-inc.com>
->>>>
->>>> in commit 441c228f817f7 ("mm: fadvise: document the
->>>> fadvise(FADV_DONTNEED) behaviour for partial pages") Mel Gorman
->>>> explained why partial pages should be preserved instead of discarded
->>>> when using fadvise(FADV_DONTNEED), however the actual codes to calcuate
->>>> end_index was unexpectedly wrong, the code behavior didn't match to the
->>>> statement in comments; Luckily in another commit 18aba41cbf
->>>> ("mm/fadvise.c: do not discard partial pages with POSIX_FADV_DONTNEED")
->>>> Oleg Drokin fixed this behavior
->>>>
->>>> Here I come up with a new idea that actually we can still discard the
->>>> last parital page iff the page-unaligned endbyte is also the end of
->>>> file, since no one else will use the rest of the page and it should be
->>>> safe enough to discard.
->>>
->>> +akpm...
->>>
->>> Hi Mel, Andrew:
->>>
->>> Would you please take a look at this patch, to see if this proposal
->>> is reasonable enough, thanks in advance!
->>>
->>
->> I'm backlogged after being out for the Christmas. Superficially the patch
->> looks ok but I wondered how often it happened in practice as we already
->> would discard files smaller than a page on DONTNEED. It also requires
->> that the system call get the exact size of the file correct and would not
->> discard if the off + len was past the end of the file for whatever reason
->> (e.g. a stat to read the size, a truncate in parallel and fadvise using
->> stale data from stat) and that's why the patch looked like it might have
->> no impact in practice. Is the patch known to help a real workload or is
->> it motivated by a code inspection?
-> 
-> The current whole-pages-only logic was introduced (accidentally, I
-> think) by yours truly when fixing a bug in the initial fadvise()
-> commit in 2003.
-> 
-> https://kernel.opensuse.org/cgit/kernel/commit/?h=v2.6.0-test4&id=7161ee20fea6e25a32feb91503ca2b7c7333c886
-> 
-> Namely:
-> 
-> : invalidate_mapping_pages() takes start/end, but fadvise is currently passing
-> : it start/len.
-> :
-> :
-> :
-> :  mm/fadvise.c |    8 ++++++--
-> :  1 files changed, 6 insertions(+), 2 deletions(-)
-> :
-> : diff -puN mm/fadvise.c~fadvise-fix mm/fadvise.c
-> : --- 25/mm/fadvise.c~fadvise-fix	2003-08-14 18:16:12.000000000 -0700
-> : +++ 25-akpm/mm/fadvise.c	2003-08-14 18:16:12.000000000 -0700
-> : @@ -26,6 +26,8 @@ long sys_fadvise64(int fd, loff_t offset
-> :  	struct inode *inode;
-> :  	struct address_space *mapping;
-> :  	struct backing_dev_info *bdi;
-> : +	pgoff_t start_index;
-> : +	pgoff_t end_index;
-> :  	int ret = 0;
-> :
-> :  	if (!file)
-> : @@ -65,8 +67,10 @@ long sys_fadvise64(int fd, loff_t offset
-> :  	case POSIX_FADV_DONTNEED:
-> :  		if (!bdi_write_congested(mapping->backing_dev_info))
-> :  			filemap_flush(mapping);
-> : -		invalidate_mapping_pages(mapping, offset >> PAGE_CACHE_SHIFT,
-> : -				(len >> PAGE_CACHE_SHIFT) + 1);
-> : +		start_index = offset >> PAGE_CACHE_SHIFT;
-> : +		end_index = (offset + len + PAGE_CACHE_SIZE - 1) >>
-> : +						PAGE_CACHE_SHIFT;
-> : +		invalidate_mapping_pages(mapping, start_index, end_index);
-> :  		break;
-> :  	default:
-> :  		ret = -EINVAL;
-> :
-> 
-> So I'm not sure that the whole "don't discard partial pages" thing is
-> well-founded and I see no reason why we cannot alter it.
-> 
-> So, thinking caps on: why not just discard them?  After all, that's
-> what userspace asked us to do.
+> My first question is why is kswapd trying to reclaim a page with an
+> elevated active reference count? i.e. there are active references
+> the VM *doesn't own* to the page, which means that there may well
+> a user that expects the state on the page (e.g. the page private
+> data that the active reference instantiated!) to remain intact until
+> it drops it's active reference.
 
-Hi Andrew, I doubt if "just discard them" is a proper action to match 
-the userspace's expectation. Maybe we will never meet the userspace's 
-expectation since we are doing pages in kernel while userspace is 
-passing bytes offset/length to the kernel. Note that Mel Gorman has 
-already documented page-unaligned behaviors in posix_fadvise() man 
-page[1] but obviously not all people (including /me) are able to read 
-the _latest_ version, so someone might still uses the syscall with page 
-unaligned offset/length. The userspace might only ask for discarding 
-certain *bytes*, instead of *pages*.
+Page private data (and most of page state) is protected by a page lock, not
+by a page reference. So reclaim (which is holding the page lock) is free to
+try to reclaim page private data by calling ->releasepage callback.
 
-And I think we need to look back first why we thought "preserved is 
-better than discard". If we throw the whole page, the rest part of the 
-page might still be required (consider the offset and length is in the 
-middle of a file) because it's untagged:
+That being said you are right that the attempt to reclaim a page with
+active references is futile. But the problem is that we don't know how many
+page references are actually left before we unmap the page from page tables
+(each page table entry holds a page reference) and free page private data
+(as that may hold page reference as well - e.g. attach_page_buffers()
+acquires page reference). So checking page references in advance is
+difficult.
 
-   ...|------------ PAGE --------------|...
-   ...| DONTNEED |------ UNTAGGED -----|...
+Furthermore the core of the problem is not in the fact that page buffers
+are reclaimed. That just makes it visible. The real problem is that page can
+be written to by a GUP user while it is neither writeably mapped in page
+tables nor prepared with ->write_begin. So a similar race violating
+filesystem's assumptions can be like:
 
-but the page has gone, page fault occurs and we need to reload it from 
-the disk -- performance degradation happens.
+CPU1					CPU2
 
-Maybe that's why we would rather preserv the whole page before.
+addr = mmap(file1, MAP_SHARED, ...);
+fd2 = open(file2, O_DIRECT | O_RDONLY);
+read(fd2, addr, len)
+  do_direct_IO()
+    ...
+    page = get_user_pages_fast()
+      - page fault handled
+    submit_page_section(page)
+      - submits bio with 'page' as a buffer
+					ordinary writeback:
+					writepages(file1)
+					  clear_page_dirty_for_io(page)
+					    - page gets writeprotected in
+					      page tables
+...
+eventually read completes
+  dio_bio_complete(bio)
+    set_page_dirty_lock(page)
 
-But if we don't throw the partial page at all, and if the tail partial 
-page is _exactly the end of the file_, a page that advised to be NONEED 
-would be left in memory. And we all know that it is safe to throw it.
+And a race like this is enough to cause data corruption if we are unlucky.
 
-So we come up with this patch -- to keep the partial page not been 
-throwing away, and add a special case when the partial page is the end 
-of the file, we can throw it safely. I guess it might be a better solution.
-
-One thing I'm worrying about is that, this patch might lead to a new 
-undocumented behavior, so maybe we need to document this special case in 
-posix_fadvise() man page too? hmmm...
-
-Thanks,
-Caspar
-
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
