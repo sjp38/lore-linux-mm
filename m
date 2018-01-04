@@ -1,54 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E5F0D280244
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 14:38:18 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id 34so1632875plm.23
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 11:38:18 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m16sor893693pgn.249.2018.01.04.11.38.17
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 93FFD280244
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 15:36:26 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id i67so2782767ioe.4
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 12:36:26 -0800 (PST)
+Received: from aserp2130.oracle.com (aserp2130.oracle.com. [141.146.126.79])
+        by mx.google.com with ESMTPS id u20si3218668ioi.209.2018.01.04.12.36.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 04 Jan 2018 11:38:17 -0800 (PST)
-Date: Thu, 4 Jan 2018 11:38:14 -0800
-From: Benjamin Gilbert <benjamin.gilbert@coreos.com>
-Subject: Re: "bad pmd" errors + oops with KPTI on 4.14.11 after loading X.509
- certs
-Message-ID: <20180104193814.GA26859@trogon.sfo.coreos.systems>
-References: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
- <20180103084600.GA31648@trogon.sfo.coreos.systems>
- <20180103092016.GA23772@kroah.com>
- <20180104003303.GA1654@trogon.sfo.coreos.systems>
- <DE0BC12C-4BA8-46AF-BD90-6904B9F87187@amacapital.net>
- <CAD3Vwcptxyf+QJO7snZs_-MHGV3ARmLeaFVR49jKM=6MAGMk7Q@mail.gmail.com>
- <CALCETrW8NxLd4v_U_g8JyW5XdVXWhM_MZOUn05J8VTuWOwkj-A@mail.gmail.com>
- <alpine.DEB.2.20.1801041320360.1771@nanos>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 04 Jan 2018 12:36:25 -0800 (PST)
+Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
+References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
+ <20180102222341.GB20405@bombadil.infradead.org>
+ <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
+ <20180104013807.GA31392@tardis>
+From: Rao Shoaib <rao.shoaib@oracle.com>
+Message-ID: <be1abd24-56c8-45bc-fecc-3f0c5b978678@oracle.com>
+Date: Thu, 4 Jan 2018 12:35:55 -0800
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1801041320360.1771@nanos>
+In-Reply-To: <20180104013807.GA31392@tardis>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Andy Lutomirski <luto@kernel.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, X86 ML <x86@kernel.org>, LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, stable <stable@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>, Thomas Garnier <thgarnie@google.com>, Alexander Kuleshov <kuleshovmail@gmail.com>
+To: Boqun Feng <boqun.feng@gmail.com>
+Cc: Matthew Wilcox <willy@infradead.org>, linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
 
-On Thu, Jan 04, 2018 at 01:28:59PM +0100, Thomas Gleixner wrote:
-> On Wed, 3 Jan 2018, Andy Lutomirski wrote:
-> > Our memory map code is utter shite.  This kind of bug should not be
-> > possible without a giant warning at boot that something is screwed up.
-> 
-> You're right it's utter shite and the KASLR folks who added this insanity
-> of making vaddr_end depend on a gazillion of config options and not
-> documenting it in mm.txt or elsewhere where it's obvious to find should
-> really sit back and think hard about their half baken 'security' features.
-> 
-> Just look at the insanity of comment above the vaddr_end ifdef maze.
-> 
-> Benjamin, can you test the patch below please?
+Hi Boqun,
 
-Seems to work!
+Thanks a lot for all your guidance and for catching the cut and paster 
+error. Please see inline.
 
-Thanks,
---Benjamin Gilbert
+
+On 01/03/2018 05:38 PM, Boqun Feng wrote:
+>
+> But you introduced a bug here, you should use rcu_state_p instead of
+> &rcu_sched_state as the third parameter for __call_rcu().
+>
+> Please re-read:
+>
+> 	https://marc.info/?l=linux-mm&m=151390529209639
+>
+> , and there are other comments, which you still haven't resolved in this
+> version. You may want to write a better commit log to explain the
+> reasons of each modifcation and fix bugs or typos in your previous
+> version. That's how review process works ;-)
+>
+> Regards,
+> Boqun
+>
+This is definitely a serious error. Thanks for catching this.
+
+As far as your previous comments are concerned, only the following one 
+has not been addressed. Can you please elaborate as I do not understand 
+the comment. The code was expanded because the new macro expansion check 
+fails. Based on Matthew Wilcox's comment I have reverted rcu_head_name 
+back to rcu_head.
+
+> +#define kfree_rcu(ptr, rcu_head_name)	\
+> +	do { \
+> +		typeof(ptr) __ptr = ptr;	\
+> +		unsigned long __off = offsetof(typeof(*(__ptr)), \
+> +						      rcu_head_name); \
+> +		struct rcu_head *__rptr = (void *)__ptr + __off; \
+> +		__kfree_rcu(__rptr, __off); \
+> +	} while (0)
+
+why do you want to open code this?
+
+Does the following text for the commit log looks better.
+
+kfree_rcu() should use the new kfree_bulk() interface for freeing rcu 
+structures
+
+The newly implemented kfree_bulk() interfaces are more efficient, using 
+the interfaces for freeing rcu structures has shown performance 
+improvements in synthetic benchmarks that allocate and free rcu 
+structures at a high rate.
+
+Shoaib
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
