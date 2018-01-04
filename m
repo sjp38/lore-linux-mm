@@ -1,85 +1,83 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0319A6B04FB
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 17:51:44 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id a12so1894041pll.21
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 14:51:43 -0800 (PST)
-Received: from out0-231.mail.aliyun.com (out0-231.mail.aliyun.com. [140.205.0.231])
-        by mx.google.com with ESMTPS id a15si2644392pgd.183.2018.01.04.14.51.42
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D08936B04FD
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 17:54:43 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id o16so1493417wmf.4
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 14:54:43 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 1si2755161wmj.68.2018.01.04.14.54.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 14:51:42 -0800 (PST)
-Subject: Re: [PATCH 6/8] net: caif: remove unused hardirq.h
-From: "Yang Shi" <yang.s@alibaba-inc.com>
-References: <1510959741-31109-1-git-send-email-yang.s@alibaba-inc.com>
- <1510959741-31109-6-git-send-email-yang.s@alibaba-inc.com>
- <9ad5b35a-8d4c-448a-912b-2816c4c8c53f@alibaba-inc.com>
-Message-ID: <a2f9ddc4-f3e1-4f80-6b05-398d1243e225@alibaba-inc.com>
-Date: Fri, 05 Jan 2018 06:51:36 +0800
-MIME-Version: 1.0
-In-Reply-To: <9ad5b35a-8d4c-448a-912b-2816c4c8c53f@alibaba-inc.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Thu, 04 Jan 2018 14:54:42 -0800 (PST)
+Date: Thu, 4 Jan 2018 14:54:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/fadvise: discard partial pages iff endbyte is also
+ eof
+Message-Id: <20180104145439.ab5cca8adbccee4ef54348fa@linux-foundation.org>
+In-Reply-To: <be7778b9-58de-3717-0da5-e88fc5ec5542@alibaba-inc.com>
+References: <1514002568-120457-1-git-send-email-shidao.ytt@alibaba-inc.com>
+	<8DAEE48B-AD5D-4702-AB4B-7102DD837071@alibaba-inc.com>
+	<20180103104800.xgqe32hv63xsmsjh@techsingularity.net>
+	<20180103161753.8b22d32d640f6e0be4119081@linux-foundation.org>
+	<be7778b9-58de-3717-0da5-e88fc5ec5542@alibaba-inc.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, netdev@vger.kernel.org, Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>, "David S. Miller" <davem@davemloft.net>
+To: =?UTF-8?B?IuWkt+WImShDYXNwYXIpIg==?= <jinli.zjl@alibaba-inc.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, green@linuxhacker.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, =?UTF-8?B?IuadqA==?= =?UTF-8?B?5YuHKOaZuuW9uyki?= <zhiche.yy@alibaba-inc.com>, =?UTF-8?B?Ig==?= =?UTF-8?B?5Y2B5YiAIg==?= <shidao.ytt@alibaba-inc.com>
 
-Hi David,
+On Thu, 04 Jan 2018 16:17:50 +0800 "a?.a??(Caspar)" <jinli.zjl@alibaba-inc.com> wrote:
 
-I'm not sure if CAIF is still maintained by Dmitry Tarnyagin. Do you 
-have any comment on this one?
-
-Thanks,
-Yang
-
-
-On 12/7/17 11:13 AM, Yang Shi wrote:
-> Hi folks,
+> > So, thinking caps on: why not just discard them?  After all, that's
+> > what userspace asked us to do.
 > 
-> Any comment on this one?
+> Hi Andrew, I doubt if "just discard them" is a proper action to match 
+> the userspace's expectation. Maybe we will never meet the userspace's 
+> expectation since we are doing pages in kernel while userspace is 
+> passing bytes offset/length to the kernel. Note that Mel Gorman has 
+> already documented page-unaligned behaviors in posix_fadvise() man 
+> page[1] but obviously not all people (including /me) are able to read 
+> the _latest_ version, so someone might still uses the syscall with page 
+> unaligned offset/length. The userspace might only ask for discarding 
+> certain *bytes*, instead of *pages*.
 > 
-> Thanks,
-> Yang
+> And I think we need to look back first why we thought "preserved is 
+> better than discard". If we throw the whole page, the rest part of the 
+> page might still be required (consider the offset and length is in the 
+> middle of a file) because it's untagged:
 > 
+>    ...|------------ PAGE --------------|...
+>    ...| DONTNEED |------ UNTAGGED -----|...
 > 
-> On 11/17/17 3:02 PM, Yang Shi wrote:
->> Preempt counter APIs have been split out, currently, hardirq.h just
->> includes irq_enter/exit APIs which are not used by caif at all.
->>
->> So, remove the unused hardirq.h.
->>
->> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
->> Cc: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
->> Cc: "David S. Miller" <davem@davemloft.net>
->> ---
->>   net/caif/cfpkt_skbuff.c | 1 -
->>   net/caif/chnl_net.c     | 1 -
->>   2 files changed, 2 deletions(-)
->>
->> diff --git a/net/caif/cfpkt_skbuff.c b/net/caif/cfpkt_skbuff.c
->> index 71b6ab2..38c2b7a 100644
->> --- a/net/caif/cfpkt_skbuff.c
->> +++ b/net/caif/cfpkt_skbuff.c
->> @@ -8,7 +8,6 @@
->>   #include <linux/string.h>
->>   #include <linux/skbuff.h>
->> -#include <linux/hardirq.h>
->>   #include <linux/export.h>
->>   #include <net/caif/cfpkt.h>
->> diff --git a/net/caif/chnl_net.c b/net/caif/chnl_net.c
->> index 922ac1d..53ecda1 100644
->> --- a/net/caif/chnl_net.c
->> +++ b/net/caif/chnl_net.c
->> @@ -8,7 +8,6 @@
->>   #define pr_fmt(fmt) KBUILD_MODNAME ":%s(): " fmt, __func__
->>   #include <linux/fs.h>
->> -#include <linux/hardirq.h>
->>   #include <linux/init.h>
->>   #include <linux/module.h>
->>   #include <linux/netdevice.h>
->>
+> but the page has gone, page fault occurs and we need to reload it from 
+> the disk -- performance degradation happens.
+> 
+> Maybe that's why we would rather preserv the whole page before.
+> 
+> But if we don't throw the partial page at all, and if the tail partial 
+> page is _exactly the end of the file_, a page that advised to be NONEED 
+> would be left in memory. And we all know that it is safe to throw it.
+> 
+> So we come up with this patch -- to keep the partial page not been 
+> throwing away, and add a special case when the partial page is the end 
+> of the file, we can throw it safely. I guess it might be a better solution.
+
+OK, that makes sense.
+
+As Mel (sort of) said, "delete part of page" can mean "I want to retain
+the other part of the page".  So we should retain the page.  But for
+end-of-file, there is no "other part of the page".
+
+> One thing I'm worrying about is that, this patch might lead to a new 
+> undocumented behavior, so maybe we need to document this special case in 
+> posix_fadvise() man page too? hmmm...
+
+That wouldn't hurt.
+
+Could you please resend the patch with the changelog updated to reflect
+this discussion?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
