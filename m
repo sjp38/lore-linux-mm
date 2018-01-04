@@ -1,67 +1,71 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f70.google.com (mail-it0-f70.google.com [209.85.214.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 30C9C6B0385
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 17:19:11 -0500 (EST)
-Received: by mail-it0-f70.google.com with SMTP id c33so3108221itf.8
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 14:19:11 -0800 (PST)
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id g137si3229669ioe.172.2018.01.04.14.19.09
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 856506B04F7
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 17:47:12 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id i12so1899902plk.5
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 14:47:12 -0800 (PST)
+Received: from out4435.biz.mail.alibaba.com (out4435.biz.mail.alibaba.com. [47.88.44.35])
+        by mx.google.com with ESMTPS id d1si2633705pgo.568.2018.01.04.14.47.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 14:19:10 -0800 (PST)
-Subject: Re: [PATCH 1/2] Move kfree_call_rcu() to slab_common.c
-References: <1514923898-2495-1-git-send-email-rao.shoaib@oracle.com>
- <20180102222341.GB20405@bombadil.infradead.org>
- <3be609d4-800e-a89e-f885-7e0f5d288862@oracle.com>
- <20180104013807.GA31392@tardis>
- <be1abd24-56c8-45bc-fecc-3f0c5b978678@oracle.com>
- <64ca3929-4044-9393-a6ca-70c0a2589a35@oracle.com>
- <20180104214658.GA20740@bombadil.infradead.org>
-From: Rao Shoaib <rao.shoaib@oracle.com>
-Message-ID: <3e4ea0b9-686f-7e36-d80c-8577401517e2@oracle.com>
-Date: Thu, 4 Jan 2018 14:18:50 -0800
+        Thu, 04 Jan 2018 14:47:11 -0800 (PST)
+Subject: Re: [PATCH 8/8] net: tipc: remove unused hardirq.h
+References: <1510959741-31109-1-git-send-email-yang.s@alibaba-inc.com>
+ <1510959741-31109-8-git-send-email-yang.s@alibaba-inc.com>
+ <4ed1efbc-5fb8-7412-4f46-1e3a91a98373@windriver.com>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <b48afbb6-771f-84b1-8329-d5941eff086b@alibaba-inc.com>
+Date: Fri, 05 Jan 2018 06:46:48 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180104214658.GA20740@bombadil.infradead.org>
+In-Reply-To: <4ed1efbc-5fb8-7412-4f46-1e3a91a98373@windriver.com>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Boqun Feng <boqun.feng@gmail.com>, linux-kernel@vger.kernel.org, paulmck@linux.vnet.ibm.com, brouer@redhat.com, linux-mm@kvack.org
+To: linux-kernel@vger.kernel.org, "David S. Miller" <davem@davemloft.net>
+Cc: Ying Xue <ying.xue@windriver.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, netdev@vger.kernel.org, Jon Maloy <jon.maloy@ericsson.com>
+
+Hi David,
+
+Any more comment on this change?
+
+Thanks,
+Yang
 
 
-
-On 01/04/2018 01:46 PM, Matthew Wilcox wrote:
-> On Thu, Jan 04, 2018 at 01:27:49PM -0800, Rao Shoaib wrote:
->> On 01/04/2018 12:35 PM, Rao Shoaib wrote:
->>> As far as your previous comments are concerned, only the following one
->>> has not been addressed. Can you please elaborate as I do not understand
->>> the comment. The code was expanded because the new macro expansion check
->>> fails. Based on Matthew Wilcox's comment I have reverted rcu_head_name
->>> back to rcu_head.
->> It turns out I did not remember the real reason for the change. With the
->> macro rewritten, using rcu_head as a macro argument does not work because it
->> conflicts with the name of the type 'struct rcu_head' used in the macro. I
->> have renamed the macro argument to rcu_name.
+On 12/7/17 5:40 PM, Ying Xue wrote:
+> On 11/18/2017 07:02 AM, Yang Shi wrote:
+>> Preempt counter APIs have been split out, currently, hardirq.h just
+>> includes irq_enter/exit APIs which are not used by TIPC at all.
 >>
->> Shoaib
->>>> +#define kfree_rcu(ptr, rcu_head_name) \
->>>> +A A A  do { \
->>>> +A A A A A A A  typeof(ptr) __ptr = ptr;A A A  \
->>>> +A A A A A A A  unsigned long __off = offsetof(typeof(*(__ptr)), \
->>>> +A A A A A A A A A A A A A A A A A A A A A A A A A A A A A  rcu_head_name); \
->>>> +A A A A A A A  struct rcu_head *__rptr = (void *)__ptr + __off; \
->>>> +A A A A A A A  __kfree_rcu(__rptr, __off); \
->>>> +A A A  } while (0)
->>> why do you want to open code this?
-> But why are you changing this macro at all?  If it was to avoid the
-> double-mention of "ptr", then you haven't done that.
-I have -- I do not get the error because ptr is being assigned only one. 
-If you have a better way than let me know and I will be happy to make 
-the change.
-
-Shoaib.
+>> So, remove the unused hardirq.h.
+>>
+>> Signed-off-by: Yang Shi <yang.s@alibaba-inc.com>
+>> Cc: Jon Maloy <jon.maloy@ericsson.com>
+>> Cc: Ying Xue <ying.xue@windriver.com>
+>> Cc: "David S. Miller" <davem@davemloft.net>
+> 
+> Tested-by: Ying Xue <ying.xue@windriver.com>
+> Acked-by: Ying Xue <ying.xue@windriver.com>
+> 
+>> ---
+>>   net/tipc/core.h | 1 -
+>>   1 file changed, 1 deletion(-)
+>>
+>> diff --git a/net/tipc/core.h b/net/tipc/core.h
+>> index 5cc5398..099e072 100644
+>> --- a/net/tipc/core.h
+>> +++ b/net/tipc/core.h
+>> @@ -49,7 +49,6 @@
+>>   #include <linux/uaccess.h>
+>>   #include <linux/interrupt.h>
+>>   #include <linux/atomic.h>
+>> -#include <asm/hardirq.h>
+>>   #include <linux/netdevice.h>
+>>   #include <linux/in.h>
+>>   #include <linux/list.h>
+>>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
