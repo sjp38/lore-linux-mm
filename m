@@ -1,165 +1,117 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 62ADF6B04BC
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 23:56:34 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id d25so305774otc.1
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 20:56:34 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p28sor868717otc.264.2018.01.03.20.56.33
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3FCF26B04BE
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 00:53:54 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id i7so545353plt.3
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 21:53:54 -0800 (PST)
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id f4si1805465plb.632.2018.01.03.21.53.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Jan 2018 20:56:33 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jan 2018 21:53:52 -0800 (PST)
+Message-ID: <5A4DC1F9.40908@intel.com>
+Date: Thu, 04 Jan 2018 13:56:09 +0800
+From: Wei Wang <wei.w.wang@intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20180103100430.GE4911@quack2.suse.cz>
-References: <20180103100430.GE4911@quack2.suse.cz>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 3 Jan 2018 20:56:32 -0800
-Message-ID: <CAPcyv4grBxGs0cnFVyRx29t0xhG5EBTy_nP=qhsVh5=8nusNsw@mail.gmail.com>
-Subject: Re: Filesystem crashes due to pages without buffers
-Content-Type: text/plain; charset="UTF-8"
+Subject: Re: [PATCH] virtio_balloon: use non-blocking allocation
+References: <1514904621-39186-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+In-Reply-To: <1514904621-39186-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+Content-Type: text/plain; charset=windows-1252; format=flowed
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jan Kara <jack@suse.cz>
-Cc: Linux MM <linux-mm@kvack.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, linux-xfs <linux-xfs@vger.kernel.org>, linux-ext4 <linux-ext4@vger.kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, virtio-dev@lists.oasis-open.org
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Matthew Wilcox <willy@infradead.org>, "Michael S. Tsirkin" <mst@redhat.com>, Michal Hocko <mhocko@suse.com>
 
-On Wed, Jan 3, 2018 at 2:04 AM, Jan Kara <jack@suse.cz> wrote:
-> Hello,
+On 01/02/2018 10:50 PM, Tetsuo Handa wrote:
+> Commit c7cdff0e864713a0 ("virtio_balloon: fix deadlock on OOM") tried to
+> avoid OOM lockup by moving memory allocations to outside of balloon_lock.
 >
-> Over the years I have seen so far unexplained crashed in filesystem's
-> (ext4, xfs) writeback path due to dirty pages without buffers attached to
-> them (see [1] and [2] for relatively recent reports). This was confusing as
-> reclaim takes care not to strip buffers from a dirty page and both
-> filesystems do add buffers to a page when it is first written to - in
-> ->page_mkwrite() and ->write_begin callbacks.
+> Now, Wei is trying to allocate far more pages outside of balloon_lock and
+> some more memory inside of balloon_lock in order to perform efficient
+> communication between host and guest using scatter-gather API.
 >
-> Recently I have come across a code path that is probably leading to this
-> inconsistent state and I'd like to discuss how to best fix the problem
-> because it's not obvious to me. Consider the following race:
+> Since pages allocated outside of balloon_lock are not visible to the OOM
+> notifier path until fill_balloon() holds balloon_lock (and enqueues the
+> pending pages), allocating more pages than now may lead to unacceptably
+> premature OOM killer invocation.
 >
-> CPU1                                    CPU2
+> It would be possible to make the pending pages visible to the OOM notifier
+> path. But there is no need to try to allocate memory so hard from the
+> beginning. As of commit 18468d93e53b037e ("mm: introduce a common
+> interface for balloon pages mobility"), it made sense to try allocation
+> as hard as possible. But after commit 5a10b7dbf904bfe0 ("virtio_balloon:
+> free some memory from balloon on OOM"), it no longer makes sense to try
+> allocation as hard as possible, for fill_balloon() will after all have to
+> release just allocated memory if some allocation request hits the OOM
+> notifier path. Therefore, this patch disables __GFP_DIRECT_RECLAIM when
+> allocating memory for inflating the balloon. Then, memory for inflating
+> the balloon can be allocated inside balloon_lock, and we can release just
+> allocated memory as needed.
 >
-> addr = mmap(file1, MAP_SHARED, ...);
-> fd2 = open(file2, O_DIRECT | O_RDONLY);
-> read(fd2, addr, len)
->   do_direct_IO()
->     page = dio_get_page()
->       dio_refill_pages()
->         iov_iter_get_pages()
->           get_user_pages_fast()
->             - page fault
->               ->page_mkwrite()
->                 block_page_mkwrite()
->                   lock_page(page);
->                   - attaches buffers to page
->                   - makes sure blocks are allocated
->                   set_page_dirty(page)
->               - install writeable PTE
->               unlock_page(page);
->     submit_page_section(page)
->       - submits bio with 'page' as a buffer
->                                         kswapd reclaims pages:
->                                         ...
->                                         shrink_page_list()
->                                           trylock_page(page) - this is the
->                                             page CPU1 has just faulted in
->                                           try_to_unmap(page)
->                                           pageout(page);
->                                             clear_page_dirty_for_io(page);
->                                             ->writepage()
->                                           - let's assume page got written
->                                             out fast enough, alternatively
->                                             we could get to the same path as
->                                             soon as the page IO completes
->                                           if (page_has_private(page)) {
->                                             try_to_release_page(page)
->                                               - reclaims buffers from the
->                                                 page
->                                            __remove_mapping(page)
->                                              - fails as DIO code still
->                                                holds page reference
-> ...
+> Also, this patch adds __GFP_NOWARN, for possibility of hitting memory
+> allocation failure is increased by removing __GFP_DIRECT_RECLAIM, which
+> might spam the kernel log buffer. At the same time, this patch moves
+> "puff" messages to outside of balloon_lock, for it is not a good thing to
+> block the OOM notifier path for 1/5 of a second. (Moreover, it is better
+> to release the workqueue and allow processing other pending items. But
+> that change is out of this patch's scope.)
 >
-> eventually read completes
->   dio_bio_complete(bio)
->     set_page_dirty_lock(page)
->       Bummer, we've just marked the page as dirty without having buffers.
->       Eventually writeback will find it and filesystem will complain...
+> __GFP_NOMEMALLOC is currently not required because workqueue context
+> which calls balloon_page_alloc() won't cause __gfp_pfmemalloc_flags()
+> to return ALLOC_OOM. But since some process context might start calling
+> balloon_page_alloc() in future, this patch does not remove
+> __GFP_NOMEMALLOC.
 >
-> Am I missing something?
+> (Only compile tested. Please do runtime tests before committing.)
 >
-> The problem here is that filesystems fundamentally assume that a page can
-> be written to only between ->write_begin - ->write_end (in this interval
-> the page is locked), or between ->page_mkwrite - ->writepage and above is
-> an example where this does not hold because when a page reference is
-> acquired through get_user_pages(), page can get written to by the holder of
-> the reference and dirtied even after it has been unmapped from page tables
-> and ->writepage has been called. This is not only a cosmetic issue leading
-> to assertion failure but it can also lead to data loss, data corruption, or
-> other unpleasant surprises as filesystems assume page contents cannot be
-> modified until either ->write_begin() or ->page_mkwrite gets called and
-> those calls are serialized by proper locking with problematic operations
-> such as hole punching etc.
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Michael S. Tsirkin <mst@redhat.com>
+> Cc: Wei Wang <wei.w.wang@intel.com>
+> Cc: Matthew Wilcox <willy@infradead.org>
+> Cc: Michal Hocko <mhocko@suse.com>
+> ---
+>   drivers/virtio/virtio_balloon.c | 23 +++++++++++++----------
+>   mm/balloon_compaction.c         |  5 +++--
+>   2 files changed, 16 insertions(+), 12 deletions(-)
 >
-> I'm not sure how to fix this problem. We could 'simulate' a writeable page
-> fault in set_page_dirty_lock(). It is a bit ugly since we don't have a
-> virtual address of the fault, don't hold mmap_sem, etc., possibly
-> expensive, but it would make filesystems happy. Data stored by GUP user
-> (e.g. read by DIO in the above case) could still get lost if someone e.g.
-> punched hole under the buffer or otherwise messed with the underlying
-> storage of the page while DIO was running but arguably users could expect
-> such outcome.
 >
-> Another possible solution would be to make sure page is writeably mapped
-> until GUP user drops its reference. That would be arguably cleaner but
-> probably that would mean we have to track number of writeable GUP page
-> references separately (no space space in struct page is a problem here) and
-> block page_mkclean() until they are dropped. Also for long term GUP users
-> like Infiniband or V4L we'd have to come up with some solution as we should
-> not block page_mkclean() for so long.
 
-Do we need to block page_mkclean, or could we defer buffer reclaiming
-to the last put of the page?
+I think it is better to simply make the temporal "LIST_HEAD(pages)" to 
+be visible to oom notify, e.g. make it "struct list_head 
+vb->inflating_pages"
 
-I think once we have the "register memory with lease" mechanism for
-Infiniband we could expand it to the page cache case. The problem is
-the regression this would cause with userspace that expects it can
-maintain file backed memory registrations indefinitely.
+Then we can change virtioballoon_oom_notify():
 
-What are the implications of holding off page_mkclean or release
-buffers indefinitely?
+static int oom_notify()
+{
+     ...
+     if (*freed != oom_pages && !list_empty(&vb->inflating_pages))
+                return NOTIFY_BAD;
 
-Is an indefinite / interruptible sleep waiting for the 'put' event of
-a get_user_pages() page unacceptable? The current case that the file
-contents will not be coherent with respect to in-flight RDMA, perhaps
-waiting for that to complete is better than cleaning buffers from the
-page prematurely.
+     return NOTIFY_OK;
+}
 
-Yes, I have more questions than proposals.
 
->
-> As a side note DAX needs some solution for GUP users as well. The problems
-> are similar there in nature, just much easier to hit. So at least a
-> solution for long-term GUP users can (and I strongly believe should) be
-> shared between standard and DAX paths.
+virtioballoon_oom_notify() {
+     int ret;
 
-In the DAX case we rely on the fact that when the page goes idle we
-only need to worry about the filesytem block map changing, the page
-won't get reallocated somewhere else. We can't use page idle as an
-event in this case, however, if the page reference count is one then
-the DIO code can know that it has the page exclusively, so maybe DAX
-and non-DAX can share the page count == 1 event notification.
+     do {
+         ret = oom_notify()
+     } while (ret == NOTIFY_BAD);
 
-However there's still the matter of how to callback into the
-filesystem. The DAX case is currently using a pgmap_radix lookup at
-put_page() time to determine when to wakeup waiters. I think this
-should move over to a new address_space_operation. That would help
-with reusing some of the DAX case machinery for this case, but the DIO
-code would need a special case put_page that checks for count == 1 and
-synchronization to hold off the DIO submission path to prevent new
-page elevations.
+     return ret;
+}
 
-...are you sure this is still similar enough to the DAX case that they
-can reuse much of the same machinery?
+
+I view the above as something "nice to have" (users also have an option 
+to disable F_DEFLATE_ON_OOM, in which case inflated pages are also not 
+released by oom).  I can help with this after the "virtio_balloon 
+enhancement" series is done.
+
+
+Best,
+Wei
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
