@@ -1,53 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 35D326B04CE
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 02:22:20 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id v184so348990wmf.1
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 23:22:20 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d48sor1343616wrd.33.2018.01.03.23.22.19
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 6FD4F6B04D0
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 02:33:03 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id q186so500429pga.23
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 23:33:03 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n4si1724219pgs.501.2018.01.03.23.33.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 03 Jan 2018 23:22:19 -0800 (PST)
-Date: Thu, 4 Jan 2018 08:22:16 +0100
-From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: "bad pmd" errors + oops with KPTI on 4.14.11 after loading X.509
- certs
-Message-ID: <20180104072216.qvcomyzmx3x6leph@gmail.com>
-References: <CAD3VwcrHs8W_kMXKyDjKnjNDkkK57-0qFS5ATJYCphJHU0V3ow@mail.gmail.com>
- <20180103084600.GA31648@trogon.sfo.coreos.systems>
- <20180103092016.GA23772@kroah.com>
- <20180104003303.GA1654@trogon.sfo.coreos.systems>
- <alpine.DEB.2.20.1801040136390.1957@nanos>
- <20180104071421.aaqikae3gh23ew4l@gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 03 Jan 2018 23:33:02 -0800 (PST)
+Date: Thu, 4 Jan 2018 08:32:57 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 0/6] mm, hugetlb: allocation API and migration
+ improvements
+Message-ID: <20180104073257.GA2801@dhcp22.suse.cz>
+References: <20180103093213.26329-1-mhocko@kernel.org>
+ <20180103160523.2232e3c2da1728c84b160d56@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180104071421.aaqikae3gh23ew4l@gmail.com>
+In-Reply-To: <20180103160523.2232e3c2da1728c84b160d56@linux-foundation.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Thomas Gleixner <tglx@linutronix.de>
-Cc: Benjamin Gilbert <benjamin.gilbert@coreos.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, x86@kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, stable@vger.kernel.org, Andy Lutomirski <luto@kernel.org>, Dave Hansen <dave.hansen@linux.intel.com>, Peter Zijlstra <peterz@infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, LKML <linux-kernel@vger.kernel.org>
 
-
-* Ingo Molnar <mingo@kernel.org> wrote:
-
-> These will cherry-pick cleanly, so it would be nice to test them on top of of the 
-> -stable kernel that fails:
+On Wed 03-01-18 16:05:23, Andrew Morton wrote:
+> On Wed,  3 Jan 2018 10:32:07 +0100 Michal Hocko <mhocko@kernel.org> wrote:
 > 
->   for N in 450cbdd0125c 4d2dc2cc766c 1e0f25dbf246 be62a3204406 0c3292ca8025 9d0b62328d34; do git cherry-pick $N; done
+> > I've posted this as an RFC [1] and both Mike and Naoya seem to be OK
+> > both with patches and the approach. I have rebased this on top of [2]
+> > because there is a small conflict in mm/mempolicy.c. I know it is late
+> > in the release cycle but similarly to [2] I would really like to see
+> > this in linux-next for a longer time for a wider testing exposure.
 > 
-> if this brute-force approach resolves the problem then we have a shorter list of 
-> fixes to look at.
+> I'm interpreting this to mean "hold for 4.17-rc1"?
 
-As per Greg's followup this should not matter - but nevertheless for completeness 
-these commits also need f54bb2ec02c83 as a dependency, so the full list is:
+Yeah, that should be good enough. There shouldn't be any reason to rush
+this through. I will build more changes on top but that is not critical
+either. The longer this will be in linux-next, the better.
 
-   for N in 450cbdd0125c 4d2dc2cc766c 1e0f25dbf246 be62a3204406 0c3292ca8025 9d0b62328d34 f54bb2ec02c83; do git cherry-pick $N; done
-
-Thanks,
-
-	Ingo
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
