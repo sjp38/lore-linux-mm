@@ -1,63 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D99F0280244
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 05:21:16 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id k44so646099wre.1
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 02:21:16 -0800 (PST)
-Received: from outbound-smtp16.blacknight.com (outbound-smtp16.blacknight.com. [46.22.139.233])
-        by mx.google.com with ESMTPS id p46si16566edc.208.2018.01.04.02.21.15
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 55213280244
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 05:25:14 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id i83so642231wma.4
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 02:25:14 -0800 (PST)
+Received: from outbound-smtp13.blacknight.com (outbound-smtp13.blacknight.com. [46.22.139.230])
+        by mx.google.com with ESMTPS id b16si913410ede.175.2018.01.04.02.25.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 02:21:15 -0800 (PST)
-Received: from mail.blacknight.com (pemlinmail03.blacknight.ie [81.17.254.16])
-	by outbound-smtp16.blacknight.com (Postfix) with ESMTPS id 62F621C21AF
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 10:21:15 +0000 (GMT)
-Date: Thu, 4 Jan 2018 10:21:14 +0000
+        Thu, 04 Jan 2018 02:25:13 -0800 (PST)
+Received: from mail.blacknight.com (unknown [81.17.254.16])
+	by outbound-smtp13.blacknight.com (Postfix) with ESMTPS id ABA211C213C
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 10:25:12 +0000 (GMT)
+Date: Thu, 4 Jan 2018 10:25:12 +0000
 From: Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap
- operations
-Message-ID: <20180104102114.l45sjluuzdgpcfd7@techsingularity.net>
-References: <871sjopllj.fsf@yhuang-dev.intel.com>
- <20171221235813.GA29033@bbox>
- <87r2rmj1d8.fsf@yhuang-dev.intel.com>
- <20171223013653.GB5279@bgram>
- <20180102102103.mpah2ehglufwhzle@suse.de>
- <20180102112955.GA29170@quack2.suse.cz>
- <20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net>
- <87o9mbixi0.fsf@yhuang-dev.intel.com>
- <20180103095408.pqxggi7voser7ia3@techsingularity.net>
- <87lgheh173.fsf@yhuang-dev.intel.com>
+Subject: [PATCH] mm: Pin address_space before dereferencing it while
+ isolating an LRU page
+Message-ID: <20180104102512.2qos3h5vqzeisrek@techsingularity.net>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <87lgheh173.fsf@yhuang-dev.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Huang, Ying" <ying.huang@intel.com>, Jan Kara <jack@suse.cz>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Thu, Jan 04, 2018 at 09:17:36AM +0800, Huang, Ying wrote:
-> > Maybe, but in this particular case, I would prefer to go with something
-> > more conventional unless there is strong evidence that it's an improvement
-> > (which I doubt in this case given the cost of migration overall and the
-> > corner case of migrating a dirty page).
-> 
-> So you like page_lock() more than RCU? 
+Minchan Kim asked the following question -- what locks protects
+address_space destroying when race happens between inode trauncation and
+__isolate_lru_page? Jan Kara clarified by describing the race as follows
 
-In this instance, yes.
+CPU1                                            CPU2
 
-> Is there any problem of RCU?
-> The object to be protected isn't clear?
-> 
+truncate(inode)                                 __isolate_lru_page()
+  ...
+  truncate_inode_page(mapping, page);
+    delete_from_page_cache(page)
+      spin_lock_irqsave(&mapping->tree_lock, flags);
+        __delete_from_page_cache(page, NULL)
+          page_cache_tree_delete(..)
+            ...                                   mapping = page_mapping(page);
+            page->mapping = NULL;
+            ...
+      spin_unlock_irqrestore(&mapping->tree_lock, flags);
+      page_cache_free_page(mapping, page)
+        put_page(page)
+          if (put_page_testzero(page)) -> false
+- inode now has no pages and can be freed including embedded address_space
 
-It's not clear what object is being protected or how it's protected and
-it's not the usual means a mapping is pinned. Furthermore, in the event
-a page is being truncated, we really do not want to bother doing any
-migration work for compaction purposes as it's a waste.
+                                                  if (mapping && !mapping->a_ops->migratepage)
+- we've dereferenced mapping which is potentially already free.
 
--- 
-Mel Gorman
-SUSE Labs
+The race is theoritically possible but unlikely. Before the
+delete_from_page_cache, truncate_cleanup_page is called so the page is
+likely to be !PageDirty or PageWriteback which gets skipped by the only
+caller that checks the mappping in __isolate_lru_page. Even if the race
+occurs, a substantial amount of work has to happen during a tiny window
+with no preemption but it could potentially be done using a virtual machine
+to artifically slow one CPU or halt it during the critical window.
+
+This patch should eliminate the race with truncation by try-locking the page
+before derefencing mapping and aborting if the lock was not acquired. There
+was a suggestion from Huang Ying to use RCU as a side-effect to prevent
+mapping being freed. However, I do not like the solution as it's an
+unconventional means of preserving a mapping and it's not a context where
+rcu_read_lock is obviously protecting rcu data.
+
+Fixes: c82449352854 ("mm: compaction: make isolate_lru_page() filter-aware again")
+Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
+---
+ mm/vmscan.c | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index c02c850ea349..61bf0bc60d96 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -1433,14 +1433,24 @@ int __isolate_lru_page(struct page *page, isolate_mode_t mode)
+ 
+ 		if (PageDirty(page)) {
+ 			struct address_space *mapping;
++			bool migrate_dirty;
+ 
+ 			/*
+ 			 * Only pages without mappings or that have a
+ 			 * ->migratepage callback are possible to migrate
+-			 * without blocking
++			 * without blocking. However, we can be racing with
++			 * truncation so it's necessary to lock the page
++			 * to stabilise the mapping as truncation holds
++			 * the page lock until after the page is removed
++			 * from the page cache.
+ 			 */
++			if (!trylock_page(page))
++				return ret;
++
+ 			mapping = page_mapping(page);
+-			if (mapping && !mapping->a_ops->migratepage)
++			migrate_dirty = mapping && mapping->a_ops->migratepage;
++			unlock_page(page);
++			if (!migrate_dirty)
+ 				return ret;
+ 		}
+ 	}
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
