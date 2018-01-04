@@ -1,74 +1,120 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
-	by kanga.kvack.org (Postfix) with ESMTP id C50A06B049E
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 19:11:44 -0500 (EST)
-Received: by mail-pl0-f71.google.com with SMTP id i12so55313plk.5
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 16:11:44 -0800 (PST)
-Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
-        by mx.google.com with ESMTP id t14si1403462plo.822.2018.01.03.16.11.42
-        for <linux-mm@kvack.org>;
-        Wed, 03 Jan 2018 16:11:43 -0800 (PST)
-Date: Thu, 4 Jan 2018 11:08:56 +1100
-From: Dave Chinner <david@fromorbit.com>
-Subject: Re: [RFC] Heuristic for inode/dentry fragmentation prevention
-Message-ID: <20180104000856.GA32627@dastard>
-References: <alpine.DEB.2.20.1801031332230.10522@nuc-kabylake>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1801031332230.10522@nuc-kabylake>
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 4AB016B04A0
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 19:17:57 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id k126so158933wmd.5
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 16:17:57 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 69si1608845wrk.16.2018.01.03.16.17.55
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 03 Jan 2018 16:17:56 -0800 (PST)
+Date: Wed, 3 Jan 2018 16:17:53 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm/fadvise: discard partial pages iff endbyte is also
+ eof
+Message-Id: <20180103161753.8b22d32d640f6e0be4119081@linux-foundation.org>
+In-Reply-To: <20180103104800.xgqe32hv63xsmsjh@techsingularity.net>
+References: <1514002568-120457-1-git-send-email-shidao.ytt@alibaba-inc.com>
+	<8DAEE48B-AD5D-4702-AB4B-7102DD837071@alibaba-inc.com>
+	<20180103104800.xgqe32hv63xsmsjh@techsingularity.net>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Dave Chinner <dchinner@redhat.com>, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>, Christoph Hellwig <hch@lst.de>, Mel Gorman <mel@skynet.ie>, Pekka Enberg <penberg@cs.helsinki.fi>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: "??????(Caspar)" <jinli.zjl@alibaba-inc.com>, green@linuxhacker.ru, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "??????(??????)" <zhiche.yy@alibaba-inc.com>, ?????? <shidao.ytt@alibaba-inc.com>
 
-On Wed, Jan 03, 2018 at 01:39:27PM -0600, Christopher Lameter wrote:
-> I was looking at the inode/dentry reclaim code today and I thought there
-> is an obvious and easy to implement way to avoid fragmentation by checking
-> the number of objects in a slab page.
-> 
-> 
-> Subject: Heuristic for fragmentation prevention for inode and dentry caches
-> 
-> When freeing dentries and inodes we often get to the situation
-> that a slab page cannot be freed because there is only a single
-> object left in that slab page.
-> 
-> We add a new function to the slab allocators that returns the
-> number of objects in the same slab page.
-> 
-> Then the dentry and inode logic can check if such a situation
-> exits and take measures to try to reclaim that entry sooner.
-> 
-> In this patch the check if an inode or dentry has been referenced
-> (and thus should be kept) is skipped if the freeing of the object
-> would result in the slab page becoming available.
-> 
-> That will cause overhead in terms of having to re-allocate and
-> generate the inoden or dentry but in all likelyhood the inode
-> or dentry will then be allocated in a slab page that already
-> contains other inodes or dentries. Thus fragmentation is reduced.
+On Wed, 3 Jan 2018 10:48:00 +0000 Mel Gorman <mgorman@techsingularity.net> wrote:
 
-Please quantify the difference this makes to inode/dentry cache
-fragmentation, as well as the overhead of the
-kobjects_left_in_slab_page() check on every referenced inode and
-dentry we scan.
+> On Wed, Jan 03, 2018 at 02:53:43PM +0800, ??????(Caspar) wrote:
+> > 
+> > 
+> > > ?? 2017??12??23????12:16?????? <shidao.ytt@alibaba-inc.com> ??????
+> > > 
+> > > From: "shidao.ytt" <shidao.ytt@alibaba-inc.com>
+> > > 
+> > > in commit 441c228f817f7 ("mm: fadvise: document the
+> > > fadvise(FADV_DONTNEED) behaviour for partial pages") Mel Gorman
+> > > explained why partial pages should be preserved instead of discarded
+> > > when using fadvise(FADV_DONTNEED), however the actual codes to calcuate
+> > > end_index was unexpectedly wrong, the code behavior didn't match to the
+> > > statement in comments; Luckily in another commit 18aba41cbf
+> > > ("mm/fadvise.c: do not discard partial pages with POSIX_FADV_DONTNEED")
+> > > Oleg Drokin fixed this behavior
+> > > 
+> > > Here I come up with a new idea that actually we can still discard the
+> > > last parital page iff the page-unaligned endbyte is also the end of
+> > > file, since no one else will use the rest of the page and it should be
+> > > safe enough to discard.
+> > 
+> > +akpm...
+> > 
+> > Hi Mel, Andrew:
+> > 
+> > Would you please take a look at this patch, to see if this proposal
+> > is reasonable enough, thanks in advance!
+> > 
+> 
+> I'm backlogged after being out for the Christmas. Superficially the patch
+> looks ok but I wondered how often it happened in practice as we already
+> would discard files smaller than a page on DONTNEED. It also requires
+> that the system call get the exact size of the file correct and would not
+> discard if the off + len was past the end of the file for whatever reason
+> (e.g. a stat to read the size, a truncate in parallel and fadvise using
+> stale data from stat) and that's why the patch looked like it might have
+> no impact in practice. Is the patch known to help a real workload or is
+> it motivated by a code inspection?
 
-Basically, if we can't reliably produce and quantify inode/dentry
-cache fragmentation on demand, then we've go no way to evaluate the
-effect of such heuristics will on cache footprint. I'm happy to run
-tests to help develop heuristics, but I don't have time to create
-tests to reproduce cache fragmentation issues myself.
+The current whole-pages-only logic was introduced (accidentally, I
+think) by yours truly when fixing a bug in the initial fadvise()
+commit in 2003. 
 
-IOWs, before we start down this path, we need to create workloads
-that reproduce inode/dentry cache fragmentation issues....
+https://kernel.opensuse.org/cgit/kernel/commit/?h=v2.6.0-test4&id=7161ee20fea6e25a32feb91503ca2b7c7333c886
 
-Cheers,
+Namely:
 
-Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+: invalidate_mapping_pages() takes start/end, but fadvise is currently passing
+: it start/len.
+: 
+: 
+: 
+:  mm/fadvise.c |    8 ++++++--
+:  1 files changed, 6 insertions(+), 2 deletions(-)
+: 
+: diff -puN mm/fadvise.c~fadvise-fix mm/fadvise.c
+: --- 25/mm/fadvise.c~fadvise-fix	2003-08-14 18:16:12.000000000 -0700
+: +++ 25-akpm/mm/fadvise.c	2003-08-14 18:16:12.000000000 -0700
+: @@ -26,6 +26,8 @@ long sys_fadvise64(int fd, loff_t offset
+:  	struct inode *inode;
+:  	struct address_space *mapping;
+:  	struct backing_dev_info *bdi;
+: +	pgoff_t start_index;
+: +	pgoff_t end_index;
+:  	int ret = 0;
+:  
+:  	if (!file)
+: @@ -65,8 +67,10 @@ long sys_fadvise64(int fd, loff_t offset
+:  	case POSIX_FADV_DONTNEED:
+:  		if (!bdi_write_congested(mapping->backing_dev_info))
+:  			filemap_flush(mapping);
+: -		invalidate_mapping_pages(mapping, offset >> PAGE_CACHE_SHIFT,
+: -				(len >> PAGE_CACHE_SHIFT) + 1);
+: +		start_index = offset >> PAGE_CACHE_SHIFT;
+: +		end_index = (offset + len + PAGE_CACHE_SIZE - 1) >>
+: +						PAGE_CACHE_SHIFT;
+: +		invalidate_mapping_pages(mapping, start_index, end_index);
+:  		break;
+:  	default:
+:  		ret = -EINVAL;
+: 
+
+So I'm not sure that the whole "don't discard partial pages" thing is
+well-founded and I see no reason why we cannot alter it.
+
+So, thinking caps on: why not just discard them?  After all, that's
+what userspace asked us to do.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
