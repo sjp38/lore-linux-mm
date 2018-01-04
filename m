@@ -1,137 +1,96 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 38C8E6B04AE
-	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 20:17:42 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r8so116188pgq.1
-        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 17:17:42 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id r76si1501391pfb.324.2018.01.03.17.17.40
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 03 Jan 2018 17:17:40 -0800 (PST)
-From: "Huang\, Ying" <ying.huang@intel.com>
-Subject: Re: [PATCH -V4 -mm] mm, swap: Fix race between swapoff and some swap operations
-References: <20171220012632.26840-1-ying.huang@intel.com>
-	<20171221021619.GA27475@bbox> <871sjopllj.fsf@yhuang-dev.intel.com>
-	<20171221235813.GA29033@bbox> <87r2rmj1d8.fsf@yhuang-dev.intel.com>
-	<20171223013653.GB5279@bgram>
-	<20180102102103.mpah2ehglufwhzle@suse.de>
-	<20180102112955.GA29170@quack2.suse.cz>
-	<20180102132908.hv3qwxqpz7h2jyqp@techsingularity.net>
-	<87o9mbixi0.fsf@yhuang-dev.intel.com>
-	<20180103095408.pqxggi7voser7ia3@techsingularity.net>
-Date: Thu, 04 Jan 2018 09:17:36 +0800
-In-Reply-To: <20180103095408.pqxggi7voser7ia3@techsingularity.net> (Mel
-	Gorman's message of "Wed, 3 Jan 2018 09:54:08 +0000")
-Message-ID: <87lgheh173.fsf@yhuang-dev.intel.com>
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C11286B04B0
+	for <linux-mm@kvack.org>; Wed,  3 Jan 2018 20:32:40 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 31so167491plk.20
+        for <linux-mm@kvack.org>; Wed, 03 Jan 2018 17:32:40 -0800 (PST)
+Received: from ipmail06.adl2.internode.on.net (ipmail06.adl2.internode.on.net. [150.101.137.129])
+        by mx.google.com with ESMTP id 66si1515412plb.651.2018.01.03.17.32.38
+        for <linux-mm@kvack.org>;
+        Wed, 03 Jan 2018 17:32:39 -0800 (PST)
+Date: Thu, 4 Jan 2018 12:32:07 +1100
+From: Dave Chinner <david@fromorbit.com>
+Subject: Re: [PATCH v3 06/10] writeback: introduce
+ super_operations->write_metadata
+Message-ID: <20180104013207.GB32627@dastard>
+References: <1513029335-5112-7-git-send-email-josef@toxicpanda.com>
+ <20171211233619.GQ4094@dastard>
+ <20171212180534.c5f7luqz5oyfe7c3@destiny>
+ <20171212222004.GT4094@dastard>
+ <20171219120709.GE2277@quack2.suse.cz>
+ <20171219213505.GN5858@dastard>
+ <20171220143055.GA31584@quack2.suse.cz>
+ <20180102161305.6r6qvz5bfixbn3dv@destiny>
+ <20180103023219.GC30682@dastard>
+ <20180103135921.GF4911@quack2.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180103135921.GF4911@quack2.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Jan Kara <jack@suse.cz>, Mel Gorman <mgorman@suse.de>, Minchan Kim <minchan@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Hugh Dickins <hughd@google.com>, "Paul E . McKenney" <paulmck@linux.vnet.ibm.com>, Johannes Weiner <hannes@cmpxchg.org>, Tim Chen <tim.c.chen@linux.intel.com>, Shaohua Li <shli@fb.com>, J???r???me Glisse <jglisse@redhat.com>, Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, David Rientjes <rientjes@google.com>, Rik van Riel <riel@redhat.com>, Dave Jiang <dave.jiang@intel.com>, Aaron Lu <aaron.lu@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Josef Bacik <josef@toxicpanda.com>, hannes@cmpxchg.org, linux-mm@kvack.org, akpm@linux-foundation.org, linux-fsdevel@vger.kernel.org, kernel-team@fb.com, linux-btrfs@vger.kernel.org, Josef Bacik <jbacik@fb.com>
 
-Mel Gorman <mgorman@techsingularity.net> writes:
-
-> On Wed, Jan 03, 2018 at 08:42:15AM +0800, Huang, Ying wrote:
->> Mel Gorman <mgorman@techsingularity.net> writes:
->> 
->> > On Tue, Jan 02, 2018 at 12:29:55PM +0100, Jan Kara wrote:
->> >> On Tue 02-01-18 10:21:03, Mel Gorman wrote:
->> >> > On Sat, Dec 23, 2017 at 10:36:53AM +0900, Minchan Kim wrote:
->> >> > > > code path.  It appears that similar situation is possible for them too.
->> >> > > > 
->> >> > > > The file cache pages will be delete from file cache address_space before
->> >> > > > address_space (embedded in inode) is freed.  But they will be deleted
->> >> > > > from LRU list only when its refcount dropped to zero, please take a look
->> >> > > > at put_page() and release_pages().  While address_space will be freed
->> >> > > > after putting reference to all file cache pages.  If someone holds a
->> >> > > > reference to a file cache page for quite long time, it is possible for a
->> >> > > > file cache page to be in LRU list after the inode/address_space is
->> >> > > > freed.
->> >> > > > 
->> >> > > > And I found inode/address_space is freed witch call_rcu().  I don't know
->> >> > > > whether this is related to page_mapping().
->> >> > > > 
->> >> > > > This is just my understanding.
->> >> > > 
->> >> > > Hmm, it smells like a bug of __isolate_lru_page.
->> >> > > 
->> >> > > Ccing Mel:
->> >> > > 
->> >> > > What locks protects address_space destroying when race happens between
->> >> > > inode trauncation and __isolate_lru_page?
->> >> > > 
->> >> > 
->> >> > I'm just back online and have a lot of catching up to do so this is a rushed
->> >> > answer and I didn't read the background of this. However the question is
->> >> > somewhat ambiguous and the scope is broad as I'm not sure which race you
->> >> > refer to. For file cache pages, I wouldnt' expect the address_space to be
->> >> > destroyed specifically as long as the inode exists which is the structure
->> >> > containing the address_space in this case. A page on the LRU being isolated
->> >> > in __isolate_lru_page will have an elevated reference count which will
->> >> > pin the inode until remove_mapping is called which holds the page lock
->> >> > while inode truncation looking at a page for truncation also only checks
->> >> > page_mapping under the page lock. Very broadly speaking, pages avoid being
->> >> > added back to an inode being freed by checking the I_FREEING state.
->> >> 
->> >> So I'm wondering what prevents the following:
->> >> 
->> >> CPU1						CPU2
->> >> 
->> >> truncate(inode)					__isolate_lru_page()
->> >>   ...
->> >>   truncate_inode_page(mapping, page);
->> >>     delete_from_page_cache(page)
->> >>       spin_lock_irqsave(&mapping->tree_lock, flags);
->> >>         __delete_from_page_cache(page, NULL)
->> >>           page_cache_tree_delete(..)
->> >>             ...					  mapping = page_mapping(page);
->> >>             page->mapping = NULL;
->> >>             ...
->> >>       spin_unlock_irqrestore(&mapping->tree_lock, flags);
->> >>       page_cache_free_page(mapping, page)
->> >>         put_page(page)
->> >>           if (put_page_testzero(page)) -> false
->> >> - inode now has no pages and can be freed including embedded address_space
->> >> 
->> >> 						  if (mapping && !mapping->a_ops->migratepage)
->> >> - we've dereferenced mapping which is potentially already free.
->> >> 
->> >
->> > Hmm, possible if unlikely.
->> >
->> > Before delete_from_page_cache, we called truncate_cleanup_page so the
->> > page is likely to be !PageDirty or PageWriteback which gets skipped by
->> > the only caller that checks the mappping in __isolate_lru_page. The race
->> > is tiny but it does exist. One way of closing it is to check the mapping
->> > under the page lock which will prevent races with truncation. The
->> > overhead is minimal as the calling context (compaction) is quite a heavy
->> > operation anyway.
->> >
->> 
->> I think another possible fix is to use call_rcu_sched() to free inode
->> (and address_space).  Because __isolate_lru_page() will be called with
->> LRU spinlock held and IRQ disabled, call_rcu_sched() will wait
->> LRU spin_unlock and IRQ enabled.
->> 
+On Wed, Jan 03, 2018 at 02:59:21PM +0100, Jan Kara wrote:
+> On Wed 03-01-18 13:32:19, Dave Chinner wrote:
+> > I think we could probably block ->write_metadata if necessary via a
+> > completion/wakeup style notification when a specific LSN is reached
+> > by the log tail, but realistically if there's any amount of data
+> > needing to be written it'll throttle data writes because the IO
+> > pipeline is being kept full by background metadata writes....
+> 
+> So the problem I'm concerned about is a corner case. Consider a situation
+> when you have no dirty data, only dirty metadata but enough of them to
+> trigger background writeback. How should metadata writeback behave for XFS
+> in this case? Who should be responsible that wb_writeback() just does not
+> loop invoking ->write_metadata() as fast as CPU allows until xfsaild makes
+> enough progress?
 >
-> Maybe, but in this particular case, I would prefer to go with something
-> more conventional unless there is strong evidence that it's an improvement
-> (which I doubt in this case given the cost of migration overall and the
-> corner case of migrating a dirty page).
+> Thinking about this today, I think this looping prevention belongs to
+> wb_writeback().
 
-So you like page_lock() more than RCU?  Is there any problem of RCU?
-The object to be protected isn't clear?
+Well, backgroudn data writeback can block in two ways. One is during
+IO submission when the request queue is full, the other is when all
+dirty inodes have had some work done on them and have all been moved
+to b_more_io - wb_writeback waits for the __I_SYNC bit to be cleared
+on the last(?) inode on that list, hence backing off before
+submitting more IO.
 
-Another way to fix this with RCU is to replace
-trylock_page()/unlock_page() with rcu_read_lock()/rcu_read_unlock() in
-your fix.
+IOws, there's a "during writeback" blocking mechanism as well as a
+"between cycles" block mechanism.
 
-JFYI, please keep your fix if you think that is more appropriate.
+> Sadly we don't have much info to decide how long to sleep
+> before trying more writeback so we'd have to just sleep for
+> <some_magic_amount> if we found no writeback happened in the last writeback
+> round before going through the whole writeback loop again.
 
-Best Regards,
-Huang, Ying
+Right - I don't think we can provide a generic "between cycles"
+blocking mechanism for XFS, but I'm pretty sure we can emulate a
+"during writeback" blocking mechanism to avoid busy looping inside
+the XFS code.
+
+e.g. if we get a writeback call that asks for 5% to be written,
+and we already have a metadata writeback target of 5% in place,
+that means we should block for a while. That would emulate request
+queue blocking and prevent busy looping in this case....
+
+> And
+> ->write_metadata() for XFS would need to always return 0 (as in "no progress
+> made") to make sure this busyloop avoidance logic in wb_writeback()
+> triggers. ext4 and btrfs would return number of bytes written from
+> ->write_metadata (or just 1 would be enough to indicate some progress in
+> metadata writeback was made and busyloop avoidance is not needed).
+
+Well, if we block for a little while, we can indicate that progress
+has been made and this whole mess would go away, right?
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
