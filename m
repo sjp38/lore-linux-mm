@@ -1,41 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9555D6B0506
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 14:18:31 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id q12so3583615plk.16
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 11:18:31 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x81si4463093pff.17.2018.01.05.11.18.30
+Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C9B376B0506
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 14:27:51 -0500 (EST)
+Received: by mail-io0-f200.google.com with SMTP id 79so5284388ion.20
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 11:27:51 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id j68si4928648itg.5.2018.01.05.11.27.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Jan 2018 11:18:30 -0800 (PST)
-Date: Fri, 5 Jan 2018 20:18:28 +0100 (CET)
-From: Jiri Kosina <jikos@kernel.org>
-Subject: Re: [PATCH 05/23] x86, kaiser: unmap kernel from userspace page
- tables (core patch)
-In-Reply-To: <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
-Message-ID: <nycvar.YFH.7.76.1801052017310.11852@cbobk.fhfr.pm>
-References: <20171123003438.48A0EEDE@viggo.jf.intel.com> <20171123003447.1DB395E3@viggo.jf.intel.com> <e80ac5b1-c562-fc60-ee84-30a3a40bde60@huawei.com> <93776eb2-b6d4-679a-280c-8ba558a69c34@linux.intel.com> <bda85c5e-d2be-f4ac-e2b4-4ef01d5a01a5@huawei.com>
- <20a54a5f-f4e5-2126-fb73-6a995d13d52d@linux.intel.com> <alpine.LRH.2.00.1801051909160.27010@gjva.wvxbf.pm> <282e2a56-ded1-6eb9-5ecb-22858c424bd7@linux.intel.com> <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jan 2018 11:27:50 -0800 (PST)
+Date: Fri, 5 Jan 2018 13:27:48 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
+In-Reply-To: <20180105184808.GS2801@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1801051326490.28069@nuc-kabylake>
+References: <20180103082555.14592-1-mhocko@kernel.org> <20180103082555.14592-2-mhocko@kernel.org> <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com> <20180105091443.GJ2801@dhcp22.suse.cz> <ebef70ed-1eff-8406-f26b-3ed260c0db22@linux.vnet.ibm.com>
+ <20180105093301.GK2801@dhcp22.suse.cz> <alpine.DEB.2.20.1801051113170.25466@nuc-kabylake> <20180105180905.GR2801@dhcp22.suse.cz> <alpine.DEB.2.20.1801051237300.26065@nuc-kabylake> <20180105184808.GS2801@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, keescook@google.com, hughd@google.com, x86@kernel.org, Andrea Arcangeli <aarcange@redhat.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, 5 Jan 2018, Jiri Kosina wrote:
+On Fri, 5 Jan 2018, Michal Hocko wrote:
 
-> That's because pgd_populate() uses _PAGE_TABLE and not _KERNPG_TABLE for 
-> reasons that are behind me.
+> > Also why are you migrating the pages on pagelist if a
+> > add_page_for_migration() fails? One could simply update
+> > the status in user space and continue.
+>
+> I am open to further cleanups. Care to send a full patch with the
+> changelog? I would rather not fold more changes to the already tested
+> one.
 
-[ oh and BTW I find the fact that we have populate_pgd() and 
-pgd_populate(), which do something *completely* different quite 
-entertaining ]
-
--- 
-Jiri Kosina
-SUSE Labs
+While doing that I saw that one could pull the rwsem locking out of
+add_page_for_migration() as well in order to avoid taking it for each 4k
+page. Include that?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
