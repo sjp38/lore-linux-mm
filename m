@@ -1,67 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 726CC6B0536
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 14:44:16 -0500 (EST)
-Received: by mail-wr0-f199.google.com with SMTP id w18so3107235wra.5
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 11:44:16 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k127si4167324wmd.3.2018.01.05.11.44.15
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B430C28027E
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 14:55:40 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id u128so2605922oib.8
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 11:55:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x79si1649210oia.52.2018.01.05.11.55.39
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Jan 2018 11:44:15 -0800 (PST)
-Date: Fri, 5 Jan 2018 20:44:13 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20180105194413.GU2801@dhcp22.suse.cz>
-References: <20180103082555.14592-2-mhocko@kernel.org>
- <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com>
- <20180105091443.GJ2801@dhcp22.suse.cz>
- <ebef70ed-1eff-8406-f26b-3ed260c0db22@linux.vnet.ibm.com>
- <20180105093301.GK2801@dhcp22.suse.cz>
- <alpine.DEB.2.20.1801051113170.25466@nuc-kabylake>
- <20180105180905.GR2801@dhcp22.suse.cz>
- <alpine.DEB.2.20.1801051237300.26065@nuc-kabylake>
- <20180105184808.GS2801@dhcp22.suse.cz>
- <alpine.DEB.2.20.1801051326490.28069@nuc-kabylake>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jan 2018 11:55:39 -0800 (PST)
+Date: Fri, 5 Jan 2018 20:55:35 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [PATCH 05/23] x86, kaiser: unmap kernel from userspace page
+ tables (core patch)
+Message-ID: <20180105195535.GZ26807@redhat.com>
+References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
+ <20171123003447.1DB395E3@viggo.jf.intel.com>
+ <e80ac5b1-c562-fc60-ee84-30a3a40bde60@huawei.com>
+ <93776eb2-b6d4-679a-280c-8ba558a69c34@linux.intel.com>
+ <bda85c5e-d2be-f4ac-e2b4-4ef01d5a01a5@huawei.com>
+ <20a54a5f-f4e5-2126-fb73-6a995d13d52d@linux.intel.com>
+ <alpine.LRH.2.00.1801051909160.27010@gjva.wvxbf.pm>
+ <282e2a56-ded1-6eb9-5ecb-22858c424bd7@linux.intel.com>
+ <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <alpine.DEB.2.20.1801051326490.28069@nuc-kabylake>
+In-Reply-To: <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Jiri Kosina <jikos@kernel.org>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On Fri 05-01-18 13:27:48, Cristopher Lameter wrote:
-> On Fri, 5 Jan 2018, Michal Hocko wrote:
+On Fri, Jan 05, 2018 at 08:17:17PM +0100, Jiri Kosina wrote:
+> On Fri, 5 Jan 2018, Dave Hansen wrote:
 > 
-> > > Also why are you migrating the pages on pagelist if a
-> > > add_page_for_migration() fails? One could simply update
-> > > the status in user space and continue.
-> >
-> > I am open to further cleanups. Care to send a full patch with the
-> > changelog? I would rather not fold more changes to the already tested
-> > one.
+> > > --- a/arch/x86/platform/efi/efi_64.c
+> > > +++ b/arch/x86/platform/efi/efi_64.c
+> > > @@ -95,6 +95,12 @@ pgd_t * __init efi_call_phys_prolog(void
+> > >  		save_pgd[pgd] = *pgd_offset_k(pgd * PGDIR_SIZE);
+> > >  		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
+> > >  		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
+> > > +		/*
+> > > +		 * pgprot API doesn't clear it for PGD
+> > > +		 *
+> > > +		 * Will be brought back automatically in _epilog()
+> > > +		 */
+> > > +		pgd_offset_k(pgd * PGDIR_SIZE)->pgd &= ~_PAGE_NX;
+> > >  	}
+> > >  	__flush_tlb_all();
+
+Upstream & downstream looks different, how the above looks completely
+different I don't know, but I got it and updating is easy. Great
+catch.
+
+> > 
+> > Wait a sec...  Where does the _PAGE_USER come from?  Shouldn't we see
+> > the &init_mm in there and *not* set _PAGE_USER?
 > 
-> While doing that I saw that one could pull the rwsem locking out of
-> add_page_for_migration() as well in order to avoid taking it for each 4k
-> page. Include that?
+> That's because pgd_populate() uses _PAGE_TABLE and not _KERNPG_TABLE for 
+> reasons that are behind me.
 
-Yeah, why not if the end result turns out to be simpler and easier to
-maintain. Please note that I was mostly after simplicity. There are
-other things to sort out though. Please read the cover which contains
-several API oddities which would be good to either sort out or at least
-document them.
+For vsyscalls? I also had to single out warnings out of init_mm.pgd
+for the same reasons.
 
-Please also note that I am too busy with the most "popular" bug these
-days, unfortunately, so my review bandwidth will be very limited.
-
--- 
-Michal Hocko
-SUSE Labs
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+How does the below (untested) look?
