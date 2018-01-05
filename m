@@ -1,95 +1,107 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 190326B02FF
-	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 22:52:36 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id x129so2433649qkb.17
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 19:52:36 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id z124si1998964qkd.293.2018.01.04.19.52.34
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 063F16B04E1
+	for <linux-mm@kvack.org>; Thu,  4 Jan 2018 23:16:35 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id l20so1825795pgc.10
+        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 20:16:34 -0800 (PST)
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id w12si3438418pfi.238.2018.01.04.20.16.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 19:52:35 -0800 (PST)
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.21/8.16.0.21) with SMTP id w053nTgr159138
-	for <linux-mm@kvack.org>; Thu, 4 Jan 2018 22:52:34 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2f9wf9r0ak-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 04 Jan 2018 22:52:34 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Fri, 5 Jan 2018 03:52:32 -0000
-Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
-References: <20180103082555.14592-1-mhocko@kernel.org>
- <20180103082555.14592-2-mhocko@kernel.org>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Fri, 5 Jan 2018 09:22:22 +0530
+        Thu, 04 Jan 2018 20:16:33 -0800 (PST)
+Subject: Re: [PATCH 05/23] x86, kaiser: unmap kernel from userspace page
+ tables (core patch)
+References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
+ <20171123003447.1DB395E3@viggo.jf.intel.com>
+From: Yisheng Xie <xieyisheng1@huawei.com>
+Message-ID: <e80ac5b1-c562-fc60-ee84-30a3a40bde60@huawei.com>
+Date: Fri, 5 Jan 2018 12:16:13 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180103082555.14592-2-mhocko@kernel.org>
-Content-Type: text/plain; charset=windows-1252
+In-Reply-To: <20171123003447.1DB395E3@viggo.jf.intel.com>
+Content-Type: text/plain; charset="windows-1252"
 Content-Transfer-Encoding: 7bit
-Message-Id: <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, Anshuman Khandual <khandual@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>, Michal Hocko <mhocko@suse.com>
+To: Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
 
-On 01/03/2018 01:55 PM, Michal Hocko wrote:
-> From: Michal Hocko <mhocko@suse.com>
+Hi Dava,
+
+On 2017/11/23 8:34, Dave Hansen wrote:
 > 
-> do_pages_move is supposed to move user defined memory (an array of
-> addresses) to the user defined numa nodes (an array of nodes one for
-> each address). The user provided status array then contains resulting
-> numa node for each address or an error. The semantic of this function is
-> little bit confusing because only some errors are reported back. Notably
-> migrate_pages error is only reported via the return value. This patch
-> doesn't try to address these semantic nuances but rather change the
-> underlying implementation.
+> From: Dave Hansen <dave.hansen@linux.intel.com>
 > 
-> Currently we are processing user input (which can be really large)
-> in batches which are stored to a temporarily allocated page. Each
-> address is resolved to its struct page and stored to page_to_node
-> structure along with the requested target numa node. The array of these
-> structures is then conveyed down the page migration path via private
-> argument. new_page_node then finds the corresponding structure and
-> allocates the proper target page.
+> These patches are based on work from a team at Graz University of
+> Technology: https://github.com/IAIK/KAISER .  This work would not have
+> been possible without their work as a starting point.
 > 
-> What is the problem with the current implementation and why to change
-> it? Apart from being quite ugly it also doesn't cope with unexpected
-> pages showing up on the migration list inside migrate_pages path.
-> That doesn't happen currently but the follow up patch would like to
-> make the thp migration code more clear and that would need to split a
-> THP into the list for some cases.
+> KAISER is a countermeasure against side channel attacks against kernel
+> virtual memory.  It leaves the existing page tables largely alone and
+> refers to them as the "kernel page tables.  It adds a "shadow" pgd for
+> every process which is intended for use when running userspace.  The
+> shadow pgd maps all the same user memory as the "kernel" copy, but
+> only maps a minimal set of kernel memory.
 > 
-> How does the new implementation work? Well, instead of batching into a
-> fixed size array we simply batch all pages that should be migrated to
-> the same node and isolate all of them into a linked list which doesn't
-> require any additional storage. This should work reasonably well because
-> page migration usually migrates larger ranges of memory to a specific
-> node. So the common case should work equally well as the current
-> implementation. Even if somebody constructs an input where the target
-> numa nodes would be interleaved we shouldn't see a large performance
-> impact because page migration alone doesn't really benefit from
-> batching. mmap_sem batching for the lookup is quite questionable and
-> isolate_lru_page which would benefit from batching is not using it even
-> in the current implementation.
+> Whenever entering the kernel (syscalls, interrupts, exceptions), the
+> pgd is switched to the "kernel" copy.  When switching back to user
+> mode, the shadow pgd is used.
+> 
+> The minimalistic kernel page tables try to map only what is needed to
+> enter/exit the kernel such as the entry/exit functions themselves and
+> the interrupt descriptors (IDT).
+> 
+> === Page Table Poisoning ===
+> 
+> KAISER has two copies of the page tables: one for the kernel and
+> one for when running in userspace.  
 
-Hi Michal,
+So, we have 2 page table, thinking about this case:
+If _ONE_ process includes _TWO_ threads, one run in user space, the other
+run in kernel, they can run in one core with Hyper-Threading, right? So both
+userspace and kernel space is valid, right? And for one core with
+Hyper-Threading, they may share TLB, so the timing problem described in
+the paper may still exist?
 
-After slightly modifying your test case (like fixing the page size for
-powerpc and just doing simple migration from node 0 to 8 instead of the
-interleaving), I tried to measure the migration speed with and without
-the patches on mainline. Its interesting....
+Can this case still be protected by KAISER?
 
-					10000 pages | 100000 pages
-					--------------------------
-Mainline				165 ms		1674 ms
-Mainline + first patch (move_pages)	191 ms		1952 ms
-Mainline + all three patches		146 ms		1469 ms
+Thanks
+Yisheng
 
-Though overall it gives performance improvement, some how it slows
-down migration after the first patch. Will look into this further.
+> There is also a kernel
+> portion of each of the page tables: the part that *maps* the
+> kernel.
+> 
+> The kernel portion is relatively static and uses pre-populated
+> PGDs.  Nobody ever calls set_pgd() on the kernel portion during
+> normal operation.
+> 
+> The userspace portion of the page tables is updated frequently as
+> userspace pages are mapped and page table pages are allocated.
+> These updates of the userspace *portion* of the tables need to be
+> reflected into both the kernel and user/shadow copies.
+> 
+> The original KAISER patches did this by effectively looking at the
+> address that is being updated.  If it is <PAGE_OFFSET, it is
+> considered to be doing an update for the userspace portion of the page
+> tables and must make an entry in the shadow.
+> 
+> However, this has a wrinkle: there are a few places where low
+> addresses are used in supervisor (kernel) mode.  When EFI calls
+> are made, they use what are traditionally user addresses in
+> supervisor mode and trip over these checks.  The trampoline code
+> that used for booting secondary CPUs has a similar issue.
+> 
+> Remember, there are two things that KAISER needs performed on a
+> userspace PGD:
+> 
+>  1. Populate the shadow itself
+>  2. Poison the kernel PGD so it can not be used by userspace.
+> 
+> Only perform these actions when dealing with a user address *and* the
+> PGD has _PAGE_USER set.  That way, in-kernel users of low addresses
+> typically used by userspace are not accidentally poisoned.
+> 
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
