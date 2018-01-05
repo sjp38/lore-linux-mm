@@ -1,103 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yb0-f198.google.com (mail-yb0-f198.google.com [209.85.213.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C89756B04E7
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 10:40:54 -0500 (EST)
-Received: by mail-yb0-f198.google.com with SMTP id b93so2100782ybi.13
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 07:40:54 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q65sor1730322ywh.32.2018.01.05.07.40.53
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 05 Jan 2018 07:40:53 -0800 (PST)
+Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 084296B04F1
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 11:49:43 -0500 (EST)
+Received: by mail-ot0-f199.google.com with SMTP id m43so2556874otb.7
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 08:49:43 -0800 (PST)
+Received: from fieldses.org (fieldses.org. [173.255.197.46])
+        by mx.google.com with ESMTP id e3si1538715oia.435.2018.01.05.08.49.41
+        for <linux-mm@kvack.org>;
+        Fri, 05 Jan 2018 08:49:42 -0800 (PST)
+Date: Fri, 5 Jan 2018 11:49:41 -0500
+Subject: Re: About the try to remove cross-release feature entirely by Ingo
+Message-ID: <20180105164941.GA4032@fieldses.org>
+References: <CANrsvRPQcWz-p_3TYfNf+Waek3bcNNPniXhFzyyS=7qbCqzGyg@mail.gmail.com>
+ <20171229014736.GA10341@X58A-UD3R>
+ <20171229035146.GA11757@thunk.org>
+ <20171229072851.GA12235@X58A-UD3R>
+ <20171230061624.GA27959@bombadil.infradead.org>
+ <20171230154041.GB3366@thunk.org>
+ <20171230204417.GF27959@bombadil.infradead.org>
+ <20171230224028.GC3366@thunk.org>
+ <20171230230057.GB12995@thunk.org>
+ <20180101101855.GA23567@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <1510555438-28996-1-git-send-email-amir73il@gmail.com>
-References: <1510555438-28996-1-git-send-email-amir73il@gmail.com>
-From: Amir Goldstein <amir73il@gmail.com>
-Date: Fri, 5 Jan 2018 17:40:53 +0200
-Message-ID: <CAOQ4uxgnzRummiQm0DNP52QxGoJ8XN+EtEkYBWxyTD5YUWf+nQ@mail.gmail.com>
-Subject: Re: [PATCH v2] tmpfs: allow decoding a file handle of an unlinked file
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180101101855.GA23567@bombadil.infradead.org>
+From: bfields@fieldses.org (J. Bruce Fields)
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Hugh Dickins <hughd@google.com>
-Cc: Jeff Layton <jlayton@poochiereds.net>, "J . Bruce Fields" <bfields@fieldses.org>, James Bottomley <James.Bottomley@hansenpartnership.com>, overlayfs <linux-unionfs@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, Al Viro <viro@zeniv.linux.org.uk>, Miklos Szeredi <miklos@szeredi.hu>, linux-mm@kvack.org
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <byungchul.park@lge.com>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
 
-On Mon, Nov 13, 2017 at 8:43 AM, Amir Goldstein <amir73il@gmail.com> wrote:
-> tmpfs uses the helper d_find_alias() to find a dentry from a decoded
-> inode, but d_find_alias() skips unhashed dentries, so unlinked files
-> cannot be decoded from a file handle.
->
-> This can be reproduced using xfstests test program open_by_handle:
-> $ open_by handle -c /tmp/testdir
-> $ open_by_handle -dk /tmp/testdir
-> open_by_handle(/tmp/testdir/file000000) returned 116 incorrectly on an
-> unlinked open file!
->
-> To fix this, if d_find_alias() can't find a hashed alias, call
-> d_find_any_alias() to return an unhashed one.
->
-> Cc: Hugh Dickins <hughd@google.com>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Signed-off-by: Amir Goldstein <amir73il@gmail.com>
-> ---
->
-> Al, Miklos,
->
-> Can either of you take this patch through your tree?
->
-> Thanks,
-> Amir.
->
-> Changes since v1:
-> - Prefer a hashed alias (James)
-> - Use existing d_find_any_alias() helper
->
->  mm/shmem.c | 11 ++++++++++-
->  1 file changed, 10 insertions(+), 1 deletion(-)
->
-> diff --git a/mm/shmem.c b/mm/shmem.c
-> index 07a1d22807be..5d3fa4099f54 100644
-> --- a/mm/shmem.c
-> +++ b/mm/shmem.c
-> @@ -3404,6 +3404,15 @@ static int shmem_match(struct inode *ino, void *vfh)
->         return ino->i_ino == inum && fh[0] == ino->i_generation;
->  }
->
-> +/* Find any alias of inode, but prefer a hashed alias */
-> +static struct dentry *shmem_find_alias(struct inode *inode)
-> +{
-> +       struct dentry *alias = d_find_alias(inode);
-> +
-> +       return alias ?: d_find_any_alias(inode);
-> +}
-> +
-> +
->  static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
->                 struct fid *fid, int fh_len, int fh_type)
->  {
-> @@ -3420,7 +3429,7 @@ static struct dentry *shmem_fh_to_dentry(struct super_block *sb,
->         inode = ilookup5(sb, (unsigned long)(inum + fid->raw[0]),
->                         shmem_match, fid->raw);
->         if (inode) {
-> -               dentry = d_find_alias(inode);
-> +               dentry = shmem_find_alias(inode);
->                 iput(inode);
->         }
->
-> --
+On Mon, Jan 01, 2018 at 02:18:55AM -0800, Matthew Wilcox wrote:
+> On Sat, Dec 30, 2017 at 06:00:57PM -0500, Theodore Ts'o wrote:
+> > On Sat, Dec 30, 2017 at 05:40:28PM -0500, Theodore Ts'o wrote:
+> > > On Sat, Dec 30, 2017 at 12:44:17PM -0800, Matthew Wilcox wrote:
+> > > > 
+> > > > I'm not sure I agree with this part.  What if we add a new TCP lock class
+> > > > for connections which are used for filesystems/network block devices/...?
+> > > > Yes, it'll be up to each user to set the lockdep classification correctly,
+> > > > but that's a relatively small number of places to add annotations,
+> > > > and I don't see why it wouldn't work.
+> > > 
+> > > I was exagerrating a bit for effect, I admit.  (but only a bit).
+> 
+> I feel like there's been rather too much of that recently.  Can we stick
+> to facts as far as possible, please?
+> 
+> > > It can probably be for all TCP connections that are used by kernel
+> > > code (as opposed to userspace-only TCP connections).  But it would
+> > > probably have to be each and every device-mapper instance, each and
+> > > every block device, each and every mounted file system, each and every
+> > > bdi object, etc.
+> > 
+> > Clarification: all TCP connections that are used by kernel code would
+> > need to be in their own separate lock class.  All TCP connections used
+> > only by userspace could be in their own shared lock class.  You can't
+> > use a one lock class for all kernel-used TCP connections, because of
+> > the Network Block Device mounted on a local file system which is then
+> > exported via NFS and squirted out yet another TCP connection problem.
+> 
+> So the false positive you're concerned about is write-comes-in-over-NFS
+> (with socket lock held), NFS sends a write request to local filesystem,
 
-Hugh,
+I'm confused, what lock does Ted think the NFS server is holding over
+NFS processing?
 
-Did you get a chance to look at this patch?
-
-The test for decoding a file handle of an unlinked file has already been
-merged to xfstest generic/467 and the test is failing on tmpfs without this
-change.
-
-Can you please take or ACK this patch?
-
-Thanks,
-Amir.
+--b.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
