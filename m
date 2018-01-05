@@ -1,67 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B430C28027E
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 14:55:40 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id u128so2605922oib.8
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 11:55:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x79si1649210oia.52.2018.01.05.11.55.39
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 49D7C28027E
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 15:42:44 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id k44so3181039wre.1
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 12:42:44 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id x8si4658692wrd.236.2018.01.05.12.42.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jan 2018 11:55:39 -0800 (PST)
-Date: Fri, 5 Jan 2018 20:55:35 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 05/23] x86, kaiser: unmap kernel from userspace page
- tables (core patch)
-Message-ID: <20180105195535.GZ26807@redhat.com>
-References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
- <20171123003447.1DB395E3@viggo.jf.intel.com>
- <e80ac5b1-c562-fc60-ee84-30a3a40bde60@huawei.com>
- <93776eb2-b6d4-679a-280c-8ba558a69c34@linux.intel.com>
- <bda85c5e-d2be-f4ac-e2b4-4ef01d5a01a5@huawei.com>
- <20a54a5f-f4e5-2126-fb73-6a995d13d52d@linux.intel.com>
- <alpine.LRH.2.00.1801051909160.27010@gjva.wvxbf.pm>
- <282e2a56-ded1-6eb9-5ecb-22858c424bd7@linux.intel.com>
- <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <nycvar.YFH.7.76.1801052014050.11852@cbobk.fhfr.pm>
+        Fri, 05 Jan 2018 12:42:42 -0800 (PST)
+Date: Fri, 5 Jan 2018 12:42:39 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [mmotm:master 152/256] mm/migrate.c:1934:53: sparse: incorrect
+ type in argument 2 (different argument counts)
+Message-Id: <20180105124239.8d9c4e5631b8488807349f89@linux-foundation.org>
+In-Reply-To: <201801051507.45CKDK0l%fengguang.wu@intel.com>
+References: <201801051507.45CKDK0l%fengguang.wu@intel.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jiri Kosina <jikos@kernel.org>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, Yisheng Xie <xieyisheng1@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, keescook@google.com, hughd@google.com, x86@kernel.org
+To: kbuild test robot <fengguang.wu@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>, kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux Memory Management List <linux-mm@kvack.org>, Stephen Rothwell <sfr@canb.auug.org.au>
 
-On Fri, Jan 05, 2018 at 08:17:17PM +0100, Jiri Kosina wrote:
-> On Fri, 5 Jan 2018, Dave Hansen wrote:
+On Fri, 5 Jan 2018 15:29:12 +0800 kbuild test robot <fengguang.wu@intel.com> wrote:
+
+> Hi Michal,
 > 
-> > > --- a/arch/x86/platform/efi/efi_64.c
-> > > +++ b/arch/x86/platform/efi/efi_64.c
-> > > @@ -95,6 +95,12 @@ pgd_t * __init efi_call_phys_prolog(void
-> > >  		save_pgd[pgd] = *pgd_offset_k(pgd * PGDIR_SIZE);
-> > >  		vaddress = (unsigned long)__va(pgd * PGDIR_SIZE);
-> > >  		set_pgd(pgd_offset_k(pgd * PGDIR_SIZE), *pgd_offset_k(vaddress));
-> > > +		/*
-> > > +		 * pgprot API doesn't clear it for PGD
-> > > +		 *
-> > > +		 * Will be brought back automatically in _epilog()
-> > > +		 */
-> > > +		pgd_offset_k(pgd * PGDIR_SIZE)->pgd &= ~_PAGE_NX;
-> > >  	}
-> > >  	__flush_tlb_all();
-
-Upstream & downstream looks different, how the above looks completely
-different I don't know, but I got it and updating is easy. Great
-catch.
-
-> > 
-> > Wait a sec...  Where does the _PAGE_USER come from?  Shouldn't we see
-> > the &init_mm in there and *not* set _PAGE_USER?
+> First bad commit (maybe != root cause):
 > 
-> That's because pgd_populate() uses _PAGE_TABLE and not _KERNPG_TABLE for 
-> reasons that are behind me.
+> tree:   git://git.cmpxchg.org/linux-mmotm.git master
+> head:   1ceb98996d2504dd4e0bcb5f4cb9009a18cd8aaa
+> commit: 37870392dd6966328ed2fe49a247ab37d6fa7344 [152/256] mm, hugetlb: unify core page allocation accounting and initialization
+> reproduce:
+>         # apt-get install sparse
+>         git checkout 37870392dd6966328ed2fe49a247ab37d6fa7344
+>         make ARCH=x86_64 allmodconfig
+>         make C=1 CF=-D__CHECK_ENDIAN__
+> 
+> 
 
-For vsyscalls? I also had to single out warnings out of init_mm.pgd
-for the same reasons.
+--- a/mm/migrate.c~mm-migrate-remove-reason-argument-from-new_page_t-fix-fix
++++ a/mm/migrate.c
+@@ -1784,8 +1784,7 @@ static bool migrate_balanced_pgdat(struc
+ }
+ 
+ static struct page *alloc_misplaced_dst_page(struct page *page,
+-					   unsigned long data,
+-					   int **result)
++					   unsigned long data)
+ {
+ 	int nid = (int) data;
+ 	struct page *newpage;
+_
 
-How does the below (untested) look?
+That's against mm-migrate-remove-reason-argument-from-new_page_t.patch.
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
