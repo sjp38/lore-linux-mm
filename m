@@ -1,70 +1,130 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A7FB280271
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 04:33:04 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id s105so2304660wrc.23
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 01:33:04 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f10si3396278wmi.275.2018.01.05.01.33.02
+Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 448C0280271
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 04:41:19 -0500 (EST)
+Received: by mail-wr0-f200.google.com with SMTP id s105so2314246wrc.23
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 01:41:19 -0800 (PST)
+Received: from mout.kundenserver.de (mout.kundenserver.de. [217.72.192.75])
+        by mx.google.com with ESMTPS id j9si3904773wrc.162.2018.01.05.01.41.17
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Jan 2018 01:33:03 -0800 (PST)
-Date: Fri, 5 Jan 2018 10:33:01 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
-Message-ID: <20180105093301.GK2801@dhcp22.suse.cz>
-References: <20180103082555.14592-1-mhocko@kernel.org>
- <20180103082555.14592-2-mhocko@kernel.org>
- <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com>
- <20180105091443.GJ2801@dhcp22.suse.cz>
- <ebef70ed-1eff-8406-f26b-3ed260c0db22@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ebef70ed-1eff-8406-f26b-3ed260c0db22@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jan 2018 01:41:17 -0800 (PST)
+From: Arnd Bergmann <arnd@arndb.de>
+Subject: [PATCH] kasan: add declarations for internal functions
+Date: Fri,  5 Jan 2018 10:40:41 +0100
+Message-Id: <20180105094112.2690475-1-arnd@arndb.de>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Arnd Bergmann <arnd@arndb.de>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Andrey Konovalov <andreyknvl@google.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Fri 05-01-18 14:50:04, Anshuman Khandual wrote:
-> On 01/05/2018 02:44 PM, Michal Hocko wrote:
-> > On Fri 05-01-18 09:22:22, Anshuman Khandual wrote:
-> > [...]
-> >> Hi Michal,
-> >>
-> >> After slightly modifying your test case (like fixing the page size for
-> >> powerpc and just doing simple migration from node 0 to 8 instead of the
-> >> interleaving), I tried to measure the migration speed with and without
-> >> the patches on mainline. Its interesting....
-> >>
-> >> 					10000 pages | 100000 pages
-> >> 					--------------------------
-> >> Mainline				165 ms		1674 ms
-> >> Mainline + first patch (move_pages)	191 ms		1952 ms
-> >> Mainline + all three patches		146 ms		1469 ms
-> >>
-> >> Though overall it gives performance improvement, some how it slows
-> >> down migration after the first patch. Will look into this further.
-> > 
-> > What are you measuring actually? All pages migrated to the same node?
-> 
-> The mount of time move_pages() system call took to move these many
-> pages from node 0 to node 8. Yeah they migrated to the same node.
-> 
-> > Do you have any profiles? How stable are the results?
-> 
-> No, are you referring to perf record kind profile ? Results were
-> repeating.
+A patch got merged that made newly added functions static, leading
+to a warning about unused functions as well as a link error when
+they are actually used:
 
-Yes. I am really wondering because there souldn't anything specific to
-improve the situation with patch 2 and 3. Likewise the only overhead
-from the patch 1 I can see is the reduced batching of the mmap_sem. But
-then I am wondering what would compensate that later...
+mm/kasan/kasan.c:780:7: error: '__asan_set_shadow_f8' defined but not used [-Werror=unused-function]
+mm/kasan/kasan.c:791:8: note: in expansion of macro 'DEFINE_ASAN_SET_SHADOW'
+mm/kasan/kasan.c:780:7: error: '__asan_set_shadow_f5' defined but not used [-Werror=unused-function]
 
+It turns out the underlying problem is that a lot of the internal
+interfaces of the kasan implementation are only ever called from
+code generated by the compiler. These don't need any declarations
+to work fine, but cause warnings both with sparse and with 'make W=1':
+
+mm/kasan/kasan.c:695:1: warning: symbol '__asan_load1' was not declared. Should it be static?
+mm/kasan/kasan.c:695:1: warning: symbol '__asan_store1' was not declared. Should it be static?
+mm/kasan/kasan.c:696:1: warning: symbol '__asan_load2' was not declared. Should it be static?
+mm/kasan/kasan.c:696:1: warning: symbol '__asan_store2' was not declared. Should it be static?
+mm/kasan/kasan.c:697:1: warning: symbol '__asan_load4' was not declared. Should it be static?
+
+This removes the bogus 'static' annotation and adds declarations
+for all affected interfaces.
+
+Fixes: mmotm ("kasan: __asan_set_shadow_00 can be static")
+Signed-off-by: Arnd Bergmann <arnd@arndb.de>
+---
+ mm/kasan/kasan.c | 12 ++++++------
+ mm/kasan/kasan.h | 44 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 6 deletions(-)
+
+diff --git a/mm/kasan/kasan.c b/mm/kasan/kasan.c
+index 83a11e7e3700..3fb497d4fbf8 100644
+--- a/mm/kasan/kasan.c
++++ b/mm/kasan/kasan.c
+@@ -783,12 +783,12 @@ EXPORT_SYMBOL(__asan_allocas_unpoison);
+ 	}								\
+ 	EXPORT_SYMBOL(__asan_set_shadow_##byte)
+ 
+-static DEFINE_ASAN_SET_SHADOW(00);
+-static DEFINE_ASAN_SET_SHADOW(f1);
+-static DEFINE_ASAN_SET_SHADOW(f2);
+-static DEFINE_ASAN_SET_SHADOW(f3);
+-static DEFINE_ASAN_SET_SHADOW(f5);
+-static DEFINE_ASAN_SET_SHADOW(f8);
++DEFINE_ASAN_SET_SHADOW(00);
++DEFINE_ASAN_SET_SHADOW(f1);
++DEFINE_ASAN_SET_SHADOW(f2);
++DEFINE_ASAN_SET_SHADOW(f3);
++DEFINE_ASAN_SET_SHADOW(f5);
++DEFINE_ASAN_SET_SHADOW(f8);
+ 
+ #ifdef CONFIG_MEMORY_HOTPLUG
+ static int __meminit kasan_mem_notifier(struct notifier_block *nb,
+diff --git a/mm/kasan/kasan.h b/mm/kasan/kasan.h
+index 2792de927fcd..c12dcfde2ebd 100644
+--- a/mm/kasan/kasan.h
++++ b/mm/kasan/kasan.h
+@@ -120,4 +120,48 @@ static inline void quarantine_reduce(void) { }
+ static inline void quarantine_remove_cache(struct kmem_cache *cache) { }
+ #endif
+ 
++/*
++ * Exported functions for interfaces called from assembly or from generated
++ * code. Declarations here to avoid warning about missing declarations.
++ */
++asmlinkage void kasan_unpoison_task_stack_below(const void *watermark);
++void __asan_register_globals(struct kasan_global *globals, size_t size);
++void __asan_unregister_globals(struct kasan_global *globals, size_t size);
++void __asan_loadN(unsigned long addr, size_t size);
++void __asan_storeN(unsigned long addr, size_t size);
++void __asan_handle_no_return(void);
++void __asan_poison_stack_memory(const void *addr, size_t size);
++void __asan_unpoison_stack_memory(const void *addr, size_t size);
++void __asan_alloca_poison(unsigned long addr, size_t size);
++void __asan_allocas_unpoison(const void *stack_top, const void *stack_bottom);
++
++void __asan_load1(unsigned long addr);
++void __asan_store1(unsigned long addr);
++void __asan_load2(unsigned long addr);
++void __asan_store2(unsigned long addr);
++void __asan_load4(unsigned long addr);
++void __asan_store4(unsigned long addr);
++void __asan_load8(unsigned long addr);
++void __asan_store8(unsigned long addr);
++void __asan_load16(unsigned long addr);
++void __asan_store16(unsigned long addr);
++
++void __asan_load1_noabort(unsigned long addr);
++void __asan_store1_noabort(unsigned long addr);
++void __asan_load2_noabort(unsigned long addr);
++void __asan_store2_noabort(unsigned long addr);
++void __asan_load4_noabort(unsigned long addr);
++void __asan_store4_noabort(unsigned long addr);
++void __asan_load8_noabort(unsigned long addr);
++void __asan_store8_noabort(unsigned long addr);
++void __asan_load16_noabort(unsigned long addr);
++void __asan_store16_noabort(unsigned long addr);
++
++void __asan_set_shadow_00(const void *addr, size_t size);
++void __asan_set_shadow_f1(const void *addr, size_t size);
++void __asan_set_shadow_f2(const void *addr, size_t size);
++void __asan_set_shadow_f3(const void *addr, size_t size);
++void __asan_set_shadow_f5(const void *addr, size_t size);
++void __asan_set_shadow_f8(const void *addr, size_t size);
++
+ #endif
 -- 
-Michal Hocko
-SUSE Labs
+2.9.0
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
