@@ -1,86 +1,42 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C5BED28026C
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 12:05:37 -0500 (EST)
-Received: by mail-ot0-f200.google.com with SMTP id e6so2577809otd.17
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 09:05:37 -0800 (PST)
-Received: from fieldses.org (fieldses.org. [173.255.197.46])
-        by mx.google.com with ESMTP id 7si1731342otr.511.2018.01.05.09.05.36
-        for <linux-mm@kvack.org>;
-        Fri, 05 Jan 2018 09:05:36 -0800 (PST)
-Date: Fri, 5 Jan 2018 12:05:06 -0500
-From: "J. Bruce Fields" <bfields@fieldses.org>
-Subject: Re: About the try to remove cross-release feature entirely by Ingo
-Message-ID: <20180105170506.GB4032@fieldses.org>
-References: <20171229014736.GA10341@X58A-UD3R>
- <20171229035146.GA11757@thunk.org>
- <20171229072851.GA12235@X58A-UD3R>
- <20171230061624.GA27959@bombadil.infradead.org>
- <20171230154041.GB3366@thunk.org>
- <20171230204417.GF27959@bombadil.infradead.org>
- <20171230224028.GC3366@thunk.org>
- <20171230230057.GB12995@thunk.org>
- <20180101101855.GA23567@bombadil.infradead.org>
- <20180105164941.GA4032@fieldses.org>
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E0C4B28026C
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 12:15:21 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id d62so5077255iof.0
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 09:15:21 -0800 (PST)
+Received: from resqmta-ch2-10v.sys.comcast.net (resqmta-ch2-10v.sys.comcast.net. [2001:558:fe21:29:69:252:207:42])
+        by mx.google.com with ESMTPS id j63si4741580itb.37.2018.01.05.09.15.20
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 05 Jan 2018 09:15:20 -0800 (PST)
+Date: Fri, 5 Jan 2018 11:15:18 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
+In-Reply-To: <20180105093301.GK2801@dhcp22.suse.cz>
+Message-ID: <alpine.DEB.2.20.1801051113170.25466@nuc-kabylake>
+References: <20180103082555.14592-1-mhocko@kernel.org> <20180103082555.14592-2-mhocko@kernel.org> <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com> <20180105091443.GJ2801@dhcp22.suse.cz> <ebef70ed-1eff-8406-f26b-3ed260c0db22@linux.vnet.ibm.com>
+ <20180105093301.GK2801@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180105164941.GA4032@fieldses.org>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Theodore Ts'o <tytso@mit.edu>, Byungchul Park <byungchul.park@lge.com>, Byungchul Park <max.byungchul.park@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>, david@fromorbit.com, Linus Torvalds <torvalds@linux-foundation.org>, Amir Goldstein <amir73il@gmail.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, oleg@redhat.com, kernel-team@lge.com, daniel@ffwll.ch
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri, Jan 05, 2018 at 11:49:41AM -0500, bfields wrote:
-> On Mon, Jan 01, 2018 at 02:18:55AM -0800, Matthew Wilcox wrote:
-> > On Sat, Dec 30, 2017 at 06:00:57PM -0500, Theodore Ts'o wrote:
-> > > On Sat, Dec 30, 2017 at 05:40:28PM -0500, Theodore Ts'o wrote:
-> > > > On Sat, Dec 30, 2017 at 12:44:17PM -0800, Matthew Wilcox wrote:
-> > > > > 
-> > > > > I'm not sure I agree with this part.  What if we add a new TCP lock class
-> > > > > for connections which are used for filesystems/network block devices/...?
-> > > > > Yes, it'll be up to each user to set the lockdep classification correctly,
-> > > > > but that's a relatively small number of places to add annotations,
-> > > > > and I don't see why it wouldn't work.
-> > > > 
-> > > > I was exagerrating a bit for effect, I admit.  (but only a bit).
-> > 
-> > I feel like there's been rather too much of that recently.  Can we stick
-> > to facts as far as possible, please?
-> > 
-> > > > It can probably be for all TCP connections that are used by kernel
-> > > > code (as opposed to userspace-only TCP connections).  But it would
-> > > > probably have to be each and every device-mapper instance, each and
-> > > > every block device, each and every mounted file system, each and every
-> > > > bdi object, etc.
-> > > 
-> > > Clarification: all TCP connections that are used by kernel code would
-> > > need to be in their own separate lock class.  All TCP connections used
-> > > only by userspace could be in their own shared lock class.  You can't
-> > > use a one lock class for all kernel-used TCP connections, because of
-> > > the Network Block Device mounted on a local file system which is then
-> > > exported via NFS and squirted out yet another TCP connection problem.
-> > 
-> > So the false positive you're concerned about is write-comes-in-over-NFS
-> > (with socket lock held), NFS sends a write request to local filesystem,
-> 
-> I'm confused, what lock does Ted think the NFS server is holding over
-> NFS processing?
+On Fri, 5 Jan 2018, Michal Hocko wrote:
 
-Sorry, I meant "over RPC processing".
+> Yes. I am really wondering because there souldn't anything specific to
+> improve the situation with patch 2 and 3. Likewise the only overhead
+> from the patch 1 I can see is the reduced batching of the mmap_sem. But
+> then I am wondering what would compensate that later...
 
-I'll confess to no understanding of socket locking.  The server RPC code
-doesn't take any itself except in a couple places on setup and tear
-down of a connection.  We wouldn't actually want any exclusive
-per-connection lock held across RPC processing because we want to be
-able to handle multiple concurrent RPCs per connection.
+Could you reduce the frequency of taking mmap_sem? Maybe take it when
+picking a new node and drop it when done with that node before migrating
+the list of pages?
 
-We do need a little locking just to make sure multiple server threads
-replying to the same client don't accidentally corrupt their replies by
-interleaving.  But even there we're using our own lock, held only while
-transmitting the reply (after all the work's done and reply encoded).
-
---b.
+There is the potential of large amounts of pages being migrated and
+having to take a semaphore on every one of them would create a nice amount
+of overhead.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
