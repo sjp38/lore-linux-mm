@@ -1,60 +1,75 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A61C8280262
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 06:49:56 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id w70so2066006oie.15
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 03:49:56 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s143si1433801ois.91.2018.01.05.03.49.55
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 08911280262
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 07:14:54 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id k126so496556wmd.5
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 04:14:53 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m19si3125860wrg.398.2018.01.05.04.14.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 05 Jan 2018 03:49:55 -0800 (PST)
-Date: Fri, 5 Jan 2018 12:49:50 +0100
-From: Andrea Arcangeli <aarcange@redhat.com>
-Subject: Re: [PATCH 05/23] x86, kaiser: unmap kernel from userspace page
- tables (core patch)
-Message-ID: <20180105114950.GA26807@redhat.com>
-References: <20171123003438.48A0EEDE@viggo.jf.intel.com>
- <20171123003447.1DB395E3@viggo.jf.intel.com>
- <e80ac5b1-c562-fc60-ee84-30a3a40bde60@huawei.com>
- <93776eb2-b6d4-679a-280c-8ba558a69c34@linux.intel.com>
- <bda85c5e-d2be-f4ac-e2b4-4ef01d5a01a5@huawei.com>
- <20a54a5f-f4e5-2126-fb73-6a995d13d52d@linux.intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Jan 2018 04:14:52 -0800 (PST)
+Date: Fri, 5 Jan 2018 13:14:47 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mmotm 2018-01-04-16-19 uploaded
+Message-ID: <20180105121447.GB31784@dhcp22.suse.cz>
+References: <5a4ec4bc.u5I/HzCSE6TLVn02%akpm@linux-foundation.org>
+ <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20a54a5f-f4e5-2126-fb73-6a995d13d52d@linux.intel.com>
+In-Reply-To: <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Yisheng Xie <xieyisheng1@huawei.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org, richard.fellner@student.tugraz.at, moritz.lipp@iaik.tugraz.at, daniel.gruss@iaik.tugraz.at, michael.schwarz@iaik.tugraz.at, luto@kernel.org, torvalds@linux-foundation.org, keescook@google.com, hughd@google.com, x86@kernel.org
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-Hi Yisheng and Dave,
-
-On Thu, Jan 04, 2018 at 10:29:53PM -0800, Dave Hansen wrote:
-> On 01/04/2018 10:16 PM, Yisheng Xie wrote:
-> > BTW, we have just reported a bug caused by kaiser[1], which looks like
-> > caused by SMEP. Could you please help to have a look?
+On Fri 05-01-18 12:13:17, Anshuman Khandual wrote:
+> On 01/05/2018 05:50 AM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2018-01-04-16-19 has been uploaded to
 > > 
-> > [1] https://lkml.org/lkml/2018/1/5/3
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
+> > You will need quilt to apply these patches to the latest Linus release (4.x
+> > or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> > 
+> > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > followed by the base kernel version against which this patch series is to
+> > be applied.
+> > 
+> > This tree is partially included in linux-next.  To see which patches are
+> > included in linux-next, consult the `series' file.  Only the patches
+> > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> > linux-next.
+> > 
+> > A git tree which contains the memory management portion of this tree is
+> > maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
 > 
-> Please report that to your kernel vendor.  Your EFI page tables have the
-> NX bit set on the low addresses.  There have been a bunch of iterations
-> of this, but you need to make sure that the EFI kernel mappings don't
-> get _PAGE_NX set on them.  Look at what __pti_set_user_pgd() does in
-> mainline.
+> Seems like this latest snapshot mmotm-2018-01-04-16-19 has not been
+> updated in this git tree. I could not fetch not it shows up in the
+> http link below.
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
 
-Yisheng could you file a report on the vendor bz?
+Just for the record. mmotm-2018-01-04-16-19 has been just pushed out to
+the mirror. It took longer than usually because I am bussy as hell...
+-- 
+Michal Hocko
+SUSE Labs
 
->From my part of course I'm fine to discuss it here, but it's not fair
-to use lkml bandwidth for this, sorry for the noise.
-
-The vast majority of the hardware boots fine and isn't running into
-this. This is the first time I hear about this, sorry about that.
-
-I fixed it with the upstream solution, greatly appreciated the pointer
-Dave. I don't have hardware to verify it though so we've to follow up
-on bz.
-
-Thanks,
-Andrea
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
