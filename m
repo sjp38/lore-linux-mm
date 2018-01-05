@@ -1,113 +1,93 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 766DB28026E
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 02:29:25 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id f64so2398936pfd.6
-        for <linux-mm@kvack.org>; Thu, 04 Jan 2018 23:29:25 -0800 (PST)
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id e16si3198404pgr.639.2018.01.04.23.29.23
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 80934280265
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 03:46:34 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id 3so2772298plv.17
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 00:46:34 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f75si3757698pfj.228.2018.01.05.00.46.32
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 04 Jan 2018 23:29:23 -0800 (PST)
-Date: Fri, 5 Jan 2018 15:29:12 +0800
-From: kbuild test robot <fengguang.wu@intel.com>
-Subject: [mmotm:master 152/256] mm/migrate.c:1934:53: sparse: incorrect type
- in argument 2 (different argument counts)
-Message-ID: <201801051507.45CKDK0l%fengguang.wu@intel.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 05 Jan 2018 00:46:33 -0800 (PST)
+Date: Fri, 5 Jan 2018 09:46:31 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: mmotm 2018-01-04-16-19 uploaded
+Message-ID: <20180105084631.GG2801@dhcp22.suse.cz>
+References: <5a4ec4bc.u5I/HzCSE6TLVn02%akpm@linux-foundation.org>
+ <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Andrew Morton <akpm@linux-foundation.org>, Linux Memory Management List <linux-mm@kvack.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-Hi Michal,
+On Fri 05-01-18 12:13:17, Anshuman Khandual wrote:
+> On 01/05/2018 05:50 AM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2018-01-04-16-19 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
+> > You will need quilt to apply these patches to the latest Linus release (4.x
+> > or 4.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> > 
+> > The file broken-out.tar.gz contains two datestamp files: .DATE and
+> > .DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+> > followed by the base kernel version against which this patch series is to
+> > be applied.
+> > 
+> > This tree is partially included in linux-next.  To see which patches are
+> > included in linux-next, consult the `series' file.  Only the patches
+> > within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+> > linux-next.
+> > 
+> > A git tree which contains the memory management portion of this tree is
+> > maintained at git://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
+> 
+> Seems like this latest snapshot mmotm-2018-01-04-16-19 has not been
+> updated in this git tree. I could not fetch not it shows up in the
+> http link below.
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/mhocko/mm.git
 
-First bad commit (maybe != root cause):
+I will update the tree today (WIP). This is not a fully automated
+process and Andrew pushed his tree during my night ;) So be patient
+please. My tree is non-rebasing which means I cannot just throw the old
+tree away and regenerate it from scratch.
 
-tree:   git://git.cmpxchg.org/linux-mmotm.git master
-head:   1ceb98996d2504dd4e0bcb5f4cb9009a18cd8aaa
-commit: 37870392dd6966328ed2fe49a247ab37d6fa7344 [152/256] mm, hugetlb: unify core page allocation accounting and initialization
-reproduce:
-        # apt-get install sparse
-        git checkout 37870392dd6966328ed2fe49a247ab37d6fa7344
-        make ARCH=x86_64 allmodconfig
-        make C=1 CF=-D__CHECK_ENDIAN__
+> The last one mmotm-2017-12-22-17-55 seems to have some regression on
+> powerpc with respect to ELF loading of binaries (see below). Seems to
+> be related to recent MAP_FIXED_SAFE (or MAP_FIXED_NOREPLACE as seen
+> now in the code). IIUC (have not been following the series last month)
+> MAP_FIXED_NOREPLACE will fail an allocation request if the hint address
+> cannot be reserve instead of changing existing mappings.
 
+Correct
 
-sparse warnings: (new ones prefixed by >>)
+> Is it possible
+> that ELF loading needs to be fixed at a higher level to deal with these
+> new possible mmap() failures because of MAP_FIXED_NOREPLACE ?
 
+Could you give us more information about the failure please. Debugging
+patch from http://lkml.kernel.org/r/20171218091302.GL16951@dhcp22.suse.cz
+should help to see what is the clashing VMA.
 
-vim +1934 mm/migrate.c
-
-de466bd6 Mel Gorman     2013-12-18  1899  
-b32967ff Mel Gorman     2012-11-19  1900  /*
-b32967ff Mel Gorman     2012-11-19  1901   * Attempt to migrate a misplaced page to the specified destination
-b32967ff Mel Gorman     2012-11-19  1902   * node. Caller is expected to have an elevated reference count on
-b32967ff Mel Gorman     2012-11-19  1903   * the page that will be dropped by this function before returning.
-b32967ff Mel Gorman     2012-11-19  1904   */
-1bc115d8 Mel Gorman     2013-10-07  1905  int migrate_misplaced_page(struct page *page, struct vm_area_struct *vma,
-1bc115d8 Mel Gorman     2013-10-07  1906  			   int node)
-b32967ff Mel Gorman     2012-11-19  1907  {
-b32967ff Mel Gorman     2012-11-19  1908  	pg_data_t *pgdat = NODE_DATA(node);
-340ef390 Hugh Dickins   2013-02-22  1909  	int isolated;
-7039e1db Peter Zijlstra 2012-10-25  1910  	int nr_remaining;
-b32967ff Mel Gorman     2012-11-19  1911  	LIST_HEAD(migratepages);
-b32967ff Mel Gorman     2012-11-19  1912  
-b32967ff Mel Gorman     2012-11-19  1913  	/*
-1bc115d8 Mel Gorman     2013-10-07  1914  	 * Don't migrate file pages that are mapped in multiple processes
-1bc115d8 Mel Gorman     2013-10-07  1915  	 * with execute permissions as they are probably shared libraries.
-b32967ff Mel Gorman     2012-11-19  1916  	 */
-1bc115d8 Mel Gorman     2013-10-07  1917  	if (page_mapcount(page) != 1 && page_is_file_cache(page) &&
-1bc115d8 Mel Gorman     2013-10-07  1918  	    (vma->vm_flags & VM_EXEC))
-b32967ff Mel Gorman     2012-11-19  1919  		goto out;
-7039e1db Peter Zijlstra 2012-10-25  1920  
-b32967ff Mel Gorman     2012-11-19  1921  	/*
-b32967ff Mel Gorman     2012-11-19  1922  	 * Rate-limit the amount of data that is being migrated to a node.
-b32967ff Mel Gorman     2012-11-19  1923  	 * Optimal placement is no good if the memory bus is saturated and
-b32967ff Mel Gorman     2012-11-19  1924  	 * all the time is being spent migrating!
-b32967ff Mel Gorman     2012-11-19  1925  	 */
-340ef390 Hugh Dickins   2013-02-22  1926  	if (numamigrate_update_ratelimit(pgdat, 1))
-b32967ff Mel Gorman     2012-11-19  1927  		goto out;
-b32967ff Mel Gorman     2012-11-19  1928  
-b32967ff Mel Gorman     2012-11-19  1929  	isolated = numamigrate_isolate_page(pgdat, page);
-b32967ff Mel Gorman     2012-11-19  1930  	if (!isolated)
-b32967ff Mel Gorman     2012-11-19  1931  		goto out;
-b32967ff Mel Gorman     2012-11-19  1932  
-b32967ff Mel Gorman     2012-11-19  1933  	list_add(&page->lru, &migratepages);
-9c620e2b Hugh Dickins   2013-02-22 @1934  	nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
-68711a74 David Rientjes 2014-06-04  1935  				     NULL, node, MIGRATE_ASYNC,
-68711a74 David Rientjes 2014-06-04  1936  				     MR_NUMA_MISPLACED);
-7039e1db Peter Zijlstra 2012-10-25  1937  	if (nr_remaining) {
-59c82b70 Joonsoo Kim    2014-01-21  1938  		if (!list_empty(&migratepages)) {
-59c82b70 Joonsoo Kim    2014-01-21  1939  			list_del(&page->lru);
-599d0c95 Mel Gorman     2016-07-28  1940  			dec_node_page_state(page, NR_ISOLATED_ANON +
-59c82b70 Joonsoo Kim    2014-01-21  1941  					page_is_file_cache(page));
-59c82b70 Joonsoo Kim    2014-01-21  1942  			putback_lru_page(page);
-59c82b70 Joonsoo Kim    2014-01-21  1943  		}
-7039e1db Peter Zijlstra 2012-10-25  1944  		isolated = 0;
-03c5a6e1 Mel Gorman     2012-11-02  1945  	} else
-03c5a6e1 Mel Gorman     2012-11-02  1946  		count_vm_numa_event(NUMA_PAGE_MIGRATE);
-7039e1db Peter Zijlstra 2012-10-25  1947  	BUG_ON(!list_empty(&migratepages));
-7039e1db Peter Zijlstra 2012-10-25  1948  	return isolated;
-340ef390 Hugh Dickins   2013-02-22  1949  
-340ef390 Hugh Dickins   2013-02-22  1950  out:
-340ef390 Hugh Dickins   2013-02-22  1951  	put_page(page);
-340ef390 Hugh Dickins   2013-02-22  1952  	return 0;
-7039e1db Peter Zijlstra 2012-10-25  1953  }
-220018d3 Mel Gorman     2012-12-05  1954  #endif /* CONFIG_NUMA_BALANCING */
-b32967ff Mel Gorman     2012-11-19  1955  
-
-:::::: The code at line 1934 was first introduced by commit
-:::::: 9c620e2bc5aa4256c102ada34e6c76204ed5898b mm: remove offlining arg to migrate_pages
-
-:::::: TO: Hugh Dickins <hughd@google.com>
-:::::: CC: Linus Torvalds <torvalds@linux-foundation.org>
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+Thanks
+-- 
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
