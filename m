@@ -1,50 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id EE262280265
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 04:07:58 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id m9so2544014pff.0
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 01:07:58 -0800 (PST)
+Received: from mail-pl0-f71.google.com (mail-pl0-f71.google.com [209.85.160.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D3B33280271
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 04:14:48 -0500 (EST)
+Received: by mail-pl0-f71.google.com with SMTP id d4so2808552plr.8
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 01:14:48 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id j76si685445pgc.744.2018.01.05.01.07.57
+        by mx.google.com with ESMTPS id r16si337336pgu.173.2018.01.05.01.14.47
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Fri, 05 Jan 2018 01:07:57 -0800 (PST)
-Date: Fri, 5 Jan 2018 10:07:53 +0100
-From: Michal Hocko <mhocko@suse.com>
-Subject: Re: [mmotm:master 149/256] mm/migrate.c:1920:46: error: passing
- argument 2 of 'migrate_pages' from incompatible pointer type
-Message-ID: <20180105090753.GI2801@dhcp22.suse.cz>
-References: <201801051045.4sj2RvmD%fengguang.wu@intel.com>
+        Fri, 05 Jan 2018 01:14:47 -0800 (PST)
+Date: Fri, 5 Jan 2018 10:14:43 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH 1/3] mm, numa: rework do_pages_move
+Message-ID: <20180105091443.GJ2801@dhcp22.suse.cz>
+References: <20180103082555.14592-1-mhocko@kernel.org>
+ <20180103082555.14592-2-mhocko@kernel.org>
+ <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201801051045.4sj2RvmD%fengguang.wu@intel.com>
+In-Reply-To: <db9b9752-a106-a3af-12f5-9894adee7ba7@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: kbuild test robot <fengguang.wu@intel.com>, Andrew Morton <akpm@linux-foundation.org>
-Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Linux Memory Management List <linux-mm@kvack.org>
+To: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Zi Yan <zi.yan@cs.rutgers.edu>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, "Kirill A. Shutemov" <kirill@shutemov.name>, Vlastimil Babka <vbabka@suse.cz>, Andrea Reale <ar@linux.vnet.ibm.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
 
-On Fri 05-01-18 10:56:50, Wu Fengguang wrote:
-> tree:   git://git.cmpxchg.org/linux-mmotm.git master
-> head:   1ceb98996d2504dd4e0bcb5f4cb9009a18cd8aaa
-> commit: c714f7da3636f838c8ed46c7c477525c2ea98a0f [149/256] mm, migrate: remove reason argument from new_page_t
-> config: x86_64-lkp (attached as .config)
-> compiler: gcc-7 (Debian 7.2.0-12) 7.2.1 20171025
-> reproduce:
->         git checkout c714f7da3636f838c8ed46c7c477525c2ea98a0f
->         # save the attached .config to linux build tree
->         make ARCH=x86_64 
+On Fri 05-01-18 09:22:22, Anshuman Khandual wrote:
+[...]
+> Hi Michal,
 > 
-> All errors (new ones prefixed by >>):
+> After slightly modifying your test case (like fixing the page size for
+> powerpc and just doing simple migration from node 0 to 8 instead of the
+> interleaving), I tried to measure the migration speed with and without
+> the patches on mainline. Its interesting....
 > 
->    mm/migrate.c: In function 'migrate_misplaced_page':
-> >> mm/migrate.c:1920:46: error: passing argument 2 of 'migrate_pages' from incompatible pointer type [-Werror=incompatible-pointer-types]
->      nr_remaining = migrate_pages(&migratepages, alloc_misplaced_dst_page,
->                                                  ^~~~~~~~~~~~~~~~~~~~~~~~
->    mm/migrate.c:1364:5: note: expected 'struct page * (*)(struct page *, long unsigned int)' but argument is of type 'struct page * (*)(struct page *, long unsigned int,  int **)'
->     int migrate_pages(struct list_head *from, new_page_t get_new_page,
->         ^~~~~~~~~~~~~
->    cc1: some warnings being treated as errors
+> 					10000 pages | 100000 pages
+> 					--------------------------
+> Mainline				165 ms		1674 ms
+> Mainline + first patch (move_pages)	191 ms		1952 ms
+> Mainline + all three patches		146 ms		1469 ms
+> 
+> Though overall it gives performance improvement, some how it slows
+> down migration after the first patch. Will look into this further.
 
-Doh. Yet another follow up fix for mm-migrate-remove-reason-argument-from-new_page_t.patch
----
+What are you measuring actually? All pages migrated to the same node?
+Do you have any profiles? How stable are the results?
+
+-- 
+Michal Hocko
+SUSE Labs
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
