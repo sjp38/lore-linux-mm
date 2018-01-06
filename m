@@ -1,69 +1,68 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F1C36B0038
-	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 12:24:19 -0500 (EST)
-Received: by mail-lf0-f71.google.com with SMTP id y8so1559673lfj.1
-        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 09:24:19 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id m25sor682249lfc.55.2018.01.06.09.24.17
+Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C208C6B0038
+	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 12:37:33 -0500 (EST)
+Received: by mail-oi0-f69.google.com with SMTP id x204so3643938oif.18
+        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 09:37:33 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f190si386290oic.273.2018.01.06.09.37.32
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 06 Jan 2018 09:24:17 -0800 (PST)
-Message-ID: <1515259453.17396.17.camel@gmail.com>
-Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
-From: mikhail <mikhail.v.gavrilov@gmail.com>
-Date: Sat, 06 Jan 2018 22:24:13 +0500
-In-Reply-To: <201801070048.JAE30243.MLQOtHVFOOFJFS@I-love.SAKURA.ne.jp>
-References: <1512963298.23718.15.camel@gmail.com>
-	 <201712110348.vBB3mSFZ068689@www262.sakura.ne.jp>
-	 <1515248235.17396.4.camel@gmail.com>
-	 <201801062352.EFF56799.HFFLOMOJOFSQtV@I-love.SAKURA.ne.jp>
-	 <1515252530.17396.16.camel@gmail.com>
-	 <201801070048.JAE30243.MLQOtHVFOOFJFS@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset="UTF-8"
-Mime-Version: 1.0
-Content-Transfer-Encoding: 7bit
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 06 Jan 2018 09:37:32 -0800 (PST)
+Date: Sat, 6 Jan 2018 18:37:29 +0100
+From: Andrea Arcangeli <aarcange@redhat.com>
+Subject: Re: [RFC] boot failed when enable KAISER/KPTI
+Message-ID: <20180106173729.GD25546@redhat.com>
+References: <5A4F09B7.8010402@huawei.com>
+ <alpine.LRH.2.00.1801051930370.27010@gjva.wvxbf.pm>
+ <5A50708A.9010902@huawei.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <5A50708A.9010902@huawei.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: mhocko@kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Xishi Qiu <qiuxishi@huawei.com>
+Cc: Jiri Kosina <jikos@kernel.org>, dave.hansen@linux.intel.com, LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, Yisheng Xie <xieyisheng1@huawei.com>, "Wangkefeng (Maro)" <wangkefeng.wang@huawei.com>, Hanjun Guo <guohanjun@huawei.com>, Zhao Hongjiang <zhaohongjiang@huawei.com>
 
-On Sun, 2018-01-07 at 00:48 +0900, Tetsuo Handa wrote:
-> mikhail wrote:
-> > > > Also i fixed two segfault:
-> > > > 
-> > > > 1) When send two messages in one second from different hosts or
-> > > > ports.
-> > > > For reproduce just run
-> > > > "echo test > /dev/udp/127.0.0.1/6666 && echo test >
-> > > > /dev/udp/127.0.0.1/6666"
-> > > > in console.
-> > > 
-> > > I can't observe such problem.
-> > > udplogger is ready to concurrently receive from multiple sources.
-> > 
-> > 
-> > Too strange because this condition
-> > https://github.com/kohsuke/udplogger/blob/master/udplogger.c#L82
-> > do not allow open two file in one second.
+Hello Xishi,
+
+On Sat, Jan 06, 2018 at 02:45:30PM +0800, Xishi Qiu wrote:
+> How about this fix patch? I tested and it works.
 > 
-> Oh, you got your copy of modified version of old version.
-> 
-> Please use original latest version at
-> https://osdn.net/projects/akari/scm/svn/tree/head/branches/udplogger/
->  .
+> diff --git a/arch/x86/kernel/tboot.c b/arch/x86/kernel/tboot.c
+> index 088681d..f6c32f5 100644
+> --- a/arch/x86/kernel/tboot.c
+> +++ b/arch/x86/kernel/tboot.c
+> @@ -131,6 +131,8 @@ static int map_tboot_page(unsigned long vaddr, unsigned long pfn,
+>  	pud = pud_alloc(&tboot_mm, pgd, vaddr);
+>  	if (!pud)
+>  		return -1;
+> +	if (__supported_pte_mask & _PAGE_NX)
+> +		pgd->pgd &= ~_PAGE_NX;
+>  	pmd = pmd_alloc(&tboot_mm, pud, vaddr);
+>  	if (!pmd)
+>  		return -1;
 
+Oh great that you already verified this.
 
-Thanks, I investigated the code of new version udplogger. I understood
-why it is not subject to the problems described above. Because it uses
-one file for all clients. The old version tried to create a separate
-file for each client.
+The only difference from the above to what I applied is that I didn't
+check "__supported_pte_mask & _PAGE_NX", but that's superflous
+here. It won't hurt to add it, your patch is fine as well.
 
-Why you not using git hosting?
-Old version is quickly searchable by google.
-Look here it's second place in search results:
-https://imgur.com/a/IKHY8
-And new version is impossible to find in searching engine, it's so sad.
+The location where to do the NX clearing is the correct one and same
+optimal place as in efi_64.c too (right after pud_alloc success).
+
+Only the setting of NX requires verification that it's in the
+__supported_pte_mask first, the clearing is always fine (worst case it
+will do nothing).
+
+On a side note, I already verified if NX is disabled (-cpu nx=off) the
+pgd isn't NX poisoned in the first place, but clearing NX won't hurt
+even in such case.
+
+Thanks,
+Andrea
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
