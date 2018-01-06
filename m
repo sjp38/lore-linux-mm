@@ -1,108 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 84CBD280282
-	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 06:01:49 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id 79so6891039ion.20
-        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 03:01:49 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id 74si5688646ioo.56.2018.01.06.03.01.46
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 725E4280282
+	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 06:02:38 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id p8so3952474wrh.17
+        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 03:02:38 -0800 (PST)
+Received: from the.earth.li (the.earth.li. [2001:41c8:10:b1f:c0ff:ee:15:900d])
+        by mx.google.com with ESMTPS id t3si5026532wmc.40.2018.01.06.03.02.36
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 06 Jan 2018 03:01:47 -0800 (PST)
-Subject: Re: [PATCH] mm,oom: Set ->signal->oom_mm to all thread groupssharingvictim's memory.
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1513682774-4416-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-	<20171219114012.GK2787@dhcp22.suse.cz>
-	<201801061637.CCF78186.OOJFFtMVOLSHQF@I-love.SAKURA.ne.jp>
-	<20180106093458.GA16576@dhcp22.suse.cz>
-In-Reply-To: <20180106093458.GA16576@dhcp22.suse.cz>
-Message-Id: <201801062001.HGH56212.VOFFLMOOHSFtQJ@I-love.SAKURA.ne.jp>
-Date: Sat, 6 Jan 2018 20:01:30 +0900
-Mime-Version: 1.0
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 06 Jan 2018 03:02:36 -0800 (PST)
+Date: Sat, 6 Jan 2018 11:02:27 +0000
+From: Jonathan McDowell <noodles@earth.li>
+Subject: Re: [PATCH] ACPI / WMI: Call acpi_wmi_init() later
+Message-ID: <20180106110227.j2jkxjpjktcy6yjr@earth.li>
+References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
+ <2601877.IhOx20xkUK@aspire.rjw.lan>
+ <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mhocko@kernel.org
-Cc: akpm@linux-foundation.org, linux-mm@kvack.org, rientjes@google.com, hannes@cmpxchg.org, guro@fb.com, tj@kernel.org, vdavydov.dev@gmail.com, torvalds@linux-foundation.org
+To: "Rafael J. Wysocki" <rafael@kernel.org>
+Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Darren Hart <dvhart@infradead.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Platform Driver <platform-driver-x86@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>
 
-Michal Hocko wrote:
-> On Sat 06-01-18 16:37:17, Tetsuo Handa wrote:
-> > Michal Hocko wrote:
-> > > On Tue 19-12-17 20:26:14, Tetsuo Handa wrote:
-> > > > When the OOM reaper set MMF_OOM_SKIP on the victim's mm before threads
-> > > > sharing that mm get ->signal->oom_mm, the comment "That thread will now
-> > > > get access to memory reserves since it has a pending fatal signal." no
-> > > > longer stands. Also, since we introduced ALLOC_OOM watermark, the comment
-> > > > "They don't get access to memory reserves, though, to avoid depletion of
-> > > > all memory." no longer stands.
-> > > > 
-> > > > This patch treats all thread groups sharing the victim's mm evenly,
-> > > > and updates the outdated comment.
-> > > 
-> > > Nack with a real life example where this matters.
-> > 
-> > You did not respond to
-> > http://lkml.kernel.org/r/201712232341.FGC64072.VFLOOJOtFSFMHQ@I-love.SAKURA.ne.jp ,
+On Sat, Jan 06, 2018 at 12:30:23AM +0100, Rafael J. Wysocki wrote:
+> On Wed, Jan 3, 2018 at 12:49 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
+> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> >
+> > Calling acpi_wmi_init() at the subsys_initcall() level causes ordering
+> > issues to appear on some systems and they are difficult to reproduce,
+> > because there is no guaranteed ordering between subsys_initcall()
+> > calls, so they may occur in different orders on different systems.
+> >
+> > In particular, commit 86d9f48534e8 (mm/slab: fix kmemcg cache
+> > creation delayed issue) exposed one of these issues where genl_init()
+> > and acpi_wmi_init() are both called at the same initcall level, but
+> > the former must run before the latter so as to avoid a NULL pointer
+> > dereference.
+> >
+> > For this reason, move the acpi_wmi_init() invocation to the
+> > initcall_sync level which should still be early enough for things
+> > to work correctly in the WMI land.
+> >
+> > Link: https://marc.info/?t=151274596700002&r=1&w=2
+> > Reported-by: Jonathan McDowell <noodles@earth.li>
+> > Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
+> > Tested-by: Jonathan McDowell <noodles@earth.li>
+> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 > 
-> Yes I haven't because there is simply no point continuing this
-> discussion. You are simply immune to any arguments.
+> Guys, this fixes a crash on boot.
 > 
-> > and I observed needless OOM-killing. Therefore, I push this patch again.
-> 
-> Yes, the life is tough and oom heuristic might indeed kill more tasks
-> for some workloads. But as long as those needless oom killing happens
-> for artificial workloads I am not all that much interested.  Show me
-> some workload that is actually real and we can make the current code
-> more complicated. Without that my position remains.
+> If there are no concerns/objections I will just take it through the ACPI tree.
 
-That is a catch-22 requirement. A workload that is actually real would be
-a case which failed to take mmap_sem for read. But we won't be there when
-that happened in a real system which we cannot involve.
+Note that I first started seeing it in v4.9 so would ideally hit the
+appropriate stable trees too.
 
-Anyway, short version is shown below.
+> > ---
+> >  drivers/platform/x86/wmi.c |    2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >
+> > Index: linux-pm/drivers/platform/x86/wmi.c
+> > ===================================================================
+> > --- linux-pm.orig/drivers/platform/x86/wmi.c
+> > +++ linux-pm/drivers/platform/x86/wmi.c
+> > @@ -1458,5 +1458,5 @@ static void __exit acpi_wmi_exit(void)
+> >         class_unregister(&wmi_bus_class);
+> >  }
+> >
+> > -subsys_initcall(acpi_wmi_init);
+> > +subsys_initcall_sync(acpi_wmi_init);
+> >  module_exit(acpi_wmi_exit);
+> >
+> > --
 
->From f053ed1430e94b5c371a26b8c3903d27bcdcb0a0 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sat, 6 Jan 2018 19:41:20 +0900
-Subject: [PATCH] mm, oom: task_will_free_mem should skip oom_victim tasks
+J.
 
-Commit 696453e66630ad45 ("mm, oom: task_will_free_mem should skip
-oom_reaped tasks") should check ->signal->oom_mm rather than
-MMF_OOM_SKIP, for clone(CLONE_VM && !CLONE_SIGHAND) case causes premature
-next OOM victim selection when the intention of that commit was to avoid
-OOM lockup due to infinite retries.
-
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Tejun Heo <tj@kernel.org>
----
- mm/oom_kill.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index 8219001..9526ba8 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -804,11 +804,8 @@ static bool task_will_free_mem(struct task_struct *task)
- 	if (!__task_will_free_mem(task))
- 		return false;
- 
--	/*
--	 * This task has already been drained by the oom reaper so there are
--	 * only small chances it will free some more
--	 */
--	if (test_bit(MMF_OOM_SKIP, &mm->flags))
-+	/* Skip tasks which tried ALLOC_OOM but still cannot make progress. */
-+	if (tsk_is_oom_victim(task))
- 		return false;
- 
- 	if (atomic_read(&mm->mm_users) <= 1)
 -- 
-1.8.3.1
+/-\                             | 101 things you can't have too much
+|@/  Debian GNU/Linux Developer |    of : 36 - Spare video tapes.
+\-                              |
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
