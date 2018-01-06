@@ -1,86 +1,70 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 725E4280282
-	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 06:02:38 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id p8so3952474wrh.17
-        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 03:02:38 -0800 (PST)
-Received: from the.earth.li (the.earth.li. [2001:41c8:10:b1f:c0ff:ee:15:900d])
-        by mx.google.com with ESMTPS id t3si5026532wmc.40.2018.01.06.03.02.36
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id D91E0280297
+	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 08:34:20 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id b82so1663661wmd.5
+        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 05:34:20 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n17si4906639wmh.204.2018.01.06.05.34.18
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 06 Jan 2018 03:02:36 -0800 (PST)
-Date: Sat, 6 Jan 2018 11:02:27 +0000
-From: Jonathan McDowell <noodles@earth.li>
-Subject: Re: [PATCH] ACPI / WMI: Call acpi_wmi_init() later
-Message-ID: <20180106110227.j2jkxjpjktcy6yjr@earth.li>
-References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
- <2601877.IhOx20xkUK@aspire.rjw.lan>
- <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 06 Jan 2018 05:34:19 -0800 (PST)
+Date: Sat, 6 Jan 2018 14:34:17 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
+Message-ID: <20180106133417.GA23629@dhcp22.suse.cz>
+References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
+ <20180106094124.GB16576@dhcp22.suse.cz>
+ <20180106100313.GA527@tigerII.localdomain>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
+In-Reply-To: <20180106100313.GA527@tigerII.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Darren Hart <dvhart@infradead.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Platform Driver <platform-driver-x86@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sat, Jan 06, 2018 at 12:30:23AM +0100, Rafael J. Wysocki wrote:
-> On Wed, Jan 3, 2018 at 12:49 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> >
-> > Calling acpi_wmi_init() at the subsys_initcall() level causes ordering
-> > issues to appear on some systems and they are difficult to reproduce,
-> > because there is no guaranteed ordering between subsys_initcall()
-> > calls, so they may occur in different orders on different systems.
-> >
-> > In particular, commit 86d9f48534e8 (mm/slab: fix kmemcg cache
-> > creation delayed issue) exposed one of these issues where genl_init()
-> > and acpi_wmi_init() are both called at the same initcall level, but
-> > the former must run before the latter so as to avoid a NULL pointer
-> > dereference.
-> >
-> > For this reason, move the acpi_wmi_init() invocation to the
-> > initcall_sync level which should still be early enough for things
-> > to work correctly in the WMI land.
-> >
-> > Link: https://marc.info/?t=151274596700002&r=1&w=2
-> > Reported-by: Jonathan McDowell <noodles@earth.li>
-> > Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Tested-by: Jonathan McDowell <noodles@earth.li>
-> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+On Sat 06-01-18 19:03:13, Sergey Senozhatsky wrote:
+> Hello,
 > 
-> Guys, this fixes a crash on boot.
+> On (01/06/18 10:41), Michal Hocko wrote:
+> > On Sat 06-01-18 13:34:07, Sergey Senozhatsky wrote:
+> > > Use the ratelimited printk() version for swap-device write error
+> > > reporting. We can use ZRAM as a swap-device, and the tricky part
+> > > here is that zsmalloc() stores compressed objects in memory, thus
+> > > it has to allocates pages during swap-out. If the system is short
+> > > on memory, then we begin to flood printk() log buffer with the
+> > > same "Write-error on swap-device XXX" error messages and sometimes
+> > > simply lockup the system.
+> > 
+> > Should we print an error in such a situation at all? Write-error
+> > certainly sounds scare and it suggests something went really wrong.
+> > My understading is that zram failed swap-out is not critical and
+> > therefore the error message is not really useful.
 > 
-> If there are no concerns/objections I will just take it through the ACPI tree.
+> I don't mind to get rid of it. up to you :)
 
-Note that I first started seeing it in v4.9 so would ideally hit the
-appropriate stable trees too.
+I do not think we can get rid of it for all swap backends.
 
-> > ---
-> >  drivers/platform/x86/wmi.c |    2 +-
-> >  1 file changed, 1 insertion(+), 1 deletion(-)
-> >
-> > Index: linux-pm/drivers/platform/x86/wmi.c
-> > ===================================================================
-> > --- linux-pm.orig/drivers/platform/x86/wmi.c
-> > +++ linux-pm/drivers/platform/x86/wmi.c
-> > @@ -1458,5 +1458,5 @@ static void __exit acpi_wmi_exit(void)
-> >         class_unregister(&wmi_bus_class);
-> >  }
-> >
-> > -subsys_initcall(acpi_wmi_init);
-> > +subsys_initcall_sync(acpi_wmi_init);
-> >  module_exit(acpi_wmi_exit);
-> >
-> > --
+> > Or what should an admin do when seeing it?
+> 
+> zsmalloc allocation is just one possibility; an error in
+> compressing algorithm is another one, yet is rather unlikely.
+> most likely it's OOM which can cause problems. but in any case
+> it's sort of unclear what should be done. an error can be a
+> temporary one or a fatal one, just like in __swap_writepage()
+> case. so may be both write error printk()-s can be dropped.
 
-J.
-
+Then I would suggest starting with sorting out which of those errors are
+critical and which are not and report the error accordingly. I am sorry
+to be fuzzy here but I am not familiar with the code to be more
+specific. Anyway ratelimiting sounds more like a paper over than a real
+solution. Also it sounds quite scary that you can see so many failures
+to actually lock up the system just by printing a message...
 -- 
-/-\                             | 101 things you can't have too much
-|@/  Debian GNU/Linux Developer |    of : 36 - Spare video tapes.
-\-                              |
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
