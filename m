@@ -1,65 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A0183280278
-	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 20:16:56 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id o9so3113779pgv.3
-        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 17:16:56 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id d1si4248606pgo.568.2018.01.05.17.16.55
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CE97D6B02E2
+	for <linux-mm@kvack.org>; Fri,  5 Jan 2018 23:41:50 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e12so3283682pga.5
+        for <linux-mm@kvack.org>; Fri, 05 Jan 2018 20:41:50 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r9sor1402316pge.312.2018.01.05.20.41.49
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 05 Jan 2018 17:16:55 -0800 (PST)
-Date: Fri, 5 Jan 2018 17:16:50 -0800
-From: Darren Hart <dvhart@infradead.org>
-Subject: Re: [PATCH] ACPI / WMI: Call acpi_wmi_init() later
-Message-ID: <20180106011650.GA5260@fury>
-References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
- <2601877.IhOx20xkUK@aspire.rjw.lan>
- <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
+        (Google Transport Security);
+        Fri, 05 Jan 2018 20:41:49 -0800 (PST)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Subject: [PATCH] mm: ratelimit end_swap_bio_write() error
+Date: Sat,  6 Jan 2018 13:34:07 +0900
+Message-Id: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andy Shevchenko <andriy.shevchenko@linux.intel.com>, Jonathan McDowell <noodles@earth.li>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Platform Driver <platform-driver-x86@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
-On Sat, Jan 06, 2018 at 12:30:23AM +0100, Rafael J. Wysocki wrote:
-> On Wed, Jan 3, 2018 at 12:49 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> >
-> > Calling acpi_wmi_init() at the subsys_initcall() level causes ordering
-> > issues to appear on some systems and they are difficult to reproduce,
-> > because there is no guaranteed ordering between subsys_initcall()
-> > calls, so they may occur in different orders on different systems.
-> >
-> > In particular, commit 86d9f48534e8 (mm/slab: fix kmemcg cache
-> > creation delayed issue) exposed one of these issues where genl_init()
-> > and acpi_wmi_init() are both called at the same initcall level, but
-> > the former must run before the latter so as to avoid a NULL pointer
-> > dereference.
-> >
-> > For this reason, move the acpi_wmi_init() invocation to the
-> > initcall_sync level which should still be early enough for things
-> > to work correctly in the WMI land.
-> >
-> > Link: https://marc.info/?t=151274596700002&r=1&w=2
-> > Reported-by: Jonathan McDowell <noodles@earth.li>
-> > Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > Tested-by: Jonathan McDowell <noodles@earth.li>
-> > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> 
-> Guys, this fixes a crash on boot.
-> 
-> If there are no concerns/objections I will just take it through the ACPI tree.
+Use the ratelimited printk() version for swap-device write error
+reporting. We can use ZRAM as a swap-device, and the tricky part
+here is that zsmalloc() stores compressed objects in memory, thus
+it has to allocates pages during swap-out. If the system is short
+on memory, then we begin to flood printk() log buffer with the
+same "Write-error on swap-device XXX" error messages and sometimes
+simply lockup the system.
 
-Queued up and running through tests now. I'll have it in for-next as soon as
-those complete assuming to issues.
+Signed-off-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+---
+ mm/page_io.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
+diff --git a/mm/page_io.c b/mm/page_io.c
+index e93f1a4cacd7..422cd49bcba8 100644
+--- a/mm/page_io.c
++++ b/mm/page_io.c
+@@ -63,7 +63,7 @@ void end_swap_bio_write(struct bio *bio)
+ 		 * Also clear PG_reclaim to avoid rotate_reclaimable_page()
+ 		 */
+ 		set_page_dirty(page);
+-		pr_alert("Write-error on swap-device (%u:%u:%llu)\n",
++		pr_alert_ratelimited("Write-error on swap-device (%u:%u:%llu)\n",
+ 			 MAJOR(bio_dev(bio)), MINOR(bio_dev(bio)),
+ 			 (unsigned long long)bio->bi_iter.bi_sector);
+ 		ClearPageReclaim(page);
 -- 
-Darren Hart
-VMware Open Source Technology Center
+2.15.1
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
