@@ -1,53 +1,45 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f72.google.com (mail-pl0-f72.google.com [209.85.160.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D51846B02C7
-	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 10:48:20 -0500 (EST)
-Received: by mail-pl0-f72.google.com with SMTP id y21so242920pll.22
-        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 07:48:20 -0800 (PST)
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
-        by mx.google.com with ESMTPS id i2si5045823pgo.637.2018.01.06.07.48.18
+Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A20016B0636
+	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 11:19:20 -0500 (EST)
+Received: by mail-pl0-f70.google.com with SMTP id q12so5136129plk.16
+        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 08:19:20 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id h12sor2552242pls.124.2018.01.06.08.19.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sat, 06 Jan 2018 07:48:19 -0800 (PST)
-Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-References: <1512963298.23718.15.camel@gmail.com>
-	<201712110348.vBB3mSFZ068689@www262.sakura.ne.jp>
-	<1515248235.17396.4.camel@gmail.com>
-	<201801062352.EFF56799.HFFLOMOJOFSQtV@I-love.SAKURA.ne.jp>
-	<1515252530.17396.16.camel@gmail.com>
-In-Reply-To: <1515252530.17396.16.camel@gmail.com>
-Message-Id: <201801070048.JAE30243.MLQOtHVFOOFJFS@I-love.SAKURA.ne.jp>
-Date: Sun, 7 Jan 2018 00:48:13 +0900
-Mime-Version: 1.0
+        (Google Transport Security);
+        Sat, 06 Jan 2018 08:19:19 -0800 (PST)
+Date: Sat, 6 Jan 2018 09:19:11 -0700
+From: Jens Axboe <axboe@kernel.dk>
+Subject: Re: [PATCH V4 15/45] block: rename bio_for_each_segment* with
+ bio_for_each_page*
+Message-ID: <20180106161909.GA6343@kernel.dk>
+References: <20171218122247.3488-1-ming.lei@redhat.com>
+ <20171218122247.3488-16-ming.lei@redhat.com>
+MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171218122247.3488-16-ming.lei@redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: mikhail.v.gavrilov@gmail.com
-Cc: mhocko@kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>
 
-mikhail wrote:
-> > > Also i fixed two segfault:
-> > > 
-> > > 1) When send two messages in one second from different hosts or
-> > > ports.
-> > > For reproduce just run
-> > > "echo test > /dev/udp/127.0.0.1/6666 && echo test >
-> > > /dev/udp/127.0.0.1/6666"
-> > > in console.
-> > 
-> > I can't observe such problem.
-> > udplogger is ready to concurrently receive from multiple sources.
+On Mon, Dec 18 2017, Ming Lei wrote:
+> It is a tree-wide mechanical replacement since both bio_for_each_segment()
+> and bio_for_each_segment_all() never returns real segment at all, and
+> both just return one page per bvec and deceive us for long time, so fix
+> their names.
 > 
-> 
-> Too strange because this condition
-> https://github.com/kohsuke/udplogger/blob/master/udplogger.c#L82
-> do not allow open two file in one second.
+> This is a pre-patch for supporting multipage bvec. Once multipage bvec
+> is in, each bvec will store a real multipage segment, so people won't be
+> confused with these wrong names.
 
-Oh, you got your copy of modified version of old version.
+No, we're not doing this, it's a pretty pointless tree wide replacement
+with a fairly weak justification.
 
-Please use original latest version at
-https://osdn.net/projects/akari/scm/svn/tree/head/branches/udplogger/ .
+-- 
+Jens Axboe
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
