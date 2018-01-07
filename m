@@ -1,63 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 340D76B027B
-	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 08:23:12 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id g26so5394233wrb.8
-        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 05:23:12 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t3si7550335wrg.533.2018.01.07.05.23.10
+Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF9456B027D
+	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 10:04:41 -0500 (EST)
+Received: by mail-wr0-f197.google.com with SMTP id t94so4116554wrc.18
+        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 07:04:41 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q3sor4379801wrd.74.2018.01.07.07.04.40
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Sun, 07 Jan 2018 05:23:11 -0800 (PST)
-Date: Sun, 7 Jan 2018 14:23:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180107132309.GD24862@dhcp22.suse.cz>
-References: <20171222084623.668990192@linuxfoundation.org>
- <20171222084625.007160464@linuxfoundation.org>
- <1515302062.6507.18.camel@gmx.de>
- <20180107091115.GB29329@kroah.com>
- <20180107101847.GC24862@dhcp22.suse.cz>
- <1515329042.13953.14.camel@gmx.de>
+        (Google Transport Security);
+        Sun, 07 Jan 2018 07:04:40 -0800 (PST)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1515329042.13953.14.camel@gmx.de>
+In-Reply-To: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
+References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
+From: Minchan Kim <minchan@kernel.org>
+Date: Mon, 8 Jan 2018 00:04:38 +0900
+Message-ID: <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
+Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being shifted
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Mike Galbraith <efault@gmx.de>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Nick Desaulniers <nick.desaulniers@gmail.com>
+Cc: Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-On Sun 07-01-18 13:44:02, Mike Galbraith wrote:
-> On Sun, 2018-01-07 at 11:18 +0100, Michal Hocko wrote:
-> > On Sun 07-01-18 10:11:15, Greg KH wrote:
-> > > On Sun, Jan 07, 2018 at 06:14:22AM +0100, Mike Galbraith wrote:
-> > > > On Fri, 2017-12-22 at 09:45 +0100, Greg Kroah-Hartman wrote:
-> > > > > 4.14-stable review patch.  If anyone has any objections, please let me know.
-> > > > 
-> > > > FYI, this broke kdump, or rather the makedumpfile part thereof.
-> > > >  Forward looking wreckage is par for the kdump course, but...
-> > > 
-> > > Is it also broken in Linus's tree with this patch?  Or is there an
-> > > add-on patch that I should apply to 4.14 to resolve this issue there?
-> > 
-> > This one http://lkml.kernel.org/r/1513932498-20350-1-git-send-email-bhe@redhat.com
-> > I guess.
-> 
-> That won't unbreak kdump, else master wouldn't be broken.  I don't care
-> deeply, or know if anyone else does, I'm just reporting it because I
-> met it and chased it down.
+Hello,
 
-OK, I didn't notice that d8cfbbfa0f7 ("mm/sparse.c: wrong allocation
-for mem_section") made it in after rc6. I am still wondering why
-83e3c48729 ("mm/sparsemem: Allocate mem_section at runtime for
-CONFIG_SPARSEMEM_EXTREME=y") made it into the stable tree in the first
-place.
--- 
-Michal Hocko
-SUSE Labs
+Sorry for the delay. I have missed this until now. ;-(
+
+On Sun, Dec 24, 2017 at 11:33 AM, Nick Desaulniers
+<nick.desaulniers@gmail.com> wrote:
+> Fixes warnings about shifting unsigned literals being undefined
+> behavior.
+>
+> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
+> ---
+>  mm/zsmalloc.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 685049a..5d31458 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -1056,7 +1056,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
+>                          * Reset OBJ_TAG_BITS bit to last link to tell
+>                          * whether it's allocated object or not.
+>                          */
+> -                       link->next = -1 << OBJ_TAG_BITS;
+> +                       link->next = -1U << OBJ_TAG_BITS;
+
+-1UL?
+
+Please, resend it with including Andrew Morton
+<akpm@linux-foundation.org> who merges zsmalloc patch into his tree.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
