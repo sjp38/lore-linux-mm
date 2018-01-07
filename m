@@ -1,58 +1,41 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9456B027D
-	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 10:04:41 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id t94so4116554wrc.18
-        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 07:04:41 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q3sor4379801wrd.74.2018.01.07.07.04.40
+Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B0596B027F
+	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 18:02:11 -0500 (EST)
+Received: by mail-qt0-f200.google.com with SMTP id b26so7494834qtb.18
+        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 15:02:11 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id e64sor7468313qkb.113.2018.01.07.15.02.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 07 Jan 2018 07:04:40 -0800 (PST)
+        Sun, 07 Jan 2018 15:02:10 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
-References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
-From: Minchan Kim <minchan@kernel.org>
-Date: Mon, 8 Jan 2018 00:04:38 +0900
-Message-ID: <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
+In-Reply-To: <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
+References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com> <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
+From: Andy Shevchenko <andy.shevchenko@gmail.com>
+Date: Mon, 8 Jan 2018 01:02:09 +0200
+Message-ID: <CAHp75VdjBnd=yr9YDPvf0P-e6ofoJwi8d-iOehoP=vuj9rnB8w@mail.gmail.com>
 Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being shifted
 Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Nick Desaulniers <nick.desaulniers@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-Hello,
+On Sun, Jan 7, 2018 at 5:04 PM, Minchan Kim <minchan@kernel.org> wrote:
 
-Sorry for the delay. I have missed this until now. ;-(
-
-On Sun, Dec 24, 2017 at 11:33 AM, Nick Desaulniers
-<nick.desaulniers@gmail.com> wrote:
-> Fixes warnings about shifting unsigned literals being undefined
-> behavior.
+>> -                       link->next = -1 << OBJ_TAG_BITS;
+>> +                       link->next = -1U << OBJ_TAG_BITS;
 >
-> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
-> ---
->  mm/zsmalloc.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 685049a..5d31458 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -1056,7 +1056,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
->                          * Reset OBJ_TAG_BITS bit to last link to tell
->                          * whether it's allocated object or not.
->                          */
-> -                       link->next = -1 << OBJ_TAG_BITS;
-> +                       link->next = -1U << OBJ_TAG_BITS;
+> -1UL?
 
--1UL?
+Oh, boy, shouldn't be rather GENMASK() / GENMASK_ULL() in a way how
+it's done, for example, here:
+https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git/commit/?h=for-next&id=d2b3c353595a855794f8b9df5b5bdbe8deb0c413
 
-Please, resend it with including Andrew Morton
-<akpm@linux-foundation.org> who merges zsmalloc patch into his tree.
-
-Thanks.
+-- 
+With Best Regards,
+Andy Shevchenko
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
