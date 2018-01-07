@@ -1,69 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3D96B0260
-	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 17:59:33 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id z2so4063105pgz.13
-        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 14:59:33 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id y1si24790pln.324.2018.01.06.14.59.31
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A17DD6B0260
+	for <linux-mm@kvack.org>; Sat,  6 Jan 2018 22:42:48 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id 3so5847732plv.17
+        for <linux-mm@kvack.org>; Sat, 06 Jan 2018 19:42:48 -0800 (PST)
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [2001:e42:101:1:202:181:97:72])
+        by mx.google.com with ESMTPS id y72si6464819plh.393.2018.01.06.19.42.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Sat, 06 Jan 2018 14:59:32 -0800 (PST)
-Date: Sat, 6 Jan 2018 14:59:25 -0800
-From: Darren Hart <dvhart@infradead.org>
-Subject: Re: [PATCH] ACPI / WMI: Call acpi_wmi_init() later
-Message-ID: <20180106225925.GA20169@fury>
-References: <20171208151159.urdcrzl5qpfd6jnu@earth.li>
- <2601877.IhOx20xkUK@aspire.rjw.lan>
- <CAJZ5v0jxVUxFetwPaj76FoeQjHtSSwO+4jiEqadA1WXZ_YNNoQ@mail.gmail.com>
- <20180106110227.j2jkxjpjktcy6yjr@earth.li>
-MIME-Version: 1.0
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Sat, 06 Jan 2018 19:42:47 -0800 (PST)
+Subject: Re: Google Chrome cause locks held in system (kernel 4.15 rc2)
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+References: <1515248235.17396.4.camel@gmail.com>
+	<201801062352.EFF56799.HFFLOMOJOFSQtV@I-love.SAKURA.ne.jp>
+	<1515252530.17396.16.camel@gmail.com>
+	<201801070048.JAE30243.MLQOtHVFOOFJFS@I-love.SAKURA.ne.jp>
+	<1515259453.17396.17.camel@gmail.com>
+In-Reply-To: <1515259453.17396.17.camel@gmail.com>
+Message-Id: <201801071242.CCD05710.HFFVQJMtOOFOSL@I-love.SAKURA.ne.jp>
+Date: Sun, 7 Jan 2018 12:42:40 +0900
+Mime-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180106110227.j2jkxjpjktcy6yjr@earth.li>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Jonathan McDowell <noodles@earth.li>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>, Andy Shevchenko <andriy.shevchenko@linux.intel.com>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux Memory Management List <linux-mm@kvack.org>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Platform Driver <platform-driver-x86@vger.kernel.org>, Andy Lutomirski <luto@amacapital.net>
+To: mikhail.v.gavrilov@gmail.com
+Cc: mhocko@kernel.org, darrick.wong@oracle.com, linux-xfs@vger.kernel.org, linux-mm@kvack.org
 
-On Sat, Jan 06, 2018 at 11:02:27AM +0000, Jonathan McDowell wrote:
-> On Sat, Jan 06, 2018 at 12:30:23AM +0100, Rafael J. Wysocki wrote:
-> > On Wed, Jan 3, 2018 at 12:49 PM, Rafael J. Wysocki <rjw@rjwysocki.net> wrote:
-> > > From: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > >
-> > > Calling acpi_wmi_init() at the subsys_initcall() level causes ordering
-> > > issues to appear on some systems and they are difficult to reproduce,
-> > > because there is no guaranteed ordering between subsys_initcall()
-> > > calls, so they may occur in different orders on different systems.
-> > >
-> > > In particular, commit 86d9f48534e8 (mm/slab: fix kmemcg cache
-> > > creation delayed issue) exposed one of these issues where genl_init()
-> > > and acpi_wmi_init() are both called at the same initcall level, but
-> > > the former must run before the latter so as to avoid a NULL pointer
-> > > dereference.
-> > >
-> > > For this reason, move the acpi_wmi_init() invocation to the
-> > > initcall_sync level which should still be early enough for things
-> > > to work correctly in the WMI land.
-> > >
-> > > Link: https://marc.info/?t=151274596700002&r=1&w=2
-> > > Reported-by: Jonathan McDowell <noodles@earth.li>
-> > > Reported-by: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-> > > Tested-by: Jonathan McDowell <noodles@earth.li>
-> > > Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
-> > 
-> > Guys, this fixes a crash on boot.
-> > 
-> > If there are no concerns/objections I will just take it through the ACPI tree.
+mikhail wrote:
+> Thanks, I investigated the code of new version udplogger. I understood
+> why it is not subject to the problems described above. Because it uses
+> one file for all clients. The old version tried to create a separate
+> file for each client.
 > 
-> Note that I first started seeing it in v4.9 so would ideally hit the
-> appropriate stable trees too.
+> Why you not using git hosting?
 
-Thanks, I'll take care of that.
+Because I don't have my git trees. svn is sufficient.
 
--- 
-Darren Hart
-VMware Open Source Technology Center
+> Old version is quickly searchable by google.
+
+Using old version is fine.
+What you are seeing is a bug which exists in kohsuke's version.
+
+> Look here it's second place in search results:
+> https://imgur.com/a/IKHY8
+> And new version is impossible to find in searching engine, it's so sad.
+> 
+
+In my search result, my version is printed first.
+URL of my version is explicitly shown in the LCJ2014-en_0.pdf file.
+I can't afford investigating modified/variant versions which are called "udplogger".
+I don't have control for preventing modified/variant versions from appearing. ;-)
+
+Anyway, please report when you succeeded to reproduce slowdown problem.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
