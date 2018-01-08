@@ -1,57 +1,180 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 214186B026D
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 15:25:57 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id y62so8451944pfd.3
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 12:25:57 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h90si8996299plb.644.2018.01.08.12.25.55
+Received: from mail-lf0-f71.google.com (mail-lf0-f71.google.com [209.85.215.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C10FA6B0270
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 16:09:32 -0500 (EST)
+Received: by mail-lf0-f71.google.com with SMTP id z65so2834216lff.11
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 13:09:32 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r75sor1671818lfr.2.2018.01.08.13.09.30
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Mon, 08 Jan 2018 12:25:55 -0800 (PST)
-Date: Mon, 8 Jan 2018 21:25:48 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: revamp vmem_altmap / dev_pagemap handling V3
-Message-ID: <20180108202548.GA1732@dhcp22.suse.cz>
-References: <20171229075406.1936-1-hch@lst.de>
- <20180108112646.GA7204@lst.de>
- <CAPcyv4hHipDHP5LZCgym5szqiUSCxG9wQUbRO_qe8T+USaZi9Q@mail.gmail.com>
+        (Google Transport Security);
+        Mon, 08 Jan 2018 13:09:31 -0800 (PST)
+Subject: Re: [PATCH V4 13/45] block: blk-merge: try to make front segments in
+ full size
+References: <20171218122247.3488-1-ming.lei@redhat.com>
+ <20171218122247.3488-14-ming.lei@redhat.com>
+From: Dmitry Osipenko <digetx@gmail.com>
+Message-ID: <c3227c8f-c782-7685-c3eb-af558a082399@gmail.com>
+Date: Tue, 9 Jan 2018 00:09:27 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4hHipDHP5LZCgym5szqiUSCxG9wQUbRO_qe8T+USaZi9Q@mail.gmail.com>
+In-Reply-To: <20171218122247.3488-14-ming.lei@redhat.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Christoph Hellwig <hch@lst.de>, linux-nvdimm@lists.01.org, X86 ML <x86@kernel.org>, Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>, linuxppc-dev <linuxppc-dev@lists.ozlabs.org>
+To: Ming Lei <ming.lei@redhat.com>, Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>
+Cc: Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, linux-mmc@vger.kernel.org
 
-On Mon 08-01-18 11:44:02, Dan Williams wrote:
-> On Mon, Jan 8, 2018 at 3:26 AM, Christoph Hellwig <hch@lst.de> wrote:
-> > Any chance to get this fully reviewed and picked up before the
-> > end of the merge window?
+On 18.12.2017 15:22, Ming Lei wrote:
+> When merging one bvec into segment, if the bvec is too big
+> to merge, current policy is to move the whole bvec into another
+> new segment.
 > 
-> I'm fine carrying these through the nvdimm tree, but I'd need an ack
-> from the mm folks for all the code touches related to arch_add_memory.
+> This patchset changes the policy into trying to maximize size of
+> front segments, that means in above situation, part of bvec
+> is merged into current segment, and the remainder is put
+> into next segment.
+> 
+> This patch prepares for support multipage bvec because
+> it can be quite common to see this case and we should try
+> to make front segments in full size.
+> 
+> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> ---
+>  block/blk-merge.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+>  1 file changed, 49 insertions(+), 5 deletions(-)
+> 
+> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> index a476337a8ff4..42ceb89bc566 100644
+> --- a/block/blk-merge.c
+> +++ b/block/blk-merge.c
+> @@ -109,6 +109,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  	bool do_split = true;
+>  	struct bio *new = NULL;
+>  	const unsigned max_sectors = get_max_io_size(q, bio);
+> +	unsigned advance = 0;
+>  
+>  	bio_for_each_segment(bv, bio, iter) {
+>  		/*
+> @@ -134,12 +135,32 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  		}
+>  
+>  		if (bvprvp && blk_queue_cluster(q)) {
+> -			if (seg_size + bv.bv_len > queue_max_segment_size(q))
+> -				goto new_segment;
+>  			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+>  				goto new_segment;
+>  			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
+>  				goto new_segment;
+> +			if (seg_size + bv.bv_len > queue_max_segment_size(q)) {
+> +				/*
+> +				 * On assumption is that initial value of
+> +				 * @seg_size(equals to bv.bv_len) won't be
+> +				 * bigger than max segment size, but will
+> +				 * becomes false after multipage bvec comes.
+> +				 */
+> +				advance = queue_max_segment_size(q) - seg_size;
+> +
+> +				if (advance > 0) {
+> +					seg_size += advance;
+> +					sectors += advance >> 9;
+> +					bv.bv_len -= advance;
+> +					bv.bv_offset += advance;
+> +				}
+> +
+> +				/*
+> +				 * Still need to put remainder of current
+> +				 * bvec into a new segment.
+> +				 */
+> +				goto new_segment;
+> +			}
+>  
+>  			seg_size += bv.bv_len;
+>  			bvprv = bv;
+> @@ -161,6 +182,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>  		seg_size = bv.bv_len;
+>  		sectors += bv.bv_len >> 9;
+>  
+> +		/* restore the bvec for iterator */
+> +		if (advance) {
+> +			bv.bv_len += advance;
+> +			bv.bv_offset -= advance;
+> +			advance = 0;
+> +		}
+>  	}
+>  
+>  	do_split = false;
+> @@ -361,16 +388,29 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+>  {
+>  
+>  	int nbytes = bvec->bv_len;
+> +	unsigned advance = 0;
+>  
+>  	if (*sg && *cluster) {
+> -		if ((*sg)->length + nbytes > queue_max_segment_size(q))
+> -			goto new_segment;
+> -
+>  		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+>  			goto new_segment;
+>  		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+>  			goto new_segment;
+>  
+> +		/*
+> +		 * try best to merge part of the bvec into previous
+> +		 * segment and follow same policy with
+> +		 * blk_bio_segment_split()
+> +		 */
+> +		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+> +			advance = queue_max_segment_size(q) - (*sg)->length;
+> +			if (advance) {
+> +				(*sg)->length += advance;
+> +				bvec->bv_offset += advance;
+> +				bvec->bv_len -= advance;
+> +			}
+> +			goto new_segment;
+> +		}
+> +
+>  		(*sg)->length += nbytes;
+>  	} else {
+>  new_segment:
+> @@ -393,6 +433,10 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+>  
+>  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+>  		(*nsegs)++;
+> +
+> +		/* for making iterator happy */
+> +		bvec->bv_offset -= advance;
+> +		bvec->bv_len += advance;
+>  	}
+>  	*bvprv = *bvec;
+>  }
+> 
 
-I am sorry to be slow here but I am out of time right now - yeah having
-a lot of fun kaiser time. I didn't get to look at these patches at all
-yet but the changelog suggests that you want to remove vmem_altmap.
-I've had plans to (ab)use this for self hosted struct pages for memory
-hotplug http://lkml.kernel.org/r/20170801124111.28881-1-mhocko@kernel.org
-That work is stalled though because it is buggy and I was too busy to
-finish that work. Anyway, if you believe that removing vmem_altmap is a
-good step in general I will find another way. I wasn't really happy how
-the whole thing is grafted to the memory hotplug and (ab)used it only
-because it was handy and ready for reuse.
+Hello,
 
-Anyway if you need a review of mm parts from me, you will have to wait
-some more. If this requires some priority then go ahead and merge
-it. Times are just too crazy right now.
+This patch breaks MMC on next-20180108, in particular MMC doesn't work anymore
+with this patch on NVIDIA Tegra20:
 
-Sorry about that.
+<3>[   36.622253] print_req_error: I/O error, dev mmcblk1, sector 512
+<3>[   36.671233] print_req_error: I/O error, dev mmcblk2, sector 128
+<3>[   36.711308] print_req_error: I/O error, dev mmcblk1, sector 31325304
+<3>[   36.749232] print_req_error: I/O error, dev mmcblk2, sector 512
+<3>[   36.761235] print_req_error: I/O error, dev mmcblk1, sector 31325816
+<3>[   36.832039] print_req_error: I/O error, dev mmcblk2, sector 31259768
+<3>[   99.793248] print_req_error: I/O error, dev mmcblk1, sector 31323136
+<3>[   99.982043] print_req_error: I/O error, dev mmcblk1, sector 929792
+<3>[   99.986301] print_req_error: I/O error, dev mmcblk1, sector 930816
+<3>[  100.293624] print_req_error: I/O error, dev mmcblk1, sector 932864
+<3>[  100.466839] print_req_error: I/O error, dev mmcblk1, sector 947200
+<3>[  100.642955] print_req_error: I/O error, dev mmcblk1, sector 949248
+<3>[  100.818838] print_req_error: I/O error, dev mmcblk1, sector 230400
+
+Any attempt of mounting MMC block dev ends with a kernel crash. Reverting this
+patch fixes the issue.
+
 -- 
-Michal Hocko
-SUSE Labs
+Dmitry
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
