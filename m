@@ -1,41 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f200.google.com (mail-qt0-f200.google.com [209.85.216.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B0596B027F
-	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 18:02:11 -0500 (EST)
-Received: by mail-qt0-f200.google.com with SMTP id b26so7494834qtb.18
-        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 15:02:11 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id e64sor7468313qkb.113.2018.01.07.15.02.10
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A327D6B0275
+	for <linux-mm@kvack.org>; Sun,  7 Jan 2018 20:58:24 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id d199so3075316pfd.9
+        for <linux-mm@kvack.org>; Sun, 07 Jan 2018 17:58:24 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id ay12sor3878032plb.110.2018.01.07.17.58.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 07 Jan 2018 15:02:10 -0800 (PST)
+        Sun, 07 Jan 2018 17:58:23 -0800 (PST)
+Date: Mon, 8 Jan 2018 10:58:18 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
+Message-ID: <20180108015818.GA533@jagdpanzerIV>
+References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
+ <20180106094124.GB16576@dhcp22.suse.cz>
+ <20180106100313.GA527@tigerII.localdomain>
+ <20180106133417.GA23629@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
-References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com> <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
-From: Andy Shevchenko <andy.shevchenko@gmail.com>
-Date: Mon, 8 Jan 2018 01:02:09 +0200
-Message-ID: <CAHp75VdjBnd=yr9YDPvf0P-e6ofoJwi8d-iOehoP=vuj9rnB8w@mail.gmail.com>
-Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being shifted
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180106133417.GA23629@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nick Desaulniers <nick.desaulniers@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Jan 7, 2018 at 5:04 PM, Minchan Kim <minchan@kernel.org> wrote:
+On (01/06/18 14:34), Michal Hocko wrote:
+> > zsmalloc allocation is just one possibility; an error in
+> > compressing algorithm is another one, yet is rather unlikely.
+> > most likely it's OOM which can cause problems. but in any case
+> > it's sort of unclear what should be done. an error can be a
+> > temporary one or a fatal one, just like in __swap_writepage()
+> > case. so may be both write error printk()-s can be dropped.
+> 
+> Then I would suggest starting with sorting out which of those errors are
+> critical and which are not and report the error accordingly. I am sorry
+> to be fuzzy here but I am not familiar with the code to be more
+> specific. Anyway ratelimiting sounds more like a paper over than a real
+> solution. Also it sounds quite scary that you can see so many failures
+> to actually lock up the system just by printing a message...
 
->> -                       link->next = -1 << OBJ_TAG_BITS;
->> +                       link->next = -1U << OBJ_TAG_BITS;
->
-> -1UL?
+the lockup is not the main problem and I'm not really trying to
+address it here. we simply can fill up the entire kernel logbuf
+with the same "Write-error on swap-device" errors.
 
-Oh, boy, shouldn't be rather GENMASK() / GENMASK_ULL() in a way how
-it's done, for example, here:
-https://git.kernel.org/pub/scm/linux/kernel/git/linusw/linux-pinctrl.git/commit/?h=for-next&id=d2b3c353595a855794f8b9df5b5bdbe8deb0c413
-
--- 
-With Best Regards,
-Andy Shevchenko
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
