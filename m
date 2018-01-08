@@ -1,59 +1,166 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F09696B026A
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 17:12:57 -0500 (EST)
-Received: by mail-pf0-f198.google.com with SMTP id a74so8641763pfg.20
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 14:12:57 -0800 (PST)
-Received: from ozlabs.org (ozlabs.org. [103.22.144.67])
-        by mx.google.com with ESMTPS id s90si8950272pfk.415.2018.01.08.14.12.56
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F0526B025E
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 17:43:02 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id 3so8707447pfo.1
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 14:43:02 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j74sor3441571pfj.62.2018.01.08.14.42.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 08 Jan 2018 14:12:56 -0800 (PST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
-In-Reply-To: <7a44f42e-39d0-1c4b-19e0-7df1b0842c18@linux.vnet.ibm.com>
-References: <5a4ec4bc.u5I/HzCSE6TLVn02%akpm@linux-foundation.org> <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com> <20180105084631.GG2801@dhcp22.suse.cz> <e81dce2b-5d47-b7d3-efbf-27bc171ba4ab@linux.vnet.ibm.com> <20180107090229.GB24862@dhcp22.suse.cz> <87mv1phptq.fsf@concordia.ellerman.id.au> <7a44f42e-39d0-1c4b-19e0-7df1b0842c18@linux.vnet.ibm.com>
-Date: Tue, 09 Jan 2018 09:12:49 +1100
-Message-ID: <87tvvw80f2.fsf@concordia.ellerman.id.au>
-MIME-Version: 1.0
-Content-Type: text/plain
+        (Google Transport Security);
+        Mon, 08 Jan 2018 14:43:00 -0800 (PST)
+From: Yu Zhao <yuzhao@google.com>
+Subject: [PATCH v4] memcg: refactor mem_cgroup_resize_limit()
+Date: Mon,  8 Jan 2018 14:42:38 -0800
+Message-Id: <20180108224238.14583-1-yuzhao@google.com>
+In-Reply-To: <20170601230212.30578-1-yuzhao@google.com>
+References: <20170601230212.30578-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Anshuman Khandual <khandual@linux.vnet.ibm.com>, Michal Hocko <mhocko@kernel.org>Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>, Vladimir Davydov <vdavydov.dev@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
 
-Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
+mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() have
+identical logics. Refactor code so we don't need to keep two pieces
+of code that does same thing.
 
-> On 01/07/2018 04:56 PM, Michael Ellerman wrote:
->> Michal Hocko <mhocko@kernel.org> writes:
->> 
->>> On Sun 07-01-18 12:19:32, Anshuman Khandual wrote:
->>>> On 01/05/2018 02:16 PM, Michal Hocko wrote:
->>> [...]
->>>>> Could you give us more information about the failure please. Debugging
->>>>> patch from http://lkml.kernel.org/r/20171218091302.GL16951@dhcp22.suse.cz
->>>>> should help to see what is the clashing VMA.
->>>> Seems like its re-requesting the same mapping again.
->>> It always seems to be the same mapping which is a bit strange as we
->>> have multiple binaries here. Are these binaries any special? Does this
->>> happen to all bianries (except for init which has obviously started
->>> successfully)? Could you add an additional debugging (at the do_mmap
->>> layer) to see who is requesting the mapping for the first time?
->>>
->>>> [   23.423642] 9148 (sed): Uhuuh, elf segment at 0000000010030000 requested but the memory is mapped already
->>>> [   23.423706] requested [10030000, 10040000] mapped [10030000, 10040000] 100073 anon
->>> I also find it a bit unexpected that this is an anonymous mapping
->>> because the elf loader should always map a file backed one.
->> Anshuman what machine is this on, and what distro and toolchain is it running?
->> 
->> I don't see this on any of my machines, so I wonder if this is
->> toolchain/distro specific.
->
-> POWER9, RHEL 7.4, gcc (GCC) 4.8.5 20150623, GNU Make 3.82 etc.
+Signed-off-by: Yu Zhao <yuzhao@google.com>
+Acked-by: Vladimir Davydov <vdavydov.dev@gmail.com>
+Acked-by: Michal Hocko <mhocko@suse.com>
+---
+ mm/memcontrol.c | 77 +++++++++++++--------------------------------------------
+ 1 file changed, 17 insertions(+), 60 deletions(-)
 
-So what does readelf -a of /bin/sed look like?
-
-cheers
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ac2ffd5e02b9..9af733fa9381 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2467,13 +2467,15 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+ static DEFINE_MUTEX(memcg_limit_mutex);
+ 
+ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+-				   unsigned long limit)
++				   unsigned long limit, bool memsw)
+ {
+ 	unsigned long curusage;
+ 	unsigned long oldusage;
+ 	bool enlarge = false;
+ 	int retry_count;
+ 	int ret;
++	bool limits_invariant;
++	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
+ 
+ 	/*
+ 	 * For keeping hierarchical_reclaim simple, how long we should retry
+@@ -2483,7 +2485,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+ 		      mem_cgroup_count_children(memcg);
+ 
+-	oldusage = page_counter_read(&memcg->memory);
++	oldusage = page_counter_read(counter);
+ 
+ 	do {
+ 		if (signal_pending(current)) {
+@@ -2492,73 +2494,28 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 		}
+ 
+ 		mutex_lock(&memcg_limit_mutex);
+-		if (limit > memcg->memsw.limit) {
+-			mutex_unlock(&memcg_limit_mutex);
+-			ret = -EINVAL;
+-			break;
+-		}
+-		if (limit > memcg->memory.limit)
+-			enlarge = true;
+-		ret = page_counter_limit(&memcg->memory, limit);
+-		mutex_unlock(&memcg_limit_mutex);
+-
+-		if (!ret)
+-			break;
+-
+-		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
+-
+-		curusage = page_counter_read(&memcg->memory);
+-		/* Usage is reduced ? */
+-		if (curusage >= oldusage)
+-			retry_count--;
+-		else
+-			oldusage = curusage;
+-	} while (retry_count);
+-
+-	if (!ret && enlarge)
+-		memcg_oom_recover(memcg);
+-
+-	return ret;
+-}
+-
+-static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+-					 unsigned long limit)
+-{
+-	unsigned long curusage;
+-	unsigned long oldusage;
+-	bool enlarge = false;
+-	int retry_count;
+-	int ret;
+-
+-	/* see mem_cgroup_resize_res_limit */
+-	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
+-		      mem_cgroup_count_children(memcg);
+-
+-	oldusage = page_counter_read(&memcg->memsw);
+-
+-	do {
+-		if (signal_pending(current)) {
+-			ret = -EINTR;
+-			break;
+-		}
+-
+-		mutex_lock(&memcg_limit_mutex);
+-		if (limit < memcg->memory.limit) {
++		/*
++		 * Make sure that the new limit (memsw or memory limit) doesn't
++		 * break our basic invariant rule memory.limit <= memsw.limit.
++		 */
++		limits_invariant = memsw ? limit >= memcg->memory.limit :
++					   limit <= memcg->memsw.limit;
++		if (!limits_invariant) {
+ 			mutex_unlock(&memcg_limit_mutex);
+ 			ret = -EINVAL;
+ 			break;
+ 		}
+-		if (limit > memcg->memsw.limit)
++		if (limit > counter->limit)
+ 			enlarge = true;
+-		ret = page_counter_limit(&memcg->memsw, limit);
++		ret = page_counter_limit(counter, limit);
+ 		mutex_unlock(&memcg_limit_mutex);
+ 
+ 		if (!ret)
+ 			break;
+ 
+-		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
++		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
+ 
+-		curusage = page_counter_read(&memcg->memsw);
++		curusage = page_counter_read(counter);
+ 		/* Usage is reduced ? */
+ 		if (curusage >= oldusage)
+ 			retry_count--;
+@@ -3020,10 +2977,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+ 		}
+ 		switch (MEMFILE_TYPE(of_cft(of)->private)) {
+ 		case _MEM:
+-			ret = mem_cgroup_resize_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, nr_pages, false);
+ 			break;
+ 		case _MEMSWAP:
+-			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, nr_pages, true);
+ 			break;
+ 		case _KMEM:
+ 			ret = memcg_update_kmem_limit(memcg, nr_pages);
+-- 
+2.16.0.rc0.223.g4a4ac83678-goog
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
