@@ -1,87 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EE3656B0268
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 17:56:49 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id z24so7169412pgu.20
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 14:56:49 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f89sor4388624plb.112.2018.01.08.14.56.48
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 537626B0033
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 18:37:04 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id 3so8808316pfo.1
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 15:37:04 -0800 (PST)
+Received: from g4t3427.houston.hpe.com (g4t3427.houston.hpe.com. [15.241.140.73])
+        by mx.google.com with ESMTPS id w9si9226246plp.93.2018.01.08.15.37.02
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jan 2018 14:56:48 -0800 (PST)
-From: Yu Zhao <yuzhao@google.com>
-Subject: [PATCH] mm: don't expose page to fast gup before it's ready
-Date: Mon,  8 Jan 2018 14:56:32 -0800
-Message-Id: <20180108225632.16332-1-yuzhao@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jan 2018 15:37:02 -0800 (PST)
+From: "Kani, Toshi" <toshi.kani@hpe.com>
+Subject: Re: [RFC patch] ioremap: don't set up huge I/O mappings when
+ p4d/pud/pmd is zero
+Date: Mon, 8 Jan 2018 23:36:57 +0000
+Message-ID: <1515457376.2108.34.camel@hpe.com>
+References: <1514460261-65222-1-git-send-email-guohanjun@huawei.com>
+	 <1515193319.2108.24.camel@hpe.com>
+	 <e0fa1b52-86f5-687e-46b3-78ddd03565d8@huawei.com>
+In-Reply-To: <e0fa1b52-86f5-687e-46b3-78ddd03565d8@huawei.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <5045DAF5E92F124BAE65985B33006A58@NAMPRD84.PROD.OUTLOOK.COM>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org
-Cc: linux-kernel@vger.kernel.org, Yu Zhao <yuzhao@google.com>
+To: "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, "guohanjun@huawei.com" <guohanjun@huawei.com>
+Cc: "linuxarm@huawei.com" <linuxarm@huawei.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "wxf.wang@hisilicon.com" <wxf.wang@hisilicon.com>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mark.rutland@arm.com" <mark.rutland@arm.com>, "will.deacon@arm.com" <will.deacon@arm.com>, "catalin.marinas@arm.com" <catalin.marinas@arm.com>, "Hocko, Michal" <MHocko@suse.com>, "hanjun.guo@linaro.org" <hanjun.guo@linaro.org>
 
-We don't want to expose page before it's properly setup. During
-page setup, we may call page_add_new_anon_rmap() which uses non-
-atomic bit op. If page is exposed before it's done, we could
-overwrite page flags that are set by get_user_pages_fast() or
-it's callers. Here is a non-fatal scenario (there might be other
-fatal problems that I didn't look into):
-
-	CPU 1				CPU1
-set_pte_at()			get_user_pages_fast()
-page_add_new_anon_rmap()		gup_pte_range()
-	__SetPageSwapBacked()			SetPageReferenced()
-
-Fix the problem by delaying set_pte_at() until page is ready.
-
-Signed-off-by: Yu Zhao <yuzhao@google.com>
----
- mm/memory.c   | 2 +-
- mm/swapfile.c | 4 ++--
- 2 files changed, 3 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index ca5674cbaff2..b8be1a4adf93 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3010,7 +3010,6 @@ int do_swap_page(struct vm_fault *vmf)
- 	flush_icache_page(vma, page);
- 	if (pte_swp_soft_dirty(vmf->orig_pte))
- 		pte = pte_mksoft_dirty(pte);
--	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 	vmf->orig_pte = pte;
- 
- 	/* ksm created a completely new copy */
-@@ -3023,6 +3022,7 @@ int do_swap_page(struct vm_fault *vmf)
- 		mem_cgroup_commit_charge(page, memcg, true, false);
- 		activate_page(page);
- 	}
-+	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, pte);
- 
- 	swap_free(entry);
- 	if (mem_cgroup_swap_full(page) ||
-diff --git a/mm/swapfile.c b/mm/swapfile.c
-index 3074b02eaa09..bd49da2b5221 100644
---- a/mm/swapfile.c
-+++ b/mm/swapfile.c
-@@ -1800,8 +1800,6 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 	dec_mm_counter(vma->vm_mm, MM_SWAPENTS);
- 	inc_mm_counter(vma->vm_mm, MM_ANONPAGES);
- 	get_page(page);
--	set_pte_at(vma->vm_mm, addr, pte,
--		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	if (page == swapcache) {
- 		page_add_anon_rmap(page, vma, addr, false);
- 		mem_cgroup_commit_charge(page, memcg, true, false);
-@@ -1810,6 +1808,8 @@ static int unuse_pte(struct vm_area_struct *vma, pmd_t *pmd,
- 		mem_cgroup_commit_charge(page, memcg, false, false);
- 		lru_cache_add_active_or_unevictable(page, vma);
- 	}
-+	set_pte_at(vma->vm_mm, addr, pte,
-+		   pte_mkold(mk_pte(page, vma->vm_page_prot)));
- 	swap_free(entry);
- 	/*
- 	 * Move the page to the active list so it is not
--- 
-2.16.0.rc0.223.g4a4ac83678-goog
+T24gU2F0LCAyMDE4LTAxLTA2IGF0IDE3OjQ2ICswODAwLCBIYW5qdW4gR3VvIHdyb3RlOg0KPiBP
+biAyMDE4LzEvNiA2OjE1LCBLYW5pLCBUb3NoaSB3cm90ZToNCj4gPiBPbiBUaHUsIDIwMTctMTIt
+MjggYXQgMTk6MjQgKzA4MDAsIEhhbmp1biBHdW8gd3JvdGU6DQo+ID4gPiBGcm9tOiBIYW5qdW4g
+R3VvIDxoYW5qdW4uZ3VvQGxpbmFyby5vcmc+DQo+ID4gPiANCj4gPiA+IFdoZW4gd2UgdXNpbmcg
+aW91bm1hcCgpIHRvIGZyZWUgdGhlIDRLIG1hcHBpbmcsIGl0IGp1c3QgY2xlYXIgdGhlIFBURXMN
+Cj4gPiA+IGJ1dCBsZWF2ZSBQNEQvUFVEL1BNRCB1bmNoYW5nZWQsIGFsc28gd2lsbCBub3QgZnJl
+ZSB0aGUgbWVtb3J5IG9mIHBhZ2UNCj4gPiA+IHRhYmxlcy4NCj4gPiA+IA0KPiA+ID4gVGhpcyB3
+aWxsIGNhdXNlIGlzc3VlcyBvbiBBUk02NCBwbGF0Zm9ybSAobm90IHN1cmUgaWYgb3RoZXIgYXJj
+aHMgaGF2ZQ0KPiA+ID4gdGhlIHNhbWUgaXNzdWUpIGZvciB0aGlzIGNhc2U6DQo+ID4gPiANCj4g
+PiA+IDEuIGlvcmVtYXAgYSA0SyBzaXplLCB2YWxpZCBwYWdlIHRhYmxlIHdpbGwgYnVpbGQsDQo+
+ID4gPiAyLiBpb3VubWFwIGl0LCBwdGUwIHdpbGwgc2V0IHRvIDA7DQo+ID4gPiAzLiBpb3JlbWFw
+IHRoZSBzYW1lIGFkZHJlc3Mgd2l0aCAyTSBzaXplLCBwZ2QvcG1kIGlzIHVuY2hhbmdlZCwNCj4g
+PiA+ICAgIHRoZW4gc2V0IHRoZSBhIG5ldyB2YWx1ZSBmb3IgcG1kOw0KPiA+ID4gNC4gcHRlMCBp
+cyBsZWFrZWQ7DQo+ID4gPiA1LiBDUFUgbWF5IG1lZXQgZXhjZXB0aW9uIGJlY2F1c2UgdGhlIG9s
+ZCBwbWQgaXMgc3RpbGwgaW4gVExCLA0KPiA+ID4gICAgd2hpY2ggd2lsbCBsZWFkIHRvIGtlcm5l
+bCBwYW5pYy4NCj4gPiA+IA0KPiA+ID4gRml4IGl0IGJ5IHNraXAgc2V0dGluZyB1cCB0aGUgaHVn
+ZSBJL08gbWFwcGluZ3Mgd2hlbiBwNGQvcHVkL3BtZCBpcw0KPiA+ID4gemVyby4NCj4gPiANCj4g
+PiBIaSBIYW5qdW4sDQo+ID4gDQo+ID4gSSB0ZXN0ZWQgdGhlIGFib3ZlIHN0ZXBzIG9uIG15IHg4
+NiBib3gsIGJ1dCB3YXMgbm90IGFibGUgdG8gcmVwcm9kdWNlDQo+ID4geW91ciBrZXJuZWwgcGFu
+aWMuICBPbiB4ODYsIGEgNEsgdmFkZHIgZ2V0cyBhbGxvY2F0ZWQgZnJvbSBhIHNtYWxsDQo+ID4g
+ZnJhZ21lbnRlZCBmcmVlIHJhbmdlLCB3aGVyZWFzIGEgMk1CIHZhZGRyIGlzIGZyb20gYSBsYXJn
+ZXIgZnJlZSByYW5nZS4gDQo+ID4gVGhlaXIgYWRkcnMgaGF2ZSBkaWZmZXJlbnQgYWxpZ25tZW50
+cyAoNEtCICYgMk1CKSBhcyB3ZWxsLiAgU28sIHRoZQ0KPiA+IHN0ZXBzIGRpZCBub3QgbGVhZCB0
+byB1c2UgYSBzYW1lIHBtZCBlbnRyeS4NCj4gDQo+IFRoYW5rcyBmb3IgdGhlIHRlc3RpbmcsIEkg
+Y2FuIG9ubHkgcmVwcm9kdWNlIHRoaXMgb24gbXkgQVJNNjQgcGxhdGZvcm0NCj4gd2hpY2ggdGhl
+IENQVSB3aWxsIGNhY2hlIHRoZSBQTUQgaW4gVExCLCBmcm9tIG15IGtub3dsZWRnZSwgb25seSBD
+b3J0ZXgtQTc1DQo+IHdpbGwgZG8gdGhpcywgc28gQVJNNjQgcGxhdGZvcm1zIHdoaWNoIGFyZSBu
+b3QgQTc1IGJhc2VkIGNhbid0IGJlIHJlcHJvZHVjZWQNCj4gZWl0aGVyLg0KPiANCj4gQ2F0YWxp
+biwgV2lsbCwgSSBjYW4gcmVwcm9kdWNlIHRoaXMgaXNzdWUgaW4gYWJvdXQgMyBtaW51dGVzIHdp
+dGggZm9sbG93aW5nDQo+IHNpbXBsaWZpZWQgdGVzdCBjYXNlIFsxXSwgYW5kIGNhbiB0cmlnZ2Vy
+IHBhbmljIGFzIFsyXSwgY291bGQgeW91IHRha2UgYSBsb29rDQo+IGFzIHdlbGw/DQoNClllcywg
+dGhlIHRlc3QgY2FzZSBsb29rcyBnb29kIHRvIG1lLiAobml0IC0gaXQgc2hvdWxkIGNoZWNrIGlm
+IHZpcl9hZGRyDQppcyBub3QgTlVMTC4pDQoNCj4gPiBIb3dldmVyLCBJIGFncmVlIHRoYXQgemVy
+bydkIHB0ZSBlbnRyaWVzIHdpbGwgYmUgbGVha2VkIHdoZW4gYSBwbWQgbWFwDQo+ID4gaXMgc2V0
+IGlmIHRoZXkgYXJlIHByZXNlbnQgdW5kZXIgdGhlIHBtZC4NCj4gDQo+IFRoYW5rcyBmb3IgdGhl
+IGNvbmZpcm0uDQo+IA0KPiA+IA0KPiA+IEkgYWxzbyB0ZXN0ZWQgeW91ciBwYXRjaCBvbiBteSB4
+ODYgYm94LiAgVW5mb3J0dW5hdGVseSwgaXQgZWZmZWN0aXZlbHkNCj4gPiBkaXNhYmxlZCAyTUIg
+bWFwcGluZ3MuICBXaGlsZSBhIDJNQiB2YWRkciBnZXRzIGFsbG9jYXRlZCBmcm9tIGEgbGFyZ2Vy
+DQo+ID4gZnJlZSByYW5nZSwgaXQgc2lsbCBjb21lcyBmcm9tIGEgZnJlZSByYW5nZSBjb3ZlcmVk
+IGJ5IHplcm8nZCBwdGUNCj4gPiBlbnRyaWVzLiAgU28sIGl0IGVuZHMgdXAgd2l0aCA0S0IgbWFw
+cGluZ3Mgd2l0aCB5b3VyIGNoYW5nZXMuDQo+ID4gDQo+ID4gSSB0aGluayB3ZSBuZWVkIHRvIGNv
+bWUgdXAgd2l0aCBvdGhlciBhcHByb2FjaC4NCj4gDQo+IFllcywgQXMgSSBzYWlkIGluIG15IHBh
+dGNoLCB0aGlzIGlzIGp1c3QgUkZDLCBjb21tZW50cyBhcmUgd2VsY29tZWQgOikNCg0KSSBhbSB3
+b25kZXJpbmcgaWYgd2UgY2FuIGZvbGxvdyB0aGUgc2FtZSBhcHByb2FjaCBpbg0KYXJjaC94ODYv
+bW0vcGFnZWF0dHIuYy4gIExpa2UgdGhlIGlvcmVtYXAgY2FzZSwgcG9wdWxhdGVfcG1kKCkgZG9l
+cyBub3QNCmNoZWNrIGlmIHRoZXJlIGlzIGEgcHRlIHRhYmxlIHVuZGVyIHRoZSBwbWQuICBCdXQg
+aXRzIGZyZWUgZnVuY3Rpb24sDQp1bm1hcF9wdGVfcmFuZ2UoKSBjYWxscyB0cnlfdG9fZnJlZV9w
+dGVfcGFnZSgpIHNvIHRoYXQgYSBwdGUgdGFibGUgaXMNCmZyZWVkIHdoZW4gYWxsIHB0ZSBlbnRy
+aWVzIGFyZSB6ZXJvJ2QuICBJdCB0aGVuIGNhbGxzIHBtZF9jbGVhcigpLg0KaW91bm1hcCgpJ3Mg
+ZnJlZSBmdW5jdGlvbiwgdnVubWFwX3B0ZV9yYW5nZSgpIGRvZXMgbm90IGZyZWUgdXAgYSBwdGUN
+CnRhYmxlIGV2ZW4gaWYgYWxsIHB0ZSBlbnRyaWVzIGFyZSB6ZXJvJ2QuDQoNClRoYW5rcywNCi1U
+b3NoaQ0K
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
