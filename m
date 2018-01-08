@@ -1,69 +1,57 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f200.google.com (mail-io0-f200.google.com [209.85.223.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 562C06B0261
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 14:35:14 -0500 (EST)
-Received: by mail-io0-f200.google.com with SMTP id r85so13749034iod.11
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 11:35:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j193sor2007157itc.123.2018.01.08.11.35.13
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CD836B0260
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 14:43:35 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id u16so8373523pfh.7
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 11:43:35 -0800 (PST)
+Received: from out4440.biz.mail.alibaba.com (out4440.biz.mail.alibaba.com. [47.88.44.40])
+        by mx.google.com with ESMTPS id f1si8994407plb.751.2018.01.08.11.43.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jan 2018 11:35:13 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jan 2018 11:43:34 -0800 (PST)
+Subject: Re: [PATCH 8/8] net: tipc: remove unused hardirq.h
+References: <1510959741-31109-8-git-send-email-yang.s@alibaba-inc.com>
+ <4ed1efbc-5fb8-7412-4f46-1e3a91a98373@windriver.com>
+ <b48afbb6-771f-84b1-8329-d5941eff086b@alibaba-inc.com>
+ <20180105.101706.344316131945042174.davem@davemloft.net>
+From: "Yang Shi" <yang.s@alibaba-inc.com>
+Message-ID: <6b987b67-ea1a-fa43-ae8d-d70b8801c2f7@alibaba-inc.com>
+Date: Tue, 09 Jan 2018 03:43:14 +0800
 MIME-Version: 1.0
-In-Reply-To: <20180102100320.24801-3-joeypabalinas@gmail.com>
-References: <20180102100320.24801-1-joeypabalinas@gmail.com> <20180102100320.24801-3-joeypabalinas@gmail.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Mon, 8 Jan 2018 14:34:32 -0500
-Message-ID: <CALZtOND_qRY1ctLRNVGP=xu01h+FieUTnKQ3xgf7c+r+tsAxPA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/zswap: move `zswap_has_pool` to front of `if ()`
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20180105.101706.344316131945042174.davem@davemloft.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Joey Pabalinas <joeypabalinas@gmail.com>
-Cc: Linux-MM <linux-mm@kvack.org>, Seth Jennings <sjenning@redhat.com>, linux-kernel <linux-kernel@vger.kernel.org>
+To: David Miller <davem@davemloft.net>
+Cc: linux-kernel@vger.kernel.org, ying.xue@windriver.com, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-crypto@vger.kernel.org, netdev@vger.kernel.org, jon.maloy@ericsson.com
 
-On Tue, Jan 2, 2018 at 5:03 AM, Joey Pabalinas <joeypabalinas@gmail.com> wrote:
-> `zwap_has_pool` is a simple boolean, so it should be tested first
-> to avoid unnecessarily calling `strcmp()`. Test `zswap_has_pool`
-> first to take advantage of the short-circuiting behavior of && in
-> `__zswap_param_set()`.
->
-> Signed-off-by: Joey Pabalinas <joeypabalinas@gmail.com>
->
->  1 file changed, 1 insertion(+), 1 deletion(-)
->
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index a4f2dfaf9131694265..dbf35139471f692798 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -672,7 +672,7 @@ static int __zswap_param_set(const char *val, const struct kernel_param *kp,
->         }
->
->         /* no change required */
-> -       if (!strcmp(s, *(char **)kp->arg) && zswap_has_pool)
-> +       if (zswap_has_pool && !strcmp(s, *(char **)kp->arg))
 
-Nak.
 
-This function is only called when actually changing one of the zswap
-module params, which is extremely rare (typically once per boot, per
-parameter, if at all).  Changing the ordering will have virtually no
-noticeable impact on anything.
+On 1/5/18 7:17 AM, David Miller wrote:
+> From: "Yang Shi" <yang.s@alibaba-inc.com>
+> Date: Fri, 05 Jan 2018 06:46:48 +0800
+> 
+>> Any more comment on this change?
+> 
+> These patches were not really submitted properly.
+> 
+> If you post a series, the series goes to one destination and
+> one tree.
+> 
+> If they are supposed to go to multiple trees, submit them
+> individually rather than as a series.  With clear indications
+> in the Subject lines which tree should be taking the patch.
 
-Additionally, !zswap_has_pool is strictly an initialization-failed
-temporary situation (until the compressor/zpool params are be set to
-working implementation values), and in all "normal" conditions it will
-be true, meaning this reordering will actually
-*add* time - the normal path is for this check to *not* be true, so
-keeping the strcmp first bypasses bothering with checking
-zswap_has_pool.
+Thanks for the comment. I will resend the net patches in a separate 
+series to you.
 
->                 return 0;
->
->         /* if this is load-time (pre-init) param setting,
-> --
-> 2.15.1
->
+Yang
+
+> 
+> Thank you.
+> 
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
