@@ -1,76 +1,54 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f197.google.com (mail-wr0-f197.google.com [209.85.128.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C8FF36B02A4
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 11:51:43 -0500 (EST)
-Received: by mail-wr0-f197.google.com with SMTP id m12so2665096wrm.1
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 08:51:43 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h1sor5501820wrc.16.2018.01.08.08.51.42
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3315A6B0069
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 12:48:03 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id 199so6634170pgc.11
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 09:48:03 -0800 (PST)
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id 33si8908827plh.804.2018.01.08.09.48.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jan 2018 08:51:42 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jan 2018 09:48:02 -0800 (PST)
+Date: Mon, 8 Jan 2018 20:46:53 +0300
+From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+References: <20171222084623.668990192@linuxfoundation.org>
+ <20171222084625.007160464@linuxfoundation.org>
+ <1515302062.6507.18.camel@gmx.de>
+ <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20180108161435.e3jjrttk57lib63a@gmail.com>
-References: <20171123165226.32582-1-aneesh.kumar@linux.vnet.ibm.com> <20180108161435.e3jjrttk57lib63a@gmail.com>
-From: Philippe Ombredanne <pombredanne@nexb.com>
-Date: Mon, 8 Jan 2018 17:51:01 +0100
-Message-ID: <CAOFm3uHbs7_8+YWo9-8AWauK7Hx8E-v8M1w6Du23ZUvHHfFOjw@mail.gmail.com>
-Subject: Re: [PATCH v4] selftest/vm: Move the 128 TB mmap boundary test to the
- generic VM directory
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>
-Cc: "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Ingo Molnar <mingo@redhat.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H . Peter Anvin" <hpa@zytor.com>, linux-mm@kvack.org, LKML <linux-kernel@vger.kernel.org>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Mike Galbraith <efault@gmx.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org
 
-Anesh,
+On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
+> 
+> hi Kirill,
+> 
+> As Mike reported it below, your 5-level paging related upstream commit 
+> 83e3c48729d9 and all its followup fixes:
+> 
+>  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
+>  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
+>  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
+> 
+> ... still breaks kexec - and that now regresses -stable as well.
+> 
+> Given that 5-level paging now syntactically depends on having this commit, if we 
+> fully revert this then we'll have to disable 5-level paging as well.
 
-On Mon, Jan 8, 2018 at 5:14 PM, Ingo Molnar <mingo@kernel.org> wrote:
->
-> * Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com> wrote:
->
->> Architectures like ppc64 do support mmap hint addr based large address space
->> selection. This test can be run on those architectures too. Move the test to
->> selftest/vm so that other archs can use the same.
->>
->> We also add a few new test scenarios in this patch. We do test few boundary
->> condition before we do a high address mmap. ppc64 use the addr limit to validate
->> addr in the fault path. We had bugs in this area w.r.t slb fault handling
->> before we updated the addr limit.
->>
->> We also touch the allocated space to make sure we don't have any bugs in the
->> fault handling path.
->>
->> Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
+Urghh.. Sorry about this.
 
-<snip>
+I'm on vacation right now. Give me a day to sort this out.
 
-> --- /dev/null
-> +++ b/tools/testing/selftests/vm/va_128TBswitch.c
-> @@ -0,0 +1,297 @@
-> +/*
-> + *
-> + * Authors: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> + * Authors: Aneesh Kumar K.V <aneesh.kumar@linux.vnet.ibm.com>
-> + *
-> + * This program is free software; you can redistribute it and/or modify
-> + * it under the terms of the GNU General Public License, version 2, as
-> + * published by the Free Software Foundation.
-> +
-> + * This program is distributed in the hope that it would be useful, but
-> + * WITHOUT ANY WARRANTY; without even the implied warranty of
-> + * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-> + *
-> + */
-
-Would you mind using an SPDX tag instead of this fine legalese?
-See Thomas doc [1] for details.
-Thanks!
-
-[1] https://lkml.org/lkml/2017/12/28/323
 -- 
-Cordially
-Philippe Ombredanne
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
