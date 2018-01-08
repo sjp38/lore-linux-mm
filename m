@@ -1,55 +1,85 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 355C96B0292
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 04:45:42 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id b82so3436142wmd.5
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 01:45:42 -0800 (PST)
-Received: from mout.gmx.net (mout.gmx.net. [212.227.17.20])
-        by mx.google.com with ESMTPS id z5si7925658wmd.88.2018.01.08.01.45.40
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 390676B0295
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 05:22:41 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id e26so7342815pfi.15
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 02:22:41 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y186sor3082807pfb.15.2018.01.08.02.22.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jan 2018 01:45:41 -0800 (PST)
-Message-ID: <1515404732.7524.28.camel@gmx.de>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-From: Mike Galbraith <efault@gmx.de>
-Date: Mon, 08 Jan 2018 10:45:32 +0100
-In-Reply-To: <20180108083306.GA12893@kroah.com>
-References: <20171222084623.668990192@linuxfoundation.org>
-	 <20171222084625.007160464@linuxfoundation.org>
-	 <1515302062.6507.18.camel@gmx.de> <20180107091115.GB29329@kroah.com>
-	 <20180107101847.GC24862@dhcp22.suse.cz> <1515329042.13953.14.camel@gmx.de>
-	 <20180107132309.GD24862@dhcp22.suse.cz> <20180108075308.GC24062@kroah.com>
-	 <1515399333.20268.23.camel@gmx.de> <20180108083306.GA12893@kroah.com>
-Content-Type: text/plain; charset="ISO-8859-15"
-Mime-Version: 1.0
-Content-Transfer-Encoding: quoted-printable
+        (Google Transport Security);
+        Mon, 08 Jan 2018 02:22:39 -0800 (PST)
+Date: Mon, 8 Jan 2018 19:22:34 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
+Message-ID: <20180108102234.GA818@jagdpanzerIV>
+References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
+ <20180106094124.GB16576@dhcp22.suse.cz>
+ <20180106100313.GA527@tigerII.localdomain>
+ <20180106133417.GA23629@dhcp22.suse.cz>
+ <20180108015818.GA533@jagdpanzerIV>
+ <20180108083742.GB5717@dhcp22.suse.cz>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180108083742.GB5717@dhcp22.suse.cz>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Ingo Molnar <mingo@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Mon, 2018-01-08 at 09:33 +0100, Greg Kroah-Hartman wrote:
-> On Mon, Jan 08, 2018 at 09:15:33AM +0100, Mike Galbraith wrote:
->=20
-> > > It was part of the prep for the KTPI code from what I can tell.  If y=
-ou
-> > > think it should be reverted, just let me know and I'll be glad to do =
-so.
-> >=20
-> > No preference here. =A0I have to patch master regardless if I want kdum=
-p
-> > to work while I patiently wait for userspace to get fixed up (either
-> > that or use time I don't have to go fix it up myself).
->=20
-> I'll stay "bug compatible" for the time being.  If you do fix this up,
-> can you add a cc: stable tag in your patch so I can pick it up when it
-> gets merged?
+On (01/08/18 09:37), Michal Hocko wrote:
+[..]
+> > the lockup is not the main problem and I'm not really trying to
+> > address it here. we simply can fill up the entire kernel logbuf
+> > with the same "Write-error on swap-device" errors.
+> 
+> Your changelog is rather modest on the information.
 
-Userspace (makedumpfile) will have to adapt, not the kernel. Meanwhile
-I carry reverts, making kernels, kdump and myself all happy campers.
+fair point!
 
-	-Mike
+> Could you be more specific on how the problem actually happens how
+> likely it is?
+
+ok. so what we have is
+
+	slow_path / swap-out page
+	 __zram_bvec_write(page)
+	  compressed_page = zcomp_compress(page)
+	   zs_malloc(compressed_page)
+	    // no available zspage found, need to allocate new
+	     alloc_zspage()
+	     {
+		for (i = 0; i < class->pages_per_zspage; i++)
+		    page = alloc_page(gfp);
+		    if (!page)
+			    return NULL
+	     }
+
+	 return -ENOMEM
+	...
+	printk("Write-error on swap-device...");
+
+
+zspage-s can consist of up to ->pages_per_zspage normal pages.
+if alloc_page() fails then we can't allocate the entire zspage,
+so we can't store the swapped out page, so it remains in ram
+and we don't make any progress. so we try to swap another page
+and may be do the whole zs_malloc()->alloc_zspage() again, may
+be not. depending on how bad the OOM situation is there can be
+few or many "Write-error on swap-device" errors.
+
+> And again, I do not think the throttling is an appropriate counter
+> measure. We do want to print those messages when a critical situation
+> happens. If we have a fallback then simply do not print at all.
+
+sure, but with the ratelimited printk we still print those messages.
+we just don't print it for every single page we failed to write
+to the device. the existing error messages can (*sometimes*) be noisy
+and not very informative - "Write-error on swap-device (%u:%u:%llu)\n";
+it's not like 1000 of those tell more than 1 or 10.
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
