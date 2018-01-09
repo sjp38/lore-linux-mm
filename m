@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f69.google.com (mail-oi0-f69.google.com [209.85.218.69])
-	by kanga.kvack.org (Postfix) with ESMTP id E0B2A6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 23:35:21 -0500 (EST)
-Received: by mail-oi0-f69.google.com with SMTP id x140so3723494oix.2
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 20:35:21 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k136sor4696556oih.261.2018.01.08.20.35.20
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 30EDF6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 23:48:23 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id c25so9550648pfi.11
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 20:48:23 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 97sor4578204plm.97.2018.01.08.20.48.22
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 08 Jan 2018 20:35:20 -0800 (PST)
+        Mon, 08 Jan 2018 20:48:22 -0800 (PST)
+Date: Tue, 9 Jan 2018 13:48:17 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH] zswap: only save zswap header if zpool is shrinkable
+Message-ID: <20180109044817.GB6953@jagdpanzerIV>
+References: <20180108225101.15790-1-yuzhao@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHp75VdjBnd=yr9YDPvf0P-e6ofoJwi8d-iOehoP=vuj9rnB8w@mail.gmail.com>
-References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
- <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com> <CAHp75VdjBnd=yr9YDPvf0P-e6ofoJwi8d-iOehoP=vuj9rnB8w@mail.gmail.com>
-From: Nick Desaulniers <nick.desaulniers@gmail.com>
-Date: Mon, 8 Jan 2018 20:35:19 -0800
-Message-ID: <CAH7mPvj449dgjeLmWHHN9xTmM+4qXXrxM_2uQoBhcPPGgnhrSw@mail.gmail.com>
-Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being shifted
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180108225101.15790-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andy Shevchenko <andy.shevchenko@gmail.com>, Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+To: Yu Zhao <yuzhao@google.com>
+Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On Sun, Jan 7, 2018 at 7:04 AM, Minchan Kim <minchan@kernel.org> wrote:
-> Sorry for the delay. I have missed this until now. ;-(
+On (01/08/18 14:51), Yu Zhao wrote:
+[..]
+>  int zpool_shrink(struct zpool *zpool, unsigned int pages,
+>  			unsigned int *reclaimed)
+>  {
+> -	return zpool->driver->shrink(zpool->pool, pages, reclaimed);
+> +	return zpool_shrinkable(zpool) ?
+> +	       zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
+>  }
+>  
+>  /**
+> @@ -355,6 +356,20 @@ u64 zpool_get_total_size(struct zpool *zpool)
+>  	return zpool->driver->total_size(zpool->pool);
+>  }
+>  
+> +/**
+> + * zpool_shrinkable() - Test if zpool is shrinkable
+> + * @pool	The zpool to test
+> + *
+> + * Zpool is only shrinkable when it's created with struct
+> + * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
+> + *
+> + * Returns: true if shrinkable; false otherwise.
+> + */
+> +bool zpool_shrinkable(struct zpool *zpool)
+> +{
+> +	return zpool->ops && zpool->ops->evict && zpool->driver->shrink;
+> +}
 
-No worries, figured patches would need a post holiday bump for review.
+just a side note,
+it might be a bit confusing and maybe there is a better
+name for it. zsmalloc is shrinkable (we register a shrinker
+callback), but not in the way zpool defines it.
 
->
-> On Sun, Dec 24, 2017 at 11:33 AM, Nick Desaulniers
-> <nick.desaulniers@gmail.com> wrote:
->> -                       link->next = -1 << OBJ_TAG_BITS;
->> +                       link->next = -1U << OBJ_TAG_BITS;
->
-> -1UL?
-
-Oops, good catch.
-
-> Please, resend it with including Andrew Morton
-> <akpm@linux-foundation.org> who merges zsmalloc patch into his tree.
-
-Will do.
-
-On Sun, Jan 7, 2018 at 3:02 PM, Andy Shevchenko
-<andy.shevchenko@gmail.com> wrote:
-> Oh, boy, shouldn't be rather GENMASK() / GENMASK_ULL() in a way how
-
-Thanks for the suggestion. `GENMASK(BITS_PER_LONG - 1, OBJ_TAG_BITS);`
-is equivalent.  Whether that is more readable, I'll wait for Minchan
-to decide.  If that's preferred, I'll make sure to credit you with the
-Suggested-By tag in the commit message.
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
