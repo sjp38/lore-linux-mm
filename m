@@ -1,86 +1,64 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 0807A6B0286
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 16:40:26 -0500 (EST)
-Received: by mail-io0-f199.google.com with SMTP id v15so17036497iob.22
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 13:40:26 -0800 (PST)
+Received: from mail-it0-f71.google.com (mail-it0-f71.google.com [209.85.214.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 07BB66B026A
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 16:59:45 -0500 (EST)
+Received: by mail-it0-f71.google.com with SMTP id 207so12555180iti.5
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 13:59:45 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t10sor8612092ita.25.2018.01.09.13.40.24
+        by mx.google.com with SMTPS id w76sor6656455iod.174.2018.01.09.13.59.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 09 Jan 2018 13:40:24 -0800 (PST)
-Date: Tue, 9 Jan 2018 13:40:21 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: [patch -mm] mm, mmu_notifier: annotate mmu notifiers with blockable
- invalidate callbacks fix fix
-In-Reply-To: <20171215150429.f68862867392337f35a49848@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1801091339570.240101@chino.kir.corp.google.com>
-References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com> <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com> <20171215150429.f68862867392337f35a49848@linux-foundation.org>
+        Tue, 09 Jan 2018 13:59:43 -0800 (PST)
+Date: Tue, 9 Jan 2018 13:59:39 -0800
+From: Eric Biggers <ebiggers3@gmail.com>
+Subject: Re: KASAN: use-after-free Read in handle_userfault
+Message-ID: <20180109215939.GA127462@gmail.com>
+References: <001a114c9224e34a49055c842032@google.com>
+ <CACT4Y+ZrYTNHDN71ZO1-vhFuCE=sRhfXeLbLom=9XodT7TJtog@mail.gmail.com>
+ <20171127061517.GA26341@zzz.localdomain>
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20171127061517.GA26341@zzz.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?Q?Radim_Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <bot+998c483ca801a50e3ce5b63a845216588ada5e2a@syzkaller.appspotmail.com>, linux-fsdevel@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>, syzkaller-bugs@googlegroups.com, Al Viro <viro@zeniv.linux.org.uk>, Andrea Arcangeli <aarcange@redhat.com>, Pavel Emelyanov <xemul@parallels.com>, linux-mm@kvack.org
 
-Fix mmu_notifier.h comments in "mm, mmu_notifier: annotate mmu notifiers
-with blockable invalidate callbacks".
+On Sun, Nov 26, 2017 at 10:15:17PM -0800, Eric Biggers wrote:
+> +Cc aarcange@redhat.com, xemul@parallels.com, linux-mm@kvack.org
+> 
+> On Fri, Oct 27, 2017 at 11:46:13AM +0200, Dmitry Vyukov wrote:
+> > On Fri, Oct 27, 2017 at 11:44 AM, syzbot
+> > <bot+998c483ca801a50e3ce5b63a845216588ada5e2a@syzkaller.appspotmail.com>
+> > wrote:
+> > > Hello,
+> > >
+> > > syzkaller hit the following crash on
+> > > a31cc455c512f3f1dd5f79cac8e29a7c8a617af8
+> > > git://git.kernel.org/pub/scm/linux/kernel/git/next/linux-next.git/master
+> > > compiler: gcc (GCC) 7.1.1 20170620
+> > > .config is attached
+> > > Raw console output is attached.
+> > > C reproducer is attached
+> > > syzkaller reproducer is attached. See https://goo.gl/kgGztJ
+> > > for information about syzkaller reproducers
+> > 
+> 
+> Andrea or Pavel, can one of you please fix this?  It's another use-after-free
+> related to userfaultfd "fork events", and it can easily be triggered by an
+> unprivileged user.  It was reported a month ago already; the original report is
+> here: https://groups.google.com/forum/#!topic/syzkaller-bugs/sS99S-Z-9No.
+> (Please consider adding yourself and/or linux-mm to the MAINTAINERS file for
+> fs/userfaultfd.c, so that you are Cc'ed on userfaultfd bug reports.)  In
+> userfaultfd_event_wait_completion(), called from dup_fctx(), the kernel is
+> freeing the the new userfaultfd_ctx because the old one had all its fd's closed,
+> but actually the new one is still in use by the new mm_struct.
+> 
 
-mmu_notifier_invalidate_range_end() can also call the invalidate_range()
-callback, so it must not block for MMU_INVALIDATE_DOES_NOT_BLOCK to be
-set.
+Fixed now:
 
-Also remove a bogus comment about invalidate_range() always being called
-under the ptl spinlock.
-
-Signed-off-by: David Rientjes <rientjes@google.com>
----
- include/linux/mmu_notifier.h | 16 +++++++++-------
- 1 file changed, 9 insertions(+), 7 deletions(-)
-
-diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
---- a/include/linux/mmu_notifier.h
-+++ b/include/linux/mmu_notifier.h
-@@ -34,8 +34,8 @@ struct mmu_notifier_ops {
- 	 * Flags to specify behavior of callbacks for this MMU notifier.
- 	 * Used to determine which context an operation may be called.
- 	 *
--	 * MMU_INVALIDATE_DOES_NOT_BLOCK: invalidate_{start,end} does not
--	 *				  block
-+	 * MMU_INVALIDATE_DOES_NOT_BLOCK: invalidate_range_* callbacks do not
-+	 *	block
- 	 */
- 	int flags;
- 
-@@ -151,8 +151,9 @@ struct mmu_notifier_ops {
- 	 * address space but may still be referenced by sptes until
- 	 * the last refcount is dropped.
- 	 *
--	 * If both of these callbacks cannot block, mmu_notifier_ops.flags
--	 * should have MMU_INVALIDATE_DOES_NOT_BLOCK set.
-+	 * If both of these callbacks cannot block, and invalidate_range
-+	 * cannot block, mmu_notifier_ops.flags should have
-+	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
- 	 */
- 	void (*invalidate_range_start)(struct mmu_notifier *mn,
- 				       struct mm_struct *mm,
-@@ -175,12 +176,13 @@ struct mmu_notifier_ops {
- 	 * external TLB range needs to be flushed. For more in depth
- 	 * discussion on this see Documentation/vm/mmu_notifier.txt
- 	 *
--	 * The invalidate_range() function is called under the ptl
--	 * spin-lock and not allowed to sleep.
--	 *
- 	 * Note that this function might be called with just a sub-range
- 	 * of what was passed to invalidate_range_start()/end(), if
- 	 * called between those functions.
-+	 *
-+	 * If this callback cannot block, and invalidate_range_{start,end}
-+	 * cannot block, mmu_notifier_ops.flags should have
-+	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
- 	 */
- 	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
- 				 unsigned long start, unsigned long end);
+#syz fix: userfaultfd: clear the vma->vm_userfaultfd_ctx if UFFD_EVENT_FORK fails
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
