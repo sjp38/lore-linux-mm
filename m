@@ -1,131 +1,77 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
-	by kanga.kvack.org (Postfix) with ESMTP id CF01F6B0038
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 00:41:40 -0500 (EST)
-Received: by mail-oi0-f70.google.com with SMTP id e9so2423909oib.10
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 21:41:40 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f16si3505244oib.388.2018.01.08.21.41.39
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D39496B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 01:31:08 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id q185so7640521qke.2
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 22:31:08 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id q68si2770051qkb.79.2018.01.08.22.31.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jan 2018 21:41:39 -0800 (PST)
-Date: Tue, 9 Jan 2018 13:41:31 +0800
-From: Baoquan He <bhe@redhat.com>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180109054131.GB1935@localhost.localdomain>
-References: <20171222084623.668990192@linuxfoundation.org>
- <20171222084625.007160464@linuxfoundation.org>
- <1515302062.6507.18.camel@gmx.de>
- <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
- <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
- <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
- <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
+        Mon, 08 Jan 2018 22:31:07 -0800 (PST)
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w096Ob1C044355
+	for <linux-mm@kvack.org>; Tue, 9 Jan 2018 01:31:07 -0500
+Received: from e06smtp10.uk.ibm.com (e06smtp10.uk.ibm.com [195.75.94.106])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2fcm8x1nqb-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Tue, 09 Jan 2018 01:31:06 -0500
+Received: from localhost
+	by e06smtp10.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
+	Tue, 9 Jan 2018 06:31:04 -0000
+From: Mike Rapoport <rppt@linux.vnet.ibm.com>
+Subject: [PATCH v5 0/4] vm: add a syscall to map a process memory into a pipe
+Date: Tue,  9 Jan 2018 08:30:49 +0200
+Message-Id: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Dave Young <dyoung@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
 
-On 01/09/18 at 09:09am, Dave Young wrote:
-> On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
-> > On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
-> > > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
-> > > > 
-> > > > hi Kirill,
-> > > > 
-> > > > As Mike reported it below, your 5-level paging related upstream commit 
-> > > > 83e3c48729d9 and all its followup fixes:
-> > > > 
-> > > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
-> > > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
-> > > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
-> > > > 
-> > > > ... still breaks kexec - and that now regresses -stable as well.
-> > > > 
-> > > > Given that 5-level paging now syntactically depends on having this commit, if we 
-> > > > fully revert this then we'll have to disable 5-level paging as well.
-> > 
-> > This *should* help.
-> > 
-> > Mike, could you test this? (On top of the rest of the fixes.)
-> > 
-> > Sorry for the mess.
-> > 
-> > From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
-> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > Date: Tue, 9 Jan 2018 02:55:47 +0300
-> > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
-> > 
-> > Depending on configuration mem_section can now be an array or a pointer
-> > to an array allocated dynamically. In most cases, we can continue to refer
-> > to it as 'mem_section' regardless of what it is.
-> > 
-> > But there's one exception: '&mem_section' means "address of the array" if
-> > mem_section is an array, but if mem_section is a pointer, it would mean
-> > "address of the pointer".
-> > 
-> > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
-> > writes down address of pointer into vmcoreinfo, not array as we wanted.
-> > 
-> > Let's introduce VMCOREINFO_ARRAY() that would handle the situation
-> > correctly for both cases.
-> > 
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
-> > ---
-> >  include/linux/crash_core.h | 2 ++
-> >  kernel/crash_core.c        | 2 +-
-> >  2 files changed, 3 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
-> > index 06097ef30449..83ae04950269 100644
-> > --- a/include/linux/crash_core.h
-> > +++ b/include/linux/crash_core.h
-> > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
-> >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
-> >  #define VMCOREINFO_SYMBOL(name) \
-> >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-> > +#define VMCOREINFO_ARRAY(name) \
-> 
-> Thanks for the patch, I have a similar patch but makedumpfile maintainer
-> is looking at a userspace fix instead.
+Hi,
 
-Seems we should add lkml to CC next time so that people can watch it.
+This patches introduces new process_vmsplice system call that combines
+functionality of process_vm_read and vmsplice.
 
-> As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+It allows to map the memory of another process into a pipe, similarly to
+what vmsplice does for its own address space.
 
-I still think using vmcoreinfo_append_str is better. Unless we replace
-all array variables with the newly added macro.
+The patch 2/4 ("vm: add a syscall to map a process memory into a pipe")
+actually adds the new system call and provides its elaborate description.
 
-vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
-                                (unsigned long)mem_section);
-> 
-> > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
-> >  #define VMCOREINFO_SIZE(name) \
-> >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
-> >  			      (unsigned long)sizeof(name))
-> > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-> > index b3663896278e..d4122a837477 100644
-> > --- a/kernel/crash_core.c
-> > +++ b/kernel/crash_core.c
-> > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
-> >  	VMCOREINFO_SYMBOL(contig_page_data);
-> >  #endif
-> >  #ifdef CONFIG_SPARSEMEM
-> > -	VMCOREINFO_SYMBOL(mem_section);
-> > +	VMCOREINFO_ARRAY(mem_section);
-> >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
-> >  	VMCOREINFO_STRUCT_SIZE(mem_section);
-> >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-> > -- 
-> >  Kirill A. Shutemov
-> 
-> Thanks
-> Dave
+The patchset is against -mm tree.
+
+v5: update changelog with more elaborate usecase description
+v4: skip test when process_vmsplice syscall is not available
+v3: minor refactoring to reduce code duplication
+v2: move this syscall under CONFIG_CROSS_MEMORY_ATTACH
+    give correct flags to get_user_pages_remote()
+
+
+Andrei Vagin (3):
+  vm: add a syscall to map a process memory into a pipe
+  x86: wire up the process_vmsplice syscall
+  test: add a test for the process_vmsplice syscall
+
+Mike Rapoport (1):
+  fs/splice: introduce pages_to_pipe helper
+
+ arch/x86/entry/syscalls/syscall_32.tbl             |   1 +
+ arch/x86/entry/syscalls/syscall_64.tbl             |   2 +
+ fs/splice.c                                        | 262 +++++++++++++++++++--
+ include/linux/compat.h                             |   3 +
+ include/linux/syscalls.h                           |   4 +
+ include/uapi/asm-generic/unistd.h                  |   5 +-
+ kernel/sys_ni.c                                    |   2 +
+ tools/testing/selftests/process_vmsplice/Makefile  |   5 +
+ .../process_vmsplice/process_vmsplice_test.c       | 196 +++++++++++++++
+ 9 files changed, 458 insertions(+), 22 deletions(-)
+ create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
+ create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
