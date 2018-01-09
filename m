@@ -1,132 +1,86 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFF096B0261
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 16:04:23 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id e26so9353177pgv.16
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 13:04:23 -0800 (PST)
+Received: from mail-io0-f199.google.com (mail-io0-f199.google.com [209.85.223.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0807A6B0286
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 16:40:26 -0500 (EST)
+Received: by mail-io0-f199.google.com with SMTP id v15so17036497iob.22
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 13:40:26 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6sor3069163pgn.234.2018.01.09.13.04.22
+        by mx.google.com with SMTPS id t10sor8612092ita.25.2018.01.09.13.40.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 09 Jan 2018 13:04:22 -0800 (PST)
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 34/36] usercopy: Allow strict enforcement of whitelists
-Date: Tue,  9 Jan 2018 12:56:03 -0800
-Message-Id: <1515531365-37423-35-git-send-email-keescook@chromium.org>
-In-Reply-To: <1515531365-37423-1-git-send-email-keescook@chromium.org>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
+        Tue, 09 Jan 2018 13:40:24 -0800 (PST)
+Date: Tue, 9 Jan 2018 13:40:21 -0800 (PST)
+From: David Rientjes <rientjes@google.com>
+Subject: [patch -mm] mm, mmu_notifier: annotate mmu notifiers with blockable
+ invalidate callbacks fix fix
+In-Reply-To: <20171215150429.f68862867392337f35a49848@linux-foundation.org>
+Message-ID: <alpine.DEB.2.10.1801091339570.240101@chino.kir.corp.google.com>
+References: <alpine.DEB.2.10.1712111409090.196232@chino.kir.corp.google.com> <alpine.DEB.2.10.1712141329500.74052@chino.kir.corp.google.com> <20171215150429.f68862867392337f35a49848@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@suse.com>, Andrea Arcangeli <aarcange@redhat.com>, Benjamin Herrenschmidt <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Oded Gabbay <oded.gabbay@gmail.com>, Alex Deucher <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=C3=B6nig?= <christian.koenig@amd.com>, David Airlie <airlied@linux.ie>, Joerg Roedel <joro@8bytes.org>, Doug Ledford <dledford@redhat.com>, Jani Nikula <jani.nikula@linux.intel.com>, Mike Marciniszyn <mike.marciniszyn@intel.com>, Sean Hefty <sean.hefty@intel.com>, Dimitri Sivanich <sivanich@sgi.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, =?UTF-8?Q?J=C3=A9r=C3=B4me_Glisse?= <jglisse@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, =?UTF-8?Q?Radim_Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-This introduces CONFIG_HARDENED_USERCOPY_FALLBACK to control the
-behavior of hardened usercopy whitelist violations. By default, whitelist
-violations will continue to WARN() so that any bad or missing usercopy
-whitelists can be discovered without being too disruptive.
+Fix mmu_notifier.h comments in "mm, mmu_notifier: annotate mmu notifiers
+with blockable invalidate callbacks".
 
-If this config is disabled at build time or a system is booted with
-"slab_common.usercopy_fallback=0", usercopy whitelists will BUG() instead
-of WARN(). This is useful for admins that want to use usercopy whitelists
-immediately.
+mmu_notifier_invalidate_range_end() can also call the invalidate_range()
+callback, so it must not block for MMU_INVALIDATE_DOES_NOT_BLOCK to be
+set.
 
-Suggested-by: Matthew Garrett <mjg59@google.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
+Also remove a bogus comment about invalidate_range() always being called
+under the ptl spinlock.
+
+Signed-off-by: David Rientjes <rientjes@google.com>
 ---
- include/linux/slab.h |  2 ++
- mm/slab.c            |  3 ++-
- mm/slab_common.c     |  8 ++++++++
- mm/slub.c            |  3 ++-
- security/Kconfig     | 14 ++++++++++++++
- 5 files changed, 28 insertions(+), 2 deletions(-)
+ include/linux/mmu_notifier.h | 16 +++++++++-------
+ 1 file changed, 9 insertions(+), 7 deletions(-)
 
-diff --git a/include/linux/slab.h b/include/linux/slab.h
-index 518f72bf565e..4bef1ed1daa1 100644
---- a/include/linux/slab.h
-+++ b/include/linux/slab.h
-@@ -135,6 +135,8 @@ struct mem_cgroup;
- void __init kmem_cache_init(void);
- bool slab_is_available(void);
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -34,8 +34,8 @@ struct mmu_notifier_ops {
+ 	 * Flags to specify behavior of callbacks for this MMU notifier.
+ 	 * Used to determine which context an operation may be called.
+ 	 *
+-	 * MMU_INVALIDATE_DOES_NOT_BLOCK: invalidate_{start,end} does not
+-	 *				  block
++	 * MMU_INVALIDATE_DOES_NOT_BLOCK: invalidate_range_* callbacks do not
++	 *	block
+ 	 */
+ 	int flags;
  
-+extern bool usercopy_fallback;
-+
- struct kmem_cache *kmem_cache_create(const char *name, size_t size,
- 			size_t align, slab_flags_t flags,
- 			void (*ctor)(void *));
-diff --git a/mm/slab.c b/mm/slab.c
-index 6488066e718a..50539a76a46a 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -4425,7 +4425,8 @@ int __check_heap_object(const void *ptr, unsigned long n, struct page *page,
- 		 * to be a temporary method to find any missing usercopy
- 		 * whitelists.
- 		 */
--		if (offset <= cachep->object_size &&
-+		if (usercopy_fallback &&
-+		    offset <= cachep->object_size &&
- 		    n <= cachep->object_size - offset) {
- 			WARN_ONCE(1, "unexpected usercopy %s with bad or missing whitelist with SLAB object '%s' (offset %lu, size %lu)",
- 				  to_user ? "exposure" : "overwrite",
-diff --git a/mm/slab_common.c b/mm/slab_common.c
-index 6c9e945907b6..8ac2a6320a6c 100644
---- a/mm/slab_common.c
-+++ b/mm/slab_common.c
-@@ -31,6 +31,14 @@ LIST_HEAD(slab_caches);
- DEFINE_MUTEX(slab_mutex);
- struct kmem_cache *kmem_cache;
- 
-+#ifdef CONFIG_HARDENED_USERCOPY
-+bool usercopy_fallback __ro_after_init =
-+		IS_ENABLED(CONFIG_HARDENED_USERCOPY_FALLBACK);
-+module_param(usercopy_fallback, bool, 0400);
-+MODULE_PARM_DESC(usercopy_fallback,
-+		"WARN instead of reject usercopy whitelist violations");
-+#endif
-+
- static LIST_HEAD(slab_caches_to_rcu_destroy);
- static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
- static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
-diff --git a/mm/slub.c b/mm/slub.c
-index 2aa4972a2058..1c0ff635d408 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -3858,7 +3858,8 @@ int __check_heap_object(const void *ptr, unsigned long n, struct page *page,
- 		 * whitelists.
- 		 */
- 		object_size = slab_ksize(s);
--		if ((offset <= object_size && n <= object_size - offset)) {
-+		if (usercopy_fallback &&
-+		    (offset <= object_size && n <= object_size - offset)) {
- 			WARN_ONCE(1, "unexpected usercopy %s with bad or missing whitelist with SLUB object '%s' (offset %lu size %lu)",
- 				  to_user ? "exposure" : "overwrite",
- 				  s->name, offset, n);
-diff --git a/security/Kconfig b/security/Kconfig
-index e8e449444e65..ae457b018da5 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -152,6 +152,20 @@ config HARDENED_USERCOPY
- 	  or are part of the kernel text. This kills entire classes
- 	  of heap overflow exploits and similar kernel memory exposures.
- 
-+config HARDENED_USERCOPY_FALLBACK
-+	bool "Allow usercopy whitelist violations to fallback to object size"
-+	depends on HARDENED_USERCOPY
-+	default y
-+	help
-+	  This is a temporary option that allows missing usercopy whitelists
-+	  to be discovered via a WARN() to the kernel log, instead of
-+	  rejecting the copy, falling back to non-whitelisted hardened
-+	  usercopy that checks the slab allocation size instead of the
-+	  whitelist size. This option will be removed once it seems like
-+	  all missing usercopy whitelists have been identified and fixed.
-+	  Booting with "slab_common.usercopy_fallback=Y/N" can change
-+	  this setting.
-+
- config HARDENED_USERCOPY_PAGESPAN
- 	bool "Refuse to copy allocations that span multiple pages"
- 	depends on HARDENED_USERCOPY
--- 
-2.7.4
+@@ -151,8 +151,9 @@ struct mmu_notifier_ops {
+ 	 * address space but may still be referenced by sptes until
+ 	 * the last refcount is dropped.
+ 	 *
+-	 * If both of these callbacks cannot block, mmu_notifier_ops.flags
+-	 * should have MMU_INVALIDATE_DOES_NOT_BLOCK set.
++	 * If both of these callbacks cannot block, and invalidate_range
++	 * cannot block, mmu_notifier_ops.flags should have
++	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
+ 	 */
+ 	void (*invalidate_range_start)(struct mmu_notifier *mn,
+ 				       struct mm_struct *mm,
+@@ -175,12 +176,13 @@ struct mmu_notifier_ops {
+ 	 * external TLB range needs to be flushed. For more in depth
+ 	 * discussion on this see Documentation/vm/mmu_notifier.txt
+ 	 *
+-	 * The invalidate_range() function is called under the ptl
+-	 * spin-lock and not allowed to sleep.
+-	 *
+ 	 * Note that this function might be called with just a sub-range
+ 	 * of what was passed to invalidate_range_start()/end(), if
+ 	 * called between those functions.
++	 *
++	 * If this callback cannot block, and invalidate_range_{start,end}
++	 * cannot block, mmu_notifier_ops.flags should have
++	 * MMU_INVALIDATE_DOES_NOT_BLOCK set.
+ 	 */
+ 	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
+ 				 unsigned long start, unsigned long end);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
