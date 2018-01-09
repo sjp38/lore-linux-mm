@@ -1,43 +1,43 @@
 Return-Path: <owner-linux-mm@kvack.org>
 Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 39CF66B0268
+	by kanga.kvack.org (Postfix) with ESMTP id E17976B026A
 	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 15:57:05 -0500 (EST)
-Received: by mail-pf0-f199.google.com with SMTP id h18so11143229pfi.2
+Received: by mail-pf0-f199.google.com with SMTP id n6so11107474pfg.19
         for <linux-mm@kvack.org>; Tue, 09 Jan 2018 12:57:05 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f35sor5064482plh.15.2018.01.09.12.57.03
+        by mx.google.com with SMTPS id 1sor5098833plq.100.2018.01.09.12.57.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 09 Jan 2018 12:57:03 -0800 (PST)
+        Tue, 09 Jan 2018 12:57:04 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 15/36] orangefs: Define usercopy region in orangefs_inode_cache slab cache
-Date: Tue,  9 Jan 2018 12:55:44 -0800
-Message-Id: <1515531365-37423-16-git-send-email-keescook@chromium.org>
+Subject: [PATCH 17/36] vxfs: Define usercopy region in vxfs_inode slab cache
+Date: Tue,  9 Jan 2018 12:55:46 -0800
+Message-Id: <1515531365-37423-18-git-send-email-keescook@chromium.org>
 In-Reply-To: <1515531365-37423-1-git-send-email-keescook@chromium.org>
 References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Mike Marshall <hubcap@omnibond.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Christoph Hellwig <hch@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-orangefs symlink pathnames, stored in struct orangefs_inode_s.link_target
-and therefore contained in the orangefs_inode_cache, need to be copied
-to/from userspace.
+vxfs symlink pathnames, stored in struct vxfs_inode_info field
+vii_immed.vi_immed and therefore contained in the vxfs_inode slab cache,
+need to be copied to/from userspace.
 
 cache object allocation:
-    fs/orangefs/super.c:
-        orangefs_alloc_inode(...):
+    fs/freevxfs/vxfs_super.c:
+        vxfs_alloc_inode(...):
             ...
-            orangefs_inode = kmem_cache_alloc(orangefs_inode_cache, ...);
+            vi = kmem_cache_alloc(vxfs_inode_cachep, GFP_KERNEL);
             ...
-            return &orangefs_inode->vfs_inode;
+            return &vi->vfs_inode;
 
-    fs/orangefs/orangefs-utils.c:
-        exofs_symlink(...):
+    fs/freevxfs/vxfs_inode.c:
+        cxfs_iget(...):
             ...
-            inode->i_link = orangefs_inode->link_target;
+            inode->i_link = vip->vii_immed.vi_immed;
 
 example usage trace:
     readlink_copy+0x43/0x70
@@ -57,8 +57,7 @@ example usage trace:
             readlink_copy(..., link);
 
 In support of usercopy hardening, this patch defines a region in the
-orangefs_inode_cache slab cache in which userspace copy operations are
-allowed.
+vxfs_inode slab cache in which userspace copy operations are allowed.
 
 This region is known as the slab cache's usercopy region. Slab caches
 can now check that each dynamically sized copy operation involving
@@ -71,38 +70,32 @@ mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
 [kees: adjust commit log, provide usage trace]
-Cc: Mike Marshall <hubcap@omnibond.com>
+Cc: Christoph Hellwig <hch@infradead.org>
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/orangefs/super.c | 15 ++++++++++-----
- 1 file changed, 10 insertions(+), 5 deletions(-)
+ fs/freevxfs/vxfs_super.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/fs/orangefs/super.c b/fs/orangefs/super.c
-index 36f1390b5ed7..62d49e53061c 100644
---- a/fs/orangefs/super.c
-+++ b/fs/orangefs/super.c
-@@ -610,11 +610,16 @@ void orangefs_kill_sb(struct super_block *sb)
- 
- int orangefs_inode_cache_initialize(void)
+diff --git a/fs/freevxfs/vxfs_super.c b/fs/freevxfs/vxfs_super.c
+index f989efa051a0..48b24bb50d02 100644
+--- a/fs/freevxfs/vxfs_super.c
++++ b/fs/freevxfs/vxfs_super.c
+@@ -332,9 +332,13 @@ vxfs_init(void)
  {
--	orangefs_inode_cache = kmem_cache_create("orangefs_inode_cache",
--					      sizeof(struct orangefs_inode_s),
--					      0,
--					      ORANGEFS_CACHE_CREATE_FLAGS,
--					      orangefs_inode_cache_ctor);
-+	orangefs_inode_cache = kmem_cache_create_usercopy(
-+					"orangefs_inode_cache",
-+					sizeof(struct orangefs_inode_s),
-+					0,
-+					ORANGEFS_CACHE_CREATE_FLAGS,
-+					offsetof(struct orangefs_inode_s,
-+						link_target),
-+					sizeof_field(struct orangefs_inode_s,
-+						link_target),
-+					orangefs_inode_cache_ctor);
+ 	int rv;
  
- 	if (!orangefs_inode_cache) {
- 		gossip_err("Cannot create orangefs_inode_cache\n");
+-	vxfs_inode_cachep = kmem_cache_create("vxfs_inode",
++	vxfs_inode_cachep = kmem_cache_create_usercopy("vxfs_inode",
+ 			sizeof(struct vxfs_inode_info), 0,
+-			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD, NULL);
++			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
++			offsetof(struct vxfs_inode_info, vii_immed.vi_immed),
++			sizeof_field(struct vxfs_inode_info,
++				vii_immed.vi_immed),
++			NULL);
+ 	if (!vxfs_inode_cachep)
+ 		return -ENOMEM;
+ 	rv = register_filesystem(&vxfs_fs_type);
 -- 
 2.7.4
 
