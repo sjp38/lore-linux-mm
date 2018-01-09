@@ -1,52 +1,124 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C27FB6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 19:13:07 -0500 (EST)
-Received: by mail-wm0-f69.google.com with SMTP id f132so4395162wmf.6
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 16:13:07 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k19sor6583600ede.24.2018.01.08.16.13.05
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 68DAC6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 20:09:40 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id e9so2026674oib.10
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 17:09:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id k15si3500808oib.121.2018.01.08.17.09.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jan 2018 16:13:06 -0800 (PST)
-Date: Tue, 9 Jan 2018 03:13:03 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jan 2018 17:09:39 -0800 (PST)
+Date: Tue, 9 Jan 2018 09:09:27 +0800
+From: Dave Young <dyoung@redhat.com>
 Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
  runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+Message-ID: <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
 References: <20171222084623.668990192@linuxfoundation.org>
  <20171222084625.007160464@linuxfoundation.org>
  <1515302062.6507.18.camel@gmx.de>
  <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
  <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+In-Reply-To: <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>
-Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Dave Young <dyoung@redhat.com>, Baoquan He <bhe@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Baoquan He <bhe@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
 
-On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
-> On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
-> > 
-> > hi Kirill,
-> > 
-> > As Mike reported it below, your 5-level paging related upstream commit 
-> > 83e3c48729d9 and all its followup fixes:
-> > 
-> >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
-> >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
-> >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
-> > 
-> > ... still breaks kexec - and that now regresses -stable as well.
-> > 
-> > Given that 5-level paging now syntactically depends on having this commit, if we 
-> > fully revert this then we'll have to disable 5-level paging as well.
+On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
+> On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
+> > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
+> > > 
+> > > hi Kirill,
+> > > 
+> > > As Mike reported it below, your 5-level paging related upstream commit 
+> > > 83e3c48729d9 and all its followup fixes:
+> > > 
+> > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
+> > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
+> > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
+> > > 
+> > > ... still breaks kexec - and that now regresses -stable as well.
+> > > 
+> > > Given that 5-level paging now syntactically depends on having this commit, if we 
+> > > fully revert this then we'll have to disable 5-level paging as well.
+> 
+> This *should* help.
+> 
+> Mike, could you test this? (On top of the rest of the fixes.)
+> 
+> Sorry for the mess.
+> 
+> From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Tue, 9 Jan 2018 02:55:47 +0300
+> Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
+> 
+> Depending on configuration mem_section can now be an array or a pointer
+> to an array allocated dynamically. In most cases, we can continue to refer
+> to it as 'mem_section' regardless of what it is.
+> 
+> But there's one exception: '&mem_section' means "address of the array" if
+> mem_section is an array, but if mem_section is a pointer, it would mean
+> "address of the pointer".
+> 
+> We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> writes down address of pointer into vmcoreinfo, not array as we wanted.
+> 
+> Let's introduce VMCOREINFO_ARRAY() that would handle the situation
+> correctly for both cases.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> ---
+>  include/linux/crash_core.h | 2 ++
+>  kernel/crash_core.c        | 2 +-
+>  2 files changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
+> index 06097ef30449..83ae04950269 100644
+> --- a/include/linux/crash_core.h
+> +++ b/include/linux/crash_core.h
+> @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
+>  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+>  #define VMCOREINFO_SYMBOL(name) \
+>  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+> +#define VMCOREINFO_ARRAY(name) \
 
-This *should* help.
+Thanks for the patch, I have a similar patch but makedumpfile maintainer
+is looking at a userspace fix instead.
 
-Mike, could you test this? (On top of the rest of the fixes.)
+As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
 
-Sorry for the mess.
+> +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
+>  #define VMCOREINFO_SIZE(name) \
+>  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
+>  			      (unsigned long)sizeof(name))
+> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> index b3663896278e..d4122a837477 100644
+> --- a/kernel/crash_core.c
+> +++ b/kernel/crash_core.c
+> @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+>  	VMCOREINFO_SYMBOL(contig_page_data);
+>  #endif
+>  #ifdef CONFIG_SPARSEMEM
+> -	VMCOREINFO_SYMBOL(mem_section);
+> +	VMCOREINFO_ARRAY(mem_section);
+>  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+>  	VMCOREINFO_STRUCT_SIZE(mem_section);
+>  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
+> -- 
+>  Kirill A. Shutemov
+
+Thanks
+Dave
+
+--
+To unsubscribe, send a message with 'unsubscribe linux-mm' in
+the body to majordomo@kvack.org.  For more info on Linux MM,
+see: http://www.linux-mm.org/ .
+Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
