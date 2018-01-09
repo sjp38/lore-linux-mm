@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C1176B0281
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9588A6B0283
 	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 15:57:22 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id j26so11070462pff.8
+Received: by mail-pg0-f71.google.com with SMTP id a9so8147463pgf.12
         for <linux-mm@kvack.org>; Tue, 09 Jan 2018 12:57:22 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r13sor838678pgu.349.2018.01.09.12.57.20
+        by mx.google.com with SMTPS id f13sor3006237pgu.303.2018.01.09.12.57.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 09 Jan 2018 12:57:20 -0800 (PST)
+        Tue, 09 Jan 2018 12:57:21 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 08/36] vfs: Define usercopy region in names_cache slab caches
-Date: Tue,  9 Jan 2018 12:55:37 -0800
-Message-Id: <1515531365-37423-9-git-send-email-keescook@chromium.org>
+Subject: [PATCH 07/36] dcache: Define usercopy region in dentry_cache slab cache
+Date: Tue,  9 Jan 2018 12:55:36 -0800
+Message-Id: <1515531365-37423-8-git-send-email-keescook@chromium.org>
 In-Reply-To: <1515531365-37423-1-git-send-email-keescook@chromium.org>
 References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,72 +22,76 @@ Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Alexan
 
 From: David Windsor <dave@nullcore.net>
 
-VFS pathnames are stored in the names_cache slab cache, either inline
-or across an entire allocation entry (when approaching PATH_MAX). These
-are copied to/from userspace, so they must be entirely whitelisted.
+When a dentry name is short enough, it can be stored directly in the
+dentry itself (instead in a separate kmalloc allocation). These dentry
+short names, stored in struct dentry.d_iname and therefore contained in
+the dentry_cache slab cache, need to be coped to userspace.
 
 cache object allocation:
-    include/linux/fs.h:
-        #define __getname()    kmem_cache_alloc(names_cachep, GFP_KERNEL)
+    fs/dcache.c:
+        __d_alloc(...):
+            ...
+            dentry = kmem_cache_alloc(dentry_cache, ...);
+            ...
+            dentry->d_name.name = dentry->d_iname;
 
 example usage trace:
-    strncpy_from_user+0x4d/0x170
-    getname_flags+0x6f/0x1f0
-    user_path_at_empty+0x23/0x40
-    do_mount+0x69/0xda0
-    SyS_mount+0x83/0xd0
+    filldir+0xb0/0x140
+    dcache_readdir+0x82/0x170
+    iterate_dir+0x142/0x1b0
+    SyS_getdents+0xb5/0x160
 
-    fs/namei.c:
-        getname_flags(...):
+    fs/readdir.c:
+        (called via ctx.actor by dir_emit)
+        filldir(..., const char *name, ...):
             ...
-            result = __getname();
+            copy_to_user(..., name, namlen)
+
+    fs/libfs.c:
+        dcache_readdir(...):
             ...
-            kname = (char *)result->iname;
-            result->name = kname;
-            len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
+            next = next_positive(dentry, p, 1)
             ...
-            if (unlikely(len == EMBEDDED_NAME_MAX)) {
-                const size_t size = offsetof(struct filename, iname[1]);
-                kname = (char *)result;
+            dir_emit(..., next->d_name.name, ...)
 
-                result = kzalloc(size, GFP_KERNEL);
-                ...
-                result->name = kname;
-                len = strncpy_from_user(kname, filename, PATH_MAX);
+In support of usercopy hardening, this patch defines a region in the
+dentry_cache slab cache in which userspace copy operations are allowed.
 
-In support of usercopy hardening, this patch defines the entire cache
-object in the names_cache slab cache as whitelisted, since it may entirely
-hold name strings to be copied to/from userspace.
+This region is known as the slab cache's usercopy region. Slab caches can
+now check that each dynamic copy operation involving cache-managed memory
+falls entirely within the slab's usercopy region.
 
-This patch is verbatim from Brad Spengler/PaX Team's PAX_USERCOPY
+This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
 whitelisting code in the last public patch of grsecurity/PaX based on my
 understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, add usage trace]
+[kees: adjust hunks for kmalloc-specific things moved later]
+[kees: adjust commit log, provide usage trace]
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: linux-fsdevel@vger.kernel.org
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/dcache.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/dcache.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
 diff --git a/fs/dcache.c b/fs/dcache.c
-index 92ad7a2168e1..9d7ee2de682c 100644
+index 5c7df1df81ff..92ad7a2168e1 100644
 --- a/fs/dcache.c
 +++ b/fs/dcache.c
-@@ -3640,8 +3640,8 @@ void __init vfs_caches_init_early(void)
+@@ -3601,8 +3601,9 @@ static void __init dcache_init(void)
+ 	 * but it is probably not worth it because of the cache nature
+ 	 * of the dcache.
+ 	 */
+-	dentry_cache = KMEM_CACHE(dentry,
+-		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT);
++	dentry_cache = KMEM_CACHE_USERCOPY(dentry,
++		SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
++		d_iname);
  
- void __init vfs_caches_init(void)
- {
--	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
--			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-+	names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
-+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
- 
- 	dcache_init();
- 	inode_init();
+ 	/* Hash may have been set up in dcache_init_early */
+ 	if (!hashdist)
 -- 
 2.7.4
 
