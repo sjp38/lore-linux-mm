@@ -1,63 +1,131 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 30EDF6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 23:48:23 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id c25so9550648pfi.11
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 20:48:23 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 97sor4578204plm.97.2018.01.08.20.48.22
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF01F6B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 00:41:40 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id e9so2423909oib.10
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 21:41:40 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id f16si3505244oib.388.2018.01.08.21.41.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 08 Jan 2018 20:48:22 -0800 (PST)
-Date: Tue, 9 Jan 2018 13:48:17 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] zswap: only save zswap header if zpool is shrinkable
-Message-ID: <20180109044817.GB6953@jagdpanzerIV>
-References: <20180108225101.15790-1-yuzhao@google.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 08 Jan 2018 21:41:39 -0800 (PST)
+Date: Tue, 9 Jan 2018 13:41:31 +0800
+From: Baoquan He <bhe@redhat.com>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180109054131.GB1935@localhost.localdomain>
+References: <20171222084623.668990192@linuxfoundation.org>
+ <20171222084625.007160464@linuxfoundation.org>
+ <1515302062.6507.18.camel@gmx.de>
+ <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
+ <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+ <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180108225101.15790-1-yuzhao@google.com>
+In-Reply-To: <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Dave Young <dyoung@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
 
-On (01/08/18 14:51), Yu Zhao wrote:
-[..]
->  int zpool_shrink(struct zpool *zpool, unsigned int pages,
->  			unsigned int *reclaimed)
->  {
-> -	return zpool->driver->shrink(zpool->pool, pages, reclaimed);
-> +	return zpool_shrinkable(zpool) ?
-> +	       zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
->  }
->  
->  /**
-> @@ -355,6 +356,20 @@ u64 zpool_get_total_size(struct zpool *zpool)
->  	return zpool->driver->total_size(zpool->pool);
->  }
->  
-> +/**
-> + * zpool_shrinkable() - Test if zpool is shrinkable
-> + * @pool	The zpool to test
-> + *
-> + * Zpool is only shrinkable when it's created with struct
-> + * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
-> + *
-> + * Returns: true if shrinkable; false otherwise.
-> + */
-> +bool zpool_shrinkable(struct zpool *zpool)
-> +{
-> +	return zpool->ops && zpool->ops->evict && zpool->driver->shrink;
-> +}
+On 01/09/18 at 09:09am, Dave Young wrote:
+> On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
+> > On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
+> > > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
+> > > > 
+> > > > hi Kirill,
+> > > > 
+> > > > As Mike reported it below, your 5-level paging related upstream commit 
+> > > > 83e3c48729d9 and all its followup fixes:
+> > > > 
+> > > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
+> > > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
+> > > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
+> > > > 
+> > > > ... still breaks kexec - and that now regresses -stable as well.
+> > > > 
+> > > > Given that 5-level paging now syntactically depends on having this commit, if we 
+> > > > fully revert this then we'll have to disable 5-level paging as well.
+> > 
+> > This *should* help.
+> > 
+> > Mike, could you test this? (On top of the rest of the fixes.)
+> > 
+> > Sorry for the mess.
+> > 
+> > From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
+> > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > Date: Tue, 9 Jan 2018 02:55:47 +0300
+> > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
+> > 
+> > Depending on configuration mem_section can now be an array or a pointer
+> > to an array allocated dynamically. In most cases, we can continue to refer
+> > to it as 'mem_section' regardless of what it is.
+> > 
+> > But there's one exception: '&mem_section' means "address of the array" if
+> > mem_section is an array, but if mem_section is a pointer, it would mean
+> > "address of the pointer".
+> > 
+> > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> > writes down address of pointer into vmcoreinfo, not array as we wanted.
+> > 
+> > Let's introduce VMCOREINFO_ARRAY() that would handle the situation
+> > correctly for both cases.
+> > 
+> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> > ---
+> >  include/linux/crash_core.h | 2 ++
+> >  kernel/crash_core.c        | 2 +-
+> >  2 files changed, 3 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
+> > index 06097ef30449..83ae04950269 100644
+> > --- a/include/linux/crash_core.h
+> > +++ b/include/linux/crash_core.h
+> > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
+> >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+> >  #define VMCOREINFO_SYMBOL(name) \
+> >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+> > +#define VMCOREINFO_ARRAY(name) \
+> 
+> Thanks for the patch, I have a similar patch but makedumpfile maintainer
+> is looking at a userspace fix instead.
 
-just a side note,
-it might be a bit confusing and maybe there is a better
-name for it. zsmalloc is shrinkable (we register a shrinker
-callback), but not in the way zpool defines it.
+Seems we should add lkml to CC next time so that people can watch it.
 
-	-ss
+> As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+
+I still think using vmcoreinfo_append_str is better. Unless we replace
+all array variables with the newly added macro.
+
+vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
+                                (unsigned long)mem_section);
+> 
+> > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
+> >  #define VMCOREINFO_SIZE(name) \
+> >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
+> >  			      (unsigned long)sizeof(name))
+> > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> > index b3663896278e..d4122a837477 100644
+> > --- a/kernel/crash_core.c
+> > +++ b/kernel/crash_core.c
+> > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+> >  	VMCOREINFO_SYMBOL(contig_page_data);
+> >  #endif
+> >  #ifdef CONFIG_SPARSEMEM
+> > -	VMCOREINFO_SYMBOL(mem_section);
+> > +	VMCOREINFO_ARRAY(mem_section);
+> >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+> >  	VMCOREINFO_STRUCT_SIZE(mem_section);
+> >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
+> > -- 
+> >  Kirill A. Shutemov
+> 
+> Thanks
+> Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
