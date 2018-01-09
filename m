@@ -1,266 +1,144 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F9A86B025F
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 01:31:19 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id h4so10641913qtj.0
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 22:31:19 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d20si3682211qtd.348.2018.01.08.22.31.18
+Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 052226B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 02:24:55 -0500 (EST)
+Received: by mail-oi0-f71.google.com with SMTP id e126so5342554oia.19
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 23:24:54 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o127si1427023oia.555.2018.01.08.23.24.53
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jan 2018 22:31:18 -0800 (PST)
-Received: from pps.filterd (m0098414.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w096P5IU035588
-	for <linux-mm@kvack.org>; Tue, 9 Jan 2018 01:31:18 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2fcre0r92f-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Tue, 09 Jan 2018 01:31:17 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.vnet.ibm.com>;
-	Tue, 9 Jan 2018 06:31:15 -0000
-From: Mike Rapoport <rppt@linux.vnet.ibm.com>
-Subject: [PATCH v5 4/4] test: add a test for the process_vmsplice syscall
-Date: Tue,  9 Jan 2018 08:30:53 +0200
-In-Reply-To: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
-References: <1515479453-14672-1-git-send-email-rppt@linux.vnet.ibm.com>
-Message-Id: <1515479453-14672-5-git-send-email-rppt@linux.vnet.ibm.com>
+        Mon, 08 Jan 2018 23:24:53 -0800 (PST)
+Date: Tue, 9 Jan 2018 15:24:40 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
+References: <20171222084623.668990192@linuxfoundation.org>
+ <20171222084625.007160464@linuxfoundation.org>
+ <1515302062.6507.18.camel@gmx.de>
+ <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
+ <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+ <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
+ <20180109054131.GB1935@localhost.localdomain>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180109054131.GB1935@localhost.localdomain>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-kernel@vger.kernel.org, linux-api@vger.kernel.org, criu@openvz.org, gdb@sourceware.org, devel@lists.open-mpi.org, rr-dev@mozilla.org, Arnd Bergmann <arnd@arndb.de>, Pavel Emelyanov <xemul@virtuozzo.com>, Michael Kerrisk <mtk.manpages@gmail.com>, Thomas Gleixner <tglx@linutronix.de>, Josh Triplett <josh@joshtriplett.org>, Jann Horn <jannh@google.com>, Greg KH <gregkh@linuxfoundation.org>, Andrei Vagin <avagin@openvz.org>, Mike Rapoport <rppt@linux.vnet.ibm.com>
+To: Baoquan He <bhe@redhat.com>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
 
-From: Andrei Vagin <avagin@openvz.org>
+On 01/09/18 at 01:41pm, Baoquan He wrote:
+> On 01/09/18 at 09:09am, Dave Young wrote:
+> > On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
+> > > On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
+> > > > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
+> > > > > 
+> > > > > hi Kirill,
+> > > > > 
+> > > > > As Mike reported it below, your 5-level paging related upstream commit 
+> > > > > 83e3c48729d9 and all its followup fixes:
+> > > > > 
+> > > > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
+> > > > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
+> > > > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
+> > > > > 
+> > > > > ... still breaks kexec - and that now regresses -stable as well.
+> > > > > 
+> > > > > Given that 5-level paging now syntactically depends on having this commit, if we 
+> > > > > fully revert this then we'll have to disable 5-level paging as well.
+> > > 
+> > > This *should* help.
+> > > 
+> > > Mike, could you test this? (On top of the rest of the fixes.)
+> > > 
+> > > Sorry for the mess.
+> > > 
+> > > From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
+> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> > > Date: Tue, 9 Jan 2018 02:55:47 +0300
+> > > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
+> > > 
+> > > Depending on configuration mem_section can now be an array or a pointer
+> > > to an array allocated dynamically. In most cases, we can continue to refer
+> > > to it as 'mem_section' regardless of what it is.
+> > > 
+> > > But there's one exception: '&mem_section' means "address of the array" if
+> > > mem_section is an array, but if mem_section is a pointer, it would mean
+> > > "address of the pointer".
+> > > 
+> > > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> > > writes down address of pointer into vmcoreinfo, not array as we wanted.
+> > > 
+> > > Let's introduce VMCOREINFO_ARRAY() that would handle the situation
+> > > correctly for both cases.
+> > > 
+> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> > > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> > > ---
+> > >  include/linux/crash_core.h | 2 ++
+> > >  kernel/crash_core.c        | 2 +-
+> > >  2 files changed, 3 insertions(+), 1 deletion(-)
+> > > 
+> > > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
+> > > index 06097ef30449..83ae04950269 100644
+> > > --- a/include/linux/crash_core.h
+> > > +++ b/include/linux/crash_core.h
+> > > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
+> > >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+> > >  #define VMCOREINFO_SYMBOL(name) \
+> > >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+> > > +#define VMCOREINFO_ARRAY(name) \
+> > 
+> > Thanks for the patch, I have a similar patch but makedumpfile maintainer
+> > is looking at a userspace fix instead.
+> 
+> Seems we should add lkml to CC next time so that people can watch it.
 
-This test checks that process_vmsplice() can splice pages from a remote
-process and returns EFAULT, if process_vmsplice() tries to splice pages
-by an unaccessiable address.
+Yes, agreed.
 
-Signed-off-by: Andrei Vagin <avagin@openvz.org>
-Signed-off-by: Mike Rapoport <rppt@linux.vnet.ibm.com>
----
- tools/testing/selftests/process_vmsplice/Makefile  |   5 +
- .../process_vmsplice/process_vmsplice_test.c       | 196 +++++++++++++++++++++
- 2 files changed, 201 insertions(+)
- create mode 100644 tools/testing/selftests/process_vmsplice/Makefile
- create mode 100644 tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
+> 
+> > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+> 
+> I still think using vmcoreinfo_append_str is better. Unless we replace
+> all array variables with the newly added macro.
+> 
+> vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
+>                                 (unsigned long)mem_section);
 
-diff --git a/tools/testing/selftests/process_vmsplice/Makefile b/tools/testing/selftests/process_vmsplice/Makefile
-new file mode 100644
-index 000000000000..246d5a7dfed6
---- /dev/null
-+++ b/tools/testing/selftests/process_vmsplice/Makefile
-@@ -0,0 +1,5 @@
-+CFLAGS += -I../../../../usr/include/
-+
-+TEST_GEN_PROGS := process_vmsplice_test
-+
-+include ../lib.mk
-diff --git a/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
-new file mode 100644
-index 000000000000..1682bdb32de3
---- /dev/null
-+++ b/tools/testing/selftests/process_vmsplice/process_vmsplice_test.c
-@@ -0,0 +1,196 @@
-+#define _GNU_SOURCE
-+#include <stdio.h>
-+#include <unistd.h>
-+#include <sys/mman.h>
-+#include <sys/syscall.h>
-+#include <fcntl.h>
-+#include <sys/uio.h>
-+#include <errno.h>
-+#include <signal.h>
-+#include <sys/prctl.h>
-+#include <sys/wait.h>
-+
-+#include "../kselftest.h"
-+
-+#ifndef __NR_process_vmsplice
-+#define __NR_process_vmsplice 333
-+#endif
-+
-+#define pr_err(fmt, ...) \
-+		({ \
-+			fprintf(stderr, "%s:%d:" fmt, \
-+				__func__, __LINE__, ##__VA_ARGS__); \
-+			KSFT_FAIL; \
-+		})
-+#define pr_perror(fmt, ...) pr_err(fmt ": %m\n", ##__VA_ARGS__)
-+#define fail(fmt, ...) pr_err("FAIL:" fmt, ##__VA_ARGS__)
-+
-+static ssize_t process_vmsplice(pid_t pid, int fd, const struct iovec *iov,
-+			unsigned long nr_segs, unsigned int flags)
-+{
-+	return syscall(__NR_process_vmsplice, pid, fd, iov, nr_segs, flags);
-+
-+}
-+
-+#define MEM_SIZE (4096 * 100)
-+#define MEM_WRONLY_SIZE (4096 * 10)
-+
-+int main(int argc, char **argv)
-+{
-+	char *addr, *addr_wronly;
-+	int p[2];
-+	struct iovec iov[2];
-+	char buf[4096];
-+	int status, ret;
-+	pid_t pid;
-+
-+	ksft_print_header();
-+
-+	if (process_vmsplice(0, 0, 0, 0, 0)) {
-+		if (errno == ENOSYS) {
-+			ksft_exit_skip("process_vmsplice is not supported\n");
-+			return 0;
-+		}
-+		return pr_perror("Zero-length process_vmsplice failed");
-+	}
-+
-+	addr = mmap(0, MEM_SIZE, PROT_READ | PROT_WRITE,
-+					MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-+	if (addr == MAP_FAILED)
-+		return pr_perror("Unable to create a mapping");
-+
-+	addr_wronly = mmap(0, MEM_WRONLY_SIZE, PROT_WRITE,
-+				MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-+	if (addr_wronly == MAP_FAILED)
-+		return pr_perror("Unable to create a write-only mapping");
-+
-+	if (pipe(p))
-+		return pr_perror("Unable to create a pipe");
-+
-+	pid = fork();
-+	if (pid < 0)
-+		return pr_perror("Unable to fork");
-+
-+	if (pid == 0) {
-+		addr[0] = 'C';
-+		addr[4096 + 128] = 'A';
-+		addr[4096 + 128 + 4096 - 1] = 'B';
-+
-+		if (prctl(PR_SET_PDEATHSIG, SIGKILL))
-+			return pr_perror("Unable to set PR_SET_PDEATHSIG");
-+		if (write(p[1], "c", 1) != 1)
-+			return pr_perror("Unable to write data into pipe");
-+
-+		while (1)
-+			sleep(1);
-+		return 1;
-+	}
-+	if (read(p[0], buf, 1) != 1) {
-+		pr_perror("Unable to read data from pipe");
-+		kill(pid, SIGKILL);
-+		wait(&status);
-+		return 1;
-+	}
-+
-+	munmap(addr, MEM_SIZE);
-+	munmap(addr_wronly, MEM_WRONLY_SIZE);
-+
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr + 4096 + 128;
-+	iov[1].iov_len = 4096;
-+
-+	/* check one iovec */
-+	if (process_vmsplice(pid, p[1], iov, 1, SPLICE_F_GIFT) != 1)
-+		return pr_perror("Unable to splice pages");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read from pipe");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("Check process_vmsplice with one vec\n");
-+
-+	/* check two iovec-s */
-+	if (process_vmsplice(pid, p[1], iov, 2, SPLICE_F_GIFT) != 4097)
-+		return pr_perror("Unable to spice pages\n");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read from pipe\n");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+
-+	if (read(p[0], buf, 4096) != 4096)
-+		return pr_perror("Unable to read from pipe\n");
-+
-+	if (buf[0] != 'A' || buf[4095] != 'B')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("check process_vmsplice with two vecs\n");
-+
-+	/* check how an unreadable region in a second vec is handled */
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr_wronly + 5;
-+	iov[1].iov_len = 1;
-+
-+	if (process_vmsplice(pid, p[1], iov, 2, SPLICE_F_GIFT) != 1)
-+		return pr_perror("Unable to splice data");
-+
-+	if (read(p[0], buf, 1) != 1)
-+		return pr_perror("Unable to read form pipe");
-+
-+	if (buf[0] != 'C')
-+		ksft_test_result_fail("Get wrong data\n");
-+	else
-+		ksft_test_result_pass("unreadable region in a second vec\n");
-+
-+	/* check how an unreadable region in a first vec is handled */
-+	errno = 0;
-+	if (process_vmsplice(pid, p[1], iov + 1, 1, SPLICE_F_GIFT) != -1 ||
-+	    errno != EFAULT)
-+		ksft_test_result_fail("Got anexpected errno %d\n", errno);
-+	else
-+		ksft_test_result_pass("splice as much as possible\n");
-+
-+	iov[0].iov_base = addr;
-+	iov[0].iov_len = 1;
-+
-+	iov[1].iov_base = addr;
-+	iov[1].iov_len = MEM_SIZE;
-+
-+	/* splice as much as possible */
-+	ret = process_vmsplice(pid, p[1], iov, 2,
-+				SPLICE_F_GIFT | SPLICE_F_NONBLOCK);
-+	if (ret != 4096 * 15 + 1) /* by default a pipe can fit 16 pages */
-+		return pr_perror("Unable to splice pages");
-+
-+	while (ret > 0) {
-+		int len;
-+
-+		len = read(p[0], buf, 4096);
-+		if (len < 0)
-+			return pr_perror("Unable to read data");
-+		if (len > ret)
-+			return pr_err("Read more than expected\n");
-+		ret -= len;
-+	}
-+	ksft_test_result_pass("splice as much as possible\n");
-+
-+	if (kill(pid, SIGTERM))
-+		return pr_perror("Unable to kill a child process");
-+	status = -1;
-+	if (wait(&status) < 0)
-+		return pr_perror("Unable to wait a child process");
-+	if (!WIFSIGNALED(status) || WTERMSIG(status) != SIGTERM)
-+		return pr_err("The child exited with an unexpected code %d\n",
-+									status);
-+
-+	if (ksft_get_fail_cnt())
-+		return ksft_exit_fail();
-+	return ksft_exit_pass();
-+}
--- 
-2.7.4
+I have no strong opinion, either change all array uses or just introduce
+the macro and start to use it from now on if we have similar array
+symbols.
+
+> > 
+> > > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
+> > >  #define VMCOREINFO_SIZE(name) \
+> > >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
+> > >  			      (unsigned long)sizeof(name))
+> > > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> > > index b3663896278e..d4122a837477 100644
+> > > --- a/kernel/crash_core.c
+> > > +++ b/kernel/crash_core.c
+> > > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+> > >  	VMCOREINFO_SYMBOL(contig_page_data);
+> > >  #endif
+> > >  #ifdef CONFIG_SPARSEMEM
+> > > -	VMCOREINFO_SYMBOL(mem_section);
+> > > +	VMCOREINFO_ARRAY(mem_section);
+> > >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+> > >  	VMCOREINFO_STRUCT_SIZE(mem_section);
+> > >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
+> > > -- 
+> > >  Kirill A. Shutemov
+> > 
+> > Thanks
+> > Dave
+
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
