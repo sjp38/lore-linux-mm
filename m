@@ -1,144 +1,72 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 052226B0038
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 02:24:55 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id e126so5342554oia.19
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 23:24:54 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o127si1427023oia.555.2018.01.08.23.24.53
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id EAA0C6B0253
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 03:17:18 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id n6so9943189pfg.19
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 00:17:18 -0800 (PST)
+Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10094.outbound.protection.outlook.com. [40.107.1.94])
+        by mx.google.com with ESMTPS id q7si10068646plk.225.2018.01.09.00.17.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jan 2018 23:24:53 -0800 (PST)
-Date: Tue, 9 Jan 2018 15:24:40 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
-References: <20171222084623.668990192@linuxfoundation.org>
- <20171222084625.007160464@linuxfoundation.org>
- <1515302062.6507.18.camel@gmx.de>
- <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
- <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
- <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
- <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
- <20180109054131.GB1935@localhost.localdomain>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 09 Jan 2018 00:17:17 -0800 (PST)
+From: Shile Zhang <zhangshile@gmail.com>
+Subject: [PATCH] mm/page_alloc.c: fix typos in comments
+Date: Tue, 9 Jan 2018 16:16:14 +0800
+Message-ID: <1515485774-4768-1-git-send-email-zhangshile@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180109054131.GB1935@localhost.localdomain>
+Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Baoquan He <bhe@redhat.com>
-Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shile Zhang <zhangshile@gmail.com>
 
-On 01/09/18 at 01:41pm, Baoquan He wrote:
-> On 01/09/18 at 09:09am, Dave Young wrote:
-> > On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
-> > > On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
-> > > > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
-> > > > > 
-> > > > > hi Kirill,
-> > > > > 
-> > > > > As Mike reported it below, your 5-level paging related upstream commit 
-> > > > > 83e3c48729d9 and all its followup fixes:
-> > > > > 
-> > > > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
-> > > > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
-> > > > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
-> > > > > 
-> > > > > ... still breaks kexec - and that now regresses -stable as well.
-> > > > > 
-> > > > > Given that 5-level paging now syntactically depends on having this commit, if we 
-> > > > > fully revert this then we'll have to disable 5-level paging as well.
-> > > 
-> > > This *should* help.
-> > > 
-> > > Mike, could you test this? (On top of the rest of the fixes.)
-> > > 
-> > > Sorry for the mess.
-> > > 
-> > > From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
-> > > From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> > > Date: Tue, 9 Jan 2018 02:55:47 +0300
-> > > Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
-> > > 
-> > > Depending on configuration mem_section can now be an array or a pointer
-> > > to an array allocated dynamically. In most cases, we can continue to refer
-> > > to it as 'mem_section' regardless of what it is.
-> > > 
-> > > But there's one exception: '&mem_section' means "address of the array" if
-> > > mem_section is an array, but if mem_section is a pointer, it would mean
-> > > "address of the pointer".
-> > > 
-> > > We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
-> > > writes down address of pointer into vmcoreinfo, not array as we wanted.
-> > > 
-> > > Let's introduce VMCOREINFO_ARRAY() that would handle the situation
-> > > correctly for both cases.
-> > > 
-> > > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > > Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
-> > > ---
-> > >  include/linux/crash_core.h | 2 ++
-> > >  kernel/crash_core.c        | 2 +-
-> > >  2 files changed, 3 insertions(+), 1 deletion(-)
-> > > 
-> > > diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
-> > > index 06097ef30449..83ae04950269 100644
-> > > --- a/include/linux/crash_core.h
-> > > +++ b/include/linux/crash_core.h
-> > > @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
-> > >  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
-> > >  #define VMCOREINFO_SYMBOL(name) \
-> > >  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-> > > +#define VMCOREINFO_ARRAY(name) \
-> > 
-> > Thanks for the patch, I have a similar patch but makedumpfile maintainer
-> > is looking at a userspace fix instead.
-> 
-> Seems we should add lkml to CC next time so that people can watch it.
+Signed-off-by: Shile Zhang <zhangshile@gmail.com>
+---
+ mm/page_alloc.c | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
 
-Yes, agreed.
-
-> 
-> > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
-> 
-> I still think using vmcoreinfo_append_str is better. Unless we replace
-> all array variables with the newly added macro.
-> 
-> vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
->                                 (unsigned long)mem_section);
-
-I have no strong opinion, either change all array uses or just introduce
-the macro and start to use it from now on if we have similar array
-symbols.
-
-> > 
-> > > +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
-> > >  #define VMCOREINFO_SIZE(name) \
-> > >  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
-> > >  			      (unsigned long)sizeof(name))
-> > > diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-> > > index b3663896278e..d4122a837477 100644
-> > > --- a/kernel/crash_core.c
-> > > +++ b/kernel/crash_core.c
-> > > @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
-> > >  	VMCOREINFO_SYMBOL(contig_page_data);
-> > >  #endif
-> > >  #ifdef CONFIG_SPARSEMEM
-> > > -	VMCOREINFO_SYMBOL(mem_section);
-> > > +	VMCOREINFO_ARRAY(mem_section);
-> > >  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
-> > >  	VMCOREINFO_STRUCT_SIZE(mem_section);
-> > >  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-> > > -- 
-> > >  Kirill A. Shutemov
-> > 
-> > Thanks
-> > Dave
-
-Thanks
-Dave
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 76c9688..bfd5f99 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -293,7 +293,7 @@ int page_group_by_mobility_disabled __read_mostly;
+ #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
+ 
+ /*
+- * Determine how many pages need to be initialized durig early boot
++ * Determine how many pages need to be initialized during early boot
+  * (non-deferred initialization).
+  * The value of first_deferred_pfn will be set later, once non-deferred pages
+  * are initialized, but for now set it ULONG_MAX.
+@@ -344,7 +344,7 @@ static inline bool update_defer_init(pg_data_t *pgdat,
+ 				unsigned long pfn, unsigned long zone_end,
+ 				unsigned long *nr_initialised)
+ {
+-	/* Always populate low zones for address-contrained allocations */
++	/* Always populate low zones for address-constrained allocations */
+ 	if (zone_end < pgdat_end_pfn(pgdat))
+ 		return true;
+ 	(*nr_initialised)++;
+@@ -1502,7 +1502,7 @@ static unsigned long __init deferred_init_range(int nid, int zid,
+ 	 * performing it only once every pageblock_nr_pages.
+ 	 *
+ 	 * We do it in two loops: first we initialize struct page, than free to
+-	 * buddy allocator, becuse while we are freeing pages we can access
++	 * buddy allocator, because while we are freeing pages we can access
+ 	 * pages that are ahead (computing buddy page in __free_one_page()).
+ 	 */
+ 	for (pfn = start_pfn; pfn < end_pfn; pfn++) {
+@@ -3391,7 +3391,7 @@ __alloc_pages_may_oom(gfp_t gfp_mask, unsigned int order,
+ 	if (gfp_mask & __GFP_THISNODE)
+ 		goto out;
+ 
+-	/* Exhausted what can be done so it's blamo time */
++	/* Exhausted what can be done so it's blame time */
+ 	if (out_of_memory(&oc) || WARN_ON_ONCE(gfp_mask & __GFP_NOFAIL)) {
+ 		*did_some_progress = 1;
+ 
+-- 
+2.6.2
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
