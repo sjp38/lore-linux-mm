@@ -1,184 +1,40 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AC0F6B0253
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 12:08:29 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id t88so10844167pfg.17
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 09:08:29 -0800 (PST)
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-db5eur01on0137.outbound.protection.outlook.com. [104.47.2.137])
-        by mx.google.com with ESMTPS id h128si10356573pfc.121.2018.01.09.09.08.27
+Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 29A4F6B0253
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 12:10:15 -0500 (EST)
+Received: by mail-wm0-f72.google.com with SMTP id 194so6253124wmv.9
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 09:10:15 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d13sor6723348wre.28.2018.01.09.09.10.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Jan 2018 09:08:28 -0800 (PST)
-Subject: Re: [PATCH v3 1/2] mm/memcg: try harder to decrease
- [memory,memsw].limit_in_bytes
-References: <20171220135329.GS4831@dhcp22.suse.cz>
- <20180109165815.8329-1-aryabinin@virtuozzo.com>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <99a37cfd-c134-6439-cb6e-81382bc03833@virtuozzo.com>
-Date: Tue, 9 Jan 2018 20:08:34 +0300
+        (Google Transport Security);
+        Tue, 09 Jan 2018 09:10:14 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180109165815.8329-1-aryabinin@virtuozzo.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180109165815.8329-2-aryabinin@virtuozzo.com>
+References: <20171220135329.GS4831@dhcp22.suse.cz> <20180109165815.8329-1-aryabinin@virtuozzo.com>
+ <20180109165815.8329-2-aryabinin@virtuozzo.com>
+From: Shakeel Butt <shakeelb@google.com>
+Date: Tue, 9 Jan 2018 09:10:12 -0800
+Message-ID: <CALvZod64eZGKne7jZip_O4_q4yjaRsVWpTRa0pQgRT3guqQkGA@mail.gmail.com>
+Subject: Re: [PATCH v3 2/2] mm/memcg: Consolidate mem_cgroup_resize_[memsw]_limit()
+ functions.
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, Cgroups <cgroups@vger.kernel.org>, Linux MM <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
 
-
-
-On 01/09/2018 07:58 PM, Andrey Ryabinin wrote:
-> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
-> pages on each iteration. This makes practically impossible to decrease
-> limit of memory cgroup. Tasks could easily allocate back 32 pages,
-> so we can't reduce memory usage, and once retry_count reaches zero we return
-> -EBUSY.
-> 
-> Easy to reproduce the problem by running the following commands:
-> 
->   mkdir /sys/fs/cgroup/memory/test
->   echo $$ >> /sys/fs/cgroup/memory/test/tasks
->   cat big_file > /dev/null &
->   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
->   -bash: echo: write error: Device or resource busy
-> 
-> Instead of relying on retry_count, keep retrying the reclaim until
-> the desired limit is reached or fail if the reclaim doesn't make
-> any progress or a signal is pending.
-> 
+On Tue, Jan 9, 2018 at 8:58 AM, Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() are almost
+> identical functions. Instead of having two of them, we could pass an
+> additional argument to mem_cgroup_resize_limit() and by using it,
+> consolidate all the code in a single function.
+>
 > Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
-> ---
-> 
-> Changes since v2:
->  - Changelog wording per mhocko@
-> 
 
+I think this is already proposed and Acked.
 
-Ugh, sorry, I forgot to +Cc Michal this time.
-
-Changelog, is the only thing than changed between v2 and v3.
-
-
->  mm/memcontrol.c | 70 +++++++++++++--------------------------------------------
->  1 file changed, 16 insertions(+), 54 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index f40b5ad3f959..0d26db9a665d 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1176,20 +1176,6 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
->  }
->  
->  /*
-> - * This function returns the number of memcg under hierarchy tree. Returns
-> - * 1(self count) if no children.
-> - */
-> -static int mem_cgroup_count_children(struct mem_cgroup *memcg)
-> -{
-> -	int num = 0;
-> -	struct mem_cgroup *iter;
-> -
-> -	for_each_mem_cgroup_tree(iter, memcg)
-> -		num++;
-> -	return num;
-> -}
-> -
-> -/*
->   * Return the memory (and swap, if configured) limit for a memcg.
->   */
->  unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
-> @@ -2462,22 +2448,10 @@ static DEFINE_MUTEX(memcg_limit_mutex);
->  static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  				   unsigned long limit)
->  {
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
-> +	unsigned long usage;
->  	bool enlarge = false;
-> -	int retry_count;
->  	int ret;
->  
-> -	/*
-> -	 * For keeping hierarchical_reclaim simple, how long we should retry
-> -	 * is depends on callers. We set our retry-count to be function
-> -	 * of # of children which we should visit in this loop.
-> -	 */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(&memcg->memory);
-> -
->  	do {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
-> @@ -2498,15 +2472,13 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
-> -
-> -		curusage = page_counter_read(&memcg->memory);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> +		usage = page_counter_read(&memcg->memory);
-> +		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-> +					GFP_KERNEL, true)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
-> +	} while (true);
->  
->  	if (!ret && enlarge)
->  		memcg_oom_recover(memcg);
-> @@ -2517,18 +2489,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->  static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  					 unsigned long limit)
->  {
-> -	unsigned long curusage;
-> -	unsigned long oldusage;
-> +	unsigned long usage;
->  	bool enlarge = false;
-> -	int retry_count;
->  	int ret;
->  
-> -	/* see mem_cgroup_resize_res_limit */
-> -	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
-> -		      mem_cgroup_count_children(memcg);
-> -
-> -	oldusage = page_counter_read(&memcg->memsw);
-> -
->  	do {
->  		if (signal_pending(current)) {
->  			ret = -EINTR;
-> @@ -2549,15 +2513,13 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
->  		if (!ret)
->  			break;
->  
-> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
-> -
-> -		curusage = page_counter_read(&memcg->memsw);
-> -		/* Usage is reduced ? */
-> -		if (curusage >= oldusage)
-> -			retry_count--;
-> -		else
-> -			oldusage = curusage;
-> -	} while (retry_count);
-> +		usage = page_counter_read(&memcg->memsw);
-> +		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-> +					GFP_KERNEL, false)) {
-> +			ret = -EBUSY;
-> +			break;
-> +		}
-> +	} while (true);
->  
->  	if (!ret && enlarge)
->  		memcg_oom_recover(memcg);
-> 
+https://patchwork.kernel.org/patch/10150719/
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
