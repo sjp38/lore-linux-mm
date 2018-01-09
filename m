@@ -1,20 +1,21 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4FE656B0033
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6E4C36B0069
 	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 11:58:26 -0500 (EST)
-Received: by mail-pg0-f72.google.com with SMTP id m7so9084299pgv.17
+Received: by mail-pf0-f200.google.com with SMTP id h18so10846042pfi.2
         for <linux-mm@kvack.org>; Tue, 09 Jan 2018 08:58:26 -0800 (PST)
 Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10096.outbound.protection.outlook.com. [40.107.1.96])
-        by mx.google.com with ESMTPS id e73si10338589pfj.239.2018.01.09.08.58.23
+        by mx.google.com with ESMTPS id e73si10338589pfj.239.2018.01.09.08.58.24
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 09 Jan 2018 08:58:24 -0800 (PST)
+        Tue, 09 Jan 2018 08:58:25 -0800 (PST)
 From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Subject: [PATCH v3 1/2] mm/memcg: try harder to decrease [memory,memsw].limit_in_bytes
-Date: Tue,  9 Jan 2018 19:58:14 +0300
-Message-Id: <20180109165815.8329-1-aryabinin@virtuozzo.com>
-In-Reply-To: <20171220135329.GS4831@dhcp22.suse.cz>
+Subject: [PATCH v3 2/2] mm/memcg: Consolidate mem_cgroup_resize_[memsw]_limit() functions.
+Date: Tue,  9 Jan 2018 19:58:15 +0300
+Message-Id: <20180109165815.8329-2-aryabinin@virtuozzo.com>
+In-Reply-To: <20180109165815.8329-1-aryabinin@virtuozzo.com>
 References: <20171220135329.GS4831@dhcp22.suse.cz>
+ <20180109165815.8329-1-aryabinin@virtuozzo.com>
 MIME-Version: 1.0
 Content-Type: text/plain
 Sender: owner-linux-mm@kvack.org
@@ -22,148 +23,119 @@ List-ID: <linux-mm.kvack.org>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>, Andrey Ryabinin <aryabinin@virtuozzo.com>
 
-mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
-pages on each iteration. This makes practically impossible to decrease
-limit of memory cgroup. Tasks could easily allocate back 32 pages,
-so we can't reduce memory usage, and once retry_count reaches zero we return
--EBUSY.
-
-Easy to reproduce the problem by running the following commands:
-
-  mkdir /sys/fs/cgroup/memory/test
-  echo $$ >> /sys/fs/cgroup/memory/test/tasks
-  cat big_file > /dev/null &
-  sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
-  -bash: echo: write error: Device or resource busy
-
-Instead of relying on retry_count, keep retrying the reclaim until
-the desired limit is reached or fail if the reclaim doesn't make
-any progress or a signal is pending.
+mem_cgroup_resize_limit() and mem_cgroup_resize_memsw_limit() are almost
+identical functions. Instead of having two of them, we could pass an
+additional argument to mem_cgroup_resize_limit() and by using it,
+consolidate all the code in a single function.
 
 Signed-off-by: Andrey Ryabinin <aryabinin@virtuozzo.com>
 ---
-
-Changes since v2:
- - Changelog wording per mhocko@
-
- mm/memcontrol.c | 70 +++++++++++++--------------------------------------------
- 1 file changed, 16 insertions(+), 54 deletions(-)
+ mm/memcontrol.c | 61 +++++++++++++--------------------------------------------
+ 1 file changed, 14 insertions(+), 47 deletions(-)
 
 diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index f40b5ad3f959..0d26db9a665d 100644
+index 0d26db9a665d..f6253c80a5c8 100644
 --- a/mm/memcontrol.c
 +++ b/mm/memcontrol.c
-@@ -1176,20 +1176,6 @@ void mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
+@@ -2445,50 +2445,17 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+ 
+ static DEFINE_MUTEX(memcg_limit_mutex);
+ 
+-static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+-				   unsigned long limit)
++static bool invalid_mem_limit(struct mem_cgroup *memcg, bool memsw,
++			      unsigned long limit)
+ {
+-	unsigned long usage;
+-	bool enlarge = false;
+-	int ret;
+-
+-	do {
+-		if (signal_pending(current)) {
+-			ret = -EINTR;
+-			break;
+-		}
+-
+-		mutex_lock(&memcg_limit_mutex);
+-		if (limit > memcg->memsw.limit) {
+-			mutex_unlock(&memcg_limit_mutex);
+-			ret = -EINVAL;
+-			break;
+-		}
+-		if (limit > memcg->memory.limit)
+-			enlarge = true;
+-		ret = page_counter_limit(&memcg->memory, limit);
+-		mutex_unlock(&memcg_limit_mutex);
+-
+-		if (!ret)
+-			break;
+-
+-		usage = page_counter_read(&memcg->memory);
+-		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
+-					GFP_KERNEL, true)) {
+-			ret = -EBUSY;
+-			break;
+-		}
+-	} while (true);
+-
+-	if (!ret && enlarge)
+-		memcg_oom_recover(memcg);
+-
+-	return ret;
++	return (!memsw && limit > memcg->memsw.limit) ||
++		(memsw && limit < memcg->memory.limit);
  }
  
- /*
-- * This function returns the number of memcg under hierarchy tree. Returns
-- * 1(self count) if no children.
-- */
--static int mem_cgroup_count_children(struct mem_cgroup *memcg)
--{
--	int num = 0;
--	struct mem_cgroup *iter;
--
--	for_each_mem_cgroup_tree(iter, memcg)
--		num++;
--	return num;
--}
--
--/*
-  * Return the memory (and swap, if configured) limit for a memcg.
-  */
- unsigned long mem_cgroup_get_limit(struct mem_cgroup *memcg)
-@@ -2462,22 +2448,10 @@ static DEFINE_MUTEX(memcg_limit_mutex);
- static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- 				   unsigned long limit)
+-static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+-					 unsigned long limit)
++static int mem_cgroup_resize_limit(struct mem_cgroup *memcg, bool memsw,
++				   unsigned long limit)
  {
--	unsigned long curusage;
--	unsigned long oldusage;
-+	unsigned long usage;
++	struct page_counter *counter = memsw ? &memcg->memsw : &memcg->memory;
+ 	unsigned long usage;
  	bool enlarge = false;
--	int retry_count;
  	int ret;
+@@ -2500,22 +2467,22 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
+ 		}
  
--	/*
--	 * For keeping hierarchical_reclaim simple, how long we should retry
--	 * is depends on callers. We set our retry-count to be function
--	 * of # of children which we should visit in this loop.
--	 */
--	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
--		      mem_cgroup_count_children(memcg);
--
--	oldusage = page_counter_read(&memcg->memory);
--
- 	do {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
-@@ -2498,15 +2472,13 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
+ 		mutex_lock(&memcg_limit_mutex);
+-		if (limit < memcg->memory.limit) {
++		if (invalid_mem_limit(memcg, memsw, limit)) {
+ 			mutex_unlock(&memcg_limit_mutex);
+ 			ret = -EINVAL;
+ 			break;
+ 		}
+-		if (limit > memcg->memsw.limit)
++		if (limit > counter->limit)
+ 			enlarge = true;
+-		ret = page_counter_limit(&memcg->memsw, limit);
++		ret = page_counter_limit(counter, limit);
+ 		mutex_unlock(&memcg_limit_mutex);
+ 
  		if (!ret)
  			break;
  
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, true);
--
--		curusage = page_counter_read(&memcg->memory);
--		/* Usage is reduced ? */
--		if (curusage >= oldusage)
--			retry_count--;
--		else
--			oldusage = curusage;
--	} while (retry_count);
-+		usage = page_counter_read(&memcg->memory);
-+		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-+					GFP_KERNEL, true)) {
-+			ret = -EBUSY;
-+			break;
-+		}
-+	} while (true);
- 
- 	if (!ret && enlarge)
- 		memcg_oom_recover(memcg);
-@@ -2517,18 +2489,10 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
- static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 					 unsigned long limit)
- {
--	unsigned long curusage;
--	unsigned long oldusage;
-+	unsigned long usage;
- 	bool enlarge = false;
--	int retry_count;
- 	int ret;
- 
--	/* see mem_cgroup_resize_res_limit */
--	retry_count = MEM_CGROUP_RECLAIM_RETRIES *
--		      mem_cgroup_count_children(memcg);
--
--	oldusage = page_counter_read(&memcg->memsw);
--
- 	do {
- 		if (signal_pending(current)) {
- 			ret = -EINTR;
-@@ -2549,15 +2513,13 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
- 		if (!ret)
+-		usage = page_counter_read(&memcg->memsw);
++		usage = page_counter_read(counter);
+ 		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
+-					GFP_KERNEL, false)) {
++					GFP_KERNEL, !memsw)) {
+ 			ret = -EBUSY;
  			break;
- 
--		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, false);
--
--		curusage = page_counter_read(&memcg->memsw);
--		/* Usage is reduced ? */
--		if (curusage >= oldusage)
--			retry_count--;
--		else
--			oldusage = curusage;
--	} while (retry_count);
-+		usage = page_counter_read(&memcg->memsw);
-+		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
-+					GFP_KERNEL, false)) {
-+			ret = -EBUSY;
-+			break;
-+		}
-+	} while (true);
- 
- 	if (!ret && enlarge)
- 		memcg_oom_recover(memcg);
+ 		}
+@@ -3193,10 +3160,10 @@ static ssize_t mem_cgroup_write(struct kernfs_open_file *of,
+ 		}
+ 		switch (MEMFILE_TYPE(of_cft(of)->private)) {
+ 		case _MEM:
+-			ret = mem_cgroup_resize_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, false, nr_pages);
+ 			break;
+ 		case _MEMSWAP:
+-			ret = mem_cgroup_resize_memsw_limit(memcg, nr_pages);
++			ret = mem_cgroup_resize_limit(memcg, true, nr_pages);
+ 			break;
+ 		case _KMEM:
+ 			ret = memcg_update_kmem_limit(memcg, nr_pages);
 -- 
 2.13.6
 
