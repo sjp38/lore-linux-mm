@@ -1,121 +1,214 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-oi0-f71.google.com (mail-oi0-f71.google.com [209.85.218.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 68DAC6B0038
-	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 20:09:40 -0500 (EST)
-Received: by mail-oi0-f71.google.com with SMTP id e9so2026674oib.10
-        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 17:09:40 -0800 (PST)
+Received: from mail-ot0-f200.google.com (mail-ot0-f200.google.com [74.125.82.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E00D6B0038
+	for <linux-mm@kvack.org>; Mon,  8 Jan 2018 21:35:00 -0500 (EST)
+Received: by mail-ot0-f200.google.com with SMTP id 20so2045098oth.22
+        for <linux-mm@kvack.org>; Mon, 08 Jan 2018 18:35:00 -0800 (PST)
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k15si3500808oib.121.2018.01.08.17.09.38
+        by mx.google.com with ESMTPS id g90si3751399otb.396.2018.01.08.18.34.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 08 Jan 2018 17:09:39 -0800 (PST)
-Date: Tue, 9 Jan 2018 09:09:27 +0800
-From: Dave Young <dyoung@redhat.com>
-Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
- runtime for CONFIG_SPARSEMEM_EXTREME=y
-Message-ID: <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
-References: <20171222084623.668990192@linuxfoundation.org>
- <20171222084625.007160464@linuxfoundation.org>
- <1515302062.6507.18.camel@gmx.de>
- <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
- <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
- <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+        Mon, 08 Jan 2018 18:34:59 -0800 (PST)
+Date: Tue, 9 Jan 2018 10:34:40 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V4 13/45] block: blk-merge: try to make front segments in
+ full size
+Message-ID: <20180109023432.GB31067@ming.t460p>
+References: <20171218122247.3488-1-ming.lei@redhat.com>
+ <20171218122247.3488-14-ming.lei@redhat.com>
+ <c3227c8f-c782-7685-c3eb-af558a082399@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+In-Reply-To: <c3227c8f-c782-7685-c3eb-af558a082399@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Andrew Morton <akpm@linux-foundation.org>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Baoquan He <bhe@redhat.com>, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
+To: Dmitry Osipenko <digetx@gmail.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, linux-mmc@vger.kernel.org
 
-On 01/09/18 at 03:13am, Kirill A. Shutemov wrote:
-> On Mon, Jan 08, 2018 at 08:46:53PM +0300, Kirill A. Shutemov wrote:
-> > On Mon, Jan 08, 2018 at 04:04:44PM +0000, Ingo Molnar wrote:
-> > > 
-> > > hi Kirill,
-> > > 
-> > > As Mike reported it below, your 5-level paging related upstream commit 
-> > > 83e3c48729d9 and all its followup fixes:
-> > > 
-> > >  83e3c48729d9: mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y
-> > >  629a359bdb0e: mm/sparsemem: Fix ARM64 boot crash when CONFIG_SPARSEMEM_EXTREME=y
-> > >  d09cfbbfa0f7: mm/sparse.c: wrong allocation for mem_section
-> > > 
-> > > ... still breaks kexec - and that now regresses -stable as well.
-> > > 
-> > > Given that 5-level paging now syntactically depends on having this commit, if we 
-> > > fully revert this then we'll have to disable 5-level paging as well.
+On Tue, Jan 09, 2018 at 12:09:27AM +0300, Dmitry Osipenko wrote:
+> On 18.12.2017 15:22, Ming Lei wrote:
+> > When merging one bvec into segment, if the bvec is too big
+> > to merge, current policy is to move the whole bvec into another
+> > new segment.
+> > 
+> > This patchset changes the policy into trying to maximize size of
+> > front segments, that means in above situation, part of bvec
+> > is merged into current segment, and the remainder is put
+> > into next segment.
+> > 
+> > This patch prepares for support multipage bvec because
+> > it can be quite common to see this case and we should try
+> > to make front segments in full size.
+> > 
+> > Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> > ---
+> >  block/blk-merge.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+> >  1 file changed, 49 insertions(+), 5 deletions(-)
+> > 
+> > diff --git a/block/blk-merge.c b/block/blk-merge.c
+> > index a476337a8ff4..42ceb89bc566 100644
+> > --- a/block/blk-merge.c
+> > +++ b/block/blk-merge.c
+> > @@ -109,6 +109,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  	bool do_split = true;
+> >  	struct bio *new = NULL;
+> >  	const unsigned max_sectors = get_max_io_size(q, bio);
+> > +	unsigned advance = 0;
+> >  
+> >  	bio_for_each_segment(bv, bio, iter) {
+> >  		/*
+> > @@ -134,12 +135,32 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  		}
+> >  
+> >  		if (bvprvp && blk_queue_cluster(q)) {
+> > -			if (seg_size + bv.bv_len > queue_max_segment_size(q))
+> > -				goto new_segment;
+> >  			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+> >  				goto new_segment;
+> >  			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
+> >  				goto new_segment;
+> > +			if (seg_size + bv.bv_len > queue_max_segment_size(q)) {
+> > +				/*
+> > +				 * On assumption is that initial value of
+> > +				 * @seg_size(equals to bv.bv_len) won't be
+> > +				 * bigger than max segment size, but will
+> > +				 * becomes false after multipage bvec comes.
+> > +				 */
+> > +				advance = queue_max_segment_size(q) - seg_size;
+> > +
+> > +				if (advance > 0) {
+> > +					seg_size += advance;
+> > +					sectors += advance >> 9;
+> > +					bv.bv_len -= advance;
+> > +					bv.bv_offset += advance;
+> > +				}
+> > +
+> > +				/*
+> > +				 * Still need to put remainder of current
+> > +				 * bvec into a new segment.
+> > +				 */
+> > +				goto new_segment;
+> > +			}
+> >  
+> >  			seg_size += bv.bv_len;
+> >  			bvprv = bv;
+> > @@ -161,6 +182,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  		seg_size = bv.bv_len;
+> >  		sectors += bv.bv_len >> 9;
+> >  
+> > +		/* restore the bvec for iterator */
+> > +		if (advance) {
+> > +			bv.bv_len += advance;
+> > +			bv.bv_offset -= advance;
+> > +			advance = 0;
+> > +		}
+> >  	}
+> >  
+> >  	do_split = false;
+> > @@ -361,16 +388,29 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >  {
+> >  
+> >  	int nbytes = bvec->bv_len;
+> > +	unsigned advance = 0;
+> >  
+> >  	if (*sg && *cluster) {
+> > -		if ((*sg)->length + nbytes > queue_max_segment_size(q))
+> > -			goto new_segment;
+> > -
+> >  		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+> >  			goto new_segment;
+> >  		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+> >  			goto new_segment;
+> >  
+> > +		/*
+> > +		 * try best to merge part of the bvec into previous
+> > +		 * segment and follow same policy with
+> > +		 * blk_bio_segment_split()
+> > +		 */
+> > +		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+> > +			advance = queue_max_segment_size(q) - (*sg)->length;
+> > +			if (advance) {
+> > +				(*sg)->length += advance;
+> > +				bvec->bv_offset += advance;
+> > +				bvec->bv_len -= advance;
+> > +			}
+> > +			goto new_segment;
+> > +		}
+> > +
+> >  		(*sg)->length += nbytes;
+> >  	} else {
+> >  new_segment:
+> > @@ -393,6 +433,10 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >  
+> >  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+> >  		(*nsegs)++;
+> > +
+> > +		/* for making iterator happy */
+> > +		bvec->bv_offset -= advance;
+> > +		bvec->bv_len += advance;
+> >  	}
+> >  	*bvprv = *bvec;
+> >  }
+> > 
 > 
-> This *should* help.
+> Hello,
 > 
-> Mike, could you test this? (On top of the rest of the fixes.)
+> This patch breaks MMC on next-20180108, in particular MMC doesn't work anymore
+> with this patch on NVIDIA Tegra20:
 > 
-> Sorry for the mess.
+> <3>[   36.622253] print_req_error: I/O error, dev mmcblk1, sector 512
+> <3>[   36.671233] print_req_error: I/O error, dev mmcblk2, sector 128
+> <3>[   36.711308] print_req_error: I/O error, dev mmcblk1, sector 31325304
+> <3>[   36.749232] print_req_error: I/O error, dev mmcblk2, sector 512
+> <3>[   36.761235] print_req_error: I/O error, dev mmcblk1, sector 31325816
+> <3>[   36.832039] print_req_error: I/O error, dev mmcblk2, sector 31259768
+> <3>[   99.793248] print_req_error: I/O error, dev mmcblk1, sector 31323136
+> <3>[   99.982043] print_req_error: I/O error, dev mmcblk1, sector 929792
+> <3>[   99.986301] print_req_error: I/O error, dev mmcblk1, sector 930816
+> <3>[  100.293624] print_req_error: I/O error, dev mmcblk1, sector 932864
+> <3>[  100.466839] print_req_error: I/O error, dev mmcblk1, sector 947200
+> <3>[  100.642955] print_req_error: I/O error, dev mmcblk1, sector 949248
+> <3>[  100.818838] print_req_error: I/O error, dev mmcblk1, sector 230400
 > 
-> From 100fd567754f1457be94732046aefca204c842d2 Mon Sep 17 00:00:00 2001
-> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-> Date: Tue, 9 Jan 2018 02:55:47 +0300
-> Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
-> 
-> Depending on configuration mem_section can now be an array or a pointer
-> to an array allocated dynamically. In most cases, we can continue to refer
-> to it as 'mem_section' regardless of what it is.
-> 
-> But there's one exception: '&mem_section' means "address of the array" if
-> mem_section is an array, but if mem_section is a pointer, it would mean
-> "address of the pointer".
-> 
-> We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
-> writes down address of pointer into vmcoreinfo, not array as we wanted.
-> 
-> Let's introduce VMCOREINFO_ARRAY() that would handle the situation
-> correctly for both cases.
-> 
-> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
-> ---
->  include/linux/crash_core.h | 2 ++
->  kernel/crash_core.c        | 2 +-
->  2 files changed, 3 insertions(+), 1 deletion(-)
-> 
-> diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
-> index 06097ef30449..83ae04950269 100644
-> --- a/include/linux/crash_core.h
-> +++ b/include/linux/crash_core.h
-> @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
->  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
->  #define VMCOREINFO_SYMBOL(name) \
->  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
-> +#define VMCOREINFO_ARRAY(name) \
+> Any attempt of mounting MMC block dev ends with a kernel crash. Reverting this
+> patch fixes the issue.
 
-Thanks for the patch, I have a similar patch but makedumpfile maintainer
-is looking at a userspace fix instead.
+Hi Dmitry,
 
-As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+Thanks for your report!
 
-> +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
->  #define VMCOREINFO_SIZE(name) \
->  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
->  			      (unsigned long)sizeof(name))
-> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
-> index b3663896278e..d4122a837477 100644
-> --- a/kernel/crash_core.c
-> +++ b/kernel/crash_core.c
-> @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
->  	VMCOREINFO_SYMBOL(contig_page_data);
->  #endif
->  #ifdef CONFIG_SPARSEMEM
-> -	VMCOREINFO_SYMBOL(mem_section);
-> +	VMCOREINFO_ARRAY(mem_section);
->  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
->  	VMCOREINFO_STRUCT_SIZE(mem_section);
->  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-> -- 
->  Kirill A. Shutemov
+Could you share us what the segment limits are on your MMC?
 
-Thanks
-Dave
+	cat /sys/block/mmcN/queue/max_segment_size
+	cat /sys/block/mmcN/queue/max_segments
+
+Please test the following patch to see if your issue can be fixed?
+
+---
+diff --git a/block/blk-merge.c b/block/blk-merge.c
+index 446f63e076aa..cfab36c26608 100644
+--- a/block/blk-merge.c
++++ b/block/blk-merge.c
+@@ -431,12 +431,14 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+ 
+ 		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+ 		(*nsegs)++;
++	}
+ 
++	*bvprv = *bvec;
++	if (advance) {
+ 		/* for making iterator happy */
+ 		bvec->bv_offset -= advance;
+ 		bvec->bv_len += advance;
+ 	}
+-	*bvprv = *bvec;
+ }
+ 
+ static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+
+Thanks,
+Ming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
