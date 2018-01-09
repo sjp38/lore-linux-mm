@@ -1,427 +1,231 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C8E56B026A
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 07:59:43 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id w186so3375674pgb.10
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 04:59:43 -0800 (PST)
-Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
-        by mx.google.com with ESMTPS id k65si3562640pfa.98.2018.01.09.04.59.41
+Received: from mail-lf0-f69.google.com (mail-lf0-f69.google.com [209.85.215.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A9EA6B025E
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 08:18:44 -0500 (EST)
+Received: by mail-lf0-f69.google.com with SMTP id l6so2319718lfg.9
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 05:18:44 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m10sor912622lfe.45.2018.01.09.05.18.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jan 2018 04:59:41 -0800 (PST)
-From: Wei Wang <wei.w.wang@intel.com>
-Subject: [PATCH v21 2/5 RESEND] virtio-balloon: VIRTIO_BALLOON_F_SG
-Date: Tue,  9 Jan 2018 20:41:27 +0800
-Message-Id: <1515501687-7874-1-git-send-email-wei.w.wang@intel.com>
+        (Google Transport Security);
+        Tue, 09 Jan 2018 05:18:42 -0800 (PST)
+Subject: Re: [PATCH V4 13/45] block: blk-merge: try to make front segments in
+ full size
+References: <20171218122247.3488-1-ming.lei@redhat.com>
+ <20171218122247.3488-14-ming.lei@redhat.com>
+ <c3227c8f-c782-7685-c3eb-af558a082399@gmail.com>
+ <20180109023432.GB31067@ming.t460p>
+From: Dmitry Osipenko <digetx@gmail.com>
+Message-ID: <e816e626-b8b0-c14e-ba08-cafe76dcf233@gmail.com>
+Date: Tue, 9 Jan 2018 16:18:39 +0300
+MIME-Version: 1.0
+In-Reply-To: <20180109023432.GB31067@ming.t460p>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: virtio-dev@lists.oasis-open.org, linux-kernel@vger.kernel.org, qemu-devel@nongnu.org, virtualization@lists.linux-foundation.org, kvm@vger.kernel.org, linux-mm@kvack.org, mst@redhat.com, mhocko@kernel.org, akpm@linux-foundation.org, mawilcox@microsoft.com
-Cc: david@redhat.com, penguin-kernel@I-love.SAKURA.ne.jp, cornelia.huck@de.ibm.com, mgorman@techsingularity.net, aarcange@redhat.com, amit.shah@redhat.com, pbonzini@redhat.com, willy@infradead.org, wei.w.wang@intel.com, liliang.opensource@gmail.com, yang.zhang.wz@gmail.com, quan.xu0@gmail.com, nilal@redhat.com, riel@redhat.com
+To: Ming Lei <ming.lei@redhat.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, linux-mmc@vger.kernel.org
 
-Add a new feature, VIRTIO_BALLOON_F_SG, which enables the transfer of
-balloon (i.e. inflated/deflated) pages using scatter-gather lists to the
-host.
+On 09.01.2018 05:34, Ming Lei wrote:
+> On Tue, Jan 09, 2018 at 12:09:27AM +0300, Dmitry Osipenko wrote:
+>> On 18.12.2017 15:22, Ming Lei wrote:
+>>> When merging one bvec into segment, if the bvec is too big
+>>> to merge, current policy is to move the whole bvec into another
+>>> new segment.
+>>>
+>>> This patchset changes the policy into trying to maximize size of
+>>> front segments, that means in above situation, part of bvec
+>>> is merged into current segment, and the remainder is put
+>>> into next segment.
+>>>
+>>> This patch prepares for support multipage bvec because
+>>> it can be quite common to see this case and we should try
+>>> to make front segments in full size.
+>>>
+>>> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+>>> ---
+>>>  block/blk-merge.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+>>>  1 file changed, 49 insertions(+), 5 deletions(-)
+>>>
+>>> diff --git a/block/blk-merge.c b/block/blk-merge.c
+>>> index a476337a8ff4..42ceb89bc566 100644
+>>> --- a/block/blk-merge.c
+>>> +++ b/block/blk-merge.c
+>>> @@ -109,6 +109,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>>>  	bool do_split = true;
+>>>  	struct bio *new = NULL;
+>>>  	const unsigned max_sectors = get_max_io_size(q, bio);
+>>> +	unsigned advance = 0;
+>>>  
+>>>  	bio_for_each_segment(bv, bio, iter) {
+>>>  		/*
+>>> @@ -134,12 +135,32 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>>>  		}
+>>>  
+>>>  		if (bvprvp && blk_queue_cluster(q)) {
+>>> -			if (seg_size + bv.bv_len > queue_max_segment_size(q))
+>>> -				goto new_segment;
+>>>  			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+>>>  				goto new_segment;
+>>>  			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
+>>>  				goto new_segment;
+>>> +			if (seg_size + bv.bv_len > queue_max_segment_size(q)) {
+>>> +				/*
+>>> +				 * On assumption is that initial value of
+>>> +				 * @seg_size(equals to bv.bv_len) won't be
+>>> +				 * bigger than max segment size, but will
+>>> +				 * becomes false after multipage bvec comes.
+>>> +				 */
+>>> +				advance = queue_max_segment_size(q) - seg_size;
+>>> +
+>>> +				if (advance > 0) {
+>>> +					seg_size += advance;
+>>> +					sectors += advance >> 9;
+>>> +					bv.bv_len -= advance;
+>>> +					bv.bv_offset += advance;
+>>> +				}
+>>> +
+>>> +				/*
+>>> +				 * Still need to put remainder of current
+>>> +				 * bvec into a new segment.
+>>> +				 */
+>>> +				goto new_segment;
+>>> +			}
+>>>  
+>>>  			seg_size += bv.bv_len;
+>>>  			bvprv = bv;
+>>> @@ -161,6 +182,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+>>>  		seg_size = bv.bv_len;
+>>>  		sectors += bv.bv_len >> 9;
+>>>  
+>>> +		/* restore the bvec for iterator */
+>>> +		if (advance) {
+>>> +			bv.bv_len += advance;
+>>> +			bv.bv_offset -= advance;
+>>> +			advance = 0;
+>>> +		}
+>>>  	}
+>>>  
+>>>  	do_split = false;
+>>> @@ -361,16 +388,29 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+>>>  {
+>>>  
+>>>  	int nbytes = bvec->bv_len;
+>>> +	unsigned advance = 0;
+>>>  
+>>>  	if (*sg && *cluster) {
+>>> -		if ((*sg)->length + nbytes > queue_max_segment_size(q))
+>>> -			goto new_segment;
+>>> -
+>>>  		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+>>>  			goto new_segment;
+>>>  		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+>>>  			goto new_segment;
+>>>  
+>>> +		/*
+>>> +		 * try best to merge part of the bvec into previous
+>>> +		 * segment and follow same policy with
+>>> +		 * blk_bio_segment_split()
+>>> +		 */
+>>> +		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+>>> +			advance = queue_max_segment_size(q) - (*sg)->length;
+>>> +			if (advance) {
+>>> +				(*sg)->length += advance;
+>>> +				bvec->bv_offset += advance;
+>>> +				bvec->bv_len -= advance;
+>>> +			}
+>>> +			goto new_segment;
+>>> +		}
+>>> +
+>>>  		(*sg)->length += nbytes;
+>>>  	} else {
+>>>  new_segment:
+>>> @@ -393,6 +433,10 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+>>>  
+>>>  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+>>>  		(*nsegs)++;
+>>> +
+>>> +		/* for making iterator happy */
+>>> +		bvec->bv_offset -= advance;
+>>> +		bvec->bv_len += advance;
+>>>  	}
+>>>  	*bvprv = *bvec;
+>>>  }
+>>>
+>>
+>> Hello,
+>>
+>> This patch breaks MMC on next-20180108, in particular MMC doesn't work anymore
+>> with this patch on NVIDIA Tegra20:
+>>
+>> <3>[   36.622253] print_req_error: I/O error, dev mmcblk1, sector 512
+>> <3>[   36.671233] print_req_error: I/O error, dev mmcblk2, sector 128
+>> <3>[   36.711308] print_req_error: I/O error, dev mmcblk1, sector 31325304
+>> <3>[   36.749232] print_req_error: I/O error, dev mmcblk2, sector 512
+>> <3>[   36.761235] print_req_error: I/O error, dev mmcblk1, sector 31325816
+>> <3>[   36.832039] print_req_error: I/O error, dev mmcblk2, sector 31259768
+>> <3>[   99.793248] print_req_error: I/O error, dev mmcblk1, sector 31323136
+>> <3>[   99.982043] print_req_error: I/O error, dev mmcblk1, sector 929792
+>> <3>[   99.986301] print_req_error: I/O error, dev mmcblk1, sector 930816
+>> <3>[  100.293624] print_req_error: I/O error, dev mmcblk1, sector 932864
+>> <3>[  100.466839] print_req_error: I/O error, dev mmcblk1, sector 947200
+>> <3>[  100.642955] print_req_error: I/O error, dev mmcblk1, sector 949248
+>> <3>[  100.818838] print_req_error: I/O error, dev mmcblk1, sector 230400
+>>
+>> Any attempt of mounting MMC block dev ends with a kernel crash. Reverting this
+>> patch fixes the issue.
+> 
+> Hi Dmitry,
+> 
+> Thanks for your report!
+> 
+> Could you share us what the segment limits are on your MMC?
+> 
+> 	cat /sys/block/mmcN/queue/max_segment_size
+> 	cat /sys/block/mmcN/queue/max_segments
+> 
+> Please test the following patch to see if your issue can be fixed?
+> 
+> ---
+> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> index 446f63e076aa..cfab36c26608 100644
+> --- a/block/blk-merge.c
+> +++ b/block/blk-merge.c
+> @@ -431,12 +431,14 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+>  
+>  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+>  		(*nsegs)++;
+> +	}
+>  
+> +	*bvprv = *bvec;
+> +	if (advance) {
+>  		/* for making iterator happy */
+>  		bvec->bv_offset -= advance;
+>  		bvec->bv_len += advance;
+>  	}
+> -	*bvprv = *bvec;
+>  }
+>  
+>  static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
 
-The implementation of the previous virtio-balloon is not very efficient,
-because the balloon pages are transferred to the host by one array each
-time. Here is the breakdown of the time in percentage spent on each step
-of the balloon inflating process (inflating 7GB of an 8GB idle guest).
+Hi Ming,
 
-1) allocating pages (6.5%)
-2) sending PFNs to host (68.3%)
-3) address translation (6.1%)
-4) madvise (19%)
+I've tried your patch and unfortunately it doesn't help with the issue.
 
-It takes about 4126ms for the inflating process to complete. The above
-profiling shows that the bottlenecks are stage 2) and stage 4).
+Here are the segment limits:
 
-This patch optimizes step 2) by transferring pages to host in sgs. An sg
-describes a chunk of guest physically continuous pages. With this
-mechanism, step 4) can also be optimized by doing address translation and
-madvise() in chunks rather than page by page.
-
-With this new feature, the above ballooning process takes ~460ms resulting
-in an improvement of ~89%.
-
-TODO:
-- optimize stage 1) by allocating/freeing a chunk of pages instead of a
-single page each time.
-- sort the internal balloon page queue.
-- enable OOM to free inflated pages maintained in the local temporary
-  list.
-
-Signed-off-by: Wei Wang <wei.w.wang@intel.com>
-Signed-off-by: Liang Li <liang.z.li@intel.com>
-Suggested-by: Michael S. Tsirkin <mst@redhat.com>
-Cc: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
----
- drivers/virtio/virtio_balloon.c     | 233 +++++++++++++++++++++++++++++++++---
- include/uapi/linux/virtio_balloon.h |   1 +
- 2 files changed, 216 insertions(+), 18 deletions(-)
-
-RESEND ChangeLog:
-- fill_balloon(): move xb_set_page before balloon_page_enqueue
-
-diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-index a1fb52c..d0b8ea0 100644
---- a/drivers/virtio/virtio_balloon.c
-+++ b/drivers/virtio/virtio_balloon.c
-@@ -32,6 +32,8 @@
- #include <linux/mm.h>
- #include <linux/mount.h>
- #include <linux/magic.h>
-+#include <linux/xbitmap.h>
-+#include <asm/page.h>
- 
- /*
-  * Balloon device works in 4K page units.  So each page is pointed to by
-@@ -79,6 +81,9 @@ struct virtio_balloon {
- 	/* Synchronize access/update to this struct virtio_balloon elements */
- 	struct mutex balloon_lock;
- 
-+	/* The xbitmap used to record balloon pages */
-+	struct xb page_xb;
-+
- 	/* The array of pfns we tell the Host about. */
- 	unsigned int num_pfns;
- 	__virtio32 pfns[VIRTIO_BALLOON_ARRAY_PFNS_MAX];
-@@ -141,15 +146,128 @@ static void set_page_pfns(struct virtio_balloon *vb,
- 					  page_to_balloon_pfn(page) + i);
- }
- 
-+static void kick_and_wait(struct virtqueue *vq, wait_queue_head_t wq_head)
-+{
-+	unsigned int len;
-+
-+	virtqueue_kick(vq);
-+	wait_event(wq_head, virtqueue_get_buf(vq, &len));
-+}
-+
-+static void add_one_sg(struct virtqueue *vq, unsigned long pfn, uint32_t len)
-+{
-+	struct scatterlist sg;
-+	unsigned int unused;
-+	int err;
-+
-+	sg_init_table(&sg, 1);
-+	sg_set_page(&sg, pfn_to_page(pfn), len, 0);
-+
-+	/* Detach all the used buffers from the vq */
-+	while (virtqueue_get_buf(vq, &unused))
-+		;
-+
-+	err = virtqueue_add_inbuf(vq, &sg, 1, vq, GFP_KERNEL);
-+	/*
-+	 * This is expected to never fail: there is always at least 1 entry
-+	 * available on the vq, because when the vq is full the worker thread
-+	 * that adds the sg will be put into sleep until at least 1 entry is
-+	 * available to use.
-+	 */
-+	BUG_ON(err);
-+}
-+
-+static void batch_balloon_page_sg(struct virtio_balloon *vb,
-+				  struct virtqueue *vq,
-+				  unsigned long pfn,
-+				  uint32_t len)
-+{
-+	add_one_sg(vq, pfn, len);
-+
-+	/* Batch till the vq is full */
-+	if (!vq->num_free)
-+		kick_and_wait(vq, vb->acked);
-+}
-+
-+/*
-+ * Send balloon pages in sgs to host. The balloon pages are recorded in the
-+ * page xbitmap. Each bit in the bitmap corresponds to a page of PAGE_SIZE.
-+ * The page xbitmap is searched for continuous "1" bits, which correspond
-+ * to continuous pages, to chunk into sgs.
-+ *
-+ * @page_xb_start and @page_xb_end form the range of bits in the xbitmap that
-+ * need to be searched.
-+ */
-+static void tell_host_sgs(struct virtio_balloon *vb,
-+			  struct virtqueue *vq,
-+			  unsigned long page_xb_start,
-+			  unsigned long page_xb_end)
-+{
-+	unsigned long pfn_start, pfn_end;
-+	uint32_t max_len = round_down(UINT_MAX, PAGE_SIZE);
-+	uint64_t len;
-+
-+	pfn_start = page_xb_start;
-+	while (pfn_start < page_xb_end) {
-+		if (!xb_find_set(&vb->page_xb, page_xb_end, &pfn_start))
-+			break;
-+		pfn_end = pfn_start + 1;
-+		if (!xb_find_zero(&vb->page_xb, page_xb_end, &pfn_end))
-+			pfn_end = page_xb_end + 1;
-+		len = (pfn_end - pfn_start) << PAGE_SHIFT;
-+		while (len > max_len) {
-+			batch_balloon_page_sg(vb, vq, pfn_start, max_len);
-+			pfn_start += max_len >> PAGE_SHIFT;
-+			len -= max_len;
-+		}
-+		batch_balloon_page_sg(vb, vq, pfn_start, (uint32_t)len);
-+		pfn_start = pfn_end + 1;
-+	}
-+
-+	/*
-+	 * The last few sgs may not reach the batch size, but need a kick to
-+	 * notify the device to handle them.
-+	 */
-+	if (vq->num_free != virtqueue_get_vring_size(vq))
-+		kick_and_wait(vq, vb->acked);
-+
-+	xb_zero(&vb->page_xb, page_xb_start, page_xb_end);
-+}
-+
-+static inline int xb_set_page(struct virtio_balloon *vb,
-+			       struct page *page,
-+			       unsigned long *pfn_min,
-+			       unsigned long *pfn_max)
-+{
-+	unsigned long pfn = page_to_pfn(page);
-+	int ret;
-+
-+	*pfn_min = min(pfn, *pfn_min);
-+	*pfn_max = max(pfn, *pfn_max);
-+
-+	do {
-+		if (xb_preload(GFP_NOWAIT | __GFP_NOWARN) < 0)
-+			return -ENOMEM;
-+
-+		ret = xb_set_bit(&vb->page_xb, pfn);
-+		xb_preload_end();
-+	} while (unlikely(ret == -EAGAIN));
-+
-+	return ret;
-+}
-+
- static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- {
- 	unsigned num_allocated_pages;
- 	unsigned num_pfns;
- 	struct page *page;
- 	LIST_HEAD(pages);
-+	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
-+	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
- 
- 	/* We can only do one array worth at a time. */
--	num = min(num, ARRAY_SIZE(vb->pfns));
-+	if (!use_sg)
-+		num = min(num, ARRAY_SIZE(vb->pfns));
- 
- 	for (num_pfns = 0; num_pfns < num;
- 	     num_pfns += VIRTIO_BALLOON_PAGES_PER_PAGE) {
-@@ -172,9 +290,16 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 	vb->num_pfns = 0;
- 
- 	while ((page = balloon_page_pop(&pages))) {
-+		if (use_sg) {
-+			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
-+				__free_page(page);
-+				continue;
-+			}
-+		} else {
-+			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-+		}
- 		balloon_page_enqueue(&vb->vb_dev_info, page);
- 
--		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
- 		vb->num_pages += VIRTIO_BALLOON_PAGES_PER_PAGE;
- 		if (!virtio_has_feature(vb->vdev,
- 					VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
-@@ -184,8 +309,12 @@ static unsigned fill_balloon(struct virtio_balloon *vb, size_t num)
- 
- 	num_allocated_pages = vb->num_pfns;
- 	/* Did we get any? */
--	if (vb->num_pfns != 0)
--		tell_host(vb, vb->inflate_vq);
-+	if (vb->num_pfns) {
-+		if (use_sg)
-+			tell_host_sgs(vb, vb->inflate_vq, pfn_min, pfn_max);
-+		else
-+			tell_host(vb, vb->inflate_vq);
-+	}
- 	mutex_unlock(&vb->balloon_lock);
- 
- 	return num_allocated_pages;
-@@ -211,9 +340,12 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 	struct page *page;
- 	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
- 	LIST_HEAD(pages);
-+	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
-+	unsigned long pfn_max = 0, pfn_min = ULONG_MAX;
- 
--	/* We can only do one array worth at a time. */
--	num = min(num, ARRAY_SIZE(vb->pfns));
-+	/* Traditionally, we can only do one array worth at a time. */
-+	if (!use_sg)
-+		num = min(num, ARRAY_SIZE(vb->pfns));
- 
- 	mutex_lock(&vb->balloon_lock);
- 	/* We can't release more pages than taken */
-@@ -223,7 +355,14 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 		page = balloon_page_dequeue(vb_dev_info);
- 		if (!page)
- 			break;
--		set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-+		if (use_sg) {
-+			if (xb_set_page(vb, page, &pfn_min, &pfn_max) < 0) {
-+				balloon_page_enqueue(&vb->vb_dev_info, page);
-+				break;
-+			}
-+		} else {
-+			set_page_pfns(vb, vb->pfns + vb->num_pfns, page);
-+		}
- 		list_add(&page->lru, &pages);
- 		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
- 	}
-@@ -234,13 +373,55 @@ static unsigned leak_balloon(struct virtio_balloon *vb, size_t num)
- 	 * virtio_has_feature(vdev, VIRTIO_BALLOON_F_MUST_TELL_HOST);
- 	 * is true, we *have* to do it in this order
- 	 */
--	if (vb->num_pfns != 0)
--		tell_host(vb, vb->deflate_vq);
-+	if (vb->num_pfns) {
-+		if (use_sg)
-+			tell_host_sgs(vb, vb->deflate_vq, pfn_min, pfn_max);
-+		else
-+			tell_host(vb, vb->deflate_vq);
-+	}
- 	release_pages_balloon(vb, &pages);
- 	mutex_unlock(&vb->balloon_lock);
- 	return num_freed_pages;
- }
- 
-+/*
-+ * The regular leak_balloon() with VIRTIO_BALLOON_F_SG needs memory allocation
-+ * for xbitmap, which is not suitable for the oom case. This function does not
-+ * use xbitmap to chunk pages, so it can be used by oom notifier to deflate
-+ * pages when VIRTIO_BALLOON_F_SG is negotiated.
-+ */
-+static unsigned int leak_balloon_sg_oom(struct virtio_balloon *vb)
-+{
-+	unsigned int n;
-+	struct page *page;
-+	struct balloon_dev_info *vb_dev_info = &vb->vb_dev_info;
-+	struct virtqueue *vq = vb->deflate_vq;
-+	LIST_HEAD(pages);
-+
-+	mutex_lock(&vb->balloon_lock);
-+	for (n = 0; n < oom_pages; n++) {
-+		page = balloon_page_dequeue(vb_dev_info);
-+		if (!page)
-+			break;
-+
-+		list_add(&page->lru, &pages);
-+		vb->num_pages -= VIRTIO_BALLOON_PAGES_PER_PAGE;
-+		batch_balloon_page_sg(vb, vb->deflate_vq, page_to_pfn(page),
-+				      PAGE_SIZE);
-+		release_pages_balloon(vb, &pages);
-+	}
-+
-+	/*
-+	 * The last few sgs may not reach the batch size, but need a kick to
-+	 * notify the device to handle them.
-+	 */
-+	if (vq->num_free != virtqueue_get_vring_size(vq))
-+		kick_and_wait(vq, vb->acked);
-+	mutex_unlock(&vb->balloon_lock);
-+
-+	return n;
-+}
-+
- static inline void update_stat(struct virtio_balloon *vb, int idx,
- 			       u16 tag, u64 val)
- {
-@@ -380,7 +561,10 @@ static int virtballoon_oom_notify(struct notifier_block *self,
- 		return NOTIFY_OK;
- 
- 	freed = parm;
--	num_freed_pages = leak_balloon(vb, oom_pages);
-+	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG))
-+		num_freed_pages = leak_balloon_sg_oom(vb);
-+	else
-+		num_freed_pages = leak_balloon(vb, oom_pages);
- 	update_balloon_size(vb);
- 	*freed += num_freed_pages;
- 
-@@ -477,6 +661,7 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- {
- 	struct virtio_balloon *vb = container_of(vb_dev_info,
- 			struct virtio_balloon, vb_dev_info);
-+	bool use_sg = virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_SG);
- 	unsigned long flags;
- 
- 	/*
-@@ -498,16 +683,24 @@ static int virtballoon_migratepage(struct balloon_dev_info *vb_dev_info,
- 	vb_dev_info->isolated_pages--;
- 	__count_vm_event(BALLOON_MIGRATE);
- 	spin_unlock_irqrestore(&vb_dev_info->pages_lock, flags);
--	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
--	set_page_pfns(vb, vb->pfns, newpage);
--	tell_host(vb, vb->inflate_vq);
--
-+	if (use_sg) {
-+		add_one_sg(vb->inflate_vq, page_to_pfn(newpage), PAGE_SIZE);
-+		kick_and_wait(vb->inflate_vq, vb->acked);
-+	} else {
-+		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-+		set_page_pfns(vb, vb->pfns, newpage);
-+		tell_host(vb, vb->inflate_vq);
-+	}
- 	/* balloon's page migration 2nd step -- deflate "page" */
- 	balloon_page_delete(page);
--	vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
--	set_page_pfns(vb, vb->pfns, page);
--	tell_host(vb, vb->deflate_vq);
--
-+	if (use_sg) {
-+		add_one_sg(vb->deflate_vq, page_to_pfn(page), PAGE_SIZE);
-+		kick_and_wait(vb->deflate_vq, vb->acked);
-+	} else {
-+		vb->num_pfns = VIRTIO_BALLOON_PAGES_PER_PAGE;
-+		set_page_pfns(vb, vb->pfns, page);
-+		tell_host(vb, vb->deflate_vq);
-+	}
- 	mutex_unlock(&vb->balloon_lock);
- 
- 	put_page(page); /* balloon reference */
-@@ -566,6 +759,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
- 	if (err)
- 		goto out_free_vb;
- 
-+	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_SG))
-+		xb_init(&vb->page_xb);
-+
- 	vb->nb.notifier_call = virtballoon_oom_notify;
- 	vb->nb.priority = VIRTBALLOON_OOM_NOTIFY_PRIORITY;
- 	err = register_oom_notifier(&vb->nb);
-@@ -682,6 +878,7 @@ static unsigned int features[] = {
- 	VIRTIO_BALLOON_F_MUST_TELL_HOST,
- 	VIRTIO_BALLOON_F_STATS_VQ,
- 	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
-+	VIRTIO_BALLOON_F_SG,
- };
- 
- static struct virtio_driver virtio_balloon_driver = {
-diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
-index 343d7dd..37780a7 100644
---- a/include/uapi/linux/virtio_balloon.h
-+++ b/include/uapi/linux/virtio_balloon.h
-@@ -34,6 +34,7 @@
- #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0 /* Tell before reclaiming pages */
- #define VIRTIO_BALLOON_F_STATS_VQ	1 /* Memory Stats virtqueue */
- #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
-+#define VIRTIO_BALLOON_F_SG		3 /* Use sg instead of PFN lists */
- 
- /* Size of a PFN in the balloon interface. */
- #define VIRTIO_BALLOON_PFN_SHIFT 12
--- 
-2.7.4
+# cat /sys/block/mmc*/queue/max_segment_size
+65535
+65535
+65535
+65535
+# cat /sys/block/mmc*/queue/max_segments
+128
+128
+128
+128
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
