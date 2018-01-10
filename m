@@ -1,40 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f70.google.com (mail-pl0-f70.google.com [209.85.160.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D95586B025E
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 23:43:22 -0500 (EST)
-Received: by mail-pl0-f70.google.com with SMTP id q12so7092791plk.16
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 20:43:22 -0800 (PST)
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id l132si3793744pfc.202.2018.01.09.20.43.21
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 56C236B0033
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 00:53:46 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id r196so13505675itc.4
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 21:53:46 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id n3sor10608022iti.75.2018.01.09.21.53.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jan 2018 20:43:22 -0800 (PST)
-From: "Lu, Aaron" <aaron.lu@intel.com>
-Subject: Re: [aaron:for_lkp_skl_2sp2_test 151/225]
- drivers/net//ethernet/netronome/nfp/nfp_net_common.c:1188:116: error:
- '__GFP_COLD' undeclared
-Date: Wed, 10 Jan 2018 04:43:18 +0000
-Message-ID: <1515559436.32635.0.camel@intel.com>
-References: <201801100639.1FfQRG2U%fengguang.wu@intel.com>
-	 <1515548125.31639.2.camel@intel.com>
-	 <20180110044218.gq5nxa4cuvqpamlg@wfg-t540p.sh.intel.com>
-In-Reply-To: <20180110044218.gq5nxa4cuvqpamlg@wfg-t540p.sh.intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <971FF8CADCACD44B98DD08B7D996766A@intel.com>
-Content-Transfer-Encoding: base64
+        (Google Transport Security);
+        Tue, 09 Jan 2018 21:53:45 -0800 (PST)
+Date: Wed, 10 Jan 2018 14:53:38 +0900
+From: Minchan Kim <minchan@kernel.org>
+Subject: Re: [PATCH] zsmalloc: use U suffix for negative literals being
+ shifted
+Message-ID: <20180110055338.h3cs5hw7mzsdtcad@eng-minchan1.roam.corp.google.com>
+References: <1514082821-24256-1-git-send-email-nick.desaulniers@gmail.com>
+ <CAEwNFnC9FA44y1vCWmm=LEyQHjJC=Sd8GzbYgY6rS9h9i2HOiw@mail.gmail.com>
+ <CAHp75VdjBnd=yr9YDPvf0P-e6ofoJwi8d-iOehoP=vuj9rnB8w@mail.gmail.com>
+ <CAH7mPvj449dgjeLmWHHN9xTmM+4qXXrxM_2uQoBhcPPGgnhrSw@mail.gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAH7mPvj449dgjeLmWHHN9xTmM+4qXXrxM_2uQoBhcPPGgnhrSw@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wu, Fengguang" <fengguang.wu@intel.com>
-Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "mgorman@suse.de" <mgorman@suse.de>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Nick Desaulniers <nick.desaulniers@gmail.com>
+Cc: Andy Shevchenko <andy.shevchenko@gmail.com>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
 
-T24gV2VkLCAyMDE4LTAxLTEwIGF0IDEyOjQyICswODAwLCBGZW5nZ3VhbmcgV3Ugd3JvdGU6DQo+
-ID4gSSBqdXN0IHJlbW92ZWQgdGhlIGJyYW5jaCwgdGhlcmUgc2hvdWxkIGJlIG5vIG1vcmUgc3Vj
-aCByZXBvcnRzLg0KPiANCj4gVGhlIG90aGVyIG9wdGlvbiBpcyB0byBhZGQgInJmYyIgb3IgIlJG
-QyIgc29tZXdoZXJlIGluIHRoZSBicmFuY2gNCj4gbmFtZS4gSSdsbCBtYXJrIHN1Y2ggYnJhbmNo
-ZXMgYXMgcHJpdmF0ZSByZXBvcnRpbmcgb25lcy4NCg0KV2VsbCB0aGF0J3MgY29vbCwgdGhhbmtz
-IGEgbG90IQ==
+Hi Nick,
+
+On Mon, Jan 08, 2018 at 08:35:19PM -0800, Nick Desaulniers wrote:
+> On Sun, Jan 7, 2018 at 7:04 AM, Minchan Kim <minchan@kernel.org> wrote:
+> > Sorry for the delay. I have missed this until now. ;-(
+> 
+> No worries, figured patches would need a post holiday bump for review.
+> 
+> >
+> > On Sun, Dec 24, 2017 at 11:33 AM, Nick Desaulniers
+> > <nick.desaulniers@gmail.com> wrote:
+> >> -                       link->next = -1 << OBJ_TAG_BITS;
+> >> +                       link->next = -1U << OBJ_TAG_BITS;
+> >
+> > -1UL?
+> 
+> Oops, good catch.
+> 
+> > Please, resend it with including Andrew Morton
+> > <akpm@linux-foundation.org> who merges zsmalloc patch into his tree.
+> 
+> Will do.
+> 
+> On Sun, Jan 7, 2018 at 3:02 PM, Andy Shevchenko
+> <andy.shevchenko@gmail.com> wrote:
+> > Oh, boy, shouldn't be rather GENMASK() / GENMASK_ULL() in a way how
+> 
+> Thanks for the suggestion. `GENMASK(BITS_PER_LONG - 1, OBJ_TAG_BITS);`
+> is equivalent.  Whether that is more readable, I'll wait for Minchan
+> to decide.  If that's preferred, I'll make sure to credit you with the
+> Suggested-By tag in the commit message.
+
+I don't see any benefit with GENMASK in our usecase.
+If it's not a good justfication, I'd like to use just -1UL which
+would be more readable without effort to understand new API.
+
+Thanks.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
