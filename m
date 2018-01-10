@@ -1,118 +1,317 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A08B56B0038
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 20:34:53 -0500 (EST)
-Received: by mail-pl0-f69.google.com with SMTP id j3so79861pld.0
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 17:34:53 -0800 (PST)
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id k184si9816442pga.199.2018.01.09.17.34.51
+Received: from mail-ot0-f198.google.com (mail-ot0-f198.google.com [74.125.82.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0EE0B6B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 21:41:17 -0500 (EST)
+Received: by mail-ot0-f198.google.com with SMTP id t27so8486432otf.10
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 18:41:17 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id 9si4097101oic.271.2018.01.09.18.41.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 09 Jan 2018 17:34:51 -0800 (PST)
-From: "Lu, Aaron" <aaron.lu@intel.com>
-Subject: Re: [aaron:for_lkp_skl_2sp2_test 151/225]
- drivers/net//ethernet/netronome/nfp/nfp_net_common.c:1188:116: error:
- '__GFP_COLD' undeclared
-Date: Wed, 10 Jan 2018 01:34:47 +0000
-Message-ID: <1515548125.31639.2.camel@intel.com>
-References: <201801100639.1FfQRG2U%fengguang.wu@intel.com>
-In-Reply-To: <201801100639.1FfQRG2U%fengguang.wu@intel.com>
-Content-Language: en-US
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <A685F3E251DDEB4BA2D005786C7D26DF@intel.com>
-Content-Transfer-Encoding: base64
+        Tue, 09 Jan 2018 18:41:15 -0800 (PST)
+Date: Wed, 10 Jan 2018 10:40:53 +0800
+From: Ming Lei <ming.lei@redhat.com>
+Subject: Re: [PATCH V4 13/45] block: blk-merge: try to make front segments in
+ full size
+Message-ID: <20180110024046.GA18922@ming.t460p>
+References: <20171218122247.3488-1-ming.lei@redhat.com>
+ <20171218122247.3488-14-ming.lei@redhat.com>
+ <c3227c8f-c782-7685-c3eb-af558a082399@gmail.com>
+ <20180109023432.GB31067@ming.t460p>
+ <e816e626-b8b0-c14e-ba08-cafe76dcf233@gmail.com>
+ <20180109143339.GC4356@ming.t460p>
+ <be7f7e1b-88c8-54f5-37c3-672f8426c6ca@gmail.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <be7f7e1b-88c8-54f5-37c3-672f8426c6ca@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Wu, Fengguang" <fengguang.wu@intel.com>, "mgorman@suse.de" <mgorman@suse.de>
-Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
+To: Dmitry Osipenko <digetx@gmail.com>
+Cc: Jens Axboe <axboe@fb.com>, Christoph Hellwig <hch@infradead.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Kent Overstreet <kent.overstreet@gmail.com>, Huang Ying <ying.huang@intel.com>, linux-kernel@vger.kernel.org, linux-block@vger.kernel.org, linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Theodore Ts'o <tytso@mit.edu>, "Darrick J . Wong" <darrick.wong@oracle.com>, Coly Li <colyli@suse.de>, Filipe Manana <fdmanana@gmail.com>, Ulf Hansson <ulf.hansson@linaro.org>, linux-mmc@vger.kernel.org
 
-UGxlYXNlIGlnbm9yZSB0aGlzIGJ1aWxkIHJlcG9ydC4NCg0KSSB0aG91Z2h0IHRoZSByb2JvdCBo
-YXMgZG9uZSBpdHMgam9iIGJ1dCBsb29rcyBsaWtlIGl0IGlzIHN0aWxsDQpidWlsZGluZyB0aGF0
-IGJyYW5jaC4NCg0KSSBqdXN0IHJlbW92ZWQgdGhlIGJyYW5jaCwgdGhlcmUgc2hvdWxkIGJlIG5v
-IG1vcmUgc3VjaCByZXBvcnRzLg0KDQpPbiBXZWQsIDIwMTgtMDEtMTAgYXQgMDY6MzMgKzA4MDAs
-IGtidWlsZCB0ZXN0IHJvYm90IHdyb3RlOg0KPiB0cmVlOiAgIGFhcm9uL2Zvcl9sa3Bfc2tsXzJz
-cDJfdGVzdA0KPiBoZWFkOiAgIDZjOTM4MWI2NTg5MjIyMmNiZTIyMTRmYjIyYWY5MDQzZjljZTEw
-NjUNCj4gY29tbWl0OiBjZWJkMzk1MWFhYTY5MzZhMmRkNzBlOTI1YTVkNTY2N2I4OTZkYTIzIFsx
-NTEvMjI1XSBtbTogcmVtb3ZlIF9fR0ZQX0NPTEQNCj4gY29uZmlnOiBpMzg2LWFsbHllc2NvbmZp
-ZyAoYXR0YWNoZWQgYXMgLmNvbmZpZykNCj4gY29tcGlsZXI6IGdjYy03IChEZWJpYW4gNy4yLjAt
-MTIpIDcuMi4xIDIwMTcxMDI1DQo+IHJlcHJvZHVjZToNCj4gICAgICAgICBnaXQgY2hlY2tvdXQg
-Y2ViZDM5NTFhYWE2OTM2YTJkZDcwZTkyNWE1ZDU2NjdiODk2ZGEyMw0KPiAgICAgICAgICMgc2F2
-ZSB0aGUgYXR0YWNoZWQgLmNvbmZpZyB0byBsaW51eCBidWlsZCB0cmVlDQo+ICAgICAgICAgbWFr
-ZSBBUkNIPWkzODYgDQo+IA0KPiBBbGwgZXJyb3JzIChuZXcgb25lcyBwcmVmaXhlZCBieSA+Pik6
-DQo+IA0KPiAgICBkcml2ZXJzL25ldC8vZXRoZXJuZXQvbmV0cm9ub21lL25mcC9uZnBfbmV0X2Nv
-bW1vbi5jOiBJbiBmdW5jdGlvbiAnbmZwX25ldF9yeF9hbGxvY19vbmUnOg0KPiA+ID4gZHJpdmVy
-cy9uZXQvL2V0aGVybmV0L25ldHJvbm9tZS9uZnAvbmZwX25ldF9jb21tb24uYzoxMTg4OjExNjog
-ZXJyb3I6ICdfX0dGUF9DT0xEJyB1bmRlY2xhcmVkIChmaXJzdCB1c2UgaW4gdGhpcyBmdW5jdGlv
-bikNCj4gDQo+ICAgICAgIHBhZ2UgPSBhbGxvY19wYWdlKEdGUF9LRVJORUwgfCBfX0dGUF9DT0xE
-KTsNCj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICBeICAgICAgICAgDQo+ICAgIGRyaXZlcnMvbmV0Ly9ldGhlcm5ldC9uZXRyb25v
-bWUvbmZwL25mcF9uZXRfY29tbW9uLmM6MTE4ODoxMTY6IG5vdGU6IGVhY2ggdW5kZWNsYXJlZCBp
-ZGVudGlmaWVyIGlzIHJlcG9ydGVkIG9ubHkgb25jZSBmb3IgZWFjaCBmdW5jdGlvbiBpdCBhcHBl
-YXJzIGluDQo+ICAgIGRyaXZlcnMvbmV0Ly9ldGhlcm5ldC9uZXRyb25vbWUvbmZwL25mcF9uZXRf
-Y29tbW9uLmM6IEluIGZ1bmN0aW9uICduZnBfbmV0X25hcGlfYWxsb2Nfb25lJzoNCj4gICAgZHJp
-dmVycy9uZXQvL2V0aGVybmV0L25ldHJvbm9tZS9uZnAvbmZwX25ldF9jb21tb24uYzoxMjE1OjEw
-MzogZXJyb3I6ICdfX0dGUF9DT0xEJyB1bmRlY2xhcmVkIChmaXJzdCB1c2UgaW4gdGhpcyBmdW5j
-dGlvbikNCj4gICAgICAgcGFnZSA9IGFsbG9jX3BhZ2UoR0ZQX0FUT01JQyB8IF9fR0ZQX0NPTEQp
-Ow0KPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXiAg
-ICAgICAgIA0KPiANCj4gdmltICsvX19HRlBfQ09MRCArMTE4OCBkcml2ZXJzL25ldC8vZXRoZXJu
-ZXQvbmV0cm9ub21lL25mcC9uZnBfbmV0X2NvbW1vbi5jDQo+IA0KPiBlY2Q2M2EwMjE3IEpha3Vi
-IEtpY2luc2tpIDIwMTYtMTEtMDMgIDExNjkgIA0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tp
-IDIwMTUtMTItMDEgIDExNzAgIC8qKg0KPiBjMGYwMzFiYzg4IEpha3ViIEtpY2luc2tpIDIwMTYt
-MTAtMzEgIDExNzEgICAqIG5mcF9uZXRfcnhfYWxsb2Nfb25lKCkgLSBBbGxvY2F0ZSBhbmQgbWFw
-IHBhZ2UgZnJhZyBmb3IgUlgNCj4gNzgzNDk2YjBkZCBKYWt1YiBLaWNpbnNraSAyMDE3LTAzLTEw
-ICAxMTcyICAgKiBAZHA6CQlORlAgTmV0IGRhdGEgcGF0aCBzdHJ1Y3QNCj4gNGMzNTIzNjIzZCBK
-YWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTczICAgKiBAZG1hX2FkZHI6CVBvaW50ZXIgdG8g
-c3RvcmFnZSBmb3IgRE1BIGFkZHJlc3MgKG91dHB1dCBwYXJhbSkNCj4gNGMzNTIzNjIzZCBKYWt1
-YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTc0ICAgKg0KPiBjMGYwMzFiYzg4IEpha3ViIEtpY2lu
-c2tpIDIwMTYtMTAtMzEgIDExNzUgICAqIFRoaXMgZnVuY3Rpb24gd2lsbCBhbGxjYXRlIGEgbmV3
-IHBhZ2UgZnJhZywgbWFwIGl0IGZvciBETUEuDQo+IDRjMzUyMzYyM2QgSmFrdWIgS2ljaW5za2kg
-MjAxNS0xMi0wMSAgMTE3NiAgICoNCj4gYzBmMDMxYmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEw
-LTMxICAxMTc3ICAgKiBSZXR1cm46IGFsbG9jYXRlZCBwYWdlIGZyYWcgb3IgTlVMTCBvbiBmYWls
-dXJlLg0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExNzggICAqLw0K
-PiBkNzgwMDVhNTBmIEpha3ViIEtpY2luc2tpIDIwMTctMDQtMjcgIDExNzkgIHN0YXRpYyB2b2lk
-ICpuZnBfbmV0X3J4X2FsbG9jX29uZShzdHJ1Y3QgbmZwX25ldF9kcCAqZHAsIGRtYV9hZGRyX3Qg
-KmRtYV9hZGRyKQ0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExODAg
-IHsNCj4gYzBmMDMxYmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEwLTMxICAxMTgxICAJdm9pZCAq
-ZnJhZzsNCj4gNGMzNTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTgyICANCj4g
-NWYwY2EyZmI3MSBKYWt1YiBLaWNpbnNraSAyMDE3LTEwLTEwICAxMTgzICAJaWYgKCFkcC0+eGRw
-X3Byb2cpIHsNCj4gMjE5NWMyNjM3ZiBKYWt1YiBLaWNpbnNraSAyMDE3LTAzLTEwICAxMTg0ICAJ
-CWZyYWcgPSBuZXRkZXZfYWxsb2NfZnJhZyhkcC0+ZmxfYnVmc3opOw0KPiA1ZjBjYTJmYjcxIEph
-a3ViIEtpY2luc2tpIDIwMTctMTAtMTAgIDExODUgIAl9IGVsc2Ugew0KPiA1ZjBjYTJmYjcxIEph
-a3ViIEtpY2luc2tpIDIwMTctMTAtMTAgIDExODYgIAkJc3RydWN0IHBhZ2UgKnBhZ2U7DQo+IDVm
-MGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCAgMTE4NyAgDQo+IDVmMGNhMmZiNzEg
-SmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCBAMTE4OCAgCQlwYWdlID0gYWxsb2NfcGFnZShHRlBf
-S0VSTkVMIHwgX19HRlBfQ09MRCk7DQo+IDVmMGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0x
-MC0xMCAgMTE4OSAgCQlmcmFnID0gcGFnZSA/IHBhZ2VfYWRkcmVzcyhwYWdlKSA6IE5VTEw7DQo+
-IDVmMGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCAgMTE5MCAgCX0NCj4gYzBmMDMx
-YmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEwLTMxICAxMTkxICAJaWYgKCFmcmFnKSB7DQo+IDc5
-YzEyYTc1MmMgSmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5MiAgCQlubl9kcF93YXJuKGRw
-LCAiRmFpbGVkIHRvIGFsbG9jIHJlY2VpdmUgcGFnZSBmcmFnXG4iKTsNCj4gNGMzNTIzNjIzZCBK
-YWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTkzICAJCXJldHVybiBOVUxMOw0KPiA0YzM1MjM2
-MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExOTQgIAl9DQo+IDRjMzUyMzYyM2QgSmFr
-dWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTE5NSAgDQo+IGM0ODdlNmIxOTkgSmFrdWIgS2ljaW5z
-a2kgMjAxNy0wMy0xMCAgMTE5NiAgCSpkbWFfYWRkciA9IG5mcF9uZXRfZG1hX21hcF9yeChkcCwg
-ZnJhZyk7DQo+IDc5YzEyYTc1MmMgSmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5NyAgCWlm
-IChkbWFfbWFwcGluZ19lcnJvcihkcC0+ZGV2LCAqZG1hX2FkZHIpKSB7DQo+IDlkYzZiMTE2ZTIg
-SmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5OCAgCQluZnBfbmV0X2ZyZWVfZnJhZyhmcmFn
-LCBkcC0+eGRwX3Byb2cpOw0KPiA3OWMxMmE3NTJjIEpha3ViIEtpY2luc2tpIDIwMTctMDMtMTAg
-IDExOTkgIAkJbm5fZHBfd2FybihkcCwgIkZhaWxlZCB0byBtYXAgRE1BIFJYIGJ1ZmZlclxuIik7
-DQo+IDRjMzUyMzYyM2QgSmFrdWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTIwMCAgCQlyZXR1cm4g
-TlVMTDsNCj4gNGMzNTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMjAxICAJfQ0K
-PiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDEyMDIgIA0KPiBjMGYwMzFi
-Yzg4IEpha3ViIEtpY2luc2tpIDIwMTYtMTAtMzEgIDEyMDMgIAlyZXR1cm4gZnJhZzsNCj4gNGMz
-NTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMjA0ICB9DQo+IDRjMzUyMzYyM2Qg
-SmFrdWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTIwNSAgDQo+IA0KPiA6Ojo6OjogVGhlIGNvZGUg
-YXQgbGluZSAxMTg4IHdhcyBmaXJzdCBpbnRyb2R1Y2VkIGJ5IGNvbW1pdA0KPiA6Ojo6OjogNWYw
-Y2EyZmI3MWUyOGRmMTQ2ZjU5MGVlYmZlMzJiNDExNzFiNzM3ZiBuZnA6IGhhbmRsZSBwYWdlIGFs
-bG9jYXRpb24gZmFpbHVyZXMNCj4gDQo+IDo6Ojo6OiBUTzogSmFrdWIgS2ljaW5za2kgPGpha3Vi
-LmtpY2luc2tpQG5ldHJvbm9tZS5jb20+DQo+IDo6Ojo6OiBDQzogRGF2aWQgUy4gTWlsbGVyIDxk
-YXZlbUBkYXZlbWxvZnQubmV0Pg0KPiANCj4gLS0tDQo+IDAtREFZIGtlcm5lbCB0ZXN0IGluZnJh
-c3RydWN0dXJlICAgICAgICAgICAgICAgIE9wZW4gU291cmNlIFRlY2hub2xvZ3kgQ2VudGVyDQo+
-IGh0dHBzOi8vbGlzdHMuMDEub3JnL3BpcGVybWFpbC9rYnVpbGQtYWxsICAgICAgICAgICAgICAg
-ICAgIEludGVsIENvcnBvcmF0aW9u
+On Tue, Jan 09, 2018 at 08:02:53PM +0300, Dmitry Osipenko wrote:
+> On 09.01.2018 17:33, Ming Lei wrote:
+> > On Tue, Jan 09, 2018 at 04:18:39PM +0300, Dmitry Osipenko wrote:
+> >> On 09.01.2018 05:34, Ming Lei wrote:
+> >>> On Tue, Jan 09, 2018 at 12:09:27AM +0300, Dmitry Osipenko wrote:
+> >>>> On 18.12.2017 15:22, Ming Lei wrote:
+> >>>>> When merging one bvec into segment, if the bvec is too big
+> >>>>> to merge, current policy is to move the whole bvec into another
+> >>>>> new segment.
+> >>>>>
+> >>>>> This patchset changes the policy into trying to maximize size of
+> >>>>> front segments, that means in above situation, part of bvec
+> >>>>> is merged into current segment, and the remainder is put
+> >>>>> into next segment.
+> >>>>>
+> >>>>> This patch prepares for support multipage bvec because
+> >>>>> it can be quite common to see this case and we should try
+> >>>>> to make front segments in full size.
+> >>>>>
+> >>>>> Signed-off-by: Ming Lei <ming.lei@redhat.com>
+> >>>>> ---
+> >>>>>  block/blk-merge.c | 54 +++++++++++++++++++++++++++++++++++++++++++++++++-----
+> >>>>>  1 file changed, 49 insertions(+), 5 deletions(-)
+> >>>>>
+> >>>>> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> >>>>> index a476337a8ff4..42ceb89bc566 100644
+> >>>>> --- a/block/blk-merge.c
+> >>>>> +++ b/block/blk-merge.c
+> >>>>> @@ -109,6 +109,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >>>>>  	bool do_split = true;
+> >>>>>  	struct bio *new = NULL;
+> >>>>>  	const unsigned max_sectors = get_max_io_size(q, bio);
+> >>>>> +	unsigned advance = 0;
+> >>>>>  
+> >>>>>  	bio_for_each_segment(bv, bio, iter) {
+> >>>>>  		/*
+> >>>>> @@ -134,12 +135,32 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >>>>>  		}
+> >>>>>  
+> >>>>>  		if (bvprvp && blk_queue_cluster(q)) {
+> >>>>> -			if (seg_size + bv.bv_len > queue_max_segment_size(q))
+> >>>>> -				goto new_segment;
+> >>>>>  			if (!BIOVEC_PHYS_MERGEABLE(bvprvp, &bv))
+> >>>>>  				goto new_segment;
+> >>>>>  			if (!BIOVEC_SEG_BOUNDARY(q, bvprvp, &bv))
+> >>>>>  				goto new_segment;
+> >>>>> +			if (seg_size + bv.bv_len > queue_max_segment_size(q)) {
+> >>>>> +				/*
+> >>>>> +				 * On assumption is that initial value of
+> >>>>> +				 * @seg_size(equals to bv.bv_len) won't be
+> >>>>> +				 * bigger than max segment size, but will
+> >>>>> +				 * becomes false after multipage bvec comes.
+> >>>>> +				 */
+> >>>>> +				advance = queue_max_segment_size(q) - seg_size;
+> >>>>> +
+> >>>>> +				if (advance > 0) {
+> >>>>> +					seg_size += advance;
+> >>>>> +					sectors += advance >> 9;
+> >>>>> +					bv.bv_len -= advance;
+> >>>>> +					bv.bv_offset += advance;
+> >>>>> +				}
+> >>>>> +
+> >>>>> +				/*
+> >>>>> +				 * Still need to put remainder of current
+> >>>>> +				 * bvec into a new segment.
+> >>>>> +				 */
+> >>>>> +				goto new_segment;
+> >>>>> +			}
+> >>>>>  
+> >>>>>  			seg_size += bv.bv_len;
+> >>>>>  			bvprv = bv;
+> >>>>> @@ -161,6 +182,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >>>>>  		seg_size = bv.bv_len;
+> >>>>>  		sectors += bv.bv_len >> 9;
+> >>>>>  
+> >>>>> +		/* restore the bvec for iterator */
+> >>>>> +		if (advance) {
+> >>>>> +			bv.bv_len += advance;
+> >>>>> +			bv.bv_offset -= advance;
+> >>>>> +			advance = 0;
+> >>>>> +		}
+> >>>>>  	}
+> >>>>>  
+> >>>>>  	do_split = false;
+> >>>>> @@ -361,16 +388,29 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >>>>>  {
+> >>>>>  
+> >>>>>  	int nbytes = bvec->bv_len;
+> >>>>> +	unsigned advance = 0;
+> >>>>>  
+> >>>>>  	if (*sg && *cluster) {
+> >>>>> -		if ((*sg)->length + nbytes > queue_max_segment_size(q))
+> >>>>> -			goto new_segment;
+> >>>>> -
+> >>>>>  		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+> >>>>>  			goto new_segment;
+> >>>>>  		if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bvec))
+> >>>>>  			goto new_segment;
+> >>>>>  
+> >>>>> +		/*
+> >>>>> +		 * try best to merge part of the bvec into previous
+> >>>>> +		 * segment and follow same policy with
+> >>>>> +		 * blk_bio_segment_split()
+> >>>>> +		 */
+> >>>>> +		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+> >>>>> +			advance = queue_max_segment_size(q) - (*sg)->length;
+> >>>>> +			if (advance) {
+> >>>>> +				(*sg)->length += advance;
+> >>>>> +				bvec->bv_offset += advance;
+> >>>>> +				bvec->bv_len -= advance;
+> >>>>> +			}
+> >>>>> +			goto new_segment;
+> >>>>> +		}
+> >>>>> +
+> >>>>>  		(*sg)->length += nbytes;
+> >>>>>  	} else {
+> >>>>>  new_segment:
+> >>>>> @@ -393,6 +433,10 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >>>>>  
+> >>>>>  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+> >>>>>  		(*nsegs)++;
+> >>>>> +
+> >>>>> +		/* for making iterator happy */
+> >>>>> +		bvec->bv_offset -= advance;
+> >>>>> +		bvec->bv_len += advance;
+> >>>>>  	}
+> >>>>>  	*bvprv = *bvec;
+> >>>>>  }
+> >>>>>
+> >>>>
+> >>>> Hello,
+> >>>>
+> >>>> This patch breaks MMC on next-20180108, in particular MMC doesn't work anymore
+> >>>> with this patch on NVIDIA Tegra20:
+> >>>>
+> >>>> <3>[   36.622253] print_req_error: I/O error, dev mmcblk1, sector 512
+> >>>> <3>[   36.671233] print_req_error: I/O error, dev mmcblk2, sector 128
+> >>>> <3>[   36.711308] print_req_error: I/O error, dev mmcblk1, sector 31325304
+> >>>> <3>[   36.749232] print_req_error: I/O error, dev mmcblk2, sector 512
+> >>>> <3>[   36.761235] print_req_error: I/O error, dev mmcblk1, sector 31325816
+> >>>> <3>[   36.832039] print_req_error: I/O error, dev mmcblk2, sector 31259768
+> >>>> <3>[   99.793248] print_req_error: I/O error, dev mmcblk1, sector 31323136
+> >>>> <3>[   99.982043] print_req_error: I/O error, dev mmcblk1, sector 929792
+> >>>> <3>[   99.986301] print_req_error: I/O error, dev mmcblk1, sector 930816
+> >>>> <3>[  100.293624] print_req_error: I/O error, dev mmcblk1, sector 932864
+> >>>> <3>[  100.466839] print_req_error: I/O error, dev mmcblk1, sector 947200
+> >>>> <3>[  100.642955] print_req_error: I/O error, dev mmcblk1, sector 949248
+> >>>> <3>[  100.818838] print_req_error: I/O error, dev mmcblk1, sector 230400
+> >>>>
+> >>>> Any attempt of mounting MMC block dev ends with a kernel crash. Reverting this
+> >>>> patch fixes the issue.
+> >>>
+> >>> Hi Dmitry,
+> >>>
+> >>> Thanks for your report!
+> >>>
+> >>> Could you share us what the segment limits are on your MMC?
+> >>>
+> >>> 	cat /sys/block/mmcN/queue/max_segment_size
+> >>> 	cat /sys/block/mmcN/queue/max_segments
+> >>>
+> >>> Please test the following patch to see if your issue can be fixed?
+> >>>
+> >>> ---
+> >>> diff --git a/block/blk-merge.c b/block/blk-merge.c
+> >>> index 446f63e076aa..cfab36c26608 100644
+> >>> --- a/block/blk-merge.c
+> >>> +++ b/block/blk-merge.c
+> >>> @@ -431,12 +431,14 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >>>  
+> >>>  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+> >>>  		(*nsegs)++;
+> >>> +	}
+> >>>  
+> >>> +	*bvprv = *bvec;
+> >>> +	if (advance) {
+> >>>  		/* for making iterator happy */
+> >>>  		bvec->bv_offset -= advance;
+> >>>  		bvec->bv_len += advance;
+> >>>  	}
+> >>> -	*bvprv = *bvec;
+> >>>  }
+> >>>  
+> >>>  static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+> >>
+> >> Hi Ming,
+> >>
+> >> I've tried your patch and unfortunately it doesn't help with the issue.
+> >>
+> >> Here are the segment limits:
+> >>
+> >> # cat /sys/block/mmc*/queue/max_segment_size
+> >> 65535
+> > 
+> > Hi Dmitry,
+> > 
+> > The 'max_segment_size' of 65535 should be the reason, could you test the
+> > following patch?
+> > 
+> > ---
+> > diff --git a/block/blk-merge.c b/block/blk-merge.c
+> > index 446f63e076aa..38a66e3e678e 100644
+> > --- a/block/blk-merge.c
+> > +++ b/block/blk-merge.c
+> > @@ -12,6 +12,8 @@
+> >  
+> >  #include "blk.h"
+> >  
+> > +#define sector_align(x)   ALIGN_DOWN(x, 512)
+> > +
+> >  static struct bio *blk_bio_discard_split(struct request_queue *q,
+> >  					 struct bio *bio,
+> >  					 struct bio_set *bs,
+> > @@ -109,7 +111,7 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  	bool do_split = true;
+> >  	struct bio *new = NULL;
+> >  	const unsigned max_sectors = get_max_io_size(q, bio);
+> > -	unsigned advance = 0;
+> > +	int advance = 0;
+> >  
+> >  	bio_for_each_segment(bv, bio, iter) {
+> >  		/*
+> > @@ -144,8 +146,9 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
+> >  				 * bigger than max segment size, but this
+> >  				 * becomes false after multipage bvecs.
+> >  				 */
+> > -				advance = queue_max_segment_size(q) - seg_size;
+> > -
+> > +				advance = sector_align(
+> > +						queue_max_segment_size(q) -
+> > +						seg_size);
+> >  				if (advance > 0) {
+> >  					seg_size += advance;
+> >  					sectors += advance >> 9;
+> > @@ -386,7 +389,7 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >  {
+> >  
+> >  	int nbytes = bvec->bv_len;
+> > -	unsigned advance = 0;
+> > +	int advance = 0;
+> >  
+> >  	if (*sg && *cluster) {
+> >  		if (!BIOVEC_PHYS_MERGEABLE(bvprv, bvec))
+> > @@ -400,8 +403,9 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >  		 * blk_bio_segment_split()
+> >  		 */
+> >  		if ((*sg)->length + nbytes > queue_max_segment_size(q)) {
+> > -			advance = queue_max_segment_size(q) - (*sg)->length;
+> > -			if (advance) {
+> > +			advance = sector_align(queue_max_segment_size(q) -
+> > +					(*sg)->length);
+> > +			if (advance > 0) {
+> >  				(*sg)->length += advance;
+> >  				bvec->bv_offset += advance;
+> >  				bvec->bv_len -= advance;
+> > @@ -431,12 +435,14 @@ __blk_segment_map_sg(struct request_queue *q, struct bio_vec *bvec,
+> >  
+> >  		sg_set_page(*sg, bvec->bv_page, nbytes, bvec->bv_offset);
+> >  		(*nsegs)++;
+> > +	}
+> >  
+> > +	*bvprv = *bvec;
+> > +	if (advance > 0) {
+> >  		/* for making iterator happy */
+> >  		bvec->bv_offset -= advance;
+> >  		bvec->bv_len += advance;
+> >  	}
+> > -	*bvprv = *bvec;
+> >  }
+> >  
+> >  static inline int __blk_bvec_map_sg(struct request_queue *q, struct bio_vec bv,
+> 
+> This patch doesn't help either.
+
+OK, I will send a revert later.
+
+Thinking of the patch further, we don't need this kind of logic for
+multipage bvec at all since almost all bvecs won't be contiguous if
+bio_add_page() is used after multipage bvec is enabled.
+
+Thanks,
+Ming
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
