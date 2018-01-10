@@ -1,57 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qt0-f197.google.com (mail-qt0-f197.google.com [209.85.216.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F7346B0033
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 09:05:51 -0500 (EST)
-Received: by mail-qt0-f197.google.com with SMTP id e2so13907564qti.3
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 06:05:51 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id y24sor11609756qty.124.2018.01.10.06.05.50
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 0AF876B0033
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 10:25:24 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id z39so9944255ita.1
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 07:25:24 -0800 (PST)
+Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
+        by mx.google.com with ESMTPS id o87si11165337ioi.189.2018.01.10.07.25.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 10 Jan 2018 06:05:50 -0800 (PST)
-Date: Wed, 10 Jan 2018 06:05:47 -0800
-From: Tejun Heo <tj@kernel.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
-References: <20180110132418.7080-1-pmladek@suse.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 10 Jan 2018 07:25:22 -0800 (PST)
+Date: Wed, 10 Jan 2018 09:25:20 -0600 (CST)
+From: Christopher Lameter <cl@linux.com>
+Subject: Re: [PATCH 02/36] usercopy: Include offset in overflow report
+In-Reply-To: <1515531365-37423-3-git-send-email-keescook@chromium.org>
+Message-ID: <alpine.DEB.2.20.1801100921000.7926@nuc-kabylake>
+References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-3-git-send-email-keescook@chromium.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180110132418.7080-1-pmladek@suse.com>
+Content-Type: text/plain; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Petr Mladek <pmladek@suse.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On Wed, Jan 10, 2018 at 02:24:16PM +0100, Petr Mladek wrote:
-> This is the last version of Steven's console owner/waiter logic.
-> Plus my proposal to hide it into 3 helper functions. It is supposed
-> to keep the code maintenable.
-> 
-> The handshake really works. It happens about 10-times even during
-> boot of a simple system in qemu with a fast console here. It is
-> definitely able to avoid some softlockups. Let's see if it is
-> enough in practice.
-> 
-> From my point of view, it is ready to go into linux-next so that
-> it can get some more test coverage.
-> 
-> Steven's patch is the v4, see
-> https://lkml.kernel.org/r/20171108102723.602216b1@gandalf.local.home
+On Tue, 9 Jan 2018, Kees Cook wrote:
 
-At least for now,
+> -static void report_usercopy(unsigned long len, bool to_user, const char *type)
+> +int report_usercopy(const char *name, const char *detail, bool to_user,
+> +		    unsigned long offset, unsigned long len)
+>  {
+> -	pr_emerg("kernel memory %s attempt detected %s '%s' (%lu bytes)\n",
+> +	pr_emerg("kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)\n",
+>  		to_user ? "exposure" : "overwrite",
+> -		to_user ? "from" : "to", type ? : "unknown", len);
+> +		to_user ? "from" : "to",
+> +		name ? : "unknown?!",
+> +		detail ? " '" : "", detail ? : "", detail ? "'" : "",
+> +		offset, len);
+>  	/*
+>  	 * For greater effect, it would be nice to do do_group_exit(),
+>  	 * but BUG() actually hooks all the lock-breaking and per-arch
+>  	 * Oops code, so that is used here instead.
+>  	 */
+>  	BUG();
 
- Nacked-by: Tejun Heo <tj@kernel.org>
+Should this be a WARN() or so? Or some configuration that changes
+BUG() behavior? Otherwise
 
-Maybe this can be a part of solution but it's really worrying how the
-whole discussion around this subject is proceeding.  You guys are
-trying to railroad actual problems.  Please address actual technical
-problems.
+> +
+> +	return -1;
 
-Thanks.
+This return code will never be returned.
 
--- 
-tejun
+Why a return code at all? Maybe I will see that in the following patches?
+
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
