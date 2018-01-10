@@ -1,212 +1,118 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D6EA46B0038
-	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 19:57:57 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id a2so17489273ioc.12
-        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 16:57:57 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id l73sor8592088ita.91.2018.01.09.16.57.56
+Received: from mail-pl0-f69.google.com (mail-pl0-f69.google.com [209.85.160.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A08B56B0038
+	for <linux-mm@kvack.org>; Tue,  9 Jan 2018 20:34:53 -0500 (EST)
+Received: by mail-pl0-f69.google.com with SMTP id j3so79861pld.0
+        for <linux-mm@kvack.org>; Tue, 09 Jan 2018 17:34:53 -0800 (PST)
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id k184si9816442pga.199.2018.01.09.17.34.51
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 09 Jan 2018 16:57:56 -0800 (PST)
-Date: Tue, 9 Jan 2018 16:57:53 -0800 (PST)
-From: David Rientjes <rientjes@google.com>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-In-Reply-To: <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org>
-Message-ID: <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com>
-References: <20171130152824.1591-1-guro@fb.com> <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 09 Jan 2018 17:34:51 -0800 (PST)
+From: "Lu, Aaron" <aaron.lu@intel.com>
+Subject: Re: [aaron:for_lkp_skl_2sp2_test 151/225]
+ drivers/net//ethernet/netronome/nfp/nfp_net_common.c:1188:116: error:
+ '__GFP_COLD' undeclared
+Date: Wed, 10 Jan 2018 01:34:47 +0000
+Message-ID: <1515548125.31639.2.camel@intel.com>
+References: <201801100639.1FfQRG2U%fengguang.wu@intel.com>
+In-Reply-To: <201801100639.1FfQRG2U%fengguang.wu@intel.com>
+Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <A685F3E251DDEB4BA2D005786C7D26DF@intel.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: TEXT/PLAIN; charset=US-ASCII
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Roman Gushchin <guro@fb.com>, linux-mm@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: "Wu, Fengguang" <fengguang.wu@intel.com>, "mgorman@suse.de" <mgorman@suse.de>
+Cc: "kbuild-all@01.org" <kbuild-all@01.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "akpm@linux-foundation.org" <akpm@linux-foundation.org>
 
-On Thu, 30 Nov 2017, Andrew Morton wrote:
-
-> > This patchset makes the OOM killer cgroup-aware.
-> 
-> Thanks, I'll grab these.
-> 
-> There has been controversy over this patchset, to say the least.  I
-> can't say that I followed it closely!  Could those who still have
-> reservations please summarise their concerns and hopefully suggest a
-> way forward?
-> 
-
-Yes, I'll summarize what my concerns have been in the past and what they 
-are wrt the patchset as it stands in -mm.  None of them originate from my 
-current usecase or anticipated future usecase of the oom killer for 
-system-wide or memcg-constrained oom conditions.  They are based purely on 
-the patchset's use of an incomplete and unfair heuristic for deciding 
-which cgroup to target.
-
-I'll also suggest simple changes to the patchset, which I have in the 
-past, that can be made to address all of these concerns.
-
-1. The unfair comparison of the root mem cgroup vs leaf mem cgroups
-
-The patchset uses two different heuristics to compare root and leaf mem 
-cgroups and scores them based on number of pages.  For the root mem 
-cgroup, it totals the /proc/pid/oom_score of all processes attached: 
-that's based on rss, swap, pgtables, and, most importantly, oom_score_adj.  
-For leaf mem cgroups, it's based on that memcg's anonymous, unevictable, 
-unreclaimable slab, kernel stack, and swap counters.  These can be wildly 
-different independent of /proc/pid/oom_score_adj, but the most obvious 
-unfairness comes from users who tune oom_score_adj.
-
-An example: start a process that faults 1GB of anonymous memory and leave 
-it attached to the root mem cgroup.  Start six more processes that each 
-fault 1GB of anonymous memory and attached them to a leaf mem cgroup.  Set 
-all processes to have /proc/pid/oom_score_adj of 1000.  System oom kill 
-will always kill the 1GB process attached to the root mem cgroup.  It's 
-because oom_badness() relies on /proc/pid/oom_score_adj, which is used to 
-evaluate the root mem cgroup, and leaf mem cgroups completely disregard 
-it.
-
-In this example, the leaf mem cgroup's score is 1,573,044, the number of 
-pages for the 6GB of faulted memory.  The root mem cgroup's score is 
-12,652,907, eight times larger even though its usage is six times smaller.
-
-This is caused by the patchset disregarding oom_score_adj entirely for 
-leaf mem cgroups and relying on it heavily for the root mem cgroup.  It's 
-the complete opposite result of what the cgroup aware oom killer 
-advertises.
-
-It also works the other way, if a large memory hog is attached to the root 
-mem cgroup but has a negative oom_score_adj it is never killed and random 
-processes are nuked solely because they happened to be attached to a leaf 
-mem cgroup.  This behavior wrt oom_score_adj is completely undocumented, 
-so I can't presume that it is either known nor tested.
-
-Solution: compare the root mem cgroup and leaf mem cgroups equally with 
-the same criteria by doing hierarchical accounting of usage and 
-subtracting from total system usage to find root usage.
-
-2. Evading the oom killer by attaching processes to child cgroups
-
-Any cgroup on the system can attach all their processes to individual 
-child cgroups.  This is functionally the same as doing
-
-	for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
-
-without the no internal process constraint introduced with cgroup v2.  All 
-child cgroups are evaluated based on their own usage: all anon, 
-unevictable, and unreclaimable slab as described previously.  It requires 
-an individual cgroup to be the single largest consumer to be targeted by 
-the oom killer.
-
-An example: allow users to manage two different mem cgroup hierarchies 
-limited to 100GB each.  User A uses 10GB of memory and user B uses 90GB of 
-memory in their respective hierarchies.  On a system oom condition, we'd 
-expect at least one process from user B's hierarchy would always be oom 
-killed with the cgroup aware oom killer.  In fact, the changelog 
-explicitly states it solves an issue where "1) There is no fairness 
-between containers. A small container with few large processes will be 
-chosen over a large one with huge number of small processes."
-
-The opposite becomes true, however, if user B creates child cgroups and 
-distributes its processes such that each child cgroup's usage never 
-exceeds 10GB of memory.  This can either be done intentionally to 
-purposefully have a low cgroup memory footprint to evade the oom killer or 
-unintentionally with cgroup v2 to allow those individual processes to be 
-constrained by other cgroups in a single hierarchy model.  User A, using 
-10% of his memory limit, is always oom killed instead of user B, using 90% 
-of his memory limit.
-
-Others have commented its still possible to do this with a per-process 
-model if users split their processes into many subprocesses with small 
-memory footprints.
-
-Solution: comparing cgroups must be done hierarchically.  Neither user A 
-nor user B can evade the oom killer because targeting is done based on the 
-total hierarchical usage rather than individual cgroups in their 
-hierarchies.
-
-3. Userspace has zero control over oom kill selection in leaf mem cgroups
-
-Unlike using /proc/pid/oom_score_adj to bias or prefer certain processes 
-from the oom killer, the cgroup aware oom killer does not provide any 
-solution for the user to protect leaf mem cgroups.  This is a result of 
-leaf mem cgroups being evaluated based on their anon, unevictable, and 
-unreclaimable slab usage and disregarding any user tunable.
-
-Absent the cgroup aware oom killer, users have the ability to strongly 
-prefer a process is oom killed (/proc/pid/oom_score_adj = 1000) or 
-strongly bias against a process (/proc/pid/oom_score_adj = -999).
-
-An example: a process knows its going to use a lot of memory, so it sets 
-/proc/self/oom_score_adj to 1000.  It wants to be killed first to avoid 
-distrupting any other process.  If it's attached to the root mem cgroup, 
-it will be oom killed.  If it's attached to a leaf mem cgroup by an admin 
-outside its control, it will never be oom killed unless that cgroup's 
-usage is the largest single cgroup usage on the system.  The reverse also 
-is true for processes that the admin does not want to be oom killed: set 
-/proc/pid/oom_score_adj to -999, but it will *always* be oom killed if its 
-cgroup has the highest usage on the system.
-
-The result is that both admins and users have lost all control over which 
-processes are oom killed.  They are left with only one alternative: set 
-/proc/pid/oom_score_adj to -1000 to completely disable a process from oom 
-kill.  It doesn't address the issue at all for memcg-constrained oom 
-conditions since no processes are killable anymore, and risks panicking 
-the system if it is the only process left on the system.  A process 
-preferring that it is first in line for oom kill simply cannot volunteer 
-anymore.
-
-Solution: allow users and admins to control oom kill selection by 
-introducing a memory.oom_score_adj to affect the oom score of that mem 
-cgroup, exactly the same as /proc/pid/oom_score_adj affects the oom score 
-of a process.
-
-
-I proposed a solution in 
-https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
-responded to, for all of these issues.  The idea is to do hierarchical 
-accounting of mem cgroup hierarchies so that the hierarchy is traversed 
-comparing total usage at each level to select target cgroups.  Admins and 
-users can use memory.oom_score_adj to influence that decisionmaking at 
-each level.
-
-This solves #1 because mem cgroups can be compared based on the same 
-classes of memory and the root mem cgroup's usage can be fairly compared 
-by subtracting top-level mem cgroup usage from system usage.  All of the 
-criteria used to evaluate a leaf mem cgroup has a reasonable system-wide 
-counterpart that can be used to do the simple subtraction.
-
-This solves #2 because evaluation is done hierarchically so that 
-distributing processes over a set of child cgroups either intentionally 
-or unintentionally no longer evades the oom killer.  Total usage is always 
-accounted to the parent and there is no escaping this criteria for users.
-
-This solves #3 because it allows admins to protect important processes in 
-cgroups that are supposed to use, for example, 75% of system memory 
-without it unconditionally being selected for oom kill but still oom kill 
-if it exceeds a certain threshold.  In this sense, the cgroup aware oom 
-killer, as currently implemented, is selling mem cgroups short by 
-requiring the user to accept that the important process will be oom killed 
-iff it uses mem cgroups and isn't attached to root.  It also allows users 
-to actually volunteer to be oom killed first without majority usage.
-
-It has come up time and time again that this support can be introduced on 
-top of the cgroup oom killer as implemented.  It simply cannot.  For 
-admins and users to have control over decisionmaking, it needs a 
-oom_score_adj type tunable that cannot change semantics from kernel 
-version to kernel version and without polluting the mem cgroup filesystem.  
-That, in my suggestion, is an adjustment on the amount of total 
-hierarchical usage of each mem cgroup at each level of the hierarchy.  
-That requires that the heuristic uses hierarchical usage rather than 
-considering each cgroup as independent consumers as it does today.  We 
-need to implement that heuristic and introduce userspace influence over 
-oom kill selection now rather than later because its implementation 
-changes how this patchset is implemented.
-
-I can implement these changes, if preferred, on top of the current 
-patchset, but I do not believe we want inconsistencies between kernel 
-versions that introduce user visible changes for the sole reason that this 
-current implementation is incomplete and unfair.  We can implement and 
-introduce it once without behavior changing later because the core 
-heuristic has necessarily changed.
+UGxlYXNlIGlnbm9yZSB0aGlzIGJ1aWxkIHJlcG9ydC4NCg0KSSB0aG91Z2h0IHRoZSByb2JvdCBo
+YXMgZG9uZSBpdHMgam9iIGJ1dCBsb29rcyBsaWtlIGl0IGlzIHN0aWxsDQpidWlsZGluZyB0aGF0
+IGJyYW5jaC4NCg0KSSBqdXN0IHJlbW92ZWQgdGhlIGJyYW5jaCwgdGhlcmUgc2hvdWxkIGJlIG5v
+IG1vcmUgc3VjaCByZXBvcnRzLg0KDQpPbiBXZWQsIDIwMTgtMDEtMTAgYXQgMDY6MzMgKzA4MDAs
+IGtidWlsZCB0ZXN0IHJvYm90IHdyb3RlOg0KPiB0cmVlOiAgIGFhcm9uL2Zvcl9sa3Bfc2tsXzJz
+cDJfdGVzdA0KPiBoZWFkOiAgIDZjOTM4MWI2NTg5MjIyMmNiZTIyMTRmYjIyYWY5MDQzZjljZTEw
+NjUNCj4gY29tbWl0OiBjZWJkMzk1MWFhYTY5MzZhMmRkNzBlOTI1YTVkNTY2N2I4OTZkYTIzIFsx
+NTEvMjI1XSBtbTogcmVtb3ZlIF9fR0ZQX0NPTEQNCj4gY29uZmlnOiBpMzg2LWFsbHllc2NvbmZp
+ZyAoYXR0YWNoZWQgYXMgLmNvbmZpZykNCj4gY29tcGlsZXI6IGdjYy03IChEZWJpYW4gNy4yLjAt
+MTIpIDcuMi4xIDIwMTcxMDI1DQo+IHJlcHJvZHVjZToNCj4gICAgICAgICBnaXQgY2hlY2tvdXQg
+Y2ViZDM5NTFhYWE2OTM2YTJkZDcwZTkyNWE1ZDU2NjdiODk2ZGEyMw0KPiAgICAgICAgICMgc2F2
+ZSB0aGUgYXR0YWNoZWQgLmNvbmZpZyB0byBsaW51eCBidWlsZCB0cmVlDQo+ICAgICAgICAgbWFr
+ZSBBUkNIPWkzODYgDQo+IA0KPiBBbGwgZXJyb3JzIChuZXcgb25lcyBwcmVmaXhlZCBieSA+Pik6
+DQo+IA0KPiAgICBkcml2ZXJzL25ldC8vZXRoZXJuZXQvbmV0cm9ub21lL25mcC9uZnBfbmV0X2Nv
+bW1vbi5jOiBJbiBmdW5jdGlvbiAnbmZwX25ldF9yeF9hbGxvY19vbmUnOg0KPiA+ID4gZHJpdmVy
+cy9uZXQvL2V0aGVybmV0L25ldHJvbm9tZS9uZnAvbmZwX25ldF9jb21tb24uYzoxMTg4OjExNjog
+ZXJyb3I6ICdfX0dGUF9DT0xEJyB1bmRlY2xhcmVkIChmaXJzdCB1c2UgaW4gdGhpcyBmdW5jdGlv
+bikNCj4gDQo+ICAgICAgIHBhZ2UgPSBhbGxvY19wYWdlKEdGUF9LRVJORUwgfCBfX0dGUF9DT0xE
+KTsNCj4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICBeICAgICAgICAgDQo+ICAgIGRyaXZlcnMvbmV0Ly9ldGhlcm5ldC9uZXRyb25v
+bWUvbmZwL25mcF9uZXRfY29tbW9uLmM6MTE4ODoxMTY6IG5vdGU6IGVhY2ggdW5kZWNsYXJlZCBp
+ZGVudGlmaWVyIGlzIHJlcG9ydGVkIG9ubHkgb25jZSBmb3IgZWFjaCBmdW5jdGlvbiBpdCBhcHBl
+YXJzIGluDQo+ICAgIGRyaXZlcnMvbmV0Ly9ldGhlcm5ldC9uZXRyb25vbWUvbmZwL25mcF9uZXRf
+Y29tbW9uLmM6IEluIGZ1bmN0aW9uICduZnBfbmV0X25hcGlfYWxsb2Nfb25lJzoNCj4gICAgZHJp
+dmVycy9uZXQvL2V0aGVybmV0L25ldHJvbm9tZS9uZnAvbmZwX25ldF9jb21tb24uYzoxMjE1OjEw
+MzogZXJyb3I6ICdfX0dGUF9DT0xEJyB1bmRlY2xhcmVkIChmaXJzdCB1c2UgaW4gdGhpcyBmdW5j
+dGlvbikNCj4gICAgICAgcGFnZSA9IGFsbG9jX3BhZ2UoR0ZQX0FUT01JQyB8IF9fR0ZQX0NPTEQp
+Ow0KPiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
+ICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgXiAg
+ICAgICAgIA0KPiANCj4gdmltICsvX19HRlBfQ09MRCArMTE4OCBkcml2ZXJzL25ldC8vZXRoZXJu
+ZXQvbmV0cm9ub21lL25mcC9uZnBfbmV0X2NvbW1vbi5jDQo+IA0KPiBlY2Q2M2EwMjE3IEpha3Vi
+IEtpY2luc2tpIDIwMTYtMTEtMDMgIDExNjkgIA0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tp
+IDIwMTUtMTItMDEgIDExNzAgIC8qKg0KPiBjMGYwMzFiYzg4IEpha3ViIEtpY2luc2tpIDIwMTYt
+MTAtMzEgIDExNzEgICAqIG5mcF9uZXRfcnhfYWxsb2Nfb25lKCkgLSBBbGxvY2F0ZSBhbmQgbWFw
+IHBhZ2UgZnJhZyBmb3IgUlgNCj4gNzgzNDk2YjBkZCBKYWt1YiBLaWNpbnNraSAyMDE3LTAzLTEw
+ICAxMTcyICAgKiBAZHA6CQlORlAgTmV0IGRhdGEgcGF0aCBzdHJ1Y3QNCj4gNGMzNTIzNjIzZCBK
+YWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTczICAgKiBAZG1hX2FkZHI6CVBvaW50ZXIgdG8g
+c3RvcmFnZSBmb3IgRE1BIGFkZHJlc3MgKG91dHB1dCBwYXJhbSkNCj4gNGMzNTIzNjIzZCBKYWt1
+YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTc0ICAgKg0KPiBjMGYwMzFiYzg4IEpha3ViIEtpY2lu
+c2tpIDIwMTYtMTAtMzEgIDExNzUgICAqIFRoaXMgZnVuY3Rpb24gd2lsbCBhbGxjYXRlIGEgbmV3
+IHBhZ2UgZnJhZywgbWFwIGl0IGZvciBETUEuDQo+IDRjMzUyMzYyM2QgSmFrdWIgS2ljaW5za2kg
+MjAxNS0xMi0wMSAgMTE3NiAgICoNCj4gYzBmMDMxYmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEw
+LTMxICAxMTc3ICAgKiBSZXR1cm46IGFsbG9jYXRlZCBwYWdlIGZyYWcgb3IgTlVMTCBvbiBmYWls
+dXJlLg0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExNzggICAqLw0K
+PiBkNzgwMDVhNTBmIEpha3ViIEtpY2luc2tpIDIwMTctMDQtMjcgIDExNzkgIHN0YXRpYyB2b2lk
+ICpuZnBfbmV0X3J4X2FsbG9jX29uZShzdHJ1Y3QgbmZwX25ldF9kcCAqZHAsIGRtYV9hZGRyX3Qg
+KmRtYV9hZGRyKQ0KPiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExODAg
+IHsNCj4gYzBmMDMxYmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEwLTMxICAxMTgxICAJdm9pZCAq
+ZnJhZzsNCj4gNGMzNTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTgyICANCj4g
+NWYwY2EyZmI3MSBKYWt1YiBLaWNpbnNraSAyMDE3LTEwLTEwICAxMTgzICAJaWYgKCFkcC0+eGRw
+X3Byb2cpIHsNCj4gMjE5NWMyNjM3ZiBKYWt1YiBLaWNpbnNraSAyMDE3LTAzLTEwICAxMTg0ICAJ
+CWZyYWcgPSBuZXRkZXZfYWxsb2NfZnJhZyhkcC0+ZmxfYnVmc3opOw0KPiA1ZjBjYTJmYjcxIEph
+a3ViIEtpY2luc2tpIDIwMTctMTAtMTAgIDExODUgIAl9IGVsc2Ugew0KPiA1ZjBjYTJmYjcxIEph
+a3ViIEtpY2luc2tpIDIwMTctMTAtMTAgIDExODYgIAkJc3RydWN0IHBhZ2UgKnBhZ2U7DQo+IDVm
+MGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCAgMTE4NyAgDQo+IDVmMGNhMmZiNzEg
+SmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCBAMTE4OCAgCQlwYWdlID0gYWxsb2NfcGFnZShHRlBf
+S0VSTkVMIHwgX19HRlBfQ09MRCk7DQo+IDVmMGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0x
+MC0xMCAgMTE4OSAgCQlmcmFnID0gcGFnZSA/IHBhZ2VfYWRkcmVzcyhwYWdlKSA6IE5VTEw7DQo+
+IDVmMGNhMmZiNzEgSmFrdWIgS2ljaW5za2kgMjAxNy0xMC0xMCAgMTE5MCAgCX0NCj4gYzBmMDMx
+YmM4OCBKYWt1YiBLaWNpbnNraSAyMDE2LTEwLTMxICAxMTkxICAJaWYgKCFmcmFnKSB7DQo+IDc5
+YzEyYTc1MmMgSmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5MiAgCQlubl9kcF93YXJuKGRw
+LCAiRmFpbGVkIHRvIGFsbG9jIHJlY2VpdmUgcGFnZSBmcmFnXG4iKTsNCj4gNGMzNTIzNjIzZCBK
+YWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMTkzICAJCXJldHVybiBOVUxMOw0KPiA0YzM1MjM2
+MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDExOTQgIAl9DQo+IDRjMzUyMzYyM2QgSmFr
+dWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTE5NSAgDQo+IGM0ODdlNmIxOTkgSmFrdWIgS2ljaW5z
+a2kgMjAxNy0wMy0xMCAgMTE5NiAgCSpkbWFfYWRkciA9IG5mcF9uZXRfZG1hX21hcF9yeChkcCwg
+ZnJhZyk7DQo+IDc5YzEyYTc1MmMgSmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5NyAgCWlm
+IChkbWFfbWFwcGluZ19lcnJvcihkcC0+ZGV2LCAqZG1hX2FkZHIpKSB7DQo+IDlkYzZiMTE2ZTIg
+SmFrdWIgS2ljaW5za2kgMjAxNy0wMy0xMCAgMTE5OCAgCQluZnBfbmV0X2ZyZWVfZnJhZyhmcmFn
+LCBkcC0+eGRwX3Byb2cpOw0KPiA3OWMxMmE3NTJjIEpha3ViIEtpY2luc2tpIDIwMTctMDMtMTAg
+IDExOTkgIAkJbm5fZHBfd2FybihkcCwgIkZhaWxlZCB0byBtYXAgRE1BIFJYIGJ1ZmZlclxuIik7
+DQo+IDRjMzUyMzYyM2QgSmFrdWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTIwMCAgCQlyZXR1cm4g
+TlVMTDsNCj4gNGMzNTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMjAxICAJfQ0K
+PiA0YzM1MjM2MjNkIEpha3ViIEtpY2luc2tpIDIwMTUtMTItMDEgIDEyMDIgIA0KPiBjMGYwMzFi
+Yzg4IEpha3ViIEtpY2luc2tpIDIwMTYtMTAtMzEgIDEyMDMgIAlyZXR1cm4gZnJhZzsNCj4gNGMz
+NTIzNjIzZCBKYWt1YiBLaWNpbnNraSAyMDE1LTEyLTAxICAxMjA0ICB9DQo+IDRjMzUyMzYyM2Qg
+SmFrdWIgS2ljaW5za2kgMjAxNS0xMi0wMSAgMTIwNSAgDQo+IA0KPiA6Ojo6OjogVGhlIGNvZGUg
+YXQgbGluZSAxMTg4IHdhcyBmaXJzdCBpbnRyb2R1Y2VkIGJ5IGNvbW1pdA0KPiA6Ojo6OjogNWYw
+Y2EyZmI3MWUyOGRmMTQ2ZjU5MGVlYmZlMzJiNDExNzFiNzM3ZiBuZnA6IGhhbmRsZSBwYWdlIGFs
+bG9jYXRpb24gZmFpbHVyZXMNCj4gDQo+IDo6Ojo6OiBUTzogSmFrdWIgS2ljaW5za2kgPGpha3Vi
+LmtpY2luc2tpQG5ldHJvbm9tZS5jb20+DQo+IDo6Ojo6OiBDQzogRGF2aWQgUy4gTWlsbGVyIDxk
+YXZlbUBkYXZlbWxvZnQubmV0Pg0KPiANCj4gLS0tDQo+IDAtREFZIGtlcm5lbCB0ZXN0IGluZnJh
+c3RydWN0dXJlICAgICAgICAgICAgICAgIE9wZW4gU291cmNlIFRlY2hub2xvZ3kgQ2VudGVyDQo+
+IGh0dHBzOi8vbGlzdHMuMDEub3JnL3BpcGVybWFpbC9rYnVpbGQtYWxsICAgICAgICAgICAgICAg
+ICAgIEludGVsIENvcnBvcmF0aW9u
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
