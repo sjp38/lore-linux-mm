@@ -1,58 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0AF876B0033
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 10:25:24 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id z39so9944255ita.1
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 07:25:24 -0800 (PST)
-Received: from resqmta-ch2-12v.sys.comcast.net (resqmta-ch2-12v.sys.comcast.net. [2001:558:fe21:29:69:252:207:44])
-        by mx.google.com with ESMTPS id o87si11165337ioi.189.2018.01.10.07.25.22
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 798AC6B0253
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 10:35:29 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id i35so8159270ote.12
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 07:35:29 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id o5si2369945oth.344.2018.01.10.07.35.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jan 2018 07:25:22 -0800 (PST)
-Date: Wed, 10 Jan 2018 09:25:20 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: Re: [PATCH 02/36] usercopy: Include offset in overflow report
-In-Reply-To: <1515531365-37423-3-git-send-email-keescook@chromium.org>
-Message-ID: <alpine.DEB.2.20.1801100921000.7926@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-3-git-send-email-keescook@chromium.org>
+        Wed, 10 Jan 2018 07:35:28 -0800 (PST)
+Date: Wed, 10 Jan 2018 10:35:10 -0500 (EST)
+From: Jan Stancek <jstancek@redhat.com>
+Message-ID: <1394749328.5225281.1515598510696.JavaMail.zimbra@redhat.com>
+In-Reply-To: <1243932888.5206621.1515594158029.JavaMail.zimbra@redhat.com>
+Subject: migrate_pages() of process with same UID in 4.15-rcX
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: otto ebeling <otto.ebeling@iki.fi>, mhocko@suse.com, mtk manpages <mtk.manpages@gmail.com>
+Cc: linux-mm@kvack.org, clameter@sgi.com, ebiederm@xmission.com, w@1wt.eu, keescook@chromium.org, ltp@lists.linux.it
 
-On Tue, 9 Jan 2018, Kees Cook wrote:
+Hi,
 
-> -static void report_usercopy(unsigned long len, bool to_user, const char *type)
-> +int report_usercopy(const char *name, const char *detail, bool to_user,
-> +		    unsigned long offset, unsigned long len)
->  {
-> -	pr_emerg("kernel memory %s attempt detected %s '%s' (%lu bytes)\n",
-> +	pr_emerg("kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)\n",
->  		to_user ? "exposure" : "overwrite",
-> -		to_user ? "from" : "to", type ? : "unknown", len);
-> +		to_user ? "from" : "to",
-> +		name ? : "unknown?!",
-> +		detail ? " '" : "", detail ? : "", detail ? "'" : "",
-> +		offset, len);
->  	/*
->  	 * For greater effect, it would be nice to do do_group_exit(),
->  	 * but BUG() actually hooks all the lock-breaking and per-arch
->  	 * Oops code, so that is used here instead.
->  	 */
->  	BUG();
+LTP test migrate_pages02 [1] is failing with 4.15-rcX, presumably as
+consequence of:
+  313674661925 "Unify migrate_pages and move_pages access checks"
 
-Should this be a WARN() or so? Or some configuration that changes
-BUG() behavior? Otherwise
+The scenario is that privileged parent forks child, both parent
+and child change euid to nobody and then parent tries to migrate
+child to different node. Starting with 4.15-rcX it fails with EPERM.
 
-> +
-> +	return -1;
+Can anyone comment on accuracy of this sentence from man-pages
+after commit 313674661925?
 
-This return code will never be returned.
+quoting man2/migrate_pages.2:
+ "To move pages in another process, the caller must be privileged
+ (CAP_SYS_NICE) or the real or effective user ID of the calling 
+ process must match the real or saved-set user ID of the target
+ process."
 
-Why a return code at all? Maybe I will see that in the following patches?
+Thanks,
+Jan
 
+[1] https://github.com/linux-test-project/ltp/blob/master/testcases/kernel/syscalls/migrate_pages/migrate_pages02.c
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
