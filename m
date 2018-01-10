@@ -1,20 +1,20 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id EFECF6B0261
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 17:48:17 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id z24so847539pgu.20
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 14:48:17 -0800 (PST)
+Received: from mail-pg0-f72.google.com (mail-pg0-f72.google.com [74.125.83.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 463B46B0268
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 17:56:34 -0500 (EST)
+Received: by mail-pg0-f72.google.com with SMTP id o9so919351pgv.3
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 14:56:34 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u5sor3665109pgp.344.2018.01.10.14.48.16
+        by mx.google.com with SMTPS id o23sor5917331pll.46.2018.01.10.14.56.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 14:48:16 -0800 (PST)
+        Wed, 10 Jan 2018 14:56:33 -0800 (PST)
 From: Yu Zhao <yuzhao@google.com>
-Subject: [PATCH v2] zswap: only save zswap header when necessary
-Date: Wed, 10 Jan 2018 14:47:41 -0800
-Message-Id: <20180110224741.83751-1-yuzhao@google.com>
-In-Reply-To: <20180108225101.15790-1-yuzhao@google.com>
-References: <20180108225101.15790-1-yuzhao@google.com>
+Subject: [PATCH v3] zswap: only save zswap header when necessary
+Date: Wed, 10 Jan 2018 14:56:26 -0800
+Message-Id: <20180110225626.110330-1-yuzhao@google.com>
+In-Reply-To: <20180110224741.83751-1-yuzhao@google.com>
+References: <20180110224741.83751-1-yuzhao@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>
@@ -29,10 +29,10 @@ and use it in zswap to avoid waste memory for zswap header.
 Signed-off-by: Yu Zhao <yuzhao@google.com>
 ---
  include/linux/zpool.h |  2 ++
- mm/zpool.c            | 26 ++++++++++++++++++++++++--
+ mm/zpool.c            | 25 +++++++++++++++++++++++--
  mm/zsmalloc.c         |  7 -------
  mm/zswap.c            | 20 ++++++++++----------
- 4 files changed, 36 insertions(+), 19 deletions(-)
+ 4 files changed, 35 insertions(+), 19 deletions(-)
 
 diff --git a/include/linux/zpool.h b/include/linux/zpool.h
 index 004ba807df96..7238865e75b0 100644
@@ -46,7 +46,7 @@ index 004ba807df96..7238865e75b0 100644
 +
  #endif
 diff --git a/mm/zpool.c b/mm/zpool.c
-index fd3ff719c32c..ec63ef32d73d 100644
+index fd3ff719c32c..e1e7aa6d1d06 100644
 --- a/mm/zpool.c
 +++ b/mm/zpool.c
 @@ -21,6 +21,7 @@ struct zpool {
@@ -66,16 +66,15 @@ index fd3ff719c32c..ec63ef32d73d 100644
   *
   * Implementations must guarantee this to be thread-safe.
   *
-@@ -180,6 +181,8 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
+@@ -180,6 +181,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
  	zpool->driver = driver;
  	zpool->pool = driver->create(name, gfp, ops, zpool);
  	zpool->ops = ops;
-+	zpool->evictable = zpool->driver->shrink &&
-+			   zpool->ops && zpool->ops->evict;
++	zpool->evictable = driver->shrink && ops && ops->evict;
  
  	if (!zpool->pool) {
  		pr_err("couldn't create %s pool\n", type);
-@@ -296,7 +299,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
+@@ -296,7 +298,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
  int zpool_shrink(struct zpool *zpool, unsigned int pages,
  			unsigned int *reclaimed)
  {
@@ -85,7 +84,7 @@ index fd3ff719c32c..ec63ef32d73d 100644
  }
  
  /**
-@@ -355,6 +359,24 @@ u64 zpool_get_total_size(struct zpool *zpool)
+@@ -355,6 +358,24 @@ u64 zpool_get_total_size(struct zpool *zpool)
  	return zpool->driver->total_size(zpool->pool);
  }
  
