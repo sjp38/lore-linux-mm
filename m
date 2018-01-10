@@ -1,122 +1,270 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 114176B0033
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 14:18:03 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id o9so91966pgv.3
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 11:18:03 -0800 (PST)
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 3si12481113pln.509.2018.01.10.11.18.01
+Received: from mail-wr0-f199.google.com (mail-wr0-f199.google.com [209.85.128.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 139D06B0069
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 14:33:51 -0500 (EST)
+Received: by mail-wr0-f199.google.com with SMTP id k2so51255wrg.3
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 11:33:51 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id 1si11503733wmj.68.2018.01.10.11.33.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 10 Jan 2018 11:18:01 -0800 (PST)
-Date: Wed, 10 Jan 2018 14:17:58 -0500
-From: Steven Rostedt <rostedt@goodmis.org>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180110141758.1f88e1a0@vmware.local.home>
-In-Reply-To: <20180110185747.GO3668920@devbig577.frc2.facebook.com>
-References: <20180110132418.7080-1-pmladek@suse.com>
-	<20180110140547.GZ3668920@devbig577.frc2.facebook.com>
-	<20180110130517.6ff91716@vmware.local.home>
-	<20180110181252.GK3668920@devbig577.frc2.facebook.com>
-	<20180110134157.1c3ce4b9@vmware.local.home>
-	<20180110185747.GO3668920@devbig577.frc2.facebook.com>
-MIME-Version: 1.0
+        Wed, 10 Jan 2018 11:33:49 -0800 (PST)
+Date: Wed, 10 Jan 2018 11:33:45 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
+Message-Id: <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org>
+In-Reply-To: <20180110131143.GB26913@castle.DHCP.thefacebook.com>
+References: <20171130152824.1591-1-guro@fb.com>
+	<20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org>
+	<alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com>
+	<20180110131143.GB26913@castle.DHCP.thefacebook.com>
+Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Roman Gushchin <guro@fb.com>
+Cc: David Rientjes <rientjes@google.com>, linux-mm@vger.kernel.org, Michal Hocko <mhocko@suse.com>, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
 
-On Wed, 10 Jan 2018 10:57:47 -0800
-Tejun Heo <tj@kernel.org> wrote:
+On Wed, 10 Jan 2018 05:11:44 -0800 Roman Gushchin <guro@fb.com> wrote:
 
-> Hello, Steven.
+> Hello, David!
 > 
-> On Wed, Jan 10, 2018 at 01:41:57PM -0500, Steven Rostedt wrote:
-> > The issue with the solution you want to do with printk is that it can
-> > break existing printk usages. As Petr said, people want printk to do two
-> > things. 1 - print out data ASAP, 2 - not lock up the system. The two
-> > are fighting each other. You care more about 2 where I (and others,
-> > like Peter Zijlstra and Linus) care more about 1.
+> On Tue, Jan 09, 2018 at 04:57:53PM -0800, David Rientjes wrote:
+> > On Thu, 30 Nov 2017, Andrew Morton wrote:
 > > 
-> > My solution can help with 2 without doing anything to hurt 1.  
+> > > > This patchset makes the OOM killer cgroup-aware.
+> > > 
+> > > Thanks, I'll grab these.
+> > > 
+> > > There has been controversy over this patchset, to say the least.  I
+> > > can't say that I followed it closely!  Could those who still have
+> > > reservations please summarise their concerns and hopefully suggest a
+> > > way forward?
+> > > 
+> > 
+> > Yes, I'll summarize what my concerns have been in the past and what they 
+> > are wrt the patchset as it stands in -mm.  None of them originate from my 
+> > current usecase or anticipated future usecase of the oom killer for 
+> > system-wide or memcg-constrained oom conditions.  They are based purely on 
+> > the patchset's use of an incomplete and unfair heuristic for deciding 
+> > which cgroup to target.
+> > 
+> > I'll also suggest simple changes to the patchset, which I have in the 
+> > past, that can be made to address all of these concerns.
+> > 
+> > 1. The unfair comparison of the root mem cgroup vs leaf mem cgroups
+> > 
+> > The patchset uses two different heuristics to compare root and leaf mem 
+> > cgroups and scores them based on number of pages.  For the root mem 
+> > cgroup, it totals the /proc/pid/oom_score of all processes attached: 
+> > that's based on rss, swap, pgtables, and, most importantly, oom_score_adj.  
+> > For leaf mem cgroups, it's based on that memcg's anonymous, unevictable, 
+> > unreclaimable slab, kernel stack, and swap counters.  These can be wildly 
+> > different independent of /proc/pid/oom_score_adj, but the most obvious 
+> > unfairness comes from users who tune oom_score_adj.
+> > 
+> > An example: start a process that faults 1GB of anonymous memory and leave 
+> > it attached to the root mem cgroup.  Start six more processes that each 
+> > fault 1GB of anonymous memory and attached them to a leaf mem cgroup.  Set 
+> > all processes to have /proc/pid/oom_score_adj of 1000.  System oom kill 
+> > will always kill the 1GB process attached to the root mem cgroup.  It's 
+> > because oom_badness() relies on /proc/pid/oom_score_adj, which is used to 
+> > evaluate the root mem cgroup, and leaf mem cgroups completely disregard 
+> > it.
+> > 
+> > In this example, the leaf mem cgroup's score is 1,573,044, the number of 
+> > pages for the 6GB of faulted memory.  The root mem cgroup's score is 
+> > 12,652,907, eight times larger even though its usage is six times smaller.
+> > 
+> > This is caused by the patchset disregarding oom_score_adj entirely for 
+> > leaf mem cgroups and relying on it heavily for the root mem cgroup.  It's 
+> > the complete opposite result of what the cgroup aware oom killer 
+> > advertises.
+> > 
+> > It also works the other way, if a large memory hog is attached to the root 
+> > mem cgroup but has a negative oom_score_adj it is never killed and random 
+> > processes are nuked solely because they happened to be attached to a leaf 
+> > mem cgroup.  This behavior wrt oom_score_adj is completely undocumented, 
+> > so I can't presume that it is either known nor tested.
+> > 
+> > Solution: compare the root mem cgroup and leaf mem cgroups equally with 
+> > the same criteria by doing hierarchical accounting of usage and 
+> > subtracting from total system usage to find root usage.
 > 
-> I'm not really sure why punting to a safe context is necessarily
-> unacceptable in terms of #1 because there seems to be a pretty wide
-> gap between printing useful messages synchronously and a system being
-> caught in printk flush to the point where the system is not
-> operational at all.
+> I find this problem quite minor, because I haven't seen any practical problems
+> caused by accounting of the root cgroup memory.
+> If it's a serious problem for you, it can be solved without switching to the
+> hierarchical accounting: it's possible to sum up all leaf cgroup stats and
+> substract them from global values. So, it can be a relatively small enhancement
+> on top of the current mm tree. This has nothing to do with global victim selection
+> approach.
 
-And what do you define as a "safe" context. And what happens when the
-system is hosed and that "safe" context no longer exists? How do you
-know that the safe context is gone?
+It sounds like a significant shortcoming to me - the oom-killing
+decisions which David describes are clearly incorrect?
 
+If this can be fixed against the -mm patchset with a "relatively small
+enhancement" then please let's get that done so it can be reviewed and
+tested.
+
+> > 
+> > 2. Evading the oom killer by attaching processes to child cgroups
+> > 
+> > Any cgroup on the system can attach all their processes to individual 
+> > child cgroups.  This is functionally the same as doing
+> > 
+> > 	for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
+> > 
+> > without the no internal process constraint introduced with cgroup v2.  All 
+> > child cgroups are evaluated based on their own usage: all anon, 
+> > unevictable, and unreclaimable slab as described previously.  It requires 
+> > an individual cgroup to be the single largest consumer to be targeted by 
+> > the oom killer.
+> > 
+> > An example: allow users to manage two different mem cgroup hierarchies 
+> > limited to 100GB each.  User A uses 10GB of memory and user B uses 90GB of 
+> > memory in their respective hierarchies.  On a system oom condition, we'd 
+> > expect at least one process from user B's hierarchy would always be oom 
+> > killed with the cgroup aware oom killer.  In fact, the changelog 
+> > explicitly states it solves an issue where "1) There is no fairness 
+> > between containers. A small container with few large processes will be 
+> > chosen over a large one with huge number of small processes."
+> > 
+> > The opposite becomes true, however, if user B creates child cgroups and 
+> > distributes its processes such that each child cgroup's usage never 
+> > exceeds 10GB of memory.  This can either be done intentionally to 
+> > purposefully have a low cgroup memory footprint to evade the oom killer or 
+> > unintentionally with cgroup v2 to allow those individual processes to be 
+> > constrained by other cgroups in a single hierarchy model.  User A, using 
+> > 10% of his memory limit, is always oom killed instead of user B, using 90% 
+> > of his memory limit.
+> > 
+> > Others have commented its still possible to do this with a per-process 
+> > model if users split their processes into many subprocesses with small 
+> > memory footprints.
+> > 
+> > Solution: comparing cgroups must be done hierarchically.  Neither user A 
+> > nor user B can evade the oom killer because targeting is done based on the 
+> > total hierarchical usage rather than individual cgroups in their 
+> > hierarchies.
 > 
-> > You are NACKing my solution because it doesn't solve this bug with net
-> > console. I believe net console should be fixed. You believe that printk
-> > should have a work around to not let net console type bugs occur. Which
-> > to me is papering over the real bugs.  
+> We've discussed this a lot.
+> Hierarchical approach has their own issues, which we've discussed during
+> previous iterations of the patchset. If you know how to address them
+> (I've no idea), please, go on and suggest your version.
+
+Well, if a hierarchical approach isn't a workable fix for the problem
+which David has identified then what *is* the fix?
+
+> > 
+> > 3. Userspace has zero control over oom kill selection in leaf mem cgroups
+> > 
+> > Unlike using /proc/pid/oom_score_adj to bias or prefer certain processes 
+> > from the oom killer, the cgroup aware oom killer does not provide any 
+> > solution for the user to protect leaf mem cgroups.  This is a result of 
+> > leaf mem cgroups being evaluated based on their anon, unevictable, and 
+> > unreclaimable slab usage and disregarding any user tunable.
+> > 
+> > Absent the cgroup aware oom killer, users have the ability to strongly 
+> > prefer a process is oom killed (/proc/pid/oom_score_adj = 1000) or 
+> > strongly bias against a process (/proc/pid/oom_score_adj = -999).
+> > 
+> > An example: a process knows its going to use a lot of memory, so it sets 
+> > /proc/self/oom_score_adj to 1000.  It wants to be killed first to avoid 
+> > distrupting any other process.  If it's attached to the root mem cgroup, 
+> > it will be oom killed.  If it's attached to a leaf mem cgroup by an admin 
+> > outside its control, it will never be oom killed unless that cgroup's 
+> > usage is the largest single cgroup usage on the system.  The reverse also 
+> > is true for processes that the admin does not want to be oom killed: set 
+> > /proc/pid/oom_score_adj to -999, but it will *always* be oom killed if its 
+> > cgroup has the highest usage on the system.
+> > 
+> > The result is that both admins and users have lost all control over which 
+> > processes are oom killed.  They are left with only one alternative: set 
+> > /proc/pid/oom_score_adj to -1000 to completely disable a process from oom 
+> > kill.  It doesn't address the issue at all for memcg-constrained oom 
+> > conditions since no processes are killable anymore, and risks panicking 
+> > the system if it is the only process left on the system.  A process 
+> > preferring that it is first in line for oom kill simply cannot volunteer 
+> > anymore.
+> > 
+> > Solution: allow users and admins to control oom kill selection by 
+> > introducing a memory.oom_score_adj to affect the oom score of that mem 
+> > cgroup, exactly the same as /proc/pid/oom_score_adj affects the oom score 
+> > of a process.
 > 
-> As I wrote along with nack, I was more concerned with how this was
-> pushed forward by saying that actual problems are not real.
+> The per-process oom_score_adj interface is not the nicest one, and I'm not
+> sure we want to replicate it on cgroup level as is. If you have an idea of how
+> it should look like, please, propose a patch; otherwise it's hard to discuss
+> it without the code.
 
-You mean you saying that? I never created this patch set for the
-problems you reported. You came in nacking this saying that it doesn't
-solve your problems and showed some totally unrealistic module that
-triggers issues that my patch doesn't solve.
+It does make sense to have some form of per-cgroup tunability.  Why is
+the oom_score_adj approach inappropriate and what would be better?  How
+hard is it to graft such a thing onto the -mm patchset?
 
-I admit now that the OOM net console bug is a real issue. But my
-saying that you were being unrealistic was more about that module you
-posted to try to demonstrate the issue.
-
-This is not the issue I'm trying to solve, and I don't understand why
-you are against my solution when it is agnostic to any solution that
-you want to do as well.
-
-One way to have an offload solution added on top of mine, is to have a
-limit in how many messages the printk will do. Honestly, I believe it
-should always printk its own message if there are no others trying to
-do a print. Yes, that may still not solve the net console bug, but it
-helps guarantee that printks get out.
-
-But if a printk starts printing more than one message, perhaps that is
-where we can look at offloading. Similar to how softirq works. If a
-softirq repeats too many times, it is offloaded to the ksoftirqd
-thread. We can have a similar approach to printk.
-
+> > 
+> > 
+> > I proposed a solution in 
+> > https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
+> > responded to, for all of these issues.  The idea is to do hierarchical 
+> > accounting of mem cgroup hierarchies so that the hierarchy is traversed 
+> > comparing total usage at each level to select target cgroups.  Admins and 
+> > users can use memory.oom_score_adj to influence that decisionmaking at 
+> > each level.
+> > 
+> > This solves #1 because mem cgroups can be compared based on the same 
+> > classes of memory and the root mem cgroup's usage can be fairly compared 
+> > by subtracting top-level mem cgroup usage from system usage.  All of the 
+> > criteria used to evaluate a leaf mem cgroup has a reasonable system-wide 
+> > counterpart that can be used to do the simple subtraction.
+> > 
+> > This solves #2 because evaluation is done hierarchically so that 
+> > distributing processes over a set of child cgroups either intentionally 
+> > or unintentionally no longer evades the oom killer.  Total usage is always 
+> > accounted to the parent and there is no escaping this criteria for users.
+> > 
+> > This solves #3 because it allows admins to protect important processes in 
+> > cgroups that are supposed to use, for example, 75% of system memory 
+> > without it unconditionally being selected for oom kill but still oom kill 
+> > if it exceeds a certain threshold.  In this sense, the cgroup aware oom 
+> > killer, as currently implemented, is selling mem cgroups short by 
+> > requiring the user to accept that the important process will be oom killed 
+> > iff it uses mem cgroups and isn't attached to root.  It also allows users 
+> > to actually volunteer to be oom killed first without majority usage.
+> > 
+> > It has come up time and time again that this support can be introduced on 
+> > top of the cgroup oom killer as implemented.  It simply cannot.  For 
+> > admins and users to have control over decisionmaking, it needs a 
+> > oom_score_adj type tunable that cannot change semantics from kernel 
+> > version to kernel version and without polluting the mem cgroup filesystem.  
+> > That, in my suggestion, is an adjustment on the amount of total 
+> > hierarchical usage of each mem cgroup at each level of the hierarchy.  
+> > That requires that the heuristic uses hierarchical usage rather than 
+> > considering each cgroup as independent consumers as it does today.  We 
+> > need to implement that heuristic and introduce userspace influence over 
+> > oom kill selection now rather than later because its implementation 
+> > changes how this patchset is implemented.
+> > 
+> > I can implement these changes, if preferred, on top of the current 
+> > patchset, but I do not believe we want inconsistencies between kernel 
+> > versions that introduce user visible changes for the sole reason that this 
+> > current implementation is incomplete and unfair.  We can implement and 
+> > introduce it once without behavior changing later because the core 
+> > heuristic has necessarily changed.
 > 
-> As for the netconsole part, sure, that can be one way, but please
-> consider that the messages could be coming from network drivers, of
-> which we have many and a lot of them aren't too high quality.  Plus,
-> netconsole is a separate path and network drivers can easily
-> malfunction on memory allocation failures.
+> David, I _had_ hierarchical accounting implemented in one of the previous
+> versions of this patchset. And there were _reasons_, why we went away from it.
+
+Can you please summarize those issues for my understanding?
+
+> You can't just ignore them and say that "there is a simple solution, which
+> Roman is not responding". If you know how to address these issues and
+> convince everybody that hierarchical approach is a way to go, please,
+> go on and send your version of the patchset.
 > 
-> Again, not a critical problem.  We can decide either way but it'd be
-> better to be generally safe (if we can do that reasonably), right?
-
-OK, lets start over.
-
-Right now my focus is an incremental approach. I'm not trying to solve
-all issues that printk has. I've focused on a single issue, and that is
-that printk is unbounded. Coming from a Real Time background, I find
-that is a big problem. I hate unbounded algorithms. I looked at this
-and found a way to make printk have a max bounded time it can print.
-Sure, it can be more than what you want, but it is a constant time,
-that can be measured. Hence, it is an O(1) solution.
-
-Now, if there is still issues with printk, there may be cases where
-offloading makes sense. I don't see why we should stop my solution
-because we are not addressing these other issues where offloading may
-make sense. My solution is simple, and does not impact other solutions.
-It may even show that other solutions are not needed. But that's a good
-thing.
-
-I'm not against an offloading solution if it can solve issues without
-impacting the other printk use cases. I'm currently only focusing on
-this solution which you are fighting me against.
-
--- Steve
+> Thanks!
+> 
+> Roman
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
