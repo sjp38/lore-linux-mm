@@ -1,71 +1,148 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f199.google.com (mail-ua0-f199.google.com [209.85.217.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 401E66B026B
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 16:15:17 -0500 (EST)
-Received: by mail-ua0-f199.google.com with SMTP id g14so278997ual.8
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 13:15:17 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B87326B0033
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 17:23:41 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id o11so785445pgp.14
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 14:23:41 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 74sor2899834ual.276.2018.01.10.13.15.16
+        by mx.google.com with SMTPS id z1sor4129732pfd.130.2018.01.10.14.23.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 13:15:16 -0800 (PST)
+        Wed, 10 Jan 2018 14:23:40 -0800 (PST)
+Date: Wed, 10 Jan 2018 14:23:36 -0800
+From: Yu Zhao <yuzhao@google.com>
+Subject: Re: [PATCH] zswap: only save zswap header if zpool is shrinkable
+Message-ID: <20180110222336.GA64414@google.com>
+References: <20180108225101.15790-1-yuzhao@google.com>
+ <CALZtONCsC79jyCsFQcJOALhw=QrTeFMiYTpE+HRrVjMh-QeT-g@mail.gmail.com>
+ <20180109224700.GA175231@google.com>
+ <CALZtONDc3VkWg83y1Nv_q+yUmwuFWmPUrFQOTJQv6b_ZbOh49g@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <alpine.DEB.2.20.1801100921000.7926@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org>
- <1515531365-37423-3-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1801100921000.7926@nuc-kabylake>
-From: Kees Cook <keescook@chromium.org>
-Date: Wed, 10 Jan 2018 13:15:14 -0800
-Message-ID: <CAGXu5jLdtLQhkcujTjMwKCwbV6kVb7-2mqz4ki-B9NtPTrDQ9A@mail.gmail.com>
-Subject: Re: [PATCH 02/36] usercopy: Include offset in overflow report
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALZtONDc3VkWg83y1Nv_q+yUmwuFWmPUrFQOTJQv6b_ZbOh49g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Christopher Lameter <cl@linux.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On Wed, Jan 10, 2018 at 7:25 AM, Christopher Lameter <cl@linux.com> wrote:
-> On Tue, 9 Jan 2018, Kees Cook wrote:
->
->> -static void report_usercopy(unsigned long len, bool to_user, const char *type)
->> +int report_usercopy(const char *name, const char *detail, bool to_user,
->> +                 unsigned long offset, unsigned long len)
->>  {
->> -     pr_emerg("kernel memory %s attempt detected %s '%s' (%lu bytes)\n",
->> +     pr_emerg("kernel memory %s attempt detected %s %s%s%s%s (offset %lu, size %lu)\n",
->>               to_user ? "exposure" : "overwrite",
->> -             to_user ? "from" : "to", type ? : "unknown", len);
->> +             to_user ? "from" : "to",
->> +             name ? : "unknown?!",
->> +             detail ? " '" : "", detail ? : "", detail ? "'" : "",
->> +             offset, len);
->>       /*
->>        * For greater effect, it would be nice to do do_group_exit(),
->>        * but BUG() actually hooks all the lock-breaking and per-arch
->>        * Oops code, so that is used here instead.
->>        */
->>       BUG();
->
-> Should this be a WARN() or so? Or some configuration that changes
-> BUG() behavior? Otherwise
+On Wed, Jan 10, 2018 at 03:06:47PM -0500, Dan Streetman wrote:
+> On Tue, Jan 9, 2018 at 5:47 PM, Yu Zhao <yuzhao@google.com> wrote:
+> > On Tue, Jan 09, 2018 at 01:25:18PM -0500, Dan Streetman wrote:
+> >> On Mon, Jan 8, 2018 at 5:51 PM, Yu Zhao <yuzhao@google.com> wrote:
+> >> > We waste sizeof(swp_entry_t) for zswap header when using zsmalloc
+> >> > as zpool driver because zsmalloc doesn't support eviction.
+> >> >
+> >> > Add zpool_shrinkable() to detect if zpool is shrinkable, and use
+> >> > it in zswap to avoid waste memory for zswap header.
+> >> >
+> >> > Signed-off-by: Yu Zhao <yuzhao@google.com>
+> >> > ---
+> >> >  include/linux/zpool.h |  2 ++
+> >> >  mm/zpool.c            | 17 ++++++++++++++++-
+> >> >  mm/zsmalloc.c         |  7 -------
+> >> >  mm/zswap.c            | 20 ++++++++++----------
+> >> >  4 files changed, 28 insertions(+), 18 deletions(-)
+> >> >
+> >> > diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+> >> > index 004ba807df96..3f0ac2ab74aa 100644
+> >> > --- a/include/linux/zpool.h
+> >> > +++ b/include/linux/zpool.h
+> >> > @@ -108,4 +108,6 @@ void zpool_register_driver(struct zpool_driver *driver);
+> >> >
+> >> >  int zpool_unregister_driver(struct zpool_driver *driver);
+> >> >
+> >> > +bool zpool_shrinkable(struct zpool *pool);
+> >> > +
+> >> >  #endif
+> >> > diff --git a/mm/zpool.c b/mm/zpool.c
+> >> > index fd3ff719c32c..839d4234c540 100644
+> >> > --- a/mm/zpool.c
+> >> > +++ b/mm/zpool.c
+> >> > @@ -296,7 +296,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
+> >> >  int zpool_shrink(struct zpool *zpool, unsigned int pages,
+> >> >                         unsigned int *reclaimed)
+> >> >  {
+> >> > -       return zpool->driver->shrink(zpool->pool, pages, reclaimed);
+> >> > +       return zpool_shrinkable(zpool) ?
+> >> > +              zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
+> >> >  }
+> >> >
+> >> >  /**
+> >> > @@ -355,6 +356,20 @@ u64 zpool_get_total_size(struct zpool *zpool)
+> >> >         return zpool->driver->total_size(zpool->pool);
+> >> >  }
+> >> >
+> >> > +/**
+> >> > + * zpool_shrinkable() - Test if zpool is shrinkable
+> >> > + * @pool       The zpool to test
+> >> > + *
+> >> > + * Zpool is only shrinkable when it's created with struct
+> >> > + * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
+> >> > + *
+> >> > + * Returns: true if shrinkable; false otherwise.
+> >> > + */
+> >> > +bool zpool_shrinkable(struct zpool *zpool)
+> >> > +{
+> >> > +       return zpool->ops && zpool->ops->evict && zpool->driver->shrink;
+> >>
+> >> as these things won't ever change for the life of the zpool, it would
+> >> probably be better to just check them at zpool creation time and set a
+> >> single new zpool param, like 'zpool->shrinkable'. since this function
+> >> will be called for every page that's swapped in or out, that may save
+> >> a bit of time.
+> >
+> > Ack.
+> >
+> >> also re: calling it 'shrinkable' or 'evictable', the real thing zswap
+> >> is interested in is if it needs to include the header info that
+> >> zswap_writeback_entry (i.e. ops->evict) later needs, so yeah it does
+> >> make more sense to call it zpool_evictable() and zpool->evictable.
+> >> However, I think the function should still be zpool_shrink() and
+> >> zpool->driver->shrink(), because it should be possible for
+> >> zs_pool_shrink() to call the normal zsmalloc shrinker, instead of
+> >> doing the zswap-style eviction, even if it doesn't do that currently.
+> >
+> > I agree we keep zpool_shrink(). It could either shrink pool if driver
+> > supports slab shrinker by providing zpool->driver->shrink or evict
+> > pages from pool if driver supports zpool->driver->evict (which in turn
+> > calls ops->evict provided by zswap) or both.
+> >
+> > We can't use a single zpool->driver->callback to achieve both because
+> > there will be no way for zswap to know if driver uses ops->evict thus
+> > no way to determine if zswap_header is needed.
+> >
+> > So for now, I think it'd be better if we deleted zpool->driver->shrink
+> > from zsmalloc and renamed it to zpool->driver->evict in zbud. Later
+> > if we decide zpool_shrink should also call zsmalloc slab shrinker, we
+> > add a new callback.
+> 
+> Well, I think shrink vs evict an implementation detail, isn't it?
+> That is, from zswap's perspective, there should be:
+> 
+> zpool_evictable()
+> if true, zswap needs to include the header on each compressed page,
+> because the zpool may callback zpool->ops->evict() which calls
+> zswap_writeback_entry() which expects the entry to start with a zswap
+> header.
+> if false, zswap doesn't need to include the header, because the zpool
+> will never, ever call zpool->ops->evict
+> 
+> zpool_shrink()
+> this will try to shrink the zpool, using whatever
+> zpool-implementation-specific shrinking method.  If zpool_evictable()
+> is true for this zpool, then zpool_shrink() *might* callback to
+> zpool->ops->evict(), although it doesn't have to if it can shrink
+> without evictions.  If zpool_evictable() is false, then zpool_shrink()
+> will never callback to zpool->ops->evict().
+> 
+> There is really no need for zswap to call different functions based on
+> whether the pool is evictable or not...is there?
 
-This BUG() is the existing behavior, with the new behavior taking the
-WARN() route in a following patch.
-
->> +
->> +     return -1;
->
-> This return code will never be returned.
->
-> Why a return code at all? Maybe I will see that in the following patches?
-
-I was trying to simplify the callers, but I agree, the result is
-rather ugly. I'll see if I can fix this up.
-
--Kees
-
--- 
-Kees Cook
-Pixel Security
+Thanks. I'd prefer if driver drew a clear line between its defrag and
+eviction capabilities. But I have no objection to leaving them as its
+internal implementation details and keeping current name of
+zpool->driver->shrink.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
