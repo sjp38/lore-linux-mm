@@ -1,65 +1,55 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D188E6B0069
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 03:43:56 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id n13so7315097wmc.3
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 00:43:56 -0800 (PST)
-Received: from techadventures.net (techadventures.net. [62.201.165.239])
-        by mx.google.com with ESMTP id y5si3366822wrd.488.2018.01.10.00.43.55
-        for <linux-mm@kvack.org>;
-        Wed, 10 Jan 2018 00:43:55 -0800 (PST)
-Date: Wed, 10 Jan 2018 09:43:55 +0100
-From: Oscar Salvador <osalvador@techadventures.net>
-Subject: [PATCH v2] mm/page_owner: Clean up init_pages_in_zone()
-Message-ID: <20180110084355.GA22822@techadventures.net>
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C45D16B0069
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 05:14:42 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id l22so7400079wre.11
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 02:14:42 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j127si10753123wma.83.2018.01.10.02.14.41
+        for <linux-mm@kvack.org>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Wed, 10 Jan 2018 02:14:41 -0800 (PST)
+Date: Wed, 10 Jan 2018 11:14:39 +0100
+From: Michal Hocko <mhocko@kernel.org>
+Subject: Re: [PATCH] mm, hugetlb: Fix a double unlock bug in
+ alloc_surplus_huge_page()
+Message-ID: <20180110101439.GQ1732@dhcp22.suse.cz>
+References: <20180109200559.g3iz5kvbdrz7yydp@mwanda>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
+In-Reply-To: <20180109200559.g3iz5kvbdrz7yydp@mwanda>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-mm@kvack.org
-Cc: vbabka@suse.cz, mhocko@suse.com, akpm@linux-foundation.org
+To: Dan Carpenter <dan.carpenter@oracle.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Mike Kravetz <mike.kravetz@oracle.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Stephen Rothwell <sfr@canb.auug.org.au>, Punit Agrawal <punit.agrawal@arm.com>, "Aneesh Kumar K.V" <aneesh.kumar@linux.vnet.ibm.com>, Andrea Arcangeli <aarcange@redhat.com>, linux-mm@kvack.org, kernel-janitors@vger.kernel.org
 
-This patch removes two redundant assignments in init_pages_in_zone function.
+On Tue 09-01-18 23:06:00, Dan Carpenter wrote:
+> We aren't holding the hugetlb_lock so there is no need to unlock.
+> 
+> Fixes: b27f11e5e675 ("mm, hugetlb: get rid of surplus page accounting tricks")
+> Signed-off-by: Dan Carpenter <dan.carpenter@oracle.com>
 
-Signed-off-by: Oscar Salvador <osalvador@techadventures.net>
----
- mm/page_owner.c | 7 ++-----
- 1 file changed, 2 insertions(+), 5 deletions(-)
+Ups, a left over after refactoring. Andrew, could you fold this into
+mm-hugetlb-further-simplify-hugetlb-allocation-api.patch please?
+ 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index ffcae114ceed..742a929f2311 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -1567,7 +1567,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+>  
+>  	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask);
+>  	if (!page)
+> -		goto out_unlock;
+> +		return NULL;
+>  
+>  	spin_lock(&hugetlb_lock);
+>  	/*
 
-diff --git a/mm/page_owner.c b/mm/page_owner.c
-index 69f83fc763bb..b361781e5ab6 100644
---- a/mm/page_owner.c
-+++ b/mm/page_owner.c
-@@ -528,14 +528,11 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
- 
- static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
- {
--	struct page *page;
--	struct page_ext *page_ext;
- 	unsigned long pfn = zone->zone_start_pfn, block_end_pfn;
- 	unsigned long end_pfn = pfn + zone->spanned_pages;
- 	unsigned long count = 0;
- 
- 	/* Scan block by block. First and last block may be incomplete */
--	pfn = zone->zone_start_pfn;
- 
- 	/*
- 	 * Walk the zone in pageblock_nr_pages steps. If a page block spans
-@@ -551,9 +548,9 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
- 		block_end_pfn = ALIGN(pfn + 1, pageblock_nr_pages);
- 		block_end_pfn = min(block_end_pfn, end_pfn);
- 
--		page = pfn_to_page(pfn);
--
- 		for (; pfn < block_end_pfn; pfn++) {
-+			struct page *page;
-+			struct page_ext *page_ext;
- 			if (!pfn_valid_within(pfn))
- 				continue;
- 
 -- 
-2.13.5
+Michal Hocko
+SUSE Labs
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
