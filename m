@@ -1,88 +1,97 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B3016B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:53 -0500 (EST)
-Received: by mail-qk0-f200.google.com with SMTP id d125so2216432qkb.8
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:08:53 -0800 (PST)
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o48si5097312qto.20.2018.01.11.02.08.51
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1094C6B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:25:22 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id n13so1252629wmc.3
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:25:22 -0800 (PST)
+Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
+        by mx.google.com with ESMTPS id s123si393535wmd.94.2018.01.11.02.25.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jan 2018 02:08:52 -0800 (PST)
-Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0BA4YB9097359
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:51 -0500
-Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2fe307y5kn-1
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:50 -0500
-Received: from localhost
-	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
-	Thu, 11 Jan 2018 10:08:47 -0000
-Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
-References: <5a4ec4bc.u5I/HzCSE6TLVn02%akpm@linux-foundation.org>
- <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
- <20180105084631.GG2801@dhcp22.suse.cz>
- <e81dce2b-5d47-b7d3-efbf-27bc171ba4ab@linux.vnet.ibm.com>
- <20180107090229.GB24862@dhcp22.suse.cz>
- <87mv1phptq.fsf@concordia.ellerman.id.au>
- <7a44f42e-39d0-1c4b-19e0-7df1b0842c18@linux.vnet.ibm.com>
- <87tvvw80f2.fsf@concordia.ellerman.id.au>
- <96458c0a-e273-3fb9-a33b-f6f2d536f90b@linux.vnet.ibm.com>
- <20180109161355.GL1732@dhcp22.suse.cz>
-From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Date: Thu, 11 Jan 2018 15:38:37 +0530
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Thu, 11 Jan 2018 02:25:20 -0800 (PST)
+Date: Thu, 11 Jan 2018 10:24:00 +0000
+From: Russell King - ARM Linux <linux@armlinux.org.uk>
+Subject: Re: [PATCH 34/38] arm: Implement thread_struct whitelist for
+ hardened usercopy
+Message-ID: <20180111102400.GT17719@n2100.armlinux.org.uk>
+References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
+ <1515636190-24061-35-git-send-email-keescook@chromium.org>
 MIME-Version: 1.0
-In-Reply-To: <20180109161355.GL1732@dhcp22.suse.cz>
-Content-Type: text/plain; charset=windows-1252
-Content-Transfer-Encoding: 7bit
-Message-Id: <a495f210-0015-efb2-a6a7-868f30ac4ace@linux.vnet.ibm.com>
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <1515636190-24061-35-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
-Cc: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
+To: Kees Cook <keescook@chromium.org>
+Cc: linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, linux-arm-kernel@lists.infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-On 01/09/2018 09:43 PM, Michal Hocko wrote:
-> On Tue 09-01-18 17:18:38, Anshuman Khandual wrote:
->> On 01/09/2018 03:42 AM, Michael Ellerman wrote:
->>> Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
->>>
->>>> On 01/07/2018 04:56 PM, Michael Ellerman wrote:
->>>>> Michal Hocko <mhocko@kernel.org> writes:
->>>>>
->>>>>> On Sun 07-01-18 12:19:32, Anshuman Khandual wrote:
->>>>>>> On 01/05/2018 02:16 PM, Michal Hocko wrote:
->>>>>> [...]
->>>>>>>> Could you give us more information about the failure please. Debugging
->>>>>>>> patch from http://lkml.kernel.org/r/20171218091302.GL16951@dhcp22.suse.cz
->>>>>>>> should help to see what is the clashing VMA.
->>>>>>> Seems like its re-requesting the same mapping again.
->>>>>> It always seems to be the same mapping which is a bit strange as we
->>>>>> have multiple binaries here. Are these binaries any special? Does this
->>>>>> happen to all bianries (except for init which has obviously started
->>>>>> successfully)? Could you add an additional debugging (at the do_mmap
->>>>>> layer) to see who is requesting the mapping for the first time?
->>>>>>
->>>>>>> [   23.423642] 9148 (sed): Uhuuh, elf segment at 0000000010030000 requested but the memory is mapped already
->>>>>>> [   23.423706] requested [10030000, 10040000] mapped [10030000, 10040000] 100073 anon
->>>>>> I also find it a bit unexpected that this is an anonymous mapping
->>>>>> because the elf loader should always map a file backed one.
->>>>> Anshuman what machine is this on, and what distro and toolchain is it running?
->>>>>
->>>>> I don't see this on any of my machines, so I wonder if this is
->>>>> toolchain/distro specific.
->>>>
->>>> POWER9, RHEL 7.4, gcc (GCC) 4.8.5 20150623, GNU Make 3.82 etc.
->>>
->>> So what does readelf -a of /bin/sed look like?
->>
->> Please find here.
+On Wed, Jan 10, 2018 at 06:03:06PM -0800, Kees Cook wrote:
+> ARM does not carry FPU state in the thread structure, so it can declare
+> no usercopy whitelist at all.
+
+This comment seems to be misleading.  We have stored FP state in the
+thread structure for a long time - for example, VFP state is stored
+in thread->vfpstate.hard, so we _do_ have floating point state in
+the thread structure.
+
+What I think this commit message needs to describe is why we don't
+need a whitelist _despite_ having FP state in the thread structure.
+
+At the moment, the commit message is making me think that this patch
+is wrong and will introduce a regression.
+
+Thanks.
+
 > 
-> Did you manage to catch _who_ is requesting that anonymous mapping? Do
-> you need a help with the debugging patch?
+> Cc: Russell King <linux@armlinux.org.uk>
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
+> Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
+> Cc: linux-arm-kernel@lists.infradead.org
+> Signed-off-by: Kees Cook <keescook@chromium.org>
+> ---
+>  arch/arm/Kconfig                 | 1 +
+>  arch/arm/include/asm/processor.h | 7 +++++++
+>  2 files changed, 8 insertions(+)
+> 
+> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
+> index 51c8df561077..3ea00d65f35d 100644
+> --- a/arch/arm/Kconfig
+> +++ b/arch/arm/Kconfig
+> @@ -50,6 +50,7 @@ config ARM
+>  	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
+>  	select HAVE_ARCH_MMAP_RND_BITS if MMU
+>  	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
+> +	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
+>  	select HAVE_ARCH_TRACEHOOK
+>  	select HAVE_ARM_SMCCC if CPU_V7
+>  	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
+> diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
+> index 338cbe0a18ef..01a41be58d43 100644
+> --- a/arch/arm/include/asm/processor.h
+> +++ b/arch/arm/include/asm/processor.h
+> @@ -45,6 +45,13 @@ struct thread_struct {
+>  	struct debug_info	debug;
+>  };
+>  
+> +/* Nothing needs to be usercopy-whitelisted from thread_struct. */
+> +static inline void arch_thread_struct_whitelist(unsigned long *offset,
+> +						unsigned long *size)
+> +{
+> +	*offset = *size = 0;
+> +}
+> +
+>  #define INIT_THREAD  {	}
+>  
+>  #define start_thread(regs,pc,sp)					\
+> -- 
+> 2.7.4
+> 
 
-Not yet, will get back on this.
+-- 
+RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
+FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
+According to speedtest.net: 8.21Mbps down 510kbps up
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
