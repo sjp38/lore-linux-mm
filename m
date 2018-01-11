@@ -1,213 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id BC3D66B025E
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 17:00:03 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id n17so2861051iob.21
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 14:00:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r141sor10473621ior.263.2018.01.11.14.00.02
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0DAFC6B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 17:00:10 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id w186so3123067pgb.10
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 14:00:10 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00129.outbound.protection.outlook.com. [40.107.0.129])
+        by mx.google.com with ESMTPS id b126si12601338pgc.610.2018.01.11.14.00.08
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jan 2018 14:00:02 -0800 (PST)
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 11 Jan 2018 14:00:09 -0800 (PST)
+Subject: Re: [PATCH 2/2] kasan: clean up KASAN_SHADOW_SCALE_SHIFT usage
+References: <cover.1515684162.git.andreyknvl@google.com>
+ <ff221eca3db7a1f208c30c625b7d209fba33abb9.1515684162.git.andreyknvl@google.com>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <c8f1d954-64fe-1e9c-d8ba-94e880de2501@virtuozzo.com>
+Date: Fri, 12 Jan 2018 00:59:57 +0300
 MIME-Version: 1.0
-In-Reply-To: <20180110225626.110330-1-yuzhao@google.com>
-References: <20180110224741.83751-1-yuzhao@google.com> <20180110225626.110330-1-yuzhao@google.com>
-From: Dan Streetman <ddstreet@ieee.org>
-Date: Thu, 11 Jan 2018 16:59:21 -0500
-Message-ID: <CALZtONCJmmGS=cMwFV=8zE3Zq-XwACqVkjkMM_E1OiB1=+sR2A@mail.gmail.com>
-Subject: Re: [PATCH v3] zswap: only save zswap header when necessary
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <ff221eca3db7a1f208c30c625b7d209fba33abb9.1515684162.git.andreyknvl@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
+To: Andrey Konovalov <andreyknvl@google.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-kernel@vger.kernel.org
+Cc: Kostya Serebryany <kcc@google.com>
 
-On Wed, Jan 10, 2018 at 5:56 PM, Yu Zhao <yuzhao@google.com> wrote:
-> We waste sizeof(swp_entry_t) for zswap header when using zsmalloc
-> as zpool driver because zsmalloc doesn't support eviction.
->
-> Add zpool_evictable() to detect if zpool is potentially evictable,
-> and use it in zswap to avoid waste memory for zswap header.
->
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
-> ---
->  include/linux/zpool.h |  2 ++
->  mm/zpool.c            | 25 +++++++++++++++++++++++--
->  mm/zsmalloc.c         |  7 -------
->  mm/zswap.c            | 20 ++++++++++----------
->  4 files changed, 35 insertions(+), 19 deletions(-)
->
-> diff --git a/include/linux/zpool.h b/include/linux/zpool.h
-> index 004ba807df96..7238865e75b0 100644
-> --- a/include/linux/zpool.h
-> +++ b/include/linux/zpool.h
-> @@ -108,4 +108,6 @@ void zpool_register_driver(struct zpool_driver *driver);
->
->  int zpool_unregister_driver(struct zpool_driver *driver);
->
-> +bool zpool_evictable(struct zpool *pool);
-> +
->  #endif
-> diff --git a/mm/zpool.c b/mm/zpool.c
-> index fd3ff719c32c..e1e7aa6d1d06 100644
-> --- a/mm/zpool.c
-> +++ b/mm/zpool.c
-> @@ -21,6 +21,7 @@ struct zpool {
->         struct zpool_driver *driver;
->         void *pool;
->         const struct zpool_ops *ops;
-> +       bool evictable;
->
->         struct list_head list;
->  };
-> @@ -142,7 +143,7 @@ EXPORT_SYMBOL(zpool_has_pool);
->   *
->   * This creates a new zpool of the specified type.  The gfp flags will be
->   * used when allocating memory, if the implementation supports it.  If the
-> - * ops param is NULL, then the created zpool will not be shrinkable.
-> + * ops param is NULL, then the created zpool will not be evictable.
->   *
->   * Implementations must guarantee this to be thread-safe.
->   *
-> @@ -180,6 +181,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
->         zpool->driver = driver;
->         zpool->pool = driver->create(name, gfp, ops, zpool);
->         zpool->ops = ops;
-> +       zpool->evictable = driver->shrink && ops && ops->evict;
 
-Since the ops->evict comes from zswap (and is never omitted), if we do
-restore zs_zpool_shrink() in the future to call the zsmalloc shrinker
-(and not do eviction), we'll have to add a driver->evictable bool to
-check here as well.
 
-But for now this is good, the zpools with driver->shrink do eviction,
-zsmalloc doesn't do eviction and won't have driver->shrink.
+On 01/11/2018 06:29 PM, Andrey Konovalov wrote:
 
-Acked-by: Dan Streetman <ddstreet@ieee.org>
+> diff --git a/arch/arm64/include/asm/kasan.h b/arch/arm64/include/asm/kasan.h
+> index e266f80e45b7..811643fe7640 100644
+> --- a/arch/arm64/include/asm/kasan.h
+> +++ b/arch/arm64/include/asm/kasan.h
+> @@ -27,7 +27,8 @@
+>   * should satisfy the following equation:
+>   *      KASAN_SHADOW_OFFSET = KASAN_SHADOW_END - (1ULL << 61)
 
-Thanks!
+Care to update comments as well?
 
->
->         if (!zpool->pool) {
->                 pr_err("couldn't create %s pool\n", type);
-> @@ -296,7 +298,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
->  int zpool_shrink(struct zpool *zpool, unsigned int pages,
->                         unsigned int *reclaimed)
->  {
-> -       return zpool->driver->shrink(zpool->pool, pages, reclaimed);
-> +       return zpool->driver->shrink ?
-> +              zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
->  }
->
->  /**
-> @@ -355,6 +358,24 @@ u64 zpool_get_total_size(struct zpool *zpool)
->         return zpool->driver->total_size(zpool->pool);
->  }
->
-> +/**
-> + * zpool_evictable() - Test if zpool is potentially evictable
-> + * @pool       The zpool to test
-> + *
-> + * Zpool is only potentially evictable when it's created with struct
-> + * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
-> + *
-> + * However, it doesn't necessarily mean driver will use zpool_ops.evict
-> + * in its implementation of zpool_driver.shrink. It could do internal
-> + * defragmentation instead.
-> + *
-> + * Returns: true if potentially evictable; false otherwise.
-> + */
-> +bool zpool_evictable(struct zpool *zpool)
-> +{
-> +       return zpool->evictable;
-> +}
-> +
->  MODULE_LICENSE("GPL");
->  MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
->  MODULE_DESCRIPTION("Common API for compressed memory storage");
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index 683c0651098c..9cc741bcdb32 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -407,12 +407,6 @@ static void zs_zpool_free(void *pool, unsigned long handle)
->         zs_free(pool, handle);
->  }
->
-> -static int zs_zpool_shrink(void *pool, unsigned int pages,
-> -                       unsigned int *reclaimed)
-> -{
-> -       return -EINVAL;
-> -}
-> -
->  static void *zs_zpool_map(void *pool, unsigned long handle,
->                         enum zpool_mapmode mm)
->  {
-> @@ -450,7 +444,6 @@ static struct zpool_driver zs_zpool_driver = {
->         .destroy =      zs_zpool_destroy,
->         .malloc =       zs_zpool_malloc,
->         .free =         zs_zpool_free,
-> -       .shrink =       zs_zpool_shrink,
->         .map =          zs_zpool_map,
->         .unmap =        zs_zpool_unmap,
->         .total_size =   zs_zpool_total_size,
-> diff --git a/mm/zswap.c b/mm/zswap.c
-> index d39581a076c3..52a9ab519ab2 100644
-> --- a/mm/zswap.c
-> +++ b/mm/zswap.c
-> @@ -964,11 +964,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         struct zswap_entry *entry, *dupentry;
->         struct crypto_comp *tfm;
->         int ret;
-> -       unsigned int dlen = PAGE_SIZE, len;
-> +       unsigned int hlen, dlen = PAGE_SIZE;
->         unsigned long handle;
->         char *buf;
->         u8 *src, *dst;
-> -       struct zswap_header *zhdr;
-> +       struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
->
->         if (!zswap_enabled || !tree) {
->                 ret = -ENODEV;
-> @@ -1013,8 +1013,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->         }
->
->         /* store */
-> -       len = dlen + sizeof(struct zswap_header);
-> -       ret = zpool_malloc(entry->pool->zpool, len,
-> +       hlen = zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0;
-> +       ret = zpool_malloc(entry->pool->zpool, hlen + dlen,
->                            __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
->                            &handle);
->         if (ret == -ENOSPC) {
-> @@ -1025,10 +1025,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
->                 zswap_reject_alloc_fail++;
->                 goto put_dstmem;
->         }
-> -       zhdr = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
-> -       zhdr->swpentry = swp_entry(type, offset);
-> -       buf = (u8 *)(zhdr + 1);
-> -       memcpy(buf, dst, dlen);
-> +       buf = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
-> +       memcpy(buf, &zhdr, hlen);
-> +       memcpy(buf + hlen, dst, dlen);
->         zpool_unmap_handle(entry->pool->zpool, handle);
->         put_cpu_var(zswap_dstmem);
->
-> @@ -1091,8 +1090,9 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
->
->         /* decompress */
->         dlen = PAGE_SIZE;
-> -       src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
-> -                       ZPOOL_MM_RO) + sizeof(struct zswap_header);
-> +       src = zpool_map_handle(entry->pool->zpool, entry->handle, ZPOOL_MM_RO);
-> +       if (zpool_evictable(entry->pool->zpool))
-> +               src += sizeof(struct zswap_header);
->         dst = kmap_atomic(page);
->         tfm = *get_cpu_ptr(entry->pool->tfm);
->         ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
-> --
-> 2.16.0.rc1.238.g530d649a79-goog
->
+>   */
+> -#define KASAN_SHADOW_OFFSET     (KASAN_SHADOW_END - (1ULL << (64 - 3)))
+> +#define KASAN_SHADOW_OFFSET     (KASAN_SHADOW_END - (1ULL << \
+> +					(64 - KASAN_SHADOW_SCALE_SHIFT)))
+>  
+>  void kasan_init(void);
+>  void kasan_copy_shadow(pgd_t *pgdir);
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
