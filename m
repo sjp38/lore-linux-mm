@@ -1,97 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1094C6B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:25:22 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id n13so1252629wmc.3
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:25:22 -0800 (PST)
-Received: from pandora.armlinux.org.uk (pandora.armlinux.org.uk. [2001:4d48:ad52:3201:214:fdff:fe10:1be6])
-        by mx.google.com with ESMTPS id s123si393535wmd.94.2018.01.11.02.25.20
+Received: from mail-pf0-f198.google.com (mail-pf0-f198.google.com [209.85.192.198])
+	by kanga.kvack.org (Postfix) with ESMTP id E67A46B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:38:51 -0500 (EST)
+Received: by mail-pf0-f198.google.com with SMTP id m9so1779457pff.0
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:38:51 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d17sor6770882pll.79.2018.01.11.02.38.50
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Jan 2018 02:25:20 -0800 (PST)
-Date: Thu, 11 Jan 2018 10:24:00 +0000
-From: Russell King - ARM Linux <linux@armlinux.org.uk>
-Subject: Re: [PATCH 34/38] arm: Implement thread_struct whitelist for
- hardened usercopy
-Message-ID: <20180111102400.GT17719@n2100.armlinux.org.uk>
-References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
- <1515636190-24061-35-git-send-email-keescook@chromium.org>
+        (Google Transport Security);
+        Thu, 11 Jan 2018 02:38:50 -0800 (PST)
+Date: Thu, 11 Jan 2018 19:38:45 +0900
+From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180111103845.GB477@jagdpanzerIV>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+ <20180110130517.6ff91716@vmware.local.home>
+ <20180111045817.GA494@jagdpanzerIV>
+ <20180111093435.GA24497@linux.suse>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1515636190-24061-35-git-send-email-keescook@chromium.org>
+In-Reply-To: <20180111093435.GA24497@linux.suse>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, Ingo Molnar <mingo@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, linux-arm-kernel@lists.infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Wed, Jan 10, 2018 at 06:03:06PM -0800, Kees Cook wrote:
-> ARM does not carry FPU state in the thread structure, so it can declare
-> no usercopy whitelist at all.
-
-This comment seems to be misleading.  We have stored FP state in the
-thread structure for a long time - for example, VFP state is stored
-in thread->vfpstate.hard, so we _do_ have floating point state in
-the thread structure.
-
-What I think this commit message needs to describe is why we don't
-need a whitelist _despite_ having FP state in the thread structure.
-
-At the moment, the commit message is making me think that this patch
-is wrong and will introduce a regression.
-
-Thanks.
-
+On (01/11/18 10:34), Petr Mladek wrote:
+[..]
+> > except that handing off a console_sem to atomic task when there
+> > is   O(logbuf) > watchdog_thresh   is a regression, basically...
+> > it is what it is.
 > 
-> Cc: Russell King <linux@armlinux.org.uk>
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Christian Borntraeger <borntraeger@de.ibm.com>
-> Cc: "Peter Zijlstra (Intel)" <peterz@infradead.org>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Signed-off-by: Kees Cook <keescook@chromium.org>
-> ---
->  arch/arm/Kconfig                 | 1 +
->  arch/arm/include/asm/processor.h | 7 +++++++
->  2 files changed, 8 insertions(+)
-> 
-> diff --git a/arch/arm/Kconfig b/arch/arm/Kconfig
-> index 51c8df561077..3ea00d65f35d 100644
-> --- a/arch/arm/Kconfig
-> +++ b/arch/arm/Kconfig
-> @@ -50,6 +50,7 @@ config ARM
->  	select HAVE_ARCH_KGDB if !CPU_ENDIAN_BE32 && MMU
->  	select HAVE_ARCH_MMAP_RND_BITS if MMU
->  	select HAVE_ARCH_SECCOMP_FILTER if (AEABI && !OABI_COMPAT)
-> +	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
->  	select HAVE_ARCH_TRACEHOOK
->  	select HAVE_ARM_SMCCC if CPU_V7
->  	select HAVE_EBPF_JIT if !CPU_ENDIAN_BE32
-> diff --git a/arch/arm/include/asm/processor.h b/arch/arm/include/asm/processor.h
-> index 338cbe0a18ef..01a41be58d43 100644
-> --- a/arch/arm/include/asm/processor.h
-> +++ b/arch/arm/include/asm/processor.h
-> @@ -45,6 +45,13 @@ struct thread_struct {
->  	struct debug_info	debug;
->  };
->  
-> +/* Nothing needs to be usercopy-whitelisted from thread_struct. */
-> +static inline void arch_thread_struct_whitelist(unsigned long *offset,
-> +						unsigned long *size)
-> +{
-> +	*offset = *size = 0;
-> +}
-> +
->  #define INIT_THREAD  {	}
->  
->  #define start_thread(regs,pc,sp)					\
-> -- 
-> 2.7.4
-> 
+> How this could be a regression? Is not the victim that handles
+> other printk's random? What protected the atomic task to
+> handle the other printks before this patch?
 
--- 
-RMK's Patch system: http://www.armlinux.org.uk/developer/patches/
-FTTC broadband for 0.8mile line in suburbia: sync at 8.8Mbps down 630kbps up
-According to speedtest.net: 8.21Mbps down 510kbps up
+the non-atomic -> atomic context console_sem transfer. we previously
+would have kept the console_sem owner to its non-atomic owner. we now
+will make sure that if printk from atomic context happens then it will
+make it to console_unlock() loop.
+emphasis on O(logbuf) > watchdog_thresh.
+
+
+- if the patch's goal is to bound (not necessarily to watchdog's threshold)
+the amount of time we spend in console_unlock(), then the patch is kinda
+overcomplicated. but no further questions in this case.
+
+- but if the patch's goal is to bound (to lockup threshold) the amount of
+time spent in console_unlock() in order to avoid lockups [uh, a reason],
+then the patch is rather oversimplified.
+
+
+claiming that for any given A, B, C the following is always true
+
+				A * B < C
+
+where
+	A is the amount of data to print in the worst case
+	B the time call_console_drivers() needs to print a single
+	  char to all registered and enabled consoles
+	C the watchdog's threshold
+
+is not really a step forward.
+
+and the "last console_sem owner prints all pending messages" rule
+is still there.
+
+
+> Or do you have a system that started to suffer from softlockups
+> with this patchset and did not do this before?
+[..]
+> Do you know about any system where this patch made the softlockup
+> deterministically or statistically more likely, please?
+
+I have explained many, many times why my boards die just like before.
+why would I bother collecting any numbers...
+
+	-ss
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
