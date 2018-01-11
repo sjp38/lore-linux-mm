@@ -1,111 +1,50 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E84D96B029F
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:19:38 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id h18so11644pfi.2
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:19:38 -0800 (PST)
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 326D66B0260
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 22:41:06 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id a74so363680pfg.20
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 19:41:06 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p5sor4613924pfh.116.2018.01.10.18.19.37
+        by mx.google.com with SMTPS id r59sor6589754plb.9.2018.01.10.19.41.04
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 18:19:37 -0800 (PST)
-From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 16/38] befs: Define usercopy region in befs_inode_cache slab cache
-Date: Wed, 10 Jan 2018 18:02:48 -0800
-Message-Id: <1515636190-24061-17-git-send-email-keescook@chromium.org>
-In-Reply-To: <1515636190-24061-1-git-send-email-keescook@chromium.org>
-References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
+        Wed, 10 Jan 2018 19:41:04 -0800 (PST)
+From: Nick Desaulniers <nick.desaulniers@gmail.com>
+Subject: [PATCH v2] zsmalloc: use U suffix for negative literals being shifted
+Date: Wed, 10 Jan 2018 19:41:18 -0800
+Message-Id: <1515642078-4259-1-git-send-email-nick.desaulniers@gmail.com>
+In-Reply-To: <20180110055338.h3cs5hw7mzsdtcad@eng-minchan1.roam.corp.google.com>
+References: <20180110055338.h3cs5hw7mzsdtcad@eng-minchan1.roam.corp.google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Luis de Bethencourt <luisbg@kernel.org>, Salah Triki <salah.triki@gmail.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: akpm@linux-foundation.org
+Cc: Andy Shevchenko <andy.shevchenko@gmail.com>, Matthew Wilcox <willy@infradead.org>, Nick Desaulniers <nick.desaulniers@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-From: David Windsor <dave@nullcore.net>
+Fixes warnings about shifting unsigned literals being undefined
+behavior.
 
-befs symlink pathnames, stored in struct befs_inode_info.i_data.symlink
-and therefore contained in the befs_inode_cache slab cache, need to be
-copied to/from userspace.
-
-cache object allocation:
-    fs/befs/linuxvfs.c:
-        befs_alloc_inode(...):
-            ...
-            bi = kmem_cache_alloc(befs_inode_cachep, GFP_KERNEL);
-            ...
-            return &bi->vfs_inode;
-
-        befs_iget(...):
-            ...
-            strlcpy(befs_ino->i_data.symlink, raw_inode->data.symlink,
-                    BEFS_SYMLINK_LEN);
-            ...
-            inode->i_link = befs_ino->i_data.symlink;
-
-example usage trace:
-    readlink_copy+0x43/0x70
-    vfs_readlink+0x62/0x110
-    SyS_readlinkat+0x100/0x130
-
-    fs/namei.c:
-        readlink_copy(..., link):
-            ...
-            copy_to_user(..., link, len);
-
-        (inlined in vfs_readlink)
-        generic_readlink(dentry, ...):
-            struct inode *inode = d_inode(dentry);
-            const char *link = inode->i_link;
-            ...
-            readlink_copy(..., link);
-
-In support of usercopy hardening, this patch defines a region in the
-befs_inode_cache slab cache in which userspace copy operations are
-allowed.
-
-This region is known as the slab cache's usercopy region. Slab caches
-can now check that each dynamically sized copy operation involving
-cache-managed memory falls entirely within the slab's usercopy region.
-
-This patch is modified from Brad Spengler/PaX Team's PAX_USERCOPY
-whitelisting code in the last public patch of grsecurity/PaX based on my
-understanding of the code. Changes or omissions from the original code are
-mine and don't reflect the original grsecurity/PaX code.
-
-Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, provide usage trace]
-Cc: Luis de Bethencourt <luisbg@kernel.org>
-Cc: Salah Triki <salah.triki@gmail.com>
-Signed-off-by: Kees Cook <keescook@chromium.org>
-Acked-by: Luis de Bethencourt <luisbg@kernel.org>
+Suggested-by: Minchan Kim <minchan@kernel.org>
+Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
 ---
- fs/befs/linuxvfs.c | 14 +++++++++-----
- 1 file changed, 9 insertions(+), 5 deletions(-)
+Changes since v1:
+* Use L suffix in addition to U, as suggested (link->next is unsigned long).
 
-diff --git a/fs/befs/linuxvfs.c b/fs/befs/linuxvfs.c
-index ee236231cafa..af2832aaeec5 100644
---- a/fs/befs/linuxvfs.c
-+++ b/fs/befs/linuxvfs.c
-@@ -444,11 +444,15 @@ static struct inode *befs_iget(struct super_block *sb, unsigned long ino)
- static int __init
- befs_init_inodecache(void)
- {
--	befs_inode_cachep = kmem_cache_create("befs_inode_cache",
--					      sizeof (struct befs_inode_info),
--					      0, (SLAB_RECLAIM_ACCOUNT|
--						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
--					      init_once);
-+	befs_inode_cachep = kmem_cache_create_usercopy("befs_inode_cache",
-+				sizeof(struct befs_inode_info), 0,
-+				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-+					SLAB_ACCOUNT),
-+				offsetof(struct befs_inode_info,
-+					i_data.symlink),
-+				sizeof_field(struct befs_inode_info,
-+					i_data.symlink),
-+				init_once);
- 	if (befs_inode_cachep == NULL)
- 		return -ENOMEM;
- 
+ mm/zsmalloc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+index 683c065..b9040bd 100644
+--- a/mm/zsmalloc.c
++++ b/mm/zsmalloc.c
+@@ -1057,7 +1057,7 @@ static void init_zspage(struct size_class *class, struct zspage *zspage)
+ 			 * Reset OBJ_TAG_BITS bit to last link to tell
+ 			 * whether it's allocated object or not.
+ 			 */
+-			link->next = -1 << OBJ_TAG_BITS;
++			link->next = -1UL << OBJ_TAG_BITS;
+ 		}
+ 		kunmap_atomic(vaddr);
+ 		page = next_page;
 -- 
 2.7.4
 
