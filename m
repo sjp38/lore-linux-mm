@@ -1,116 +1,213 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F14276B0253
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:59:51 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id n2so3131086pgs.0
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 13:59:51 -0800 (PST)
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00108.outbound.protection.outlook.com. [40.107.0.108])
-        by mx.google.com with ESMTPS id 62si14594647pld.618.2018.01.11.13.59.50
+Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BC3D66B025E
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 17:00:03 -0500 (EST)
+Received: by mail-io0-f198.google.com with SMTP id n17so2861051iob.21
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 14:00:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r141sor10473621ior.263.2018.01.11.14.00.02
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 11 Jan 2018 13:59:50 -0800 (PST)
-Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
- [memory,memsw].limit_in_bytes
-References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
- <20180110124317.28887-1-aryabinin@virtuozzo.com>
- <20180111104239.GZ1732@dhcp22.suse.cz>
- <4a8f667d-c2ae-e3df-00fd-edc01afe19e1@virtuozzo.com>
- <20180111124629.GA1732@dhcp22.suse.cz>
- <ce885a69-67af-5f4c-1116-9f6803fb45ee@virtuozzo.com>
- <20180111162947.GG1732@dhcp22.suse.cz>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <560a77b5-02d7-cbae-35f3-0b20a1c384c2@virtuozzo.com>
-Date: Fri, 12 Jan 2018 00:59:38 +0300
+        (Google Transport Security);
+        Thu, 11 Jan 2018 14:00:02 -0800 (PST)
 MIME-Version: 1.0
-In-Reply-To: <20180111162947.GG1732@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+In-Reply-To: <20180110225626.110330-1-yuzhao@google.com>
+References: <20180110224741.83751-1-yuzhao@google.com> <20180110225626.110330-1-yuzhao@google.com>
+From: Dan Streetman <ddstreet@ieee.org>
+Date: Thu, 11 Jan 2018 16:59:21 -0500
+Message-ID: <CALZtONCJmmGS=cMwFV=8zE3Zq-XwACqVkjkMM_E1OiB1=+sR2A@mail.gmail.com>
+Subject: Re: [PATCH v3] zswap: only save zswap header when necessary
+Content-Type: text/plain; charset="UTF-8"
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
+To: Yu Zhao <yuzhao@google.com>
+Cc: Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On 01/11/2018 07:29 PM, Michal Hocko wrote:
-> On Thu 11-01-18 18:23:57, Andrey Ryabinin wrote:
->> On 01/11/2018 03:46 PM, Michal Hocko wrote:
->>> On Thu 11-01-18 15:21:33, Andrey Ryabinin wrote:
->>>>
->>>>
->>>> On 01/11/2018 01:42 PM, Michal Hocko wrote:
->>>>> On Wed 10-01-18 15:43:17, Andrey Ryabinin wrote:
->>>>> [...]
->>>>>> @@ -2506,15 +2480,13 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->>>>>>  		if (!ret)
->>>>>>  			break;
->>>>>>  
->>>>>> -		try_to_free_mem_cgroup_pages(memcg, 1, GFP_KERNEL, !memsw);
->>>>>> -
->>>>>> -		curusage = page_counter_read(counter);
->>>>>> -		/* Usage is reduced ? */
->>>>>> -		if (curusage >= oldusage)
->>>>>> -			retry_count--;
->>>>>> -		else
->>>>>> -			oldusage = curusage;
->>>>>> -	} while (retry_count);
->>>>>> +		usage = page_counter_read(counter);
->>>>>> +		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
->>>>>> +						GFP_KERNEL, !memsw)) {
->>>>>
->>>>> If the usage drops below limit in the meantime then you get underflow
->>>>> and reclaim the whole memcg. I do not think this is a good idea. This
->>>>> can also lead to over reclaim. Why don't you simply stick with the
->>>>> original SWAP_CLUSTER_MAX (aka 1 for try_to_free_mem_cgroup_pages)?
->>>>>
->>>>
->>>> Because, if new limit is gigabytes bellow the current usage, retrying to set
->>>> new limit after reclaiming only 32 pages seems unreasonable.
->>>
->>> Who would do insanity like that?
->>>
->>
->> What's insane about that?
-> 
-> I haven't seen this being done in practice. Why would you want to
-> reclaim GBs of memory from a cgroup? Anyway, if you believe this is
-> really needed then simply do it in a separate patch.
->  
+On Wed, Jan 10, 2018 at 5:56 PM, Yu Zhao <yuzhao@google.com> wrote:
+> We waste sizeof(swp_entry_t) for zswap header when using zsmalloc
+> as zpool driver because zsmalloc doesn't support eviction.
+>
+> Add zpool_evictable() to detect if zpool is potentially evictable,
+> and use it in zswap to avoid waste memory for zswap header.
+>
+> Signed-off-by: Yu Zhao <yuzhao@google.com>
+> ---
+>  include/linux/zpool.h |  2 ++
+>  mm/zpool.c            | 25 +++++++++++++++++++++++--
+>  mm/zsmalloc.c         |  7 -------
+>  mm/zswap.c            | 20 ++++++++++----------
+>  4 files changed, 35 insertions(+), 19 deletions(-)
+>
+> diff --git a/include/linux/zpool.h b/include/linux/zpool.h
+> index 004ba807df96..7238865e75b0 100644
+> --- a/include/linux/zpool.h
+> +++ b/include/linux/zpool.h
+> @@ -108,4 +108,6 @@ void zpool_register_driver(struct zpool_driver *driver);
+>
+>  int zpool_unregister_driver(struct zpool_driver *driver);
+>
+> +bool zpool_evictable(struct zpool *pool);
+> +
+>  #endif
+> diff --git a/mm/zpool.c b/mm/zpool.c
+> index fd3ff719c32c..e1e7aa6d1d06 100644
+> --- a/mm/zpool.c
+> +++ b/mm/zpool.c
+> @@ -21,6 +21,7 @@ struct zpool {
+>         struct zpool_driver *driver;
+>         void *pool;
+>         const struct zpool_ops *ops;
+> +       bool evictable;
+>
+>         struct list_head list;
+>  };
+> @@ -142,7 +143,7 @@ EXPORT_SYMBOL(zpool_has_pool);
+>   *
+>   * This creates a new zpool of the specified type.  The gfp flags will be
+>   * used when allocating memory, if the implementation supports it.  If the
+> - * ops param is NULL, then the created zpool will not be shrinkable.
+> + * ops param is NULL, then the created zpool will not be evictable.
+>   *
+>   * Implementations must guarantee this to be thread-safe.
+>   *
+> @@ -180,6 +181,7 @@ struct zpool *zpool_create_pool(const char *type, const char *name, gfp_t gfp,
+>         zpool->driver = driver;
+>         zpool->pool = driver->create(name, gfp, ops, zpool);
+>         zpool->ops = ops;
+> +       zpool->evictable = driver->shrink && ops && ops->evict;
 
-For the same reason as anyone would want to set memory limit on some job that generates
-too much pressure and disrupts others. Whether this GBs or MBs is just a matter of scale.
+Since the ops->evict comes from zswap (and is never omitted), if we do
+restore zs_zpool_shrink() in the future to call the zsmalloc shrinker
+(and not do eviction), we'll have to add a driver->evictable bool to
+check here as well.
 
-More concrete example is workload that generates lots of page cache. Without limit (or with too high limit)
-it wakes up kswapd which starts trashing all other cgroups. It's pretty bad for anon mostly cgroups
-as we may constantly swap back and forth hot data.
+But for now this is good, the zpools with driver->shrink do eviction,
+zsmalloc doesn't do eviction and won't have driver->shrink.
 
+Acked-by: Dan Streetman <ddstreet@ieee.org>
 
->>>> @@ -2487,8 +2487,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
->>>>  		if (!ret)
->>>>  			break;
->>>>  
->>>> -		usage = page_counter_read(counter);
->>>> -		if (!try_to_free_mem_cgroup_pages(memcg, usage - limit,
->>>> +		nr_pages = max_t(long, 1, page_counter_read(counter) - limit);
->>>> +		if (!try_to_free_mem_cgroup_pages(memcg, nr_pages,
->>>>  						GFP_KERNEL, !memsw)) {
->>>>  			ret = -EBUSY;
->>>>  			break;
->>>
->>> How does this address the over reclaim concern?
->>  
->> It protects from over reclaim due to underflow.
-> 
-> I do not think so. Consider that this reclaim races with other
-> reclaimers. Now you are reclaiming a large chunk so you might end up
-> reclaiming more than necessary. SWAP_CLUSTER_MAX would reduce the over
-> reclaim to be negligible.
-> 
+Thanks!
 
-I did consider this. And I think, I already explained that sort of race in previous email.
-Whether "Task B" is really a task in cgroup or it's actually a bunch of reclaimers,
-doesn't matter. That doesn't change anything.
-
-
+>
+>         if (!zpool->pool) {
+>                 pr_err("couldn't create %s pool\n", type);
+> @@ -296,7 +298,8 @@ void zpool_free(struct zpool *zpool, unsigned long handle)
+>  int zpool_shrink(struct zpool *zpool, unsigned int pages,
+>                         unsigned int *reclaimed)
+>  {
+> -       return zpool->driver->shrink(zpool->pool, pages, reclaimed);
+> +       return zpool->driver->shrink ?
+> +              zpool->driver->shrink(zpool->pool, pages, reclaimed) : -EINVAL;
+>  }
+>
+>  /**
+> @@ -355,6 +358,24 @@ u64 zpool_get_total_size(struct zpool *zpool)
+>         return zpool->driver->total_size(zpool->pool);
+>  }
+>
+> +/**
+> + * zpool_evictable() - Test if zpool is potentially evictable
+> + * @pool       The zpool to test
+> + *
+> + * Zpool is only potentially evictable when it's created with struct
+> + * zpool_ops.evict and its driver implements struct zpool_driver.shrink.
+> + *
+> + * However, it doesn't necessarily mean driver will use zpool_ops.evict
+> + * in its implementation of zpool_driver.shrink. It could do internal
+> + * defragmentation instead.
+> + *
+> + * Returns: true if potentially evictable; false otherwise.
+> + */
+> +bool zpool_evictable(struct zpool *zpool)
+> +{
+> +       return zpool->evictable;
+> +}
+> +
+>  MODULE_LICENSE("GPL");
+>  MODULE_AUTHOR("Dan Streetman <ddstreet@ieee.org>");
+>  MODULE_DESCRIPTION("Common API for compressed memory storage");
+> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
+> index 683c0651098c..9cc741bcdb32 100644
+> --- a/mm/zsmalloc.c
+> +++ b/mm/zsmalloc.c
+> @@ -407,12 +407,6 @@ static void zs_zpool_free(void *pool, unsigned long handle)
+>         zs_free(pool, handle);
+>  }
+>
+> -static int zs_zpool_shrink(void *pool, unsigned int pages,
+> -                       unsigned int *reclaimed)
+> -{
+> -       return -EINVAL;
+> -}
+> -
+>  static void *zs_zpool_map(void *pool, unsigned long handle,
+>                         enum zpool_mapmode mm)
+>  {
+> @@ -450,7 +444,6 @@ static struct zpool_driver zs_zpool_driver = {
+>         .destroy =      zs_zpool_destroy,
+>         .malloc =       zs_zpool_malloc,
+>         .free =         zs_zpool_free,
+> -       .shrink =       zs_zpool_shrink,
+>         .map =          zs_zpool_map,
+>         .unmap =        zs_zpool_unmap,
+>         .total_size =   zs_zpool_total_size,
+> diff --git a/mm/zswap.c b/mm/zswap.c
+> index d39581a076c3..52a9ab519ab2 100644
+> --- a/mm/zswap.c
+> +++ b/mm/zswap.c
+> @@ -964,11 +964,11 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         struct zswap_entry *entry, *dupentry;
+>         struct crypto_comp *tfm;
+>         int ret;
+> -       unsigned int dlen = PAGE_SIZE, len;
+> +       unsigned int hlen, dlen = PAGE_SIZE;
+>         unsigned long handle;
+>         char *buf;
+>         u8 *src, *dst;
+> -       struct zswap_header *zhdr;
+> +       struct zswap_header zhdr = { .swpentry = swp_entry(type, offset) };
+>
+>         if (!zswap_enabled || !tree) {
+>                 ret = -ENODEV;
+> @@ -1013,8 +1013,8 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>         }
+>
+>         /* store */
+> -       len = dlen + sizeof(struct zswap_header);
+> -       ret = zpool_malloc(entry->pool->zpool, len,
+> +       hlen = zpool_evictable(entry->pool->zpool) ? sizeof(zhdr) : 0;
+> +       ret = zpool_malloc(entry->pool->zpool, hlen + dlen,
+>                            __GFP_NORETRY | __GFP_NOWARN | __GFP_KSWAPD_RECLAIM,
+>                            &handle);
+>         if (ret == -ENOSPC) {
+> @@ -1025,10 +1025,9 @@ static int zswap_frontswap_store(unsigned type, pgoff_t offset,
+>                 zswap_reject_alloc_fail++;
+>                 goto put_dstmem;
+>         }
+> -       zhdr = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
+> -       zhdr->swpentry = swp_entry(type, offset);
+> -       buf = (u8 *)(zhdr + 1);
+> -       memcpy(buf, dst, dlen);
+> +       buf = zpool_map_handle(entry->pool->zpool, handle, ZPOOL_MM_RW);
+> +       memcpy(buf, &zhdr, hlen);
+> +       memcpy(buf + hlen, dst, dlen);
+>         zpool_unmap_handle(entry->pool->zpool, handle);
+>         put_cpu_var(zswap_dstmem);
+>
+> @@ -1091,8 +1090,9 @@ static int zswap_frontswap_load(unsigned type, pgoff_t offset,
+>
+>         /* decompress */
+>         dlen = PAGE_SIZE;
+> -       src = (u8 *)zpool_map_handle(entry->pool->zpool, entry->handle,
+> -                       ZPOOL_MM_RO) + sizeof(struct zswap_header);
+> +       src = zpool_map_handle(entry->pool->zpool, entry->handle, ZPOOL_MM_RO);
+> +       if (zpool_evictable(entry->pool->zpool))
+> +               src += sizeof(struct zswap_header);
+>         dst = kmap_atomic(page);
+>         tfm = *get_cpu_ptr(entry->pool->tfm);
+>         ret = crypto_comp_decompress(tfm, src, entry->length, dst, &dlen);
+> --
+> 2.16.0.rc1.238.g530d649a79-goog
+>
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
