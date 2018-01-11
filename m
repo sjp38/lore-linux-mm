@@ -1,41 +1,49 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-yw0-f198.google.com (mail-yw0-f198.google.com [209.85.161.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 72D106B026E
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 12:14:50 -0500 (EST)
-Received: by mail-yw0-f198.google.com with SMTP id b186so1793397ywe.4
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 09:14:50 -0800 (PST)
-Received: from imap.thunk.org (imap.thunk.org. [2600:3c02::f03c:91ff:fe96:be03])
-        by mx.google.com with ESMTPS id e4si3172312ybj.595.2018.01.11.09.14.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 11 Jan 2018 09:14:49 -0800 (PST)
-Date: Thu, 11 Jan 2018 12:01:19 -0500
-From: Theodore Ts'o <tytso@mit.edu>
-Subject: Re: [PATCH 13/38] ext4: Define usercopy region in ext4_inode_cache
- slab cache
-Message-ID: <20180111170119.GB19241@thunk.org>
-References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
- <1515636190-24061-14-git-send-email-keescook@chromium.org>
+Received: from mail-oi0-f70.google.com (mail-oi0-f70.google.com [209.85.218.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9101B6B026E
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 12:33:08 -0500 (EST)
+Received: by mail-oi0-f70.google.com with SMTP id s136so936034oie.0
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 09:33:08 -0800 (PST)
+Received: from foss.arm.com (foss.arm.com. [217.140.101.70])
+        by mx.google.com with ESMTP id c5si5276729oif.347.2018.01.11.09.33.07
+        for <linux-mm@kvack.org>;
+        Thu, 11 Jan 2018 09:33:07 -0800 (PST)
+Date: Thu, 11 Jan 2018 17:33:10 +0000
+From: Will Deacon <will.deacon@arm.com>
+Subject: Re: [PATCH 2/2] kasan: clean up KASAN_SHADOW_SCALE_SHIFT usage
+Message-ID: <20180111173309.GG13216@arm.com>
+References: <cover.1515684162.git.andreyknvl@google.com>
+ <ff221eca3db7a1f208c30c625b7d209fba33abb9.1515684162.git.andreyknvl@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1515636190-24061-14-git-send-email-keescook@chromium.org>
+In-Reply-To: <ff221eca3db7a1f208c30c625b7d209fba33abb9.1515684162.git.andreyknvl@google.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: linux-kernel@vger.kernel.org, David Windsor <dave@nullcore.net>, Andreas Dilger <adilger.kernel@dilger.ca>, linux-ext4@vger.kernel.org, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+To: Andrey Konovalov <andreyknvl@google.com>
+Cc: Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, Dmitry Vyukov <dvyukov@google.com>, Catalin Marinas <catalin.marinas@arm.com>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, "H . Peter Anvin" <hpa@zytor.com>, kasan-dev@googlegroups.com, linux-mm@kvack.org, linux-arm-kernel@lists.infradead.org, x86@kernel.org, linux-kernel@vger.kernel.org, Kostya Serebryany <kcc@google.com>
 
-On Wed, Jan 10, 2018 at 06:02:45PM -0800, Kees Cook wrote:
-> The ext4 symlink pathnames, stored in struct ext4_inode_info.i_data
-> and therefore contained in the ext4_inode_cache slab cache, need
-> to be copied to/from userspace.
+On Thu, Jan 11, 2018 at 04:29:09PM +0100, Andrey Konovalov wrote:
+> Right now the fact that KASAN uses a single shadow byte for 8 bytes of
+> memory is scattered all over the code.
+> 
+> This change defines KASAN_SHADOW_SCALE_SHIFT early in asm include files
+> and makes use of this constant where necessary.
+> 
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  arch/arm64/include/asm/kasan.h  | 3 ++-
+>  arch/arm64/include/asm/memory.h | 3 ++-
+>  arch/arm64/mm/kasan_init.c      | 3 ++-
+>  arch/x86/include/asm/kasan.h    | 8 ++++++--
+>  include/linux/kasan.h           | 2 --
+>  5 files changed, 12 insertions(+), 7 deletions(-)
 
-Symlink operations to/from userspace aren't common or in the hot path,
-and when they are in i_data, limited to at most 60 bytes.  Is it worth
-it to copy through a bounce buffer so as to disallow any usercopies
-into struct ext4_inode_info?
+For the arm64 parts:
 
-					- Ted
+Acked-by: Will Deacon <will.deacon@arm.com>
+
+Will
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
