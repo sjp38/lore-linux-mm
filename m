@@ -1,40 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D78D06B0261
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:06:27 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id a74so1146679pfg.20
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 23:06:27 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x1sor2844836pln.85.2018.01.10.23.06.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C91876B0069
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:36:25 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id w7so1282208pfd.4
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 23:36:25 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id x20sor4282948pfh.4.2018.01.10.23.36.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 23:06:26 -0800 (PST)
-Date: Thu, 11 Jan 2018 16:06:22 +0900
+        Wed, 10 Jan 2018 23:36:24 -0800 (PST)
+Date: Thu, 11 Jan 2018 16:36:18 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v2] zsmalloc: use U suffix for negative literals being
- shifted
-Message-ID: <20180111070622.GI494@jagdpanzerIV>
-References: <20180110055338.h3cs5hw7mzsdtcad@eng-minchan1.roam.corp.google.com>
- <1515642078-4259-1-git-send-email-nick.desaulniers@gmail.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180111073618.GA477@jagdpanzerIV>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+ <20180110162900.GA21753@linux.suse>
+ <20180110170223.GF3668920@devbig577.frc2.facebook.com>
+ <532107698.142.1515609640436.JavaMail.zimbra@efficios.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1515642078-4259-1-git-send-email-nick.desaulniers@gmail.com>
+In-Reply-To: <532107698.142.1515609640436.JavaMail.zimbra@efficios.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Nick Desaulniers <nick.desaulniers@gmail.com>
-Cc: akpm@linux-foundation.org, Andy Shevchenko <andy.shevchenko@gmail.com>, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
+Cc: Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm <linux-mm@kvack.org>, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Jan Kara <jack@suse.cz>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On (01/10/18 19:41), Nick Desaulniers wrote:
-> Fixes warnings about shifting unsigned literals being undefined
-> behavior.
+Hi Mathieu,
+
+On (01/10/18 18:40), Mathieu Desnoyers wrote:
+[..]
 > 
-> Suggested-by: Minchan Kim <minchan@kernel.org>
-> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
+> There appears to be two problems at hand. One is making sure a console
+> buffer owner only flushes a bounded amount of data.
 
-looks good to me.
-
-Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+which, realistically, has quite little to do with the "and thus it
+fixes the lockups". logbuf size is mutable, the number of consoles we
+need to sequentially push the data to is mutable, the watchdog threshold
+is mutable... if combination of first two mutable things produces the
+result which makes the check based on the third mutable thing happy,
+then it's just an accident. my 5 cents.
 
 	-ss
 
