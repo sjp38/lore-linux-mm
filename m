@@ -1,56 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 115346B0253
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 00:15:30 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id c25so727174pfi.11
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:15:30 -0800 (PST)
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C2856B0033
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 00:35:14 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id g68so797806pfb.17
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:35:14 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a138sor4667155pfd.57.2018.01.10.21.15.28
+        by mx.google.com with SMTPS id k191sor853656pgd.368.2018.01.10.21.35.12
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 21:15:29 -0800 (PST)
-Date: Thu, 11 Jan 2018 14:15:24 +0900
+        Wed, 10 Jan 2018 21:35:12 -0800 (PST)
+Date: Thu, 11 Jan 2018 14:35:07 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
 Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180111051524.GC494@jagdpanzerIV>
+Message-ID: <20180111053507.GD494@jagdpanzerIV>
 References: <20180110132418.7080-1-pmladek@suse.com>
  <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
- <20180110162900.GA21753@linux.suse>
- <20180110170223.GF3668920@devbig577.frc2.facebook.com>
- <20180110182153.GP6176@hirez.programming.kicks-ass.net>
+ <20180110130517.6ff91716@vmware.local.home>
+ <20180110181252.GK3668920@devbig577.frc2.facebook.com>
+ <20180110134157.1c3ce4b9@vmware.local.home>
+ <20180110185747.GO3668920@devbig577.frc2.facebook.com>
+ <20180110141758.1f88e1a0@vmware.local.home>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180110182153.GP6176@hirez.programming.kicks-ass.net>
+In-Reply-To: <20180110141758.1f88e1a0@vmware.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Tejun Heo <tj@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Cc: Petr Mladek <pmladek@suse.com>, Linus Torvalds <torvalds@linux-foundation.org>, akpm@linux-foundation.org, Steven Rostedt <rostedt@goodmis.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On (01/10/18 19:21), Peter Zijlstra wrote:
-> 
-> On Wed, Jan 10, 2018 at 09:02:23AM -0800, Tejun Heo wrote:
-> > 2. System runs out of memory, OOM triggers.
-> > 3. OOM handler is printing out OOM debug info.
-> > 4. While trying to emit the messages for netconsole, the network stack
-> >    / driver tries to allocate memory and then fail, which in turn
-> >    triggers allocation failure or other warning messages.  printk was
-> >    already flushing, so the messages are queued on the ring.
-> > 5. OOM handler keeps flushing but 4 repeats and the queue is never
-> >    shrinking.  Because OOM handler is trapped in printk flushing, it
-> >    never manages to free memory and no one else can enter OOM path
-> >    either, so the system is trapped in this state.
-> 
-> Why not kill recursive OOM (msgs) ?
+On (01/10/18 14:17), Steven Rostedt wrote:
+[..]
+> OK, lets start over.
 
-hm... do I understand it correctly that there is a
+good.
 
-console_unlock()->call_console_drivers()->FOO_write()->kmalloc()->printk() recursion?
+> Right now my focus is an incremental approach. I'm not trying to solve
+> all issues that printk has. I've focused on a single issue, and that is
+> that printk is unbounded. Coming from a Real Time background, I find
+> that is a big problem. I hate unbounded algorithms.
 
-we call console drivers from printk-safe context now. so those printks
-from kmalloc are redirected to per-CPU printk-safe buffer, which is
-limited in size (we probably might start losing some of those OOM
-messages) and which is flushed (log_store()) from another context.
+agreed! so why not bound it to watchdog threshold then? why bound
+it to a random O(logbuf) thing? which is not even constant. when you
+un-register or disable one or several consoles then call_console_drivers()
+becomes faster; when you register/enable consoles then the entire
+call_console_drivers() becomes slower. how do we build a reliable
+algorithm on that O(logbuf)?
 
 	-ss
 
