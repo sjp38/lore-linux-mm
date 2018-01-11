@@ -1,47 +1,47 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D0BD86B0272
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:03:38 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id e12so1694096pga.5
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:03:38 -0800 (PST)
+Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 305426B0033
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:09:36 -0500 (EST)
+Received: by mail-pg0-f71.google.com with SMTP id p14so1717660pgq.2
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:09:36 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l36sor911335plg.114.2018.01.10.18.03.37
+        by mx.google.com with SMTPS id h12sor5604081pls.124.2018.01.10.18.09.35
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 18:03:37 -0800 (PST)
+        Wed, 10 Jan 2018 18:09:35 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 15/38] jfs: Define usercopy region in jfs_ip slab cache
-Date: Wed, 10 Jan 2018 18:02:47 -0800
-Message-Id: <1515636190-24061-16-git-send-email-keescook@chromium.org>
+Subject: [PATCH 19/38] ufs: Define usercopy region in ufs_inode_cache slab cache
+Date: Wed, 10 Jan 2018 18:02:51 -0800
+Message-Id: <1515636190-24061-20-git-send-email-keescook@chromium.org>
 In-Reply-To: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Dave Kleikamp <shaggy@kernel.org>, jfs-discussion@lists.sourceforge.net, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Evgeniy Dushistov <dushistov@mail.ru>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-The jfs symlink pathnames, stored in struct jfs_inode_info.i_inline and
-therefore contained in the jfs_ip slab cache, need to be copied to/from
-userspace.
+The ufs symlink pathnames, stored in struct ufs_inode_info.i_u1.i_symlink
+and therefore contained in the ufs_inode_cache slab cache, need to be
+copied to/from userspace.
 
 cache object allocation:
-    fs/jfs/super.c:
-        jfs_alloc_inode(...):
+    fs/ufs/super.c:
+        ufs_alloc_inode(...):
             ...
-            jfs_inode = kmem_cache_alloc(jfs_inode_cachep, GFP_NOFS);
+            ei = kmem_cache_alloc(ufs_inode_cachep, GFP_NOFS);
             ...
-            return &jfs_inode->vfs_inode;
+            return &ei->vfs_inode;
 
-    fs/jfs/jfs_incore.h:
-        JFS_IP(struct inode *inode):
-            return container_of(inode, struct jfs_inode_info, vfs_inode);
+    fs/ufs/ufs.h:
+        UFS_I(struct inode *inode):
+            return container_of(inode, struct ufs_inode_info, vfs_inode);
 
-    fs/jfs/inode.c:
-        jfs_iget(...):
+    fs/ufs/namei.c:
+        ufs_symlink(...):
             ...
-            inode->i_link = JFS_IP(inode)->i_inline;
+            inode->i_link = (char *)UFS_I(inode)->i_u1.i_symlink;
 
 example usage trace:
     readlink_copy+0x43/0x70
@@ -61,7 +61,7 @@ example usage trace:
             readlink_copy(..., link);
 
 In support of usercopy hardening, this patch defines a region in the
-jfs_ip slab cache in which userspace copy operations are allowed.
+ufs_inode_cache slab cache in which userspace copy operations are allowed.
 
 This region is known as the slab cache's usercopy region. Slab caches
 can now check that each dynamically sized copy operation involving
@@ -74,33 +74,36 @@ mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
 [kees: adjust commit log, provide usage trace]
-Cc: Dave Kleikamp <shaggy@kernel.org>
-Cc: jfs-discussion@lists.sourceforge.net
+Cc: Evgeniy Dushistov <dushistov@mail.ru>
 Signed-off-by: Kees Cook <keescook@chromium.org>
-Acked-by: Dave Kleikamp <dave.kleikamp@oracle.com>
 ---
- fs/jfs/super.c | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
+ fs/ufs/super.c | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
 
-diff --git a/fs/jfs/super.c b/fs/jfs/super.c
-index 90373aebfdca..1b9264fd54b6 100644
---- a/fs/jfs/super.c
-+++ b/fs/jfs/super.c
-@@ -965,9 +965,11 @@ static int __init init_jfs_fs(void)
- 	int rc;
+diff --git a/fs/ufs/super.c b/fs/ufs/super.c
+index 4d497e9c6883..652a77702aec 100644
+--- a/fs/ufs/super.c
++++ b/fs/ufs/super.c
+@@ -1466,11 +1466,14 @@ static void init_once(void *foo)
  
- 	jfs_inode_cachep =
--	    kmem_cache_create("jfs_ip", sizeof(struct jfs_inode_info), 0,
--			    SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
--			    init_once);
-+	    kmem_cache_create_usercopy("jfs_ip", sizeof(struct jfs_inode_info),
-+			0, SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|SLAB_ACCOUNT,
-+			offsetof(struct jfs_inode_info, i_inline),
-+			sizeof_field(struct jfs_inode_info, i_inline),
-+			init_once);
- 	if (jfs_inode_cachep == NULL)
+ static int __init init_inodecache(void)
+ {
+-	ufs_inode_cachep = kmem_cache_create("ufs_inode_cache",
+-					     sizeof(struct ufs_inode_info),
+-					     0, (SLAB_RECLAIM_ACCOUNT|
+-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+-					     init_once);
++	ufs_inode_cachep = kmem_cache_create_usercopy("ufs_inode_cache",
++				sizeof(struct ufs_inode_info), 0,
++				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
++					SLAB_ACCOUNT),
++				offsetof(struct ufs_inode_info, i_u1.i_symlink),
++				sizeof_field(struct ufs_inode_info,
++					i_u1.i_symlink),
++				init_once);
+ 	if (ufs_inode_cachep == NULL)
  		return -ENOMEM;
- 
+ 	return 0;
 -- 
 2.7.4
 
