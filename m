@@ -1,325 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AE7B6B0261
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 04:08:13 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id t94so1066674wrc.18
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 01:08:13 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E42B76B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 04:34:42 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id r63so1122433wmb.9
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 01:34:42 -0800 (PST)
 Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k43si2449650wrk.28.2018.01.11.01.08.11
+        by mx.google.com with ESMTPS id q202si322841wme.252.2018.01.11.01.34.40
         for <linux-mm@kvack.org>
         (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Jan 2018 01:08:11 -0800 (PST)
-Date: Thu, 11 Jan 2018 10:08:09 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH v13 0/7] cgroup-aware OOM killer
-Message-ID: <20180111090809.GW1732@dhcp22.suse.cz>
-References: <20171130152824.1591-1-guro@fb.com>
- <20171130123930.cf3217c816fd270fa35a40cb@linux-foundation.org>
- <alpine.DEB.2.10.1801091556490.173445@chino.kir.corp.google.com>
- <20180110131143.GB26913@castle.DHCP.thefacebook.com>
- <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org>
+        Thu, 11 Jan 2018 01:34:41 -0800 (PST)
+Date: Thu, 11 Jan 2018 10:34:35 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
+Message-ID: <20180111093435.GA24497@linux.suse>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
+ <20180110130517.6ff91716@vmware.local.home>
+ <20180111045817.GA494@jagdpanzerIV>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180110113345.54dd571967fd6e70bfba68c3@linux-foundation.org>
+In-Reply-To: <20180111045817.GA494@jagdpanzerIV>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>, linux-mm@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>, Johannes Weiner <hannes@cmpxchg.org>, Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Tejun Heo <tj@kernel.org>, kernel-team@fb.com, cgroups@vger.kernel.org, linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Cc: Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Wed 10-01-18 11:33:45, Andrew Morton wrote:
-> On Wed, 10 Jan 2018 05:11:44 -0800 Roman Gushchin <guro@fb.com> wrote:
+On Thu 2018-01-11 13:58:17, Sergey Senozhatsky wrote:
+> On (01/10/18 13:05), Steven Rostedt wrote:
+> > The solution is simple, everyone at KS agreed with it, there should be
+> > no controversy here.
 > 
-> > Hello, David!
-> > 
-> > On Tue, Jan 09, 2018 at 04:57:53PM -0800, David Rientjes wrote:
-> > > On Thu, 30 Nov 2017, Andrew Morton wrote:
-> > > 
-> > > > > This patchset makes the OOM killer cgroup-aware.
-> > > > 
-> > > > Thanks, I'll grab these.
-> > > > 
-> > > > There has been controversy over this patchset, to say the least.  I
-> > > > can't say that I followed it closely!  Could those who still have
-> > > > reservations please summarise their concerns and hopefully suggest a
-> > > > way forward?
-> > > > 
-> > > 
-> > > Yes, I'll summarize what my concerns have been in the past and what they 
-> > > are wrt the patchset as it stands in -mm.  None of them originate from my 
-> > > current usecase or anticipated future usecase of the oom killer for 
-> > > system-wide or memcg-constrained oom conditions.  They are based purely on 
-> > > the patchset's use of an incomplete and unfair heuristic for deciding 
-> > > which cgroup to target.
-> > > 
-> > > I'll also suggest simple changes to the patchset, which I have in the 
-> > > past, that can be made to address all of these concerns.
-> > > 
-> > > 1. The unfair comparison of the root mem cgroup vs leaf mem cgroups
-> > > 
-> > > The patchset uses two different heuristics to compare root and leaf mem 
-> > > cgroups and scores them based on number of pages.  For the root mem 
-> > > cgroup, it totals the /proc/pid/oom_score of all processes attached: 
-> > > that's based on rss, swap, pgtables, and, most importantly, oom_score_adj.  
-> > > For leaf mem cgroups, it's based on that memcg's anonymous, unevictable, 
-> > > unreclaimable slab, kernel stack, and swap counters.  These can be wildly 
-> > > different independent of /proc/pid/oom_score_adj, but the most obvious 
-> > > unfairness comes from users who tune oom_score_adj.
-> > > 
-> > > An example: start a process that faults 1GB of anonymous memory and leave 
-> > > it attached to the root mem cgroup.  Start six more processes that each 
-> > > fault 1GB of anonymous memory and attached them to a leaf mem cgroup.  Set 
-> > > all processes to have /proc/pid/oom_score_adj of 1000.  System oom kill 
-> > > will always kill the 1GB process attached to the root mem cgroup.  It's 
-> > > because oom_badness() relies on /proc/pid/oom_score_adj, which is used to 
-> > > evaluate the root mem cgroup, and leaf mem cgroups completely disregard 
-> > > it.
-> > > 
-> > > In this example, the leaf mem cgroup's score is 1,573,044, the number of 
-> > > pages for the 6GB of faulted memory.  The root mem cgroup's score is 
-> > > 12,652,907, eight times larger even though its usage is six times smaller.
-> > > 
-> > > This is caused by the patchset disregarding oom_score_adj entirely for 
-> > > leaf mem cgroups and relying on it heavily for the root mem cgroup.  It's 
-> > > the complete opposite result of what the cgroup aware oom killer 
-> > > advertises.
-> > > 
-> > > It also works the other way, if a large memory hog is attached to the root 
-> > > mem cgroup but has a negative oom_score_adj it is never killed and random 
-> > > processes are nuked solely because they happened to be attached to a leaf 
-> > > mem cgroup.  This behavior wrt oom_score_adj is completely undocumented, 
-> > > so I can't presume that it is either known nor tested.
-> > > 
-> > > Solution: compare the root mem cgroup and leaf mem cgroups equally with 
-> > > the same criteria by doing hierarchical accounting of usage and 
-> > > subtracting from total system usage to find root usage.
-> > 
-> > I find this problem quite minor, because I haven't seen any practical problems
-> > caused by accounting of the root cgroup memory.
-> > If it's a serious problem for you, it can be solved without switching to the
-> > hierarchical accounting: it's possible to sum up all leaf cgroup stats and
-> > substract them from global values. So, it can be a relatively small enhancement
-> > on top of the current mm tree. This has nothing to do with global victim selection
-> > approach.
-> 
-> It sounds like a significant shortcoming to me - the oom-killing
-> decisions which David describes are clearly incorrect?
+> frankly speaking, that's not what I recall ;)
 
-Well, I would rather look at that from the use case POV. The primary
-user of the new OOM killer functionality are containers. I might be
-wrong but I _assume_ that root cgroup will only contain the basic system
-infrastructure there and all the workload will run containers (aka
-cgroups). The only oom tuning inside the root cgroup would be to disable
-oom for some of those processes. The current implementation should work
-reasonably well for that configuration.
+To be honest, I do not longer remember the details. I think that
+nobody was really against that solution. Of course, there were
+doubts and other proposals.
+
+I think that I was actually the most sceptical guy there. I would
+split my old doubts into three areas:
+
+      + new possible deadlocks
+            -> I was wrong
+
+      + did not fully prevent softlockups
+            -> no real life example in hands
+
+      + looked tricky and complex
+	    -> like many other new things
+
+You see that I have changed my mind and decided to give this solution
+a chance.
+
  
-> If this can be fixed against the -mm patchset with a "relatively small
-> enhancement" then please let's get that done so it can be reviewed and
-> tested.
-
-The root memcg will be always special and I would rather base the
-semantic based on usecases rather than implement something based on
-theoretical examples.
-
-> > > 2. Evading the oom killer by attaching processes to child cgroups
-> > > 
-> > > Any cgroup on the system can attach all their processes to individual 
-> > > child cgroups.  This is functionally the same as doing
-> > > 
-> > > 	for i in $(cat cgroup.procs); do mkdir $i; echo $i > $i/cgroup.procs; done
-> > > 
-> > > without the no internal process constraint introduced with cgroup v2.  All 
-> > > child cgroups are evaluated based on their own usage: all anon, 
-> > > unevictable, and unreclaimable slab as described previously.  It requires 
-> > > an individual cgroup to be the single largest consumer to be targeted by 
-> > > the oom killer.
-> > > 
-> > > An example: allow users to manage two different mem cgroup hierarchies 
-> > > limited to 100GB each.  User A uses 10GB of memory and user B uses 90GB of 
-> > > memory in their respective hierarchies.  On a system oom condition, we'd 
-> > > expect at least one process from user B's hierarchy would always be oom 
-> > > killed with the cgroup aware oom killer.  In fact, the changelog 
-> > > explicitly states it solves an issue where "1) There is no fairness 
-> > > between containers. A small container with few large processes will be 
-> > > chosen over a large one with huge number of small processes."
-> > > 
-> > > The opposite becomes true, however, if user B creates child cgroups and 
-> > > distributes its processes such that each child cgroup's usage never 
-> > > exceeds 10GB of memory.  This can either be done intentionally to 
-> > > purposefully have a low cgroup memory footprint to evade the oom killer or 
-> > > unintentionally with cgroup v2 to allow those individual processes to be 
-> > > constrained by other cgroups in a single hierarchy model.  User A, using 
-> > > 10% of his memory limit, is always oom killed instead of user B, using 90% 
-> > > of his memory limit.
-> > > 
-> > > Others have commented its still possible to do this with a per-process 
-> > > model if users split their processes into many subprocesses with small 
-> > > memory footprints.
-> > > 
-> > > Solution: comparing cgroups must be done hierarchically.  Neither user A 
-> > > nor user B can evade the oom killer because targeting is done based on the 
-> > > total hierarchical usage rather than individual cgroups in their 
-> > > hierarchies.
-> > 
-> > We've discussed this a lot.
-> > Hierarchical approach has their own issues, which we've discussed during
-> > previous iterations of the patchset. If you know how to address them
-> > (I've no idea), please, go on and suggest your version.
+> [..]
+> > My printk solution is solid, with no risk of regressions of current
+> > printk usages.
 > 
-> Well, if a hierarchical approach isn't a workable fix for the problem
-> which David has identified then what *is* the fix?
+> except that handing off a console_sem to atomic task when there
+> is   O(logbuf) > watchdog_thresh   is a regression, basically...
+> it is what it is.
 
-Hierarchical approach basically hardcodes the oom decision into the
-hierarchy structure and that is simply a no go because that would turn
-into a massive configuration PITA (more on that below). I consider the above
-example rather artificial to be honest. Anyway, if we _really_ have to
-address it in the future we can do that by providing a mechanism to
-prioritize cgroups. It seems that this is required for some usecases
-anyway.
+How this could be a regression? Is not the victim that handles
+other printk's random? What protected the atomic task to
+handle the other printks before this patch?
+
+Or do you have a system that started to suffer from softlockups
+with this patchset and did not do this before?
  
-> > > 3. Userspace has zero control over oom kill selection in leaf mem cgroups
-> > > 
-> > > Unlike using /proc/pid/oom_score_adj to bias or prefer certain processes 
-> > > from the oom killer, the cgroup aware oom killer does not provide any 
-> > > solution for the user to protect leaf mem cgroups.  This is a result of 
-> > > leaf mem cgroups being evaluated based on their anon, unevictable, and 
-> > > unreclaimable slab usage and disregarding any user tunable.
-> > > 
-> > > Absent the cgroup aware oom killer, users have the ability to strongly 
-> > > prefer a process is oom killed (/proc/pid/oom_score_adj = 1000) or 
-> > > strongly bias against a process (/proc/pid/oom_score_adj = -999).
-> > > 
-> > > An example: a process knows its going to use a lot of memory, so it sets 
-> > > /proc/self/oom_score_adj to 1000.  It wants to be killed first to avoid 
-> > > distrupting any other process.  If it's attached to the root mem cgroup, 
-> > > it will be oom killed.  If it's attached to a leaf mem cgroup by an admin 
-> > > outside its control, it will never be oom killed unless that cgroup's 
-> > > usage is the largest single cgroup usage on the system.  The reverse also 
-> > > is true for processes that the admin does not want to be oom killed: set 
-> > > /proc/pid/oom_score_adj to -999, but it will *always* be oom killed if its 
-> > > cgroup has the highest usage on the system.
-> > > 
-> > > The result is that both admins and users have lost all control over which 
-> > > processes are oom killed.  They are left with only one alternative: set 
-> > > /proc/pid/oom_score_adj to -1000 to completely disable a process from oom 
-> > > kill.  It doesn't address the issue at all for memcg-constrained oom 
-> > > conditions since no processes are killable anymore, and risks panicking 
-> > > the system if it is the only process left on the system.  A process 
-> > > preferring that it is first in line for oom kill simply cannot volunteer 
-> > > anymore.
-> > > 
-> > > Solution: allow users and admins to control oom kill selection by 
-> > > introducing a memory.oom_score_adj to affect the oom score of that mem 
-> > > cgroup, exactly the same as /proc/pid/oom_score_adj affects the oom score 
-> > > of a process.
-> > 
-> > The per-process oom_score_adj interface is not the nicest one, and I'm not
-> > sure we want to replicate it on cgroup level as is. If you have an idea of how
-> > it should look like, please, propose a patch; otherwise it's hard to discuss
-> > it without the code.
 > 
-> It does make sense to have some form of per-cgroup tunability.  Why is
-> the oom_score_adj approach inappropriate and what would be better?
-
-oom_score_adj is basically unusable for any fine tuning on the process
-level for most setups except for very specialized ones. The only
-reasonable usage I've seen so far was to disable OOM killer for a
-process or make it a prime candidate. Using the same limited concept for
-cgroups sounds like repeating the same error to me.
-
-> How hard is it to graft such a thing onto the -mm patchset?
-
-I think this should be thought through very well before we add another
-tuning. Moreover the current usecase doesn't seem to require it so I am
-not really sure why we should implement something right away and later
-suffer from API mistakes.
- 
-> > > I proposed a solution in 
-> > > https://marc.info/?l=linux-kernel&m=150956897302725, which was never 
-> > > responded to, for all of these issues.  The idea is to do hierarchical 
-> > > accounting of mem cgroup hierarchies so that the hierarchy is traversed 
-> > > comparing total usage at each level to select target cgroups.  Admins and 
-> > > users can use memory.oom_score_adj to influence that decisionmaking at 
-> > > each level.
-> > > 
-> > > This solves #1 because mem cgroups can be compared based on the same 
-> > > classes of memory and the root mem cgroup's usage can be fairly compared 
-> > > by subtracting top-level mem cgroup usage from system usage.  All of the 
-> > > criteria used to evaluate a leaf mem cgroup has a reasonable system-wide 
-> > > counterpart that can be used to do the simple subtraction.
-> > > 
-> > > This solves #2 because evaluation is done hierarchically so that 
-> > > distributing processes over a set of child cgroups either intentionally 
-> > > or unintentionally no longer evades the oom killer.  Total usage is always 
-> > > accounted to the parent and there is no escaping this criteria for users.
-> > > 
-> > > This solves #3 because it allows admins to protect important processes in 
-> > > cgroups that are supposed to use, for example, 75% of system memory 
-> > > without it unconditionally being selected for oom kill but still oom kill 
-> > > if it exceeds a certain threshold.  In this sense, the cgroup aware oom 
-> > > killer, as currently implemented, is selling mem cgroups short by 
-> > > requiring the user to accept that the important process will be oom killed 
-> > > iff it uses mem cgroups and isn't attached to root.  It also allows users 
-> > > to actually volunteer to be oom killed first without majority usage.
-> > > 
-> > > It has come up time and time again that this support can be introduced on 
-> > > top of the cgroup oom killer as implemented.  It simply cannot.  For 
-> > > admins and users to have control over decisionmaking, it needs a 
-> > > oom_score_adj type tunable that cannot change semantics from kernel 
-> > > version to kernel version and without polluting the mem cgroup filesystem.  
-> > > That, in my suggestion, is an adjustment on the amount of total 
-> > > hierarchical usage of each mem cgroup at each level of the hierarchy.  
-> > > That requires that the heuristic uses hierarchical usage rather than 
-> > > considering each cgroup as independent consumers as it does today.  We 
-> > > need to implement that heuristic and introduce userspace influence over 
-> > > oom kill selection now rather than later because its implementation 
-> > > changes how this patchset is implemented.
-> > > 
-> > > I can implement these changes, if preferred, on top of the current 
-> > > patchset, but I do not believe we want inconsistencies between kernel 
-> > > versions that introduce user visible changes for the sole reason that this 
-> > > current implementation is incomplete and unfair.  We can implement and 
-> > > introduce it once without behavior changing later because the core 
-> > > heuristic has necessarily changed.
-> > 
-> > David, I _had_ hierarchical accounting implemented in one of the previous
-> > versions of this patchset. And there were _reasons_, why we went away from it.
+> > If anything, I'll pull theses patches myself, and push them to Linus
+> > directly
 > 
-> Can you please summarize those issues for my understanding?
+> lovely.
 
-Because it makes the oom decision directly hardwired to the hierarchy
-structure. Just take a simple example of the cgroup structure which
-reflects a higher level organization
-         root
-	/  |  \ 
-  admins   |   teachers
-        students
+Do you know about any system where this patch made the softlockup
+deterministically or statistically more likely, please?
 
-Now your students group will be most like the largest one. Why should we
-kill tasks/cgroups from that cgroup just because it is cumulatively the
-largest one. It might have been some of the teacher blowing up the
-memory usage.
-
-Another example is when you need a mid layer cgroups for other
-controllers to better control resources.
-	root
-	/  \
-   cpuset1  cpuset2
-   /    \   /  |  \
-  A     B  C   D   E
-
-You really do not want to select cpuset2 just because it has more
-subgroups and potentially larger cumulative usage. The hierarchical
-accounting works _only_ if higher level cgroups are semantically
-_comparable_ which might be true for some workloads but by no means this
-is true in general.
-
-That all being said, I can see further improvements to happen on top of
-the current work but I also think that the current implementation works
-for the usecase which many users can use without those improvements.
--- 
-Michal Hocko
-SUSE Labs
+Best Regards,
+Petr
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
