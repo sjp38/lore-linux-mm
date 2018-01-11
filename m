@@ -1,64 +1,52 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 281C06B028F
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:09:49 -0500 (EST)
-Received: by mail-pg0-f69.google.com with SMTP id o11so1693534pgp.14
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 030E26B0291
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:09:50 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id j6so1661484pgp.21
         for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:09:49 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x7sor3978884pgc.111.2018.01.10.18.09.47
+        by mx.google.com with SMTPS id e72sor587445pfm.55.2018.01.10.18.09.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 18:09:47 -0800 (PST)
+        Wed, 10 Jan 2018 18:09:48 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 17/38] exofs: Define usercopy region in exofs_inode_cache slab cache
-Date: Wed, 10 Jan 2018 18:02:49 -0800
-Message-Id: <1515636190-24061-18-git-send-email-keescook@chromium.org>
+Subject: [PATCH 30/38] fork: Define usercopy region in thread_stack slab caches
+Date: Wed, 10 Jan 2018 18:03:02 -0800
+Message-Id: <1515636190-24061-31-git-send-email-keescook@chromium.org>
 In-Reply-To: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
-Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Boaz Harrosh <ooo@electrozaur.com>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
+Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Ingo Molnar <mingo@kernel.org>, Andrew Morton <akpm@linux-foundation.org>, Thomas Gleixner <tglx@linutronix.de>, Andy Lutomirski <luto@kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
 From: David Windsor <dave@nullcore.net>
 
-The exofs short symlink names, stored in struct exofs_i_info.i_data and
-therefore contained in the exofs_inode_cache slab cache, need to be copied
-to/from userspace.
+In support of usercopy hardening, this patch defines a region in the
+thread_stack slab caches in which userspace copy operations are allowed.
+Since the entire thread_stack needs to be available to userspace, the
+entire slab contents are whitelisted. Note that the slab-based thread
+stack is only present on systems with THREAD_SIZE < PAGE_SIZE and
+!CONFIG_VMAP_STACK.
 
 cache object allocation:
-    fs/exofs/super.c:
-        exofs_alloc_inode(...):
-            ...
-            oi = kmem_cache_alloc(exofs_inode_cachep, GFP_KERNEL);
-            ...
-            return &oi->vfs_inode;
+    kernel/fork.c:
+        alloc_thread_stack_node(...):
+            return kmem_cache_alloc_node(thread_stack_cache, ...)
 
-    fs/exofs/namei.c:
-        exofs_symlink(...):
+        dup_task_struct(...):
             ...
-            inode->i_link = (char *)oi->i_data;
-
-example usage trace:
-    readlink_copy+0x43/0x70
-    vfs_readlink+0x62/0x110
-    SyS_readlinkat+0x100/0x130
-
-    fs/namei.c:
-        readlink_copy(..., link):
+            stack = alloc_thread_stack_node(...)
             ...
-            copy_to_user(..., link, len);
+            tsk->stack = stack;
 
-        (inlined in vfs_readlink)
-        generic_readlink(dentry, ...):
-            struct inode *inode = d_inode(dentry);
-            const char *link = inode->i_link;
+        copy_process(...):
             ...
-            readlink_copy(..., link);
+            dup_task_struct(...)
 
-In support of usercopy hardening, this patch defines a region in the
-exofs_inode_cache slab cache in which userspace copy operations are
-allowed.
+        _do_fork(...):
+            ...
+            copy_process(...)
 
 This region is known as the slab cache's usercopy region. Slab caches
 can now check that each dynamically sized copy operation involving
@@ -70,33 +58,33 @@ understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, provide usage trace]
-Cc: Boaz Harrosh <ooo@electrozaur.com>
+[kees: adjust commit log, split patch, provide usage trace]
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Thomas Gleixner <tglx@linutronix.de>
+Cc: Andy Lutomirski <luto@kernel.org>
 Signed-off-by: Kees Cook <keescook@chromium.org>
+Acked-by: Rik van Riel <riel@redhat.com>
 ---
- fs/exofs/super.c | 7 +++++--
- 1 file changed, 5 insertions(+), 2 deletions(-)
+ kernel/fork.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
 
-diff --git a/fs/exofs/super.c b/fs/exofs/super.c
-index 819624cfc8da..e5c532875bb7 100644
---- a/fs/exofs/super.c
-+++ b/fs/exofs/super.c
-@@ -192,10 +192,13 @@ static void exofs_init_once(void *foo)
-  */
- static int init_inodecache(void)
+diff --git a/kernel/fork.c b/kernel/fork.c
+index 82f2a0441d3b..0e086af148f2 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -282,8 +282,9 @@ static void free_thread_stack(struct task_struct *tsk)
+ 
+ void thread_stack_cache_init(void)
  {
--	exofs_inode_cachep = kmem_cache_create("exofs_inode_cache",
-+	exofs_inode_cachep = kmem_cache_create_usercopy("exofs_inode_cache",
- 				sizeof(struct exofs_i_info), 0,
- 				SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
--				SLAB_ACCOUNT, exofs_init_once);
-+				SLAB_ACCOUNT,
-+				offsetof(struct exofs_i_info, i_data),
-+				sizeof_field(struct exofs_i_info, i_data),
-+				exofs_init_once);
- 	if (exofs_inode_cachep == NULL)
- 		return -ENOMEM;
- 	return 0;
+-	thread_stack_cache = kmem_cache_create("thread_stack", THREAD_SIZE,
+-					      THREAD_SIZE, 0, NULL);
++	thread_stack_cache = kmem_cache_create_usercopy("thread_stack",
++					THREAD_SIZE, THREAD_SIZE, 0, 0,
++					THREAD_SIZE, NULL);
+ 	BUG_ON(thread_stack_cache == NULL);
+ }
+ # endif
 -- 
 2.7.4
 
