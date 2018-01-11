@@ -1,42 +1,39 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 409CF6B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:05:05 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id v25so1137874pfg.14
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 23:05:05 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id b2sor3985051pga.345.2018.01.10.23.05.04
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D78D06B0261
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:06:27 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id a74so1146679pfg.20
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 23:06:27 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x1sor2844836pln.85.2018.01.10.23.06.26
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 23:05:04 -0800 (PST)
-Date: Thu, 11 Jan 2018 16:04:59 +0900
+        Wed, 10 Jan 2018 23:06:26 -0800 (PST)
+Date: Thu, 11 Jan 2018 16:06:22 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v3] zswap: only save zswap header when necessary
-Message-ID: <20180111070459.GH494@jagdpanzerIV>
-References: <20180110224741.83751-1-yuzhao@google.com>
- <20180110225626.110330-1-yuzhao@google.com>
+Subject: Re: [PATCH v2] zsmalloc: use U suffix for negative literals being
+ shifted
+Message-ID: <20180111070622.GI494@jagdpanzerIV>
+References: <20180110055338.h3cs5hw7mzsdtcad@eng-minchan1.roam.corp.google.com>
+ <1515642078-4259-1-git-send-email-nick.desaulniers@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180110225626.110330-1-yuzhao@google.com>
+In-Reply-To: <1515642078-4259-1-git-send-email-nick.desaulniers@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Yu Zhao <yuzhao@google.com>
-Cc: Dan Streetman <ddstreet@ieee.org>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Nick Desaulniers <nick.desaulniers@gmail.com>
+Cc: akpm@linux-foundation.org, Andy Shevchenko <andy.shevchenko@gmail.com>, Matthew Wilcox <willy@infradead.org>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (01/10/18 14:56), Yu Zhao wrote:
-[..]
-> We waste sizeof(swp_entry_t) for zswap header when using zsmalloc
-> as zpool driver because zsmalloc doesn't support eviction.
->
-> Add zpool_evictable() to detect if zpool is potentially evictable,
-> and use it in zswap to avoid waste memory for zswap header.
->
-> Signed-off-by: Yu Zhao <yuzhao@google.com>
+On (01/10/18 19:41), Nick Desaulniers wrote:
+> Fixes warnings about shifting unsigned literals being undefined
+> behavior.
+> 
+> Suggested-by: Minchan Kim <minchan@kernel.org>
+> Signed-off-by: Nick Desaulniers <nick.desaulniers@gmail.com>
 
 looks good to me.
 
-FWIW,
 Reviewed-by: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
 
 	-ss
