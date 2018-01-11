@@ -1,51 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C2856B0033
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 00:35:14 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id g68so797806pfb.17
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:35:14 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k191sor853656pgd.368.2018.01.10.21.35.12
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A25FE6B0069
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 01:58:03 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id p1so1110351pfp.13
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 22:58:03 -0800 (PST)
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id s7sor1497726pgr.99.2018.01.10.22.58.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 21:35:12 -0800 (PST)
-Date: Thu, 11 Jan 2018 14:35:07 +0900
+        Wed, 10 Jan 2018 22:58:02 -0800 (PST)
+Date: Thu, 11 Jan 2018 15:57:57 +0900
 From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180111053507.GD494@jagdpanzerIV>
-References: <20180110132418.7080-1-pmladek@suse.com>
- <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
- <20180110130517.6ff91716@vmware.local.home>
- <20180110181252.GK3668920@devbig577.frc2.facebook.com>
- <20180110134157.1c3ce4b9@vmware.local.home>
- <20180110185747.GO3668920@devbig577.frc2.facebook.com>
- <20180110141758.1f88e1a0@vmware.local.home>
+Subject: Re: [PATCH] zswap: only save zswap header if zpool is shrinkable
+Message-ID: <20180111065757.GG494@jagdpanzerIV>
+References: <20180108225101.15790-1-yuzhao@google.com>
+ <CALZtONCsC79jyCsFQcJOALhw=QrTeFMiYTpE+HRrVjMh-QeT-g@mail.gmail.com>
+ <20180109224700.GA175231@google.com>
+ <CALZtONDc3VkWg83y1Nv_q+yUmwuFWmPUrFQOTJQv6b_ZbOh49g@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180110141758.1f88e1a0@vmware.local.home>
+In-Reply-To: <CALZtONDc3VkWg83y1Nv_q+yUmwuFWmPUrFQOTJQv6b_ZbOh49g@mail.gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Steven Rostedt <rostedt@goodmis.org>
-Cc: Tejun Heo <tj@kernel.org>, Petr Mladek <pmladek@suse.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Dan Streetman <ddstreet@ieee.org>
+Cc: Yu Zhao <yuzhao@google.com>, Seth Jennings <sjenning@redhat.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>, Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>, linux-kernel <linux-kernel@vger.kernel.org>
 
-On (01/10/18 14:17), Steven Rostedt wrote:
+Hello,
+
+Yu Zhao, Dan, sorry for the delay
+
+
+On (01/10/18 15:06), Dan Streetman wrote:
 [..]
-> OK, lets start over.
+> Well, I think shrink vs evict an implementation detail, isn't it?
+> That is, from zswap's perspective, there should be:
+> 
+> zpool_evictable()
+> if true, zswap needs to include the header on each compressed page,
+> because the zpool may callback zpool->ops->evict() which calls
+> zswap_writeback_entry() which expects the entry to start with a zswap
+> header.
+> if false, zswap doesn't need to include the header, because the zpool
+> will never, ever call zpool->ops->evict
+> 
+> zpool_shrink()
+> this will try to shrink the zpool, using whatever
+> zpool-implementation-specific shrinking method.  If zpool_evictable()
+> is true for this zpool, then zpool_shrink() *might* callback to
+> zpool->ops->evict(), although it doesn't have to if it can shrink
+> without evictions.  If zpool_evictable() is false, then zpool_shrink()
+> will never callback to zpool->ops->evict().
 
-good.
-
-> Right now my focus is an incremental approach. I'm not trying to solve
-> all issues that printk has. I've focused on a single issue, and that is
-> that printk is unbounded. Coming from a Real Time background, I find
-> that is a big problem. I hate unbounded algorithms.
-
-agreed! so why not bound it to watchdog threshold then? why bound
-it to a random O(logbuf) thing? which is not even constant. when you
-un-register or disable one or several consoles then call_console_drivers()
-becomes faster; when you register/enable consoles then the entire
-call_console_drivers() becomes slower. how do we build a reliable
-algorithm on that O(logbuf)?
+ACK on this!
 
 	-ss
 
