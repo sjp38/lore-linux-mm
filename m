@@ -1,208 +1,347 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BDE56B0253
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:03:24 -0500 (EST)
-Received: by mail-pg0-f70.google.com with SMTP id r8so1695140pgq.1
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:03:24 -0800 (PST)
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D13D6B025E
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:03:25 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id e26so1663659pgv.16
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:03:25 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q14sor769321pgr.89.2018.01.10.18.03.22
+        by mx.google.com with SMTPS id n74sor4619662pfk.22.2018.01.10.18.03.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 18:03:22 -0800 (PST)
+        Wed, 10 Jan 2018 18:03:23 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH v5 00/38] Hardened usercopy whitelisting
-Date: Wed, 10 Jan 2018 18:02:32 -0800
-Message-Id: <1515636190-24061-1-git-send-email-keescook@chromium.org>
+Subject: [PATCH 03/38] usercopy: Include offset in hardened usercopy report
+Date: Wed, 10 Jan 2018 18:02:35 -0800
+Message-Id: <1515636190-24061-4-git-send-email-keescook@chromium.org>
+In-Reply-To: <1515636190-24061-1-git-send-email-keescook@chromium.org>
+References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
 To: linux-kernel@vger.kernel.org
 Cc: Kees Cook <keescook@chromium.org>, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, linux-fsdevel@vger.kernel.org, linux-arch@vger.kernel.org, netdev@vger.kernel.org, linux-mm@kvack.org, kernel-hardening@lists.openwall.com
 
-v5:
-- add Acks
-- split stddef changes into separate patch
-- further refactor reporting code for readability
-- adjust enforcement code for greater readability
+This refactors the hardened usercopy code so that failure reporting can
+happen within the checking functions instead of at the top level. This
+simplifies the return value handling and allows more details and offsets
+to be included in the report. Having the offset can be much more helpful
+in understanding hardened usercopy bugs.
 
-v4:
-- refactor reporting to include offset and remove %p
-- explicitly WARN by default for the whitelisting
-- add KVM whitelists and harden ioctl handling
+Signed-off-by: Kees Cook <keescook@chromium.org>
+---
+ include/linux/slab.h | 12 +++----
+ mm/slab.c            |  8 ++---
+ mm/slub.c            | 14 ++++----
+ mm/usercopy.c        | 95 +++++++++++++++++++++++-----------------------------
+ 4 files changed, 57 insertions(+), 72 deletions(-)
 
-v3:
-- added LKDTM update patch
-- downgrade BUGs to WARNs and fail closed
-- add Acks/Reviews from v2
-
-v2:
-- added tracing of allocation and usage
-- refactored solutions for task_struct
-- split up network patches for readability
-
-I intend for this to land via my usercopy hardening tree, so Acks,
-Reviewed, and Tested-bys would be greatly appreciated. FWIW, the bulk of
-this series has survived for months in 0-day testing and -next, with the
-more recently-added offset-reporting having existed there for a week.
-
-Linus, getting your attention early on this -- instead of during the
-merge window :) -- would be greatly appreciated. I'm hoping this is a
-good time, in a slight lull in PTI and related things needing attention.
-
-----
-
-This series is modified from Brad Spengler/PaX Team's PAX_USERCOPY code
-in the last public patch of grsecurity/PaX based on our understanding
-of the code. Changes or omissions from the original code are ours and
-don't reflect the original grsecurity/PaX code.
-
-David Windsor did the bulk of the porting, refactoring, splitting,
-testing, etc; I did some extra tweaks, hunk moving, traces, and extra
-patches.
-
-Description from patch 1:
-
-
-Currently, hardened usercopy performs dynamic bounds checking on slab
-cache objects. This is good, but still leaves a lot of kernel memory
-available to be copied to/from userspace in the face of bugs. To further
-restrict what memory is available for copying, this creates a way to
-whitelist specific areas of a given slab cache object for copying to/from
-userspace, allowing much finer granularity of access control. Slab caches
-that are never exposed to userspace can declare no whitelist for their
-objects, thereby keeping them unavailable to userspace via dynamic copy
-operations. (Note, an implicit form of whitelisting is the use of constant
-sizes in usercopy operations and get_user()/put_user(); these bypass
-hardened usercopy checks since these sizes cannot change at runtime.)
-
-To support this whitelist annotation, usercopy region offset and size
-members are added to struct kmem_cache. The slab allocator receives a
-new function, kmem_cache_create_usercopy(), that creates a new cache
-with a usercopy region defined, suitable for declaring spans of fields
-within the objects that get copied to/from userspace.
-
-In this patch, the default kmem_cache_create() marks the entire allocation
-as whitelisted, leaving it semantically unchanged. Once all fine-grained
-whitelists have been added (in subsequent patches), this will be changed
-to a usersize of 0, making caches created with kmem_cache_create() not
-copyable to/from userspace.
-
-After the entire usercopy whitelist series is applied, less than 15%
-of the slab cache memory remains exposed to potential usercopy bugs
-after a fresh boot:
-
-Total Slab Memory:           48074720
-Usercopyable Memory:          6367532  13.2%
-         task_struct                    0.2%         4480/1630720
-         RAW                            0.3%            300/96000
-         RAWv6                          2.1%           1408/64768
-         ext4_inode_cache               3.0%       269760/8740224
-         dentry                        11.1%       585984/5273856
-         mm_struct                     29.1%         54912/188448
-         kmalloc-8                    100.0%          24576/24576
-         kmalloc-16                   100.0%          28672/28672
-         kmalloc-32                   100.0%          81920/81920
-         kmalloc-192                  100.0%          96768/96768
-         kmalloc-128                  100.0%        143360/143360
-         names_cache                  100.0%        163840/163840
-         kmalloc-64                   100.0%        167936/167936
-         kmalloc-256                  100.0%        339968/339968
-         kmalloc-512                  100.0%        350720/350720
-         kmalloc-96                   100.0%        455616/455616
-         kmalloc-8192                 100.0%        655360/655360
-         kmalloc-1024                 100.0%        812032/812032
-         kmalloc-4096                 100.0%        819200/819200
-         kmalloc-2048                 100.0%      1310720/1310720
-
-After some kernel build workloads, the percentage (mainly driven by
-dentry and inode caches expanding) drops under 10%:
-
-Total Slab Memory:           95516184
-Usercopyable Memory:          8497452   8.8%
-         task_struct                    0.2%         4000/1456000
-         RAW                            0.3%            300/96000
-         RAWv6                          2.1%           1408/64768
-         ext4_inode_cache               3.0%     1217280/39439872
-         dentry                        11.1%     1623200/14608800
-         mm_struct                     29.1%         73216/251264
-         kmalloc-8                    100.0%          24576/24576
-         kmalloc-16                   100.0%          28672/28672
-         kmalloc-32                   100.0%          94208/94208
-         kmalloc-192                  100.0%          96768/96768
-         kmalloc-128                  100.0%        143360/143360
-         names_cache                  100.0%        163840/163840
-         kmalloc-64                   100.0%        245760/245760
-         kmalloc-256                  100.0%        339968/339968
-         kmalloc-512                  100.0%        350720/350720
-         kmalloc-96                   100.0%        563520/563520
-         kmalloc-8192                 100.0%        655360/655360
-         kmalloc-1024                 100.0%        794624/794624
-         kmalloc-4096                 100.0%        819200/819200
-         kmalloc-2048                 100.0%      1257472/1257472
-
-------
-The patches are broken in several stages of changes:
-
-Report offsets and drop %p usage:
-    [PATCH 01/38] usercopy: Remove pointer from overflow report
-    [PATCH 02/38] usercopy: Enhance and rename report_usercopy()
-    [PATCH 03/38] usercopy: Include offset in hardened usercopy report
-    [PATCH 04/38] lkdtm/usercopy: Adjust test to include an offset to
-
-Prepare infrastructure, set up WARN handler, and whitelist kmalloc:
-    [PATCH 05/38] stddef.h: Introduce sizeof_field()
-    [PATCH 06/38] usercopy: Prepare for usercopy whitelisting
-    [PATCH 07/38] usercopy: WARN() on slab cache usercopy region
-    [PATCH 08/38] usercopy: Allow strict enforcement of whitelists
-    [PATCH 09/38] usercopy: Mark kmalloc caches as usercopy caches
-
-Update VFS layer for symlinks and other inline storage:
-    [PATCH 10/38] dcache: Define usercopy region in dentry_cache slab
-    [PATCH 11/38] vfs: Define usercopy region in names_cache slab caches
-    [PATCH 12/38] vfs: Copy struct mount.mnt_id to userspace using
-    [PATCH 13/38] ext4: Define usercopy region in ext4_inode_cache slab
-    [PATCH 14/38] ext2: Define usercopy region in ext2_inode_cache slab
-    [PATCH 15/38] jfs: Define usercopy region in jfs_ip slab cache
-    [PATCH 16/38] befs: Define usercopy region in befs_inode_cache slab
-    [PATCH 17/38] exofs: Define usercopy region in exofs_inode_cache slab
-    [PATCH 18/38] orangefs: Define usercopy region in
-    [PATCH 19/38] ufs: Define usercopy region in ufs_inode_cache slab
-    [PATCH 20/38] vxfs: Define usercopy region in vxfs_inode slab cache
-    [PATCH 21/38] cifs: Define usercopy region in cifs_request slab cache
-
-Update scsi layer for inline storage:
-    [PATCH 22/38] scsi: Define usercopy region in scsi_sense_cache slab
-
-Whitelist a few network protocol-specific areas of memory:
-    [PATCH 23/38] net: Define usercopy region in struct proto slab cache
-    [PATCH 24/38] ip: Define usercopy region in IP proto slab cache
-    [PATCH 25/38] caif: Define usercopy region in caif proto slab cache
-    [PATCH 26/38] sctp: Define usercopy region in SCTP proto slab cache
-    [PATCH 27/38] sctp: Copy struct sctp_sock.autoclose to userspace
-    [PATCH 28/38] net: Restrict unwhitelisted proto caches to size 0
-
-Whitelist areas of process memory:
-    [PATCH 29/38] fork: Define usercopy region in mm_struct slab caches
-    [PATCH 30/38] fork: Define usercopy region in thread_stack slab
-
-Deal with per-architecture thread_struct whitelisting:
-    [PATCH 31/38] fork: Provide usercopy whitelisting for task_struct
-    [PATCH 32/38] x86: Implement thread_struct whitelist for hardened
-    [PATCH 33/38] arm64: Implement thread_struct whitelist for hardened
-    [PATCH 34/38] arm: Implement thread_struct whitelist for hardened
-
-Update KVM for whitelisting:
-    [PATCH 35/38] kvm: whitelist struct kvm_vcpu_arch
-    [PATCH 36/38] kvm: x86: fix KVM_XEN_HVM_CONFIG ioctl
-
-Make blacklisting the default:
-    [PATCH 37/38] usercopy: Restrict non-usercopy caches to size 0
-
-Update LKDTM:
-    [PATCH 38/38] lkdtm: Update usercopy tests for whitelisting
-
-Thanks!
-
--Kees (and David)
+diff --git a/include/linux/slab.h b/include/linux/slab.h
+index 50697a1d6621..2dbeccdcb76b 100644
+--- a/include/linux/slab.h
++++ b/include/linux/slab.h
+@@ -167,15 +167,11 @@ void kzfree(const void *);
+ size_t ksize(const void *);
+ 
+ #ifdef CONFIG_HAVE_HARDENED_USERCOPY_ALLOCATOR
+-const char *__check_heap_object(const void *ptr, unsigned long n,
+-				struct page *page);
++void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
++			bool to_user);
+ #else
+-static inline const char *__check_heap_object(const void *ptr,
+-					      unsigned long n,
+-					      struct page *page)
+-{
+-	return NULL;
+-}
++static inline void __check_heap_object(const void *ptr, unsigned long n,
++				       struct page *page, bool to_user) { }
+ #endif
+ 
+ /*
+diff --git a/mm/slab.c b/mm/slab.c
+index 183e996dde5f..b2beb2cc15e2 100644
+--- a/mm/slab.c
++++ b/mm/slab.c
+@@ -4397,8 +4397,8 @@ module_init(slab_proc_init);
+  * Returns NULL if check passes, otherwise const char * to name of cache
+  * to indicate an error.
+  */
+-const char *__check_heap_object(const void *ptr, unsigned long n,
+-				struct page *page)
++void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
++			 bool to_user)
+ {
+ 	struct kmem_cache *cachep;
+ 	unsigned int objnr;
+@@ -4414,9 +4414,9 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
+ 
+ 	/* Allow address range falling entirely within object size. */
+ 	if (offset <= cachep->object_size && n <= cachep->object_size - offset)
+-		return NULL;
++		return;
+ 
+-	return cachep->name;
++	usercopy_abort("SLAB object", cachep->name, to_user, offset, n);
+ }
+ #endif /* CONFIG_HARDENED_USERCOPY */
+ 
+diff --git a/mm/slub.c b/mm/slub.c
+index cfd56e5a35fb..bcd22332300a 100644
+--- a/mm/slub.c
++++ b/mm/slub.c
+@@ -3818,8 +3818,8 @@ EXPORT_SYMBOL(__kmalloc_node);
+  * Returns NULL if check passes, otherwise const char * to name of cache
+  * to indicate an error.
+  */
+-const char *__check_heap_object(const void *ptr, unsigned long n,
+-				struct page *page)
++void __check_heap_object(const void *ptr, unsigned long n, struct page *page,
++			 bool to_user)
+ {
+ 	struct kmem_cache *s;
+ 	unsigned long offset;
+@@ -3831,7 +3831,8 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
+ 
+ 	/* Reject impossible pointers. */
+ 	if (ptr < page_address(page))
+-		return s->name;
++		usercopy_abort("SLUB object not in SLUB page?!", NULL,
++			       to_user, 0, n);
+ 
+ 	/* Find offset within object. */
+ 	offset = (ptr - page_address(page)) % s->size;
+@@ -3839,15 +3840,16 @@ const char *__check_heap_object(const void *ptr, unsigned long n,
+ 	/* Adjust for redzone and reject if within the redzone. */
+ 	if (kmem_cache_debug(s) && s->flags & SLAB_RED_ZONE) {
+ 		if (offset < s->red_left_pad)
+-			return s->name;
++			usercopy_abort("SLUB object in left red zone",
++				       s->name, to_user, offset, n);
+ 		offset -= s->red_left_pad;
+ 	}
+ 
+ 	/* Allow address range falling entirely within object size. */
+ 	if (offset <= object_size && n <= object_size - offset)
+-		return NULL;
++		return;
+ 
+-	return s->name;
++	usercopy_abort("SLUB object", s->name, to_user, offset, n);
+ }
+ #endif /* CONFIG_HARDENED_USERCOPY */
+ 
+diff --git a/mm/usercopy.c b/mm/usercopy.c
+index 8006baa4caac..a562dd094ace 100644
+--- a/mm/usercopy.c
++++ b/mm/usercopy.c
+@@ -86,10 +86,10 @@ void __noreturn usercopy_abort(const char *name, const char *detail,
+ }
+ 
+ /* Returns true if any portion of [ptr,ptr+n) over laps with [low,high). */
+-static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
+-		     unsigned long high)
++static bool overlaps(const unsigned long ptr, unsigned long n,
++		     unsigned long low, unsigned long high)
+ {
+-	unsigned long check_low = (uintptr_t)ptr;
++	const unsigned long check_low = ptr;
+ 	unsigned long check_high = check_low + n;
+ 
+ 	/* Does not overlap if entirely above or entirely below. */
+@@ -100,15 +100,15 @@ static bool overlaps(const void *ptr, unsigned long n, unsigned long low,
+ }
+ 
+ /* Is this address range in the kernel text area? */
+-static inline const char *check_kernel_text_object(const void *ptr,
+-						   unsigned long n)
++static inline void check_kernel_text_object(const unsigned long ptr,
++					    unsigned long n, bool to_user)
+ {
+ 	unsigned long textlow = (unsigned long)_stext;
+ 	unsigned long texthigh = (unsigned long)_etext;
+ 	unsigned long textlow_linear, texthigh_linear;
+ 
+ 	if (overlaps(ptr, n, textlow, texthigh))
+-		return "<kernel text>";
++		usercopy_abort("kernel text", NULL, to_user, ptr - textlow, n);
+ 
+ 	/*
+ 	 * Some architectures have virtual memory mappings with a secondary
+@@ -121,32 +121,30 @@ static inline const char *check_kernel_text_object(const void *ptr,
+ 	textlow_linear = (unsigned long)lm_alias(textlow);
+ 	/* No different mapping: we're done. */
+ 	if (textlow_linear == textlow)
+-		return NULL;
++		return;
+ 
+ 	/* Check the secondary mapping... */
+ 	texthigh_linear = (unsigned long)lm_alias(texthigh);
+ 	if (overlaps(ptr, n, textlow_linear, texthigh_linear))
+-		return "<linear kernel text>";
+-
+-	return NULL;
++		usercopy_abort("linear kernel text", NULL, to_user,
++			       ptr - textlow_linear, n);
+ }
+ 
+-static inline const char *check_bogus_address(const void *ptr, unsigned long n)
++static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
++				       bool to_user)
+ {
+ 	/* Reject if object wraps past end of memory. */
+-	if ((unsigned long)ptr + n < (unsigned long)ptr)
+-		return "<wrapped address>";
++	if (ptr + n < ptr)
++		usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
+ 
+ 	/* Reject if NULL or ZERO-allocation. */
+ 	if (ZERO_OR_NULL_PTR(ptr))
+-		return "<null>";
+-
+-	return NULL;
++		usercopy_abort("null address", NULL, to_user, ptr, n);
+ }
+ 
+ /* Checks for allocs that are marked in some way as spanning multiple pages. */
+-static inline const char *check_page_span(const void *ptr, unsigned long n,
+-					  struct page *page, bool to_user)
++static inline void check_page_span(const void *ptr, unsigned long n,
++				   struct page *page, bool to_user)
+ {
+ #ifdef CONFIG_HARDENED_USERCOPY_PAGESPAN
+ 	const void *end = ptr + n - 1;
+@@ -163,28 +161,28 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
+ 	if (ptr >= (const void *)__start_rodata &&
+ 	    end <= (const void *)__end_rodata) {
+ 		if (!to_user)
+-			return "<rodata>";
+-		return NULL;
++			usercopy_abort("rodata", NULL, to_user, 0, n);
++		return;
+ 	}
+ 
+ 	/* Allow kernel data region (if not marked as Reserved). */
+ 	if (ptr >= (const void *)_sdata && end <= (const void *)_edata)
+-		return NULL;
++		return;
+ 
+ 	/* Allow kernel bss region (if not marked as Reserved). */
+ 	if (ptr >= (const void *)__bss_start &&
+ 	    end <= (const void *)__bss_stop)
+-		return NULL;
++		return;
+ 
+ 	/* Is the object wholly within one base page? */
+ 	if (likely(((unsigned long)ptr & (unsigned long)PAGE_MASK) ==
+ 		   ((unsigned long)end & (unsigned long)PAGE_MASK)))
+-		return NULL;
++		return;
+ 
+ 	/* Allow if fully inside the same compound (__GFP_COMP) page. */
+ 	endpage = virt_to_head_page(end);
+ 	if (likely(endpage == page))
+-		return NULL;
++		return;
+ 
+ 	/*
+ 	 * Reject if range is entirely either Reserved (i.e. special or
+@@ -194,36 +192,37 @@ static inline const char *check_page_span(const void *ptr, unsigned long n,
+ 	is_reserved = PageReserved(page);
+ 	is_cma = is_migrate_cma_page(page);
+ 	if (!is_reserved && !is_cma)
+-		return "<spans multiple pages>";
++		usercopy_abort("spans multiple pages", NULL, to_user, 0, n);
+ 
+ 	for (ptr += PAGE_SIZE; ptr <= end; ptr += PAGE_SIZE) {
+ 		page = virt_to_head_page(ptr);
+ 		if (is_reserved && !PageReserved(page))
+-			return "<spans Reserved and non-Reserved pages>";
++			usercopy_abort("spans Reserved and non-Reserved pages",
++				       NULL, to_user, 0, n);
+ 		if (is_cma && !is_migrate_cma_page(page))
+-			return "<spans CMA and non-CMA pages>";
++			usercopy_abort("spans CMA and non-CMA pages", NULL,
++				       to_user, 0, n);
+ 	}
+ #endif
+-
+-	return NULL;
+ }
+ 
+-static inline const char *check_heap_object(const void *ptr, unsigned long n,
+-					    bool to_user)
++static inline void check_heap_object(const void *ptr, unsigned long n,
++				     bool to_user)
+ {
+ 	struct page *page;
+ 
+ 	if (!virt_addr_valid(ptr))
+-		return NULL;
++		return;
+ 
+ 	page = virt_to_head_page(ptr);
+ 
+-	/* Check slab allocator for flags and size. */
+-	if (PageSlab(page))
+-		return __check_heap_object(ptr, n, page);
+-
+-	/* Verify object does not incorrectly span multiple pages. */
+-	return check_page_span(ptr, n, page, to_user);
++	if (PageSlab(page)) {
++		/* Check slab allocator for flags and size. */
++		__check_heap_object(ptr, n, page, to_user);
++	} else {
++		/* Verify object does not incorrectly span multiple pages. */
++		check_page_span(ptr, n, page, to_user);
++	}
+ }
+ 
+ /*
+@@ -234,21 +233,15 @@ static inline const char *check_heap_object(const void *ptr, unsigned long n,
+  */
+ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ {
+-	const char *err;
+-
+ 	/* Skip all tests if size is zero. */
+ 	if (!n)
+ 		return;
+ 
+ 	/* Check for invalid addresses. */
+-	err = check_bogus_address(ptr, n);
+-	if (err)
+-		goto report;
++	check_bogus_address((const unsigned long)ptr, n, to_user);
+ 
+ 	/* Check for bad heap object. */
+-	err = check_heap_object(ptr, n, to_user);
+-	if (err)
+-		goto report;
++	check_heap_object(ptr, n, to_user);
+ 
+ 	/* Check for bad stack object. */
+ 	switch (check_stack_object(ptr, n)) {
+@@ -264,16 +257,10 @@ void __check_object_size(const void *ptr, unsigned long n, bool to_user)
+ 		 */
+ 		return;
+ 	default:
+-		err = "<process stack>";
+-		goto report;
++		usercopy_abort("process stack", NULL, to_user, 0, n);
+ 	}
+ 
+ 	/* Check for object in kernel to avoid text exposure. */
+-	err = check_kernel_text_object(ptr, n);
+-	if (!err)
+-		return;
+-
+-report:
+-	usercopy_abort(err, NULL, to_user, 0, n);
++	check_kernel_text_object((const unsigned long)ptr, n, to_user);
+ }
+ EXPORT_SYMBOL(__check_object_size);
+-- 
+2.7.4
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
