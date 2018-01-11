@@ -1,18 +1,18 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pg0-f71.google.com (mail-pg0-f71.google.com [74.125.83.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F5AD6B026C
-	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:03:32 -0500 (EST)
-Received: by mail-pg0-f71.google.com with SMTP id e12so1693593pga.5
-        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:03:32 -0800 (PST)
+Received: from mail-pg0-f70.google.com (mail-pg0-f70.google.com [74.125.83.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3ACC06B026D
+	for <linux-mm@kvack.org>; Wed, 10 Jan 2018 21:03:33 -0500 (EST)
+Received: by mail-pg0-f70.google.com with SMTP id z24so1656585pgu.20
+        for <linux-mm@kvack.org>; Wed, 10 Jan 2018 18:03:33 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o2sor3658454pge.239.2018.01.10.18.03.31
+        by mx.google.com with SMTPS id z63sor319923pgd.103.2018.01.10.18.03.32
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 10 Jan 2018 18:03:31 -0800 (PST)
+        Wed, 10 Jan 2018 18:03:32 -0800 (PST)
 From: Kees Cook <keescook@chromium.org>
-Subject: [PATCH 11/38] vfs: Define usercopy region in names_cache slab caches
-Date: Wed, 10 Jan 2018 18:02:43 -0800
-Message-Id: <1515636190-24061-12-git-send-email-keescook@chromium.org>
+Subject: [PATCH 12/38] vfs: Copy struct mount.mnt_id to userspace using put_user()
+Date: Wed, 10 Jan 2018 18:02:44 -0800
+Message-Id: <1515636190-24061-13-git-send-email-keescook@chromium.org>
 In-Reply-To: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
 Sender: owner-linux-mm@kvack.org
@@ -22,42 +22,9 @@ Cc: Kees Cook <keescook@chromium.org>, David Windsor <dave@nullcore.net>, Alexan
 
 From: David Windsor <dave@nullcore.net>
 
-VFS pathnames are stored in the names_cache slab cache, either inline
-or across an entire allocation entry (when approaching PATH_MAX). These
-are copied to/from userspace, so they must be entirely whitelisted.
-
-cache object allocation:
-    include/linux/fs.h:
-        #define __getname()    kmem_cache_alloc(names_cachep, GFP_KERNEL)
-
-example usage trace:
-    strncpy_from_user+0x4d/0x170
-    getname_flags+0x6f/0x1f0
-    user_path_at_empty+0x23/0x40
-    do_mount+0x69/0xda0
-    SyS_mount+0x83/0xd0
-
-    fs/namei.c:
-        getname_flags(...):
-            ...
-            result = __getname();
-            ...
-            kname = (char *)result->iname;
-            result->name = kname;
-            len = strncpy_from_user(kname, filename, EMBEDDED_NAME_MAX);
-            ...
-            if (unlikely(len == EMBEDDED_NAME_MAX)) {
-                const size_t size = offsetof(struct filename, iname[1]);
-                kname = (char *)result;
-
-                result = kzalloc(size, GFP_KERNEL);
-                ...
-                result->name = kname;
-                len = strncpy_from_user(kname, filename, PATH_MAX);
-
-In support of usercopy hardening, this patch defines the entire cache
-object in the names_cache slab cache as whitelisted, since it may entirely
-hold name strings to be copied to/from userspace.
+The mnt_id field can be copied with put_user(), so there is no need to
+use copy_to_user(). In both cases, hardened usercopy is being bypassed
+since the size is constant, and not open to runtime manipulation.
 
 This patch is verbatim from Brad Spengler/PaX Team's PAX_USERCOPY
 whitelisting code in the last public patch of grsecurity/PaX based on my
@@ -65,29 +32,28 @@ understanding of the code. Changes or omissions from the original code are
 mine and don't reflect the original grsecurity/PaX code.
 
 Signed-off-by: David Windsor <dave@nullcore.net>
-[kees: adjust commit log, add usage trace]
+[kees: adjust commit log]
 Cc: Alexander Viro <viro@zeniv.linux.org.uk>
 Cc: linux-fsdevel@vger.kernel.org
 Signed-off-by: Kees Cook <keescook@chromium.org>
 ---
- fs/dcache.c | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
+ fs/fhandle.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/fs/dcache.c b/fs/dcache.c
-index 92ad7a2168e1..9d7ee2de682c 100644
---- a/fs/dcache.c
-+++ b/fs/dcache.c
-@@ -3640,8 +3640,8 @@ void __init vfs_caches_init_early(void)
- 
- void __init vfs_caches_init(void)
- {
--	names_cachep = kmem_cache_create("names_cache", PATH_MAX, 0,
--			SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-+	names_cachep = kmem_cache_create_usercopy("names_cache", PATH_MAX, 0,
-+			SLAB_HWCACHE_ALIGN|SLAB_PANIC, 0, PATH_MAX, NULL);
- 
- 	dcache_init();
- 	inode_init();
+diff --git a/fs/fhandle.c b/fs/fhandle.c
+index 0ace128f5d23..0ee727485615 100644
+--- a/fs/fhandle.c
++++ b/fs/fhandle.c
+@@ -69,8 +69,7 @@ static long do_sys_name_to_handle(struct path *path,
+ 	} else
+ 		retval = 0;
+ 	/* copy the mount id */
+-	if (copy_to_user(mnt_id, &real_mount(path->mnt)->mnt_id,
+-			 sizeof(*mnt_id)) ||
++	if (put_user(real_mount(path->mnt)->mnt_id, mnt_id) ||
+ 	    copy_to_user(ufh, handle,
+ 			 sizeof(struct file_handle) + handle_bytes))
+ 		retval = -EFAULT;
 -- 
 2.7.4
 
