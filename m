@@ -1,75 +1,65 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 26A2A6B026B
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 06:51:06 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id z83so1309841wmc.5
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 03:51:06 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p9si2669516wra.111.2018.01.11.03.51.04
+Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2E7626B0266
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 06:59:20 -0500 (EST)
+Received: by mail-pf0-f197.google.com with SMTP id n6so1928155pfg.19
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 03:59:20 -0800 (PST)
+Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30132.outbound.protection.outlook.com. [40.107.3.132])
+        by mx.google.com with ESMTPS id q3si3197046pgr.290.2018.01.11.03.59.18
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Jan 2018 03:51:04 -0800 (PST)
-Date: Thu, 11 Jan 2018 12:50:59 +0100
-From: Petr Mladek <pmladek@suse.com>
-Subject: Re: [PATCH v5 0/2] printk: Console owner and waiter logic cleanup
-Message-ID: <20180111115059.GA24419@linux.suse>
-References: <20180110132418.7080-1-pmladek@suse.com>
- <20180110140547.GZ3668920@devbig577.frc2.facebook.com>
- <20180110130517.6ff91716@vmware.local.home>
- <20180111045817.GA494@jagdpanzerIV>
- <20180111093435.GA24497@linux.suse>
- <20180111103845.GB477@jagdpanzerIV>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Thu, 11 Jan 2018 03:59:18 -0800 (PST)
+Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
+ [memory,memsw].limit_in_bytes
+References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
+ <20180110124317.28887-1-aryabinin@virtuozzo.com>
+ <20180110143121.cf2a1c5497b31642c9b38b2a@linux-foundation.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <47856d2b-1534-6198-c2e2-6d2356973bef@virtuozzo.com>
+Date: Thu, 11 Jan 2018 14:59:23 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180111103845.GB477@jagdpanzerIV>
+In-Reply-To: <20180110143121.cf2a1c5497b31642c9b38b2a@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Cc: Steven Rostedt <rostedt@goodmis.org>, Tejun Heo <tj@kernel.org>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Thu 2018-01-11 19:38:45, Sergey Senozhatsky wrote:
-> On (01/11/18 10:34), Petr Mladek wrote:
-> [..]
-> > > except that handing off a console_sem to atomic task when there
-> > > is   O(logbuf) > watchdog_thresh   is a regression, basically...
-> > > it is what it is.
-> > 
-> > How this could be a regression? Is not the victim that handles
-> > other printk's random? What protected the atomic task to
-> > handle the other printks before this patch?
+On 01/11/2018 01:31 AM, Andrew Morton wrote:
+> On Wed, 10 Jan 2018 15:43:17 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 > 
-> the non-atomic -> atomic context console_sem transfer. we previously
-> would have kept the console_sem owner to its non-atomic owner. we now
-> will make sure that if printk from atomic context happens then it will
-> make it to console_unlock() loop.
-> emphasis on O(logbuf) > watchdog_thresh.
-
-Sergey, please, why do you completely and repeatedly ignore that
-argument about statistical effects?
-
-Yes, the above scenario is possible. But Steven's patch might also move the
-owner from atomic context to a non-atomic one. The chances should be
-more or less equal. The main advantage is that the owner is moved.
-This should statistically lower the chance of a soft-lockup.
-
+>> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
+>> pages on each iteration. This makes practically impossible to decrease
+>> limit of memory cgroup. Tasks could easily allocate back 32 pages,
+>> so we can't reduce memory usage, and once retry_count reaches zero we return
+>> -EBUSY.
+>>
+>> Easy to reproduce the problem by running the following commands:
+>>
+>>   mkdir /sys/fs/cgroup/memory/test
+>>   echo $$ >> /sys/fs/cgroup/memory/test/tasks
+>>   cat big_file > /dev/null &
+>>   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+>>   -bash: echo: write error: Device or resource busy
+>>
+>> Instead of relying on retry_count, keep retrying the reclaim until
+>> the desired limit is reached or fail if the reclaim doesn't make
+>> any progress or a signal is pending.
+>>
 > 
-> > Or do you have a system that started to suffer from softlockups
-> > with this patchset and did not do this before?
-> [..]
-> > Do you know about any system where this patch made the softlockup
-> > deterministically or statistically more likely, please?
+> Is there any situation under which that mem_cgroup_resize_limit() can
+> get stuck semi-indefinitely in a livelockish state?  It isn't very
+> obvious that we're protected from this, so perhaps it would help to
+> have a comment which describes how loop termination is assured?
 > 
-> I have explained many, many times why my boards die just like before.
-> why would I bother collecting any numbers...
 
-Is it with your own printk stress tests or during "normal" work?
+We are not protected from this. If tasks in cgroup *indefinitely* generate reclaimable memory at high rate
+and user asks to set unreachable limit, like 'echo 4096 > memory.limit_in_bytes', than
+try_to_free_mem_cgroup_pages() will return non-zero indefinitely.
 
-If it is during a normal work, is there any chance that we
-could have a look at the logs?
-
-Best Regards,
-Petr
+Is that a big deal? At least loop can be interrupted by a signal, and we don't hold any locks here.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
