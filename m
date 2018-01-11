@@ -1,66 +1,88 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f72.google.com (mail-wm0-f72.google.com [74.125.82.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CAF806B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:06:28 -0500 (EST)
-Received: by mail-wm0-f72.google.com with SMTP id a141so1163472wma.8
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:06:28 -0800 (PST)
-Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id u136si351721wmf.233.2018.01.11.02.06.27
+Received: from mail-qk0-f200.google.com (mail-qk0-f200.google.com [209.85.220.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 5B3016B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:53 -0500 (EST)
+Received: by mail-qk0-f200.google.com with SMTP id d125so2216432qkb.8
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 02:08:53 -0800 (PST)
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id o48si5097312qto.20.2018.01.11.02.08.51
         for <linux-mm@kvack.org>
-        (version=TLS1 cipher=AES128-SHA bits=128/128);
-        Thu, 11 Jan 2018 02:06:27 -0800 (PST)
-Date: Thu, 11 Jan 2018 11:06:20 +0100
-From: Michal Hocko <mhocko@kernel.org>
-Subject: Re: [PATCH] mm, THP: vmf_insert_pfn_pud depends on
- CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-Message-ID: <20180111100620.GY1732@dhcp22.suse.cz>
-References: <1515660811-12293-1-git-send-email-aghiti@upmem.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jan 2018 02:08:52 -0800 (PST)
+Received: from pps.filterd (m0098399.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.22/8.16.0.22) with SMTP id w0BA4YB9097359
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:51 -0500
+Received: from e06smtp14.uk.ibm.com (e06smtp14.uk.ibm.com [195.75.94.110])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2fe307y5kn-1
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 05:08:50 -0500
+Received: from localhost
+	by e06smtp14.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <khandual@linux.vnet.ibm.com>;
+	Thu, 11 Jan 2018 10:08:47 -0000
+Subject: Re: ppc elf_map breakage with MAP_FIXED_NOREPLACE
+References: <5a4ec4bc.u5I/HzCSE6TLVn02%akpm@linux-foundation.org>
+ <7e35e16a-d71c-2ec8-03ed-b07c2af562f8@linux.vnet.ibm.com>
+ <20180105084631.GG2801@dhcp22.suse.cz>
+ <e81dce2b-5d47-b7d3-efbf-27bc171ba4ab@linux.vnet.ibm.com>
+ <20180107090229.GB24862@dhcp22.suse.cz>
+ <87mv1phptq.fsf@concordia.ellerman.id.au>
+ <7a44f42e-39d0-1c4b-19e0-7df1b0842c18@linux.vnet.ibm.com>
+ <87tvvw80f2.fsf@concordia.ellerman.id.au>
+ <96458c0a-e273-3fb9-a33b-f6f2d536f90b@linux.vnet.ibm.com>
+ <20180109161355.GL1732@dhcp22.suse.cz>
+From: Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Date: Thu, 11 Jan 2018 15:38:37 +0530
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1515660811-12293-1-git-send-email-aghiti@upmem.com>
+In-Reply-To: <20180109161355.GL1732@dhcp22.suse.cz>
+Content-Type: text/plain; charset=windows-1252
+Content-Transfer-Encoding: 7bit
+Message-Id: <a495f210-0015-efb2-a6a7-868f30ac4ace@linux.vnet.ibm.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandre Ghiti <aghiti@upmem.com>
-Cc: linux-mm@kvack.org, akpm@linux-foundation.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, gregkh@linuxfoundation.org, n-horiguchi@ah.jp.nec.com, willy@linux.intel.com, mark.rutland@arm.com, linux-kernel@vger.kernel.org
+To: Michal Hocko <mhocko@kernel.org>, Anshuman Khandual <khandual@linux.vnet.ibm.com>
+Cc: Michael Ellerman <mpe@ellerman.id.au>, akpm@linux-foundation.org, mm-commits@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org, linux-fsdevel@vger.kernel.org, linux-next@vger.kernel.org, sfr@canb.auug.org.au, broonie@kernel.org
 
-On Thu 11-01-18 09:53:31, Alexandre Ghiti wrote:
-> The only definition of vmf_insert_pfn_pud depends on
-> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD being defined. Then its declaration in
-> include/linux/huge_mm.h should have the same restriction so that we do
-> not expose this function if CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD is
-> not defined.
-
-Why is this a problem? Compiler should simply throw away any
-declarations which are not used?
-
-> Signed-off-by: Alexandre Ghiti <aghiti@upmem.com>
-> ---
->  include/linux/huge_mm.h | 2 ++
->  1 file changed, 2 insertions(+)
+On 01/09/2018 09:43 PM, Michal Hocko wrote:
+> On Tue 09-01-18 17:18:38, Anshuman Khandual wrote:
+>> On 01/09/2018 03:42 AM, Michael Ellerman wrote:
+>>> Anshuman Khandual <khandual@linux.vnet.ibm.com> writes:
+>>>
+>>>> On 01/07/2018 04:56 PM, Michael Ellerman wrote:
+>>>>> Michal Hocko <mhocko@kernel.org> writes:
+>>>>>
+>>>>>> On Sun 07-01-18 12:19:32, Anshuman Khandual wrote:
+>>>>>>> On 01/05/2018 02:16 PM, Michal Hocko wrote:
+>>>>>> [...]
+>>>>>>>> Could you give us more information about the failure please. Debugging
+>>>>>>>> patch from http://lkml.kernel.org/r/20171218091302.GL16951@dhcp22.suse.cz
+>>>>>>>> should help to see what is the clashing VMA.
+>>>>>>> Seems like its re-requesting the same mapping again.
+>>>>>> It always seems to be the same mapping which is a bit strange as we
+>>>>>> have multiple binaries here. Are these binaries any special? Does this
+>>>>>> happen to all bianries (except for init which has obviously started
+>>>>>> successfully)? Could you add an additional debugging (at the do_mmap
+>>>>>> layer) to see who is requesting the mapping for the first time?
+>>>>>>
+>>>>>>> [   23.423642] 9148 (sed): Uhuuh, elf segment at 0000000010030000 requested but the memory is mapped already
+>>>>>>> [   23.423706] requested [10030000, 10040000] mapped [10030000, 10040000] 100073 anon
+>>>>>> I also find it a bit unexpected that this is an anonymous mapping
+>>>>>> because the elf loader should always map a file backed one.
+>>>>> Anshuman what machine is this on, and what distro and toolchain is it running?
+>>>>>
+>>>>> I don't see this on any of my machines, so I wonder if this is
+>>>>> toolchain/distro specific.
+>>>>
+>>>> POWER9, RHEL 7.4, gcc (GCC) 4.8.5 20150623, GNU Make 3.82 etc.
+>>>
+>>> So what does readelf -a of /bin/sed look like?
+>>
+>> Please find here.
 > 
-> diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-> index a8a1262..11794f6a 100644
-> --- a/include/linux/huge_mm.h
-> +++ b/include/linux/huge_mm.h
-> @@ -48,8 +48,10 @@ extern int change_huge_pmd(struct vm_area_struct *vma, pmd_t *pmd,
->  			int prot_numa);
->  int vmf_insert_pfn_pmd(struct vm_area_struct *vma, unsigned long addr,
->  			pmd_t *pmd, pfn_t pfn, bool write);
-> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
->  int vmf_insert_pfn_pud(struct vm_area_struct *vma, unsigned long addr,
->  			pud_t *pud, pfn_t pfn, bool write);
-> +#endif
->  enum transparent_hugepage_flag {
->  	TRANSPARENT_HUGEPAGE_FLAG,
->  	TRANSPARENT_HUGEPAGE_REQ_MADV_FLAG,
-> -- 
-> 2.1.4
-> 
+> Did you manage to catch _who_ is requesting that anonymous mapping? Do
+> you need a help with the debugging patch?
 
--- 
-Michal Hocko
-SUSE Labs
+Not yet, will get back on this.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
