@@ -1,41 +1,46 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B28116B0069
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 14:03:11 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id e185so5705351pfg.23
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 11:03:11 -0800 (PST)
-Received: from bombadil.infradead.org (bombadil.infradead.org. [65.50.211.133])
-        by mx.google.com with ESMTPS id z8si15747518pfh.232.2018.01.12.11.03.10
+Received: from mail-io0-f197.google.com (mail-io0-f197.google.com [209.85.223.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 927AA6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 17:00:27 -0500 (EST)
+Received: by mail-io0-f197.google.com with SMTP id x71so5852177iod.3
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 14:00:27 -0800 (PST)
+Received: from resqmta-po-11v.sys.comcast.net (resqmta-po-11v.sys.comcast.net. [2001:558:fe16:19:96:114:154:170])
+        by mx.google.com with ESMTPS id 94si14891447ioj.8.2018.01.12.14.00.25
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Jan 2018 11:03:10 -0800 (PST)
-Date: Fri, 12 Jan 2018 11:02:51 -0800
-From: Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v6 22/24] mm: Speculative page fault handler return VMA
-Message-ID: <20180112190251.GC7590@bombadil.infradead.org>
-References: <1515777968-867-1-git-send-email-ldufour@linux.vnet.ibm.com>
- <1515777968-867-23-git-send-email-ldufour@linux.vnet.ibm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1515777968-867-23-git-send-email-ldufour@linux.vnet.ibm.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jan 2018 14:00:25 -0800 (PST)
+From: "W. Trevor King" <wking@tremily.us>
+Subject: [PATCH] security/Kconfig: Remove pagetable-isolation.txt reference
+Date: Fri, 12 Jan 2018 13:58:23 -0800
+Message-Id: <0ccf9a4d2e42bcb823ab877e4fb21274f27878bd.1515794059.git.wking@tremily.us>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Laurent Dufour <ldufour@linux.vnet.ibm.com>
-Cc: paulmck@linux.vnet.ibm.com, peterz@infradead.org, akpm@linux-foundation.org, kirill@shutemov.name, ak@linux.intel.com, mhocko@kernel.org, dave@stgolabs.net, jack@suse.cz, benh@kernel.crashing.org, mpe@ellerman.id.au, paulus@samba.org, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, hpa@zytor.com, Will Deacon <will.deacon@arm.com>, Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrea Arcangeli <aarcange@redhat.com>, Alexei Starovoitov <alexei.starovoitov@gmail.com>, kemi.wang@intel.com, sergey.senozhatsky.work@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, haren@linux.vnet.ibm.com, khandual@linux.vnet.ibm.com, npiggin@gmail.com, bsingharora@gmail.com, Tim Chen <tim.c.chen@linux.intel.com>, linuxppc-dev@lists.ozlabs.org, x86@kernel.org
+To: linux-security-module@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "W. Trevor King" <wking@tremily.us>
 
-On Fri, Jan 12, 2018 at 06:26:06PM +0100, Laurent Dufour wrote:
-> @@ -1354,7 +1354,10 @@ extern int handle_mm_fault(struct vm_area_struct *vma, unsigned long address,
->  		unsigned int flags);
->  #ifdef CONFIG_SPF
->  extern int handle_speculative_fault(struct mm_struct *mm,
-> +				    unsigned long address, unsigned int flags,
-> +				    struct vm_area_struct **vma);
+The reference landed with the config option in 385ce0ea (x86/mm/pti:
+Add Kconfig, 2017-12-04), but the referenced file was never committed.
 
-I think this shows that we need to create 'struct vm_fault' on the stack
-in the arch code and then pass it to handle_speculative_fault(), followed
-by handle_mm_fault().  That should be quite a nice cleanup actually.
-I know that's only 30+ architectures to change ;-)
+Signed-off-by: W. Trevor King <wking@tremily.us>
+---
+ security/Kconfig | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/security/Kconfig b/security/Kconfig
+index 3d4debd0257e..6c02b69581c8 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -63,8 +63,6 @@ config PAGE_TABLE_ISOLATION
+ 	  ensuring that the majority of kernel addresses are not mapped
+ 	  into userspace.
+ 
+-	  See Documentation/x86/pagetable-isolation.txt for more details.
+-
+ config SECURITY_INFINIBAND
+ 	bool "Infiniband Security Hooks"
+ 	depends on SECURITY && INFINIBAND
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
