@@ -1,80 +1,58 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 240876B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:10:46 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id w103so3531600wrb.2
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 06:10:46 -0800 (PST)
+Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 53ECE6B0253
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:14:54 -0500 (EST)
+Received: by mail-wm0-f70.google.com with SMTP id p190so3266014wmd.0
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 06:14:54 -0800 (PST)
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c56sor4207649wrc.54.2018.01.12.06.10.44
+        by mx.google.com with SMTPS id c27sor874573wrg.13.2018.01.12.06.14.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 12 Jan 2018 06:10:44 -0800 (PST)
-Date: Fri, 12 Jan 2018 15:10:37 +0100
+        Fri, 12 Jan 2018 06:14:53 -0800 (PST)
+Date: Fri, 12 Jan 2018 15:14:49 +0100
 From: Ingo Molnar <mingo@kernel.org>
-Subject: Re: [PATCHv6 0/4] x86: 5-level related changes into decompression
- code<Paste>
-Message-ID: <20180112141037.ktd2ryzx3tfwhsfx@gmail.com>
-References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
- <20171218101045.arwbzmbxbhqgreeu@node.shutemov.name>
- <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
- <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
+Subject: Re: [REGRESSION] testing/selftests/x86/ pkeys build failures (was:
+ Re: [PATCH] mm, x86: pkeys: Introduce PKEY_ALLOC_SIGNALINHERIT and change
+ signal semantics)
+Message-ID: <20180112141449.5gmn3nxvosk6y6qs@gmail.com>
+References: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
+ <20180112125537.bdl376ziiaqp664o@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20180112125537.bdl376ziiaqp664o@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Florian Weimer <fweimer@redhat.com>, Shuah Khan <shuahkh@osg.samsung.com>, Dave Hansen <dave.hansen@linux.intel.com>
+Cc: linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, x86@kernel.org, Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
 
 
-* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+* Ingo Molnar <mingo@kernel.org> wrote:
 
-> On Mon, Jan 08, 2018 at 05:18:05PM +0100, Ingo Molnar wrote:
-> > 
-> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
-> > 
-> > > On Tue, Dec 12, 2017 at 04:57:35PM +0300, Kirill A. Shutemov wrote:
-> > > > Here's few changes to x86 decompression code.
-> > > > 
-> > > > The first patch is pure cosmetic change: it gives file with KASLR helpers
-> > > > a proper name.
-> > > > 
-> > > > The last three patches bring support of booting into 5-level paging mode if
-> > > > a bootloader put the kernel above 4G.
-> > > > 
-> > > > Patch 2/4 Renames l5_paging_required() into paging_prepare() and change
-> > > > interface of the function.
-> > > > Patch 3/4 Handles allocation of space for trampoline and gets it prepared.
-> > > > Patch 4/4 Gets trampoline used.
-> > > > 
-> > > > Kirill A. Shutemov (4):
-> > > >   x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
-> > > >   x86/boot/compressed/64: Introduce paging_prepare()
-> > > >   x86/boot/compressed/64: Prepare trampoline memory
-> > > >   x86/boot/compressed/64: Handle 5-level paging boot if kernel is above
-> > > >     4G
-> > > 
-> > > Ingo, does it look fine now?
-> > 
-> > Yes, it looks structurally much better now - but we first need to address all 
-> > existing regressions before we can move forward.
+> Also, the protection keys testcase first need to be fixed, before we complicate 
+> them - for example on a pretty regular Ubuntu x86-64 installation they fail to 
+> build with the build errors attached further below.
 > 
-> There's a fix for kdump issue that maintainers are okay about.
+> On an older Fedora 23 installation, the testcases themselves don't build at all:
 
-Do you mean your proposed fix in:
+The Ubuntu build failure seems to have gone away after a 'make clean', what 
+remains is an ugly build warning:
 
-  Message-ID: <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+triton:~/tip/tools/testing/selftests/x86> make
+gcc -m32 -o /home/mingo/tip/tools/testing/selftests/x86/protection_keys_32 -O2 -g -std=gnu99 -pthread -Wall -no-pie  protection_keys.c -lrt -ldl -lm
+protection_keys.c: In function a??dumpita??:
+protection_keys.c:419:3: warning: ignoring return value of a??writea??, declared with attribute warn_unused_result [-Wunused-result]
+   write(1, buf, nr_read);
+   ^~~~~~~~~~~~~~~~~~~~~~
+gcc -m64 -o /home/mingo/tip/tools/testing/selftests/x86/protection_keys_64 -O2 -g -std=gnu99 -pthread -Wall -no-pie  protection_keys.c -lrt -ldl
+protection_keys.c: In function a??dumpita??:
+protection_keys.c:419:3: warning: ignoring return value of a??writea??, declared with attribute warn_unused_result [-Wunused-result]
+   write(1, buf, nr_read);
+   ^~~~~~~~~~~~~~~~~~~~~~
 
-?
-
-I was expecting a final submission of that fix in a new thread (or at least with a 
-new subject line), with all Acked-by and Tested-by's collected and Reported-by 
-added in.
-
-> Is there any other regression do you have in mind?
-
-No, that's the main one I was worried about.
+If this build warning and the Fedora build failure is fixed we can apply your 
+patch too I think.
 
 Thanks,
 
