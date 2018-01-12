@@ -1,67 +1,79 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0037E6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 03:38:04 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id s105so2931108wrc.23
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 00:38:03 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r13sor12046511edk.31.2018.01.12.00.38.02
+Received: from mail-pg0-f69.google.com (mail-pg0-f69.google.com [74.125.83.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 49EF36B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 04:08:08 -0500 (EST)
+Received: by mail-pg0-f69.google.com with SMTP id i2so4279196pgq.8
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 01:08:08 -0800 (PST)
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00114.outbound.protection.outlook.com. [40.107.0.114])
+        by mx.google.com with ESMTPS id v186si7629568pfb.284.2018.01.12.01.08.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 12 Jan 2018 00:38:02 -0800 (PST)
-Date: Fri, 12 Jan 2018 11:37:57 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-Subject: Re: [PATCHv6 0/4] x86: 5-level related changes into decompression
- code<Paste>
-Message-ID: <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
-References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
- <20171218101045.arwbzmbxbhqgreeu@node.shutemov.name>
- <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Fri, 12 Jan 2018 01:08:07 -0800 (PST)
+Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
+ [memory,memsw].limit_in_bytes
+References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
+ <20180110124317.28887-1-aryabinin@virtuozzo.com>
+ <20180110143121.cf2a1c5497b31642c9b38b2a@linux-foundation.org>
+ <47856d2b-1534-6198-c2e2-6d2356973bef@virtuozzo.com>
+ <20180111162134.53aa5a44c59689ec0399db57@linux-foundation.org>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <8f706bc5-cc9c-01f5-1918-41cd0501f4f0@virtuozzo.com>
+Date: Fri, 12 Jan 2018 12:08:12 +0300
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
+In-Reply-To: <20180111162134.53aa5a44c59689ec0399db57@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>
-Cc: Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Mon, Jan 08, 2018 at 05:18:05PM +0100, Ingo Molnar wrote:
+
+
+On 01/12/2018 03:21 AM, Andrew Morton wrote:
+> On Thu, 11 Jan 2018 14:59:23 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 > 
-> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+>> On 01/11/2018 01:31 AM, Andrew Morton wrote:
+>>> On Wed, 10 Jan 2018 15:43:17 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+>>>
+>>>> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
+>>>> pages on each iteration. This makes practically impossible to decrease
+>>>> limit of memory cgroup. Tasks could easily allocate back 32 pages,
+>>>> so we can't reduce memory usage, and once retry_count reaches zero we return
+>>>> -EBUSY.
+>>>>
+>>>> Easy to reproduce the problem by running the following commands:
+>>>>
+>>>>   mkdir /sys/fs/cgroup/memory/test
+>>>>   echo $$ >> /sys/fs/cgroup/memory/test/tasks
+>>>>   cat big_file > /dev/null &
+>>>>   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+>>>>   -bash: echo: write error: Device or resource busy
+>>>>
+>>>> Instead of relying on retry_count, keep retrying the reclaim until
+>>>> the desired limit is reached or fail if the reclaim doesn't make
+>>>> any progress or a signal is pending.
+>>>>
+>>>
+>>> Is there any situation under which that mem_cgroup_resize_limit() can
+>>> get stuck semi-indefinitely in a livelockish state?  It isn't very
+>>> obvious that we're protected from this, so perhaps it would help to
+>>> have a comment which describes how loop termination is assured?
+>>>
+>>
+>> We are not protected from this. If tasks in cgroup *indefinitely* generate reclaimable memory at high rate
+>> and user asks to set unreachable limit, like 'echo 4096 > memory.limit_in_bytes', than
+>> try_to_free_mem_cgroup_pages() will return non-zero indefinitely.
+>>
+>> Is that a big deal? At least loop can be interrupted by a signal, and we don't hold any locks here.
 > 
-> > On Tue, Dec 12, 2017 at 04:57:35PM +0300, Kirill A. Shutemov wrote:
-> > > Here's few changes to x86 decompression code.
-> > > 
-> > > The first patch is pure cosmetic change: it gives file with KASLR helpers
-> > > a proper name.
-> > > 
-> > > The last three patches bring support of booting into 5-level paging mode if
-> > > a bootloader put the kernel above 4G.
-> > > 
-> > > Patch 2/4 Renames l5_paging_required() into paging_prepare() and change
-> > > interface of the function.
-> > > Patch 3/4 Handles allocation of space for trampoline and gets it prepared.
-> > > Patch 4/4 Gets trampoline used.
-> > > 
-> > > Kirill A. Shutemov (4):
-> > >   x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
-> > >   x86/boot/compressed/64: Introduce paging_prepare()
-> > >   x86/boot/compressed/64: Prepare trampoline memory
-> > >   x86/boot/compressed/64: Handle 5-level paging boot if kernel is above
-> > >     4G
-> > 
-> > Ingo, does it look fine now?
+> It may be better to detect this condition, give up and return an error?
 > 
-> Yes, it looks structurally much better now - but we first need to address all 
-> existing regressions before we can move forward.
 
-There's a fix for kdump issue that maintainers are okay about.
-
-Is there any other regression do you have in mind?
-
--- 
- Kirill A. Shutemov
+That's basically what how v1 worked, "if (curusage >= oldusage)" used to be
+the way to detect this potential livelock.
+So we can just go back to it?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
