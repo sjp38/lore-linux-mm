@@ -1,46 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f197.google.com (mail-pf0-f197.google.com [209.85.192.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 3D0336B0268
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 18:10:58 -0500 (EST)
-Received: by mail-pf0-f197.google.com with SMTP id p89so6176580pfk.5
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 15:10:58 -0800 (PST)
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id z8si117193plo.762.2018.01.12.15.10.56
+Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CA5166B0253
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 18:27:10 -0500 (EST)
+Received: by mail-it0-f69.google.com with SMTP id u4so8262418iti.2
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 15:27:10 -0800 (PST)
+Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
+        by mx.google.com with ESMTPS id j70si15022305iod.69.2018.01.12.15.27.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 15:10:57 -0800 (PST)
-Subject: Re: [PATCH] security/Kconfig: Remove pagetable-isolation.txt
- reference
-References: <0ccf9a4d2e42bcb823ab877e4fb21274f27878bd.1515794059.git.wking@tremily.us>
- <alpine.LFD.2.20.1801131006520.13286@localhost>
-From: Dave Hansen <dave.hansen@linux.intel.com>
-Message-ID: <9b21ce8f-625c-6915-654b-42334cf38e99@linux.intel.com>
-Date: Fri, 12 Jan 2018 15:10:53 -0800
-MIME-Version: 1.0
-In-Reply-To: <alpine.LFD.2.20.1801131006520.13286@localhost>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+        Fri, 12 Jan 2018 15:27:09 -0800 (PST)
+From: "W. Trevor King" <wking@tremily.us>
+Subject: [PATCH] security/Kconfig: Replace pagetable-isolation.txt reference with pti.txt
+Date: Fri, 12 Jan 2018 15:24:59 -0800
+Message-Id: <3009cc8ccbddcd897ec1e0cb6dda524929de0d14.1515799398.git.wking@tremily.us>
+In-Reply-To: <9b21ce8f-625c-6915-654b-42334cf38e99@linux.intel.com>
+References: <9b21ce8f-625c-6915-654b-42334cf38e99@linux.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: James Morris <james.l.morris@oracle.com>, "W. Trevor King" <wking@tremily.us>
-Cc: linux-security-module@vger.kernel.org, "Serge E. Hallyn" <serge@hallyn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+To: linux-security-module@vger.kernel.org
+Cc: Dave Hansen <dave.hansen@linux.intel.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "W. Trevor King" <wking@tremily.us>
 
-On 01/12/2018 03:06 PM, James Morris wrote:
-> On Fri, 12 Jan 2018, W. Trevor King wrote:
-> 
->> The reference landed with the config option in 385ce0ea (x86/mm/pti:
->> Add Kconfig, 2017-12-04), but the referenced file was never committed.
->>
->> Signed-off-by: W. Trevor King <wking@tremily.us>
-> 
-> Acked-by: James Morris <james.l.morris@oracle.com>
+The reference landed with the config option in 385ce0ea (x86/mm/pti:
+Add Kconfig, 2017-12-04), but the referenced file was not committed
+then.  It eventually landed in 01c9b17b (x86/Documentation: Add PTI
+description, 2018-01-05) as pti.txt.
 
-There is a new file in -tip:
+Signed-off-by: W. Trevor King <wking@tremily.us>
+---
+On Fri, Jan 12, 2018 at 03:10:53PM -0800, Dave Hansen wrote:
+> There is a new file in -tip:
+>
+> https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/pti&id=01c9b17bf673b05bb401b76ec763e9730ccf1376
+>
+> If you're going to patch this, please send an update to -tip that
+> corrects the filename.
 
-https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/pti&id=01c9b17bf673b05bb401b76ec763e9730ccf1376
+Here you go :).
 
-If you're going to patch this, please send an update to -tip that corrects the filename.
+Cheers,
+Trevor
+
+ security/Kconfig | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/security/Kconfig b/security/Kconfig
+index 3d4debd0257e..b0cb9a5f9448 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -63,7 +63,7 @@ config PAGE_TABLE_ISOLATION
+ 	  ensuring that the majority of kernel addresses are not mapped
+ 	  into userspace.
+ 
+-	  See Documentation/x86/pagetable-isolation.txt for more details.
++	  See Documentation/x86/pti.txt for more details.
+ 
+ config SECURITY_INFINIBAND
+ 	bool "Infiniband Security Hooks"
+-- 
+2.13.6
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
