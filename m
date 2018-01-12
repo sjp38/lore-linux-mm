@@ -1,67 +1,84 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ot0-f199.google.com (mail-ot0-f199.google.com [74.125.82.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DE56B6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 08:15:42 -0500 (EST)
-Received: by mail-ot0-f199.google.com with SMTP id d25so3373814otc.1
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 05:15:42 -0800 (PST)
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q205si3981915oif.163.2018.01.12.05.15.41
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 240876B0033
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:10:46 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id w103so3531600wrb.2
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 06:10:46 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c56sor4207649wrc.54.2018.01.12.06.10.44
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 05:15:41 -0800 (PST)
-Subject: Re: [REGRESSION] testing/selftests/x86/ pkeys build failures
-References: <360ef254-48bc-aee6-70f9-858f773b8693@redhat.com>
- <20180112125537.bdl376ziiaqp664o@gmail.com>
-From: Florian Weimer <fweimer@redhat.com>
-Message-ID: <063ba398-88e6-8650-2905-c378ee1fb8b2@redhat.com>
-Date: Fri, 12 Jan 2018 14:15:32 +0100
+        (Google Transport Security);
+        Fri, 12 Jan 2018 06:10:44 -0800 (PST)
+Date: Fri, 12 Jan 2018 15:10:37 +0100
+From: Ingo Molnar <mingo@kernel.org>
+Subject: Re: [PATCHv6 0/4] x86: 5-level related changes into decompression
+ code<Paste>
+Message-ID: <20180112141037.ktd2ryzx3tfwhsfx@gmail.com>
+References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+ <20171218101045.arwbzmbxbhqgreeu@node.shutemov.name>
+ <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
+ <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
 MIME-Version: 1.0
-In-Reply-To: <20180112125537.bdl376ziiaqp664o@gmail.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Ingo Molnar <mingo@kernel.org>, Shuah Khan <shuahkh@osg.samsung.com>, Dave Hansen <dave.hansen@linux.intel.com>
-Cc: linux-mm <linux-mm@kvack.org>, linux-arch <linux-arch@vger.kernel.org>, linux-x86_64@vger.kernel.org, Linux API <linux-api@vger.kernel.org>, x86@kernel.org, Dave Hansen <dave.hansen@intel.com>, Ram Pai <linuxram@us.ibm.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On 01/12/2018 01:55 PM, Ingo Molnar wrote:
+
+* Kirill A. Shutemov <kirill@shutemov.name> wrote:
+
+> On Mon, Jan 08, 2018 at 05:18:05PM +0100, Ingo Molnar wrote:
+> > 
+> > * Kirill A. Shutemov <kirill@shutemov.name> wrote:
+> > 
+> > > On Tue, Dec 12, 2017 at 04:57:35PM +0300, Kirill A. Shutemov wrote:
+> > > > Here's few changes to x86 decompression code.
+> > > > 
+> > > > The first patch is pure cosmetic change: it gives file with KASLR helpers
+> > > > a proper name.
+> > > > 
+> > > > The last three patches bring support of booting into 5-level paging mode if
+> > > > a bootloader put the kernel above 4G.
+> > > > 
+> > > > Patch 2/4 Renames l5_paging_required() into paging_prepare() and change
+> > > > interface of the function.
+> > > > Patch 3/4 Handles allocation of space for trampoline and gets it prepared.
+> > > > Patch 4/4 Gets trampoline used.
+> > > > 
+> > > > Kirill A. Shutemov (4):
+> > > >   x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
+> > > >   x86/boot/compressed/64: Introduce paging_prepare()
+> > > >   x86/boot/compressed/64: Prepare trampoline memory
+> > > >   x86/boot/compressed/64: Handle 5-level paging boot if kernel is above
+> > > >     4G
+> > > 
+> > > Ingo, does it look fine now?
+> > 
+> > Yes, it looks structurally much better now - but we first need to address all 
+> > existing regressions before we can move forward.
 > 
-> * Florian Weimer <fweimer@redhat.com> wrote:
-> 
->> This patch is based on the previous discussion (pkeys: Support setting
->> access rights for signal handlers):
->>
->>    https://marc.info/?t=151285426000001
->>
->> It aligns the signal semantics of the x86 implementation with the upcoming
->> POWER implementation, and defines a new flag, so that applications can
->> detect which semantics the kernel uses.
->>
->> A change in this area is needed to make memory protection keys usable for
->> protecting the GOT in the dynamic linker.
->>
->> (Feel free to replace the trigraphs in the commit message before committing,
->> or to remove the program altogether.)
-> 
-> Could you please send patches not as MIME attachments?
+> There's a fix for kdump issue that maintainers are okay about.
 
-My mail infrastructure corrupts patches not sent as attachments, sorry.
+Do you mean your proposed fix in:
 
-> Also, the protection keys testcase first need to be fixed, before we complicate
-> them - for example on a pretty regular Ubuntu x86-64 installation they fail to
-> build with the build errors attached further below.
+  Message-ID: <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
 
-I can fix things up so that they build on Fedora 26, Debian stretch, and 
-Red Hat Enterprise Linux 7.  Would that be sufficient?
+?
 
-Fedora 23 is out of support and I'd prefer not invest any work into it.
+I was expecting a final submission of that fix in a new thread (or at least with a 
+new subject line), with all Acked-by and Tested-by's collected and Reported-by 
+added in.
 
-Note that I find it strange to make this a precondition for even looking 
-at the patch.
+> Is there any other regression do you have in mind?
+
+No, that's the main one I was worried about.
 
 Thanks,
-Florian
+
+	Ingo
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
