@@ -1,85 +1,67 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 73B4E6B0038
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 23:41:40 -0500 (EST)
-Received: by mail-pf0-f200.google.com with SMTP id u16so3952589pfh.7
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 20:41:40 -0800 (PST)
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id z1sor5158487pfh.107.2018.01.11.20.41.38
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0037E6B0038
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 03:38:04 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id s105so2931108wrc.23
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 00:38:03 -0800 (PST)
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r13sor12046511edk.31.2018.01.12.00.38.02
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 11 Jan 2018 20:41:39 -0800 (PST)
-Date: Fri, 12 Jan 2018 13:41:33 +0900
-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
-Subject: Re: [PATCH] mm: ratelimit end_swap_bio_write() error
-Message-ID: <20180112044133.GA4314@jagdpanzerIV>
-References: <20180106043407.25193-1-sergey.senozhatsky@gmail.com>
- <20180106094124.GB16576@dhcp22.suse.cz>
- <20180106100313.GA527@tigerII.localdomain>
- <20180106133417.GA23629@dhcp22.suse.cz>
- <20180108015818.GA533@jagdpanzerIV>
- <20180108083742.GB5717@dhcp22.suse.cz>
- <20180108102234.GA818@jagdpanzerIV>
+        Fri, 12 Jan 2018 00:38:02 -0800 (PST)
+Date: Fri, 12 Jan 2018 11:37:57 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+Subject: Re: [PATCHv6 0/4] x86: 5-level related changes into decompression
+ code<Paste>
+Message-ID: <20180112083757.okwsvdhqaodt2d3u@node.shutemov.name>
+References: <20171212135739.52714-1-kirill.shutemov@linux.intel.com>
+ <20171218101045.arwbzmbxbhqgreeu@node.shutemov.name>
+ <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20180108102234.GA818@jagdpanzerIV>
+In-Reply-To: <20180108161805.jrpmkcrwlr2rs4sy@gmail.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, Minchan Kim <minchan@kernel.org>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+To: Ingo Molnar <mingo@kernel.org>
+Cc: Ingo Molnar <mingo@redhat.com>, "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, x86@kernel.org, Thomas Gleixner <tglx@linutronix.de>, "H. Peter Anvin" <hpa@zytor.com>, Linus Torvalds <torvalds@linux-foundation.org>, Andy Lutomirski <luto@amacapital.net>, Cyrill Gorcunov <gorcunov@openvz.org>, Borislav Petkov <bp@suse.de>, Andi Kleen <ak@linux.intel.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-On (01/08/18 19:22), Sergey Senozhatsky wrote:
-[..]
-> > Your changelog is rather modest on the information.
+On Mon, Jan 08, 2018 at 05:18:05PM +0100, Ingo Molnar wrote:
 > 
-> fair point!
+> * Kirill A. Shutemov <kirill@shutemov.name> wrote:
 > 
-> > Could you be more specific on how the problem actually happens how
-> > likely it is?
+> > On Tue, Dec 12, 2017 at 04:57:35PM +0300, Kirill A. Shutemov wrote:
+> > > Here's few changes to x86 decompression code.
+> > > 
+> > > The first patch is pure cosmetic change: it gives file with KASLR helpers
+> > > a proper name.
+> > > 
+> > > The last three patches bring support of booting into 5-level paging mode if
+> > > a bootloader put the kernel above 4G.
+> > > 
+> > > Patch 2/4 Renames l5_paging_required() into paging_prepare() and change
+> > > interface of the function.
+> > > Patch 3/4 Handles allocation of space for trampoline and gets it prepared.
+> > > Patch 4/4 Gets trampoline used.
+> > > 
+> > > Kirill A. Shutemov (4):
+> > >   x86/boot/compressed/64: Rename pagetable.c to kaslr_64.c
+> > >   x86/boot/compressed/64: Introduce paging_prepare()
+> > >   x86/boot/compressed/64: Prepare trampoline memory
+> > >   x86/boot/compressed/64: Handle 5-level paging boot if kernel is above
+> > >     4G
+> > 
+> > Ingo, does it look fine now?
 > 
-> ok. so what we have is
-> 
-> 	slow_path / swap-out page
-> 	 __zram_bvec_write(page)
-> 	  compressed_page = zcomp_compress(page)
-> 	   zs_malloc(compressed_page)
-> 	    // no available zspage found, need to allocate new
-> 	     alloc_zspage()
-> 	     {
-> 		for (i = 0; i < class->pages_per_zspage; i++)
-> 		    page = alloc_page(gfp);
-> 		    if (!page)
-> 			    return NULL
-> 	     }
-> 
-> 	 return -ENOMEM
-> 	...
-> 	printk("Write-error on swap-device...");
-> 
-> 
-> zspage-s can consist of up to ->pages_per_zspage normal pages.
-> if alloc_page() fails then we can't allocate the entire zspage,
-> so we can't store the swapped out page, so it remains in ram
-> and we don't make any progress. so we try to swap another page
-> and may be do the whole zs_malloc()->alloc_zspage() again, may
-> be not. depending on how bad the OOM situation is there can be
-> few or many "Write-error on swap-device" errors.
-> 
-> > And again, I do not think the throttling is an appropriate counter
-> > measure. We do want to print those messages when a critical situation
-> > happens. If we have a fallback then simply do not print at all.
-> 
-> sure, but with the ratelimited printk we still print those messages.
-> we just don't print it for every single page we failed to write
-> to the device. the existing error messages can (*sometimes*) be noisy
-> and not very informative - "Write-error on swap-device (%u:%u:%llu)\n";
-> it's not like 1000 of those tell more than 1 or 10.
+> Yes, it looks structurally much better now - but we first need to address all 
+> existing regressions before we can move forward.
 
-Michal, does that make sense? with the updated/reworked commit
-message will the patch be good enough?
+There's a fix for kdump issue that maintainers are okay about.
 
-	-ss
+Is there any other regression do you have in mind?
+
+-- 
+ Kirill A. Shutemov
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
