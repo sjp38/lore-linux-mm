@@ -1,59 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f200.google.com (mail-wr0-f200.google.com [209.85.128.200])
-	by kanga.kvack.org (Postfix) with ESMTP id F097B6B0038
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 12:04:46 -0500 (EST)
-Received: by mail-wr0-f200.google.com with SMTP id b7so3709782wrd.16
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:04:46 -0800 (PST)
-Received: from gum.cmpxchg.org (gum.cmpxchg.org. [85.214.110.215])
-        by mx.google.com with ESMTPS id k12si3530231edl.288.2018.01.12.09.04.45
+Received: from mail-pf0-f200.google.com (mail-pf0-f200.google.com [209.85.192.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C2CE16B0033
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 12:11:53 -0500 (EST)
+Received: by mail-pf0-f200.google.com with SMTP id j26so5492352pff.8
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 09:11:53 -0800 (PST)
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c11si13868380pgv.110.2018.01.12.09.11.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 12 Jan 2018 09:04:45 -0800 (PST)
-Date: Fri, 12 Jan 2018 12:05:01 -0500
-From: Johannes Weiner <hannes@cmpxchg.org>
-Subject: Re: [patch 07/15] mm: memcontrol: fix excessive complexity in
- memory.stat reporting
-Message-ID: <20180112170501.GA10320@cmpxchg.org>
-References: <5a208303.hxMsAOT0gjSsd0Gf%akpm@linux-foundation.org>
- <20171201135750.GB8097@cmpxchg.org>
- <20171206170635.e3e45c895750538ee9283033@linux-foundation.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 12 Jan 2018 09:11:52 -0800 (PST)
+Date: Fri, 12 Jan 2018 12:11:48 -0500
+From: Steven Rostedt <rostedt@goodmis.org>
+Subject: Re: [PATCH v5 1/2] printk: Add console owner and waiter logic to
+ load balance console writes
+Message-ID: <20180112121148.20778932@gandalf.local.home>
+In-Reply-To: <20180112115454.17c03c8f@gandalf.local.home>
+References: <20180110132418.7080-1-pmladek@suse.com>
+	<20180110132418.7080-2-pmladek@suse.com>
+	<20180112115454.17c03c8f@gandalf.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20171206170635.e3e45c895750538ee9283033@linux-foundation.org>
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, mhocko@suse.com, vdavydov.dev@gmail.com
+To: Petr Mladek <pmladek@suse.com>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-Sorry, this email slipped through the cracks.
+On Fri, 12 Jan 2018 11:54:54 -0500
+Steven Rostedt <rostedt@goodmis.org> wrote:
 
-On Wed, Dec 06, 2017 at 05:06:35PM -0800, Andrew Morton wrote:
-> On Fri, 1 Dec 2017 13:57:50 +0000 Johannes Weiner <hannes@cmpxchg.org> wrote:
+> #include <linux/module.h>
+> #include <linux/delay.h>
+> #include <linux/sched.h>
+> #include <linux/mutex.h>
+> #include <linux/workqueue.h>
+> #include <linux/hrtimer.h>
 > 
-> > The memcg cpu_dead callback can be called early during startup
-> > (CONFIG_DEBUG_HOTPLUG_CPU0) with preemption enabled, which triggers a
-> > warning in its __this_cpu_xchg() calls. But CPU locality is always
-> > guaranteed, which is the only thing we really care about here.
-> > 
-> > Using the preemption-safe this_cpu_xchg() addresses this problem.
-> > 
-> > Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> > ---
-> > 
-> > Andrew, can you please merge this fixlet into the original patch?
-> 
-> Did.
-> 
-> I see that lkp-robot identified a performance regression and pointed
-> the finger at this patch?
+>
 
-Right, it reports a perf drop in page fault stress tests, but that is
-to be the expected trade-off. Before, we'd do everything per cpu, and
-have to collapse all counters everytime somebody would read the stats.
-Now we fold them in batches, which introduces a periodic atomic when
-the batches are flushed (same frequency as we per-cpu cache charges
-for the atomic page_counter).
+
+> 
+> Hmm, how does one have git commit not remove the C preprocessor at the
+> start of the module?
+
+Probably just add a space in front of the entire program.
+
+-- Steve
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
