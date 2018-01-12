@@ -1,63 +1,51 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-it0-f69.google.com (mail-it0-f69.google.com [209.85.214.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CA5166B0253
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 18:27:10 -0500 (EST)
-Received: by mail-it0-f69.google.com with SMTP id u4so8262418iti.2
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 15:27:10 -0800 (PST)
-Received: from resqmta-po-09v.sys.comcast.net (resqmta-po-09v.sys.comcast.net. [2001:558:fe16:19:96:114:154:168])
-        by mx.google.com with ESMTPS id j70si15022305iod.69.2018.01.12.15.27.09
+Received: from mail-wm0-f71.google.com (mail-wm0-f71.google.com [74.125.82.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B0B06B0253
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 18:37:38 -0500 (EST)
+Received: by mail-wm0-f71.google.com with SMTP id a141so3703323wma.8
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 15:37:38 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id p86si3049893wma.42.2018.01.12.15.37.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 15:27:09 -0800 (PST)
-From: "W. Trevor King" <wking@tremily.us>
-Subject: [PATCH] security/Kconfig: Replace pagetable-isolation.txt reference with pti.txt
-Date: Fri, 12 Jan 2018 15:24:59 -0800
-Message-Id: <3009cc8ccbddcd897ec1e0cb6dda524929de0d14.1515799398.git.wking@tremily.us>
-In-Reply-To: <9b21ce8f-625c-6915-654b-42334cf38e99@linux.intel.com>
-References: <9b21ce8f-625c-6915-654b-42334cf38e99@linux.intel.com>
+        Fri, 12 Jan 2018 15:37:37 -0800 (PST)
+Date: Fri, 12 Jan 2018 15:37:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] mm: initialize pages on demand during boot
+Message-Id: <20180112153734.1780ccc00ebced508fad397a@linux-foundation.org>
+In-Reply-To: <20180112183405.22193-1-pasha.tatashin@oracle.com>
+References: <20180112183405.22193-1-pasha.tatashin@oracle.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: linux-security-module@vger.kernel.org
-Cc: Dave Hansen <dave.hansen@linux.intel.com>, James Morris <james.l.morris@oracle.com>, "Serge E. Hallyn" <serge@hallyn.com>, linux-mm@kvack.org, linux-kernel@vger.kernel.org, "W. Trevor King" <wking@tremily.us>
+To: Pavel Tatashin <pasha.tatashin@oracle.com>
+Cc: steven.sistare@oracle.com, daniel.m.jordan@oracle.com, mgorman@techsingularity.net, mgorman@suse.de, mhocko@suse.com, linux-mm@kvack.org, linux-kernel@vger.kernel.org
 
-The reference landed with the config option in 385ce0ea (x86/mm/pti:
-Add Kconfig, 2017-12-04), but the referenced file was not committed
-then.  It eventually landed in 01c9b17b (x86/Documentation: Add PTI
-description, 2018-01-05) as pti.txt.
+On Fri, 12 Jan 2018 13:34:05 -0500 Pavel Tatashin <pasha.tatashin@oracle.com> wrote:
 
-Signed-off-by: W. Trevor King <wking@tremily.us>
----
-On Fri, Jan 12, 2018 at 03:10:53PM -0800, Dave Hansen wrote:
-> There is a new file in -tip:
->
-> https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/pti&id=01c9b17bf673b05bb401b76ec763e9730ccf1376
->
-> If you're going to patch this, please send an update to -tip that
-> corrects the filename.
+> Deferred page initialization allows the boot cpu to initialize a small
+> subset of the system's pages early in boot, with other cpus doing the rest
+> later on.
+> 
+> It is, however, problematic to know how many pages the kernel needs during
+> boot.  Different modules and kernel parameters may change the requirement,
+> so the boot cpu either initializes too many pages or runs out of memory.
+> 
+> To fix that, initialize early pages on demand.  This ensures the kernel
+> does the minimum amount of work to initialize pages during boot and leaves
+> the rest to be divided in the multithreaded initialization path
+> (deferred_init_memmap).
+> 
+> The on-demand code is permanently disabled using static branching once
+> deferred pages are initialized.  After the static branch is changed to
+> false, the overhead is up-to two branch-always instructions if the zone
+> watermark check fails or if rmqueue fails.
 
-Here you go :).
+Presumably this fixes some real-world problem which someone has observed?
 
-Cheers,
-Trevor
-
- security/Kconfig | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-diff --git a/security/Kconfig b/security/Kconfig
-index 3d4debd0257e..b0cb9a5f9448 100644
---- a/security/Kconfig
-+++ b/security/Kconfig
-@@ -63,7 +63,7 @@ config PAGE_TABLE_ISOLATION
- 	  ensuring that the majority of kernel addresses are not mapped
- 	  into userspace.
- 
--	  See Documentation/x86/pagetable-isolation.txt for more details.
-+	  See Documentation/x86/pti.txt for more details.
- 
- config SECURITY_INFINIBAND
- 	bool "Infiniband Security Hooks"
--- 
-2.13.6
+Please describe that problem for us in lavish detail.
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
