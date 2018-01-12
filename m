@@ -1,63 +1,137 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A92946B025F
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:43:19 -0500 (EST)
-Received: by mail-wr0-f198.google.com with SMTP id h20so2394888wrf.22
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:43:19 -0800 (PST)
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id v70si1409849wmd.97.2018.01.11.16.43.18
+Received: from mail-ot0-f197.google.com (mail-ot0-f197.google.com [74.125.82.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F2CD6B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:56:05 -0500 (EST)
+Received: by mail-ot0-f197.google.com with SMTP id 23so2487781otv.0
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:56:05 -0800 (PST)
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q186si5335757oif.514.2018.01.11.16.56.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jan 2018 16:43:18 -0800 (PST)
-Date: Thu, 11 Jan 2018 16:43:15 -0800
-From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm/page_ext.c: Make page_ext_init a noop when
- CONFIG_PAGE_EXTENSION but nothing uses it
-Message-Id: <20180111164315.ca96f3ca533ee6684269d7f5@linux-foundation.org>
-In-Reply-To: <20180105130235.GA21241@techadventures.net>
-References: <20180105130235.GA21241@techadventures.net>
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+        Thu, 11 Jan 2018 16:56:04 -0800 (PST)
+Date: Fri, 12 Jan 2018 08:55:49 +0800
+From: Dave Young <dyoung@redhat.com>
+Subject: Re: [PATCH 4.14 023/159] mm/sparsemem: Allocate mem_section at
+ runtime for CONFIG_SPARSEMEM_EXTREME=y
+Message-ID: <20180112005549.GA2265@dhcp-128-65.nay.redhat.com>
+References: <1515302062.6507.18.camel@gmx.de>
+ <20180108160444.2ol4fvgqbxnjmlpg@gmail.com>
+ <20180108174653.7muglyihpngxp5tl@black.fi.intel.com>
+ <20180109001303.dy73bpixsaegn4ol@node.shutemov.name>
+ <20180109010927.GA2082@dhcp-128-65.nay.redhat.com>
+ <20180109054131.GB1935@localhost.localdomain>
+ <20180109072440.GA6521@dhcp-128-65.nay.redhat.com>
+ <20180109090552.45ddfk2y25lf4uyn@node.shutemov.name>
+ <20180110030804.GB1744@dhcp-128-110.nay.redhat.com>
+ <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180110111603.56disgew7ipusgjy@black.fi.intel.com>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Oscar Salvador <osalvador@techadventures.net>
-Cc: linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, jaewon31.kim@samsung.com
+To: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>
+Cc: "Kirill A. Shutemov" <kirill@shutemov.name>, Baoquan He <bhe@redhat.com>, Ingo Molnar <mingo@kernel.org>, Mike Galbraith <efault@gmx.de>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, linux-kernel@vger.kernel.org, stable@vger.kernel.org, Andy Lutomirski <luto@amacapital.net>, Borislav Petkov <bp@suse.de>, Cyrill Gorcunov <gorcunov@openvz.org>, Linus Torvalds <torvalds@linux-foundation.org>, Peter Zijlstra <peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, linux-mm@kvack.org, Vivek Goyal <vgoyal@redhat.com>, kexec@lists.infradead.org
 
-On Fri, 5 Jan 2018 14:02:35 +0100 Oscar Salvador <osalvador@techadventures.net> wrote:
-
-> static struct page_ext_operations *page_ext_ops[] always contains debug_guardpage_ops,
+On 01/10/18 at 02:16pm, Kirill A. Shutemov wrote:
+> On Wed, Jan 10, 2018 at 03:08:04AM +0000, Dave Young wrote:
+> > On Tue, Jan 09, 2018 at 12:05:52PM +0300, Kirill A. Shutemov wrote:
+> > > On Tue, Jan 09, 2018 at 03:24:40PM +0800, Dave Young wrote:
+> > > > On 01/09/18 at 01:41pm, Baoquan He wrote:
+> > > > > On 01/09/18 at 09:09am, Dave Young wrote:
+> > > > > 
+> > > > > > As for the macro name, VMCOREINFO_SYMBOL_ARRAY sounds better.
+> > > 
+> > > Yep, that's better.
+> > > 
+> > > > > I still think using vmcoreinfo_append_str is better. Unless we replace
+> > > > > all array variables with the newly added macro.
+> > > > > 
+> > > > > vmcoreinfo_append_str("SYMBOL(mem_section)=%lx\n",
+> > > > >                                 (unsigned long)mem_section);
+> > > > 
+> > > > I have no strong opinion, either change all array uses or just introduce
+> > > > the macro and start to use it from now on if we have similar array
+> > > > symbols.
+> > > 
+> > > Do you need some action on my side or will you folks take care about this?
+> > 
+> > I think Baoquan was suggesting to update all array users in current
+> > code, if you can check every VMCOREINFO_SYMBOL and update all the arrays
+> > he will be happy. But if can not do it easily I'm fine with a
+> > VMCOREINFO_SYMBOL_ARRAY changes only now, we kdump people can do it
+> > later as well. 
 > 
-> static struct page_ext_operations *page_ext_ops[] = {
->         &debug_guardpage_ops,
->  #ifdef CONFIG_PAGE_OWNER
->         &page_owner_ops,
+> It seems it's the only array we have there. swapper_pg_dir is a potential
+> candidate, but it's 'unsigned long' on arm.
+> 
+> Below it patch with corrected macro name.
+> 
+> Please, consider applying.
+> 
+> From 70f3a84b97f2de98d1364f7b10b7a42a1d8e9968 Mon Sep 17 00:00:00 2001
+> From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+> Date: Tue, 9 Jan 2018 02:55:47 +0300
+> Subject: [PATCH] kdump: Write a correct address of mem_section into vmcoreinfo
+> 
+> Depending on configuration mem_section can now be an array or a pointer
+> to an array allocated dynamically. In most cases, we can continue to refer
+> to it as 'mem_section' regardless of what it is.
+> 
+> But there's one exception: '&mem_section' means "address of the array" if
+> mem_section is an array, but if mem_section is a pointer, it would mean
+> "address of the pointer".
+> 
+> We've stepped onto this in kdump code. VMCOREINFO_SYMBOL(mem_section)
+> writes down address of pointer into vmcoreinfo, not array as we wanted.
+> 
+> Let's introduce VMCOREINFO_SYMBOL_ARRAY() that would handle the
+> situation correctly for both cases.
+> 
+> Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+> Fixes: 83e3c48729d9 ("mm/sparsemem: Allocate mem_section at runtime for CONFIG_SPARSEMEM_EXTREME=y")
+> ---
+>  include/linux/crash_core.h | 2 ++
+>  kernel/crash_core.c        | 2 +-
+>  2 files changed, 3 insertions(+), 1 deletion(-)
+> 
+> diff --git a/include/linux/crash_core.h b/include/linux/crash_core.h
+> index 06097ef30449..b511f6d24b42 100644
+> --- a/include/linux/crash_core.h
+> +++ b/include/linux/crash_core.h
+> @@ -42,6 +42,8 @@ phys_addr_t paddr_vmcoreinfo_note(void);
+>  	vmcoreinfo_append_str("PAGESIZE=%ld\n", value)
+>  #define VMCOREINFO_SYMBOL(name) \
+>  	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)&name)
+> +#define VMCOREINFO_SYMBOL_ARRAY(name) \
+> +	vmcoreinfo_append_str("SYMBOL(%s)=%lx\n", #name, (unsigned long)name)
+>  #define VMCOREINFO_SIZE(name) \
+>  	vmcoreinfo_append_str("SIZE(%s)=%lu\n", #name, \
+>  			      (unsigned long)sizeof(name))
+> diff --git a/kernel/crash_core.c b/kernel/crash_core.c
+> index b3663896278e..4f63597c824d 100644
+> --- a/kernel/crash_core.c
+> +++ b/kernel/crash_core.c
+> @@ -410,7 +410,7 @@ static int __init crash_save_vmcoreinfo_init(void)
+>  	VMCOREINFO_SYMBOL(contig_page_data);
 >  #endif
-> ...
-> }
-> 
-> but for it to work, CONFIG_DEBUG_PAGEALLOC must be enabled first.
-> If someone has CONFIG_PAGE_EXTENSION, but has none of its users,
-> eg: (CONFIG_PAGE_OWNER, CONFIG_DEBUG_PAGEALLOC, CONFIG_IDLE_PAGE_TRACKING), we can shrink page_ext_init()
-> to a simple retq.
-> 
-> $ size vmlinux  (before patch)
->    text	   data	    bss	    dec	    hex	filename
-> 14356698	5681582	1687748	21726028	14b834c	vmlinux
-> 
-> $ size vmlinux  (after patch)
->    text	   data	    bss	    dec	    hex	filename
-> 14356008	5681538	1687748	21725294	14b806e	vmlinux
-> 
-> On the other hand, it might does not even make sense, since if someone
-> enables CONFIG_PAGE_EXTENSION, I would expect him to enable also at least
-> one of its users, but I wanted to see what you guys think.
+>  #ifdef CONFIG_SPARSEMEM
+> -	VMCOREINFO_SYMBOL(mem_section);
+> +	VMCOREINFO_SYMBOL_ARRAY(mem_section);
+>  	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
+>  	VMCOREINFO_STRUCT_SIZE(mem_section);
+>  	VMCOREINFO_OFFSET(mem_section, section_mem_map);
+> -- 
+>  Kirill A. Shutemov
 
-Presumably the CONFIG_PAGE_EXTENSION users should `select'
-CONFIG_PAGE_EXTENSION so the situation doesn't arise.
 
-(or does it?  I have a vague memory that if CONFIG_A selects CONFIG_B
-and you then set CONFIG_A=n, CONFIG_B remains enabled?)
+Acked-by: Dave Young <dyoung@redhat.com>
+
+If stable kernel took the mem section commits, then should also cc
+stable.  Andrew, can you help to make this in 4.15?
+
+Thanks
+Dave
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
