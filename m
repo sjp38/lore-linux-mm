@@ -1,62 +1,69 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-ua0-f198.google.com (mail-ua0-f198.google.com [209.85.217.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A17A6B0038
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 18:21:12 -0500 (EST)
-Received: by mail-ua0-f198.google.com with SMTP id y46so2715669uac.11
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 15:21:12 -0800 (PST)
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c80sor7272878vkf.128.2018.01.11.15.21.11
+Received: from mail-wm0-f69.google.com (mail-wm0-f69.google.com [74.125.82.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D434C6B0038
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:21:38 -0500 (EST)
+Received: by mail-wm0-f69.google.com with SMTP id 17so57646wma.1
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:21:38 -0800 (PST)
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id z5si1479313wmd.88.2018.01.11.16.21.37
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 11 Jan 2018 15:21:11 -0800 (PST)
-MIME-Version: 1.0
-In-Reply-To: <20180111102400.GT17719@n2100.armlinux.org.uk>
-References: <1515636190-24061-1-git-send-email-keescook@chromium.org>
- <1515636190-24061-35-git-send-email-keescook@chromium.org> <20180111102400.GT17719@n2100.armlinux.org.uk>
-From: Kees Cook <keescook@chromium.org>
-Date: Thu, 11 Jan 2018 15:21:09 -0800
-Message-ID: <CAGXu5jKaz_rAi_R2x3V73306fw+1MOBN-6v-nK4_S=PU8_pzhA@mail.gmail.com>
-Subject: Re: [PATCH 34/38] arm: Implement thread_struct whitelist for hardened usercopy
-Content-Type: text/plain; charset="UTF-8"
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 11 Jan 2018 16:21:37 -0800 (PST)
+Date: Thu, 11 Jan 2018 16:21:34 -0800
+From: Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v4] mm/memcg: try harder to decrease
+ [memory,memsw].limit_in_bytes
+Message-Id: <20180111162134.53aa5a44c59689ec0399db57@linux-foundation.org>
+In-Reply-To: <47856d2b-1534-6198-c2e2-6d2356973bef@virtuozzo.com>
+References: <20180109152622.31ca558acb0cc25a1b14f38c@linux-foundation.org>
+	<20180110124317.28887-1-aryabinin@virtuozzo.com>
+	<20180110143121.cf2a1c5497b31642c9b38b2a@linux-foundation.org>
+	<47856d2b-1534-6198-c2e2-6d2356973bef@virtuozzo.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Russell King - ARM Linux <linux@armlinux.org.uk>
-Cc: LKML <linux-kernel@vger.kernel.org>, Ingo Molnar <mingo@kernel.org>, Christian Borntraeger <borntraeger@de.ibm.com>, "Peter Zijlstra (Intel)" <peterz@infradead.org>, linux-arm-kernel@lists.infradead.org, Linus Torvalds <torvalds@linux-foundation.org>, David Windsor <dave@nullcore.net>, Alexander Viro <viro@zeniv.linux.org.uk>, Andrew Morton <akpm@linux-foundation.org>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, Christoph Lameter <cl@linux.com>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, linux-arch <linux-arch@vger.kernel.org>, Network Development <netdev@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>, kernel-hardening@lists.openwall.com
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Cc: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>, Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org, Shakeel Butt <shakeelb@google.com>
 
-On Thu, Jan 11, 2018 at 2:24 AM, Russell King - ARM Linux
-<linux@armlinux.org.uk> wrote:
-> On Wed, Jan 10, 2018 at 06:03:06PM -0800, Kees Cook wrote:
->> ARM does not carry FPU state in the thread structure, so it can declare
->> no usercopy whitelist at all.
->
-> This comment seems to be misleading.  We have stored FP state in the
-> thread structure for a long time - for example, VFP state is stored
-> in thread->vfpstate.hard, so we _do_ have floating point state in
-> the thread structure.
->
-> What I think this commit message needs to describe is why we don't
-> need a whitelist _despite_ having FP state in the thread structure.
->
-> At the moment, the commit message is making me think that this patch
-> is wrong and will introduce a regression.
+On Thu, 11 Jan 2018 14:59:23 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
 
-Yeah, I will improve this comment; it's not clear enough. The places
-where I see state copied to/from userspace are all either static sizes
-or already use bounce buffers (or both). e.g.:
+> On 01/11/2018 01:31 AM, Andrew Morton wrote:
+> > On Wed, 10 Jan 2018 15:43:17 +0300 Andrey Ryabinin <aryabinin@virtuozzo.com> wrote:
+> > 
+> >> mem_cgroup_resize_[memsw]_limit() tries to free only 32 (SWAP_CLUSTER_MAX)
+> >> pages on each iteration. This makes practically impossible to decrease
+> >> limit of memory cgroup. Tasks could easily allocate back 32 pages,
+> >> so we can't reduce memory usage, and once retry_count reaches zero we return
+> >> -EBUSY.
+> >>
+> >> Easy to reproduce the problem by running the following commands:
+> >>
+> >>   mkdir /sys/fs/cgroup/memory/test
+> >>   echo $$ >> /sys/fs/cgroup/memory/test/tasks
+> >>   cat big_file > /dev/null &
+> >>   sleep 1 && echo $((100*1024*1024)) > /sys/fs/cgroup/memory/test/memory.limit_in_bytes
+> >>   -bash: echo: write error: Device or resource busy
+> >>
+> >> Instead of relying on retry_count, keep retrying the reclaim until
+> >> the desired limit is reached or fail if the reclaim doesn't make
+> >> any progress or a signal is pending.
+> >>
+> > 
+> > Is there any situation under which that mem_cgroup_resize_limit() can
+> > get stuck semi-indefinitely in a livelockish state?  It isn't very
+> > obvious that we're protected from this, so perhaps it would help to
+> > have a comment which describes how loop termination is assured?
+> > 
+> 
+> We are not protected from this. If tasks in cgroup *indefinitely* generate reclaimable memory at high rate
+> and user asks to set unreachable limit, like 'echo 4096 > memory.limit_in_bytes', than
+> try_to_free_mem_cgroup_pages() will return non-zero indefinitely.
+> 
+> Is that a big deal? At least loop can be interrupted by a signal, and we don't hold any locks here.
 
-        err |= __copy_from_user(&hwstate->fpregs, &ufp->fpregs,
-                                sizeof(hwstate->fpregs));
-
-I will adjust the commit log and comment to more clearly describe the
-lack of whitelisting due to all-static sized copies.
-
-Thanks!
-
--Kees
-
--- 
-Kees Cook
-Pixel Security
+It may be better to detect this condition, give up and return an error?
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
