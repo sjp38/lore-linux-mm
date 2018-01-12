@@ -1,41 +1,38 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-io0-f198.google.com (mail-io0-f198.google.com [209.85.223.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4322F6B0033
-	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 10:57:27 -0500 (EST)
-Received: by mail-io0-f198.google.com with SMTP id m4so4960566iob.16
-        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 07:57:27 -0800 (PST)
-Received: from resqmta-po-03v.sys.comcast.net (resqmta-po-03v.sys.comcast.net. [96.114.154.162])
-        by mx.google.com with ESMTPS id h62si1361868iof.3.2018.01.12.07.57.26
+Received: from mail-pf0-f199.google.com (mail-pf0-f199.google.com [209.85.192.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 095426B0033
+	for <linux-mm@kvack.org>; Fri, 12 Jan 2018 11:08:47 -0500 (EST)
+Received: by mail-pf0-f199.google.com with SMTP id e26so5402033pfi.15
+        for <linux-mm@kvack.org>; Fri, 12 Jan 2018 08:08:47 -0800 (PST)
+Received: from mx2.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id j1si13865957pgp.293.2018.01.12.08.08.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 12 Jan 2018 07:57:26 -0800 (PST)
-Date: Fri, 12 Jan 2018 09:56:21 -0600 (CST)
-From: Christopher Lameter <cl@linux.com>
-Subject: RE: [PATCH 04/36] usercopy: Prepare for usercopy whitelisting
-In-Reply-To: <b8c3f85827ca493e9f4517f646ac97da@AcuMS.aculab.com>
-Message-ID: <alpine.DEB.2.20.1801120955540.12791@nuc-kabylake>
-References: <1515531365-37423-1-git-send-email-keescook@chromium.org> <1515531365-37423-5-git-send-email-keescook@chromium.org> <alpine.DEB.2.20.1801101219390.7926@nuc-kabylake> <b8c3f85827ca493e9f4517f646ac97da@AcuMS.aculab.com>
+        (version=TLS1 cipher=AES128-SHA bits=128/128);
+        Fri, 12 Jan 2018 08:08:45 -0800 (PST)
+Date: Fri, 12 Jan 2018 17:08:37 +0100
+From: Petr Mladek <pmladek@suse.com>
+Subject: Re: [PATCH v5 2/2] printk: Hide console waiter logic into helpers
+Message-ID: <20180112160837.GD24497@linux.suse>
+References: <20180110132418.7080-1-pmladek@suse.com>
+ <20180110132418.7080-3-pmladek@suse.com>
+ <20180110125220.69f5f930@vmware.local.home>
+ <20180111120341.GB24419@linux.suse>
+ <20180112103754.1916a1e2@gandalf.local.home>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20180112103754.1916a1e2@gandalf.local.home>
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: David Laight <David.Laight@ACULAB.COM>
-Cc: Kees Cook <keescook@chromium.org>, "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, David Windsor <dave@nullcore.net>, Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew Morton <akpm@linux-foundation.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>, Linus Torvalds <torvalds@linux-foundation.org>, Alexander Viro <viro@zeniv.linux.org.uk>, Andy Lutomirski <luto@kernel.org>, Christoph Hellwig <hch@infradead.org>, "David S. Miller" <davem@davemloft.net>, Laura Abbott <labbott@redhat.com>, Mark Rutland <mark.rutland@arm.com>, "Martin K. Petersen" <martin.petersen@oracle.com>, Paolo Bonzini <pbonzini@redhat.com>, Christian Borntraeger <borntraeger@de.ibm.com>, Christoffer Dall <christoffer.dall@linaro.org>, Dave Kleikamp <dave.kleikamp@oracle.com>, Jan Kara <jack@suse.cz>, Luis de Bethencourt <luisbg@kernel.org>, Marc Zyngier <marc.zyngier@arm.com>, Rik van Riel <riel@redhat.com>, Matthew Garrett <mjg59@google.com>, "linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, "linux-arch@vger.kernel.org" <linux-arch@vger.kernel.org>, "netdev@vger.kernel.org" <netdev@vger.kernel.org>, "kernel-hardening@lists.openwall.com" <kernel-hardening@lists.openwall.com>
+To: Steven Rostedt <rostedt@goodmis.org>
+Cc: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>, akpm@linux-foundation.org, linux-mm@kvack.org, Cong Wang <xiyou.wangcong@gmail.com>, Dave Hansen <dave.hansen@intel.com>, Johannes Weiner <hannes@cmpxchg.org>, Mel Gorman <mgorman@suse.de>, Michal Hocko <mhocko@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter Zijlstra <peterz@infradead.org>, Linus Torvalds <torvalds@linux-foundation.org>, Jan Kara <jack@suse.cz>, Mathieu Desnoyers <mathieu.desnoyers@efficios.com>, Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>, rostedt@home.goodmis.org, Byungchul Park <byungchul.park@lge.com>, Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Tejun Heo <tj@kernel.org>, Pavel Machek <pavel@ucw.cz>, linux-kernel@vger.kernel.org
 
-On Fri, 12 Jan 2018, David Laight wrote:
+On Fri 2018-01-12 10:37:54, Steven Rostedt wrote:
+> On Thu, 11 Jan 2018 13:03:41 +0100
+> Petr Mladek <pmladek@suse.com> wrote:
+> > All the other changes look good to me. I will use them in the next version.
+> 
+> Great.
 
-> > Hmmm... At some point we should switch kmem_cache_create to pass a struct
-> > containing all the parameters. Otherwise the API will blow up with
-> > additional functions.
->
-> Or add an extra function to 'configure' the kmem_cache with the
-> extra parameters.
-
-We probably need even more configurability if we add callbacks for object
-reclaim / moving.
-
---
-To unsubscribe, send a message with 'unsubscribe linux-mm' in
-the body to majordomo@kvack.org.  For more info on Linux MM,
-see: http://www.linux-mm.org/ .
-Don't email: <a href=mailto:"dont@kvack.org"> email@kvack.org </a>
+Please, find below the updated version. If I get Ack at least from
+Steven and no nack's, I will put it into linux-next next week.
