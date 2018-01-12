@@ -1,56 +1,63 @@
 Return-Path: <owner-linux-mm@kvack.org>
-Received: from mail-wm0-f70.google.com (mail-wm0-f70.google.com [74.125.82.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F7336B0253
-	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:28:30 -0500 (EST)
-Received: by mail-wm0-f70.google.com with SMTP id r63so2178185wmb.9
-        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:28:30 -0800 (PST)
+Received: from mail-wr0-f198.google.com (mail-wr0-f198.google.com [209.85.128.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A92946B025F
+	for <linux-mm@kvack.org>; Thu, 11 Jan 2018 19:43:19 -0500 (EST)
+Received: by mail-wr0-f198.google.com with SMTP id h20so2394888wrf.22
+        for <linux-mm@kvack.org>; Thu, 11 Jan 2018 16:43:19 -0800 (PST)
 Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id 189si1402071wmr.127.2018.01.11.16.28.29
+        by mx.google.com with ESMTPS id v70si1409849wmd.97.2018.01.11.16.43.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 11 Jan 2018 16:28:29 -0800 (PST)
-Date: Thu, 11 Jan 2018 16:28:25 -0800
+        Thu, 11 Jan 2018 16:43:18 -0800 (PST)
+Date: Thu, 11 Jan 2018 16:43:15 -0800
 From: Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH] mm, THP: vmf_insert_pfn_pud depends on
- CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
-Message-Id: <20180111162825.4cdaba2a21d8f15b21c45c75@linux-foundation.org>
-In-Reply-To: <71853228-0beb-1e69-df47-59fa1bc5bd2f@upmem.com>
-References: <1515660811-12293-1-git-send-email-aghiti@upmem.com>
-	<20180111100620.GY1732@dhcp22.suse.cz>
-	<71853228-0beb-1e69-df47-59fa1bc5bd2f@upmem.com>
+Subject: Re: [PATCH] mm/page_ext.c: Make page_ext_init a noop when
+ CONFIG_PAGE_EXTENSION but nothing uses it
+Message-Id: <20180111164315.ca96f3ca533ee6684269d7f5@linux-foundation.org>
+In-Reply-To: <20180105130235.GA21241@techadventures.net>
+References: <20180105130235.GA21241@techadventures.net>
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
 Sender: owner-linux-mm@kvack.org
 List-ID: <linux-mm.kvack.org>
-To: Alexandre Ghiti <aghiti@upmem.com>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org, kirill.shutemov@linux.intel.com, dan.j.williams@intel.com, zi.yan@cs.rutgers.edu, gregkh@linuxfoundation.org, n-horiguchi@ah.jp.nec.com, willy@linux.intel.com, mark.rutland@arm.com, linux-kernel@vger.kernel.org
+To: Oscar Salvador <osalvador@techadventures.net>
+Cc: linux-mm@kvack.org, mhocko@suse.com, vbabka@suse.cz, jaewon31.kim@samsung.com
 
-On Thu, 11 Jan 2018 14:05:34 +0100 Alexandre Ghiti <aghiti@upmem.com> wrote:
+On Fri, 5 Jan 2018 14:02:35 +0100 Oscar Salvador <osalvador@techadventures.net> wrote:
 
-> On 11/01/2018 11:06, Michal Hocko wrote:
-> > On Thu 11-01-18 09:53:31, Alexandre Ghiti wrote:
-> >> The only definition of vmf_insert_pfn_pud depends on
-> >> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD being defined. Then its declaration in
-> >> include/linux/huge_mm.h should have the same restriction so that we do
-> >> not expose this function if CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD is
-> >> not defined.
-> > Why is this a problem? Compiler should simply throw away any
-> > declarations which are not used?
-> It is not a big problem but surrounding the declaration with the #ifdef 
-> makes the compilation of external modules fail with an "error: implicit 
-> declaration of function vmf_insert_pfn_pud" if 
-> CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD is not defined. I think it is 
-> cleaner than generating a .ko which would not load anyway.
+> static struct page_ext_operations *page_ext_ops[] always contains debug_guardpage_ops,
+> 
+> static struct page_ext_operations *page_ext_ops[] = {
+>         &debug_guardpage_ops,
+>  #ifdef CONFIG_PAGE_OWNER
+>         &page_owner_ops,
+>  #endif
+> ...
+> }
+> 
+> but for it to work, CONFIG_DEBUG_PAGEALLOC must be enabled first.
+> If someone has CONFIG_PAGE_EXTENSION, but has none of its users,
+> eg: (CONFIG_PAGE_OWNER, CONFIG_DEBUG_PAGEALLOC, CONFIG_IDLE_PAGE_TRACKING), we can shrink page_ext_init()
+> to a simple retq.
+> 
+> $ size vmlinux  (before patch)
+>    text	   data	    bss	    dec	    hex	filename
+> 14356698	5681582	1687748	21726028	14b834c	vmlinux
+> 
+> $ size vmlinux  (after patch)
+>    text	   data	    bss	    dec	    hex	filename
+> 14356008	5681538	1687748	21725294	14b806e	vmlinux
+> 
+> On the other hand, it might does not even make sense, since if someone
+> enables CONFIG_PAGE_EXTENSION, I would expect him to enable also at least
+> one of its users, but I wanted to see what you guys think.
 
-Disagree.  We'd have to put an absolutely vast amount of complex and
-hard-to-maintain ifdefs in headers if we were to ensure that such
-errors were to be detected at compile time.
+Presumably the CONFIG_PAGE_EXTENSION users should `select'
+CONFIG_PAGE_EXTENSION so the situation doesn't arise.
 
-Whereas if we defer the detection of the errors until link time (or
-depmod or modprobe time) then yes, a handful of people will detect
-their mistake a minute or three later but that's a small cost compared
-to permanently and badly messing up the header files.
+(or does it?  I have a vague memory that if CONFIG_A selects CONFIG_B
+and you then set CONFIG_A=n, CONFIG_B remains enabled?)
 
 --
 To unsubscribe, send a message with 'unsubscribe linux-mm' in
